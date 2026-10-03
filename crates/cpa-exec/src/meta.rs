@@ -28,11 +28,13 @@ use futures_util::StreamExt;
 use serde_json::Value;
 
 use crate::codex_response::OutputItems;
+use crate::codex_tokens::{Encoding, count_input_tokens};
 use crate::kimi_http::{credential_headers, payload_rules, read_all_strict, refresh_due, rfc3339_local_now};
 use crate::meta_auth::{DEFAULT_API_BASE_URL, MetaAuth, MintedKey};
-use crate::meta_codex::{count_codex_input_tokens, go_trim_space, normalize_codex_instructions};
+use crate::meta_codex::go_trim_space;
 use crate::openai_compat_payload::{ensure_responses_usage_details, sanitize_reasoning_encrypted_content};
 use crate::proxy::{GoClients, GoHeaders, MAX_ERROR_BODY, Proxy, default_client, lines, read_all, send};
+use cpa_common::codex_client::normalize_codex_instructions;
 
 /// Provider string served by this executor.
 pub const PROVIDER: &str = "meta";
@@ -241,7 +243,7 @@ impl MetaExecutor {
     ) -> Result<ExecResponse, ExecError> {
         self.ensure_auth(credential, cfg).await?;
         let prepared = prepare(&req, cfg, false)?;
-        let count = count_codex_input_tokens(&prepared.body).map_err(|e| {
+        let count = count_input_tokens(Encoding::O200kBase, &prepared.body).map_err(|e| {
             ExecError::local(
                 500,
                 FailureScope::Request,
@@ -291,13 +293,6 @@ fn not_registered(what: &str) -> ExecError {
     )
 }
 
-/// ponytail: adapter for `cpa_common::codex_client` (owner: Codex thread). Go translates
-/// through TranslateRequestWithCodexMultiAgentV2, which rewrites Codex CLI requests;
-/// identity until the shared module lands.
-fn codex_client_request(_req: &ExecRequest, body: &[u8]) -> Vec<u8> {
-    body.to_vec()
-}
-
 /// prepareResponsesRequest. Every Go client format has a Codex translator; here the
 /// unregistered ones answer 501 instead of falling back to a model rewrite.
 fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, ExecError> {
@@ -309,15 +304,20 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
         return Err(not_registered("Meta request"));
     }
     let base_model = parse_suffix(&req.model).model_name;
+    // Go: helps.TranslateRequestWithAPIKeyModelCompatibility with APIKeyModelIsCompat.
+    // ponytail: the attempt's resolved API-key model (Go ResolvedModelInfo) is not on
+    // ExecRequest yet, so is-compat models translate like any other.
+    let client = crate::codex_client::Client::new(&req.headers, cfg, "", false);
     let translate = |body: &[u8]| {
-        cpa_translate::translate_request(
+        crate::codex_client::translate_request(
             req.source_format,
             Format::Codex,
             &RequestCtx {
                 model: &base_model,
                 stream,
             },
-            &codex_client_request(req, body),
+            body,
+            &client,
         )
         .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))
     };

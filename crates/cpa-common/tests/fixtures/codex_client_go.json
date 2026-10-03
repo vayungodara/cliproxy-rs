@@ -1,0 +1,414 @@
+[
+  {
+    "fn": "orphan",
+    "headers": {
+      "User-Agent": "codex-tui/0.154.0",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"paired\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"second \u003cone\u003e\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true, \"n\": 1.50}},{\"type\":\"function_call_output\",\"call_id\":\"c3\",\"name\":\"create_thread\",\"namespace\":\"other\",\"output\":\"kept\"},{\"type\":\"function_call_output\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\"},{\"type\":\"function_call_output\",\"call_id\":\"c4\",\"name\":\"unknown\",\"namespace\":\"codex_app\",\"output\":\"kept\"}]}",
+    "flag": true,
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"paired\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nsecond \\u003cone\\u003e\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__send_message_to_thread:\\n{\\\"ok\\\":true, \\\"n\\\": 1.50}\"}]},{\"type\":\"function_call_output\",\"call_id\":\"c3\",\"name\":\"create_thread\",\"namespace\":\"other\",\"output\":\"kept\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__send_message_to_thread:\\n\"}]},{\"type\":\"function_call_output\",\"call_id\":\"c4\",\"name\":\"unknown\",\"namespace\":\"codex_app\",\"output\":\"kept\"}]}"
+  },
+  {
+    "fn": "orphan",
+    "headers": {
+      "User-Agent": "codex-tui/0.154.0",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"paired\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"second \u003cone\u003e\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true, \"n\": 1.50}},{\"type\":\"function_call_output\",\"call_id\":\"c3\",\"name\":\"create_thread\",\"namespace\":\"other\",\"output\":\"kept\"},{\"type\":\"function_call_output\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\"},{\"type\":\"function_call_output\",\"call_id\":\"c4\",\"name\":\"unknown\",\"namespace\":\"codex_app\",\"output\":\"kept\"}]}",
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"paired\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"second \u003cone\u003e\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true, \"n\": 1.50}},{\"type\":\"function_call_output\",\"call_id\":\"c3\",\"name\":\"create_thread\",\"namespace\":\"other\",\"output\":\"kept\"},{\"type\":\"function_call_output\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\"},{\"type\":\"function_call_output\",\"call_id\":\"c4\",\"name\":\"unknown\",\"namespace\":\"codex_app\",\"output\":\"kept\"}]}"
+  },
+  {
+    "fn": "orphan",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"paired\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"second \u003cone\u003e\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true, \"n\": 1.50}},{\"type\":\"function_call_output\",\"call_id\":\"c3\",\"name\":\"create_thread\",\"namespace\":\"other\",\"output\":\"kept\"},{\"type\":\"function_call_output\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\"},{\"type\":\"function_call_output\",\"call_id\":\"c4\",\"name\":\"unknown\",\"namespace\":\"codex_app\",\"output\":\"kept\"}]}",
+    "flag": true,
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"paired\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"second \u003cone\u003e\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true, \"n\": 1.50}},{\"type\":\"function_call_output\",\"call_id\":\"c3\",\"name\":\"create_thread\",\"namespace\":\"other\",\"output\":\"kept\"},{\"type\":\"function_call_output\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\"},{\"type\":\"function_call_output\",\"call_id\":\"c4\",\"name\":\"unknown\",\"namespace\":\"codex_app\",\"output\":\"kept\"}]}"
+  },
+  {
+    "fn": "orphan",
+    "headers": {
+      "x-openai-subagent": "COLLAB_SPAWN"
+    },
+    "in": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"paired\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"second \u003cone\u003e\"},{\"type\":\"function_call_output\",\"call_id\":\"c2\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\",\"output\":{\"ok\":true, \"n\": 1.50}},{\"type\":\"function_call_output\",\"call_id\":\"c3\",\"name\":\"create_thread\",\"namespace\":\"other\",\"output\":\"kept\"},{\"type\":\"function_call_output\",\"name\":\"send_message_to_thread\",\"namespace\":\"codex_app\"},{\"type\":\"function_call_output\",\"call_id\":\"c4\",\"name\":\"unknown\",\"namespace\":\"codex_app\",\"output\":\"kept\"}]}",
+    "flag": true,
+    "out": "{\"input\":[{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"name\":\"create_thread\",\"namespace\":\"codex_app\",\"output\":\"paired\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nsecond \\u003cone\\u003e\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__send_message_to_thread:\\n{\\\"ok\\\":true, \\\"n\\\": 1.50}\"}]},{\"type\":\"function_call_output\",\"call_id\":\"c3\",\"name\":\"create_thread\",\"namespace\":\"other\",\"output\":\"kept\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__send_message_to_thread:\\n\"}]},{\"type\":\"function_call_output\",\"call_id\":\"c4\",\"name\":\"unknown\",\"namespace\":\"codex_app\",\"output\":\"kept\"}]}"
+  },
+  {
+    "fn": "orphan",
+    "headers": {
+      "User-Agent": "codex-tui/0.154.0",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "in": "{\"input\":\"text\"}",
+    "flag": true,
+    "out": "{\"input\":\"text\"}"
+  },
+  {
+    "fn": "orphan",
+    "headers": {
+      "User-Agent": "codex-tui/0.154.0",
+      "X-Openai-Subagent": "collab_spawn"
+    },
+    "flag": true,
+    "out": ""
+  },
+  {
+    "fn": "agent_input",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}]},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"agent_message\",\"content\":\"not array\"}]}",
+    "flag": true,
+    "out": "{\"input\":[{\"type\":\"message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"input_text\",\"text\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}],\"role\":\"user\"},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"message\",\"content\":\"not array\",\"role\":\"user\"}]}"
+  },
+  {
+    "fn": "agent_input",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}]},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"agent_message\",\"content\":\"not array\"}]}",
+    "out": "{\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}]},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"agent_message\",\"content\":\"not array\"}]}"
+  },
+  {
+    "fn": "agent_input",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}]},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"agent_message\",\"content\":\"not array\"}]}",
+    "compat": true,
+    "out": "{\"input\":[{\"type\":\"message\",\"content\":[{\"type\":\"input_text\",\"text\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}],\"role\":\"user\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"hi\"},{\"type\":\"message\",\"content\":\"not array\",\"role\":\"user\"}]}"
+  },
+  {
+    "fn": "agent_input",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}]},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"agent_message\",\"content\":\"not array\"}]}",
+    "flag": true,
+    "compat": true,
+    "out": "{\"input\":[{\"type\":\"message\",\"content\":[{\"type\":\"input_text\",\"text\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}],\"role\":\"user\"},{\"type\":\"message\",\"role\":\"user\",\"content\":\"hi\"},{\"type\":\"message\",\"content\":\"not array\",\"role\":\"user\"}]}"
+  },
+  {
+    "fn": "agent_input",
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}]},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"agent_message\",\"content\":\"not array\"}]}",
+    "flag": true,
+    "out": "{\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}]},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"agent_message\",\"content\":\"not array\"}]}"
+  },
+  {
+    "fn": "agent_input",
+    "headers": {
+      "User-Agent": "Codex Desktop/1.0"
+    },
+    "in": "{\"input\":[{\"type\":\"agent_message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}]},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"agent_message\",\"content\":\"not array\"}]}",
+    "flag": true,
+    "out": "{\"input\":[{\"type\":\"message\",\"author\":\"a\",\"recipient\":\"b\",\"internal_chat_message_metadata_passthrough\":{\"x\":1},\"content\":[{\"type\":\"input_text\",\"text\":\"secret \u003cx\u003e\"},{\"type\":\"input_text\",\"text\":\"plain\"},{\"type\":\"encrypted_content\",\"encrypted_content\":5}],\"role\":\"user\"},{\"type\":\"message\",\"role\":\"user\",\"author\":\"u\",\"content\":\"hi\"},{\"type\":\"message\",\"content\":\"not array\",\"role\":\"user\"}]}"
+  },
+  {
+    "fn": "spawn_models",
+    "models": [
+      {
+        "display_name": "ignored",
+        "id": "gpt-5.5"
+      },
+      {
+        "display_name": "Claude Sonnet",
+        "id": "claude-sonnet-4-6"
+      },
+      {
+        "id": "gemini-2.5-pro"
+      },
+      {
+        "description": "From config",
+        "display_name": "zz Custom",
+        "id": "custom-model"
+      },
+      {
+        "id": "gpt-5.5"
+      },
+      {
+        "display_name": "alpha",
+        "id": "Alpha"
+      },
+      {
+        "id": "with`tick"
+      },
+      {
+        "id": "gpt-6-sol"
+      }
+    ],
+    "out": "- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh."
+  },
+  {
+    "fn": "replace_models",
+    "in": "Spawns an agent to work on a task.\nMore text.",
+    "markdown": "- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "Available model overrides (optional; inherited parent model is preferred):\n- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.\nSpawns an agent to work on a task.\nMore text."
+  },
+  {
+    "fn": "replace_models",
+    "in": "Intro line\n  Spawns an agent here.",
+    "markdown": "- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "Intro line\nAvailable model overrides (optional; inherited parent model is preferred):\n- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.\n  Spawns an agent here."
+  },
+  {
+    "fn": "replace_models",
+    "in": "No marker at all",
+    "markdown": "- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "No marker at all\n\nAvailable model overrides (optional; inherited parent model is preferred):\n- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh."
+  },
+  {
+    "fn": "replace_models",
+    "in": "No marker, trailing newline\n",
+    "markdown": "- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "No marker, trailing newline\nAvailable model overrides (optional; inherited parent model is preferred):\n- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh."
+  },
+  {
+    "fn": "replace_models",
+    "markdown": "- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "Available model overrides (optional; inherited parent model is preferred):\n- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh."
+  },
+  {
+    "fn": "replace_models",
+    "in": "Pre\n    Available model overrides (optional; inherited parent model is preferred):\n    - `old`: Old.\n    - `old2`: Old2.\nSpawns an agent now.",
+    "markdown": "- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "Pre\n    Available model overrides (optional; inherited parent model is preferred):\n- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.\nSpawns an agent now."
+  },
+  {
+    "fn": "replace_models",
+    "in": "Available model overrides (optional; inherited parent model is preferred):\n- `a`: A.\nTail",
+    "markdown": "- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "Tail\n\nAvailable model overrides (optional; inherited parent model is preferred):\n- `gpt-6-sol`: Previous generation workhorse model. Reasoning efforts: low, medium (default), high, xhigh, max, ultra. Service tiers: priority.\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `Alpha`: Alpha. Reasoning efforts: low, medium (default), high, xhigh.\n- `claude-sonnet-4-6`: claude-sonnet-4-6. Reasoning efforts: low, medium (default), high, max.\n- `gemini-2.5-pro`: Stable release (June 17th, 2025) of Gemini 2.5 Pro. Reasoning efforts: low, medium (default), high, xhigh.\n- `` with`tick ``: with`tick. Reasoning efforts: low, medium (default), high, xhigh.\n- `custom-model`: From config. Reasoning efforts: low, medium (default), high, xhigh."
+  },
+  {
+    "fn": "replace_models",
+    "in": "unchanged",
+    "out": "unchanged"
+  },
+  {
+    "fn": "prepare_tools",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}",
+    "flag": true,
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Available model overrides (optional; inherited parent model is preferred):\\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.\\nSpawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Available model overrides (optional; inherited parent model is preferred):\\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.\\nNested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}",
+    "bool": true
+  },
+  {
+    "fn": "optimize",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}",
+    "flag": true,
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Available model overrides (optional; inherited parent model is preferred):\\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.\\nSpawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}}}},{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Available model overrides (optional; inherited parent model is preferred):\\n- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.\\nNested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"input_text\",\"text\":\"hidden\"}]}]}",
+    "bool": true
+  },
+  {
+    "fn": "prepare_tools",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}",
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}"
+  },
+  {
+    "fn": "optimize",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}",
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}"
+  },
+  {
+    "fn": "prepare_tools",
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}",
+    "flag": true,
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}"
+  },
+  {
+    "fn": "optimize",
+    "headers": {
+      "User-Agent": "curl/8"
+    },
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}",
+    "flag": true,
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}"
+  },
+  {
+    "fn": "prepare_tools",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[]},{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}}]}",
+    "flag": true,
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[]},{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{}}}}]}",
+    "bool": true
+  },
+  {
+    "fn": "optimize",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[]},{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}}]}",
+    "flag": true,
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[]},{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{}}}}]}"
+  },
+  {
+    "fn": "prepare_tools",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"other\"}]}",
+    "flag": true,
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"other\"}]}",
+    "bool": true
+  },
+  {
+    "fn": "optimize",
+    "headers": {
+      "User-Agent": "codex_cli_rs/0.150.0 (Linux; x86_64)"
+    },
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"other\"}]}",
+    "flag": true,
+    "markdown": "- `gpt-5.5`: Legacy coding model. Reasoning efforts: low, medium (default), high, xhigh. Service tiers: priority.\n- `rsfix-extra`: A test model. Reasoning efforts: low, medium (default), high, xhigh.",
+    "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"other\"}]}"
+  },
+  {
+    "fn": "conflict",
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent for subtasks.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\",\"encrypted\":true}}}},{\"type\":\"namespace\",\"name\":\"collaboration\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Nested. Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}},{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true,\"type\":\"string\"}}}}]},{\"type\":\"function\",\"name\":\"followup_task\",\"parameters\":{\"properties\":{\"message\":{\"type\":\"string\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"function\",\"name\":\"send_message\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":false}}}}]},{\"type\":\"agent_message\",\"content\":[{\"type\":\"encrypted_content\",\"encrypted_content\":\"hidden\"}]}]}",
+    "out": ""
+  },
+  {
+    "fn": "conflict",
+    "in": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[]},{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Spawns an agent.\",\"parameters\":{\"properties\":{\"message\":{\"encrypted\":true}}}}]}",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "conflict",
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"d\"}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"namespace\",\"name\":\"x\",\"tools\":[{\"type\":\"function\",\"name\":\"collaboration-optimize__spawn\"}]}]}]}",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "conflict",
+    "in": "{\"tools\":[{\"type\":\"function\",\"name\":\"collaboration-optimize.x\"}]}",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "conflict",
+    "in": "{}",
+    "out": ""
+  },
+  {
+    "fn": "restore",
+    "in": "{\"type\":\"response.output_item.done\",\"item\":{\"type\":\"function_call\",\"namespace\":\"collaboration-optimize\",\"name\":\"spawn_agent\",\"arguments\":\"{\\\"namespace\\\":\\\"collaboration-optimize\\\"}\",\"call_id\":\"c\"}}",
+    "flag": true,
+    "out": "{\"item\":{\"arguments\":\"{\\\"namespace\\\":\\\"collaboration-optimize\\\"}\",\"call_id\":\"c\",\"name\":\"spawn_agent\",\"namespace\":\"collaboration\",\"type\":\"function_call\"},\"type\":\"response.output_item.done\"}"
+  },
+  {
+    "fn": "restore",
+    "in": "{\"type\":\"response.completed\",\"response\":{\"output\":[{\"type\":\"function_call\",\"name\":\"collaboration-optimize.send_message\",\"arguments\":\"{}\"},{\"type\":\"custom_tool_call\",\"name\":\"collaboration-optimize__followup\",\"input\":\"x\"},{\"type\":\"namespace\",\"name\":\"collaboration-optimize\"},{\"type\":\"function_call_output\",\"output\":{\"name\":\"collaboration-optimize.x\"}}],\"n\":1.50e2,\"big\":12345678901234567890,\"html\":\"\u003ca\u003e\u0026\"}}",
+    "flag": true,
+    "out": "{\"response\":{\"big\":12345678901234567890,\"html\":\"\\u003ca\\u003e\\u0026\",\"n\":1.50e2,\"output\":[{\"arguments\":\"{}\",\"name\":\"send_message\",\"namespace\":\"collaboration\",\"type\":\"function_call\"},{\"input\":\"x\",\"name\":\"collaboration__followup\",\"type\":\"custom_tool_call\"},{\"name\":\"collaboration\",\"type\":\"namespace\"},{\"output\":{\"name\":\"collaboration-optimize.x\"},\"type\":\"function_call_output\"}]},\"type\":\"response.completed\"}"
+  },
+  {
+    "fn": "restore",
+    "in": "{\"type\":\"function_call\",\"name\":\"collaboration-optimize.\",\"namespace\":\"other\"}",
+    "flag": true,
+    "out": "{\"type\":\"function_call\",\"name\":\"collaboration-optimize.\",\"namespace\":\"other\"}"
+  },
+  {
+    "fn": "restore",
+    "in": "{\"type\":\"message\",\"name\":\"collaboration-optimize\"}",
+    "flag": true,
+    "out": "{\"type\":\"message\",\"name\":\"collaboration-optimize\"}"
+  },
+  {
+    "fn": "restore",
+    "in": "[1,2]",
+    "flag": true,
+    "out": "[1,2]"
+  },
+  {
+    "fn": "restore",
+    "in": "not json",
+    "flag": true,
+    "out": "not json"
+  },
+  {
+    "fn": "restore",
+    "in": "{\"type\":\"function_call\",\"namespace\":\"collaboration-optimize\"}",
+    "out": "{\"type\":\"function_call\",\"namespace\":\"collaboration-optimize\"}"
+  },
+  {
+    "fn": "client_ua",
+    "in": "codex_cli_rs",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "client_ua",
+    "in": "codex_cli_rs/1",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "client_ua",
+    "in": "codex_cli_rsx",
+    "out": ""
+  },
+  {
+    "fn": "client_ua",
+    "in": "codex_exec/2",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "client_ua",
+    "in": "Codex Desktop/3",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "client_ua",
+    "in": "codex-tui/4",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "client_ua",
+    "in": " codex-tui/5 ",
+    "out": "",
+    "bool": true
+  },
+  {
+    "fn": "client_ua",
+    "in": "Codex-TUI/6",
+    "out": ""
+  },
+  {
+    "fn": "client_ua",
+    "out": ""
+  }
+]

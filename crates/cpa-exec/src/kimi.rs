@@ -321,13 +321,6 @@ fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecErr
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))
 }
 
-/// ponytail: adapter for `cpa_common::codex_client` (owner: Codex thread). Go wraps request
-/// translation in TranslateRequestWithCodexMultiAgentV2, which rewrites Codex CLI requests
-/// (integer tool schemas, multi-agent v2 input); identity until the shared module lands.
-fn codex_client_request(_req: &ExecRequest, body: &[u8]) -> Vec<u8> {
-    body.to_vec()
-}
-
 /// Go's bufio.Scanner limits: 1 MiB for Chat Completions lines, 50 MiB for Responses.
 const CHAT_LINE_LIMIT: usize = 1_048_576;
 const RESPONSES_LINE_LIMIT: usize = 52_428_800;
@@ -354,15 +347,18 @@ async fn execute_chat(
     let Some(response_pair) = cpa_translate::pair(req.response_format, Format::OpenAI) else {
         return Err(not_registered("Kimi response"));
     };
+    // Go: helps.TranslateRequestWithCodexMultiAgentV2 (no target executor, not compat).
+    let codex_client = crate::codex_client::Client::new(&req.headers, cfg, "", false);
     let translate = |body: &[u8], stream: bool| {
-        cpa_translate::translate_request(
+        crate::codex_client::translate_request(
             req.source_format,
             Format::OpenAI,
             &RequestCtx {
                 model: &base_model,
                 stream,
             },
-            &codex_client_request(&req, body),
+            body,
+            &codex_client,
         )
         .map_err(|e| request_error(e.to_string()))
     };

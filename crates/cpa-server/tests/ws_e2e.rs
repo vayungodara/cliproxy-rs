@@ -141,7 +141,9 @@ async fn serve(app: axum::Router) -> String {
 /// Go's credentials as `codex-api-key` config entries, loaded the way the server loads
 /// them (`cpa_core::config::credentials::load`).
 fn config(scenario: &Value, upstream: &str) -> Config {
-    let mut yaml = String::from("codex-api-key:\n");
+    // The scenario's own Go config (top-level keys), then its credentials.
+    let mut yaml = scenario["config"].as_str().unwrap_or_default().to_owned();
+    yaml.push_str("codex-api-key:\n");
     for cred in scenario["credentials"].as_array().unwrap() {
         let attrs = &cred["attributes"];
         yaml.push_str(&format!(
@@ -247,6 +249,11 @@ async fn run(name: &str) {
         google: Default::default(),
     };
     let rt = Arc::new(Runtime::new(cfg, credentials, executors));
+    // Like main.rs (and Go's global registry): translators and the Codex client rewrites
+    // read this runtime's models. One scenario at a time owns the process-wide overlay.
+    static REGISTRY: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+    let _registry = REGISTRY.lock().await;
+    cpa_server::install_registry(&rt);
     let proxy = serve(router(rt)).await;
 
     let mut request = wreq::Client::new().websocket(format!("ws://{proxy}/v1/responses"));
@@ -399,6 +406,16 @@ async fn stream_ending_before_completion_closes_silently() {
 }
 
 #[tokio::test]
+async fn ws_multi_agent_v2_renames_upstream_and_restores_for_the_client() {
+    run("ws_multi_agent_v2").await;
+}
+
+#[tokio::test]
+async fn http_multi_agent_v2_renames_upstream_and_restores_for_the_client() {
+    run("http_multi_agent_v2").await;
+}
+
+#[tokio::test]
 async fn http_upstream_400_is_shown_then_closed() {
     run("http_upstream_400_exposed").await;
 }
@@ -419,6 +436,8 @@ fn every_go_scenario_has_a_test() {
             "ws_upstream_closes_between_turns",
             "ws_upstream_message_too_big",
             "http_stream_ends_early",
+            "ws_multi_agent_v2",
+            "http_multi_agent_v2",
             "http_upstream_400_exposed",
         ]
     );
