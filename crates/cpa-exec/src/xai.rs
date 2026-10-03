@@ -34,7 +34,7 @@ use cpa_translate::apply_patch_responses as apply_patch;
 
 pub const PROVIDER: &str = "xai";
 
-const COMPACT_ALT: &str = "responses/compact";
+pub(crate) const COMPACT_ALT: &str = "responses/compact";
 /// `scanner.Buffer(nil, 52_428_800)`.
 const MAX_LINE: usize = 52_428_800;
 const DISCONNECTED: &str = "xai stream error: stream disconnected before response.completed or response.incomplete";
@@ -58,12 +58,14 @@ type UrlRewrite = Arc<dyn Fn(&str) -> String + Send + Sync>;
 
 #[derive(Default)]
 pub struct XaiExecutor {
-    clients: Clients,
-    replay: Arc<replay::Store>,
+    pub(crate) clients: Clients,
+    pub(crate) replay: Arc<replay::Store>,
     rewrite: Option<UrlRewrite>,
+    /// The upstream Responses WebSocket sessions (xai_ws.rs).
+    pub(crate) ws: Arc<crate::xai_ws::Ws>,
 }
 
-fn apply_patch_error() -> ExecError {
+pub(crate) fn apply_patch_error() -> ExecError {
     status_err(502, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR)
 }
 
@@ -74,7 +76,7 @@ fn attribute<'a>(c: &'a Credential, key: &str) -> &'a str {
 }
 
 /// `xaiCreds`: the bearer token and configured base URL.
-fn creds(c: &Credential) -> (String, String) {
+pub(crate) fn creds(c: &Credential) -> (String, String) {
     let mut token = attribute(c, "api_key").to_owned();
     let mut base = attribute(c, "base_url").to_owned();
     if token.is_empty() {
@@ -87,7 +89,7 @@ fn creds(c: &Credential) -> (String, String) {
 }
 
 /// `strconv.ParseBool`.
-fn parse_bool(raw: &str) -> Option<bool> {
+pub(crate) fn parse_bool(raw: &str) -> Option<bool> {
     match raw {
         "1" | "t" | "T" | "TRUE" | "true" | "True" => Some(true),
         "0" | "f" | "F" | "FALSE" | "false" | "False" => Some(false),
@@ -162,7 +164,7 @@ fn endpoint(base: &str, path: &str) -> String {
 }
 
 /// Go binds `cfg.ForAPIKey()` for API-key credentials (`executorForAuth`).
-fn scoped<'a>(credential: &Credential, cfg: &'a Config) -> Cow<'a, Config> {
+pub(crate) fn scoped<'a>(credential: &Credential, cfg: &'a Config) -> Cow<'a, Config> {
     if compat::auth_kind(credential) == "apikey" {
         cfg.for_api_key()
     } else {
@@ -280,7 +282,7 @@ fn translate_non_stream(req: &ExecRequest, p: &Prepared, to: Format, data: &[u8]
 }
 
 /// `xaiInputHasItemType`.
-fn input_has_item_type(body: &[u8], item_type: &str) -> bool {
+pub(crate) fn input_has_item_type(body: &[u8], item_type: &str) -> bool {
     let input = gj::get(body, "input");
     input.is_array()
         && input
@@ -290,7 +292,7 @@ fn input_has_item_type(body: &[u8], item_type: &str) -> bool {
 }
 
 /// `xaiRemoveInputItemsByType`: the input array is always rebuilt.
-fn remove_input_items(mut body: Vec<u8>, item_type: &str) -> Vec<u8> {
+pub(crate) fn remove_input_items(mut body: Vec<u8>, item_type: &str) -> Vec<u8> {
     let input = gj::get(&body, "input");
     if !input.is_array() {
         return body;
@@ -324,7 +326,7 @@ impl XaiExecutor {
         self
     }
 
-    fn url(&self, url: String) -> String {
+    pub(crate) fn url(&self, url: String) -> String {
         match &self.rewrite {
             Some(rewrite) => rewrite(&url),
             None => url,
@@ -408,7 +410,7 @@ impl XaiExecutor {
 
     /// `executeCompactRequest`: the compact call on the official API, replay cleared on
     /// success.
-    async fn compact_request(
+    pub(crate) async fn compact_request(
         &self,
         credential: &Credential,
         req: &ExecRequest,
@@ -936,7 +938,7 @@ impl Pipeline {
 // --- compaction trigger stream (xaiBuildCompactionTriggerStreamChunks) -------------------
 
 /// `xaiCompactionResponseID`.
-fn compaction_response_id(data: &[u8], now: SystemTime) -> String {
+pub(crate) fn compaction_response_id(data: &[u8], now: SystemTime) -> String {
     let id = text(&gj::get(data, "id"));
     if !id.is_empty() {
         if id.starts_with("resp_") {
@@ -957,7 +959,7 @@ fn compaction_item_id(response_id: &str) -> String {
 }
 
 /// `xaiCompactionOutputItem`.
-fn compaction_item(data: &[u8], response_id: &str) -> Vec<u8> {
+pub(crate) fn compaction_item(data: &[u8], response_id: &str) -> Vec<u8> {
     let first = gj::get(data, "output.0");
     let mut item = if first.exists() && first.kind == Kind::Json {
         first.raw().to_vec()
@@ -1016,7 +1018,7 @@ fn sse_frame(name: &str, data: &[u8]) -> Vec<u8> {
 }
 
 /// `xaiBuildCompactionTriggerStreamChunks`.
-fn compaction_frames(p: &Prepared, data: &[u8], now: SystemTime) -> Vec<Vec<u8>> {
+pub(crate) fn compaction_frames(p: &Prepared, data: &[u8], now: SystemTime) -> Vec<Vec<u8>> {
     let response_id = compaction_response_id(data, now);
     let unix = now.duration_since(UNIX_EPOCH).map_or(0, |d| d.as_secs() as i64);
     let or_now = |v: i64| if v == 0 { unix } else { v };

@@ -45,13 +45,13 @@ const MAX_HANDSHAKE_BODY: usize = 64 * 1024;
 const MAX_UPSTREAM_MESSAGE: usize = 64 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Target {
-    credential: String,
-    url: String,
-    proxy: crate::proxy::Proxy,
+pub(crate) struct Target {
+    pub(crate) credential: String,
+    pub(crate) url: String,
+    pub(crate) proxy: crate::proxy::Proxy,
 }
 
-enum Read {
+pub(crate) enum Read {
     Text(String),
     /// The socket failed; the reader has already invalidated it.
     Failed(ExecError),
@@ -67,15 +67,25 @@ struct Link {
     lost: Option<ExecError>,
 }
 
-struct Upstream {
-    target: Target,
+pub(crate) struct Upstream {
+    pub(crate) target: Target,
     sink: tokio::sync::Mutex<SplitSink<WebSocket, Message>>,
     link: Mutex<Link>,
-    reader: Mutex<Option<tokio::task::AbortHandle>>,
+    pub(crate) reader: Mutex<Option<tokio::task::AbortHandle>>,
 }
 
 impl Upstream {
-    fn activate(&self) -> mpsc::Receiver<Read> {
+    /// A socket for `target`, not yet published to a session and without a reader.
+    pub(crate) fn new(target: Target, sink: SplitSink<WebSocket, Message>) -> Arc<Self> {
+        Arc::new(Self {
+            target,
+            sink: tokio::sync::Mutex::new(sink),
+            link: Mutex::default(),
+            reader: Mutex::default(),
+        })
+    }
+
+    pub(crate) fn activate(&self) -> mpsc::Receiver<Read> {
         let (tx, rx) = mpsc::channel(TURN_BUFFER);
         let mut link = self.link.lock().expect("link");
         match &link.lost {
@@ -87,13 +97,13 @@ impl Upstream {
         rx
     }
 
-    fn deactivate(&self) {
+    pub(crate) fn deactivate(&self) {
         self.link.lock().expect("link").active.take();
     }
 
     /// `writeCodexWebsocketMessage` + `mapCodexWebsocketWriteError`: a write after the
     /// upstream closed with 1009 reports the request-scoped 413 instead.
-    async fn send(&self, frame: String) -> Result<(), ExecError> {
+    pub(crate) async fn send(&self, frame: String) -> Result<(), ExecError> {
         let sent = self.sink.lock().await.send(Message::text(frame)).await;
         sent.map_err(|_| {
             self.link
@@ -107,7 +117,7 @@ impl Upstream {
     }
 
     /// Stops the reader and closes the socket. Idempotent.
-    fn shutdown(self: &Arc<Self>) {
+    pub(crate) fn shutdown(self: &Arc<Self>) {
         if let Some(reader) = self.reader.lock().expect("reader handle").take() {
             reader.abort();
         }
@@ -124,22 +134,22 @@ impl Upstream {
     }
 }
 
-struct Session {
+pub(crate) struct Session {
     /// Serialises turns (`reqMu`).
-    turn: Arc<tokio::sync::Mutex<()>>,
-    conn: Mutex<Option<Arc<Upstream>>>,
+    pub(crate) turn: Arc<tokio::sync::Mutex<()>>,
+    pub(crate) conn: Mutex<Option<Arc<Upstream>>>,
     /// Set once when the session's socket is lost (`notifyUpstreamDisconnect`).
     closed: watch::Sender<Option<ExecError>>,
 }
 
 impl Session {
-    fn current(&self) -> Option<Arc<Upstream>> {
+    pub(crate) fn current(&self) -> Option<Arc<Upstream>> {
         self.conn.lock().expect("session conn").clone()
     }
 
     /// `invalidateUpstreamConn`: only the session's current socket is dropped, so a stale
     /// reader cannot tear down its replacement. `notify` tells the downstream handler.
-    fn invalidate(&self, conn: &Arc<Upstream>, error: &ExecError, notify: bool) {
+    pub(crate) fn invalidate(&self, conn: &Arc<Upstream>, error: &ExecError, notify: bool) {
         {
             let mut current = self.conn.lock().expect("session conn");
             if !current.as_ref().is_some_and(|c| Arc::ptr_eq(c, conn)) {
@@ -164,7 +174,7 @@ impl Session {
 pub(crate) struct Pool {
     sessions: Mutex<HashMap<String, Arc<Session>>>,
     /// Read deadline for each upstream application message.
-    idle: Duration,
+    pub(crate) idle: Duration,
 }
 
 impl Default for Pool {
@@ -185,7 +195,7 @@ impl Pool {
         }
     }
 
-    fn session(&self, id: &str) -> Arc<Session> {
+    pub(crate) fn session(&self, id: &str) -> Arc<Session> {
         self.sessions
             .lock()
             .expect("sessions")
@@ -766,7 +776,12 @@ impl CodexExecutor {
 ///
 /// Like Go's read deadline, `idle` starts when the read for the next application message
 /// begins; control frames answered meanwhile do not extend it.
-async fn read_loop(mut stream: SplitStream<WebSocket>, session: Weak<Session>, conn: Arc<Upstream>, idle: Duration) {
+pub(crate) async fn read_loop(
+    mut stream: SplitStream<WebSocket>,
+    session: Weak<Session>,
+    conn: Arc<Upstream>,
+    idle: Duration,
+) {
     let error = 'read: loop {
         let deadline = tokio::time::Instant::now() + idle;
         let text = loop {

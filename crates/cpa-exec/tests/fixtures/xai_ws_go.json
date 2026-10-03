@@ -1,0 +1,1057 @@
+[
+  {
+    "name": "basic_then_previous",
+    "session": "sess-basic",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"hi\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"hi\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-basic\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-basic\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"again\"}]}],\"stream\":true,\"previous_response_id\":\"resp_1\"}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_2\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_2\",\"output_index\":0,\"content_index\":0,\"delta\":\"hi again\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi again\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_2\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_2\",\"output_index\":0,\"content_index\":0,\"delta\":\"hi again\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi again\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi again\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"again\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-basic\",\"previous_response_id\":\"resp_1\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "close": true,
+        "chunks": [],
+        "upgrades": [],
+        "frames": [],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "repeated_response_id",
+    "session": "sess-repeat",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"one\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_r\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_r\",\"output_index\":0,\"content_index\":0,\"delta\":\"one\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"one\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_r\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_r\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_r\",\"output_index\":0,\"content_index\":0,\"delta\":\"one\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"one\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_r\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_r\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"one\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-repeat\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"one\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-repeat\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"two\"}]}],\"stream\":true,\"previous_response_id\":\"resp_r\"}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_r\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_r\",\"output_index\":0,\"content_index\":0,\"delta\":\"two\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"two\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_r\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"response\":{\"id\":\"resp_r-xai-1\",\"model\":\"grok-4.3\",\"object\":\"response\",\"output\":[],\"status\":\"in_progress\"},\"sequence_number\":0,\"type\":\"response.created\"}",
+          "{\"content_index\":0,\"delta\":\"two\",\"item_id\":\"msg_resp_r-xai-1\",\"output_index\":0,\"sequence_number\":1,\"type\":\"response.output_text.delta\"}",
+          "{\"item\":{\"content\":[{\"annotations\":[],\"text\":\"two\",\"type\":\"output_text\"}],\"id\":\"msg_resp_r-xai-1\",\"role\":\"assistant\",\"status\":\"completed\",\"type\":\"message\"},\"output_index\":0,\"sequence_number\":2,\"type\":\"response.output_item.done\"}",
+          "{\"response\":{\"id\":\"resp_r-xai-1\",\"model\":\"grok-4.3\",\"object\":\"response\",\"output\":[{\"content\":[{\"annotations\":[],\"text\":\"two\",\"type\":\"output_text\"}],\"id\":\"msg_resp_r-xai-1\",\"role\":\"assistant\",\"status\":\"completed\",\"type\":\"message\"}],\"previous_response_id\":null,\"status\":\"completed\",\"usage\":{\"input_tokens\":5,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":2,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7}},\"sequence_number\":3,\"type\":\"response.completed\"}"
+        ],
+        "upgrades": [],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"two\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-repeat\",\"previous_response_id\":\"resp_r\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"three\"}]}],\"stream\":true,\"previous_response_id\":\"resp_r-xai-1\"}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_r3\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_r3\",\"output_index\":0,\"content_index\":0,\"delta\":\"three\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r3\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"three\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_r3\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_r3\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_r3\",\"output_index\":0,\"content_index\":0,\"delta\":\"three\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r3\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"three\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_r3\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_r3\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"three\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"three\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-repeat\",\"previous_response_id\":\"resp_r\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "target_change_replays_transcript",
+    "session": "sess-target",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      },
+      "auth-b": {
+        "api_key": "sk-fake-xai-b",
+        "base_url": "http://UPSTREAM/v1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"first\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_t1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_t1\",\"output_index\":0,\"content_index\":0,\"delta\":\"first\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_t1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"first\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_t1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_t1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_t1\",\"output_index\":0,\"content_index\":0,\"delta\":\"first\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_t1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"first\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_t1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_t1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"first\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-target\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"first\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-target\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-b",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"second\"}]}],\"stream\":true,\"previous_response_id\":\"resp_t1\"}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_t2\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_t2\",\"output_index\":0,\"content_index\":0,\"delta\":\"second\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_t2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"second\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_t2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_t2\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_t2\",\"output_index\":0,\"content_index\":0,\"delta\":\"second\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_t2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"second\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_t2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_t2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"second\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-b\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-target"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"first\"}]},{\"id\":\"msg_resp_t1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"first\",\"annotations\":[]}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"second\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-target\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "compaction_from_transcript",
+    "session": "sess-compact",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"long context\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_c1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_c1\",\"output_index\":0,\"content_index\":0,\"delta\":\"noted\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_c1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"noted\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_c1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_c1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_c1\",\"output_index\":0,\"content_index\":0,\"delta\":\"noted\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_c1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"noted\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_c1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_c1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"noted\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-compact\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"long context\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-compact\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"compaction_trigger\"}],\"stream\":true,\"previous_response_id\":\"resp_c1\"}",
+        "compact": {
+          "status": 200,
+          "body": "{\"id\":\"cmp_1\",\"object\":\"response.compaction\",\"created_at\":1700000000,\"completed_at\":1700000001,\"model\":\"grok-4.3\",\"output\":[{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}],\"usage\":{\"input_tokens\":30,\"output_tokens\":3,\"total_tokens\":33}}"
+        },
+        "chunks": [
+          "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"prompt_cache_key\":\"sess-compact\"}}\n\n",
+          "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":1,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"prompt_cache_key\":\"sess-compact\"}}\n\n",
+          "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}}\n\n",
+          "event: keepalive\ndata: {\"type\":\"keepalive\",\"sequence_number\":3}\n\n",
+          "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":0,\"item\":{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}}\n\n",
+          "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":5,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"prompt_cache_key\":\"sess-compact\",\"completed_at\":1700000001,\"usage\":{\"input_tokens\":30,\"output_tokens\":3,\"total_tokens\":33,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}\n\n"
+        ],
+        "upgrades": [],
+        "frames": [],
+        "http": [
+          "POST /v1/responses/compact\n{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"long context\"}]},{\"id\":\"msg_resp_c1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"noted\",\"annotations\":[]}]}],\"prompt_cache_key\":\"sess-compact\"}"
+        ]
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"type\":\"response.append\",\"model\":\"grok-4.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"after compaction\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_c3\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_c3\",\"output_index\":0,\"content_index\":0,\"delta\":\"continued\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_c3\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"continued\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_c3\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_c3\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_c3\",\"output_index\":0,\"content_index\":0,\"delta\":\"continued\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_c3\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"continued\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_c3\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_c3\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"continued\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [],
+        "frames": [
+          "{\"type\":\"response.create\",\"model\":\"grok-4.3\",\"input\":[{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"after compaction\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"prompt_cache_key\":\"sess-compact\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "compaction_fresh_input",
+    "session": "sess-compact-fresh",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"context\"}]},{\"type\":\"compaction_trigger\"}],\"stream\":true}",
+        "compact": {
+          "status": 200,
+          "body": "{\"id\":\"cmp_1\",\"object\":\"response.compaction\",\"created_at\":1700000000,\"completed_at\":1700000001,\"model\":\"grok-4.3\",\"output\":[{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}],\"usage\":{\"input_tokens\":30,\"output_tokens\":3,\"total_tokens\":33}}"
+        },
+        "chunks": [
+          "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"prompt_cache_key\":\"sess-compact-fresh\"}}\n\n",
+          "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":1,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"prompt_cache_key\":\"sess-compact-fresh\"}}\n\n",
+          "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}}\n\n",
+          "event: keepalive\ndata: {\"type\":\"keepalive\",\"sequence_number\":3}\n\n",
+          "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":0,\"item\":{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}}\n\n",
+          "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":5,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"prompt_cache_key\":\"sess-compact-fresh\",\"completed_at\":1700000001,\"usage\":{\"input_tokens\":30,\"output_tokens\":3,\"total_tokens\":33,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}\n\n"
+        ],
+        "upgrades": [],
+        "frames": [],
+        "http": [
+          "POST /v1/responses/compact\n{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"context\"}]}],\"prompt_cache_key\":\"sess-compact-fresh\"}"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "compaction_previous_only",
+    "session": "sess-compact-prev",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"compaction_trigger\"}],\"stream\":true,\"previous_response_id\":\"resp_elsewhere\"}",
+        "compact": {
+          "status": 200,
+          "body": "{\"id\":\"cmp_1\",\"object\":\"response.compaction\",\"created_at\":1700000000,\"completed_at\":1700000001,\"model\":\"grok-4.3\",\"output\":[{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}],\"usage\":{\"input_tokens\":30,\"output_tokens\":3,\"total_tokens\":33}}"
+        },
+        "chunks": [
+          "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"previous_response_id\":\"resp_elsewhere\",\"prompt_cache_key\":\"sess-compact-prev\"}}\n\n",
+          "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":1,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"previous_response_id\":\"resp_elsewhere\",\"prompt_cache_key\":\"sess-compact-prev\"}}\n\n",
+          "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}}\n\n",
+          "event: keepalive\ndata: {\"type\":\"keepalive\",\"sequence_number\":3}\n\n",
+          "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":0,\"item\":{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}}\n\n",
+          "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":5,\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"type\":\"compaction\",\"id\":\"cmp_item_1\",\"encrypted_content\":\"ENCRYPTED\"}],\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"previous_response_id\":\"resp_elsewhere\",\"prompt_cache_key\":\"sess-compact-prev\",\"completed_at\":1700000001,\"usage\":{\"input_tokens\":30,\"output_tokens\":3,\"total_tokens\":33,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}\n\n"
+        ],
+        "upgrades": [],
+        "frames": [],
+        "http": [
+          "POST /v1/responses/compact\n{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[],\"prompt_cache_key\":\"sess-compact-prev\",\"previous_response_id\":\"resp_elsewhere\"}"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "compaction_empty_context",
+    "session": "sess-compact-empty",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"compaction_trigger\"}],\"stream\":true}",
+        "chunks": [],
+        "error": {
+          "status": 400,
+          "message": "xai websocket compaction context is empty",
+          "retry_after_ms": 0
+        },
+        "upgrades": [],
+        "frames": [],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "compaction_invalid_response",
+    "session": "sess-compact-bad",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"x\"}]},{\"type\":\"compaction_trigger\"}],\"stream\":true}",
+        "compact": {
+          "status": 200,
+          "body": "{\"id\":\"cmp_2\",\"output\":[{\"type\":\"message\"}]}"
+        },
+        "chunks": [],
+        "error": {
+          "status": 502,
+          "message": "xai websocket compaction response is missing compacted state",
+          "retry_after_ms": 0
+        },
+        "upgrades": [],
+        "frames": [],
+        "http": [
+          "POST /v1/responses/compact\n{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"x\"}]}],\"prompt_cache_key\":\"sess-compact-bad\"}"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "warmup_generate_false",
+    "session": "sess-warmup",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"warm\"}]}],\"stream\":true,\"generate\":false}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":4,\"response\":{\"id\":\"resp_w\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\"}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":4,\"response\":{\"id\":\"resp_w\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\"}}",
+          "{\"type\":\"response.completed\",\"response\":{\"id\":\"resp_w\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[],\"usage\":{\"input_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":0}},\"sequence_number\":5}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-warmup\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"warm\"}]}],\"generate\":false,\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-warmup\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"real\"}]}],\"stream\":true,\"previous_response_id\":\"resp_w\"}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_w2\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_w2\",\"output_index\":0,\"content_index\":0,\"delta\":\"real\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_w2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"real\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_w2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_w2\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_w2\",\"output_index\":0,\"content_index\":0,\"delta\":\"real\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_w2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"real\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_w2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_w2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"real\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"real\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-warmup\",\"previous_response_id\":\"resp_w\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "error_frames",
+    "session": "sess-errors",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"error\",\"status\":429,\"error\":{\"type\":\"rate_limit\",\"code\":\"free-usage-exhausted\",\"message\":\"included free usage exhausted\"}}"
+            ]
+          }
+        ],
+        "chunks": [],
+        "error": {
+          "status": 429,
+          "message": "{\"status\":429,\"error\":{\"type\":\"rate_limit\",\"code\":\"free-usage-exhausted\",\"message\":\"included free usage exhausted\"}}",
+          "retry_after_ms": 86400000
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-errors\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-errors\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"b\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"error\",\"status\":403,\"error\":{\"type\":\"auth\",\"code\":\"bad-credentials\",\"message\":\"Access token could not be validated\"}}"
+            ]
+          }
+        ],
+        "chunks": [],
+        "error": {
+          "status": 401,
+          "message": "{\"status\":403,\"error\":{\"type\":\"auth\",\"code\":\"bad-credentials\",\"message\":\"Access token could not be validated\"}}",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-errors\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"b\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-errors\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"c\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"status\":403,\"error\":{\"code\":\"bad-credentials\",\"message\":\"Access token could not be validated\"}}"
+            ]
+          }
+        ],
+        "chunks": [],
+        "error": {
+          "status": 401,
+          "message": "{\"type\":\"error\",\"status\":403,\"error\":{\"code\":\"bad-credentials\",\"message\":\"Access token could not be validated\"}}",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-errors\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"c\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-errors\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"d\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"error\":{\"code\":\"400\",\"message\":\"bad request\"}}"
+            ]
+          }
+        ],
+        "chunks": [],
+        "error": {
+          "status": 400,
+          "message": "{\"type\":\"error\",\"status\":400,\"error\":{\"code\":\"400\",\"message\":\"bad request\"}}",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-errors\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"d\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-errors\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"e\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"error\":{\"message\":\"{\\\"code\\\":\\\"400\\\"} Request validation error\"}}"
+            ]
+          }
+        ],
+        "chunks": [],
+        "error": {
+          "status": 400,
+          "message": "{\"type\":\"error\",\"status\":400,\"error\":{\"message\":\"{\\\"code\\\":\\\"400\\\"} Request validation error\"}}",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-errors\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"e\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-errors\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"f\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"code\":\"free-usage-exhausted\",\"error\":\"included free usage exhausted\",\"status_code\":429}"
+            ]
+          }
+        ],
+        "chunks": [],
+        "error": {
+          "status": 429,
+          "message": "{\"type\":\"error\",\"status\":429,\"error\":\"included free usage exhausted\"}",
+          "retry_after_ms": 86400000
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-errors\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"f\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-errors\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "handshake_rejected",
+    "session": "sess-reject",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"stream\":true}",
+        "reject": {
+          "status": 403,
+          "body": "{\"code\":\"bad-credentials\",\"error\":\"Access token could not be validated\"}"
+        },
+        "chunks": [],
+        "error": {
+          "status": 401,
+          "message": "{\"code\":\"bad-credentials\",\"error\":\"Access token could not be validated\"}",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-reject\nX-Trace: trace-1"
+        ],
+        "frames": [],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"b\"}]}],\"stream\":true}",
+        "reject": {
+          "status": 429,
+          "body": "{\"code\":\"free-usage-exhausted\",\"error\":\"included free usage exhausted\"}"
+        },
+        "chunks": [],
+        "error": {
+          "status": 429,
+          "message": "{\"code\":\"free-usage-exhausted\",\"error\":\"included free usage exhausted\"}",
+          "retry_after_ms": 86400000
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-reject\nX-Trace: trace-1"
+        ],
+        "frames": [],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"c\"}]}],\"stream\":true}",
+        "reject": {
+          "status": 500,
+          "body": ""
+        },
+        "chunks": [],
+        "error": {
+          "status": 500,
+          "message": "status 500",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-reject\nX-Trace: trace-1"
+        ],
+        "frames": [],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "close_message_too_big",
+    "session": "sess-1009",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"huge\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "close": 1009,
+            "close_text": "frame too large"
+          }
+        ],
+        "chunks": [],
+        "error": {
+          "status": 413,
+          "message": "{\"error\":{\"message\":\"upstream websocket message too big\",\"type\":\"invalid_request_error\",\"code\":\"message_too_big\"}}",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-1009\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"huge\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-1009\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"smaller\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_after\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_after\",\"output_index\":0,\"content_index\":0,\"delta\":\"ok\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_after\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_after\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_after\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_after\",\"output_index\":0,\"content_index\":0,\"delta\":\"ok\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_after\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_after\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_after\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-1009\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"smaller\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-1009\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "upstream_closes_mid_turn",
+    "session": "sess-close",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_x\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_x\",\"output_index\":0,\"content_index\":0,\"delta\":\"partial\"}"
+            ],
+            "close": 1011,
+            "close_text": "internal"
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_x\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_x\",\"output_index\":0,\"content_index\":0,\"delta\":\"partial\"}"
+        ],
+        "error": {
+          "status": 500,
+          "message": "websocket: close 1011 (internal server error): internal",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-close\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-close\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "binary_frame",
+    "session": "sess-binary",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_b\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}"
+            ],
+            "binary": true
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_b\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}"
+        ],
+        "error": {
+          "status": 500,
+          "message": "xai websockets executor: unexpected binary message",
+          "retry_after_ms": 0
+        },
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-binary\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-binary\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "continuation_without_socket",
+    "session": "sess-cont-none",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"stream\":true,\"previous_response_id\":\"resp_gone\"}",
+        "continuation": true,
+        "chunks": [],
+        "error": {
+          "status": 426,
+          "message": "{\"error\":{\"message\":\"upstream transport requires full HTTP replay\",\"type\":\"server_error\",\"code\":\"upstream_http_replay_required\",\"status\":426}}",
+          "retry_after_ms": 0
+        },
+        "upgrades": [],
+        "frames": [],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "continuation_on_socket",
+    "session": "sess-cont",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"stream\":true}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_k1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_k1\",\"output_index\":0,\"content_index\":0,\"delta\":\"a\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_k1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"a\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_k1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_k1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_k1\",\"output_index\":0,\"content_index\":0,\"delta\":\"a\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_k1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"a\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_k1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_k1\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"a\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-cont\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-cont\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      },
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"b\"}]}],\"stream\":true,\"previous_response_id\":\"resp_k1\"}",
+        "continuation": true,
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_k2\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_k2\",\"output_index\":0,\"content_index\":0,\"delta\":\"b\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_k2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"b\",\"annotations\":[]}]}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_k2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_k2\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.output_text.delta\",\"sequence_number\":1,\"item_id\":\"msg_resp_k2\",\"output_index\":0,\"content_index\":0,\"delta\":\"b\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"msg_resp_k2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"b\",\"annotations\":[]}]}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_k2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"previous_response_id\":null,\"output\":[{\"id\":\"msg_resp_k2\",\"type\":\"message\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"b\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"b\"}]}],\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-cont\",\"previous_response_id\":\"resp_k1\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "websockets_disabled_continuation",
+    "session": "sess-http",
+    "auths": {
+      "auth-h": {
+        "api_key": "sk-fake-xai-h",
+        "base_url": "http://UPSTREAM/v1"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-h",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a\"}]}],\"stream\":true,\"previous_response_id\":\"resp_1\"}",
+        "continuation": true,
+        "chunks": [],
+        "error": {
+          "status": 426,
+          "message": "{\"error\":{\"message\":\"upstream transport requires full HTTP replay\",\"type\":\"server_error\",\"code\":\"upstream_http_replay_required\",\"status\":426}}",
+          "retry_after_ms": 0
+        },
+        "upgrades": [],
+        "frames": [],
+        "http": []
+      }
+    ]
+  },
+  {
+    "name": "reasoning_summary_events",
+    "session": "sess-reasoning",
+    "auths": {
+      "auth-a": {
+        "api_key": "sk-fake-xai-a",
+        "base_url": "http://UPSTREAM/v1",
+        "header:X-Trace": "trace-1",
+        "websockets": "true"
+      }
+    },
+    "turns": [
+      {
+        "auth": "auth-a",
+        "payload": "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"think\"}]}],\"stream\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"}}",
+        "acts": [
+          {
+            "send": [
+              "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_z\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+              "{\"type\":\"response.reasoning_summary_text.delta\",\"sequence_number\":1,\"item_id\":\"rs_1\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\"}",
+              "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"rs_1\",\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}],\"encrypted_content\":\"ENC\"}}",
+              "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_z\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":9,\"output_tokens_details\":{\"reasoning_tokens\":7},\"total_tokens\":14}}}"
+            ]
+          }
+        ],
+        "chunks": [
+          "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_z\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+          "{\"type\":\"response.reasoning_summary_text.delta\",\"sequence_number\":1,\"item_id\":\"rs_1\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\"}",
+          "{\"type\":\"response.output_item.done\",\"sequence_number\":2,\"output_index\":0,\"item\":{\"id\":\"rs_1\",\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}],\"encrypted_content\":\"ENC\"}}",
+          "{\"type\":\"response.completed\",\"sequence_number\":3,\"response\":{\"id\":\"resp_z\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[{\"id\":\"rs_1\",\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}],\"encrypted_content\":\"ENC\"}],\"usage\":{\"input_tokens\":5,\"output_tokens\":9,\"output_tokens_details\":{\"reasoning_tokens\":7},\"total_tokens\":14,\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+        ],
+        "upgrades": [
+          "/v1/responses\nAuthorization: Bearer sk-fake-xai-a\nConnection: Upgrade\nContent-Type: application/json\nSec-Websocket-Extensions: permessage-deflate; server_no_context_takeover; client_no_context_takeover\nSec-Websocket-Version: 13\nUpgrade: websocket\nUser-Agent: Go-http-client/1.1\nX-Grok-Conv-Id: sess-reasoning\nX-Trace: trace-1"
+        ],
+        "frames": [
+          "{\"model\":\"grok-4.3\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"think\"}]}],\"reasoning\":{\"effort\":\"high\",\"summary\":\"auto\"},\"store\":true,\"include\":[\"reasoning.encrypted_content\"],\"prompt_cache_key\":\"sess-reasoning\",\"type\":\"response.create\"}"
+        ],
+        "http": []
+      }
+    ]
+  }
+]
