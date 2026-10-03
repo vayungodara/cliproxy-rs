@@ -367,20 +367,84 @@ fn canonical_model_raw(model: &str) -> &str {
 
 /// Runs `call` and renders the result, adding Go's `X-CPA-TRACE-ID` (selection time,
 /// the selected credential's auth index and a request ID) once a credential was picked.
+///
+/// Non-stream generate calls run under Go's `StartNonStreamingKeepAlive`: when
+/// `requests.nonstream-keepalive-interval` is set and no result arrived within one
+/// interval, the response commits as 200 `application/json` and a `\n` goes out every
+/// interval until the rendered body follows. The rendered status and headers are lost
+/// then, as in Go, where they are written after the first keep-alive flush.
 pub async fn serve<F, Fut>(rt: &Arc<Runtime>, call: Call, render: F) -> axum::response::Response
 where
-    F: FnOnce(Result<Done, Failure>) -> Fut,
-    Fut: std::future::Future<Output = axum::response::Response>,
+    F: FnOnce(Result<Done, Failure>) -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = axum::response::Response> + Send,
 {
-    let trace = Trace::default();
-    let result = run_with_bootstrap_retries(rt, call, &trace).await;
-    let mut response = render(result).await;
-    if let Some(id) = trace.0.lock().unwrap_or_else(std::sync::PoisonError::into_inner).take()
-        && let Ok(value) = axum::http::HeaderValue::from_str(&id)
-    {
-        response.headers_mut().insert("x-cpa-trace-id", value);
+    let interval = if call.stream || call.operation != Operation::Generate {
+        None
+    } else {
+        nonstream_keepalive(&rt.config())
+    };
+    let trace = Arc::new(Trace::default());
+    let mut work = Box::pin({
+        let (rt, trace) = (rt.clone(), trace.clone());
+        async move {
+            let result = run_with_bootstrap_retries(&rt, call, &trace).await;
+            let mut response = render(result).await;
+            if let Some(value) = trace.header() {
+                response.headers_mut().insert("x-cpa-trace-id", value);
+            }
+            response
+        }
+    });
+    let Some(interval) = interval else {
+        return work.await;
+    };
+    tokio::select! {
+        biased;
+        response = &mut work => return response,
+        () = tokio::time::sleep(interval) => {}
+    }
+    let mut ticks = tokio::time::interval_at(tokio::time::Instant::now() + interval, interval);
+    ticks.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+    enum Event {
+        Tick,
+        Done(axum::response::Response),
+    }
+    let events = futures_util::stream::unfold(Some((work, ticks)), |state| async move {
+        let (mut work, mut ticks) = state?;
+        tokio::select! {
+            biased;
+            response = &mut work => Some((Event::Done(response), None)),
+            _ = ticks.tick() => Some((Event::Tick, Some((work, ticks)))),
+        }
+    });
+    let newline = || Ok::<_, axum::Error>(Bytes::from_static(b"\n"));
+    let body = futures_util::stream::iter([newline()]).chain(events.flat_map(move |event| match event {
+        Event::Tick => futures_util::stream::iter([newline()]).left_stream(),
+        Event::Done(response) => response.into_body().into_data_stream().right_stream(),
+    }));
+    let mut response = axum::response::Response::new(axum::body::Body::from_stream(body));
+    let headers = response.headers_mut();
+    headers.insert(
+        axum::http::header::CONTENT_TYPE,
+        axum::http::HeaderValue::from_static("application/json"),
+    );
+    // Go cpa_trace.go applies the trace ID when the first keep-alive commits headers.
+    if let Some(value) = trace.header() {
+        headers.insert("x-cpa-trace-id", value);
     }
     response
+}
+
+/// `requests.nonstream-keepalive-interval` seconds (Go `NonStreamingKeepAliveInterval`;
+/// 0 or below disables it).
+fn nonstream_keepalive(cfg: &Config) -> Option<Duration> {
+    let seconds = cfg
+        .document
+        .get("requests")
+        .and_then(|r| r.get("nonstream-keepalive-interval"))
+        .and_then(serde_yaml_ng::Value::as_i64)
+        .unwrap_or(0);
+    (seconds > 0).then(|| Duration::from_secs(seconds as u64))
 }
 
 /// `requests.streaming.bootstrap-retries` (Go `StreamingBootstrapRetries`).
@@ -445,6 +509,16 @@ impl Trace {
     /// The request ID (Go `logging.GetRequestID`), created on first use.
     fn request_id(&self) -> String {
         self.1.get_or_init(request_id).clone()
+    }
+
+    /// The `X-CPA-TRACE-ID` value of the credential selected so far.
+    fn header(&self) -> Option<axum::http::HeaderValue> {
+        let id = self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()?;
+        axum::http::HeaderValue::from_str(&id).ok()
     }
 
     fn selected(&self, credential: &cpa_core::credential::Credential) {
