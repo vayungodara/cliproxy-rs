@@ -305,35 +305,37 @@ pub(crate) fn preferred_interval(credential: &Credential) -> Option<chrono::Dura
         "refresh_interval",
         "refreshInterval",
     ];
-    let seconds = KEYS.iter().find_map(|k| match credential.metadata.get(*k)? {
-        Value::Number(n) => n.as_f64().filter(|v| *v > 0.0),
+    let from_metadata = KEYS.iter().find_map(|k| match credential.metadata.get(*k)? {
+        Value::Number(n) => n.as_f64().and_then(seconds),
         Value::String(s) => parse_duration_string(s),
         _ => None,
     });
-    let seconds = seconds.or_else(|| {
-        KEYS.iter()
-            .find_map(|k| {
-                credential
-                    .attributes
-                    .get(*k)
-                    .and_then(|s| parse_go_duration(s).or_else(|| s.trim().parse().ok()))
-            })
-            .filter(|v: &f64| *v > 0.0)
-    })?;
-    chrono::Duration::try_milliseconds((seconds * 1000.0) as i64)
+    from_metadata.or_else(|| {
+        KEYS.iter().find_map(|k| {
+            let s = credential.attributes.get(*k)?;
+            go_duration(s).or_else(|| s.trim().parse().ok().and_then(seconds))
+        })
+    })
 }
 
-/// Go `time.ParseDuration`, in seconds.
-pub(crate) fn parse_go_duration(s: &str) -> Option<f64> {
-    cpa_core::config::parse_duration(s).map(|nanos| nanos as f64 / 1e9)
+/// Go `time.ParseDuration`, kept to the nanosecond; non-positive is absent.
+fn go_duration(s: &str) -> Option<chrono::Duration> {
+    cpa_core::config::parse_duration(s)
+        .filter(|nanos| *nanos > 0)
+        .map(chrono::Duration::nanoseconds)
+}
+
+/// Plain seconds, to the millisecond; non-positive is absent.
+fn seconds(value: f64) -> Option<chrono::Duration> {
+    (value > 0.0)
+        .then(|| chrono::Duration::try_milliseconds((value * 1000.0) as i64))
+        .flatten()
 }
 
 /// `parseDurationString`: a Go duration, else plain seconds; non-positive is absent.
-fn parse_duration_string(s: &str) -> Option<f64> {
+fn parse_duration_string(s: &str) -> Option<chrono::Duration> {
     let s = s.trim();
-    parse_go_duration(s)
-        .filter(|v| *v > 0.0)
-        .or_else(|| s.parse::<f64>().ok().filter(|v| *v > 0.0))
+    go_duration(s).or_else(|| s.parse::<f64>().ok().and_then(seconds))
 }
 
 /// Go `shouldRefresh` timing for one credential (backoff and lifecycle gates belong to the
@@ -791,10 +793,14 @@ mod tests {
             serde_json::json!({"type":"kimi","access_token":"o","refresh_interval":"600","last_refresh":1_790_000_000 - 1200}),
         );
         assert!(refresh_due(&c, lead, now));
-        assert_eq!(parse_go_duration("1h30m"), Some(5400.0));
-        assert_eq!(parse_go_duration("1.5h2.5s"), Some(5402.5));
-        assert_eq!(parse_go_duration("300ms"), Some(0.3));
-        assert_eq!(parse_go_duration("10"), None);
-        assert_eq!(parse_go_duration("h"), None);
+        let ms = chrono::Duration::milliseconds;
+        assert_eq!(parse_duration_string("1h30m"), Some(chrono::Duration::seconds(5400)));
+        assert_eq!(parse_duration_string("1.5h2.5s"), Some(ms(5_402_500)));
+        assert_eq!(parse_duration_string("1001ms"), Some(ms(1001)));
+        assert_eq!(parse_duration_string("1005ms"), Some(ms(1005)));
+        assert_eq!(parse_duration_string("10"), Some(chrono::Duration::seconds(10)));
+        assert_eq!(parse_duration_string("-1s"), None);
+        assert_eq!(go_duration("10"), None);
+        assert_eq!(go_duration("h"), None);
     }
 }
