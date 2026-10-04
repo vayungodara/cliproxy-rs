@@ -81,6 +81,11 @@ impl Entry {
         self.mode().0 == 0
     }
 
+    /// The uncompressed size the central directory declares.
+    pub fn size(&self) -> u64 {
+        self.uncompressed
+    }
+
     /// `FileInfo().Mode().Perm()`.
     pub fn perm(&self) -> u32 {
         self.mode().1

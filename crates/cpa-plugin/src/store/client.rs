@@ -24,6 +24,10 @@ use crate::gojson;
 
 const USER_AGENT: &str = "CLIProxyAPI";
 const MAX_REDIRECTS: usize = 10;
+/// The most any store response may hold. Go reads registry, release and asset
+/// responses without a bound and direct artifacts up to their declared size; here a
+/// declared size can only lower this.
+pub const MAX_DOWNLOAD_BYTES: u64 = 256 << 20;
 
 /// One response from a [`Doer`]: status, headers (canonical keys) and the body.
 pub struct DoerResponse {
@@ -387,7 +391,11 @@ async fn read_response(
         )));
     }
     let _ = limiter.observe(rate_key, status, &headers, None);
-    let limit = if max_size > 0 { max_size + 1 } else { u64::MAX };
+    let max_size = match max_size {
+        0 => MAX_DOWNLOAD_BYTES,
+        declared => declared.min(MAX_DOWNLOAD_BYTES),
+    };
+    let limit = max_size + 1;
     let mut data = bytes::BytesMut::new();
     while (data.len() as u64) < limit {
         match body.next().await {
@@ -399,7 +407,7 @@ async fn read_response(
             None => break,
         }
     }
-    if max_size > 0 && data.len() as u64 > max_size {
+    if data.len() as u64 > max_size {
         return Err(StoreError::Other(format!(
             "response exceeds maximum allowed size of {max_size} bytes"
         )));
@@ -468,4 +476,51 @@ pub fn select_release_assets(
 /// Go `ArchiveName`: `{id}_{version}_{goos}_{goarch}.zip`.
 pub fn archive_name(id: &str, version: &str, goos: &str, goarch: &str) -> String {
     format!("{}_{}_{}_{}.zip", id.trim(), version.trim(), goos.trim(), goarch.trim())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An endless 200 response; nothing leaves the process.
+    struct Endless;
+
+    impl Doer for Endless {
+        fn get(&self, _: &str, _: &Headers) -> BoxFuture<'_, Result<DoerResponse, String>> {
+            Box::pin(async {
+                let chunk = Bytes::from(vec![b'x'; 1 << 20]);
+                Ok(DoerResponse {
+                    status: 200,
+                    headers: Headers::new(),
+                    body: futures_util::stream::repeat(Ok(chunk)).boxed(),
+                })
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn downloads_stop_at_the_ceiling() {
+        let mut client = Client::new(Arc::new(Endless));
+        client.registry_url = "https://registry.example.invalid/plugins.json".into();
+        let err = client.fetch_registry().await.unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            format!("response exceeds maximum allowed size of {MAX_DOWNLOAD_BYTES} bytes")
+        );
+        // A declared size lowers the ceiling; one above it does not raise it.
+        let url = "https://cdn.example.invalid/p.zip";
+        let err = client
+            .get(url, "application/octet-stream", REQUEST_KIND_ARTIFACT, 10)
+            .await
+            .unwrap_err();
+        assert_eq!(err.to_string(), "response exceeds maximum allowed size of 10 bytes");
+        let err = client
+            .get(url, "application/octet-stream", REQUEST_KIND_ARTIFACT, u64::MAX / 2)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            format!("response exceeds maximum allowed size of {MAX_DOWNLOAD_BYTES} bytes")
+        );
+    }
 }
