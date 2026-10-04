@@ -422,22 +422,37 @@ struct UpstreamCapture {
     error: bool,
 }
 
+fn commercial_mode(config: &cpa_core::config::Config) -> bool {
+    config
+        .document
+        .get("server")
+        .and_then(|s| s.get("commercial-mode"))
+        .and_then(serde_yaml_ng::Value::as_bool)
+        == Some(true)
+}
+
+fn request_log_on(config: &cpa_core::config::Config) -> bool {
+    setting(config, "request-log").and_then(serde_yaml_ng::Value::as_bool) == Some(true)
+}
+
 impl cpa_core::exec::CaptureObserver for RequestLog {
+    fn logs_responses(&self) -> bool {
+        let locked = self.0.lock().unwrap_or_else(PoisonError::into_inner);
+        locked.as_ref().is_some_and(|record| {
+            let config = record.state.rt.config();
+            !commercial_mode(&config) && request_log_on(&config)
+        })
+    }
+
     fn record(&self, event: cpa_core::exec::CaptureEvent<'_>) {
         use cpa_core::exec::CaptureEvent::*;
         let mut locked = self.0.lock().unwrap_or_else(PoisonError::into_inner);
         let Some(record) = locked.as_mut() else { return };
         let config = record.state.rt.config();
-        if config
-            .document
-            .get("server")
-            .and_then(|s| s.get("commercial-mode"))
-            .and_then(serde_yaml_ng::Value::as_bool)
-            == Some(true)
-        {
+        if commercial_mode(&config) {
             return;
         }
-        let enabled = setting(&config, "request-log").and_then(serde_yaml_ng::Value::as_bool) == Some(true);
+        let enabled = request_log_on(&config);
         match event {
             Request(info) => {
                 let capture = &mut record.upstream;
@@ -1448,6 +1463,7 @@ mod tests {
     async fn upstream_contract_matches_real_go() {
         use cpa_core::exec::{CaptureEvent::*, UpstreamRequest};
         assert!(!cpa_core::exec::CaptureSink::default().enabled());
+        assert!(!cpa_core::exec::CaptureSink::default().logs_responses());
         let fixture: serde_json::Value =
             serde_json::from_str(include_str!("../tests/fixtures/upstream_capture_go.json")).unwrap();
         for case in fixture.as_array().unwrap() {
@@ -1479,6 +1495,9 @@ mod tests {
                         auth_value: if oauth { "never-print-oauth" } else { " 1234567890 " },
                     };
                     let kind = case["kind"].as_str().unwrap();
+                    // Executors skip buffering response-only log data on this signal.
+                    let logging = !matches!(kind, "disabled" | "reload");
+                    assert_eq!(sink.logs_responses(), logging, "{kind}: responses logged");
                     if !matches!(kind, "missing" | "websocket") {
                         sink.record(Request(info(kind == "oauth", false)));
                     }
@@ -1496,6 +1515,7 @@ mod tests {
                                 cpa_core::config::Config::parse("observability: {logs: {request-log: true}}\n")
                                     .unwrap(),
                             );
+                            assert!(sink.logs_responses(), "reload: responses logged");
                         }
                         sink.record(ResponseMetadata(201, &response_headers));
                         sink.record(ResponseMetadata(202, &[("Ignored".into(), "yes".into())]));

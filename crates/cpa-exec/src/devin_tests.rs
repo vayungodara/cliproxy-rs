@@ -619,6 +619,62 @@ async fn turn_index_advances_per_session_like_go() {
     check_executor_fixture("turn-index-repeat").await;
 }
 
+/// An observer that drops response events, as the server's request log does while
+/// `request-log` is off.
+struct ResponsesOff;
+
+impl cpa_core::exec::CaptureObserver for ResponsesOff {
+    fn record(&self, _: cpa_core::exec::CaptureEvent<'_>) {}
+    fn logs_responses(&self) -> bool {
+        false
+    }
+}
+
+/// The stream summary copies thinking, content and the signature only while response
+/// logging is on; otherwise a long stream would be held in memory for nothing.
+#[tokio::test]
+async fn stream_summary_buffers_only_while_responses_are_logged() {
+    use cpa_core::exec::CaptureSink;
+    let fx = fixture("devin", "chat-stream");
+    let body = STANDARD
+        .decode(fx["responses"][0]["body_b64"].as_str().unwrap())
+        .unwrap();
+    let logged = std::sync::Arc::new(crate::kimi_fixture::CaptureLog::default());
+    for (sink, buffered) in [
+        (CaptureSink::default(), false),
+        (CaptureSink::new(std::sync::Arc::new(ResponsesOff)), false),
+        (logged.sink(), true),
+    ] {
+        let reader = FrameReader::new(futures_util::stream::iter([Ok(Bytes::from(body.clone()))]).boxed());
+        let claude = ClaudeInputTokens::new(Format::OpenAI, Format::Interactions, Format::Interactions, Bytes::new());
+        let mut stream = DevinStream::new(
+            "swe-2".into(),
+            Format::Interactions,
+            None,
+            claude,
+            reader,
+            Default::default(),
+            sink,
+        );
+        let (mut frames, mut held) = (0, 0);
+        while stream.reader.is_some() {
+            stream.step().await;
+            let s = &stream.summary;
+            frames = frames.max(s.frames);
+            held = held.max(s.thinking.len() + s.content.len() + s.signature.len());
+        }
+        assert!(frames > 1, "frames read: {frames}");
+        assert_eq!(held > 0, buffered, "summary buffered: {held} bytes");
+    }
+    assert!(
+        logged
+            .chunks()
+            .iter()
+            .any(|c| c.starts_with(b"\n=== DEVIN UPSTREAM RESPONSE SUMMARY ===")),
+        "summary logged"
+    );
+}
+
 #[tokio::test]
 async fn refresh_matches_go_fixtures() {
     for name in [

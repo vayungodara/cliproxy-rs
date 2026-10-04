@@ -570,7 +570,7 @@ impl DevinExecutor {
         }
         let (consumed, log) = consume_frames(reader, &req.model, &ctx_original).await;
         let built = consumed.as_ref().map(|(json, _)| json.as_slice()).unwrap_or_default();
-        if capture.enabled() && (log.is_some() || !built.is_empty()) {
+        if capture.logs_responses() && (log.is_some() || !built.is_empty()) {
             capture_chunk(&capture, &response_log_body(log.as_ref(), built));
         }
         let interactions = match consumed {
@@ -1011,6 +1011,13 @@ struct DevinStream {
     /// What Go's end-of-stream summary reports: frames read, thinking, content and the
     /// signature as received.
     summary: ResponseLog,
+    /// Response logging was on when the stream started: only then are thinking, content
+    /// and the signature copied into `summary`, which would otherwise hold the whole
+    /// response for nothing.
+    // ponytail: decided once per stream, so turning request-log on mid-stream logs no
+    // summary (Go always buffers it); upgrade by re-checking per frame and marking a
+    // partial summary.
+    log_summary: bool,
     /// No interactions event has been logged yet.
     first_logged_event: bool,
 }
@@ -1086,6 +1093,7 @@ impl DevinStream {
             translation_failed: false,
             ended: false,
             usage_sink,
+            log_summary: capture.logs_responses(),
             capture,
             summary: ResponseLog {
                 status: "completed".into(),
@@ -1413,15 +1421,19 @@ impl DevinStream {
         {
             self.usage_sink.response_model(&String::from_utf8_lossy(&u.model_name));
         }
-        self.summary.signature.extend_from_slice(&frame.signature);
-        if !frame.signature_type.is_empty() {
-            self.summary.signature_type.clone_from(&frame.signature_type);
+        if self.log_summary {
+            self.summary.signature.extend_from_slice(&frame.signature);
+            if !frame.signature_type.is_empty() {
+                self.summary.signature_type.clone_from(&frame.signature_type);
+            }
         }
         if !frame.thinking.is_empty() {
             if !self.pending.is_empty() && !self.flush_pending() {
                 return;
             }
-            self.summary.thinking.extend_from_slice(&frame.thinking);
+            if self.log_summary {
+                self.summary.thinking.extend_from_slice(&frame.thinking);
+            }
             let chunk = self.thinking_buf.feed(&frame.thinking);
             if !chunk.is_empty() {
                 if self.content_started {
@@ -1475,7 +1487,9 @@ impl DevinStream {
             }
         }
         if !frame.content.is_empty() {
-            self.summary.content.extend_from_slice(&frame.content);
+            if self.log_summary {
+                self.summary.content.extend_from_slice(&frame.content);
+            }
             let chunk = self.content_buf.feed(&frame.content);
             if !chunk.is_empty() {
                 if self.thought_started {
@@ -1581,7 +1595,7 @@ impl DevinStream {
         }
         // Go's response summary: the signature as received (not reformatted), no tool
         // calls.
-        if self.capture.enabled() && (self.usage.is_some() || !self.summary.signature.is_empty()) {
+        if self.log_summary && (self.usage.is_some() || !self.summary.signature.is_empty()) {
             let summary = ResponseLog {
                 usage: self.usage.clone(),
                 ..std::mem::take(&mut self.summary)
