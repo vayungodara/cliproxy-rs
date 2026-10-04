@@ -196,14 +196,17 @@ pub(super) async fn poll(state: &Arc<Management>, sid: &str, provider: &str, met
 }
 
 /// Go `savePluginLoginRecords`: each auth saved as `saveTokenRecord` saves it (existing
-/// file metadata merged, written with creation intent); on a failure the files saved
-/// so far are removed.
+/// file metadata merged, written with creation intent). On a failure the batch is
+/// undone, newest first: a file it created is removed (locally and from the store),
+/// a file that existed before gets its earlier bytes back, which the watcher syncs
+/// to the store. Go removes both kinds.
 // ponytail: Go's auth-manager metadata fallback, legacy Claude credential migration and
 // post-auth hooks (SDK embedders only) are not ported; the watcher loads the new files.
 fn save_records(state: &Management, records: Vec<PluginAuth>) -> Result<(), String> {
     let _guard = state.disk.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
     let auth_dir = state.rt.config().auth_dir.clone();
-    let mut saved: Vec<String> = Vec::new();
+    // Each saved path with what it held before the batch (`None`: it did not exist).
+    let mut saved: Vec<(String, Option<Vec<u8>>)> = Vec::new();
     for mut record in records {
         // Go `mergeExistingAuthFileMetadata`.
         let target = if record.file_name.is_empty() {
@@ -218,25 +221,47 @@ fn save_records(state: &Management, records: Vec<PluginAuth>) -> Result<(), Stri
         {
             record.merge_existing(&existing);
         }
-        match record.save_file(&auth_dir.to_string_lossy(), true) {
+        let base = auth_dir.to_string_lossy();
+        // A file that exists but cannot be read is not tracked: it is never removed.
+        let prior = record
+            .file_path(&base)
+            .ok()
+            .and_then(|path| match std::fs::read(&path) {
+                Ok(bytes) => Some(Some(bytes)),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Some(None),
+                Err(_) => None,
+            });
+        match record.save_file(&base, true) {
             Ok(path) => {
-                if !path.trim().is_empty() {
-                    saved.push(path);
+                if let Some(prior) = prior
+                    && !path.trim().is_empty()
+                {
+                    saved.push((path, prior));
                 }
             }
             Err(e) => {
-                // Go `rollbackSavedTokenRecords`, newest first.
-                for path in saved.iter().rev() {
-                    let _ = std::fs::remove_file(path);
-                    if let Err(e) = state.store_delete(Path::new(path)) {
-                        tracing::warn!(error = %e, path = %path, "failed to roll back plugin auth token");
-                    }
-                }
+                rollback(state, &saved);
                 return Err(e);
             }
         }
     }
     Ok(())
+}
+
+/// Go `rollbackSavedTokenRecords`, newest first, keeping what existed before.
+fn rollback(state: &Management, saved: &[(String, Option<Vec<u8>>)]) {
+    for (path, prior) in saved.iter().rev() {
+        let result = match prior {
+            Some(bytes) => cpa_plugin::auth::atomic_write(Path::new(path), bytes),
+            None => {
+                let _ = std::fs::remove_file(path);
+                state.store_delete(Path::new(path))
+            }
+        };
+        if let Err(e) = result {
+            tracing::warn!(error = %e, path = %path, "failed to roll back plugin auth token");
+        }
+    }
 }
 
 /// Go `filepath.Join(dir, name)`: lexical, so an absolute name still lands under
@@ -296,6 +321,102 @@ pub(super) fn write_callback_file(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Records the store deletes a rollback asks for.
+    struct Store {
+        dir: std::path::PathBuf,
+        deleted: std::sync::Mutex<Vec<std::path::PathBuf>>,
+    }
+
+    impl crate::persist::StorePersister for Store {
+        fn persist_config(&self) -> futures_util::future::BoxFuture<'_, anyhow::Result<()>> {
+            Box::pin(async { Ok(()) })
+        }
+        fn persist_auth_files(
+            &self,
+            _: String,
+            _: Vec<std::path::PathBuf>,
+        ) -> futures_util::future::BoxFuture<'_, anyhow::Result<()>> {
+            Box::pin(async { Ok(()) })
+        }
+        fn delete_auth(&self, path: std::path::PathBuf) -> anyhow::Result<()> {
+            self.deleted.lock().unwrap().push(path);
+            Ok(())
+        }
+        fn auth_dir(&self) -> std::path::PathBuf {
+            self.dir.clone()
+        }
+    }
+
+    /// A batch that fails on a later record gives an overwritten file its earlier
+    /// bytes back and leaves its store copy alone; only the file it created goes.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_failed_batch_keeps_files_that_existed() {
+        let work = cpa_plugin::testing::scratch(&std::env::temp_dir(), "plugin-oauth-rollback");
+        let auths = work.join("auths");
+        std::fs::create_dir_all(&auths).unwrap();
+        let existing = br#"{"type":"rec","access_token":"old"}"#;
+        std::fs::write(auths.join("existing.json"), existing).unwrap();
+        let config_path = work.join("config.yaml");
+        std::fs::write(&config_path, format!("auth-dir: {}\n", auths.display())).unwrap();
+        let cfg = cpa_core::config::Config::load(&config_path).unwrap();
+        let rt = std::sync::Arc::new(crate::testing::runtime(
+            cfg,
+            Vec::new(),
+            cpa_exec::Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        ));
+        let store = std::sync::Arc::new(Store {
+            dir: auths.clone(),
+            deleted: Default::default(),
+        });
+        let state = Management::with_options(
+            rt,
+            config_path,
+            super::super::Options {
+                store: Some(store.clone()),
+                ..Default::default()
+            },
+        );
+        let base = auths.to_string_lossy().into_owned();
+        let record = |file: &str, json: &'static [u8]| {
+            let data = cpa_plugin::api::AuthData {
+                provider: "rec".into(),
+                file_name: file.into(),
+                storage_json: bytes::Bytes::from_static(json),
+                ..Default::default()
+            };
+            PluginAuth::from_auth_data(data, "", "", &base).unwrap()
+        };
+        let records = vec![
+            record("existing.json", br#"{"type":"rec","access_token":"new"}"#),
+            record("created.json", br#"{"type":"rec","access_token":"c"}"#),
+            {
+                let mut bad = record("bad.json", br#"{"type":"rec"}"#);
+                bad.attributes.insert("weight".into(), "1.5".into());
+                bad
+            },
+        ];
+        let err = tokio::task::spawn_blocking({
+            let state = state.clone();
+            move || save_records(&state, records)
+        })
+        .await
+        .unwrap()
+        .unwrap_err();
+        assert!(err.contains("weight"), "{err}");
+        assert_eq!(std::fs::read(auths.join("existing.json")).unwrap(), existing);
+        assert!(!auths.join("created.json").exists());
+        assert!(!auths.join("bad.json").exists());
+        let deleted = store.deleted.lock().unwrap().clone();
+        assert_eq!(deleted, [std::path::absolute(auths.join("created.json")).unwrap()]);
+        let _ = std::fs::remove_dir_all(&work);
+    }
 
     #[test]
     fn existing_metadata_is_read_where_go_joins() {
