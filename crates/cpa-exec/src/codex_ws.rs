@@ -69,17 +69,17 @@ pub(crate) enum Read {
 /// The reader's hand-off to the turn in progress. One lock covers both fields, so a turn
 /// that activates after the reader exited sees why instead of waiting forever.
 #[derive(Default)]
-struct Link {
+pub(crate) struct Link {
     /// The turn currently reading, if any.
     active: Option<mpsc::Sender<Read>>,
     /// Why the reader stopped (`upstreamDisconnectError`); set once when it exits.
-    lost: Option<ExecError>,
+    pub(crate) lost: Option<ExecError>,
 }
 
 pub(crate) struct Upstream {
     pub(crate) target: Target,
-    sink: tokio::sync::Mutex<SplitSink<WebSocket, Message>>,
-    link: Mutex<Link>,
+    pub(crate) sink: tokio::sync::Mutex<SplitSink<WebSocket, Message>>,
+    pub(crate) link: Mutex<Link>,
     pub(crate) reader: Mutex<Option<tokio::task::AbortHandle>>,
     /// The last request that touched the `collaboration` namespace on this socket renamed
     /// it (`multiAgentV2OptimizedConn`): later continuations restore upstream names too.

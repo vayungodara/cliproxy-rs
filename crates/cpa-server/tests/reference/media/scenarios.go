@@ -182,6 +182,8 @@ func scenarios() []scenario {
 		get("video_content_download_error_body", create+"/req-vid-1/content",
 			ok(`{"status":"done","video":{"url":"http://UPSTREAM/files/gone.mp4"}}`),
 			upstream{Status: 410, Body: "  expired  "}),
+		get("video_content_connect_refused", create+"/req-vid-1/content",
+			ok(`{"status":"done","video":{"url":"http://127.0.0.1:9/refused.mp4"}}`)),
 		get("video_content_no_url", create+"/req-vid-1/content",
 			ok(`{"status":"processing"}`)),
 		get("video_content_invalid_url", create+"/req-vid-1/content",

@@ -20,7 +20,10 @@ use bytes::Bytes;
 use cpa_common::json::{self as gj, GoValue, Kind};
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
-use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecSession, FailureScope, ResponseBody};
+use cpa_core::exec::{
+    CaptureEvent, CaptureSink, ExecError, ExecRequest, ExecResponse, ExecSession, FailureScope, ResponseBody,
+    UpstreamRequest,
+};
 use cpa_core::format::Format;
 use futures_util::StreamExt;
 use http::{HeaderMap, HeaderName, HeaderValue};
@@ -36,6 +39,9 @@ use crate::xai_request as request;
 use crate::xai_response::{self as response, NamespaceRestorer, OutputItems, XSearchFilter, text};
 use cpa_translate::apply_patch_responses as apply_patch;
 
+/// The terminal events whose usage Go's WebSocket turn observes (completed and done).
+const WS_USAGE_EVENTS: [&str; 2] = ["response.completed", "response.done"];
+
 /// `codexResponsesWebsocketHandshakeTO`.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
 /// Bound on a handshake rejection body.
@@ -43,12 +49,26 @@ const MAX_HANDSHAKE_BODY: usize = 64 * 1024;
 /// `buildXAIWebsocketWarmupCompletedPayload`'s empty usage.
 const EMPTY_USAGE: &str = r#"{"input_tokens":0,"input_tokens_details":{"cached_tokens":0},"output_tokens":0,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":0}"#;
 
+/// Go reads xAI sockets without a deadline (only the Codex reader sets one); the shared
+/// reader's deadline is set past any session.
+const NO_READ_DEADLINE: Duration = Duration::from_secs(10 * 365 * 24 * 3600);
+
 /// The executor's sockets and per-session ID state (`globalXAIWebsocketSessionStore`,
 /// `globalXAIWebsocketIDStates`).
-#[derive(Default)]
 pub(crate) struct Ws {
     pool: Pool,
     states: Mutex<HashMap<String, Arc<IdState>>>,
+}
+
+impl Default for Ws {
+    fn default() -> Self {
+        let mut pool = Pool::default();
+        pool.idle = NO_READ_DEADLINE;
+        Self {
+            pool,
+            states: Mutex::default(),
+        }
+    }
 }
 
 impl Ws {
@@ -591,6 +611,11 @@ fn pool_error(mut error: ExecError) -> ExecError {
     error
 }
 
+/// `shouldRetryXAIWebsocketSend`: a request-scoped failure (413) never retries.
+fn should_retry_send(error: &ExecError) -> bool {
+    error.scope != FailureScope::Request
+}
+
 /// `applyXAIWebsocketHeaders`.
 fn handshake_headers(credential: &Credential, token: &str, session_id: &str, req: &ExecRequest) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -662,6 +687,129 @@ fn validate_compaction(data: &[u8]) -> Result<(String, Vec<u8>), ExecError> {
     Ok((response_id, item))
 }
 
+// --- capture (RecordAPIWebsocket*) ------------------------------------------------------
+
+/// The upstream WebSocket's capture: the request log Go builds once per turn (`wsReqLog`)
+/// and the events of its socket. A no-op without an observer.
+struct WsCapture {
+    sink: CaptureSink,
+    url: String,
+    headers: Vec<(String, String)>,
+    frame: Vec<u8>,
+    auth_id: String,
+    auth_label: String,
+    auth_type: &'static str,
+    auth_value: String,
+}
+
+impl WsCapture {
+    fn new(req: &ExecRequest, credential: &Credential, url: &str, headers: &HeaderMap, frame: &[u8]) -> Self {
+        let sink = req.capture().clone();
+        let (auth_type, auth_value) = crate::openai_compat_http::account_info(credential);
+        Self {
+            headers: if sink.enabled() {
+                crate::openai_compat_http::header_pairs(headers)
+            } else {
+                Vec::new()
+            },
+            sink,
+            url: url.to_owned(),
+            frame: frame.to_vec(),
+            auth_id: credential.id.clone(),
+            auth_label: credential.label.clone(),
+            auth_type,
+            auth_value,
+        }
+    }
+
+    fn log<'a>(
+        &'a self,
+        url: &'a str,
+        method: &'a str,
+        headers: &'a [(String, String)],
+        body: &'a [u8],
+    ) -> UpstreamRequest<'a> {
+        UpstreamRequest {
+            url,
+            method,
+            headers,
+            body,
+            provider: crate::xai::PROVIDER,
+            auth_id: &self.auth_id,
+            auth_label: &self.auth_label,
+            auth_type: self.auth_type,
+            auth_value: &self.auth_value,
+        }
+    }
+
+    /// `RecordAPIWebsocketRequest`.
+    fn request(&self) {
+        if self.sink.enabled() {
+            self.sink.record(CaptureEvent::WebsocketRequest(self.log(
+                &self.url,
+                "WEBSOCKET",
+                &self.headers,
+                &self.frame,
+            )));
+        }
+    }
+
+    /// `RecordAPIWebsocketUpgradeRejection`: an HTTP attempt (`websocketUpgradeRequestLog`:
+    /// GET on the http(s) URL, no body, Connection and Upgrade defaulted).
+    fn rejection(&self, status: u16, headers: &HeaderMap, body: &[u8]) {
+        if !self.sink.enabled() {
+            return;
+        }
+        let url = upgrade_url(&self.url);
+        let mut request_headers = self.headers.clone();
+        for (name, value) in [("Connection", "Upgrade"), ("Upgrade", "websocket")] {
+            if !request_headers.iter().any(|(n, v)| n == name && !v.trim().is_empty()) {
+                request_headers.retain(|(n, _)| n != name);
+                request_headers.push((name.to_owned(), value.to_owned()));
+            }
+        }
+        self.sink
+            .record(CaptureEvent::Request(self.log(&url, "GET", &request_headers, &[])));
+        let response_headers = crate::openai_compat_http::header_pairs(headers);
+        self.sink
+            .record(CaptureEvent::ResponseMetadata(status, &response_headers));
+        self.sink.record(CaptureEvent::ResponseChunk(body));
+    }
+
+    /// `recordAPIWebsocketHandshake` for a newly dialed socket.
+    fn handshake(&self, headers: &HeaderMap) {
+        if self.sink.enabled() {
+            let pairs = crate::openai_compat_http::header_pairs(headers);
+            self.sink.record(CaptureEvent::WebsocketHandshake(101, &pairs));
+        }
+    }
+
+    /// `RecordAPIWebsocketError`.
+    fn error(&self, stage: &str, error: &ExecError) {
+        if self.sink.enabled() {
+            self.sink.record(CaptureEvent::WebsocketError {
+                stage,
+                error: &String::from_utf8_lossy(&error.body),
+            });
+        }
+    }
+
+    /// `AppendAPIWebsocketResponse`.
+    fn response(&self, payload: &[u8]) {
+        self.sink.record(CaptureEvent::WebsocketResponse(payload));
+    }
+}
+
+/// `helps.WebsocketUpgradeRequestURL`: ws to http, wss to https.
+fn upgrade_url(raw: &str) -> String {
+    let raw = raw.trim();
+    match raw.find(':') {
+        Some(i) if raw[..i].eq_ignore_ascii_case("ws") => format!("http{}", &raw[i..]),
+        Some(i) if raw[..i].eq_ignore_ascii_case("wss") => format!("https{}", &raw[i..]),
+        _ => raw.to_owned(),
+    }
+}
+
 // --- the turn --------------------------------------------------------------------------
 
 /// One turn on the session's socket, as a stream of downstream payloads. Dropping it
@@ -685,6 +833,9 @@ struct Turn {
     warmup: bool,
     recorded: bool,
     usage: cpa_core::exec::UsageSink,
+    /// A completed or done event carried usage (`StreamUsageBuffer.ok`).
+    usage_seen: bool,
+    capture: Arc<WsCapture>,
     ready: VecDeque<Result<Bytes, ExecError>>,
     done: bool,
 }
@@ -700,6 +851,7 @@ impl Turn {
     /// (`invalidatePatchAttempt`).
     fn fail_patch(&mut self, events: Vec<Vec<u8>>) {
         let error = apply_patch_error();
+        crate::openai_compat_http::publish_failure(&self.usage, &error);
         self.session.invalidate(&self.conn, &error, false);
         self.ready.extend(events.into_iter().map(|e| Ok(Bytes::from(e))));
         self.ready.push_back(Err(error));
@@ -722,7 +874,13 @@ impl Turn {
             let (events, _) = self.apply_patch.bridge.fail(&finish);
             return self.fail_patch(events);
         }
-        self.ready.push_back(Err(pool_error(error)));
+        let error = pool_error(error);
+        // Every socket here has a session, whose reader hands a binary message over as a
+        // read error: Go logs it at the `read` stage (`unexpected_binary` is its
+        // sessionless reader's).
+        self.capture.error("read", &error);
+        crate::openai_compat_http::publish_failure(&self.usage, &error);
+        self.ready.push_back(Err(error));
         self.done = true;
     }
 
@@ -732,7 +890,11 @@ impl Turn {
         if payload.is_empty() {
             return;
         }
+        self.usage.first_byte();
+        self.capture.response(payload);
         if let Some(error) = ws_error(payload) {
+            self.capture.error("upstream_error", &error);
+            crate::openai_compat_http::publish_failure(&self.usage, &error);
             self.session.invalidate(&self.conn, &error, false);
             self.ready.push_back(Err(error));
             self.done = true;
@@ -754,6 +916,10 @@ impl Turn {
             for event in events {
                 if self.event(event) {
                     self.done = true;
+                    // The goroutine's deferred `streamUsage.Publish`.
+                    if self.usage_seen {
+                        self.usage.publish();
+                    }
                     return;
                 }
             }
@@ -767,8 +933,12 @@ impl Turn {
             self.apply_patch.active() && matches!(kind.as_str(), "response.incomplete" | "response.failed");
         let terminal = matches!(kind.as_str(), "response.completed" | "response.done" | "error") || patch_terminal;
         if self.usage.enabled() {
-            // ObserveResponseModel, and StreamUsageBuffer.Observe on the terminal events.
-            self.usage.response_line(Format::Codex, &event);
+            // ObserveResponseModel, and StreamUsageBuffer.Observe on completed and done.
+            self.usage
+                .response_line(Format::Codex, &response::usage_line(&event, &WS_USAGE_EVENTS));
+            if WS_USAGE_EVENTS.contains(&kind.as_str()) && response::codex_usage_ok(&event) {
+                self.usage_seen = true;
+            }
         }
         let mut warmup_completed_event = None;
         match kind.as_str() {
@@ -819,7 +989,14 @@ impl Turn {
             match self.rx.recv().await {
                 Some(Read::Text(message)) => self.message(&message),
                 Some(Read::Failed(error)) => self.read_failed(error),
-                None => self.read_failed(plain("xai websockets executor: session read channel closed")),
+                // The reader's terminal error did not fit a full queue (Go's
+                // `sendTerminalWebsocketRead` waits for room); it is kept on the socket.
+                None => {
+                    let lost = self.conn.link.lock().expect("link").lost.clone();
+                    self.read_failed(
+                        lost.unwrap_or_else(|| plain("xai websockets executor: session read channel closed")),
+                    );
+                }
             }
         }
     }
@@ -841,6 +1018,8 @@ impl XaiExecutor {
             return self.stream_ws(credential, req, cfg.as_ref(), session).await;
         }
         if session.continuation {
+            // Go's auto executor answers before any reporter exists.
+            req.usage.discard();
             return Err(ExecError::replay_required());
         }
         self.execute(credential, req, cfg, true).await
@@ -868,6 +1047,7 @@ impl XaiExecutor {
         exec_session: &ExecSession,
     ) -> Result<ExecResponse, ExecError> {
         if req.alt.as_deref() == Some(crate::xai::COMPACT_ALT) {
+            req.usage.discard();
             return Err(status_err(400, "streaming not supported for /responses/compact"));
         }
         let exec_id = exec_session.id.trim().to_owned();
@@ -878,6 +1058,7 @@ impl XaiExecutor {
         let state = self.ws.state(&state_id);
         if crate::xai::input_has_item_type(&req.body, "compaction_trigger") {
             if exec_session.continuation {
+                req.usage.discard();
                 return Err(ExecError::replay_required());
             }
             let session = self.ws.pool.session(&exec_id);
@@ -891,7 +1072,10 @@ impl XaiExecutor {
         if base.is_empty() {
             base = DEFAULT_API_BASE_URL.to_owned();
         }
-        let mut prepared = request::prepare(&req, cfg, true, Format::Codex, &self.replay, true).await?;
+        let mut prepared = crate::xai::before_reporter(
+            &req.usage,
+            request::prepare(&req, cfg, true, Format::Codex, &self.replay, true).await,
+        )?;
         let previous = text(&gj::get(&req.body, "previous_response_id")).trim().to_owned();
         if !previous.is_empty() {
             gj::set_str(&mut prepared.body, "previous_response_id", &previous);
@@ -912,9 +1096,9 @@ impl XaiExecutor {
             }
             prepared.body = m.upstream_request(std::mem::take(&mut prepared.body));
         }
-        if req.usage.enabled() {
-            req.usage.request(Format::Codex, &prepared.body);
-        }
+        // The turn publishes only usage it parsed (no EnsurePublished).
+        req.usage.usage_required();
+        req.usage.request_for(crate::xai::PROVIDER, &prepared.body);
         let headers = handshake_headers(credential, &token, &prepared.session_id, &req);
         let frame = request_frame(&prepared.body);
         let request_type = text(&gj::get(&req.body, "type"));
@@ -922,6 +1106,8 @@ impl XaiExecutor {
             && (request_type.trim() != "response.append" || mapper.as_ref().is_some_and(|m| m.replayed_compacted));
         let warmup = generate_false(&frame);
         let message = String::from_utf8_lossy(&frame).into_owned();
+        let capture = Arc::new(WsCapture::new(&req, credential, &target.url, &headers, &frame));
+        capture.request();
 
         let (mut conn, mut handshake) = if exec_session.continuation {
             match session.current().filter(|c| c.target == target) {
@@ -929,15 +1115,29 @@ impl XaiExecutor {
                 None => return Err(ExecError::replay_required()),
             }
         } else {
-            self.ws_ensure(&session, &target, &headers, cfg, credential, state.as_deref())
-                .await?
+            self.ws_ensure(
+                &session,
+                &target,
+                &headers,
+                cfg,
+                credential,
+                state.as_deref(),
+                &capture,
+                false,
+            )
+            .await?
         };
+        if let Some(handshake) = &handshake {
+            capture.handshake(handshake);
+        }
         conn.bind(&session, exec_session.lease.as_ref())?;
+        req.usage.round_trip_started();
         let mut rx = conn.activate();
         if let Err(error) = conn.send(message.clone()).await {
             let error = pool_error(error);
+            capture.error("send", &error);
             // `shouldRetryCodexWebsocketSend`: a request-scoped failure (413) never retries.
-            let retry = error.scope != FailureScope::Request;
+            let retry = should_retry_send(&error);
             if exec_session.continuation {
                 session.invalidate(&conn, &error, false);
                 return Err(if retry { ExecError::replay_required() } else { error });
@@ -947,12 +1147,27 @@ impl XaiExecutor {
                 return Err(error);
             }
             let (fresh, fresh_handshake) = self
-                .ws_ensure(&session, &target, &headers, cfg, credential, state.as_deref())
+                .ws_ensure(
+                    &session,
+                    &target,
+                    &headers,
+                    cfg,
+                    credential,
+                    state.as_deref(),
+                    &capture,
+                    true,
+                )
                 .await?;
+            capture.request();
+            if let Some(handshake) = &fresh_handshake {
+                capture.handshake(handshake);
+            }
             fresh.bind(&session, exec_session.lease.as_ref())?;
+            req.usage.round_trip_started();
             rx = fresh.activate();
             if let Err(error) = fresh.send(message).await {
                 let error = pool_error(error);
+                capture.error("send_retry", &error);
                 session.invalidate(&fresh, &error, true);
                 return Err(error);
             }
@@ -978,6 +1193,8 @@ impl XaiExecutor {
             warmup,
             recorded: false,
             usage: req.usage.clone(),
+            usage_seen: false,
+            capture,
             ready: VecDeque::new(),
             done: false,
         };
@@ -996,6 +1213,7 @@ impl XaiExecutor {
     /// `ensureUpstreamConn`: the session's socket for `target`, dialing a new one (and
     /// closing one for another target) when needed. Returns the handshake headers of a
     /// new socket.
+    #[allow(clippy::too_many_arguments)]
     async fn ws_ensure(
         &self,
         session: &Arc<Session>,
@@ -1004,6 +1222,8 @@ impl XaiExecutor {
         cfg: &Config,
         credential: &Credential,
         state: Option<&IdState>,
+        capture: &WsCapture,
+        retry: bool,
     ) -> Result<(Arc<Upstream>, Option<HeaderMap>), ExecError> {
         if let Some(current) = session.current() {
             if current.target == *target {
@@ -1018,7 +1238,7 @@ impl XaiExecutor {
             current.shutdown();
         }
         let client = self.clients.for_credential(credential, cfg);
-        let (socket, handshake) = dial(&client, target, headers).await?;
+        let (socket, handshake) = dial(&client, target, headers, capture, retry).await?;
         let (sink, stream) = socket.split();
         let conn = Upstream::new(target.clone(), sink);
         // Publish before the reader runs, as the Codex executor does.
@@ -1040,11 +1260,67 @@ impl XaiExecutor {
 }
 
 /// `dialXAIWebsocket`: a rejected upgrade is `xaiStatusErr(status, body)`.
+///
+/// Capture: the first dial records a rejected upgrade (any handshake response, including
+/// a 101 gorilla refuses) as an HTTP attempt and any other failure as a `dial` error; a
+/// retry dial records every failure as `dial_retry`, with gorilla's text for a rejection.
+// ponytail: Go returns `xaiStatusErr(101, body)` for a 101 gorilla refuses; this keeps the
+// plain handshake error, since a 101 status error has no sensible client response.
 async fn dial(
     client: &wreq::Client,
     target: &Target,
     headers: &HeaderMap,
+    capture: &WsCapture,
+    retry: bool,
 ) -> Result<(codex_ws::WebSocket, HeaderMap), ExecError> {
+    let stage = if retry { "dial_retry" } else { "dial" };
+    match dial_once(client, target, headers).await {
+        Ok(socket) => Ok(socket),
+        Err(Dial::Rejected(rejected)) => {
+            let Rejection {
+                error,
+                status,
+                headers,
+                body,
+                reason,
+            } = *rejected;
+            if retry {
+                capture.error(stage, &plain(reason));
+            } else {
+                capture.rejection(status, &headers, &body);
+            }
+            Err(error)
+        }
+        Err(Dial::Failed(error)) => {
+            capture.error(stage, &error);
+            Err(error)
+        }
+    }
+}
+
+/// A failed dial: a handshake response gorilla rejects, or any other failure.
+enum Dial {
+    Rejected(Box<Rejection>),
+    Failed(ExecError),
+}
+
+/// A handshake response gorilla rejects: the returned error, the response, and gorilla's
+/// error text.
+struct Rejection {
+    error: ExecError,
+    status: u16,
+    headers: HeaderMap,
+    body: Vec<u8>,
+    reason: &'static str,
+}
+
+const BAD_HANDSHAKE: &str = "websocket: bad handshake";
+
+async fn dial_once(
+    client: &wreq::Client,
+    target: &Target,
+    headers: &HeaderMap,
+) -> Result<(codex_ws::WebSocket, HeaderMap), Dial> {
     // Go's xAI dialer is gorilla's with `EnableCompression`, like the Codex one, and the
     // socket joins the same pool type, so both dial through codex_ws's upgrade.
     let mut headers = headers.clone();
@@ -1054,7 +1330,7 @@ async fn dial(
         let mut res = builder
             .send()
             .await
-            .map_err(|e| plain(format!("xai websockets executor: dial failed: {e}")))?;
+            .map_err(|e| Dial::Failed(plain(format!("xai websockets executor: dial failed: {e}"))))?;
         let status = res.status().as_u16();
         let handshake = res.headers().clone();
         if status != 101 {
@@ -1067,21 +1343,42 @@ async fn dial(
                     break;
                 }
             }
-            return Err(response::status_error(status, &body));
+            // Go marks the upstream attempt on a dial error; here the upstream headers do
+            // (the server's `upstream_attempted`).
+            let mut error = response::status_error(status, &body);
+            error.headers = Box::new(handshake.clone());
+            return Err(Dial::Rejected(Box::new(Rejection {
+                error,
+                status,
+                headers: handshake,
+                body,
+                reason: BAD_HANDSHAKE,
+            })));
         }
-        let socket = codex_ws::upgrade(&mut res, &key, &handshake)
-            .await
-            .map_err(|e| match e {
-                codex_ws::UpgradeError::Handshake => plain("xai websockets executor: websocket handshake failed"),
-                codex_ws::UpgradeError::Compression => {
-                    plain("xai websockets executor: websocket: invalid compression negotiation")
-                }
-            })?;
+        let socket = codex_ws::upgrade(&mut res, &key, &handshake).await.map_err(|e| {
+            let (error, reason) = match e {
+                codex_ws::UpgradeError::Handshake => (
+                    plain("xai websockets executor: websocket handshake failed"),
+                    BAD_HANDSHAKE,
+                ),
+                codex_ws::UpgradeError::Compression => (
+                    plain("xai websockets executor: websocket: invalid compression negotiation"),
+                    "websocket: invalid compression negotiation",
+                ),
+            };
+            Dial::Rejected(Box::new(Rejection {
+                error,
+                status,
+                headers: handshake.clone(),
+                body: Vec::new(),
+                reason,
+            }))
+        })?;
         Ok((socket, handshake))
     };
     tokio::time::timeout(HANDSHAKE_TIMEOUT, attempt)
         .await
-        .unwrap_or_else(|_| Err(plain("xai websockets executor: handshake timed out")))
+        .unwrap_or_else(|_| Err(Dial::Failed(plain("xai websockets executor: handshake timed out"))))
 }
 
 impl XaiExecutor {
@@ -1095,7 +1392,9 @@ impl XaiExecutor {
         cfg: &Config,
         mapper: Option<IdMapper>,
     ) -> Result<ExecResponse, ExecError> {
+        // Go's context errors come before executeCompactRequest creates its reporter.
         let Some(mapper) = mapper else {
+            req.usage.discard();
             return Err(status_err(400, "xai websocket compaction context is unavailable"));
         };
         let payload = match mapper.state.snapshot() {
@@ -1112,6 +1411,7 @@ impl XaiExecutor {
                         previous = text(&gj::get(&req.body, "previous_response_id")).trim().to_owned();
                     }
                     if previous.is_empty() {
+                        req.usage.discard();
                         return Err(status_err(400, "xai websocket compaction context is empty"));
                     }
                     let mut out = crate::xai::remove_input_items(req.body.to_vec(), "compaction_trigger");
@@ -1124,6 +1424,8 @@ impl XaiExecutor {
         compact.body = Bytes::from(payload);
         let (prepared, data, mut headers) = self.compact_request(credential, &compact, cfg, true).await?;
         let (response_id, item) = validate_compaction(&data)?;
+        // Publish(ParseOpenAIUsage(data)): the compact body compact_request reported.
+        compact.usage.publish();
         mapper.state.replace(&[&item]);
         mapper.state.map(&response_id, "");
         headers.insert(

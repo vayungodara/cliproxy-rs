@@ -399,6 +399,12 @@ func scenarios() []scenario {
 		{Name: "apply_patch_history_without_declaration", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
 			Payload:  `{"model":"grok-4.3","input":[{"role":"user","content":"x"},{"type":"custom_tool_call","call_id":"p1","name":"apply_patch","input":"*** Begin Patch\n+<a & b>\n*** End Patch"},{"type":"custom_tool_call_output","call_id":"p1","output":"ok"}],"tools":[{"type":"function","name":"f","parameters":{"type":"object","properties":{}}}]}`,
 			Upstream: textTurn("grok-4.3")},
+		// Usage: Go's HTTP paths observe usage on completed and incomplete only, so a
+		// response.done carrying usage before a completed without it publishes nothing.
+		{Name: "usage_done_ignored_execute", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
+			Payload: `{"model":"grok-4.3","input":"hi"}`, Upstream: streamOf(created("grok-4.3"), `{"type":"response.done","sequence_number":1,"response":{"id":"resp_d","status":"completed","model":"grok-4.3","output":[],"usage":{"input_tokens":7,"output_tokens":7,"total_tokens":14}}}`, `{"type":"response.completed","sequence_number":2,"response":{"id":"resp_d","object":"response","created_at":1700000000,"status":"completed","model":"grok-4.3","output":[]}}`)},
+		{Name: "usage_done_ignored_stream", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "stream",
+			Payload: `{"model":"grok-4.3","input":"hi"}`, Upstream: streamOf(created("grok-4.3"), `{"type":"response.done","sequence_number":1,"response":{"id":"resp_d","status":"completed","model":"grok-4.3","output":[],"usage":{"input_tokens":7,"output_tokens":7,"total_tokens":14}}}`, `{"type":"response.completed","sequence_number":2,"response":{"id":"resp_d","object":"response","created_at":1700000000,"status":"completed","model":"grok-4.3","output":[]}}`)},
 	}
 	return s
 }

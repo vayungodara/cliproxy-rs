@@ -65,6 +65,9 @@ const KEEP: [&str; 6] = [
     "Last-Modified",
 ];
 
+/// Scenarios whose Go body is Go's own dial error text: status and headers are compared.
+const STATUS_ONLY: [&str; 1] = ["video_content_connect_refused"];
+
 /// Answers each connection with the next scripted reply and records the raw request,
 /// like the Go driver's capture server.
 #[derive(Default)]
@@ -305,10 +308,16 @@ async fn media_routes_match_go() {
         if status != s.status {
             diffs.push(format!("status: go {} rust {status}", s.status));
         }
-        if headers != s.response_headers {
+        let compare_body = !STATUS_ONLY.contains(&s.name.as_str());
+        let mut want_headers = s.response_headers.clone();
+        if !compare_body {
+            headers.remove("Content-Length");
+            want_headers.remove("Content-Length");
+        }
+        if headers != want_headers {
             diffs.push(format!("headers:\n  go   {:?}\n  rust {headers:?}", s.response_headers));
         }
-        if response != s.response || response_b64 != s.response_b64 {
+        if compare_body && (response != s.response || response_b64 != s.response_b64) {
             diffs.push(format!("body:\n  go   {}\n  rust {response}", s.response));
         }
         if requests != s.requests {

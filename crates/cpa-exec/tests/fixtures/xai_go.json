@@ -3741,6 +3741,87 @@
       "url": "https://api.x.ai/v1/responses",
       "request": "POST /v1/responses HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 476\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-xai\r\nConnection: Keep-Alive\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"grok-4.3\",\"input\":[{\"role\":\"user\",\"content\":\"x\"},{\"type\":\"function_call\",\"call_id\":\"p1\",\"name\":\"apply_patch\",\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n+\\\\u003ca \\\\u0026 b\\\\u003e\\\\n*** End Patch\\\"}\"},{\"type\":\"function_call_output\",\"call_id\":\"p1\",\"output\":\"ok\"}],\"tools\":[{\"type\":\"function\",\"name\":\"f\",\"parameters\":{\"type\":\"object\",\"properties\":{}}}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}",
       "output": "{\"id\":\"resp_x1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[{\"type\":\"message\",\"id\":\"msg_1\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello there\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":12,\"input_tokens_details\":{\"cached_tokens\":3},\"output_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":2},\"total_tokens\":17}}"
+    },
+    {
+      "name": "usage_done_ignored_execute",
+      "config_auth": -1,
+      "attributes": {
+        "api_key": "sk-fake-xai"
+      },
+      "model": "grok-4.3",
+      "payload": "{\"model\":\"grok-4.3\",\"input\":\"hi\"}",
+      "source": "openai-response",
+      "op": "execute",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ],
+          [
+            "X-Request-Id",
+            "req-1"
+          ]
+        ],
+        "body": "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_x1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}\n\nevent: response.done\ndata: {\"type\":\"response.done\",\"sequence_number\":1,\"response\":{\"id\":\"resp_d\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[],\"usage\":{\"input_tokens\":7,\"output_tokens\":7,\"total_tokens\":14}}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":2,\"response\":{\"id\":\"resp_d\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[]}}\n\n"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "grok-4.3",
+        "failed": true
+      },
+      "url": "https://api.x.ai/v1/responses",
+      "request": "POST /v1/responses HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 197\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-xai\r\nConnection: Keep-Alive\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"grok-4.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}",
+      "error": {
+        "status": 408,
+        "message": "xai stream error: stream disconnected before response.completed or response.incomplete",
+        "retry_after_ms": -1,
+        "credential_scoped": false
+      }
+    },
+    {
+      "name": "usage_done_ignored_stream",
+      "config_auth": -1,
+      "attributes": {
+        "api_key": "sk-fake-xai"
+      },
+      "model": "grok-4.3",
+      "payload": "{\"model\":\"grok-4.3\",\"input\":\"hi\"}",
+      "source": "openai-response",
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ],
+          [
+            "X-Request-Id",
+            "req-1"
+          ]
+        ],
+        "body": "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_x1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}\n\nevent: response.done\ndata: {\"type\":\"response.done\",\"sequence_number\":1,\"response\":{\"id\":\"resp_d\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[],\"usage\":{\"input_tokens\":7,\"output_tokens\":7,\"total_tokens\":14}}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":2,\"response\":{\"id\":\"resp_d\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[]}}\n\n"
+      },
+      "url": "https://api.x.ai/v1/responses",
+      "request": "POST /v1/responses HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 197\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-xai\r\nConnection: Keep-Alive\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"grok-4.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}",
+      "chunks": [
+        "event: response.created",
+        "data: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_x1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}",
+        "",
+        "event: response.done",
+        "data: {\"type\":\"response.done\",\"sequence_number\":1,\"response\":{\"id\":\"resp_d\",\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[],\"usage\":{\"input_tokens\":7,\"output_tokens\":7,\"total_tokens\":14,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}",
+        "",
+        "event: response.completed",
+        "data: {\"type\":\"response.completed\",\"sequence_number\":2,\"response\":{\"id\":\"resp_d\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[]}}",
+        ""
+      ]
     }
   ]
 }

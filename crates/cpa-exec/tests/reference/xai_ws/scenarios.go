@@ -41,6 +41,10 @@ func reply1(events []string) []act { return []act{{Send: events}} }
 const compactReply = `{"id":"cmp_1","object":"response.compaction","created_at":1700000000,"completed_at":1700000001,"model":"grok-4.3","output":[{"type":"compaction","id":"cmp_item_1","encrypted_content":"ENCRYPTED"}],"usage":{"input_tokens":30,"output_tokens":3,"total_tokens":33}}`
 
 func scenarios() []*scenario {
+	return append(ownScenarios(), goTestScenarios()...)
+}
+
+func ownScenarios() []*scenario {
 	a := authAttrs("sk-fake-xai-a", "header:X-Trace", "trace-1")
 	b := authAttrs("sk-fake-xai-b")
 	return []*scenario{

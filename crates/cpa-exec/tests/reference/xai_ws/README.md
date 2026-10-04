@@ -12,7 +12,19 @@ upstream received and the compaction requests. Credentials are fake API keys who
 `base_url` is the local upstream; nothing contacts a provider. Normalization is limited
 to the upstream address (`UPSTREAM`).
 
+`scenarios_go_tests.go` ports the executor-level cases of Go's
+`xai_websockets_executor_test.go`, named after their Go test, with the same payloads and
+upstream events (an act may ping and wait for the pong, echo the received
+`previous_response_id` through a quoted `"PREVIOUS_ID"`, or drop the connection without a
+close frame). Each turn also records the usage record Go's reporter published, or none.
+The Go tests on unexported state (ID mapper, transcript, compaction validation, request
+body, write-error retry, attempt marking, pong under a held writer) are ported as unit
+tests in `xai_ws_tests.rs` with Go's assertions. Not ported: the apply_patch transport
+cases without a downstream WebSocket and the sessionless ping test, which exercise Go
+branches this port leaves out (a downstream WebSocket turn always has a session).
+
 `xai_ws_tests.rs` replays the scenarios against an axum upstream with the same script.
+`ONLY=<scenario name>` regenerates a single scenario for inspection.
 It compares the `Authorization`, `Content-Type`, `X-Grok-Conv-Id` and custom headers of
 each upgrade; the rest of the handshake belongs to the shared Go-standard dialer.
 

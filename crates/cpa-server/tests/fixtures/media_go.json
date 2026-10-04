@@ -852,6 +852,32 @@
       ]
     },
     {
+      "name": "video_content_connect_refused",
+      "method": "GET",
+      "path": "/openai/v1/videos/req-vid-1/content",
+      "upstreams": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"status\":\"done\",\"video\":{\"url\":\"http://127.0.0.1:9/refused.mp4\"}}"
+        }
+      ],
+      "status": 502,
+      "response_headers": {
+        "Content-Length": "166",
+        "Content-Type": "application/json"
+      },
+      "response": "{\"error\":{\"message\":\"Get \\\"http://127.0.0.1:9/refused.mp4\\\": dial tcp 127.0.0.1:9: connect: connection refused\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}",
+      "requests": [
+        "GET /v1/videos/req-vid-1 HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nAccept: application/json\r\nAuthorization: Bearer XAI-KEY-1\r\nConnection: Keep-Alive\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n"
+      ]
+    },
+    {
       "name": "video_content_no_url",
       "method": "GET",
       "path": "/openai/v1/videos/req-vid-1/content",

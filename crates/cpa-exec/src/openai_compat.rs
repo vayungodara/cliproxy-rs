@@ -69,12 +69,32 @@ pub(crate) fn status_err(status: u16, message: impl Into<String>) -> ExecError {
     ExecError::local(status, scope_for(status), message)
 }
 
-/// `newOpenAICompatStatusError`, or the plain `statusErr` the image stream path uses.
-async fn upstream_error(upstream: wire::Upstream, with_retry: bool) -> ExecError {
+/// A chat non-2xx response: `newOpenAICompatStatusError` over the error body, which is
+/// captured like Go's `AppendAPIResponseChunk` (read errors ignored, `b, _ :=
+/// io.ReadAll`).
+async fn upstream_error(upstream: wire::Upstream, capture: &wire::Capture) -> ExecError {
     let (status, headers, body) = wire::read_error_body(upstream).await;
-    let mut error = status_err(status, String::from_utf8_lossy(&body));
+    capture.chunk(&body);
+    status_error(status, headers, &body, true)
+}
+
+/// An images non-2xx response: the whole body is read first and a read error is
+/// captured and returned instead, then `newOpenAICompatStatusError`, or the plain
+/// `statusErr` the image stream path uses.
+async fn images_error(upstream: wire::Upstream, with_retry: bool, capture: &wire::Capture) -> ExecError {
+    let (status, headers) = (upstream.status, upstream.headers.clone());
+    let body = wire::read_all(upstream).await;
+    capture.read(&body);
+    match body {
+        Ok(body) => status_error(status, headers, &body, with_retry),
+        Err(error) => error,
+    }
+}
+
+fn status_error(status: u16, headers: http::HeaderMap, body: &[u8], with_retry: bool) -> ExecError {
+    let mut error = status_err(status, String::from_utf8_lossy(body));
     if with_retry {
-        error.retry_after = payload::retry_after(status, &headers, &body, SystemTime::now());
+        error.retry_after = payload::retry_after(status, &headers, body, SystemTime::now());
     }
     error.headers = Box::new(headers);
     error
@@ -287,9 +307,21 @@ impl OpenAICompatExecutor {
             headers.set("Cache-Control", "no-cache");
         }
         let client = self.clients.for_credential(credential, cfg);
-        let upstream = wire::send(&client, &endpoint(&base_url, path), headers, Bytes::from(body.clone())).await?;
+        let url = endpoint(&base_url, path);
+        let capture = wire::Capture::request(
+            &req,
+            credential,
+            &credential.provider,
+            &url,
+            "POST",
+            headers.pairs(),
+            &body,
+        );
+        let upstream = wire::send(&client, &url, headers, Bytes::from(body.clone())).await;
+        capture.sent(&upstream);
+        let upstream = upstream?;
         if !(200..300).contains(&upstream.status) {
-            return Err(upstream_error(upstream, true).await);
+            return Err(upstream_error(upstream, &capture).await);
         }
         let response_headers = upstream.headers.clone();
         let original = if req.original_body.is_empty() {
@@ -318,14 +350,22 @@ impl OpenAICompatExecutor {
                     })
                     .boxed();
             }
-            let stream = frames(lines, translator, req.response_format == Format::OpenAIResponse);
+            let stream = frames(
+                lines,
+                translator,
+                req.response_format == Format::OpenAIResponse,
+                capture,
+                req.usage.clone(),
+            );
             return Ok(ExecResponse {
                 status: 200,
                 headers: response_headers,
                 body: ResponseBody::Stream(stream),
             });
         }
-        let raw = wire::read_all(upstream).await?;
+        let raw = wire::read_all(upstream).await;
+        capture.read(&raw);
+        let raw = raw?;
         // ObserveResponseModel(body) and Publish(ParseOpenAIUsage(body)).
         if req.usage.enabled() {
             req.usage.response_body(target, &raw);
@@ -399,19 +439,44 @@ impl OpenAICompatExecutor {
         }
         apply_custom(&mut headers, credential, &req);
         let client = self.clients.for_credential(credential, cfg);
-        let upstream = wire::send(&client, &endpoint(&base_url, path), headers, body).await?;
+        let url = endpoint(&base_url, path);
+        let capture = wire::Capture::request(
+            &req,
+            credential,
+            &credential.provider,
+            &url,
+            "POST",
+            headers.pairs(),
+            &body,
+        );
+        let upstream = wire::send(&client, &url, headers, body).await;
+        capture.sent(&upstream);
+        let upstream = upstream?;
         if !(200..300).contains(&upstream.status) {
-            return Err(upstream_error(upstream, !req.stream).await);
+            return Err(images_error(upstream, !req.stream, &capture).await);
         }
         let headers = upstream.headers.clone();
         if req.stream {
+            // Each raw read is logged; a read error is logged and published as a failure
+            // before the client gets it.
+            let usage = req.usage.clone();
+            let stream = capture
+                .stream(upstream.body)
+                .inspect(move |item| {
+                    if let Err(error) = item {
+                        wire::publish_failure(&usage, error);
+                    }
+                })
+                .boxed();
             return Ok(ExecResponse {
                 status: 200,
                 headers,
-                body: ResponseBody::Stream(upstream.body),
+                body: ResponseBody::Stream(stream),
             });
         }
-        let data = wire::read_all(upstream).await?;
+        let data = wire::read_all(upstream).await;
+        capture.read(&data);
+        let data = data?;
         if req.usage.enabled() {
             req.usage.response_body(Format::OpenAI, &data);
         }
@@ -573,10 +638,27 @@ struct Frames {
     ready: VecDeque<Result<Bytes, ExecError>>,
     seen_done: bool,
     failed: bool,
+    capture: wire::Capture,
+    usage: cpa_core::exec::UsageSink,
 }
 
 impl Frames {
+    /// `publishStreamError(err, false)`: the error is logged and published as a failure
+    /// before the client gets it.
     fn fail(&mut self, status: u16, message: impl Into<String>) -> bool {
+        let error = status_err(status, message);
+        self.capture.error(&error);
+        wire::publish_failure(&self.usage, &error);
+        self.terminal(error);
+        true
+    }
+
+    /// `publishStreamError(err, true)`: the upstream's error payload is neither logged nor
+    /// published; a fixed text stands in for it.
+    fn fail_payload(&mut self, status: u16, message: impl Into<String>) -> bool {
+        let logged = status_err(status, "upstream stream returned an error payload");
+        self.capture.error(&logged);
+        wire::publish_failure(&self.usage, &logged);
         self.terminal(status_err(status, message));
         true
     }
@@ -622,7 +704,7 @@ impl Frames {
             return self.fail(502, "upstream stream ended with incomplete SSE data frame");
         }
         if !done && let Some(status) = payload::stream_data_error(payload_bytes, &event) {
-            return self.fail(status, String::from_utf8_lossy(payload_bytes));
+            return self.fail_payload(status, String::from_utf8_lossy(payload_bytes));
         }
         let mut line = b"data: ".to_vec();
         line.extend_from_slice(payload_bytes);
@@ -651,7 +733,7 @@ impl Frames {
             self.event = String::from_utf8_lossy(trim(rest)).into_owned();
         } else if line.starts_with(b":") || line.starts_with(b"id:") || line.starts_with(b"retry:") {
         } else if line.starts_with(b"{") || line.starts_with(b"[") {
-            return self.fail(502, String::from_utf8_lossy(line));
+            return self.fail_payload(502, String::from_utf8_lossy(line));
         }
         false
     }
@@ -662,7 +744,10 @@ impl Frames {
         let out = self.translator.finalize_tool_input();
         self.ready.extend(out.into_iter().map(Ok));
         if self.translator.tool_input_failed() {
-            self.terminal(status_err(502, EMPTY_TRANSLATION));
+            // RecordApplyPatchStreamFailure publishes; nothing is logged.
+            let error = status_err(502, EMPTY_TRANSLATION);
+            wire::publish_failure(&self.usage, &error);
+            self.terminal(error);
             return true;
         }
         false
@@ -698,7 +783,13 @@ impl Frames {
     }
 }
 
-fn frames(lines: ExecStream, translator: Box<dyn StreamTranslator>, responses: bool) -> ExecStream {
+fn frames(
+    lines: ExecStream,
+    translator: Box<dyn StreamTranslator>,
+    responses: bool,
+    capture: wire::Capture,
+    usage: cpa_core::exec::UsageSink,
+) -> ExecStream {
     let state = Frames {
         translator,
         responses,
@@ -707,6 +798,8 @@ fn frames(lines: ExecStream, translator: Box<dyn StreamTranslator>, responses: b
         ready: VecDeque::new(),
         seen_done: false,
         failed: false,
+        capture,
+        usage,
     };
     futures_util::stream::unfold((lines, state, false), |(mut lines, mut state, mut ended)| async move {
         loop {
@@ -722,6 +815,8 @@ fn frames(lines: ExecStream, translator: Box<dyn StreamTranslator>, responses: b
             }
             match lines.next().await {
                 Some(Ok(line)) => {
+                    // AppendAPIResponseChunk per scanned line.
+                    state.capture.chunk(&line);
                     if state.line(&line) {
                         if !state.failed && !state.end_tool_input() {
                             state.finish();
@@ -732,6 +827,8 @@ fn frames(lines: ExecStream, translator: Box<dyn StreamTranslator>, responses: b
                 Some(Err(error)) => {
                     // Go ends apply_patch input before reporting the scan error.
                     if !state.end_tool_input() {
+                        state.capture.error(&error);
+                        wire::publish_failure(&state.usage, &error);
                         state.terminal(error);
                     }
                     ended = true;
