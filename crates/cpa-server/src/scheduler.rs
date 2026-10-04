@@ -575,6 +575,9 @@ pub(crate) struct Scheduler {
     /// `soonest-reset` probes by credential, reserved when the probe request is picked
     /// (under the scheduler lock, so concurrent picks never probe twice). See [`probed`].
     probes: HashMap<String, Probes>,
+    /// The live policy turned session affinity off: results of leases picked while it
+    /// was on no longer bind anything (Go's replacement selector has no affinity).
+    affinity_off: bool,
 }
 
 /// Go `cfg.OpenAICompatibility` for cooling: enabled entries with a base URL (Go
@@ -652,6 +655,7 @@ fn transient(policy: &Policy, hint: Option<Duration>, disabled: bool) -> Option<
 
 impl Scheduler {
     pub fn configure(&mut self, previous: &Policy, next: &Policy) {
+        self.affinity_off = !next.session_affinity;
         if previous.strategy != next.strategy
             || previous.session_affinity != next.session_affinity
             || previous.session_affinity_ttl != next.session_affinity_ttl
@@ -668,6 +672,11 @@ impl Scheduler {
             });
             self.probes.clear();
         }
+    }
+
+    /// Session affinity under `policy`, unless the live policy has since turned it off.
+    fn affinity(&self, policy: &Policy) -> bool {
+        policy.session_affinity && !self.affinity_off
     }
 
     pub fn quota_cooling(&self, c: &Credential, model: &str, now: Instant) -> bool {
@@ -753,7 +762,7 @@ impl Scheduler {
         if candidates.is_empty() {
             return None;
         }
-        if let Some(request) = selection.lcp.as_deref().filter(|_| policy.session_affinity) {
+        if let Some(request) = selection.lcp.as_deref().filter(|_| self.affinity(policy)) {
             let namespace = request.namespace(&selection.model);
             // A known trajectory stays on its credential while that one is available.
             if let Some(found) = self.lcp.find(&namespace, request.prepared(), now)
@@ -779,7 +788,7 @@ impl Scheduler {
         now: Instant,
     ) -> Option<&'a Credential> {
         let ttl = policy.session_affinity_ttl;
-        let Some(keys) = policy.session_affinity.then(|| session_keys(selection)).flatten() else {
+        let Some(keys) = self.affinity(policy).then(|| session_keys(selection)).flatten() else {
             return self.pick_unbound(candidates, selection, policy, ranks, now);
         };
         self.affinity.sweep(now, ttl);
@@ -824,7 +833,7 @@ impl Scheduler {
         lcp: Option<&crate::lcp::Match>,
         now: Instant,
     ) {
-        if !policy.session_affinity {
+        if !self.affinity(policy) {
             return;
         }
         let success = match outcome {
@@ -1867,6 +1876,47 @@ mod tests {
         let namespace = request.namespace("m");
         let kept = s.lcp.find(&namespace, request.prepared(), now);
         assert_eq!(kept.map(|m| m.auth), Some("a".to_owned()));
+    }
+
+    /// After session affinity is turned off, a request picked while it was on binds
+    /// nothing: neither its result nor a retry under its policy.
+    #[test]
+    fn leases_from_before_disabling_affinity_bind_nothing() {
+        let a = cred("a", serde_json::json!({}));
+        let on = Policy {
+            session_affinity: true,
+            ..Default::default()
+        };
+        let off = Policy::default();
+        let now = Instant::now();
+        let mut s = Scheduler::default();
+        s.configure(&off, &on);
+        let body = br#"{"messages":[{"role":"user","content":"hello"}]}"#;
+        let request = crate::lcp::Request::new("openai", body, "client-key").unwrap();
+        let namespace = request.namespace("m");
+        let lcp = Selection {
+            lcp: Some(std::sync::Arc::new(request.clone())),
+            ..selection("m")
+        };
+        let explicit = Selection {
+            session: Some("s1".into()),
+            ..selection("m")
+        };
+        let ranks = |_: &Credential| Windows::default();
+        let bound = s.pick_session(&tag(&[&a]), &lcp, &on, &ranks, now).unwrap().1;
+        assert!(bound.is_some());
+        s.configure(&on, &off);
+        assert!(s.lcp.find(&namespace, request.prepared(), now).is_none());
+        s.session_result(&a, &lcp, &Outcome::Success, &on, bound.as_ref(), now);
+        s.session_result(&a, &explicit, &Outcome::Success, &on, None, now);
+        let retry = s.pick_session(&tag(&[&a]), &lcp, &on, &ranks, now).unwrap().1;
+        assert!(retry.is_none());
+        s.pick_session(&tag(&[&a]), &explicit, &on, &ranks, now);
+        assert!(s.lcp.find(&namespace, request.prepared(), now).is_none());
+        assert!(s.affinity.get(&session_keys(&explicit).unwrap().primary, now).is_none());
+        // Turning it back on binds again.
+        s.configure(&off, &on);
+        assert!(s.pick_session(&tag(&[&a]), &lcp, &on, &ranks, now).unwrap().1.is_some());
     }
 
     #[test]
