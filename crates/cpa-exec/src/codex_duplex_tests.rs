@@ -148,6 +148,7 @@ impl Client {
         let session = ExecSession {
             id: self.session.clone(),
             continuation: false,
+            lease: None,
         };
         let cfg = Config::parse(STEERING).unwrap();
         let response = self

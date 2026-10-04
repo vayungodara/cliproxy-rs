@@ -1167,9 +1167,11 @@ async fn session_turns_honour_pin_callback_and_session() {
             session: ExecSession {
                 id: "ws-1".into(),
                 continuation,
+                lease: None,
             },
             pinned: pinned.map(str::to_owned),
             on_selected: Some(Box::new(move |c| seen.lock().unwrap().push(c.id.clone()))),
+            home: None,
         })
     };
     let call = |turn| Call {

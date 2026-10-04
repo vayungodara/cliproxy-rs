@@ -218,9 +218,11 @@ impl Conductor {
                 session: ExecSession {
                     id: self.session.clone(),
                     continuation: false,
+                    lease: None,
                 },
                 pinned: None,
                 on_selected: None,
+                home: None,
             })),
             media: None,
         };
