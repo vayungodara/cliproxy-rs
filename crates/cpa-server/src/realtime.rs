@@ -18,11 +18,20 @@
 //! In Home mode every selection is a Home pick (Go `SelectHomeAuthByKind`); a stored call
 //! keeps its pick until the call ends, and its sideband and hangup run on it.
 //!
-//! ponytail: request/usage logging of live exchanges is not ported.
+//! Request logs capture the live call and hangup upstream exchanges at Go's
+//! `helps.Record*` call sites. The sockets are GET requests, which Go never logs.
+//!
+//! ponytail: usage logging of live exchanges is not ported. Go also records a failed
+//! downstream write of the call's answer; the text is the socket's own error, which
+//! `TrackedBody` cannot see.
 
 mod calls;
+#[cfg(test)]
+mod capture_tests;
 #[cfg(feature = "media-relay")]
 mod dialer;
+#[cfg(test)]
+mod home_tests;
 mod http;
 #[cfg(feature = "media-relay")]
 mod media;
@@ -442,12 +451,18 @@ fn header_session(headers: &HeaderMap, body: &[u8], execution_session: Option<&s
     cpa_common::session::cpa_session_id(Some(&cpa_common::session::extract_session_id(headers, body, &meta)))
 }
 
-/// Go's `X-CPA-TRACE-ID` once a credential is selected (`logging.SetGinCPATraceID`).
-fn with_trace(mut response: Response, credential: &Credential) -> Response {
-    let trace = crate::dispatch::Trace::default();
+/// Go's `X-CPA-TRACE-ID`, stamped when the credential is selected
+/// (`logging.SetGinCPATraceID`): the time, the auth index and the request ID.
+fn trace(credential: &Credential) -> Option<HeaderValue> {
+    let trace = crate::dispatch::Trace::with_request_id(crate::observability::current_request_id());
     trace.selected(credential);
-    if let Some(value) = trace.id().and_then(|id| HeaderValue::from_str(&id).ok()) {
-        response.headers_mut().insert("x-cpa-trace-id", value);
+    trace.id().and_then(|id| HeaderValue::from_str(&id).ok())
+}
+
+/// Adds the trace header to a response sent after the selection.
+fn with_trace(mut response: Response, trace: &Option<HeaderValue>) -> Response {
+    if let Some(value) = trace {
+        response.headers_mut().insert("x-cpa-trace-id", value.clone());
     }
     response
 }

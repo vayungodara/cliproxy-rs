@@ -23,7 +23,7 @@ use wreq::ws::message as up;
 
 use super::calls::{Claim, ClaimGuard};
 use super::http::{HANDSHAKE_HEADERS, copy_headers, header_text};
-use super::{Live, Principal, header_session, live_error, realtime_error, select_oauth, with_trace};
+use super::{Live, Principal, header_session, live_error, realtime_error, select_oauth, trace, with_trace};
 use crate::runtime::Runtime;
 
 /// Bound on the closing frames written after a relay ends.
@@ -251,11 +251,13 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
         }
     };
     let home = call.home.is_some() || lease.as_ref().is_some_and(|lease| lease.is_remote());
+    let trace = trace(&credential);
     let target = LiveTarget {
         credential: &credential,
         cfg: &cfg,
         client: &headers,
         session: header_session(&selection_headers, &[], Some(&call_id), &call.session_id),
+        capture: Default::default(),
     };
     let url = live::sideband_url(&rt.executors.codex.live_endpoints().api_base, style, &call_id);
     let drained = match &lease {
@@ -284,12 +286,12 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
             }
             return with_trace(
                 dial_failed(error, |status| fail(status, "Codex live sideband upstream unavailable")),
-                &credential,
+                &trace,
             );
         }
     };
     let Some(ws) = ws.ok().filter(|_| acceptable_handshake(&headers)) else {
-        return with_trace(bad_handshake(), &credential);
+        return with_trace(bad_handshake(), &trace);
     };
     upgrade(ws, upstream, move |relay| {
         let mut guard = guard;
@@ -410,12 +412,14 @@ async fn direct(inbound: Inbound, model: String) -> Response {
         Err(rejection) => return rejection.render(true),
     };
     let credential = lease.credential.clone();
-    let traced = |response| with_trace(response, &credential);
+    let trace = trace(&credential);
+    let traced = |response| with_trace(response, &trace);
     let target = LiveTarget {
         credential: &credential,
         cfg: &cfg,
         client: &headers,
         session: header_session(&selection_headers, &[], None, ""),
+        capture: Default::default(),
     };
     let url = live::direct_url(&rt.executors.codex.live_endpoints().api_base, &requested);
     let mut drained = super::drained(Some(&lease));

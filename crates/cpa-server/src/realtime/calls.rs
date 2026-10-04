@@ -102,10 +102,12 @@ impl HomeHold {
         self.bound.add(handle);
     }
 
-    /// Go `selection.End`: releases the pick and closes what was bound to it.
-    pub fn end(&self) {
-        drop(self.lease.lock().unwrap_or_else(PoisonError::into_inner).take());
+    /// Go `selection.End`: closes what was bound to the pick and hands back its lease,
+    /// which ends when dropped (the caller drops it once the call's media closed).
+    pub fn end(&self) -> Option<crate::runtime::Lease> {
+        let lease = self.lease.lock().unwrap_or_else(PoisonError::into_inner).take();
         self.bound.close();
+        lease
     }
 }
 
@@ -266,12 +268,17 @@ fn end(entry: Entry, reason: &str) {
         timer.abort();
     }
     tracing::debug!(call_id = %entry.call.call_id, reason, "codex live call ended");
+    // Go `endLiveSession`: resources, then media, then the Home selection, which is
+    // released only once the media's peers closed.
+    // ponytail: aborted sideband tasks drop their sockets when next polled, right after.
     entry.call.resources.close();
-    if let Some(media) = &entry.call.media {
-        media.close(reason);
-    }
-    if let Some(home) = &entry.call.home {
-        home.end();
+    let lease = entry.call.home.as_ref().and_then(|home| home.end());
+    match &entry.call.media {
+        Some(media) => {
+            media.close(reason);
+            media.after_close(Box::new(move || drop(lease)));
+        }
+        None => drop(lease),
     }
 }
 

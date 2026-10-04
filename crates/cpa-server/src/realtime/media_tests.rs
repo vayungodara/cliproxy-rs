@@ -74,12 +74,13 @@ impl PeerConnectionEventHandler for PeerEvents {
 }
 
 async fn loopback_peer() -> Peer {
-    peer_on(false).await
+    peer_on(false, "127.0.0.1").await
 }
 
 /// A UDP loopback peer, or with `tcp` one that only listens for ICE-TCP (a passive
 /// candidate on 127.0.0.1), like an upstream reachable over TCP 443.
-async fn peer_on(tcp: bool) -> Peer {
+async fn peer_on(tcp: bool, ip: &str) -> Peer {
+    let addr = std::net::SocketAddr::new(ip.parse().unwrap(), 0).to_string();
     let mut media = MediaEngine::default();
     media.register_codec(opus_parameters(), RtpCodecKind::Audio).unwrap();
     let registry = register_default_interceptors(Registry::new(), &mut media).unwrap();
@@ -91,9 +92,9 @@ async fn peer_on(tcp: bool) -> Peer {
         .with_multicast_dns_mode(rtc::ice::mdns::MulticastDnsMode::Disabled);
     let (udp, tcp) = if tcp {
         settings = settings.with_network_types(vec![rtc::ice::network_type::NetworkType::Tcp4]);
-        (vec![], vec!["127.0.0.1:0".to_owned()])
+        (vec![], vec![addr])
     } else {
-        (vec!["127.0.0.1:0".to_owned()], vec![])
+        (vec![addr], vec![])
     };
     let pc = PeerConnectionBuilder::new()
         .with_configuration(RTCConfigurationBuilder::new().build())
@@ -355,6 +356,17 @@ fn public_ip_replaces_ipv4_host_candidates() {
         "v=0\r\na=candidate:1 1 udp 2130706431 203.0.113.7 50000 typ host\r\na=candidate:2 1 udp 1694498815 198.51.100.1 50000 typ srflx raddr 10.0.0.5 rport 50000\r\na=candidate:3 1 udp 2130706431 fd00::5 50001 typ host\r\na=end\r\n"
     );
     assert_eq!(advertise(sdp, ""), sdp, "unset");
+    assert_eq!(
+        advertise(sdp, "2001:db8::7"),
+        "v=0\r\na=candidate:1 1 udp 2130706431 10.0.0.5 50000 typ host\r\na=candidate:2 1 udp 1694498815 198.51.100.1 50000 typ srflx raddr 10.0.0.5 rport 50000\r\na=candidate:3 1 udp 2130706431 2001:db8::7 50001 typ host\r\na=end\r\n",
+        "an IPv6 public-ip maps only IPv6 host candidates"
+    );
+    assert_eq!(
+        advertise(sdp, " ::ffff:203.0.113.7 "),
+        advertise(sdp, "203.0.113.7"),
+        "an IPv4-mapped public-ip is IPv4"
+    );
+    assert_eq!(advertise(sdp, "relay.example.com"), sdp, "not an IP");
 }
 
 /// Two consecutive free loopback UDP ports.
@@ -512,7 +524,7 @@ async fn proxied_credentials_relay_media_through_the_proxy() {
     );
 
     // The upstream answers from 127.0.0.1:P; the relay is told 20.42.0.20:443.
-    let mut upstream = peer_on(true).await;
+    let mut upstream = peer_on(true, "127.0.0.1").await;
     upstream
         .pc
         .set_remote_description(RTCSessionDescription::offer(relay_offer).unwrap())
@@ -656,4 +668,155 @@ async fn session_close_closes_unclaimed_tunnels() {
         "a closed session refuses tunnels"
     );
     assert!(refused(listener).await, "refused tunnels are closed");
+}
+
+/// Host candidates of both families: the relay negotiates and relays audio and the data
+/// channel over IPv6 (`::1` here; on a host with IPv6 interfaces it also binds `[::]`).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn relays_over_ipv6() {
+    let config = RelayConfig {
+        enabled: true,
+        max_sessions: 1,
+        ..RelayConfig::default()
+    };
+    let limiter = Arc::new(Limiter::default());
+    limiter.set_limit(config.max_sessions());
+    let relay = Relay {
+        config,
+        limiter,
+        bind_ip: Some("::1".parse().unwrap()),
+    };
+    let route = Route {
+        proxy_url: String::new(),
+        credential: "c".into(),
+        auth_index: "i".into(),
+    };
+    let mut client = peer_on(false, "::1").await;
+    let client_audio = audio(&client.pc).await;
+    let client_channel = client.pc.create_data_channel(LABEL, None).await.unwrap();
+    let offer = client.pc.create_offer(None).await.unwrap();
+    let client_offer = complete(&mut client, offer).await;
+    let (session, relay_offer) = relay.new_session(client_offer, route).await.unwrap();
+    let addresses: Vec<&str> = relay_offer
+        .lines()
+        .filter_map(|l| l.strip_prefix("a=candidate:"))
+        .filter_map(|c| c.split(' ').nth(4))
+        .collect();
+    assert!(!addresses.is_empty());
+    assert!(
+        addresses.iter().all(|a| a.parse::<std::net::Ipv6Addr>().is_ok()),
+        "{addresses:?}"
+    );
+
+    let mut upstream = peer_on(false, "::1").await;
+    upstream
+        .pc
+        .set_remote_description(RTCSessionDescription::offer(relay_offer).unwrap())
+        .await
+        .unwrap();
+    let upstream_audio = audio(&upstream.pc).await;
+    let answer = upstream.pc.create_answer(None).await.unwrap();
+    let upstream_answer = complete(&mut upstream, answer).await;
+    let downstream_answer = session.accept_upstream_answer(upstream_answer).await.unwrap();
+    client
+        .pc
+        .set_remote_description(RTCSessionDescription::answer(downstream_answer).unwrap())
+        .await
+        .unwrap();
+    assert_eq!(
+        rtp_flows(&client_audio, &mut upstream.tracks, b"to-openai").await,
+        b"to-openai"
+    );
+    assert_eq!(
+        rtp_flows(&upstream_audio, &mut client.tracks, b"to-desktop").await,
+        b"to-desktop"
+    );
+    let upstream_channel = tokio::time::timeout(Duration::from_secs(15), upstream.channels.recv())
+        .await
+        .unwrap()
+        .unwrap();
+    wait_open(&client_channel).await;
+    client_channel.send_text("session.update").await.unwrap();
+    assert_eq!(next_message(&upstream_channel).await, "session.update");
+    session.close("test_done");
+    let _ = client.pc.close().await;
+    let _ = upstream.pc.close().await;
+}
+
+/// pion allocates a port per local address: a range whose free ports differ by family
+/// still serves both peers.
+#[test]
+fn port_ranges_are_allocated_per_family() {
+    let (v4, v6): (IpAddr, IpAddr) = ("0.0.0.0".parse().unwrap(), "::".parse().unwrap());
+    let ports = [40000, 40001, 40002, 40003];
+    // IPv4 has the last two free, IPv6 the first two.
+    let free = |ip: IpAddr, port: u16| if ip.is_ipv4() { port >= 40002 } else { port <= 40001 };
+    let mut cursors = vec![0; 2];
+    let pick = |cursors: &mut Vec<usize>| {
+        next_ports(&[v4, v6], &ports, cursors, free).map(|a| a.iter().map(|s| s.port()).collect::<Vec<_>>())
+    };
+    assert_eq!(pick(&mut cursors), Some(vec![40002, 40000]), "first peer");
+    assert_eq!(pick(&mut cursors), Some(vec![40003, 40001]), "second peer, or a retry");
+    assert_eq!(pick(&mut cursors), None, "the range is used up");
+    let mut any = vec![0];
+    assert_eq!(
+        next_ports(&[v4], &[0], &mut any, |_, _| false).map(|a| a[0].port()),
+        Some(0),
+        "an unset range binds any port without probing"
+    );
+    assert_eq!(
+        next_ports(&[v4], &[0], &mut any, |_, _| true),
+        None,
+        "and is tried once"
+    );
+}
+
+/// A STUN server that never answers: pion abandons it after its STUN deadline and the call
+/// goes on with the other candidates; so does the relay, after `GATHER_BOUND`.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_silent_stun_server_does_not_fail_the_call() {
+    let silent = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
+    let config = RelayConfig {
+        enabled: true,
+        max_sessions: 1,
+        ice_servers: vec![crate::realtime::relay::IceServer {
+            urls: vec![format!("stun:{}", silent.local_addr().unwrap())],
+            ..Default::default()
+        }],
+        ..RelayConfig::default()
+    };
+    let limiter = Arc::new(Limiter::default());
+    limiter.set_limit(config.max_sessions());
+    let relay = Relay {
+        config,
+        limiter,
+        bind_ip: Some("127.0.0.1".parse().unwrap()),
+    };
+    let route = Route {
+        proxy_url: String::new(),
+        credential: "c".into(),
+        auth_index: "i".into(),
+    };
+    let mut client = loopback_peer().await;
+    let _channel = client.pc.create_data_channel(LABEL, None).await.unwrap();
+    let offer = client.pc.create_offer(None).await.unwrap();
+    let client_offer = complete(&mut client, offer).await;
+    let started = tokio::time::Instant::now();
+    let (session, relay_offer) = tokio::time::timeout(Duration::from_secs(15), relay.new_session(client_offer, route))
+        .await
+        .expect("setup finished")
+        .expect("setup succeeded");
+    assert!(
+        started.elapsed() >= Duration::from_secs(5),
+        "waited for the STUN server first"
+    );
+    assert!(
+        relay_offer
+            .lines()
+            .any(|l| l.starts_with("a=candidate:") && l.contains(" 127.0.0.1 ")),
+        "the host candidates are offered: {relay_offer}"
+    );
+    session.close("test_done");
+    let _ = client.pc.close().await;
+    drop(silent);
 }
