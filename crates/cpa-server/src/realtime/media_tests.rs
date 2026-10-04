@@ -820,3 +820,35 @@ async fn a_silent_stun_server_does_not_fail_the_call() {
     let _ = client.pc.close().await;
     drop(silent);
 }
+
+/// Closing a session wakes a setup waiting for gathering, which then fails instead of
+/// waiting out `GATHER_BOUND` and going on with negotiation.
+#[tokio::test]
+async fn close_ends_a_pending_gathering_wait() {
+    let limiter = Arc::new(Limiter::default());
+    limiter.set_limit(1);
+    let route = Route {
+        proxy_url: String::new(),
+        credential: "c".into(),
+        auth_index: "i".into(),
+    };
+    let shared = Shared::new(limiter.acquire().unwrap(), route, None, String::new());
+    let waiting = tokio::spawn({
+        let shared = shared.clone();
+        async move { shared.gathered(Side::Up).await }
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert!(!waiting.is_finished(), "gathering has not completed");
+    shared.close("closed");
+    let result = tokio::time::timeout(Duration::from_secs(1), waiting)
+        .await
+        .expect("woken by the close")
+        .unwrap();
+    assert_eq!(result, Err("peer connection closed".to_owned()));
+    // A wait that starts after the close fails at once too.
+    let late = tokio::time::timeout(Duration::from_secs(1), shared.gathered(Side::Down)).await;
+    assert_eq!(
+        late.expect("no timeout fallback"),
+        Err("peer connection closed".to_owned())
+    );
+}
