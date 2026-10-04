@@ -753,10 +753,16 @@ impl Shared {
     }
 
     /// Waits for ICE gathering to complete, at most [`GATHER_BOUND`]; past it the local
-    /// description carries the candidates gathered so far.
+    /// description carries the candidates gathered so far. A session closed meanwhile
+    /// fails at once instead of going on with negotiation.
     async fn gathered(&self, side: Side) -> Result<(), String> {
+        let closed = || self.closed.load(Ordering::SeqCst);
         let mut rx = self.gathered[side as usize].subscribe();
-        match tokio::time::timeout(GATHER_BOUND, rx.wait_for(|done| *done)).await {
+        let waited = tokio::time::timeout(GATHER_BOUND, rx.wait_for(|done| *done || closed())).await;
+        if closed() {
+            return Err("peer connection closed".into());
+        }
+        match waited {
             Ok(Ok(_)) => Ok(()),
             Ok(Err(_)) => Err("peer connection closed".into()),
             Err(_) => {
@@ -840,6 +846,10 @@ impl Shared {
         }
         let call_id = self.lock().call_id.clone();
         tracing::info!(media_session_id = %self.id, call_id, reason, "codex live WebRTC media session closing");
+        // Wakes a setup waiting for gathering; it sees `closed` and fails.
+        for gathered in &self.gathered {
+            gathered.send_modify(|_| {});
+        }
         self.close_tunnels();
         for task in self.tasks.lock().unwrap_or_else(PoisonError::into_inner).drain(..) {
             task.abort();
