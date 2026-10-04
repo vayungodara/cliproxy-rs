@@ -1255,10 +1255,10 @@ impl CredentialStore {
         Ok(committed)
     }
 
-    /// Replaces a config-backed credential in memory if it is still at
-    /// `expected_revision`: Go's `Manager.Update` never persists config API keys, and
-    /// the next config publish re-synthesizes them. `NotFound` unless `next.id` names
-    /// a config-backed credential. Additive API for the management stream.
+    /// Replaces a config-backed or runtime-only credential in memory if it is still at
+    /// `expected_revision`: Go's `Manager.Update` never persists config API keys (the
+    /// next config publish re-synthesizes them) or `runtime_only` auths. `NotFound`
+    /// unless `next.id` names such a credential.
     pub fn replace_config_backed(
         &self,
         next: Credential,
@@ -1269,7 +1269,7 @@ impl CredentialStore {
         let slot = inner
             .creds
             .iter_mut()
-            .find(|c| c.id == next.id && matches!(c.source, Source::Config { .. }))
+            .find(|c| c.id == next.id && matches!(c.source, Source::Config { .. } | Source::Runtime))
             .ok_or(PatchError::NotFound)?;
         if slot.revision != expected_revision {
             return Err(PatchError::Stale { current: slot.revision });

@@ -328,6 +328,9 @@ type credScenario struct {
 	Steps   []credStep        `json:"steps"`
 	// Echo starts a local upstream for api-call; "$ECHO" in steps is its base URL.
 	Echo bool `json:"echo,omitempty"`
+	// RuntimeAuths registers runtime-only credentials (no file), as Go's AI Studio
+	// websocket relay does in wsOnConnected.
+	RuntimeAuths []string `json:"runtime_auths,omitempty"`
 	// LogFiles, when set, become $WRITABLE_PATH/logs with WRITABLE_PATH at the root.
 	LogFiles []logFile `json:"log_files,omitempty"`
 }
@@ -444,6 +447,25 @@ func runCreds(s credScenario) credScenario {
 		}
 		must(os.Setenv("WRITABLE_PATH", root))
 		defer os.Unsetenv("WRITABLE_PATH")
+	}
+	for _, id := range s.RuntimeAuths {
+		now := time.Now().UTC()
+		runtimeAuth := &coreauth.Auth{
+			ID:         id,
+			Provider:   "aistudio",
+			Label:      id,
+			Status:     coreauth.StatusActive,
+			CreatedAt:  now,
+			UpdatedAt:  now,
+			Attributes: map[string]string{"runtime_only": "true"},
+			Metadata:   map[string]any{"email": id},
+		}
+		_, errRegister := manager.Register(coreauth.WithSkipPersist(context.Background()), runtimeAuth)
+		must(errRegister)
+		s.Indexes[id] = runtimeAuth.EnsureIndex()
+		// The service registers AI Studio's models for the auth (registerModelsForAuth).
+		registry.GetGlobalRegistry().RegisterClient(id, "aistudio", registry.GetAIStudioModels())
+		defer registry.GetGlobalRegistry().UnregisterClient(id)
 	}
 	server := api.NewServer(cfg, manager, sdkaccess.NewManager(), path, api.WithPluginHost(pluginhost.New()))
 	echoURL := "http://echo.invalid"
@@ -1718,6 +1740,29 @@ func credScenarios() []credScenario {
 			get("/observability/logs/requests/zzzz9999"),
 			get("/observability/logs/requests/a%5Cb"),
 			call(http.MethodDelete, "/observability/logs", ``),
+		},
+	}, {
+		// Runtime-only credentials (AI Studio websocket relay): listed from memory with
+		// no path, hidden while disabled; file operations find no file.
+		Name: "runtime_credentials", RuntimeAuths: []string{"aistudio-0123456789abcdef"},
+		Files: map[string]string{"claude-a.json": `{"type":"claude","email":"a@example.invalid"}`},
+		YAML:  "config-version: 8\nmanagement:\n  secret-key: '$HASH'\noauth:\n  auth-dir: $AUTH\n",
+		Steps: []credStep{
+			get("/credentials"),
+			get("/credentials?page=1&page_size=10"),
+			get("/credentials?type=aistudio"),
+			get("/credentials/download?name=aistudio-0123456789abcdef"),
+			get("/credentials/models?name=aistudio-0123456789abcdef"),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"aistudio-0123456789abcdef","priority":3}`),
+			call(http.MethodPost, "/routing/cooldown/reset", `{"auth_index":"$INDEX(aistudio-0123456789abcdef)"}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"aistudio-0123456789abcdef","disabled":true}`),
+			get("/credentials"),
+			get("/credentials?page=1&page_size=10"),
+			call(http.MethodPatch, "/credentials/status", `{"name":"aistudio-0123456789abcdef","disabled":false}`),
+			get("/credentials"),
+			call(http.MethodDelete, "/credentials?name=aistudio-0123456789abcdef", ``),
+			call(http.MethodDelete, "/credentials", `{"names":["aistudio-0123456789abcdef"]}`),
+			get("/credentials"),
 		},
 	}, {
 		// The dashboard's capability probes: Go rejects each with 400 before any I/O.

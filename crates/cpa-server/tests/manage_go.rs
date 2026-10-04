@@ -967,6 +967,18 @@ mod creds {
                     google: Default::default(),
                 },
             ));
+            // Runtime-only credentials, registered as the `/v1/ws` relay does.
+            for id in scenario["runtime_auths"].as_array().into_iter().flatten() {
+                let id = id.as_str().unwrap();
+                assert!(rt.store().add_runtime(Credential::relay_session(id)));
+                // Go seeds a fileless auth's index from its ID.
+                let added = rt.store().get(id).unwrap();
+                assert_eq!(
+                    json!(credentials::auth_index(&added)),
+                    scenario["indexes"][id],
+                    "{name}: auth_index"
+                );
+            }
             let options = Options {
                 management_password: Some(String::new()),
                 log_dir: Some(log_dir.clone()),
@@ -1119,10 +1131,12 @@ mod creds {
                             h.remove("Date");
                         }
                     }
-                    // Go's harness registers no models, so its cooldown-reset fallback list
-                    // is always empty; cliproxy-rs reports the credential's registrations
-                    // (none here: the credential is disabled by this step).
-                    if step["path"] == "/routing/cooldown/reset" && status == 200 {
+                    // Go's harness registers models only for runtime credentials (as its
+                    // service does on connect), so the cooldown-reset fallback list of a
+                    // file credential is empty there; cliproxy-rs reports the credential's
+                    // registrations (none here: the credential is disabled by this step).
+                    if step["path"] == "/routing/cooldown/reset" && status == 200 && scenario["runtime_auths"].is_null()
+                    {
                         assert_eq!(want["models"], json!([]), "{at}: harness assumption");
                     }
                     if let Some(msg) = want["error"].as_str().filter(|m| m.starts_with("invalid auth file: ")) {
@@ -1179,7 +1193,7 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 184);
+        assert_eq!(compared, 199);
         eprintln!("credentials: {bytes_compared} of {compared} steps compared byte for byte");
         assert!(bytes_compared >= 80, "only {bytes_compared} byte comparisons");
     }

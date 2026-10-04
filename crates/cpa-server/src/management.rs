@@ -44,6 +44,9 @@ pub struct Management {
     /// Credentials disabled through the status or fields endpoints: Go's in-memory
     /// auth then reports `disabled via management API` until re-enabled.
     pub(crate) disabled_via_api: Mutex<std::collections::BTreeSet<String>>,
+    /// When runtime-only credentials were first seen and last changed (Go's
+    /// `CreatedAt`/`UpdatedAt` for them; the store keeps no timestamps).
+    pub(crate) runtime_seen: Mutex<std::collections::HashMap<String, auth_files::RuntimeSeen>>,
     /// Go net/http clients by proxy for `api-call` and the release lookup.
     pub(crate) clients: cpa_exec::proxy::GoClients,
     pub(crate) latest_release_url: String,
@@ -133,6 +136,7 @@ impl Management {
             disk: Mutex::new(()),
             fallbacks: Mutex::default(),
             disabled_via_api: Mutex::default(),
+            runtime_seen: Mutex::default(),
             clients: cpa_exec::proxy::GoClients::new(cpa_exec::proxy::Hooks::default()),
             latest_release_url,
             oauth: oauth::Sessions::default(),

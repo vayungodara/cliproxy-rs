@@ -174,6 +174,44 @@ fn file_name(c: &Credential) -> Option<String> {
     }
 }
 
+/// Go `isRuntimeOnlyAuth`: an AI Studio browser on the `/v1/ws` relay, with no file.
+fn runtime_only(c: &Credential) -> bool {
+    matches!(c.source, Source::Runtime)
+}
+
+/// Go `authFileListName`: the file name, else the credential ID.
+fn list_name(c: &Credential) -> String {
+    file_name(c).unwrap_or_else(|| c.id.clone())
+}
+
+/// When management first saw a runtime-only credential and its current revision.
+pub(crate) struct RuntimeSeen {
+    revision: u64,
+    created: SystemTime,
+    updated: SystemTime,
+}
+
+/// Go's `CreatedAt`/`UpdatedAt` for a runtime-only credential.
+///
+/// ponytail: the store keeps no timestamps, so these are when management first saw the
+/// credential and when it first saw its current revision (management edits change
+/// it); Go stamps the connect time and also moves `UpdatedAt` on every request
+/// result. A full fix records both in the store.
+fn runtime_times(state: &Management, c: &Credential) -> (SystemTime, SystemTime) {
+    let now = SystemTime::now();
+    let mut seen = state.runtime_seen.lock().unwrap_or_else(PoisonError::into_inner);
+    let entry = seen.entry(c.id.clone()).or_insert(RuntimeSeen {
+        revision: c.revision,
+        created: now,
+        updated: now,
+    });
+    if entry.revision != c.revision {
+        entry.revision = c.revision;
+        entry.updated = now;
+    }
+    (entry.created, entry.updated)
+}
+
 fn path_of(c: &Credential) -> Option<&Path> {
     match &c.source {
         Source::File(p) => Some(p),
@@ -444,7 +482,16 @@ fn int_value(v: &Value) -> Option<i64> {
 /// Go `buildAuthFileEntryLocked`. `None` hides the credential (config API keys and
 /// disabled credentials whose file is gone).
 fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Value>> {
-    let path = path_of(c)?;
+    let runtime = runtime_only(c);
+    // Go `buildAuthFileEntryLocked`: runtime-only auths are listed from memory and
+    // hidden while disabled; other credentials need a file path.
+    if runtime && c.disabled {
+        return None;
+    }
+    let path = path_of(c);
+    if path.is_none() && !runtime {
+        return None;
+    }
     let store = state.rt.store();
     let now = SystemTime::now();
     let cooldowns = store.cooldowns(&c.id);
@@ -470,7 +517,7 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
         ("status_message", status_message(state, c).into()),
         ("disabled", c.disabled.into()),
         ("unavailable", unavailable.into()),
-        ("runtime_only", false.into()),
+        ("runtime_only", runtime.into()),
         ("source", "memory".into()),
         ("size", 0.into()),
     ] {
@@ -511,13 +558,22 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
         }
         None => {}
     }
-    let meta = std::fs::metadata(path);
-    let modified = meta.as_ref().ok().and_then(|m| m.modified().ok());
+    let meta = path.map(std::fs::metadata);
+    let modified = meta
+        .as_ref()
+        .and_then(|m| m.as_ref().ok())
+        .and_then(|m| m.modified().ok());
     // ponytail: Go stamps created/updated at synthesis; the store keeps no
     // timestamps, so both report the file's modification time.
     if let Some(t) = modified {
         e.insert("created_at", local(t).into());
         e.insert("updated_at", local(t).into());
+    }
+    if runtime {
+        let (created, updated) = runtime_times(state, c);
+        e.insert("created_at", local(created).into());
+        e.insert("updated_at", local(updated).into());
+        e.insert("modtime", local(updated).into());
     }
     for key in ["last_refresh", "lastRefresh", "last_refreshed_at", "lastRefreshedAt"] {
         if let Some(t) = c.metadata.get(key).and_then(parse_time) {
@@ -529,21 +585,24 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
         let at = SystemTime::now() + cd.remaining;
         e.insert("next_retry_after", local(at).into());
     }
-    e.insert("path", path.display().to_string().into());
+    if let Some(path) = path {
+        e.insert("path", path.display().to_string().into());
+    }
     match meta {
-        Ok(m) => {
+        None => {}
+        Some(Ok(m)) => {
             e.insert("source", "file".into());
             e.insert("size", m.len().into());
             if let Some(t) = modified {
                 e.insert("modtime", local(t).into());
             }
         }
-        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+        Some(Err(err)) if err.kind() == std::io::ErrorKind::NotFound => {
             if c.disabled {
                 return None;
             }
         }
-        Err(_) => {}
+        Some(Err(_)) => {}
     }
     if c.provider.eq_ignore_ascii_case("codex")
         && let Some(claims) = meta_str(c, "id_token").and_then(jwt_claims)
@@ -658,10 +717,14 @@ pub(crate) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): Ra
         q.first("auth_index").trim().to_owned(),
     );
     let observed = go_time(chrono::Utc::now());
-    let mut matching: Vec<Arc<Credential>> = state
-        .rt
-        .store()
-        .snapshot()
+    let all = state.rt.store().snapshot();
+    // Forget runtime-only credentials whose relay session ended.
+    state
+        .runtime_seen
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .retain(|id, _| all.iter().any(|c| runtime_only(c) && c.id == *id));
+    let mut matching: Vec<Arc<Credential>> = all
         .into_iter()
         .filter(|c| name.is_empty() || c.id.trim() == name || file_name(c).as_deref() == Some(name.as_str()))
         .filter(|c| index.is_empty() || credentials::auth_index(c) == index)
@@ -669,7 +732,7 @@ pub(crate) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): Ra
     if !paginated {
         let mut files: Vec<(String, Value)> = matching
             .iter()
-            .filter_map(|c| entry(&state, c).map(|e| (file_name(c).unwrap_or_else(|| c.id.clone()), entry_value(e))))
+            .filter_map(|c| entry(&state, c).map(|e| (list_name(c), entry_value(e))))
             .collect();
         files.sort_by_key(|(n, _)| n.to_lowercase());
         return reply_ordered(
@@ -681,9 +744,9 @@ pub(crate) async fn list(State(state): State<Arc<Management>>, RawQuery(raw): Ra
         );
     }
     // Paginated listings count only listable credentials (Go `isAuthFileListable`).
-    matching.retain(|c| path_of(c).is_some_and(|p| p.exists() || !c.disabled));
+    matching.retain(|c| path_of(c).is_some_and(|p| p.exists() || !c.disabled) || (runtime_only(c) && !c.disabled));
     matching.sort_by(|a, b| {
-        let (na, nb) = (file_name(a).unwrap_or_default(), file_name(b).unwrap_or_default());
+        let (na, nb) = (list_name(a), list_name(b));
         na.to_lowercase()
             .cmp(&nb.to_lowercase())
             .then_with(|| na.cmp(&nb))
@@ -1228,6 +1291,20 @@ pub(crate) async fn status(State(state): State<Arc<Management>>, body: Bytes) ->
     let Some(target) = lookup(&state, &name, &req.auth_index) else {
         return fail(StatusCode::NOT_FOUND, "auth file not found");
     };
+    if runtime_only(&target) {
+        // Go `applyAuthDisabledState` then `Manager.Update`, which never persists a
+        // runtime-only auth: the change lives in memory until the relay session ends.
+        let mut next = Credential::clone(&target);
+        next.disabled = disabled;
+        next.metadata.insert("disabled".into(), disabled.into());
+        return match state.rt.store().replace_config_backed(next, target.revision) {
+            Ok(_) => {
+                note_disabled(&state, &target.id, Some(disabled));
+                reply(StatusCode::OK, [("status", "ok".into()), ("disabled", disabled.into())])
+            }
+            Err(e) => patch_error(Some(e)),
+        };
+    }
     tokio::task::spawn_blocking(move || {
         let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
         if matches!(target.source, Source::Config { .. }) {
@@ -1406,8 +1483,9 @@ pub(crate) async fn fields(State(state): State<Arc<Management>>, body: Bytes) ->
     } else {
         None
     };
-    if matches!(target.source, Source::Config { .. }) {
-        // Go updates config API keys in memory only (no file, no config write).
+    if matches!(target.source, Source::Config { .. } | Source::Runtime) {
+        // Go updates config API keys and runtime-only auths in memory only (no file,
+        // no config write).
         let mut next = Credential::clone(&target);
         next.metadata = meta;
         sync_patched_attributes(&mut next, &roots);
