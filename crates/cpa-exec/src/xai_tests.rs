@@ -12,7 +12,7 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 
 use super::*;
-use crate::openai_compat_usage::{Recorder, derived};
+use crate::openai_compat_usage::{HttpAttempt, Logged, http_capture_problems, published};
 
 const FIXTURE: &str = include_str!("../tests/fixtures/xai_go.json");
 
@@ -235,8 +235,8 @@ async fn go_reference_scenarios() {
         *chosen.lock().unwrap() = None;
         let cfg = Config::parse(&s["config"].as_str().unwrap_or_default().replace("UPSTREAM", &addr)).unwrap();
         let cred = credential(s, &cfg);
-        let recorder = Arc::new(Recorder::default());
-        let req = request(s, cpa_core::exec::UsageSink::new(recorder.clone()));
+        let (recorder, capture, sink) = crate::openai_compat_usage::sinks();
+        let req = request(s, sink);
         let op = s["op"].as_str().unwrap();
         let path = s["request_path"].as_str().unwrap_or_default().to_owned();
         let result = match op {
@@ -267,6 +267,7 @@ async fn go_reference_scenarios() {
             },
         }
         let mut problems = Vec::new();
+        let raw = mock.as_ref().and_then(|m| m.raw.lock().unwrap().clone());
         if let Some(mock) = &mock {
             let url = chosen.lock().unwrap().clone();
             if url.as_deref() != s["url"].as_str() {
@@ -278,6 +279,51 @@ async fn go_reference_scenarios() {
                     "request:\n  rust: {got:?}\n  go:   {:?}",
                     s["request"].as_str()
                 ));
+            }
+        }
+        if op != "count"
+            && let Some(problem) = crate::openai_compat_usage::ttft_problem(
+                &recorder.0.lock().unwrap(),
+                raw.is_some(),
+                raw.is_some() && !s["upstream"]["body"].as_str().unwrap_or_default().is_empty(),
+            )
+        {
+            problems.push(problem);
+        }
+        // Capture: one logged attempt per request the upstream received, none otherwise.
+        if let Some(raw) = raw {
+            let up = &s["upstream"];
+            let status = up["status"].as_u64().unwrap() as u16;
+            let get = raw.starts_with(b"GET ");
+            let attempt = HttpAttempt {
+                raw: &raw,
+                // The URL Go chose, as the rewrite sent it to the mock.
+                url: &redirect(s["url"].as_str().unwrap_or_default(), &addr),
+                provider: "xai",
+                credential: &cred,
+                // The video poll is a GET that logs its payload.
+                logged_body: get.then(|| s["payload"].as_str().unwrap()),
+                status,
+                headers: up["headers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|h| (h[0].as_str().unwrap().to_owned(), h[1].as_str().unwrap().to_owned()))
+                    .collect(),
+                body: up["body"].as_str().unwrap(),
+                logged: if op == "stream" && (200..300).contains(&status) {
+                    Logged::Lines
+                } else {
+                    Logged::Whole
+                },
+            };
+            for problem in http_capture_problems(&capture.take(), &attempt) {
+                problems.push(problem);
+            }
+        } else {
+            let events = capture.take();
+            if !events.is_empty() {
+                problems.push(format!("capture without an upstream attempt: {events:?}"));
             }
         }
         if output.as_deref() != s["output"].as_str() {
@@ -310,14 +356,19 @@ async fn go_reference_scenarios() {
         if chunks != want {
             problems.push(format!("frames:\n  rust: {chunks:?}\n  go:   {want:?}"));
         }
-        // Go publishes one record per attempt (none for CountTokens or a request the
-        // executor rejects before its reporter starts).
-        if let Some(want) = s.get("usage").filter(|u| !u.is_null()) {
-            let got = derived(&recorder.0.lock().unwrap(), want["failed"] == true);
-            if &got != want {
-                problems.push(format!("usage: {got} != {want}"));
+        // Go publishes at most one record per attempt; the server publishes what the
+        // executor's reports say (the rules of cpa-server's usage_record.rs, including
+        // `discard` for an error Go raises before its reporter exists), compared with
+        // Go's record or its absence. The server tracks no record for CountTokens.
+        let want = s.get("usage").filter(|u| !u.is_null()).cloned();
+        let reports = recorder.0.lock().unwrap();
+        if op != "count" {
+            let got = published(&reports, error.is_some());
+            if got != want {
+                problems.push(format!("usage: {got:?} != {want:?}"));
             }
         }
+        drop(reports);
         let mut want_error = s["error"].clone();
         if !want_error.is_null() {
             let plain = want_error["status"] == 0;
@@ -342,4 +393,31 @@ async fn go_reference_scenarios() {
         failures.join("\n\n")
     );
     assert_eq!(skipped, Vec::<&str>::new());
+}
+
+/// Go marks the first response byte only on a body read that returns data
+/// (`usageTTFTReadCloser`): an empty error body starts the round trip and never marks it.
+#[tokio::test]
+async fn empty_error_body_starts_ttft_without_first_byte() {
+    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    let s = fixture["scenarios"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == "api_key_default_base")
+        .unwrap();
+    let mock = Mock::start(&serde_json::json!({"status": 500, "headers": [], "body": ""})).await;
+    let addr = mock.addr.clone();
+    let executor = XaiExecutor::default().with_url_rewrite(move |url| redirect(url, &addr));
+    let cfg = Config::default();
+    let cred = credential(s, &cfg);
+    let (recorder, _capture, sink) = crate::openai_compat_usage::sinks();
+    let error = executor
+        .execute(&cred, request(s, sink), &cfg, false)
+        .await
+        .err()
+        .expect("the 500");
+    assert_eq!(error.status, 500);
+    let reports = recorder.0.lock().unwrap();
+    assert_eq!(crate::openai_compat_usage::ttft_problem(&reports, true, false), None);
 }

@@ -158,6 +158,53 @@ fn compact_base_url(c: &Credential) -> String {
     }
 }
 
+/// `TrackHTTPClient` on a response: the first body byte marks TTFT (the caller marked
+/// the round-trip start before sending).
+fn track_first_byte(mut upstream: wire::Upstream, usage: &cpa_core::exec::UsageSink) -> wire::Upstream {
+    if usage.enabled() {
+        let usage = usage.clone();
+        let mut marked = false;
+        upstream.body = upstream
+            .body
+            .inspect(move |chunk| {
+                if !marked && chunk.as_ref().is_ok_and(|b| !b.is_empty()) {
+                    marked = true;
+                    usage.first_byte();
+                }
+            })
+            .boxed();
+    }
+    upstream
+}
+
+/// An error Go returns before creating its usage reporter: the attempt publishes no
+/// record (`UsageSink::discard`).
+pub(crate) fn before_reporter<T>(
+    usage: &cpa_core::exec::UsageSink,
+    result: Result<T, ExecError>,
+) -> Result<T, ExecError> {
+    if result.is_err() {
+        usage.discard();
+    }
+    result
+}
+
+/// `recordXAIRequest`: every xAI HTTP request is logged as a POST with the request's
+/// own headers.
+fn capture_request(
+    req: &ExecRequest,
+    credential: &Credential,
+    url: &str,
+    headers: &GoHeaders,
+    body: &[u8],
+) -> wire::Capture {
+    wire::Capture::request(req, credential, PROVIDER, url, "POST", headers.pairs(), body)
+}
+
+/// The terminal events whose usage Go's HTTP paths observe (`ParseCodexUsage` on
+/// completed and incomplete).
+pub(crate) const HTTP_USAGE_EVENTS: [&str; 2] = ["response.completed", "response.incomplete"];
+
 /// `strings.TrimSuffix(baseURL, "/") + path`.
 fn endpoint(base: &str, path: &str) -> String {
     format!("{}{path}", base.strip_suffix('/').unwrap_or(base))
@@ -242,11 +289,13 @@ fn path_escape(s: &str) -> String {
     out
 }
 
-/// A non-2xx response: `xaiStatusErr` over the whole body, upstream headers kept. Like
-/// Go, a failed body read is returned instead.
-async fn upstream_error(upstream: wire::Upstream) -> ExecError {
+/// A non-2xx response: `xaiStatusErr` over the whole body (captured), upstream headers
+/// kept. Like Go, a failed body read is returned (and captured) instead.
+async fn upstream_error(upstream: wire::Upstream, capture: &wire::Capture) -> ExecError {
     let (status, headers) = (upstream.status, upstream.headers.clone());
-    match wire::read_all(upstream).await {
+    let body = wire::read_all(upstream).await;
+    capture.read(&body);
+    match body {
         Ok(body) => {
             let mut error = response::status_error(status, &body);
             error.headers = Box::new(headers);
@@ -360,6 +409,8 @@ impl XaiExecutor {
         }
         if req.alt.as_deref() == Some(COMPACT_ALT) {
             if req.stream {
+                // Go answers before creating its usage reporter.
+                req.usage.discard();
                 return Err(status_err(400, "streaming not supported for /responses/compact"));
             }
             return self.compact(credential, &req, cfg, downstream_websocket).await;
@@ -381,25 +432,33 @@ impl XaiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let (token, _) = creds(credential);
         let base = chat_base_url(credential);
-        let prepared = request::prepare(&req, cfg, true, Format::Codex, &self.replay, downstream_websocket).await?;
-        // SetTranslatedReasoningEffort(body, "xai"): Go reads xai like codex.
-        if req.usage.enabled() {
-            req.usage.request(Format::Codex, &prepared.body);
-        }
+        let prepared = before_reporter(
+            &req.usage,
+            request::prepare(&req, cfg, true, Format::Codex, &self.replay, downstream_websocket).await,
+        )?;
+        // Execute and ExecuteStream publish only usage they parsed (no EnsurePublished).
+        req.usage.usage_required();
+        req.usage.request_for(PROVIDER, &prepared.body);
         let headers = chat_headers(credential, &token, true, &prepared.session_id, &req);
         let client = self.clients.for_credential(credential, cfg);
         let url = self.url(endpoint(&base, "/responses"));
-        let upstream = wire::send(&client, &url, headers, Bytes::from(prepared.body.clone())).await?;
+        let capture = capture_request(&req, credential, &url, &headers, &prepared.body);
+        req.usage.round_trip_started();
+        let upstream = wire::send(&client, &url, headers, Bytes::from(prepared.body.clone())).await;
+        capture.sent(&upstream);
+        let upstream = track_first_byte(upstream?, &req.usage);
         if !(200..300).contains(&upstream.status) {
-            return Err(upstream_error(upstream).await);
+            return Err(upstream_error(upstream, &capture).await);
         }
         let headers = upstream.headers.clone();
         let body = if req.stream {
             let lines = wire::lines(upstream, MAX_LINE);
             let writes = prepared.replay_scope.writes.clone();
-            ResponseBody::Stream(writes.gate(Pipeline::new(&req, prepared, self.replay.clone()).run(lines)))
+            ResponseBody::Stream(writes.gate(Pipeline::new(&req, prepared, self.replay.clone(), capture).run(lines)))
         } else {
-            let data = wire::read_all(upstream).await?;
+            let data = wire::read_all(upstream).await;
+            capture.read(&data);
+            let data = data?;
             let writes = prepared.replay_scope.writes.clone();
             let body = buffered(&req, prepared, &self.replay, &data);
             writes.settle().await;
@@ -423,15 +482,18 @@ impl XaiExecutor {
     ) -> Result<(Prepared, Bytes, HeaderMap), ExecError> {
         let (token, _) = creds(credential);
         let base = compact_base_url(credential);
-        let mut p = request::prepare(
-            req,
-            cfg,
-            false,
-            Format::OpenAIResponse,
-            &self.replay,
-            downstream_websocket,
-        )
-        .await?;
+        let mut p = before_reporter(
+            &req.usage,
+            request::prepare(
+                req,
+                cfg,
+                false,
+                Format::OpenAIResponse,
+                &self.replay,
+                downstream_websocket,
+            )
+            .await,
+        )?;
         let mut body = std::mem::take(&mut p.body);
         gj::delete(&mut body, "stream");
         gj::delete(&mut body, "tools");
@@ -445,16 +507,20 @@ impl XaiExecutor {
             gj::set_str(&mut body, "previous_response_id", previous);
         }
         p.body = body;
-        if req.usage.enabled() {
-            req.usage.request(Format::Codex, &p.body);
-        }
+        req.usage.request_for(PROVIDER, &p.body);
         let headers = plain_headers(credential, &token, false, &p.session_id, req);
         let client = self.clients.for_credential(credential, cfg);
         let url = self.url(endpoint(&base, "/responses/compact"));
-        let upstream = wire::send(&client, &url, headers, Bytes::from(p.body.clone())).await?;
+        let capture = capture_request(req, credential, &url, &headers, &p.body);
+        req.usage.round_trip_started();
+        let upstream = wire::send(&client, &url, headers, Bytes::from(p.body.clone())).await;
+        capture.sent(&upstream);
+        let upstream = track_first_byte(upstream?, &req.usage);
         let status = upstream.status;
         let headers = upstream.headers.clone();
-        let data = wire::read_all(upstream).await?;
+        let data = wire::read_all(upstream).await;
+        capture.read(&data);
+        let data = data?;
         if !(200..300).contains(&status) {
             let mut error = response::status_error(status, &data);
             error.headers = Box::new(headers);
@@ -482,6 +548,8 @@ impl XaiExecutor {
             .transform_non_stream(&data)
             .map_err(|_| apply_patch_error())?;
         let out = translate_non_stream(req, &p, Format::OpenAIResponse, &converted)?;
+        // Publish(ParseOpenAIUsage(data)): the compact body reported by compact_request.
+        req.usage.publish();
         Ok(ExecResponse {
             status: 200,
             headers,
@@ -499,6 +567,7 @@ impl XaiExecutor {
         downstream_websocket: bool,
     ) -> Result<ExecResponse, ExecError> {
         let (p, data, mut headers) = self.compact_request(credential, req, cfg, downstream_websocket).await?;
+        req.usage.publish();
         headers.insert(
             http::header::CONTENT_TYPE,
             http::HeaderValue::from_static("text/event-stream"),
@@ -551,16 +620,8 @@ impl XaiExecutor {
             IMAGES_GENERATIONS
         };
         let payload = request::normalize_image_refs(req.body.to_vec());
-        self.media(
-            credential,
-            &req,
-            cfg.as_ref(),
-            wreq::Method::POST,
-            path,
-            Some(payload),
-            false,
-        )
-        .await
+        self.media(credential, &req, cfg.as_ref(), wreq::Method::POST, path, payload, false)
+            .await
     }
 
     /// `executeVideos`: generations, edits and extensions by the inbound route; any other
@@ -578,19 +639,18 @@ impl XaiExecutor {
             .into_iter()
             .find(|p| request_path.ends_with(p));
         let request_id = text(&gj::get(&payload, "request_id"));
-        let (method, path, body) = match route {
-            Some(path) => (wreq::Method::POST, path.to_owned(), Some(payload)),
-            None if !request_id.is_empty() => {
-                (wreq::Method::GET, format!("/videos/{}", path_escape(&request_id)), None)
-            }
-            None => (wreq::Method::POST, VIDEOS_GENERATIONS.to_owned(), Some(payload)),
+        let (method, path) = match route {
+            Some(path) => (wreq::Method::POST, path.to_owned()),
+            None if !request_id.is_empty() => (wreq::Method::GET, format!("/videos/{}", path_escape(&request_id))),
+            None => (wreq::Method::POST, VIDEOS_GENERATIONS.to_owned()),
         };
-        self.media(credential, &req, cfg.as_ref(), method, &path, body, true)
+        self.media(credential, &req, cfg.as_ref(), method, &path, payload, true)
             .await
     }
 
     /// The shared media request: plain xAI headers on the chat base URL, the whole
-    /// response returned as is.
+    /// response returned as is. `payload` is sent with a POST; a GET poll sends no body,
+    /// though Go's capture still logs the payload.
     #[allow(clippy::too_many_arguments)]
     async fn media(
         &self,
@@ -599,9 +659,11 @@ impl XaiExecutor {
         cfg: &Config,
         method: wreq::Method,
         path: &str,
-        body: Option<Vec<u8>>,
+        payload: Vec<u8>,
         idempotent: bool,
     ) -> Result<ExecResponse, ExecError> {
+        let logged = payload.as_slice();
+        let body = (method == wreq::Method::POST).then(|| payload.clone());
         let (token, _) = creds(credential);
         let mut headers = plain_headers(credential, &token, false, "", req);
         if idempotent && method == wreq::Method::POST {
@@ -630,10 +692,16 @@ impl XaiExecutor {
                 order: None,
             })
         };
-        let upstream = crate::proxy::send_request(&route, method, &url, headers, body.map(Bytes::from), None).await?;
+        let capture = capture_request(req, credential, &url, &headers, logged);
+        req.usage.round_trip_started();
+        let upstream = crate::proxy::send_request(&route, method, &url, headers, body.map(Bytes::from), None).await;
+        capture.sent(&upstream);
+        let upstream = track_first_byte(upstream?, &req.usage);
         let status = upstream.status;
         let headers = upstream.headers.clone();
-        let data = wire::read_all(upstream).await?;
+        let data = wire::read_all(upstream).await;
+        capture.read(&data);
+        let data = data?;
         if !(200..300).contains(&status) {
             let mut error = response::status_error(status, &data);
             error.headers = Box::new(headers);
@@ -678,7 +746,8 @@ fn buffered(req: &ExecRequest, mut p: Prepared, store: &replay::Store, data: &[u
         for event in events {
             // ObserveResponseModel on every event; ParseCodexUsage on the terminal one.
             if req.usage.enabled() {
-                req.usage.response_line(Format::Codex, &event);
+                req.usage
+                    .response_line(Format::Codex, &response::usage_line(&event, &HTTP_USAGE_EVENTS));
             }
             let kind = gj::get(&event, "type").bytes().into_owned();
             match kind.as_slice() {
@@ -689,7 +758,11 @@ fn buffered(req: &ExecRequest, mut p: Prepared, store: &replay::Store, data: &[u
                         // Only a completed turn carries replayable terminal state.
                         replay::cache_completed(store, &p.replay_scope, &completed);
                     }
-                    return translate_non_stream(req, &p, Format::Codex, &completed);
+                    let out = translate_non_stream(req, &p, Format::Codex, &completed)?;
+                    if response::codex_usage_ok(&event) {
+                        req.usage.publish();
+                    }
+                    return Ok(out);
                 }
                 _ => {}
             }
@@ -731,10 +804,13 @@ struct Pipeline {
     ready: VecDeque<Result<Bytes, ExecError>>,
     done: bool,
     usage: cpa_core::exec::UsageSink,
+    /// A completed or incomplete event carried usage (`StreamUsageBuffer.ok`).
+    usage_seen: bool,
+    capture: wire::Capture,
 }
 
 impl Pipeline {
-    fn new(req: &ExecRequest, p: Prepared, store: Arc<replay::Store>) -> Self {
+    fn new(req: &ExecRequest, p: Prepared, store: Arc<replay::Store>, capture: wire::Capture) -> Self {
         let translator: Box<dyn StreamTranslator> = match cpa_translate::pair(req.response_format, Format::Codex) {
             Some(pair) => (pair.stream)(&ResponseCtx {
                 model: &req.model,
@@ -759,11 +835,14 @@ impl Pipeline {
             ready: VecDeque::new(),
             done: false,
             usage: req.usage.clone(),
+            usage_seen: false,
+            capture,
         }
     }
 
     /// Ends the stream: a Responses client first gets the frame its Go framer flushes.
     fn terminal(&mut self, error: ExecError) {
+        wire::publish_failure(&self.usage, &error);
         let flushed = self.translator.flush_frames();
         self.ready.extend(flushed.into_iter().filter(|f| !f.is_empty()).map(Ok));
         self.ready.push_back(Err(error));
@@ -858,10 +937,14 @@ impl Pipeline {
                     continue;
                 };
                 // ObserveResponseModel and, for terminal events, StreamUsageBuffer.Observe.
-                if self.usage.enabled() {
-                    self.usage.response_line(Format::Codex, &event);
-                }
                 let name = gj::get(&event, "type").str().into_owned();
+                if self.usage.enabled() {
+                    self.usage
+                        .response_line(Format::Codex, &response::usage_line(&event, &HTTP_USAGE_EVENTS));
+                    if HTTP_USAGE_EVENTS.contains(&name.as_str()) && response::codex_usage_ok(&event) {
+                        self.usage_seen = true;
+                    }
+                }
                 if had_pending {
                     let event_line = match self.pending.take() {
                         Some(pending) if i == 0 => response::summary_event_line(&pending, &name),
@@ -905,12 +988,21 @@ impl Pipeline {
             return self.terminal(apply_patch_error());
         }
         if let Some(error) = scan_error {
+            self.capture.error(&error);
             return self.terminal(error);
         }
         self.done = true;
         match self.translator.finish() {
             Ok(out) => self.ready.extend(out.into_iter().filter(|f| !f.is_empty()).map(Ok)),
-            Err(e) => self.ready.push_back(Err(status_err(502, e.to_string()))),
+            Err(e) => {
+                let error = status_err(502, e.to_string());
+                wire::publish_failure(&self.usage, &error);
+                return self.ready.push_back(Err(error));
+            }
+        }
+        // The goroutine's deferred `streamUsage.Publish`; a failure published first wins.
+        if self.usage_seen {
+            self.usage.publish();
         }
     }
 
@@ -929,6 +1021,8 @@ impl Pipeline {
                 }
                 match lines.next().await {
                     Some(Ok(line)) => {
+                        // AppendAPIResponseChunk per scanned line.
+                        st.capture.chunk(&line);
                         st.line(&line);
                     }
                     Some(Err(error)) => st.end(Some(error)),

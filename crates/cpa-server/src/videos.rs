@@ -726,8 +726,13 @@ async fn download(rt: &Runtime, video: &str, url: &str) -> Response {
     };
     let client = DOWNLOADS.get(&proxy);
     let headers = cpa_exec::proxy::GoHeaders::new();
+    // `HTTPStatusFromErrorOr(err, http.StatusBadGateway)`: a failed download is a 502
+    // unless the error carries its own status.
     let upstream = match cpa_exec::proxy::request(&client, wreq::Method::GET, url, headers, None, None).await {
         Ok(upstream) => upstream,
+        Err(error) if error.scope == cpa_core::exec::FailureScope::Transport => {
+            return gateway_error(&String::from_utf8_lossy(&error.body));
+        }
         Err(error) => return errors::openai(&Failure::Exec(error)),
     };
     if !(200..300).contains(&upstream.status) {

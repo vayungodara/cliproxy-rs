@@ -10,6 +10,7 @@ use serde_json::Value;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 
 use super::*;
+use crate::openai_compat_usage::Logged;
 
 const FIXTURE: &str = include_str!("../tests/fixtures/openai_compat_go.json");
 
@@ -275,8 +276,8 @@ async fn go_reference_scenarios() {
         let addr = mock.as_ref().map_or("127.0.0.1:9".to_owned(), |m| m.addr.clone());
         let cfg = Config::parse(&s["config"].as_str().unwrap_or_default().replace("UPSTREAM", &addr)).unwrap();
         let cred = credential(s, &cfg, &addr);
-        let recorder = Arc::new(crate::openai_compat_usage::Recorder::default());
-        let (req, op) = request(s, cpa_core::exec::UsageSink::new(recorder.clone()));
+        let (recorder, capture, sink) = crate::openai_compat_usage::sinks();
+        let (req, op) = request(s, sink);
         let result = if op.starts_with("images") {
             let path = s["request_path"].as_str().unwrap_or_default().to_owned();
             executor.images(&cred, req, &path, &cfg).await
@@ -323,6 +324,52 @@ async fn go_reference_scenarios() {
                 "{name}: upstream request"
             );
             assert_eq!(mock.request(), want_bytes(s), "{name}: upstream request bytes");
+            let raw = mock.raw.lock().unwrap().clone().unwrap();
+            let target = String::from_utf8_lossy(&raw)
+                .split(' ')
+                .nth(1)
+                .unwrap_or_default()
+                .to_owned();
+            let up = &s["upstream"];
+            let status = up["status"].as_u64().unwrap() as u16;
+            let ok = (200..300).contains(&status);
+            let attempt = crate::openai_compat_usage::HttpAttempt {
+                raw: &raw,
+                url: &format!("http://{}{target}", mock.addr),
+                provider: s["provider"].as_str().unwrap(),
+                credential: &cred,
+                logged_body: None,
+                status,
+                // Go's transport drops Content-Encoding from a body it decompressed.
+                headers: up["headers"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|h| (h[0].as_str().unwrap().to_owned(), h[1].as_str().unwrap().to_owned()))
+                    .filter(|(n, _)| !(up["gzip"] == true && n.eq_ignore_ascii_case("content-encoding")))
+                    .collect(),
+                body: up["body"].as_str().unwrap(),
+                logged: match op.as_str() {
+                    "stream" if ok => Logged::Lines,
+                    "images_stream" if ok => Logged::Reads,
+                    _ => Logged::Whole,
+                },
+            };
+            let events = capture.take();
+            let problems = crate::openai_compat_usage::http_capture_problems(&events, &attempt);
+            assert!(problems.is_empty(), "{name}: {problems:#?}");
+            if op == "stream"
+                && ok
+                && let Some(e) = &error
+            {
+                stream_failure_logged(name, e, &events, &recorder.0.lock().unwrap());
+            }
+        } else {
+            assert_eq!(
+                capture.take(),
+                Vec::new(),
+                "{name}: capture without an upstream attempt"
+            );
         }
         assert_eq!(output.as_deref(), s["output"].as_str(), "{name}: output");
         // Go's chunks are what the client's route frames; the Rust translator contract
@@ -369,6 +416,117 @@ async fn go_reference_scenarios() {
         assert_eq!(error.unwrap_or(Value::Null), want_error, "{name}: error");
     }
     assert_eq!(skipped, Vec::<&str>::new());
+}
+
+/// Go's images paths read the whole response before checking the status
+/// (openai_compat_executor.go executeImages and executeImagesStream): a non-2xx body that
+/// ends early is logged (`RecordAPIResponseError`) and its read error returned, where the
+/// chat paths ignore it.
+#[tokio::test]
+async fn images_error_body_read_failure_is_logged_and_returned() {
+    use crate::openai_compat_usage::Captured;
+    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    let executor = OpenAICompatExecutor::default();
+    for name in ["images_error_status", "images_stream_error_status"] {
+        let s = fixture["scenarios"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["name"] == name)
+            .unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap().to_string();
+        tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            let (read, mut write) = socket.into_split();
+            let mut reader = BufReader::new(read);
+            let mut length = 0;
+            loop {
+                let mut line = String::new();
+                if reader.read_line(&mut line).await.unwrap_or(0) == 0 || line == "\r\n" {
+                    break;
+                }
+                if let Some(v) = line.to_ascii_lowercase().strip_prefix("content-length:") {
+                    length = v.trim().parse().unwrap_or(0);
+                }
+            }
+            let mut body = vec![0; length];
+            let _ = reader.read_exact(&mut body).await;
+            // 100 bytes declared, 8 sent, then the connection ends.
+            let _ = write
+                .write_all(b"HTTP/1.1 429 Too Many Requests\r\nContent-Length: 100\r\n\r\n{\"error\"")
+                .await;
+            let _ = write.shutdown().await;
+        });
+        let cfg = Config::parse(&s["config"].as_str().unwrap().replace("UPSTREAM", &addr)).unwrap();
+        let cred = credential(s, &cfg, &addr);
+        let (_recorder, capture, sink) = crate::openai_compat_usage::sinks();
+        let (req, _) = request(s, sink);
+        let path = s["request_path"].as_str().unwrap().to_owned();
+        let error = executor.images(&cred, req, &path, &cfg).await.err().expect(name);
+        assert_eq!(
+            error.scope,
+            FailureScope::Transport,
+            "{name}: the read error, not the 429"
+        );
+        let events = capture.take();
+        assert!(
+            matches!(
+                events.as_slice(),
+                [Captured::Request { .. }, Captured::Metadata(429, _), Captured::Error(_)]
+            ),
+            "{name}: {events:?}"
+        );
+    }
+}
+
+/// Scenarios whose stream fails on an upstream error payload: Go logs and publishes a
+/// fixed text instead (`publishStreamError(err, true)`).
+const PAYLOAD_ERRORS: &[&str] = &[
+    "stream_named_error_event",
+    "stream_data_error_with_status",
+    "stream_data_type_failed",
+    "stream_data_top_level_code_message",
+    "stream_plain_json_after_blank_lines",
+    "stream_data_error_fractional_status_string",
+    "stream_data_error_overflowing_status_string",
+];
+
+/// Scenarios whose apply_patch input fails only at EOF: `EndApplyPatchStream` publishes
+/// the failure without logging it.
+const EOF_TOOL_FAILURES: &[&str] = &["apply_patch_stream_truncated"];
+
+/// Go's stream failure: `RecordAPIResponseError` and `PublishFailure` with the logged
+/// error, before the client gets the real one.
+fn stream_failure_logged(
+    name: &str,
+    error: &Value,
+    events: &[crate::openai_compat_usage::Captured],
+    reports: &[crate::openai_compat_usage::Report],
+) {
+    use crate::openai_compat_usage::{Captured, Report};
+    let message = error["message"].as_str().unwrap();
+    let logged = if PAYLOAD_ERRORS.contains(&name) {
+        "upstream stream returned an error payload"
+    } else {
+        message
+    };
+    let tail = if EOF_TOOL_FAILURES.contains(&name) {
+        None
+    } else {
+        Some(Captured::Error(logged.to_owned()))
+    };
+    assert_eq!(
+        events.last().filter(|e| matches!(e, Captured::Error(_))),
+        tail.as_ref(),
+        "{name}: logged"
+    );
+    let published = reports.iter().find_map(|r| match r {
+        Report::PublishFailure(status, body) => Some((*status, body.as_str())),
+        _ => None,
+    });
+    let status = error["status"].as_u64().unwrap() as u16;
+    assert_eq!(published, Some((status, logged)), "{name}: published failure");
 }
 
 #[test]
@@ -477,7 +635,9 @@ async fn terminal_errors_flush_pending_frames_first() {
         (vec![Err(ExecError::local(502, FailureScope::Transport, "cut"))], 502),
     ] {
         let lines: ExecStream = futures_util::stream::iter(lines).boxed();
-        let out: Vec<_> = frames(lines, Box::new(Pending), true).collect().await;
+        let out: Vec<_> = frames(lines, Box::new(Pending), true, Default::default(), Default::default())
+            .collect()
+            .await;
         assert_eq!(out.len(), 2);
         assert_eq!(out[0].as_ref().unwrap(), &Bytes::from_static(b"event: pending\n\n"));
         assert_eq!(out[1].as_ref().unwrap_err().status, status);

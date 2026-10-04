@@ -14,6 +14,23 @@ use axum::response::{IntoResponse, Response};
 use cpa_core::exec::{Caller, Operation};
 use serde_json::Value;
 
+use crate::openai_compat_usage::{Captured, published, sinks};
+
+/// Clock-derived timestamps (`created_at`/`completed_at` from now, when the compact reply
+/// has none) as `"<now>"`.
+fn clock(text: &str) -> String {
+    static NOW: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r#""(created_at|completed_at)":(1[7-9]\d{8})"#).unwrap());
+    NOW.replace_all(text, |c: &regex::Captures| {
+        if c[2].parse::<i64>().unwrap_or(0) >= 1_750_000_000 {
+            format!("\"{}\":\"<now>\"", &c[1])
+        } else {
+            c[0].to_owned()
+        }
+    })
+    .into_owned()
+}
+
 const FIXTURE: &str = include_str!("../tests/fixtures/xai_ws_go.json");
 
 /// The handshake headers compared with Go. Go's dialer also sends `User-Agent:
@@ -29,6 +46,7 @@ struct Recorded {
     upgrades: Vec<String>,
     frames: Vec<String>,
     http: Vec<String>,
+    pongs: Vec<String>,
 }
 
 #[derive(Default)]
@@ -120,6 +138,7 @@ async fn handler(State(shared): State<Shared>, req: axum::extract::Request) -> R
 async fn serve_socket(mut socket: AxSocket, shared: Shared) {
     while let Some(Ok(message)) = socket.recv().await {
         let AxMessage::Text(text) = message else { continue };
+        let previous = gjson::get(text.as_str(), "previous_response_id").str().to_owned();
         let act = {
             let mut script = shared.lock().unwrap();
             script.recorded.frames.push(text.as_str().to_owned());
@@ -132,10 +151,27 @@ async fn serve_socket(mut socket: AxSocket, shared: Shared) {
                 .cloned()
         };
         let Some(act) = act else { continue };
+        if let Some(ping) = act["ping"].as_str() {
+            let _ = socket.send(AxMessage::Ping(ping.as_bytes().to_vec().into())).await;
+            let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+            while let Ok(Some(Ok(message))) = tokio::time::timeout_at(deadline, socket.recv()).await {
+                if let AxMessage::Pong(data) = message {
+                    let pong = String::from_utf8_lossy(&data).into_owned();
+                    shared.lock().unwrap().recorded.pongs.push(pong);
+                    break;
+                }
+            }
+        }
+        let quoted = serde_json::to_string(&previous).unwrap();
         for frame in act["send"].as_array().into_iter().flatten() {
-            if socket.send(AxMessage::text(frame.as_str().unwrap())).await.is_err() {
+            let frame = frame.as_str().unwrap().replace("\"PREVIOUS_ID\"", &quoted);
+            if socket.send(AxMessage::text(frame)).await.is_err() {
                 return;
             }
+        }
+        if act["drop"].as_bool().unwrap_or(false) {
+            // No close frame: the connection just ends.
+            return;
         }
         if act["binary"].as_bool().unwrap_or(false) {
             let _ = socket.send(AxMessage::Binary(vec![1u8, 2, 3].into())).await;
@@ -163,13 +199,17 @@ fn credential(id: &str, attrs: &Value, addr: &str) -> Credential {
     .unwrap();
     c.id = id.to_owned();
     for (k, v) in attrs.as_object().unwrap() {
+        if k == "access_token" {
+            c.metadata.insert(k.clone(), v.clone());
+            continue;
+        }
         c.attributes
             .insert(k.clone(), v.as_str().unwrap().replace("UPSTREAM", addr));
     }
     c
 }
 
-fn request(turn: &Value, session: &str) -> ExecRequest {
+fn request(turn: &Value, session: &str, usage: cpa_core::exec::UsageSink) -> ExecRequest {
     let payload = Bytes::from(turn["payload"].as_str().unwrap().to_owned());
     let headers = HeaderMap::new();
     // Go's executor-side session fallback (EnsureSessionContext -> CanonicalSessionID).
@@ -182,7 +222,10 @@ fn request(turn: &Value, session: &str) -> ExecRequest {
     ExecRequest {
         operation: Operation::Generate,
         source_format: Format::OpenAIResponse,
-        response_format: Format::OpenAIResponse,
+        response_format: turn["response"]
+            .as_str()
+            .and_then(Format::parse)
+            .unwrap_or(Format::OpenAIResponse),
         requested_model: model.clone(),
         model,
         original_body: payload.clone(),
@@ -195,7 +238,7 @@ fn request(turn: &Value, session: &str) -> ExecRequest {
         execution_session: Some(session.to_owned()),
         derived_session: None,
         resolved_model: None,
-        usage: Default::default(),
+        usage,
         request_path: "/v1/responses".into(),
         headers,
         caller: Caller {
@@ -216,7 +259,7 @@ fn error_json(e: &ExecError) -> Value {
 #[tokio::test]
 async fn turns_match_go() {
     let scenarios: Vec<Value> = serde_json::from_str(FIXTURE).unwrap();
-    assert_eq!(scenarios.len(), 18);
+    assert_eq!(scenarios.len(), 49);
     let mut failures = Vec::new();
     for s in &scenarios {
         let name = s["name"].as_str().unwrap();
@@ -243,6 +286,7 @@ async fn turns_match_go() {
             }
             let mut chunks: Vec<String> = Vec::new();
             let mut error = Value::Null;
+            let (recorder, capture, usage) = sinks();
             if turn["close"].as_bool().unwrap_or(false) {
                 executor.close_session(session);
             } else {
@@ -253,7 +297,7 @@ async fn turns_match_go() {
                     lease: None,
                 };
                 match executor
-                    .execute_in_session(credential, request(turn, session), &cfg, &exec_session)
+                    .execute_in_session(credential, request(turn, session, usage), &cfg, &exec_session)
                     .await
                 {
                     Err(e) => error = error_json(&e),
@@ -263,7 +307,7 @@ async fn turns_match_go() {
                         };
                         while let Some(item) = stream.next().await {
                             match item {
-                                Ok(chunk) => chunks.push(normalize(&String::from_utf8_lossy(&chunk))),
+                                Ok(chunk) => chunks.push(clock(&normalize(&String::from_utf8_lossy(&chunk)))),
                                 Err(e) => error = error_json(&e),
                             }
                         }
@@ -277,7 +321,7 @@ async fn turns_match_go() {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|c| c.as_str().unwrap().to_owned())
+                .map(|c| clock(c.as_str().unwrap()))
                 .collect();
             if chunks != want_chunks {
                 diffs.push(format!("chunks:\n  go   {want_chunks:#?}\n  rust {chunks:#?}"));
@@ -299,7 +343,51 @@ async fn turns_match_go() {
             if error != want_error {
                 diffs.push(format!("error:\n  go   {want_error}\n  rust {error}"));
             }
-            for (field, got) in [("frames", &recorded.frames), ("http", &recorded.http)] {
+            // Go's usage record for the turn, or its absence, against what the server
+            // publishes from this turn's reports (CloseExecutionSession publishes none;
+            // an error Go raises before its reporter exists reports `discard`).
+            let reports = recorder.0.lock().unwrap();
+            let want_usage = turn.get("usage").filter(|u| !u.is_null()).cloned();
+            if !turn["close"].as_bool().unwrap_or(false) {
+                let got_usage = published(&reports, !error.is_null());
+                if got_usage != want_usage {
+                    diffs.push(format!("usage:\n  go   {want_usage:?}\n  rust {got_usage:?}"));
+                }
+            }
+            drop(reports);
+            if !turn["close"].as_bool().unwrap_or(false) {
+                // A frame or a compact request went upstream; a message or compact body
+                // came back.
+                let acts = turn["acts"].as_array().cloned().unwrap_or_default();
+                let message = recorded
+                    .frames
+                    .iter()
+                    .zip(&acts)
+                    .flat_map(|(_, act)| act["send"].as_array().cloned().unwrap_or_default())
+                    .any(|m| !m.as_str().unwrap().trim().is_empty());
+                let compact_body =
+                    !recorded.http.is_empty() && turn["compact"]["body"].as_str().is_some_and(|b| !b.is_empty());
+                let sent = !recorded.frames.is_empty() || !recorded.http.is_empty();
+                if let Some(problem) =
+                    crate::openai_compat_usage::ttft_problem(&recorder.0.lock().unwrap(), sent, message || compact_body)
+                {
+                    diffs.push(problem);
+                }
+                let credential = &credentials[turn["auth"].as_str().unwrap()];
+                diffs.extend(capture_problems(
+                    name,
+                    turn,
+                    &recorded,
+                    &capture.take(),
+                    credential,
+                    &addr,
+                ));
+            }
+            for (field, got) in [
+                ("frames", &recorded.frames),
+                ("http", &recorded.http),
+                ("pongs", &recorded.pongs),
+            ] {
                 let got: Vec<String> = got.iter().map(|g| normalize(g)).collect();
                 let want: Vec<String> = turn[field]
                     .as_array()
@@ -346,6 +434,171 @@ async fn turns_match_go() {
     );
 }
 
+/// Turns that log their WebSocket request although no frame goes out: Go records it
+/// before it finds the continuation has no socket.
+const WS_REQUEST_WITHOUT_FRAME: [&str; 1] = ["continuation_without_socket"];
+
+/// One capture event as the order check sees it.
+fn shape(event: &Captured) -> String {
+    match event {
+        Captured::Request {
+            websocket: true,
+            url,
+            body,
+            ..
+        } => format!("ws-request {url} {body}"),
+        Captured::Request { method, url, body, .. } => format!("http-request {method} {url} {body}"),
+        Captured::Metadata(status, _) => format!("metadata {status}"),
+        Captured::Chunk(body) => format!("chunk {body}"),
+        Captured::Error(error) => format!("error {error}"),
+        Captured::Handshake(status, _) => format!("handshake {status}"),
+        Captured::WsResponse(payload) => format!("response {payload}"),
+        Captured::WsError(stage, _) => format!("ws-error {stage}"),
+    }
+}
+
+/// The turn's capture by the rules of Go's call sites, built from what the upstream saw:
+/// a compact request is an HTTP attempt (`recordXAIRequest`, metadata, whole body); a
+/// WebSocket turn logs its request frame (`RecordAPIWebsocketRequest`), then a rejected
+/// upgrade as an HTTP attempt (GET on the http URL, metadata, body) or a new socket's
+/// 101 handshake, then every upstream message (`AppendAPIWebsocketResponse`) and the
+/// terminal error's stage.
+fn capture_problems(
+    name: &str,
+    turn: &Value,
+    recorded: &Recorded,
+    events: &[Captured],
+    credential: &Credential,
+    addr: &str,
+) -> Vec<String> {
+    let mut problems = Vec::new();
+    let mut want = Vec::new();
+    for http in &recorded.http {
+        let (line, body) = http.split_once('\n').unwrap_or((http, ""));
+        let uri = line.split(' ').nth(1).unwrap_or_default();
+        let reply = &turn["compact"];
+        want.push(format!("http-request POST http://{addr}{uri} {body}"));
+        want.push(format!("metadata {}", reply["status"]));
+        want.push(format!("chunk {}", reply["body"].as_str().unwrap()));
+    }
+    let uri = recorded.upgrades.first().map(|u| u.lines().next().unwrap_or_default());
+    let ws_url = format!("ws://{addr}{}", uri.unwrap_or("/v1/responses"));
+    let websocket =
+        !recorded.upgrades.is_empty() || !recorded.frames.is_empty() || WS_REQUEST_WITHOUT_FRAME.contains(&name);
+    if websocket {
+        match recorded.frames.first() {
+            Some(frame) => want.push(format!("ws-request {ws_url} {frame}")),
+            None => want.push(format!("ws-request {ws_url} <any>")),
+        }
+        let reject = turn.get("reject").filter(|r| !r.is_null());
+        for _ in &recorded.upgrades {
+            match reject {
+                Some(reply) => {
+                    want.push(format!("http-request GET http://{addr}{} ", uri.unwrap()));
+                    want.push(format!("metadata {}", reply["status"]));
+                    want.push(format!("chunk {}", reply["body"].as_str().unwrap()));
+                }
+                None => want.push("handshake 101".to_owned()),
+            }
+        }
+        let acts = turn["acts"].as_array().cloned().unwrap_or_default();
+        let mut stage = None;
+        for (frame, act) in recorded.frames.iter().zip(&acts) {
+            let previous = gjson::get(frame, "previous_response_id").str().to_owned();
+            let quoted = serde_json::to_string(&previous).unwrap();
+            for message in act["send"].as_array().into_iter().flatten() {
+                let message = message.as_str().unwrap().replace("\"PREVIOUS_ID\"", &quoted);
+                let message = message.trim();
+                if message.is_empty() {
+                    continue;
+                }
+                want.push(format!("response {message}"));
+                if crate::xai_ws::ws_error(message.as_bytes()).is_some() {
+                    stage = Some("upstream_error");
+                }
+            }
+            // The session reader hands a binary message, a close or a dropped connection
+            // to the turn as a read error.
+            if act["binary"] == true || act["close"].as_u64().is_some_and(|c| c != 0) || act["drop"] == true {
+                stage = Some("read");
+            }
+        }
+        // A read error with an unfinished apply_patch call ends through the bridge's
+        // failure, which Go returns before logging the read.
+        let bridge_failure = turn["error"]["message"] == cpa_translate::APPLY_PATCH_UPSTREAM_ERROR;
+        if let Some(stage) = stage.filter(|s| !(*s == "read" && bridge_failure)) {
+            want.push(format!("ws-error {stage}"));
+        }
+    }
+    let got: Vec<String> = events
+        .iter()
+        .map(|e| match e {
+            Captured::Request {
+                websocket: true, url, ..
+            } if recorded.frames.is_empty() => {
+                format!("ws-request {url} <any>")
+            }
+            e => shape(e),
+        })
+        .collect();
+    if got != want {
+        problems.push(format!("capture:\n  want {want:#?}\n  got  {got:#?}"));
+    }
+    // RecordAPIWebsocketError logs the error the turn fails with (a gorilla close text
+    // is not kept by the shared reader).
+    let go_error = turn["error"]["message"]
+        .as_str()
+        .unwrap_or_default()
+        .replace("UPSTREAM", addr);
+    for event in events {
+        match event {
+            Captured::WsError(stage, text) if !GORILLA_CLOSE_TEXT.contains(&name) && *text != go_error => {
+                problems.push(format!("capture {stage} error: {text:?} != {go_error:?}"));
+            }
+            Captured::Metadata(_, headers)
+                if turn.get("reject").is_some_and(|r| !r.is_null())
+                    && !headers
+                        .iter()
+                        .any(|(n, v)| n == "Content-Type" && v == "application/json") =>
+            {
+                problems.push(format!("capture rejection headers: {headers:?}"));
+            }
+            _ => {}
+        }
+    }
+    let (auth_type, auth_value) = crate::openai_compat_http::account_info(credential);
+    for event in events {
+        if let Captured::Request {
+            websocket,
+            method,
+            headers,
+            provider,
+            auth,
+            ..
+        } = event
+        {
+            let want_auth = [
+                credential.id.clone(),
+                credential.label.clone(),
+                auth_type.to_owned(),
+                auth_value.clone(),
+            ];
+            if provider != "xai" || auth != &want_auth {
+                problems.push(format!("capture account: {provider} {auth:?}"));
+            }
+            let has = |n: &str, v: &str| headers.iter().any(|(hn, hv)| hn == n && hv == v);
+            if *websocket && method != "WEBSOCKET" {
+                problems.push(format!("capture ws method: {method}"));
+            }
+            // websocketUpgradeRequestLog: the upgrade headers a rejected dial carried.
+            if method == "GET" && !(has("Connection", "Upgrade") && has("Upgrade", "websocket")) {
+                problems.push(format!("capture rejected upgrade headers: {headers:?}"));
+            }
+        }
+    }
+    problems
+}
+
 #[test]
 fn websockets_flag_follows_go() {
     let mut c = credential("a", &serde_json::json!({}), "");
@@ -381,4 +634,412 @@ fn ws_url_follows_go() {
         String::from_utf8_lossy(&ws_url("https:///x").unwrap_err().body),
         "xai websockets executor: responses websocket URL host is empty"
     );
+}
+
+/// Go sets no read deadline on xAI sockets; the shared reader's must outlast any session.
+#[test]
+fn xai_sockets_have_no_read_deadline() {
+    assert!(Ws::default().pool.idle >= Duration::from_secs(365 * 24 * 3600));
+}
+
+/// Go's reader always delivers its terminal read (`sendTerminalWebsocketRead` waits for
+/// room). Here the queue is full when the close 1009 arrives: 4097 deltas fill the
+/// 4096-slot queue while the consumer pauses, so the reader's error cannot be queued and
+/// must still reach the turn as the request-scoped 413.
+#[tokio::test]
+async fn terminal_error_survives_a_full_queue() {
+    let shared: Shared = Arc::default();
+    let app = axum::Router::new().fallback(handler).with_state(shared.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let delta = r#"{"type":"response.output_text.delta","item_id":"m","output_index":0,"content_index":0,"delta":"x"}"#;
+    let turn = serde_json::json!({
+        "auth": "auth-a",
+        "payload": r#"{"model":"grok-4.3","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"stream":true}"#,
+        "acts": [{"send": vec![delta; 4097], "close": 1009, "close_text": "too big"}],
+    });
+    shared.lock().unwrap().turn = Some(turn.clone());
+    let attrs = serde_json::json!({"api_key": "sk-fake", "base_url": "http://UPSTREAM/v1", "websockets": "true"});
+    let credential = credential("auth-a", &attrs, &addr);
+    let executor = XaiExecutor::with_client(wreq::Client::new());
+    let session = ExecSession {
+        id: "sess-full".into(),
+        continuation: false,
+        lease: None,
+    };
+    let response = executor
+        .execute_in_session(
+            &credential,
+            request(&turn, "sess-full", Default::default()),
+            &Config::default(),
+            &session,
+        )
+        .await
+        .unwrap();
+    let ResponseBody::Stream(mut stream) = response.body else {
+        panic!("buffered response");
+    };
+    // Let the reader fill the queue, take one event so it queues the last delta, then pause
+    // again while it reads the close.
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(stream.next().await.unwrap().is_ok());
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let mut events = 1;
+    let mut last = None;
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(_) => events += 1,
+            Err(e) => last = Some(e),
+        }
+    }
+    assert_eq!(events, 4097);
+    let error = last.expect("terminal error");
+    assert_eq!(error.status, 413);
+    assert_eq!(
+        String::from_utf8_lossy(&error.body),
+        r#"{"error":{"message":"upstream websocket message too big","type":"invalid_request_error","code":"message_too_big"}}"#
+    );
+    executor.close_session("sess-full");
+    server.abort();
+}
+
+// --- unit-level ports of xai_websockets_executor_test.go -------------------------------
+
+/// The server's `classify::upstream_attempted` (Go `UpstreamAttempted`).
+fn attempted(e: &ExecError) -> bool {
+    !e.headers.is_empty() || e.scope == FailureScope::Transport || e.status == 0
+}
+
+/// TestXAIWebsocketsEnabledForConfigAPIKey, directly and through the config synthesizer.
+#[test]
+fn websockets_enabled_for_config_api_key() {
+    let attrs = serde_json::json!({"api_key": "xai-key", "websockets": "true"});
+    assert!(websockets_enabled(&credential("a", &attrs, "")));
+    let cfg = Config::parse("api-keys:\n  xai:\n    - base-url: http://127.0.0.1:9/v1\n      keys:\n        - api-key: xai-key\n          websockets: true\n").unwrap();
+    let synthesized = cpa_core::config::credentials::from_config(&cfg);
+    let xai = synthesized
+        .iter()
+        .find(|c| c.provider == "xai")
+        .expect("xai credential");
+    assert!(websockets_enabled(xai));
+}
+
+/// TestXAIWebsocketMissingRequiredSessionDoesNotMarkUpstreamAttempt and
+/// TestXAIWebsocketsRequiredUpstreamRejectsCompactionHTTPFallback: a continuation without
+/// a retained socket is the request-scoped replay signal and no upstream attempt.
+#[tokio::test]
+async fn missing_required_session_is_replay_without_attempt() {
+    let executor = XaiExecutor::with_client(wreq::Client::new());
+    let attrs = serde_json::json!({"api_key": "xai-key", "websockets": "true", "base_url": "http://127.0.0.1:9/v1"});
+    let credential = credential("xai-required-session", &attrs, "");
+    let session = ExecSession {
+        id: "missing-xai-session".into(),
+        continuation: true,
+        lease: None,
+    };
+    for payload in [
+        r#"{"model":"grok-4","previous_response_id":"resp-1","input":[{"type":"message","role":"user","content":"hello"}]}"#,
+        r#"{"model":"grok-4","input":[{"type":"compaction_trigger"}]}"#,
+    ] {
+        let turn = serde_json::json!({"model": "grok-4", "payload": payload});
+        let Err(error) = executor
+            .execute_in_session(
+                &credential,
+                request(&turn, "missing-xai-session", Default::default()),
+                &Config::default(),
+                &session,
+            )
+            .await
+        else {
+            panic!("{payload}: continuation succeeded");
+        };
+        assert!(error.is_replay_required(), "{payload}");
+        assert_eq!(error.scope, FailureScope::Request);
+        assert!(!attempted(&error), "{payload}: marked as an upstream attempt");
+    }
+}
+
+/// TestXAIWebsocketsExecuteStreamHandshakeFreeUsageExhaustedSetsRetryAfter's
+/// `UpstreamAttempted`: a rejected upgrade is an upstream attempt (Go marks it on the dial
+/// error), while a successful handshake alone marks nothing
+/// (TestXAIWebsocketSuccessfulHandshakeDoesNotMarkRequestAttempt: no error exists).
+#[tokio::test]
+async fn rejected_handshake_is_an_upstream_attempt() {
+    let app = axum::Router::new().fallback(|| async {
+        (
+            http::StatusCode::TOO_MANY_REQUESTS,
+            [("content-type", "application/json")],
+            r#"{"code":"subscription:free-usage-exhausted","error":"You've used all the included free usage for now."}"#,
+        )
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let attrs =
+        serde_json::json!({"base_url": "http://UPSTREAM/v1", "websockets": "true", "access_token": "xai-token"});
+    let credential = credential("xai-auth-free-usage", &attrs, &addr);
+    let executor = XaiExecutor::with_client(wreq::Client::new());
+    let turn = serde_json::json!({"payload": r#"{"model":"grok-4.3","input":"hello"}"#});
+    let session = ExecSession {
+        id: "sess-attempt".into(),
+        continuation: false,
+        lease: None,
+    };
+    let Err(error) = executor
+        .execute_in_session(
+            &credential,
+            request(&turn, "sess-attempt", Default::default()),
+            &Config::default(),
+            &session,
+        )
+        .await
+    else {
+        panic!("rejected upgrade succeeded");
+    };
+    assert_eq!(error.status, 429);
+    assert_eq!(error.retry_after, Some(Duration::from_secs(24 * 3600)));
+    assert!(attempted(&error));
+    server.abort();
+}
+
+/// TestMapXAIWebsocketWriteErrorStopsRetryForMessageTooBig: a write failure after the
+/// upstream closed with 1009 is the request-scoped 413 and never retries; any other write
+/// failure retries on a fresh socket.
+#[test]
+fn write_error_after_message_too_big_stops_retry() {
+    let too_big = pool_error(ExecError::local(
+        413,
+        FailureScope::Request,
+        r#"{"error":{"message":"frame too large","type":"invalid_request_error","code":"message_too_big"}}"#,
+    ));
+    assert_eq!(too_big.status, 413);
+    assert_eq!(too_big.scope, FailureScope::Request);
+    assert_eq!(
+        String::from_utf8_lossy(&too_big.body),
+        r#"{"error":{"message":"upstream websocket message too big","type":"invalid_request_error","code":"message_too_big"}}"#
+    );
+    assert!(!should_retry_send(&too_big));
+    let stale = pool_error(ExecError::local(
+        502,
+        FailureScope::Transport,
+        "codex websockets executor: write failed",
+    ));
+    assert!(should_retry_send(&stale));
+    assert_eq!(
+        String::from_utf8_lossy(&stale.body),
+        "xai websockets executor: write failed"
+    );
+}
+
+/// TestXAIWebsocketPostCompactionAppendWithoutPreviousReplaysCompactedTranscript.
+#[test]
+fn post_compaction_append_replays_compacted_transcript() {
+    let state = Arc::new(IdState::default());
+    state.replace(&[br#"{"type":"compaction","encrypted_content":"compact-state"}"#]);
+    state.map("resp-compact", "");
+    let input = |body: &[u8]| -> Vec<String> {
+        gj::get(body, "input")
+            .array()
+            .iter()
+            .map(|i| String::from_utf8_lossy(i.raw()).into_owned())
+            .collect()
+    };
+
+    let full = br#"{"type":"response.create","model":"grok-4.3","input":[{"type":"message","id":"msg-full"}]}"#;
+    let out = IdMapper::new(state.clone(), full).upstream_request(full.to_vec());
+    assert_eq!(
+        input(&out).len(),
+        1,
+        "a self-contained response.create replayed the transcript"
+    );
+
+    let append = br#"{"type":"response.append","model":"grok-4.3","input":[{"type":"message","id":"msg-2","role":"user","content":"second"}]}"#;
+    let got = IdMapper::new(state.clone(), append).upstream_request(append.to_vec());
+    let items = input(&got);
+    assert_eq!(items.len(), 2, "{}", String::from_utf8_lossy(&got));
+    assert_eq!(gj::get(items[0].as_bytes(), "type").str(), "compaction");
+    assert_eq!(gj::get(items[1].as_bytes(), "id").str(), "msg-2");
+
+    state.record(
+        &got,
+        br#"{"type":"response.completed","response":{"id":"resp-after-compact","output":[{"type":"message","id":"out-2"}]}}"#,
+        true,
+    );
+    let next = br#"{"type":"response.create","model":"grok-4.3","input":[{"type":"message","id":"msg-3"}]}"#;
+    let out = IdMapper::new(state, next).upstream_request(next.to_vec());
+    let items = input(&out);
+    assert_eq!(
+        items.len(),
+        1,
+        "replay not cleared after success: {}",
+        String::from_utf8_lossy(&out)
+    );
+    assert_eq!(gj::get(items[0].as_bytes(), "id").str(), "msg-3");
+}
+
+/// TestXAIWebsocketPostCompactionWarmupPreservesTranscriptForLaterCompaction.
+#[test]
+fn post_compaction_warmup_preserves_transcript() {
+    let state = Arc::new(IdState::default());
+    state.replace(&[br#"{"type":"compaction","encrypted_content":"compact-state"}"#]);
+    let warmup = br#"{"type":"response.append","model":"grok-4.3","generate":false,"input":[{"type":"message","id":"warmup-context"}]}"#;
+    let mut mapper = IdMapper::new(state.clone(), warmup);
+    let warmup_upstream = mapper.upstream_request(warmup.to_vec());
+    assert!(
+        mapper.replayed_compacted,
+        "post-compaction warmup did not mark the replay"
+    );
+    state.record(
+        &warmup_upstream,
+        br#"{"type":"response.completed","response":{"id":"resp-warmup","output":[]}}"#,
+        true,
+    );
+
+    let append =
+        br#"{"type":"response.append","model":"grok-4.3","input":[{"type":"message","id":"msg-after-warmup"}]}"#;
+    let append_upstream = IdMapper::new(state.clone(), append).upstream_request(append.to_vec());
+    let input = gj::get(&append_upstream, "input");
+    assert_eq!(input.array().len(), 1, "{}", String::from_utf8_lossy(&append_upstream));
+    assert_eq!(input.get("0.id").str(), "msg-after-warmup");
+    state.record(
+        &append_upstream,
+        br#"{"type":"response.completed","response":{"id":"resp-after-warmup","output":[{"type":"message","id":"out-after-warmup"}]}}"#,
+        false,
+    );
+
+    let transcript = state.snapshot().unwrap();
+    let kinds: Vec<String> = gj::parse(&transcript)
+        .array()
+        .iter()
+        .map(|i| i.get("type").str().into_owned())
+        .collect();
+    assert_eq!(kinds, ["compaction", "message", "message", "message"]);
+}
+
+/// TestXAIWebsocketEmptyFullResetClearsPendingCompactionReplay.
+#[test]
+fn empty_full_reset_clears_pending_compaction_replay() {
+    let state = Arc::new(IdState::default());
+    state.replace(&[br#"{"type":"compaction","encrypted_content":"stale-compact-state"}"#]);
+    state.record(
+        br#"{"type":"response.create","model":"grok-4.3","input":[]}"#,
+        br#"{"type":"response.completed","response":{"id":"resp-empty","output":[]}}"#,
+        true,
+    );
+    let append = br#"{"type":"response.append","model":"grok-4.3","input":[{"type":"message","id":"msg-new"}]}"#;
+    let got = IdMapper::new(state, append).upstream_request(append.to_vec());
+    let input = gj::get(&got, "input");
+    assert_eq!(input.array().len(), 1, "{}", String::from_utf8_lossy(&got));
+    assert_eq!(input.get("0.id").str(), "msg-new");
+}
+
+/// TestValidateXAIWebsocketCompactionResponse.
+#[test]
+fn validate_compaction_response_follows_go() {
+    let (id, item) = validate_compaction(
+        br#"{"id":"resp_compact","output":[{"type":"compaction","encrypted_content":"opaque-state"}]}"#,
+    )
+    .unwrap();
+    assert_eq!(id, "resp_compact");
+    assert_eq!(gj::get(&item, "encrypted_content").str(), "opaque-state");
+    for payload in [
+        &b""[..],
+        b"{}",
+        br#"{"id":"resp_empty","output":[]}"#,
+        br#"{"id":123,"output":[{"type":"compaction","encrypted_content":"opaque"}]}"#,
+        br#"{"id":"resp_object","output":{"0":{"type":"compaction","encrypted_content":"opaque"}}}"#,
+        br#"{"id":"resp_numeric_state","output":[{"type":"compaction","encrypted_content":123}]}"#,
+        br#"{"id":"resp_missing_state","output":[{"type":"compaction"}]}"#,
+    ] {
+        assert!(
+            validate_compaction(payload).is_err(),
+            "{}",
+            String::from_utf8_lossy(payload)
+        );
+    }
+}
+
+/// TestBuildXAIWebsocketRequestBodySetsStoreAndKeepsPromptCacheKey.
+#[test]
+fn request_frame_sets_store_and_keeps_prompt_cache_key() {
+    let frame = request_frame(br#"{"model":"grok-4.3","stream":true,"stream_options":{"include_usage":true},"background":true,"prompt_cache_key":"cache-1","previous_response_id":"resp-prev","instructions":"system prompt","input":[{"type":"message","role":"user","content":"hello"}]}"#);
+    assert_eq!(gj::get(&frame, "type").str(), "response.create");
+    for absent in ["stream", "stream_options", "background", "instructions"] {
+        assert!(
+            !gj::get(&frame, absent).exists(),
+            "{absent}: {}",
+            String::from_utf8_lossy(&frame)
+        );
+    }
+    assert_eq!(gj::get(&frame, "prompt_cache_key").str(), "cache-1");
+    assert!(gj::get(&frame, "store").bool());
+}
+
+/// TestXAIWebsockets_PingHandlerDoesNotBlockOnWriteMu: an upstream ping is answered while
+/// the socket's writer is held (Go holds `writeMu`; here the pooled socket's sink lock),
+/// because the reader sends the pong.
+#[tokio::test]
+async fn ping_is_answered_while_the_writer_is_held() {
+    let (pong_tx, mut pong_rx) = tokio::sync::mpsc::channel::<String>(1);
+    let app = axum::Router::new().fallback(move |upgrade: WebSocketUpgrade| {
+        let pong_tx = pong_tx.clone();
+        async move {
+            upgrade.on_upgrade(move |mut socket: AxSocket| async move {
+                // The turn's request, then its completion.
+                let _ = socket.recv().await;
+                let completed = r#"{"type":"response.completed","response":{"id":"resp-1","output":[]}}"#;
+                let _ = socket.send(AxMessage::text(completed)).await;
+                // Ping once the test holds the writer.
+                tokio::time::sleep(Duration::from_millis(300)).await;
+                let _ = socket
+                    .send(AxMessage::Ping(b"xai-keepalive-ping".to_vec().into()))
+                    .await;
+                while let Some(Ok(message)) = socket.recv().await {
+                    if let AxMessage::Pong(data) = message {
+                        let _ = pong_tx.send(String::from_utf8_lossy(&data).into_owned()).await;
+                    }
+                }
+            })
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap().to_string();
+    let server = tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let attrs = serde_json::json!({"api_key": "xai-key", "base_url": "http://UPSTREAM/v1", "websockets": "true"});
+    let credential = credential("xai-ping", &attrs, &addr);
+    let executor = XaiExecutor::with_client(wreq::Client::new());
+    let session = ExecSession {
+        id: "test-xai-keepalive".into(),
+        continuation: false,
+        lease: None,
+    };
+    let turn = serde_json::json!({"payload": r#"{"model":"grok-4","input":"ping"}"#});
+    let response = executor
+        .execute_in_session(
+            &credential,
+            request(&turn, "test-xai-keepalive", Default::default()),
+            &Config::default(),
+            &session,
+        )
+        .await
+        .unwrap();
+    let ResponseBody::Stream(mut stream) = response.body else {
+        panic!("buffered response");
+    };
+    while stream.next().await.is_some() {}
+    drop(stream);
+    let conn = executor
+        .ws
+        .pool
+        .session("test-xai-keepalive")
+        .current()
+        .expect("pooled socket");
+    let _writer = conn.sink.lock().await;
+    let pong = tokio::time::timeout(Duration::from_secs(2), pong_rx.recv())
+        .await
+        .expect("pong starved by the held writer");
+    assert_eq!(pong.as_deref(), Some("xai-keepalive-ping"));
+    executor.close_session("test-xai-keepalive");
+    server.abort();
 }

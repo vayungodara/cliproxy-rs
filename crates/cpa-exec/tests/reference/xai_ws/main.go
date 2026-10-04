@@ -7,6 +7,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,16 +28,40 @@ import (
 	_ "github.com/router-for-me/CLIProxyAPI/v8/internal/translator"
 	cliproxyauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
 	cliproxyexecutor "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/executor"
+	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
 	sdktranslator "github.com/router-for-me/CLIProxyAPI/v8/sdk/translator"
+	"github.com/tidwall/gjson"
 )
 
-// act is what the upstream does after receiving one frame.
+// act is what the upstream does after receiving one frame: optionally ping and wait for
+// the pong, send frames (a quoted "PREVIOUS_ID" becomes the received frame's
+// previous_response_id), then a binary frame, a close frame, or a drop without one.
 type act struct {
+	Ping      string   `json:"ping,omitempty"`
 	Send      []string `json:"send,omitempty"`
 	Binary    bool     `json:"binary,omitempty"`
 	Close     int      `json:"close,omitempty"`
 	CloseText string   `json:"close_text,omitempty"`
+	Drop      bool     `json:"drop,omitempty"`
 }
+
+// usageOut is the record Go's usage reporter published for the turn.
+type usageOut struct {
+	Input         int64  `json:"input"`
+	Output        int64  `json:"output"`
+	Reasoning     int64  `json:"reasoning"`
+	Cached        int64  `json:"cached"`
+	Total         int64  `json:"total"`
+	Effort        string `json:"effort"`
+	ResponseModel string `json:"response_model"`
+	Failed        bool   `json:"failed"`
+}
+
+var records = make(chan usage.Record, 64)
+
+type capturePlugin struct{}
+
+func (capturePlugin) HandleUsage(_ context.Context, r usage.Record) { records <- r }
 
 type reply struct {
 	Status int    `json:"status"`
@@ -50,27 +76,32 @@ type errOut struct {
 
 type turn struct {
 	// Close ends the downstream session instead of sending a request.
-	Close        bool              `json:"close,omitempty"`
-	Auth         string            `json:"auth,omitempty"`
-	Payload      string            `json:"payload,omitempty"`
-	Model        string            `json:"model,omitempty"`
+	Close   bool   `json:"close,omitempty"`
+	Auth    string `json:"auth,omitempty"`
+	Payload string `json:"payload,omitempty"`
+	Model   string `json:"model,omitempty"`
+	// Response is opts.ResponseFormat (default openai-response).
+	Response     string            `json:"response,omitempty"`
 	Headers      map[string]string `json:"headers,omitempty"`
 	Continuation bool              `json:"continuation,omitempty"`
 	Acts         []act             `json:"acts,omitempty"`
 	Reject       *reply            `json:"reject,omitempty"`
 	Compact      *reply            `json:"compact,omitempty"`
 
-	Chunks   []string `json:"chunks"`
-	Error    *errOut  `json:"error,omitempty"`
-	Upgrades []string `json:"upgrades"`
-	Frames   []string `json:"frames"`
-	HTTP     []string `json:"http"`
+	Chunks   []string  `json:"chunks"`
+	Error    *errOut   `json:"error,omitempty"`
+	Upgrades []string  `json:"upgrades"`
+	Frames   []string  `json:"frames"`
+	HTTP     []string  `json:"http"`
+	Pongs    []string  `json:"pongs"`
+	Usage    *usageOut `json:"usage,omitempty"`
 }
 
 type scenario struct {
 	Name    string `json:"name"`
 	Session string `json:"session"`
-	// Auths maps an auth ID to its attributes; base_url UPSTREAM is the local upstream.
+	// Auths maps an auth ID to its attributes; base_url UPSTREAM is the local upstream
+	// and an access_token entry is auth metadata instead.
 	Auths map[string]map[string]string `json:"auths"`
 	Turns []*turn                      `json:"turns"`
 }
@@ -142,11 +173,23 @@ func (u *upstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (u *upstream) serveSocket(conn *websocket.Conn) {
 	defer conn.Close()
-	for {
-		_, data, err := conn.ReadMessage()
-		if err != nil {
-			return
+	pongs := make(chan string, 4)
+	conn.SetPongHandler(func(data string) error {
+		pongs <- data
+		return nil
+	})
+	frames := make(chan []byte)
+	go func() {
+		defer close(frames)
+		for {
+			_, data, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			frames <- data
 		}
+	}()
+	for data := range frames {
 		var next *act
 		u.record(func(t *turn) {
 			t.Frames = append(t.Frames, string(data))
@@ -157,10 +200,24 @@ func (u *upstream) serveSocket(conn *websocket.Conn) {
 		if next == nil {
 			continue
 		}
+		if next.Ping != "" {
+			_ = conn.WriteControl(websocket.PingMessage, []byte(next.Ping), time.Now().Add(time.Second))
+			select {
+			case got := <-pongs:
+				u.record(func(t *turn) { t.Pongs = append(t.Pongs, got) })
+			case <-time.After(2 * time.Second):
+			}
+		}
+		previous, _ := json.Marshal(gjson.GetBytes(data, "previous_response_id").String())
 		for _, frame := range next.Send {
+			frame = strings.ReplaceAll(frame, `"PREVIOUS_ID"`, string(previous))
 			if err := conn.WriteMessage(websocket.TextMessage, []byte(frame)); err != nil {
 				return
 			}
+		}
+		if next.Drop {
+			_ = conn.UnderlyingConn().Close()
+			return
 		}
 		if next.Binary {
 			_ = conn.WriteMessage(websocket.BinaryMessage, []byte{1, 2, 3})
@@ -203,10 +260,15 @@ func run(s *scenario) {
 	auths := map[string]*cliproxyauth.Auth{}
 	for id, attrs := range s.Auths {
 		copied := map[string]string{}
+		metadata := map[string]any{}
 		for k, v := range attrs {
+			if k == "access_token" {
+				metadata[k] = v
+				continue
+			}
 			copied[k] = strings.ReplaceAll(v, "UPSTREAM", up.addr)
 		}
-		auths[id] = &cliproxyauth.Auth{ID: id, Provider: "xai", Attributes: copied, Metadata: map[string]any{}}
+		auths[id] = &cliproxyauth.Auth{ID: id, Provider: "xai", Attributes: copied, Metadata: metadata}
 	}
 	normalize := func(text string) string { return strings.ReplaceAll(text, up.addr, "UPSTREAM") }
 
@@ -214,12 +276,20 @@ func run(s *scenario) {
 		up.mu.Lock()
 		up.turn = t
 		up.mu.Unlock()
+		for len(records) > 0 {
+			<-records
+		}
 		if t.Close {
 			exec.CloseExecutionSession(s.Session)
 			time.Sleep(50 * time.Millisecond)
 		} else {
 			runTurn(exec, auths[t.Auth], s.Session, t)
-			time.Sleep(50 * time.Millisecond)
+			select {
+			case r := <-records:
+				t.Usage = &usageOut{Input: r.Detail.InputTokens, Output: r.Detail.OutputTokens, Reasoning: r.Detail.ReasoningTokens,
+					Cached: r.Detail.CachedTokens, Total: r.Detail.TotalTokens, Effort: r.ReasoningEffort, ResponseModel: r.ResponseModel, Failed: r.Failed}
+			case <-time.After(300 * time.Millisecond):
+			}
 		}
 		up.mu.Lock()
 		up.turn = nil
@@ -251,6 +321,9 @@ func run(s *scenario) {
 		if t.HTTP == nil {
 			t.HTTP = []string{}
 		}
+		if t.Pongs == nil {
+			t.Pongs = []string{}
+		}
 	}
 	exec.CloseExecutionSession(s.Session)
 }
@@ -269,11 +342,15 @@ func runTurn(exec *executor.XAIAutoExecutor, auth *cliproxyauth.Auth, session st
 		ctx = cliproxyexecutor.WithRequiredUpstreamWebsocket(ctx)
 	}
 	req := cliproxyexecutor.Request{Model: model, Payload: []byte(t.Payload), Metadata: map[string]any{}}
+	response := t.Response
+	if response == "" {
+		response = "openai-response"
+	}
 	opts := cliproxyexecutor.Options{
 		Stream:          true,
 		Headers:         headers,
 		SourceFormat:    sdktranslator.FromString("openai-response"),
-		ResponseFormat:  sdktranslator.FromString("openai-response"),
+		ResponseFormat:  sdktranslator.FromString(response),
 		OriginalRequest: []byte(t.Payload),
 		Metadata:        map[string]any{cliproxyexecutor.ExecutionSessionMetadataKey: session},
 	}
@@ -293,13 +370,46 @@ func runTurn(exec *executor.XAIAutoExecutor, auth *cliproxyauth.Auth, session st
 	}
 }
 
+// grokBlob is a structurally valid Grok encrypted-content value (as in ../xai).
+func grokBlob(seed byte) string {
+	buf := make([]byte, 0, 256)
+	for i := 0; len(buf) < 256; i++ {
+		sum := sha256.Sum256([]byte{byte(i), byte(i >> 8), seed, 99})
+		buf = append(buf, sum[:]...)
+	}
+	return base64.RawStdEncoding.EncodeToString(buf[:256])
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Fprintln(os.Stderr, "usage: generator OUTPUT.json")
 		os.Exit(2)
 	}
+	usage.RegisterPlugin(capturePlugin{})
+	blobs := strings.NewReplacer("GROKENC1", grokBlob(1), "GROKENC2", grokBlob(2))
 	all := scenarios()
+	// ONLY=<scenario name> regenerates one scenario (for inspection; the fixture needs all).
+	if only := os.Getenv("ONLY"); only != "" {
+		var kept []*scenario
+		for _, s := range all {
+			if s.Name == only {
+				kept = append(kept, s)
+			}
+		}
+		all = kept
+	}
 	for _, s := range all {
+		for _, t := range s.Turns {
+			t.Payload = blobs.Replace(t.Payload)
+			if t.Compact != nil {
+				t.Compact.Body = blobs.Replace(t.Compact.Body)
+			}
+			for i := range t.Acts {
+				for j := range t.Acts[i].Send {
+					t.Acts[i].Send[j] = blobs.Replace(t.Acts[i].Send[j])
+				}
+			}
+		}
 		run(s)
 	}
 	out, err := os.Create(os.Args[1])

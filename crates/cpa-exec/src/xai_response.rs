@@ -853,3 +853,58 @@ pub(crate) fn is_bad_credentials(body: &[u8]) -> bool {
     let raw = String::from_utf8_lossy(body).go_lower();
     raw.contains("bad-credentials") || raw.contains("access token could not be validated")
 }
+
+// --- usage observation (helps/usage_helpers.go) ------------------------------------------
+
+/// `ParseCodexUsage`'s `ok`: `response.usage` carries OpenAI-style token fields
+/// (`hasOpenAIStyleUsageTokenFields`), or the event names a service tier.
+pub(crate) fn codex_usage_ok(event: &[u8]) -> bool {
+    let node = gj::get(event, "response.usage");
+    let fields = [
+        "total_tokens",
+        "prompt_tokens",
+        "input_tokens",
+        "completion_tokens",
+        "output_tokens",
+        "prompt_tokens_details.cached_tokens",
+        "input_tokens_details.cached_tokens",
+        "prompt_tokens_details.cache_write_tokens",
+        "prompt_tokens_details.cache_creation_tokens",
+        "input_tokens_details.cache_write_tokens",
+        "input_tokens_details.cache_creation_tokens",
+        "completion_tokens_details.reasoning_tokens",
+        "output_tokens_details.reasoning_tokens",
+    ];
+    if node.is_object() && fields.iter().any(|f| node.get(f).exists()) {
+        return true;
+    }
+    // extractResponseServiceTier.
+    gj::std_valid(event)
+        && ["response.service_tier", "service_tier", "interaction.service_tier"]
+            .iter()
+            .any(|p| !gj::get(event, p).str().trim().is_empty())
+}
+
+/// The terminal Responses events whose usage the shared Codex line parser counts.
+const TERMINAL_EVENTS: [&str; 3] = ["response.completed", "response.incomplete", "response.done"];
+
+/// An event as one Go path's usage observation sees it. Each xAI path observes usage on
+/// its own terminal events (HTTP: completed and incomplete; WebSocket: completed and
+/// done) while observing the response model on every event, so a terminal event outside
+/// `observed` is reported without its usage and service tier.
+pub(crate) fn usage_line<'a>(event: &'a [u8], observed: &[&str]) -> std::borrow::Cow<'a, [u8]> {
+    let kind = gj::get(event, "type").str().into_owned();
+    if !TERMINAL_EVENTS.contains(&kind.as_str()) || observed.contains(&kind.as_str()) {
+        return std::borrow::Cow::Borrowed(event);
+    }
+    let mut out = event.to_vec();
+    for path in [
+        "response.usage",
+        "response.service_tier",
+        "service_tier",
+        "interaction.service_tier",
+    ] {
+        gj::delete(&mut out, path);
+    }
+    std::borrow::Cow::Owned(out)
+}
