@@ -212,6 +212,23 @@ impl PluginAuth {
         }
     }
 
+    /// Go `resolveAuthPath`: the file [`Self::save_file`] writes.
+    pub fn file_path(&self, base_dir: &str) -> Result<String, String> {
+        use std::path::Path;
+        let base_dir = base_dir.trim();
+        Ok(match self.attributes.get(ATTRIBUTE_PATH).map(|p| p.trim()) {
+            Some(p) if !p.is_empty() => p.to_owned(),
+            _ => match self.file_name.trim() {
+                "" if self.id.is_empty() => return Err("auth filestore: missing id".into()),
+                "" if Path::new(&self.id).is_absolute() => self.id.clone(),
+                "" if base_dir.is_empty() => return Err("auth filestore: directory not configured".into()),
+                "" => Path::new(base_dir).join(&self.id).to_string_lossy().into_owned(),
+                name if Path::new(name).is_absolute() || base_dir.is_empty() => name.to_owned(),
+                name => Path::new(base_dir).join(name).to_string_lossy().into_owned(),
+            },
+        })
+    }
+
     /// Go `FileTokenStore.Save` for a plugin auth: the file under `base_dir` (or the
     /// auth's own path), written atomically with mode 0600 unless it already holds the
     /// same JSON. Returns the path; without `create` (Go's auth creation intent, which
@@ -239,19 +256,7 @@ impl PluginAuth {
                 )
             })?;
         }
-        // Go `resolveAuthPath`.
-        let base_dir = base_dir.trim();
-        let path = match self.attributes.get(ATTRIBUTE_PATH).map(|p| p.trim()) {
-            Some(p) if !p.is_empty() => p.to_owned(),
-            _ => match self.file_name.trim() {
-                "" if self.id.is_empty() => return Err("auth filestore: missing id".into()),
-                "" if Path::new(&self.id).is_absolute() => self.id.clone(),
-                "" if base_dir.is_empty() => return Err("auth filestore: directory not configured".into()),
-                "" => Path::new(base_dir).join(&self.id).to_string_lossy().into_owned(),
-                name if Path::new(name).is_absolute() || base_dir.is_empty() => name.to_owned(),
-                name => Path::new(base_dir).join(name).to_string_lossy().into_owned(),
-            },
-        };
+        let path = self.file_path(base_dir)?;
         let path_ref = Path::new(&path);
         // Only a missing file skips the save; any other stat failure goes on to fail
         // in the write, as in Go.
@@ -329,7 +334,7 @@ fn json_payload_equal(a: &[u8], b: &[u8]) -> bool {
 }
 
 /// Go `atomicWriteFile`: a 0600 temp file beside `path`, renamed over it.
-fn atomic_write(path: &std::path::Path, data: &[u8]) -> Result<(), String> {
+pub fn atomic_write(path: &std::path::Path, data: &[u8]) -> Result<(), String> {
     use std::io::Write as _;
     let dir = match path.parent() {
         Some(d) if !d.as_os_str().is_empty() => d,
