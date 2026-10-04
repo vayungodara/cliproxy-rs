@@ -31,7 +31,7 @@ Do not run Go and cliproxy-rs against the same credential directory at the same 
 
 cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-config`) or with two dashes. These work as in Go: `-config`, `-claude-login`, `-codex-login`, `-codex-device-login`, `-kimi-login`, `-kimi-ai-login`, `-xai-login`, `-meta-login`, `-devin-login`, `-vertex-import` (with `-vertex-import-prefix`), `-no-browser`, `-oauth-callback-port`, `-password`, `-local-model`, `-home-jwt` (or `HOME_JWT`), and LAN discovery with `-discover` (or the `discover` subcommand) and its `-discover-*` options.
 
-`-antigravity-login` exits with a "not supported by cliproxy-rs yet" error and status 1. `-tui` prints that the terminal UI is not available and exits.
+`-antigravity-login` exits with a "not supported by cliproxy-rs yet" error and status 1. `-tui` and `-tui -standalone` open the terminal UI as in Go, with the differences listed in [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md).
 
 ## Not available yet
 
