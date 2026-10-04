@@ -1163,7 +1163,21 @@ fn header_name(name: &str) -> String {
         .join("-")
 }
 
+/// Written in place of a cookie header value.
+const REDACTED: &str = "<redacted>";
+
+/// Deliberate difference: Go logs Cookie and Set-Cookie values unchanged
+/// (util.MaskSensitiveHeaderValue). A session cookie is a credential, so the
+/// whole value of any header whose lowercase name contains "cookie" is
+/// replaced, on both the masked and the unmasked header sections.
+fn cookie(name: &str) -> bool {
+    name.contains("cookie")
+}
+
 fn masked_header(name: &str, value: &[u8]) -> Vec<u8> {
+    if cookie(name) {
+        return REDACTED.as_bytes().to_vec();
+    }
     if name.contains("authorization") {
         let trimmed = trim(value);
         if let Some(i) = trimmed.iter().position(|b| *b == b' ') {
@@ -1186,6 +1200,8 @@ fn headers(out: &mut dyn Write, headers: &HeaderMap, mask: bool) -> io::Result<(
         write!(out, "{}: ", header_name(name.as_str()))?;
         if mask {
             out.write_all(&masked_header(name.as_str(), value.as_bytes()))?;
+        } else if cookie(name.as_str()) {
+            out.write_all(REDACTED.as_bytes())?;
         } else {
             out.write_all(value.as_bytes())?;
         }
@@ -1892,6 +1908,10 @@ mod tests {
             if value == "ab" && masked_header(&name, b"abc") != b"abc" {
                 want = "...".into();
             }
+            // Deliberate difference: Go logs cookie values unchanged.
+            if cookie(&name) {
+                want = REDACTED.into();
+            }
             assert_eq!(String::from_utf8(masked_header(&name, value.as_bytes())).unwrap(), want);
         }
         let dir = scratch();
@@ -2310,6 +2330,106 @@ mod tests {
                 assert_eq!(request_body, if case["invalid"] == true { raw } else { body });
                 assert!(error.is_none(), "Go silently retains undecodable inbound bodies");
             }
+        }
+    }
+
+    /// Serves one request (sending a Cookie) whose handler feeds `events` to the
+    /// capture sink and answers `status` with a Set-Cookie, then returns the
+    /// persisted log file.
+    async fn persisted(
+        enabled: bool,
+        status: StatusCode,
+        events: impl Fn(&RequestLog) + Clone + Send + Sync + 'static,
+    ) -> Vec<u8> {
+        let dir = scratch();
+        let state = management(&dir, enabled, false);
+        let app = axum::Router::new().fallback(move |axum::Extension(log): axum::Extension<RequestLog>| {
+            let events = events.clone();
+            async move {
+                events(&log);
+                (status, [("set-cookie", "down=c00kie-down-set")], "done")
+            }
+        });
+        let mut app = router(&state, app);
+        let request = HttpRequest::builder()
+            .method("POST")
+            .uri("/fixture")
+            .header("cookie", "client=c00kie-client")
+            .body(Body::empty())
+            .unwrap();
+        let response = app.call(request).await.unwrap();
+        axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let mut content = Vec::new();
+        for _ in 0..500 {
+            if let [log] = &logs(&dir)[..] {
+                content = std::fs::read(log).unwrap();
+                if content.trim_ascii_end().ends_with(b"\ndone") {
+                    break;
+                }
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        assert!(content.trim_ascii_end().ends_with(b"\ndone"), "no complete log");
+        drop(app);
+        drop(state);
+        let leftovers: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .flatten()
+            .filter(|e| e.path().extension().is_some_and(|e| e == "tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "spool files left behind: {leftovers:?}");
+        std::fs::remove_dir_all(dir).unwrap();
+        content
+    }
+
+    fn upstream_request<'a>(
+        url: &'a str,
+        headers: &'a [(String, String)],
+        body: &'a [u8],
+    ) -> cpa_core::exec::UpstreamRequest<'a> {
+        cpa_core::exec::UpstreamRequest {
+            url,
+            method: "POST",
+            headers,
+            body,
+            provider: "codex",
+            auth_id: "",
+            auth_label: "",
+            auth_type: "",
+            auth_value: "",
+        }
+    }
+
+    #[tokio::test]
+    async fn cookie_values_never_reach_persisted_logs() {
+        use cpa_core::exec::CaptureEvent::*;
+        // Request logging on, and off with a forced error log.
+        for enabled in [true, false] {
+            let content = persisted(enabled, StatusCode::BAD_GATEWAY, |log| {
+                let sink = log.capture_sink();
+                let headers = [
+                    ("Cookie".into(), "up=c00kie-up".into()),
+                    ("Content-Type".into(), "application/json".into()),
+                ];
+                sink.record(Request(upstream_request("https://fixture.invalid/v1", &headers, b"{}")));
+                sink.record(ResponseMetadata(
+                    502,
+                    &[("Set-Cookie".into(), "up-set=c00kie-up-set".into())],
+                ));
+                sink.record(ResponseChunk(b"upstream failed"));
+            })
+            .await;
+            let content = String::from_utf8(content).unwrap();
+            assert!(!content.contains("c00kie-"), "{content}");
+            // Downstream request and upstream request.
+            assert_eq!(content.matches("\nCookie: <redacted>\n").count(), 2, "{content}");
+            // Downstream response, and the upstream response when it is captured.
+            assert_eq!(
+                content.matches("\nSet-Cookie: <redacted>\n").count(),
+                if enabled { 2 } else { 1 },
+                "{content}"
+            );
+            assert!(content.contains("\nContent-Type: application/json\n"));
         }
     }
 }
