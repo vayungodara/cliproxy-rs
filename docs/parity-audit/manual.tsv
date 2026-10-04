@@ -164,7 +164,7 @@ M2-0059	partial		translate	Byte results of all five cases are replayed; TestLowe
 M2-0078	partial	crates/cpa-translate/src/common.rs, sse.rs; cpa_common::json	translate	Unit cases not ported.
 M2-0109	covered	n/a: Go package import boundary check
 M2-0133	covered	crates/cpa-common/tests/fixtures/gemini_schema.json: every JSON literal mined from gemini_schema_test.go run through Go's cleaners (crates/cpa-common/tests/gemini_schema.rs)
-M2-0134	missing	no config diff summaries in crates/cpa-server/src/watching.rs	server	Go logs openai-compatibility diffs on reload; Rust does not.
+M2-0134	partial	crates/cpa-server/src/config_diff.rs real_go_reload_summaries_and_redaction (Go-generated fixtures, tests/fixtures/config_diff_go.json); watching.rs reload logging	server	Not ported by name.
 M2-0135	partial	crates/cpa-server/src/dispatch.rs (bootstrap); routes.rs mid_stream_failure_ends_with_route_error_frame	server	Not ported for the Gemini handler.
 M2-0136	partial	crates/cpa-server/src/models.rs gemini_list display_name	server	Untested.
 M2-0137	partial	crates/cpa-server/tests/gemini_routes.rs (4 tests), routes.rs misc_routes_match_go (Interactions validation)	server	11 Go cases; target parsing and agent selection are not ported by name.
@@ -498,7 +498,7 @@ M4-0352	partial	crates/cpa-exec executors; cpa_common::headers, payload	server	N
 M4-0353	partial	crates/cpa-exec executors; cpa_common::headers, payload	server	Not ported by name.
 M4-0354	covered	crates/cpa-exec/src/proxy.rs effective_proxy_precedence; proxy_go.json source		
 M4-0355	partial	crates/cpa-exec executors; cpa_common::headers, payload	server	Not ported by name.
-M4-0356	missing	no example-API-key safe mode	server	
+M4-0356	partial	crates/cpa-server/src/safe_mode.rs templates_and_html_match_real_go (Go-generated fixtures, tests/fixtures/safe_mode_go.json), startup_reload_paths_query_and_cors_order	server	Not ported by name.
 M4-0360	partial	runtime.rs first_use_persists_disabled_in_go_marshal_form	server	Not ported by name.
 M4-0361	partial	crates/cpa-store/src/git.rs; tests/git.rs (the_first_node_initializes_an_empty_remote, two_nodes_share_auth_files_and_config)	home	Not every gitstore_test.go case is ported.
 M4-0362	covered	crates/cpa-store/src/postgres.rs; tests/postgres.rs postgres_store_round_trips_config_auth_and_cooldowns		The Postgres tests run only where PostgreSQL server binaries exist (CPA_TEST_PG_BIN or /usr/lib/postgresql) and pass vacuously otherwise.
@@ -506,14 +506,14 @@ M4-0363	partial	latest-version route (crates/cpa-server/src/management/observabi
 M4-0364	covered	crates/cpa-common/tests/json.rs get_matches_gjson (Go-generated vectors)		
 M4-0366	covered	n/a: Go slice-aliasing invariants		
 M4-0368	partial	crates/cpa-server/src/sanitize.rs sanitize_matches_go	server	Not ported by name.
-M4-0369	missing	no config diff summaries on reload	server	
-M4-0370	missing	no config diff summaries on reload	server	
-M4-0371	missing	no config diff summaries on reload	server	
-M4-0372	missing	no config diff summaries on reload	server	
-M4-0373	missing	no config diff summaries on reload	server	
-M4-0374	missing	no config diff summaries on reload	server	
-M4-0375	missing	no config diff summaries on reload	server	
-M4-0376	missing	no config diff summaries on reload	server	
+M4-0369	partial	crates/cpa-server/src/config_diff.rs real_go_reload_summaries_and_redaction (Go-generated fixtures, tests/fixtures/config_diff_go.json); watching.rs reload logging	server	Not ported by name.
+M4-0370	partial	crates/cpa-server/src/config_diff.rs real_go_reload_summaries_and_redaction (Go-generated fixtures, tests/fixtures/config_diff_go.json); watching.rs reload logging	server	Not ported by name.
+M4-0371	missing	no model hash helpers or models_hash/excluded_models_hash auth attributes	server	Reload summaries are ported (crates/cpa-server/src/config_diff.rs).
+M4-0372	missing	no model hash helpers or models_hash/excluded_models_hash auth attributes	server	Reload summaries are ported (crates/cpa-server/src/config_diff.rs).
+M4-0373	partial	crates/cpa-server/src/config_diff.rs real_go_reload_summaries_and_redaction (Go-generated fixtures, tests/fixtures/config_diff_go.json); watching.rs reload logging	server	Not ported by name.
+M4-0374	partial	crates/cpa-server/src/config_diff.rs real_go_reload_summaries_and_redaction (Go-generated fixtures, tests/fixtures/config_diff_go.json); watching.rs reload logging	server	Not ported by name.
+M4-0375	partial	crates/cpa-server/src/config_diff.rs real_go_reload_summaries_and_redaction (Go-generated fixtures, tests/fixtures/config_diff_go.json); watching.rs reload logging	server	Not ported by name.
+M4-0376	partial	crates/cpa-server/src/config_diff.rs real_go_reload_summaries_and_redaction (Go-generated fixtures, tests/fixtures/config_diff_go.json); watching.rs reload logging	server	Not ported by name.
 M4-0377	partial	crates/cpa-server/src/watching.rs; tests/management.rs watcher tests; manage_go.json synth	manage	Not ported by name.
 M4-0378	partial	crates/cpa-server/src/watching.rs; tests/management.rs watcher tests; manage_go.json synth	manage	Not ported by name.
 M4-0379	partial	crates/cpa-server/src/watching.rs; tests/management.rs watcher tests; manage_go.json synth	manage	Not ported by name.
