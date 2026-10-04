@@ -1,0 +1,153 @@
+{
+  "steps": [
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "cas",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "",
+          false,
+          "{\"generation\":\"\u003cgen\u003e\",\"deleted\":true}",
+          3600000
+        ],
+        [
+          "expire",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get_reserves",
+      "result": {
+        "content": "",
+        "error": false,
+        "found": false
+      }
+    },
+    {
+      "calls": [
+        [
+          "cas",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "{\"generation\":\"\u003cgen\u003e\",\"deleted\":true}",
+          true,
+          "{\"generation\":\"\u003cgen\u003e\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb \\u0026 c\",\"signature\":\"sig\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]}",
+          3600000
+        ]
+      ],
+      "name": "replace",
+      "result": {
+        "error": false,
+        "ok": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "expire",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get_content",
+      "result": {
+        "content": "[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb \\u0026 c\",\"signature\":\"sig\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]",
+        "error": false,
+        "found": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "cas",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "{\"generation\":\"\u003cgen\u003e\",\"deleted\":true}",
+          true,
+          "{\"generation\":\"\u003cgen\u003e\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb \\u0026 c\",\"signature\":\"sig\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]}",
+          3600000
+        ]
+      ],
+      "name": "replace_stale",
+      "result": {
+        "error": false,
+        "ok": false
+      }
+    },
+    {
+      "calls": [
+        [
+          "cas",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "{\"generation\":\"\u003cgen\u003e\",\"content\":[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb \\u0026 c\",\"signature\":\"sig\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]}",
+          true,
+          "{\"generation\":\"\u003cgen\u003e\",\"deleted\":true}",
+          3600000
+        ]
+      ],
+      "name": "delete",
+      "result": {
+        "error": false,
+        "ok": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "expire",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get_deleted",
+      "result": {
+        "content": "",
+        "error": false,
+        "found": false
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:c49fea7425fa7f8699897a97c159c6690267d9003bb78c53fafa8fc15c325d84"
+        ],
+        [
+          "expire",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:c49fea7425fa7f8699897a97c159c6690267d9003bb78c53fafa8fc15c325d84",
+          3600000
+        ]
+      ],
+      "name": "get_legacy",
+      "result": {
+        "content": "[{\"type\":\"thinking\",\"thinking\":\"x\",\"signature\":\"s\"}]",
+        "error": false,
+        "found": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:kimi:thinking-replay:2f5052c9fd15b19a18c584d01363568198613f0c34e84409ef7938709a159ec2:2f05d4b689d270cafb02285f35f44866f7dc8a2d368a3f9d1124373eeab31fb1"
+        ]
+      ],
+      "name": "get_invalid",
+      "result": {
+        "content": "",
+        "error_text": "invalid kimi thinking replay content",
+        "found": false
+      }
+    }
+  ]
+}

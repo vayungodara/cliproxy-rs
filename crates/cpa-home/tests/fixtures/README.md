@@ -13,7 +13,8 @@ crate.
   and `SUBSCRIBE` arguments per recovery state.
 - `go_auth_golden.json`: output of `go/auth_golden_test.go.txt` placed at
   `sdk/cliproxy/auth/zz_rustgolden_test.go`. It records in-flight snapshot frames for
-  bounded configurations, Home error decoding, concurrency model keys and dispatch
+  bounded configurations (including the inputs of Go's `TestEncodeHomeInFlightFreeze*`
+  tests, named after them), Home error decoding, concurrency model keys and dispatch
   envelopes.
 
 Regenerate with Go 1.26 from this directory, with `CPA` naming a CLIProxyAPI checkout:

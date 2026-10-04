@@ -71,6 +71,8 @@ enum Act {
     Send(Vec<&'static str>),
     /// Send, then close the socket with this code.
     SendClose(Vec<&'static str>, u16),
+    /// Send, then drop the connection without a close frame.
+    SendDrop(Vec<&'static str>),
     /// Send one owned text frame (large payloads).
     SendOwned(String),
     /// Ping `count` times, `every` apart, without any application message.
@@ -125,6 +127,12 @@ async fn serve_socket(up: Arc<Upstream>, mut socket: AxSocket) {
         let act = up.script.lock().unwrap().pop_front();
         let (events, close) = match act {
             Some(Act::Send(events)) => (events, None),
+            Some(Act::SendDrop(events)) => {
+                for event in events {
+                    let _ = socket.send(AxMessage::Text(event.into())).await;
+                }
+                break;
+            }
             Some(Act::SendClose(events, code)) => (events, Some(code)),
             Some(Act::SendOwned(text)) => {
                 let _ = socket.send(AxMessage::Text(text.into())).await;
@@ -349,6 +357,27 @@ async fn close_1009_is_a_request_scoped_413_and_notifies() {
         "bye"
     );
     assert_eq!(executor.session_loss("conn-1").map(|e| e.body), Some(notified.body));
+}
+
+/// gorilla/websocket reads a peer that vanishes without a close frame as close 1006,
+/// and Go keeps that text, which Home dispatch classifies as a lifecycle failure.
+#[tokio::test]
+async fn a_socket_dropped_without_a_close_frame_reads_as_close_1006() {
+    let (_up, url) = upstream(vec![Act::SendDrop(vec![CREATED])]).await;
+    let executor = CodexExecutor::new().unwrap();
+    let response = executor
+        .execute_in_session(&credential(&url), request(BODY), &Config::default(), &session(false))
+        .await
+        .unwrap();
+    let events = tokio::time::timeout(Duration::from_secs(5), collect(response))
+        .await
+        .expect("the turn ends with the dropped socket");
+    let error = events.last().unwrap().as_ref().expect_err("the turn fails");
+    assert_eq!(error.scope, FailureScope::Transport, "{error}");
+    assert!(
+        String::from_utf8_lossy(&error.body).contains("websocket: close 1006 (abnormal closure): unexpected EOF"),
+        "{error}"
+    );
 }
 
 /// Go keeps one read deadline per application message: pings answered while waiting do

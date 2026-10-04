@@ -1,0 +1,210 @@
+{
+  "steps": [
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "cas",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "",
+          false,
+          "{\"generation\":\"\u003cgen\u003e\",\"deleted\":true}",
+          3600000
+        ],
+        [
+          "expire",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get_reserves",
+      "result": {
+        "contents": [],
+        "error": false,
+        "found": false
+      }
+    },
+    {
+      "calls": [
+        [
+          "cas",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "{\"generation\":\"\u003cgen\u003e\",\"deleted\":true}",
+          true,
+          "{\"generation\":\"\u003cgen\u003e\",\"contents\":[[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]]}",
+          3600000
+        ]
+      ],
+      "name": "append_a",
+      "result": {
+        "error": false,
+        "ok": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "cas",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "{\"generation\":\"\u003cgen\u003e\",\"deleted\":true}",
+          true,
+          "{\"generation\":\"\u003cgen\u003e\",\"contents\":[[{\"type\":\"thinking\",\"thinking\":\"b\",\"signature\":\"sig-b\"},{\"type\":\"tool_use\",\"id\":\"t2\",\"name\":\"f\",\"input\":{\"x\":1}}]]}",
+          3600000
+        ]
+      ],
+      "name": "append_stale",
+      "result": {
+        "error": false,
+        "ok": false
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "expire",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get_a",
+      "result": {
+        "contents": [
+          "[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]"
+        ],
+        "error": false,
+        "found": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "cas",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "{\"generation\":\"\u003cgen\u003e\",\"contents\":[[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]]}",
+          true,
+          "{\"generation\":\"\u003cgen\u003e\",\"contents\":[[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}],[{\"type\":\"thinking\",\"thinking\":\"b\",\"signature\":\"sig-b\"},{\"type\":\"tool_use\",\"id\":\"t2\",\"name\":\"f\",\"input\":{\"x\":1}}]]}",
+          3600000
+        ]
+      ],
+      "name": "append_b",
+      "result": {
+        "error": false,
+        "ok": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "expire",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get_ab",
+      "result": {
+        "contents": [
+          "[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]",
+          "[{\"type\":\"thinking\",\"thinking\":\"b\",\"signature\":\"sig-b\"},{\"type\":\"tool_use\",\"id\":\"t2\",\"name\":\"f\",\"input\":{\"x\":1}}]"
+        ],
+        "error": false,
+        "found": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "cas",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "{\"generation\":\"\u003cgen\u003e\",\"contents\":[[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}],[{\"type\":\"thinking\",\"thinking\":\"b\",\"signature\":\"sig-b\"},{\"type\":\"tool_use\",\"id\":\"t2\",\"name\":\"f\",\"input\":{\"x\":1}}]]}",
+          true,
+          "{\"generation\":\"\u003cgen\u003e\",\"contents\":[[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}],[{\"type\":\"thinking\",\"thinking\":\"b\",\"signature\":\"sig-b\"},{\"type\":\"tool_use\",\"id\":\"t2\",\"name\":\"f\",\"input\":{\"x\":1}}]]}",
+          3600000
+        ]
+      ],
+      "name": "append_duplicate",
+      "result": {
+        "error": false,
+        "ok": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "expire",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get_after_duplicate",
+      "result": {
+        "contents": [
+          "[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}]",
+          "[{\"type\":\"thinking\",\"thinking\":\"b\",\"signature\":\"sig-b\"},{\"type\":\"tool_use\",\"id\":\"t2\",\"name\":\"f\",\"input\":{\"x\":1}}]"
+        ]
+      }
+    },
+    {
+      "calls": [
+        [
+          "cas",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "{\"generation\":\"\u003cgen\u003e\",\"contents\":[[{\"type\":\"thinking\",\"thinking\":\"a\\u003cb\",\"signature\":\"sig-a\"},{\"type\":\"tool_use\",\"id\":\"t1\",\"name\":\"f\",\"input\":{}}],[{\"type\":\"thinking\",\"thinking\":\"b\",\"signature\":\"sig-b\"},{\"type\":\"tool_use\",\"id\":\"t2\",\"name\":\"f\",\"input\":{\"x\":1}}]]}",
+          true,
+          "{\"generation\":\"\u003cgen\u003e\",\"deleted\":true}",
+          3600000
+        ]
+      ],
+      "name": "delete",
+      "result": {
+        "error": false,
+        "ok": true
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "expire",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get_deleted",
+      "result": {
+        "contents": [],
+        "error": false,
+        "found": false
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:thinking-replay:db5c72b9eacb5a8c2c2a68338aafc6139d321cb5ca611150f4fa3649886243fd:c49fea7425fa7f8699897a97c159c6690267d9003bb78c53fafa8fc15c325d84"
+        ]
+      ],
+      "name": "get_legacy_rejected",
+      "result": {
+        "error_text": "invalid Claude thinking replay content"
+      }
+    }
+  ]
+}

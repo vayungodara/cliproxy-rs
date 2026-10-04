@@ -26,11 +26,9 @@ pub(crate) const BASELINE: Baseline = Baseline {
 };
 
 /// Stabilized profiles live for seven days after last use.
-// ponytail: Home KV mode (shared profiles with a 5 s write lock) is not ported. The
-// seam is [`resolve`]: Go's resolveClaudeDeviceProfile calls
-// resolveClaudeDeviceProfileHome instead when a Home KV client is current
-// (cpa_home::kv::current_client), and this local resolver otherwise.
 pub(crate) const PROFILE_TTL: Duration = Duration::from_secs(7 * 24 * 3600);
+/// Go `claudeDeviceProfileLockTTL`: the Home KV write lock.
+const LOCK_TTL: Duration = Duration::from_secs(5);
 
 pub(crate) struct Baseline {
     pub user_agent: &'static str,
@@ -204,7 +202,8 @@ fn cache() -> &'static Mutex<HashMap<[u8; 32], Entry>> {
     CACHE.get_or_init(Mutex::default)
 }
 
-fn scope_key(credential_id: &str, api_key: &str, profile: &Profile) -> [u8; 32] {
+/// Go `claudeDeviceProfileScopedKey`.
+fn scope_string(credential_id: &str, api_key: &str, profile: &Profile) -> String {
     let mut key = if !credential_id.trim().is_empty() {
         format!("auth:{}", credential_id.trim())
     } else if !api_key.trim().is_empty() {
@@ -222,7 +221,168 @@ fn scope_key(credential_id: &str, api_key: &str, profile: &Profile) -> [u8; 32] 
             "other"
         });
     }
-    Sha256::digest(key.as_bytes()).into()
+    key
+}
+
+fn scope_key(credential_id: &str, api_key: &str, profile: &Profile) -> [u8; 32] {
+    Sha256::digest(scope_string(credential_id, api_key, profile).as_bytes()).into()
+}
+
+/// Go `normalizeClaudeDeviceProfile`: the configured platform, and the baseline
+/// software unless the tuple matches it exactly.
+fn normalize(mut profile: Profile, baseline: &Profile) -> Profile {
+    profile.os = baseline.os.clone();
+    profile.arch = baseline.arch.clone();
+    if !profile.meets(baseline) {
+        profile.user_agent = baseline.user_agent.clone();
+        profile.package_version = baseline.package_version.clone();
+        profile.runtime_version = baseline.runtime_version.clone();
+    }
+    profile
+}
+
+/// Go `shouldUpgradeClaudeDeviceProfile`.
+fn should_upgrade(candidate: &Profile, current: &Profile) -> bool {
+    match (candidate.version(), current.version()) {
+        (Some(c), Some(e)) => c > e,
+        (Some(_), None) => true,
+        _ => false,
+    }
+}
+
+/// The confirmed caller's own tuple, platform pinned, when it is exactly the baseline.
+fn baseline_candidate(headers: &HeaderMap, settings: &Settings, baseline: &Profile) -> Option<Profile> {
+    candidate(headers, settings)
+        .map(|mut c| {
+            c.os = baseline.os.clone();
+            c.arch = baseline.arch.clone();
+            c
+        })
+        .filter(|c| c.meets(baseline))
+}
+
+/// Go `ResolveClaudeDeviceProfileRequired`: Home KV while a Home client is current,
+/// otherwise the local cache. In Home mode an unreachable Home fails the request.
+pub(crate) async fn resolve_required(
+    credential_id: &str,
+    api_key: &str,
+    headers: &HeaderMap,
+    settings: &Settings,
+) -> Result<Profile, String> {
+    match cpa_home::kv::current_client() {
+        Ok(None) => Ok(resolve(credential_id, api_key, headers, settings)),
+        Ok(Some(client)) => resolve_home(&client, credential_id, api_key, headers, settings).await,
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// Go `claudeDeviceProfileKVValue`.
+#[derive(serde::Deserialize, Default)]
+#[serde(default)]
+struct KvValue {
+    user_agent: String,
+    package_version: String,
+    runtime_version: String,
+    os: String,
+    arch: String,
+}
+
+/// Go `json.Marshal(claudeDeviceProfileKVValueFromProfile(profile))`: struct field
+/// order and Go's string escaping.
+fn kv_json(profile: &Profile) -> Vec<u8> {
+    let mut out = b"{".to_vec();
+    let fields = [
+        ("user_agent", &profile.user_agent),
+        ("package_version", &profile.package_version),
+        ("runtime_version", &profile.runtime_version),
+        ("os", &profile.os),
+        ("arch", &profile.arch),
+    ];
+    for (i, (name, value)) in fields.into_iter().enumerate() {
+        if i > 0 {
+            out.push(b',');
+        }
+        cpa_common::json::marshal_str(&mut out, name.as_bytes(), true);
+        out.push(b':');
+        cpa_common::json::marshal_str(&mut out, value.as_bytes(), true);
+    }
+    out.push(b'}');
+    out
+}
+
+/// Go `readClaudeDeviceProfileValueFromHome`: `None` for a missing or empty record.
+async fn read_home(client: &cpa_home::Client, key: &str, baseline: &Profile) -> Result<Option<Profile>, String> {
+    let Some(raw) = client.kv_get(key).await.map_err(|e| e.to_string())? else {
+        return Ok(None);
+    };
+    let value: KvValue = serde_json::from_slice(&raw).map_err(|e| e.to_string())?;
+    let profile = Profile {
+        user_agent: value.user_agent.trim().to_owned(),
+        package_version: value.package_version.trim().to_owned(),
+        runtime_version: value.runtime_version.trim().to_owned(),
+        os: value.os.trim().to_owned(),
+        arch: value.arch.trim().to_owned(),
+    };
+    if profile.user_agent.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(normalize(profile, baseline)))
+}
+
+/// Go `resolveClaudeDeviceProfileHome`: one profile per credential scope shared by
+/// every node, written under a 5-second lock and kept for seven days after last use.
+pub(crate) async fn resolve_home(
+    client: &cpa_home::Client,
+    credential_id: &str,
+    api_key: &str,
+    headers: &HeaderMap,
+    settings: &Settings,
+) -> Result<Profile, String> {
+    let baseline = Profile::default_for(settings);
+    let candidate = baseline_candidate(headers, settings, &baseline);
+    let scope = scope_string(
+        credential_id,
+        api_key,
+        candidate.as_ref().unwrap_or(&Profile::default()),
+    );
+    let value_key = format!("cpa:claude:device-profile:{}", cpa_home::kv::hash_key_part(&scope));
+    let expire = |key: String| async move { client.kv_expire(&key, PROFILE_TTL).await.map_err(|e| e.to_string()) };
+    let Some(candidate) = candidate else {
+        // Go `readClaudeDeviceProfileFromHome`.
+        return match read_home(client, &value_key, &baseline).await? {
+            Some(profile) => {
+                expire(value_key).await?;
+                Ok(profile)
+            }
+            None => Ok(baseline),
+        };
+    };
+    let lock_key = format!("cpa:claude:device-profile-lock:{}", cpa_home::kv::hash_key_part(&scope));
+    let locked = client
+        .kv_set_nx(&lock_key, b"1", LOCK_TTL)
+        .await
+        .map_err(|e| e.to_string())?;
+    let cached = read_home(client, &value_key, &baseline).await?;
+    if let Some(cached) = cached.as_ref().filter(|c| !should_upgrade(&candidate, c)) {
+        expire(value_key).await?;
+        return Ok(cached.clone());
+    }
+    if !locked {
+        return cached.ok_or_else(|| "home kv device profile lock not acquired and profile missing".to_owned());
+    }
+    let raw = kv_json(&candidate);
+    let options = cpa_home::SetOptions {
+        ex: PROFILE_TTL,
+        ..Default::default()
+    };
+    if !client
+        .kv_set(&value_key, &raw, options)
+        .await
+        .map_err(|e| e.to_string())?
+    {
+        return Err("home kv device profile write skipped".into());
+    }
+    Ok(candidate)
 }
 
 /// `resolveClaudeDeviceProfileLocal`: per-credential stabilized profile, 7-day TTL.
@@ -230,21 +390,7 @@ fn scope_key(credential_id: &str, api_key: &str, profile: &Profile) -> [u8; 32] 
 pub(crate) fn resolve(credential_id: &str, api_key: &str, headers: &HeaderMap, settings: &Settings) -> Profile {
     let now = Instant::now();
     let baseline = Profile::default_for(settings);
-    let pin = |mut p: Profile| {
-        p.os = baseline.os.clone();
-        p.arch = baseline.arch.clone();
-        p
-    };
-    let normalize = |p: Profile| {
-        let mut p = pin(p);
-        if !p.meets(&baseline) {
-            p.user_agent = baseline.user_agent.clone();
-            p.package_version = baseline.package_version.clone();
-            p.runtime_version = baseline.runtime_version.clone();
-        }
-        p
-    };
-    let candidate = candidate(headers, settings).map(pin).filter(|c| c.meets(&baseline));
+    let candidate = baseline_candidate(headers, settings, &baseline);
     let key = scope_key(
         credential_id,
         api_key,
@@ -255,14 +401,9 @@ pub(crate) fn resolve(credential_id: &str, api_key: &str, headers: &HeaderMap, s
     let cached = cache.get_mut(&key).filter(|e| !e.profile.user_agent.is_empty());
     match (candidate, cached) {
         (Some(candidate), Some(entry)) => {
-            entry.profile = normalize(entry.profile.clone());
-            let upgrade = match (candidate.version(), entry.profile.version()) {
-                (Some(c), Some(e)) => c > e,
-                (Some(_), None) => true,
-                _ => false,
-            };
+            entry.profile = normalize(entry.profile.clone(), &baseline);
             entry.expires = now + PROFILE_TTL;
-            if !upgrade {
+            if !should_upgrade(&candidate, &entry.profile) {
                 return entry.profile.clone();
             }
             entry.profile = candidate.clone();
@@ -279,7 +420,7 @@ pub(crate) fn resolve(credential_id: &str, api_key: &str, headers: &HeaderMap, s
             candidate
         }
         (None, Some(entry)) => {
-            entry.profile = normalize(entry.profile.clone());
+            entry.profile = normalize(entry.profile.clone(), &baseline);
             entry.expires = now + PROFILE_TTL;
             entry.profile.clone()
         }
@@ -312,5 +453,64 @@ mod tests {
         assert!(!plausible_user_agent("claude-cli/2.2.280 (external, cli)", &s));
         assert!(!plausible_user_agent("claude-cli/2.1.280", &s));
         assert_eq!(default_version(&s), "2.1.280");
+    }
+
+    /// Go `resolveClaudeDeviceProfileHome` against the same scenarios, recorded by
+    /// the reference's zz_rustgolden_test.go: the KV calls in order, their keys,
+    /// values and TTLs, and the profile or error each request resolves to.
+    #[tokio::test]
+    async fn home_kv_profiles_match_go() {
+        let golden: serde_json::Value =
+            serde_json::from_str(include_str!("testdata/go_device_profile_home.json")).unwrap();
+        for case in golden["cases"].as_array().unwrap() {
+            let scenario = &case["scenario"];
+            let name = scenario["name"].as_str().unwrap();
+            let values = std::sync::Arc::new(Mutex::new(HashMap::new()));
+            if let Some(preset) = scenario["preset"].as_object() {
+                for (k, v) in preset {
+                    values.lock().unwrap().insert(k.clone(), v.as_str().unwrap().to_owned());
+                }
+            }
+            let home = cpa_home::fake::FakeHome::start(super::super::kv_test::kv_home(values.clone())).await;
+            let client = home.client();
+            let mut settings = Settings::default();
+            let config = |key: &str| scenario["config"][key].as_str().unwrap_or_default().to_owned();
+            settings.header_defaults.user_agent = config("user-agent");
+            settings.header_defaults.package_version = config("package-version");
+            settings.header_defaults.os = config("os");
+            settings.header_defaults.arch = config("arch");
+            let steps = scenario["steps"].as_array().unwrap();
+            for (i, (step, want)) in steps.iter().zip(case["results"].as_array().unwrap()).enumerate() {
+                let mut headers = HeaderMap::new();
+                for (k, v) in step["headers"].as_object().unwrap() {
+                    headers.insert(
+                        http::HeaderName::from_bytes(k.as_bytes()).unwrap(),
+                        v.as_str().unwrap().parse().unwrap(),
+                    );
+                }
+                let before = home.commands().len();
+                let got = resolve_home(
+                    &client,
+                    step["auth"].as_str().unwrap(),
+                    step["api_key"].as_str().unwrap(),
+                    &headers,
+                    &settings,
+                )
+                .await;
+                let calls: Vec<_> = home.commands()[before..]
+                    .iter()
+                    .filter_map(|c| super::super::kv_test::as_go_call(c))
+                    .collect();
+                assert_eq!(serde_json::Value::from(calls), want["calls"], "{name} step {i}: calls");
+                match got {
+                    Ok(p) => assert_eq!(
+                        [p.user_agent, p.package_version, p.runtime_version, p.os, p.arch],
+                        serde_json::from_value::<[String; 5]>(want["profile"].clone()).unwrap(),
+                        "{name} step {i}: profile"
+                    ),
+                    Err(e) => assert_eq!(e, want["error"].as_str().unwrap(), "{name} step {i}: error"),
+                }
+            }
+        }
     }
 }

@@ -1,0 +1,217 @@
+{
+  "cases": [
+    {
+      "calls": [],
+      "pool": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      ],
+      "scenario": {
+        "name": "canonical_metadata_skips_home",
+        "id": "c1",
+        "index": "idx-1",
+        "metadata": {
+          "claude_device_ids": [
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ]
+        },
+        "preset": null
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:credential-device-pool:1ccfd95656c66e125177ec5075f369c31ccb91f175d4dfa646c9607bbc1e1a67"
+        ]
+      ],
+      "pool": [
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ],
+      "scenario": {
+        "name": "stored_pool_wins",
+        "id": "c2",
+        "index": "idx-2",
+        "metadata": null,
+        "preset": {
+          "cpa:claude:credential-device-pool:1ccfd95656c66e125177ec5075f369c31ccb91f175d4dfa646c9607bbc1e1a67": "[\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"]"
+        }
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:credential-device-pool:c8f9e03b26f33fce89f60fedc74cef705be8a0b424f55a5f10f548e08a412ca9"
+        ],
+        [
+          "set",
+          "cpa:claude:credential-device-pool:c8f9e03b26f33fce89f60fedc74cef705be8a0b424f55a5f10f548e08a412ca9",
+          "[\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\"]",
+          0,
+          "XX"
+        ]
+      ],
+      "pool": [
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      ],
+      "scenario": {
+        "name": "stored_pool_canonicalized",
+        "id": "c3",
+        "index": "idx-3",
+        "metadata": null,
+        "preset": {
+          "cpa:claude:credential-device-pool:c8f9e03b26f33fce89f60fedc74cef705be8a0b424f55a5f10f548e08a412ca9": "[\" CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC \",\"x\"]"
+        }
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:credential-device-pool:6980bf561dd1a1144a78f4728e37e5d671c75019debc979caf7198f94d4b4b86"
+        ],
+        [
+          "set",
+          "cpa:claude:credential-device-pool:6980bf561dd1a1144a78f4728e37e5d671c75019debc979caf7198f94d4b4b86",
+          "[\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\"]",
+          0,
+          "NX"
+        ],
+        [
+          "get",
+          "cpa:claude:credential-device-pool:6980bf561dd1a1144a78f4728e37e5d671c75019debc979caf7198f94d4b4b86"
+        ]
+      ],
+      "pool": [
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      ],
+      "scenario": {
+        "name": "candidate_written",
+        "id": "c4",
+        "index": "idx-4",
+        "metadata": {
+          "claude_device_ids": [
+            " DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD "
+          ]
+        },
+        "preset": null
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:credential-device-pool:b4af306d9bb162e12ebb757d35e2a6320754cda91fbf610f8d63c44e457a58d2"
+        ],
+        [
+          "set",
+          "cpa:claude:credential-device-pool:b4af306d9bb162e12ebb757d35e2a6320754cda91fbf610f8d63c44e457a58d2",
+          "[\"\u003cdevice\u003e\"]",
+          0,
+          "NX"
+        ],
+        [
+          "get",
+          "cpa:claude:credential-device-pool:b4af306d9bb162e12ebb757d35e2a6320754cda91fbf610f8d63c44e457a58d2"
+        ]
+      ],
+      "pool": [
+        "\u003cdevice\u003e"
+      ],
+      "scenario": {
+        "name": "generated_written",
+        "id": "c5",
+        "index": "idx-5",
+        "metadata": null,
+        "preset": null
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:credential-device-pool:c29a6e907156c0ebb0221d2a1f8c6849c0b4cbc3b858015780488215ea49f138"
+        ],
+        [
+          "set",
+          "cpa:claude:credential-device-pool:c29a6e907156c0ebb0221d2a1f8c6849c0b4cbc3b858015780488215ea49f138",
+          "[\"\u003cdevice\u003e\"]",
+          0,
+          "NX"
+        ],
+        [
+          "get",
+          "cpa:claude:credential-device-pool:c29a6e907156c0ebb0221d2a1f8c6849c0b4cbc3b858015780488215ea49f138"
+        ]
+      ],
+      "pool": [
+        "\u003cdevice\u003e"
+      ],
+      "scenario": {
+        "name": "id_when_no_index",
+        "id": "c6",
+        "index": "",
+        "metadata": null,
+        "preset": null
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:credential-device-pool:59ab94d4424fbb24a1e70604414794daee2fe02d85e192655061fee8c132a324"
+        ],
+        [
+          "set",
+          "cpa:claude:credential-device-pool:59ab94d4424fbb24a1e70604414794daee2fe02d85e192655061fee8c132a324",
+          "[\"\u003cdevice\u003e\"]",
+          0,
+          "NX"
+        ],
+        [
+          "get",
+          "cpa:claude:credential-device-pool:59ab94d4424fbb24a1e70604414794daee2fe02d85e192655061fee8c132a324"
+        ]
+      ],
+      "error": "ensure Claude credential device pool: decode Home KV value: json: cannot unmarshal object into Go value of type []string",
+      "scenario": {
+        "name": "corrupt_stored_fails",
+        "id": "c7",
+        "index": "idx-7",
+        "metadata": null,
+        "preset": {
+          "cpa:claude:credential-device-pool:59ab94d4424fbb24a1e70604414794daee2fe02d85e192655061fee8c132a324": "{\"not\":\"a list\"}"
+        }
+      }
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:credential-device-pool:bcc9e2c09f24d41cbee6a36bb6a8d57f51fdd3606468467c9f8b01605450db2d"
+        ],
+        [
+          "set",
+          "cpa:claude:credential-device-pool:bcc9e2c09f24d41cbee6a36bb6a8d57f51fdd3606468467c9f8b01605450db2d",
+          "[\"\u003cdevice\u003e\"]",
+          0,
+          "NX"
+        ],
+        [
+          "get",
+          "cpa:claude:credential-device-pool:bcc9e2c09f24d41cbee6a36bb6a8d57f51fdd3606468467c9f8b01605450db2d"
+        ]
+      ],
+      "error": "ensure Claude credential device pool: Home KV pool has 0 entries, want 1",
+      "scenario": {
+        "name": "invalid_stored_fails",
+        "id": "c8",
+        "index": "idx-8",
+        "metadata": null,
+        "preset": {
+          "cpa:claude:credential-device-pool:bcc9e2c09f24d41cbee6a36bb6a8d57f51fdd3606468467c9f8b01605450db2d": "[\"nope\"]"
+        }
+      }
+    }
+  ]
+}

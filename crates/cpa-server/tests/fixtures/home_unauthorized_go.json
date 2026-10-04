@@ -1,0 +1,584 @@
+[
+  {
+    "name": "count_tokens_oauth_runtime",
+    "id": "claude-a.json",
+    "auth_provider": "claude",
+    "index": "home-idx-7",
+    "attributes": {
+      "runtime_only": "true",
+      "source_backend": "postgres"
+    },
+    "metadata": {
+      "access_token": " tok-claude-a ",
+      "email": "a@example.test",
+      "type": "claude"
+    },
+    "provider": "claude",
+    "model": "claude-sonnet-4-5",
+    "body": "{\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"}}",
+    "client": {
+      "client_ip": "10.0.0.9",
+      "resolved_client_ip": "198.51.100.4",
+      "x_forwarded_for": "198.51.100.4",
+      "user_agent": "claude-cli/2.1 (external, cli)",
+      "session_id": "sess-home-canonical",
+      "parent_session_id": "sess-parent",
+      "is_fork": false,
+      "request_id": "req-unauth-1",
+      "endpoint": "POST /v1/messages/count_tokens"
+    },
+    "request": {
+      "alias": "sonnet-alias",
+      "reasoning_effort": "high",
+      "service_tier": "auto",
+      "with_options": true
+    },
+    "record": {
+      "timestamp": "2026-10-03T21:42:56.023716997Z",
+      "latency_ms": 0,
+      "ttft_ms": 0,
+      "source": "memory",
+      "auth_index": "home-idx-7",
+      "access_token_sha256": "24cb2d6fdbbe7009635f40a31767c93e657d3756c2e20b4d910e4a1413504e6d",
+      "client_ip": "10.0.0.9",
+      "resolved_client_ip": "198.51.100.4",
+      "x_forwarded_for": "198.51.100.4",
+      "user_agent": "claude-cli/2.1 (external, cli)",
+      "tokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_read_tokens_present": true,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0
+      },
+      "failed": true,
+      "generate": false,
+      "stream": false,
+      "fail": {
+        "status_code": 401,
+        "body": "{\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"}}"
+      },
+      "accounting_version": 2,
+      "token_breakdown": {
+        "schema_version": 2,
+        "quality": "complete",
+        "total_tokens": 0,
+        "input": {
+          "total_tokens": 0,
+          "uncached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output": {
+          "total_tokens": 0,
+          "non_reasoning_tokens": 0,
+          "reasoning_tokens": 0
+        },
+        "unclassified_tokens": 0
+      },
+      "provider": "claude",
+      "executor_type": "home-result",
+      "model": "claude-sonnet-4-5",
+      "alias": "sonnet-alias",
+      "endpoint": "POST /v1/messages/count_tokens",
+      "auth_type": "oauth",
+      "api_key": "",
+      "request_id": "req-unauth-1",
+      "execution_id": "2d4f8a75-f30c-4214-8805-0fbd38ab961c",
+      "trace_id": "req-unauth-1",
+      "session_id": "ab0ba80b-20b5-83aa-bf13-805db840fca2",
+      "parent_session_id": "aad403b2-72db-8627-baff-db47717de2a4",
+      "reasoning_effort": "high",
+      "service_tier": "auto"
+    }
+  },
+  {
+    "name": "alpha_search_no_body",
+    "id": "codex-b.json",
+    "auth_provider": "codex",
+    "index": "home-idx-8",
+    "attributes": {
+      "source": "config:codex[0]"
+    },
+    "metadata": {
+      "token": {
+        "access_token": "tok-codex-b"
+      }
+    },
+    "provider": "codex",
+    "model": "gpt-5.4",
+    "body": null,
+    "client": {
+      "client_ip": "127.0.0.1",
+      "resolved_client_ip": "127.0.0.1",
+      "x_forwarded_for": "",
+      "user_agent": "codex_cli_rs/0.50",
+      "session_id": "srch-1",
+      "parent_session_id": "",
+      "is_fork": false,
+      "request_id": "req-alpha",
+      "endpoint": "POST /v1/alpha/search"
+    },
+    "request": {
+      "alias": "",
+      "reasoning_effort": "",
+      "service_tier": "",
+      "with_options": false
+    },
+    "record": {
+      "timestamp": "2026-10-03T21:42:56.034022464Z",
+      "latency_ms": 0,
+      "ttft_ms": 0,
+      "source": "config",
+      "auth_index": "home-idx-8",
+      "access_token_sha256": "7892da07b2b9ec5c2c74a3f2a853bd9cf1a973a981ed720e7212e5ec2c9b1d10",
+      "client_ip": "127.0.0.1",
+      "resolved_client_ip": "127.0.0.1",
+      "x_forwarded_for": "",
+      "user_agent": "codex_cli_rs/0.50",
+      "tokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_read_tokens_present": true,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0
+      },
+      "failed": true,
+      "generate": false,
+      "stream": false,
+      "fail": {
+        "status_code": 401,
+        "body": "upstream unauthorized"
+      },
+      "accounting_version": 2,
+      "token_breakdown": {
+        "schema_version": 2,
+        "quality": "complete",
+        "total_tokens": 0,
+        "input": {
+          "total_tokens": 0,
+          "uncached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output": {
+          "total_tokens": 0,
+          "non_reasoning_tokens": 0,
+          "reasoning_tokens": 0
+        },
+        "unclassified_tokens": 0
+      },
+      "provider": "codex",
+      "executor_type": "home-result",
+      "model": "gpt-5.4",
+      "alias": "gpt-5.4",
+      "endpoint": "POST /v1/alpha/search",
+      "auth_type": "oauth",
+      "api_key": "",
+      "request_id": "req-alpha",
+      "execution_id": "a7b69016-fe11-4cff-a5fd-edaf6851bbee",
+      "trace_id": "req-alpha",
+      "session_id": "99fcf17d-ddf4-8f88-9e51-b91f3fce5049",
+      "reasoning_effort": "",
+      "service_tier": "default"
+    }
+  },
+  {
+    "name": "blank_provider_falls_back_and_source_kinds",
+    "id": "kimi-c.json",
+    "auth_provider": "Kimi",
+    "index": "home-idx-9",
+    "attributes": {
+      "auth_kind": "oauth",
+      "source_backend": "object-store"
+    },
+    "metadata": {
+      "accessToken": "tok-kimi"
+    },
+    "provider": "  ",
+    "model": "  kimi-k2  ",
+    "body": "",
+    "client": {
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "session_id": "same",
+      "parent_session_id": "same",
+      "is_fork": false,
+      "request_id": "",
+      "endpoint": "POST /v1/messages/count_tokens"
+    },
+    "request": {
+      "alias": "",
+      "reasoning_effort": "",
+      "service_tier": "priority",
+      "with_options": true
+    },
+    "record": {
+      "timestamp": "2026-10-03T21:42:56.044414118Z",
+      "latency_ms": 0,
+      "ttft_ms": 0,
+      "source": "objectstore",
+      "auth_index": "home-idx-9",
+      "access_token_sha256": "e50be2b505738e6c371b2027449f93a75540ae93e19db95df9a13cfd3bd56b03",
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "tokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_read_tokens_present": true,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0
+      },
+      "failed": true,
+      "generate": false,
+      "stream": false,
+      "fail": {
+        "status_code": 401,
+        "body": "upstream unauthorized"
+      },
+      "accounting_version": 2,
+      "token_breakdown": {
+        "schema_version": 2,
+        "quality": "complete",
+        "total_tokens": 0,
+        "input": {
+          "total_tokens": 0,
+          "uncached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output": {
+          "total_tokens": 0,
+          "non_reasoning_tokens": 0,
+          "reasoning_tokens": 0
+        },
+        "unclassified_tokens": 0
+      },
+      "provider": "Kimi",
+      "executor_type": "home-result",
+      "model": "kimi-k2",
+      "alias": "kimi-k2",
+      "endpoint": "POST /v1/messages/count_tokens",
+      "auth_type": "oauth",
+      "api_key": "",
+      "request_id": "",
+      "execution_id": "f639398c-d1f8-4c50-a7bb-4b384c4b8aa8",
+      "session_id": "4e7bb125-93a5-8fbe-a0e6-b6eda2afb97e",
+      "reasoning_effort": "",
+      "service_tier": "priority"
+    }
+  },
+  {
+    "name": "path_source",
+    "id": "gem-d.json",
+    "auth_provider": "gemini",
+    "index": "home-idx-10",
+    "attributes": {
+      "path": "/auth/gem-d.json"
+    },
+    "metadata": {
+      "access_token": "tok-gem"
+    },
+    "provider": "gemini",
+    "model": "gemini-2.5-pro",
+    "body": "status 401",
+    "client": {
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "session_id": "",
+      "parent_session_id": "",
+      "is_fork": false,
+      "request_id": "",
+      "endpoint": ""
+    },
+    "request": {
+      "alias": "",
+      "reasoning_effort": "",
+      "service_tier": "",
+      "with_options": false
+    },
+    "record": {
+      "timestamp": "2026-10-03T21:42:56.054862719Z",
+      "latency_ms": 0,
+      "ttft_ms": 0,
+      "source": "file",
+      "auth_index": "home-idx-10",
+      "access_token_sha256": "e17230059c5445f5e9affae62c6557402df8de7d44ab0537f7eb42b741c60744",
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "tokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_read_tokens_present": true,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0
+      },
+      "failed": true,
+      "generate": false,
+      "stream": false,
+      "fail": {
+        "status_code": 401,
+        "body": "status 401"
+      },
+      "accounting_version": 2,
+      "token_breakdown": {
+        "schema_version": 2,
+        "quality": "complete",
+        "total_tokens": 0,
+        "input": {
+          "total_tokens": 0,
+          "uncached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output": {
+          "total_tokens": 0,
+          "non_reasoning_tokens": 0,
+          "reasoning_tokens": 0
+        },
+        "unclassified_tokens": 0
+      },
+      "provider": "gemini",
+      "executor_type": "home-result",
+      "model": "gemini-2.5-pro",
+      "alias": "gemini-2.5-pro",
+      "endpoint": "",
+      "auth_type": "oauth",
+      "api_key": "",
+      "request_id": "",
+      "execution_id": "f89a62c1-274d-4df6-b05c-8c10ad70f02e",
+      "reasoning_effort": "",
+      "service_tier": "default"
+    }
+  },
+  {
+    "name": "unknown_source_is_file",
+    "id": "x-e.json",
+    "auth_provider": "xai",
+    "index": "home-idx-11",
+    "attributes": {
+      "source": "somewhere-else"
+    },
+    "metadata": {
+      "access_token": "tok-x"
+    },
+    "provider": "xai",
+    "model": "grok-4",
+    "body": null,
+    "client": {
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "session_id": "",
+      "parent_session_id": "",
+      "is_fork": false,
+      "request_id": "",
+      "endpoint": ""
+    },
+    "request": {
+      "alias": "",
+      "reasoning_effort": "",
+      "service_tier": "",
+      "with_options": false
+    },
+    "record": {
+      "timestamp": "2026-10-03T21:42:56.065139223Z",
+      "latency_ms": 0,
+      "ttft_ms": 0,
+      "source": "file",
+      "auth_index": "home-idx-11",
+      "access_token_sha256": "208ed11bf95985408f414279c556847a2f42838628a52386834232ff077407f7",
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "tokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_read_tokens_present": true,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0
+      },
+      "failed": true,
+      "generate": false,
+      "stream": false,
+      "fail": {
+        "status_code": 401,
+        "body": "upstream unauthorized"
+      },
+      "accounting_version": 2,
+      "token_breakdown": {
+        "schema_version": 2,
+        "quality": "complete",
+        "total_tokens": 0,
+        "input": {
+          "total_tokens": 0,
+          "uncached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output": {
+          "total_tokens": 0,
+          "non_reasoning_tokens": 0,
+          "reasoning_tokens": 0
+        },
+        "unclassified_tokens": 0
+      },
+      "provider": "xai",
+      "executor_type": "home-result",
+      "model": "grok-4",
+      "alias": "grok-4",
+      "endpoint": "",
+      "auth_type": "oauth",
+      "api_key": "",
+      "request_id": "",
+      "execution_id": "e89c5a91-1d82-4876-b792-1bdf3deb4a1f",
+      "reasoning_effort": "",
+      "service_tier": "default"
+    }
+  },
+  {
+    "name": "no_source_attributes",
+    "id": "c-f.json",
+    "auth_provider": "claude",
+    "index": "home-idx-12",
+    "attributes": null,
+    "metadata": {
+      "access_token": "tok-f"
+    },
+    "provider": "claude",
+    "model": "claude-opus-4-1",
+    "body": null,
+    "client": {
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "session_id": "",
+      "parent_session_id": "",
+      "is_fork": false,
+      "request_id": "",
+      "endpoint": ""
+    },
+    "request": {
+      "alias": "",
+      "reasoning_effort": "",
+      "service_tier": "",
+      "with_options": false
+    },
+    "record": {
+      "timestamp": "2026-10-03T21:42:56.075438697Z",
+      "latency_ms": 0,
+      "ttft_ms": 0,
+      "source": "",
+      "auth_index": "home-idx-12",
+      "access_token_sha256": "21e6a9153e51f3e21c6d2ff932abe7d63566c0b0f310d431959277bbaae71637",
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "tokens": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_read_tokens_present": true,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0
+      },
+      "failed": true,
+      "generate": false,
+      "stream": false,
+      "fail": {
+        "status_code": 401,
+        "body": "upstream unauthorized"
+      },
+      "accounting_version": 2,
+      "token_breakdown": {
+        "schema_version": 2,
+        "quality": "complete",
+        "total_tokens": 0,
+        "input": {
+          "total_tokens": 0,
+          "uncached_tokens": 0,
+          "cache_read_tokens": 0,
+          "cache_write_tokens": 0
+        },
+        "output": {
+          "total_tokens": 0,
+          "non_reasoning_tokens": 0,
+          "reasoning_tokens": 0
+        },
+        "unclassified_tokens": 0
+      },
+      "provider": "claude",
+      "executor_type": "home-result",
+      "model": "claude-opus-4-1",
+      "alias": "claude-opus-4-1",
+      "endpoint": "",
+      "auth_type": "oauth",
+      "api_key": "",
+      "request_id": "",
+      "execution_id": "499a64e6-6bfc-4b95-9991-86023f263cc8",
+      "reasoning_effort": "",
+      "service_tier": "default"
+    }
+  },
+  {
+    "name": "api_key_has_no_fingerprint",
+    "id": "k-g",
+    "auth_provider": "claude",
+    "index": "home-idx-13",
+    "attributes": {
+      "api_key": "sk-fake",
+      "source": "config:claude[0]"
+    },
+    "metadata": null,
+    "provider": "claude",
+    "model": "claude-sonnet-4-5",
+    "body": "nope",
+    "client": {
+      "client_ip": "",
+      "resolved_client_ip": "",
+      "x_forwarded_for": "",
+      "user_agent": "",
+      "session_id": "",
+      "parent_session_id": "",
+      "is_fork": false,
+      "request_id": "",
+      "endpoint": ""
+    },
+    "request": {
+      "alias": "",
+      "reasoning_effort": "",
+      "service_tier": "",
+      "with_options": false
+    },
+    "record": null
+  }
+]

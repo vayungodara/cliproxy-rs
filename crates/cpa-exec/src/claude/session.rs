@@ -6,8 +6,9 @@
 //! `cpa_common::session`; this module adds helps/claude_credential_identity.go,
 //! helps/session_id_cache.go and helps/claude_diagnostics.go.
 //!
-//! ponytail: Home KV mode is not ported; all caches are process-local like Go's
-//! non-Home mode.
+//! In Home mode the per-key session and user IDs live in Home KV
+//! (`cpa:claude:session-id:*`, `cpa:claude:user-id:*`), so every node uses the same
+//! identity for a key; the continuity store stays process-local.
 
 use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
@@ -118,6 +119,91 @@ pub(crate) fn cached_user_id(api_key: &str, make: impl FnOnce() -> String) -> St
         return make();
     }
     cached(&CACHE, api_key, make)
+}
+
+/// Go `sessionIDTTL` / `userIDTTL`.
+const ID_TTL: Duration = Duration::from_secs(3600);
+
+/// Go `CachedSessionIDRequired`: Home KV while a Home client is current, otherwise the
+/// local cache. In Home mode an unreachable Home fails the request.
+pub(crate) async fn cached_session_id_required(api_key: &str) -> Result<String, String> {
+    if api_key.is_empty() {
+        return Ok(new_v4());
+    }
+    match cpa_home::kv::current_client() {
+        Ok(None) => Ok(cached_session_id(api_key)),
+        Ok(Some(client)) => session_id_home(&client, api_key).await,
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+/// Go `CachedUserIDRequired`: a complete fake user ID per key, built on the key's
+/// cached session ID.
+pub(crate) async fn cached_user_id_required(api_key: &str) -> Result<String, String> {
+    match cpa_home::kv::current_client() {
+        Ok(None) => Ok(cached_user_id(api_key, || {
+            super::cloak::fake_user_id(&cached_session_id(api_key))
+        })),
+        Ok(Some(_)) if api_key.is_empty() => Ok(super::cloak::fake_user_id(&new_v4())),
+        Ok(Some(client)) => user_id_home(&client, api_key).await,
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+async fn session_id_home(client: &cpa_home::Client, api_key: &str) -> Result<String, String> {
+    let key = format!("cpa:claude:session-id:{}", cpa_home::kv::hash_key_part(api_key));
+    home_id(
+        client,
+        &key,
+        |v| !v.is_empty(),
+        || async { Ok(new_v4()) },
+        "home kv session id missing after set",
+    )
+    .await
+}
+
+async fn user_id_home(client: &cpa_home::Client, api_key: &str) -> Result<String, String> {
+    let key = format!("cpa:claude:user-id:{}", cpa_home::kv::hash_key_part(api_key));
+    home_id(
+        client,
+        &key,
+        super::detect::valid_user_id,
+        || async { Ok(super::cloak::fake_user_id(&session_id_home(client, api_key).await?)) },
+        "home kv user id missing after set",
+    )
+    .await
+}
+
+/// Go's Home branch of the ID caches: the stored value with its TTL renewed, or a new
+/// one written with SETNX and read back, so concurrent nodes settle on one value.
+async fn home_id<F, Fut>(
+    client: &cpa_home::Client,
+    key: &str,
+    valid: impl Fn(&str) -> bool,
+    make: F,
+    missing: &str,
+) -> Result<String, String>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = Result<String, String>>,
+{
+    let read = || async {
+        let raw = client.kv_get(key).await.map_err(|e| e.to_string())?;
+        Ok::<_, String>(
+            raw.map(|raw| String::from_utf8_lossy(&raw).trim().to_owned())
+                .filter(|v| valid(v)),
+        )
+    };
+    if let Some(value) = read().await? {
+        client.kv_expire(key, ID_TTL).await.map_err(|e| e.to_string())?;
+        return Ok(value);
+    }
+    let value = make().await?;
+    client
+        .kv_set_nx(key, value.as_bytes(), ID_TTL)
+        .await
+        .map_err(|e| e.to_string())?;
+    read().await?.ok_or_else(|| missing.to_owned())
 }
 
 /// `ClaudeDeterministicPromptID`: a v4-shaped UUID from sha256(seed).
@@ -306,5 +392,72 @@ mod tests {
             deterministic_prompt_id("cpa:prompt:Local question"),
             "83ec619f-ab81-4d70-9c67-44c3865291b9"
         );
+    }
+
+    /// Go `CachedSessionIDRequired` / `CachedUserIDRequired` in Home mode, recorded by
+    /// the reference's zz_rustgolden_test.go: the KV calls in order (fresh UUIDs and
+    /// user IDs normalized), the value or error, and whether a new user ID carries
+    /// the session ID stored for the key.
+    #[tokio::test]
+    async fn home_kv_ids_match_go() {
+        use std::sync::Arc;
+        const VALID_SESSION: &str = "11111111-2222-4333-8444-555555555555";
+        let valid_user = format!(
+            r#"{{"device_id":"{}","account_uuid":"","session_id":"{VALID_SESSION}"}}"#,
+            "ab".repeat(32)
+        );
+        let normalize = |v: &str| -> String {
+            if uuid::Uuid::parse_str(v).is_ok() && v.len() == 36 && v != VALID_SESSION {
+                "<uuid>".into()
+            } else if super::super::detect::valid_user_id(v) && v != valid_user {
+                "<user_id>".into()
+            } else {
+                v.to_owned()
+            }
+        };
+        let golden: serde_json::Value = serde_json::from_str(include_str!("testdata/go_claude_ids_home.json")).unwrap();
+        for case in golden["cases"].as_array().unwrap() {
+            let scenario = &case["scenario"];
+            let name = scenario["name"].as_str().unwrap();
+            let api_key = scenario["api_key"].as_str().unwrap();
+            let values = Arc::new(Mutex::new(HashMap::new()));
+            if let Some(preset) = scenario["preset"].as_object() {
+                for (k, v) in preset {
+                    values.lock().unwrap().insert(k.clone(), v.as_str().unwrap().to_owned());
+                }
+            }
+            let home = cpa_home::fake::FakeHome::start(super::super::kv_test::kv_home(values.clone())).await;
+            let client = home.client();
+            let got = match (scenario["kind"].as_str().unwrap(), api_key.is_empty()) {
+                ("session", true) => Ok(new_v4()),
+                ("session", false) => session_id_home(&client, api_key).await,
+                (_, true) => Ok(super::super::cloak::fake_user_id(&new_v4())),
+                (_, false) => user_id_home(&client, api_key).await,
+            };
+            let calls: Vec<serde_json::Value> = home
+                .commands()
+                .iter()
+                .filter_map(|c| super::super::kv_test::as_go_call(c))
+                .map(|mut call| {
+                    if call[0] == "setnx" {
+                        call[2] = normalize(call[2].as_str().unwrap()).into();
+                    }
+                    call
+                })
+                .collect();
+            assert_eq!(&calls, case["calls"].as_array().unwrap(), "{name}: calls");
+            match got {
+                Ok(value) => {
+                    assert_eq!(normalize(&value), case["value"].as_str().unwrap(), "{name}: value");
+                    if let Some(carries) = case["carries_stored_session"].as_bool() {
+                        let key = format!("cpa:claude:session-id:{}", cpa_home::kv::hash_key_part(api_key));
+                        let stored = values.lock().unwrap().get(&key).cloned().unwrap_or_default();
+                        let stored = stored.trim();
+                        assert_eq!(!stored.is_empty() && value.contains(stored), carries, "{name}: session");
+                    }
+                }
+                Err(error) => assert_eq!(error, case["error"].as_str().unwrap(), "{name}: error"),
+            }
+        }
     }
 }

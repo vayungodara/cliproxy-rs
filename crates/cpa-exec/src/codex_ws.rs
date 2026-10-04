@@ -285,6 +285,31 @@ fn transport(message: &str) -> ExecError {
     ExecError::local(502, FailureScope::Transport, message)
 }
 
+/// gorilla/websocket `CloseError.Error()`: what Go returns for an upstream close.
+fn close_error_text(code: u16, text: &str) -> String {
+    let name = match code {
+        1000 => " (normal)",
+        1001 => " (going away)",
+        1002 => " (protocol error)",
+        1003 => " (unsupported data)",
+        1005 => " (no status)",
+        1006 => " (abnormal closure)",
+        1007 => " (invalid payload data)",
+        1008 => " (policy violation)",
+        1009 => " (message too big)",
+        1010 => " (mandatory extension missing)",
+        1011 => " (internal server error)",
+        1015 => " (TLS handshake error)",
+        _ => "",
+    };
+    let mut out = format!("websocket: close {code}{name}");
+    if !text.is_empty() {
+        out.push_str(": ");
+        out.push_str(text);
+    }
+    out
+}
+
 /// The session's loss on an upstream close 1009: Go's reader notifies the downstream
 /// handler with gorilla's raw close error, so the client sees close 1009 with the
 /// upstream's reason ("message too big" when empty).
@@ -407,8 +432,8 @@ pub(super) struct Replay {
 
 impl Replay {
     /// `applyCodexReasoningReplayCacheRequired`: cached turns inserted into `body`.
-    fn apply(cache: &Arc<crate::codex_replay::Cache>, req: &ExecRequest, body: String) -> (String, Self) {
-        let (body, scope) = crate::codex_replay::apply(cache, req, body);
+    async fn apply(cache: &Arc<crate::codex_replay::Cache>, req: &ExecRequest, body: String) -> (String, Self) {
+        let (body, scope) = crate::codex_replay::apply(cache, req, body).await;
         let replay = Self {
             cache: cache.clone(),
             scope,
@@ -872,7 +897,7 @@ impl CodexExecutor {
             optimized,
             conflict,
         } = request::shape(&req, view, settings, Call::Websocket)?;
-        let (body, replay) = Replay::apply(&self.replay, &req, body);
+        let (body, replay) = Replay::apply(&self.replay, &req, body).await;
         crate::codex::report_request(&req, cpa_core::format::Format::Codex, &body);
         let (body, cache) = request::prompt_cache(&req, body, Some(&exec_session.id), true);
         let native = request::is_native(&req);
@@ -989,16 +1014,36 @@ impl CodexExecutor {
                 body: ResponseBody::Stream(stream),
             });
         }
+        // The response waits for the Home replay writes it caused, as on HTTP.
+        let writes = turn.replay.scope.writes.clone();
         let stream = if settings.bootstrap_buffering {
-            bootstrap(turn, settings.bootstrap_timeout, started).await?
+            match bootstrap(turn, settings.bootstrap_timeout, started).await {
+                Ok(stream) => stream,
+                Err(error) => {
+                    writes.settle().await;
+                    return Err(error);
+                }
+            }
         } else {
             rest(turn)
         };
         Ok(ExecResponse {
             status: 200,
             headers: handshake.unwrap_or_default(),
-            body: ResponseBody::Stream(stream),
+            body: ResponseBody::Stream(writes.gate(stream)),
         })
+    }
+}
+
+/// tungstenite's reports of a peer that went away without a close frame, which
+/// gorilla/websocket reads as close 1006 "unexpected EOF".
+fn ends_without_close(error: &tokio_tungstenite::tungstenite::Error) -> bool {
+    use tokio_tungstenite::tungstenite::Error;
+    use tokio_tungstenite::tungstenite::error::ProtocolError;
+    match error {
+        Error::Protocol(ProtocolError::ResetWithoutClosingHandshake) => true,
+        Error::Io(io) => io.kind() == std::io::ErrorKind::UnexpectedEof,
+        _ => false,
     }
 }
 
@@ -1017,7 +1062,12 @@ pub(crate) async fn read_loop(
         let text = loop {
             let message = match tokio::time::timeout_at(deadline, stream.next()).await {
                 Err(_) => break 'read transport("codex websockets executor: read idle timeout"),
-                Ok(None) => break 'read transport("codex websockets executor: upstream closed the connection"),
+                // gorilla/websocket reports a connection that ends without a close frame
+                // as close 1006; Go surfaces its text, which marks a lifecycle failure.
+                Ok(None) => break 'read transport(&close_error_text(1006, "unexpected EOF")),
+                Ok(Some(Err(error))) if ends_without_close(&error) => {
+                    break 'read transport(&close_error_text(1006, "unexpected EOF"));
+                }
                 Ok(Some(Err(_))) => break 'read transport("codex websockets executor: read failed"),
                 Ok(Some(Ok(message))) => message,
             };
@@ -1025,10 +1075,14 @@ pub(crate) async fn read_loop(
                 Message::Text(text) => break text.as_str().to_owned(),
                 Message::Binary(_) => break 'read transport(UNEXPECTED_BINARY),
                 Message::Close(frame) => {
-                    if let Some(frame) = frame.filter(|f| u16::from(f.code) == 1009) {
+                    if let Some(frame) = frame.as_ref().filter(|f| u16::from(f.code) == 1009) {
                         break 'read closed_too_big(frame.reason.as_str());
                     }
-                    break 'read transport("codex websockets executor: upstream closed the connection");
+                    let text = match frame {
+                        Some(frame) => close_error_text(u16::from(frame.code), frame.reason.as_str()),
+                        None => close_error_text(1005, ""),
+                    };
+                    break 'read transport(&text);
                 }
                 Message::Ping(_) | Message::Pong(_) | Message::Frame(_) => continue,
             }
@@ -1123,3 +1177,20 @@ pub use duplex::{ClientFrames, SteeringInput};
 #[cfg(test)]
 #[path = "codex_ws_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod close_text_tests {
+    use super::close_error_text;
+
+    /// gorilla/websocket `CloseError.Error()` texts, which Go returns unchanged.
+    #[test]
+    fn close_errors_read_like_gorilla() {
+        assert_eq!(close_error_text(1000, ""), "websocket: close 1000 (normal)");
+        assert_eq!(close_error_text(1001, "bye"), "websocket: close 1001 (going away): bye");
+        assert_eq!(
+            close_error_text(1006, "unexpected EOF"),
+            "websocket: close 1006 (abnormal closure): unexpected EOF"
+        );
+        assert_eq!(close_error_text(4000, "x"), "websocket: close 4000: x");
+    }
+}

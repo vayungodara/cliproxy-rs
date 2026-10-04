@@ -49,6 +49,12 @@ impl Dialer {
         })
     }
 
+    /// The name a TLS dial verifies, `None` without TLS.
+    #[cfg(test)]
+    pub(crate) fn server_name(&self) -> Option<&str> {
+        self.tls.as_ref().map(|t| t.server_name.as_str())
+    }
+
     /// Plain TCP, for certificate enrollment before the client has a certificate.
     pub(crate) fn plain(host: &str, port: u16, timeout: Duration) -> Self {
         Self {

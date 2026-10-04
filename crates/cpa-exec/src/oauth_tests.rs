@@ -417,3 +417,117 @@ async fn prepare_forces_a_refresh_outside_the_lead_window() {
     assert_eq!(patch.set["access_token"], "sk-ant-oat-new-fake");
     assert_eq!(mock.token_calls.load(Ordering::SeqCst), 1);
 }
+
+/// Generated device IDs are random: like the Go golden, any 64-hex run that is not
+/// a fixture ID (one repeated character) reads as `<device>`.
+fn normalize_devices(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < bytes.len() {
+        let run = bytes[i..]
+            .iter()
+            .take_while(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
+            .count();
+        if run >= 64 {
+            let device = &text[i..i + 64];
+            if device.bytes().all(|b| b == bytes[i]) {
+                out.push_str(device);
+            } else {
+                out.push_str("<device>");
+            }
+            i += 64;
+        } else if run > 0 {
+            out.push_str(&text[i..i + run]);
+            i += run;
+        } else {
+            let c = text[i..].chars().next().unwrap();
+            out.push(c);
+            i += c.len_utf8();
+        }
+    }
+    out
+}
+
+/// Go `EnsureClaudeCredentialDevicePoolRequired` in Home mode, recorded by the
+/// reference's zz_rustgolden_test.go: the KV calls (key from Home's auth index or the
+/// credential's own), NX/XX writes, the pool, and the errors.
+#[tokio::test]
+async fn home_device_pools_match_go() {
+    let golden: Value = serde_json::from_str(include_str!("claude/testdata/go_claude_device_pool_home.json")).unwrap();
+    for case in golden["cases"].as_array().unwrap() {
+        let scenario = &case["scenario"];
+        let name = scenario["name"].as_str().unwrap();
+        let mut attributes = std::collections::BTreeMap::new();
+        let index = scenario["index"].as_str().unwrap();
+        if !index.is_empty() {
+            attributes.insert(
+                cpa_core::config::credentials::HOME_AUTH_INDEX.to_owned(),
+                index.to_owned(),
+            );
+        }
+        let credential = Credential {
+            id: scenario["id"].as_str().unwrap().into(),
+            provider: "claude".into(),
+            source: cpa_core::credential::Source::Config {
+                section: "home".into(),
+                index: 0,
+            },
+            disabled: false,
+            label: String::new(),
+            attributes,
+            metadata: scenario["metadata"].as_object().cloned().unwrap_or_default(),
+            revision: 0,
+        };
+        let raw_pool = credential.metadata.get("claude_device_ids");
+        if canonical_pool(raw_pool) {
+            // Go returns the canonical pool before consulting Home.
+            assert_eq!(case["calls"], json!([]), "{name}");
+            assert_eq!(raw_pool.unwrap(), &case["pool"], "{name}");
+            continue;
+        }
+        let values = Arc::new(Mutex::new(std::collections::HashMap::new()));
+        if let Some(preset) = scenario["preset"].as_object() {
+            for (k, v) in preset {
+                values.lock().unwrap().insert(k.clone(), v.as_str().unwrap().to_owned());
+            }
+        }
+        let home = cpa_home::fake::FakeHome::start(crate::claude::kv_test::kv_home(values.clone())).await;
+        let client = home.client();
+        let candidate = normalize_pool(
+            raw_pool
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str),
+        );
+        let got = home_device_pool(&client, &credential, candidate).await;
+        let calls: Vec<Value> = home
+            .commands()
+            .iter()
+            .filter_map(|c| crate::claude::kv_test::as_go_call(c))
+            .map(|mut call| {
+                if call[0] == "set" {
+                    call[2] = normalize_devices(call[2].as_str().unwrap()).into();
+                }
+                call
+            })
+            .collect();
+        assert_eq!(&calls, case["calls"].as_array().unwrap(), "{name}: calls");
+        match got {
+            Ok(device) => assert_eq!(json!([normalize_devices(&device)]), case["pool"], "{name}: pool"),
+            Err(error) => {
+                let text = String::from_utf8_lossy(&error.body).into_owned();
+                let want = case["error"].as_str().unwrap();
+                // Go's JSON decoder words its errors differently from serde.
+                match want.split_once("decode Home KV value: ") {
+                    Some((prefix, _)) => assert!(
+                        text.starts_with(&format!("{prefix}decode Home KV value: ")),
+                        "{name}: {text}"
+                    ),
+                    None => assert_eq!(text, want, "{name}: error"),
+                }
+            }
+        }
+    }
+}

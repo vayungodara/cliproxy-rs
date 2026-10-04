@@ -34,6 +34,48 @@ static LEVEL: OnceLock<reload::Handle<LevelFilter, tracing_subscriber::Registry>
 static CLEANER_GENERATION: AtomicU64 = AtomicU64::new(0);
 /// Set once [`init`] installed the subscriber; [`configure`] does nothing before.
 static INSTALLED: AtomicBool = AtomicBool::new(false);
+static HOOKS: Mutex<Vec<(u64, Hook)>> = Mutex::new(Vec::new());
+static NEXT_HOOK: AtomicU64 = AtomicU64::new(1);
+
+/// One process-log line as Go's logrus hooks see it (the Home app-log forwarder).
+pub struct Entry<'a> {
+    /// The formatted line, newline included.
+    pub line: &'a str,
+    /// logrus `Level.String()`: `warning` for WARN.
+    pub level: &'static str,
+    pub time: chrono::DateTime<chrono::FixedOffset>,
+    /// The raw `request_id` field, empty when absent.
+    pub request_id: &'a str,
+}
+
+pub type Hook = std::sync::Arc<dyn Fn(&Entry<'_>) + Send + Sync>;
+
+/// Go `log.AddHook`: `hook` sees every line written from now on, at the levels the
+/// logger writes. Returns the id for [`remove_hook`].
+pub fn add_hook(hook: Hook) -> u64 {
+    let id = NEXT_HOOK.fetch_add(1, Ordering::SeqCst);
+    HOOKS.lock().unwrap_or_else(PoisonError::into_inner).push((id, hook));
+    id
+}
+
+pub fn remove_hook(id: u64) {
+    HOOKS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .retain(|(i, _)| *i != id);
+}
+
+fn fire_hooks(entry: &Entry<'_>) {
+    let hooks: Vec<Hook> = HOOKS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .iter()
+        .map(|(_, hook)| hook.clone())
+        .collect();
+    for hook in hooks {
+        hook(entry);
+    }
+}
 
 /// The settings last applied, compared on every [`configure`].
 #[derive(Clone, Copy, PartialEq)]
@@ -438,12 +480,24 @@ where
     fn format_event(&self, _: &FmtContext<'_, S, N>, mut writer: Writer<'_>, event: &Event<'_>) -> std::fmt::Result {
         let mut fields = Fields::default();
         event.record(&mut fields);
-        writer.write_str(&format_line(
-            chrono::Local::now().naive_local(),
-            event.metadata().level(),
+        let now = chrono::Local::now();
+        // ponytail: Go's hook drops a non-string request_id; Rust records every
+        // request_id value as text.
+        let request_id = fields.request_id.clone();
+        let level = event.metadata().level();
+        let line = format_line(
+            now.naive_local(),
+            level,
             event.metadata().file().zip(event.metadata().line()),
             fields,
-        ))
+        );
+        fire_hooks(&Entry {
+            line: &line,
+            level: logrus_level(level),
+            time: now.fixed_offset(),
+            request_id: &request_id,
+        });
+        writer.write_str(&line)
     }
 }
 
@@ -470,6 +524,17 @@ impl Visit for Fields {
             "request_id" => self.request_id = format!("{value:?}"),
             name => self.rest.push((name, format!("{value:?}"), false)),
         }
+    }
+}
+
+/// logrus `Level.String()`.
+fn logrus_level(level: &Level) -> &'static str {
+    match *level {
+        Level::ERROR => "error",
+        Level::WARN => "warning",
+        Level::INFO => "info",
+        Level::DEBUG => "debug",
+        Level::TRACE => "trace",
     }
 }
 
@@ -653,5 +718,64 @@ mod tests {
         // Within the limit nothing happens; a missing directory is not an error.
         assert_eq!(enforce_size_limit(dir, 800, Some(&protected)).unwrap(), 0);
         assert_eq!(enforce_size_limit(&dir.join("none"), 1, None).unwrap(), 0);
+    }
+
+    /// Hooks see the written line itself, logrus level names, the local time and
+    /// the raw request ID; removed hooks see nothing more.
+    #[test]
+    fn hooks_see_each_written_line() {
+        use std::sync::Arc;
+        type Seen = Vec<(String, &'static str, String)>;
+        let seen: Arc<Mutex<Seen>> = Arc::default();
+        let id = add_hook({
+            let seen = seen.clone();
+            Arc::new(move |e: &Entry<'_>| {
+                if e.line.contains("hook-marker") {
+                    seen.lock()
+                        .unwrap()
+                        .push((e.line.to_owned(), e.level, e.request_id.to_owned()));
+                }
+            })
+        });
+        let written = Arc::new(Mutex::new(Vec::<u8>::new()));
+        let writer = {
+            let written = written.clone();
+            move || SharedWriter(written.clone())
+        };
+        let subscriber = tracing_subscriber::registry().with(
+            tracing_subscriber::fmt::layer()
+                .event_format(GoFormat)
+                .with_writer(writer),
+        );
+        tracing::subscriber::with_default(subscriber, || {
+            tracing::warn!(request_id = " req-123456789 ", "hook-marker one");
+            tracing::error!("hook-marker two");
+            remove_hook(id);
+            tracing::info!("hook-marker three");
+        });
+        let seen = seen.lock().unwrap().clone();
+        let written = String::from_utf8(written.lock().unwrap().clone()).unwrap();
+        let lines: Vec<String> = written.split_inclusive('\n').take(2).map(str::to_owned).collect();
+        assert_eq!(
+            seen,
+            [
+                (lines[0].clone(), "warning", " req-123456789 ".to_owned()),
+                (lines[1].clone(), "error", String::new()),
+            ]
+        );
+        assert!(lines[0].contains("] [23456789] [warn ] ["), "{written}");
+    }
+
+    struct SharedWriter(std::sync::Arc<Mutex<Vec<u8>>>);
+
+    impl Write for SharedWriter {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
     }
 }

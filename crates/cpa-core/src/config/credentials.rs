@@ -1303,9 +1303,53 @@ pub fn load(cfg: &Config) -> Vec<Credential> {
     all
 }
 
-/// Go `Auth.EnsureIndex`: 16 hex chars of sha256 over a stable identity seed.
+/// The attribute carrying the auth index Home assigned to a dispatched credential (Go
+/// sets `auth.Index` from the dispatch response).
+pub const HOME_AUTH_INDEX: &str = "home_auth_index";
+
+/// The attribute every credential Home dispatched carries: the auth's own `provider`
+/// field. Executors read its presence as Go's `cfg.Home.Enabled`.
+pub const HOME_PROVIDER: &str = "home_provider";
+
+/// The attribute carrying the `credential_options` model Home mode selected for a
+/// dispatched credential and its upstream model (Go `ResolvedHomeModelOptions`): the
+/// JSON object of the matching `models` entry, `{}` when none matches. Absent when the
+/// credential's options list no models.
+pub const HOME_MODEL_OPTIONS: &str = "home_model_options";
+
+/// Go `AccessTokenSHA256`: hex SHA-256 of the metadata access token (`access_token`
+/// or `accessToken`, top level or under `token`/`Token`), empty without one.
+pub fn access_token_sha256(c: &Credential) -> String {
+    use sha2::{Digest, Sha256};
+    let pick = |m: &serde_json::Map<String, Json>| {
+        ["access_token", "accessToken"].iter().find_map(|k| {
+            m.get(*k)
+                .and_then(Json::as_str)
+                .map(str::trim)
+                .filter(|v| !v.is_empty())
+                .map(str::to_owned)
+        })
+    };
+    let token = pick(&c.metadata).or_else(|| {
+        ["token", "Token"]
+            .iter()
+            .find_map(|k| c.metadata.get(*k).and_then(Json::as_object).and_then(pick))
+    });
+    token.map_or_else(String::new, |t| {
+        Sha256::digest(t.as_bytes())
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect()
+    })
+}
+
+/// Go `Auth.EnsureIndex`: an assigned index (Home's, for dispatched credentials), else
+/// 16 hex chars of sha256 over a stable identity seed.
 pub fn auth_index(c: &Credential) -> String {
     let attr = |k: &str| c.attributes.get(k).map(|s| s.trim()).unwrap_or_default();
+    if !attr(HOME_AUTH_INDEX).is_empty() {
+        return attr(HOME_AUTH_INDEX).to_owned();
+    }
     let seed = if !attr("auth_index_seed").is_empty() {
         format!("auth_index_seed:{}", attr("auth_index_seed"))
     } else {

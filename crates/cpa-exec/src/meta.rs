@@ -102,7 +102,13 @@ impl MetaExecutor {
     }
 
     async fn refresh(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
-        // ponytail: helps.RefreshAuthViaHome (Home control center) is not ported.
+        // Go `helps.RefreshAuthViaHome`: Home refreshes the credentials it dispatched.
+        if credential
+            .attributes
+            .contains_key(cpa_core::config::credentials::HOME_PROVIDER)
+        {
+            return refresh_via_home(credential).await;
+        }
         let Some(dca) = dca_token(credential) else {
             if !creds(credential).1.is_empty() {
                 return Ok(MetadataPatch::default());
@@ -828,6 +834,52 @@ pub(crate) fn refresh_patch(
         patch.remove.push("subs_tier_id".into());
     }
     patch
+}
+
+/// Go `helps.RefreshAuthViaHome` for a dispatched credential: Home mints (or refreshes)
+/// and returns the auth, whose metadata replaces this attempt's. Its `base_url`,
+/// `api_key` and `access_token` attributes come along when the metadata lacks them,
+/// so [`creds`] and `ensure_auth` see what Home's auth holds.
+async fn refresh_via_home(credential: &Credential) -> Result<MetadataPatch, ExecError> {
+    let client = cpa_home::client::current();
+    let refreshed = cpa_home::refresh::refresh(
+        client.as_ref(),
+        &cpa_core::config::credentials::auth_index(credential),
+        &cpa_core::config::credentials::access_token_sha256(credential),
+    )
+    .await
+    .map_err(|error| {
+        tracing::warn!("meta executor: {}", error.log);
+        let mut failure = ExecError::local(error.status, FailureScope::Credential, "");
+        failure.body = Bytes::from(error.body);
+        failure.direct = error.direct;
+        failure
+    })?;
+    let metadata = refreshed
+        .auth
+        .get("metadata")
+        .and_then(Value::as_object)
+        .cloned()
+        .unwrap_or_default();
+    let mut patch = MetadataPatch {
+        remove: credential
+            .metadata
+            .keys()
+            .filter(|k| !metadata.contains_key(*k))
+            .cloned()
+            .collect(),
+        set: metadata,
+    };
+    if let Some(attributes) = refreshed.auth.get("attributes").and_then(Value::as_object) {
+        for key in ["base_url", "api_key", "access_token"] {
+            if let Some(value) = attributes.get(key).filter(|v| v.is_string())
+                && !patch.set.contains_key(key)
+            {
+                patch.set.insert(key.into(), value.clone());
+            }
+        }
+    }
+    Ok(patch)
 }
 
 fn attribute<'a>(c: &'a Credential, key: &str) -> &'a str {

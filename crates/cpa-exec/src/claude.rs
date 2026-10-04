@@ -22,8 +22,8 @@
 //! this executor: `claudeCCHUpstreamVertex` has no caller, so CCH signing stays
 //! Anthropic-only.
 //!
-//! ponytail: Home KV device profiles and identities (M6, Home) hook in front of
-//! `profile::resolve`; request logs belong to the server.
+//! In Home mode, device profiles come from Home KV (`profile::resolve_required`) and
+//! so do credential identities (`crate::oauth`); request logs belong to the server.
 
 mod alias;
 mod betas;
@@ -31,6 +31,8 @@ mod cloak;
 mod detect;
 mod headers;
 mod identity;
+#[cfg(test)]
+pub(crate) mod kv_test;
 mod profile;
 mod reconcile;
 mod replay;
@@ -255,18 +257,29 @@ impl ClaudeExecutor {
             is_compat: ctx.is_compat,
             oauth_token: ctx.oauth_token,
         };
-        let scope = replay::prepare(&self.replay, &gate, &mut req);
+        let scope = replay::prepare(&self.replay, &gate, &mut req).await;
         let result = self.generate_with(ctx, req, scope.as_ref()).await;
         match (result, scope) {
             // wrapClaudeThinkingReplayStream wraps the stream ExecuteStream returns,
-            // after translation.
+            // after translation; the response waits for the cache writes it caused.
             (Ok(mut response), Some(scope)) => {
-                if let ResponseBody::Stream(events) = response.body {
-                    response.body = ResponseBody::Stream(scope.wrap(events));
+                let writes = scope.writes.clone();
+                match response.body {
+                    ResponseBody::Stream(events) => {
+                        response.body = ResponseBody::Stream(writes.gate(scope.wrap(events)));
+                    }
+                    body => {
+                        response.body = body;
+                        writes.settle().await;
+                    }
                 }
                 Ok(response)
             }
-            (result, _) => result,
+            (Err(error), Some(scope)) => {
+                scope.writes.settle().await;
+                Err(error)
+            }
+            (result, None) => result,
         }
     }
 
@@ -283,7 +296,9 @@ impl ClaudeExecutor {
         }
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let original_translated = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
-        let prepared = ctx.prepare_messages(&req, &translated, &original_translated, upstream_stream)?;
+        let prepared = ctx
+            .prepare_messages(&req, &translated, &original_translated, upstream_stream)
+            .await?;
         // reporter.SetTranslatedReasoningEffort on the body sent upstream.
         if req.usage.enabled() {
             req.usage.request(Format::Claude, prepared.body.as_bytes());
@@ -443,7 +458,7 @@ impl ClaudeExecutor {
                 body: ResponseBody::Buffered(render(&tokens::count(body.as_bytes())?)),
             });
         }
-        let prepared = ctx.prepare_count(&req, &translated)?;
+        let prepared = ctx.prepare_count(&req, &translated).await?;
         let capture = req.capture();
         let response = self
             .send(&ctx, &prepared, "/v1/messages/count_tokens", None, capture)
@@ -1046,7 +1061,7 @@ impl<'a> Ctx<'a> {
         req.derived_session.clone().unwrap_or_default()
     }
 
-    fn prepare_messages(
+    async fn prepare_messages(
         &self,
         req: &ExecRequest,
         translated: &[u8],
@@ -1129,16 +1144,18 @@ impl<'a> Ctx<'a> {
             if probe_before || (subagent && !signals::subagent_requests_1h(&req.headers, &body)) {
                 body = cloak::strip_ttl(&body);
             }
-            if !self.cli_profile {
-                let api_key = self.api_key.clone();
-                let generate = move || cloak::fake_user_id(&session::cached_session_id(&api_key));
-                body = inject_fake_user_id(&body, || {
-                    if cache_user_id {
-                        session::cached_user_id(&self.api_key, generate)
-                    } else {
-                        generate()
-                    }
-                });
+            if !self.cli_profile && needs_fake_user_id(&body) {
+                // Go `injectFakeUserID`: Home KV in Home mode, and its errors fail the
+                // request.
+                let user_id = if cache_user_id {
+                    session::cached_user_id_required(&self.api_key).await
+                } else {
+                    session::cached_session_id_required(&self.api_key)
+                        .await
+                        .map(|session| cloak::fake_user_id(&session))
+                };
+                let user_id = user_id.map_err(|e| ExecError::local(500, FailureScope::Transport, e))?;
+                body = rawjson::set_str(&body, "metadata.user_id", &user_id);
             }
             cloaked = true;
         }
@@ -1288,17 +1305,19 @@ impl<'a> Ctx<'a> {
         }
         validate_mid_system(&body, confirmed, self.first_party)?;
         let fast = betas::uses_fast_mode(&body, &betas::requested("", &[]));
-        let (headers, order) = self.headers(
-            req,
-            &body,
-            &extra_betas,
-            upstream_stream,
-            false,
-            confirmed && !cloaked,
-            detection.helper_profile,
-            &session_id,
-            cloaked,
-        );
+        let (headers, order) = self
+            .headers(
+                req,
+                &body,
+                &extra_betas,
+                upstream_stream,
+                false,
+                confirmed && !cloaked,
+                detection.helper_profile,
+                &session_id,
+                cloaked,
+            )
+            .await?;
         let fast = fast
             || headers.iter().any(|(k, v)| {
                 k.eq_ignore_ascii_case("anthropic-beta") && v.split(',').any(|b| b.trim() == betas::FAST_MODE)
@@ -1313,7 +1332,7 @@ impl<'a> Ctx<'a> {
         })
     }
 
-    fn prepare_count(&self, req: &ExecRequest, translated: &[u8]) -> Result<Prepared, ExecError> {
+    async fn prepare_count(&self, req: &ExecRequest, translated: &[u8]) -> Result<Prepared, ExecError> {
         let original = String::from_utf8_lossy(&req.original_body).into_owned();
         let detection = detect::detect(&req.headers, &original, true, &self.settings);
         let confirmed = detection.confirmed;
@@ -1371,17 +1390,19 @@ impl<'a> Ctx<'a> {
             body = strip_attribution_system(&body);
         }
         validate_mid_system(&body, confirmed, self.first_party)?;
-        let (headers, order) = self.headers(
-            req,
-            &body,
-            &extra_betas,
-            false,
-            true,
-            confirmed && !cloak,
-            false,
-            &session_id,
-            cloak,
-        );
+        let (headers, order) = self
+            .headers(
+                req,
+                &body,
+                &extra_betas,
+                false,
+                true,
+                confirmed && !cloak,
+                false,
+                &session_id,
+                cloak,
+            )
+            .await?;
         Ok(Prepared {
             body,
             headers,
@@ -1393,7 +1414,7 @@ impl<'a> Ctx<'a> {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn headers(
+    async fn headers(
         &self,
         req: &ExecRequest,
         body: &str,
@@ -1404,8 +1425,27 @@ impl<'a> Ctx<'a> {
         helper: bool,
         session_id: &str,
         cloak: bool,
-    ) -> (Vec<(String, String)>, Vec<String>) {
+    ) -> Result<(Vec<(String, String)>, Vec<String>), ExecError> {
         let cpa_session = cpa_common::session::cpa_session_id(req.session.as_deref()).unwrap_or_default();
+        // Go: stabilizeDeviceProfile && confirmedClaudeCode, and the error (Home KV
+        // unreachable in Home mode) fails the request before it is sent.
+        let device_profile = if self.settings.header_defaults.stabilize_device_profile && confirmed {
+            let profile = profile::resolve_required(&self.credential.id, &self.api_key, &req.headers, &self.settings)
+                .await
+                .map_err(|e| ExecError::local(500, FailureScope::Transport, e))?;
+            Some(profile)
+        } else {
+            None
+        };
+        // Go `applyClaudeHeaders`, after the device profile: without a session, the
+        // key's cached session ID.
+        let cached_session_id = if session_id.trim().is_empty() {
+            session::cached_session_id_required(&self.api_key)
+                .await
+                .map_err(|e| ExecError::local(500, FailureScope::Transport, e))?
+        } else {
+            String::new()
+        };
         let h = headers::build(&headers::Plan {
             api_key: &self.api_key,
             bearer: self.bearer,
@@ -1421,11 +1461,12 @@ impl<'a> Ctx<'a> {
             use_oauth_betas: self.cli_profile,
             session_id,
             settings: &self.settings,
-            credential_id: &self.credential.id,
             attributes: &self.credential.attributes,
             cpa_session: &cpa_session,
+            device_profile,
+            cached_session_id: &cached_session_id,
         });
-        headers::wire(h, self.first_party, count_tokens)
+        Ok(headers::wire(h, self.first_party, count_tokens))
     }
 
     fn rebuild_mid_system(&self) -> bool {
@@ -1617,14 +1658,10 @@ fn cloak_thinking_display(body: &str) -> String {
 }
 
 /// `injectFakeUserID`: a caller's valid Claude Code user ID is kept.
-fn inject_fake_user_id(body: &str, user_id: impl FnOnce() -> String) -> String {
-    if rawjson::get(body, "metadata").exists() {
-        let existing = rawjson::string(body, "metadata.user_id");
-        if !existing.is_empty() && detect::valid_user_id(&existing) {
-            return body.to_owned();
-        }
-    }
-    rawjson::set_str(body, "metadata.user_id", &user_id())
+/// `injectFakeUserID`: a missing or invalid `metadata.user_id` is replaced.
+fn needs_fake_user_id(body: &str) -> bool {
+    let existing = rawjson::string(body, "metadata.user_id");
+    !rawjson::get(body, "metadata").exists() || existing.is_empty() || !detect::valid_user_id(&existing)
 }
 
 /// `injectClaudeDiagnosticsWithState`: after context_management when present.

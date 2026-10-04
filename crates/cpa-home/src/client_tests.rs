@@ -32,6 +32,11 @@ fn headers(pairs: &[(&str, &str)]) -> Vec<(String, String)> {
     pairs.iter().map(|(k, v)| (k.to_string(), v.to_string())).collect()
 }
 
+/// Go `TestAuthDispatchRequestIncludesCount`, `…DefaultsCountToOne`,
+/// `…IncludesCredentialPolicy`, `…IncludesExcludedAuthIDs`,
+/// `…IncludesEmptyExcludedAuthIDs`, `…IncludesPinnedAuthID`,
+/// `…DistinguishesLegacyAndRetryRoundProtocol`, `…IncludesParentSessionID` and
+/// `…IncludesNodeKind`, as Go's exact request bytes.
 #[test]
 fn dispatch_request_json_matches_go_bytes() {
     let doc = golden();
@@ -119,6 +124,7 @@ fn dispatch_request_json_matches_go_bytes() {
     }
 }
 
+/// Go `TestBuildKVSetArgs`.
 #[test]
 fn kv_set_args_match_go() {
     let doc = golden();
@@ -244,6 +250,8 @@ fn cluster_nodes_sort_like_go() {
     assert_eq!(got, want);
 }
 
+/// Go `TestRunConfigSubscriberLifetimeUsesLegacySubscribeWithoutLifecycleConfig` (the
+/// arguments per recovery state, as Go's exact values).
 #[test]
 fn subscription_parameters_match_go_per_recovery_state() {
     let doc = golden();
@@ -472,6 +480,14 @@ async fn run_op(name: &str) -> (Vec<Vec<String>>, Result<Json, String>) {
     (home.commands(), result.map_err(|e| e.to_string()))
 }
 
+/// Go `TestKVGetConvertsRedisNilToMiss`, `TestKVMGetConvertsNilItemsToMiss`,
+/// `TestKVSetConditionUnmetReturnsFalse`, `TestKVCompareAndSwapSendsCASCommand`,
+/// `TestKVCompareAndSwapOmitsPXWithoutTTL`, `TestKVCompareAndSwapLatchesUnsupportedHome`,
+/// `TestKVMSetUsesStableKeyOrder`, `TestRPushPluginStatusUsesPluginStatusKey`,
+/// `TestGetPluginTasksUsesPluginTasksKey`,
+/// `TestModelsRequestSerializationCarriesCredentials` and the in-flight snapshot's
+/// dedicated key (`TestClientLPushInFlightSnapshotUsesDedicatedKeyWithoutChangingHeartbeat`):
+/// every client operation sends Go's commands and decodes Go's replies.
 #[tokio::test]
 async fn every_command_matches_go_on_the_wire() {
     let doc = golden();
@@ -503,6 +519,7 @@ async fn every_command_matches_go_on_the_wire() {
     }
 }
 
+/// Go `TestRPopAuthLeavesCompleteServerErrorDeterministic`.
 #[tokio::test]
 async fn rpop_server_error_is_deterministic_and_keeps_the_lifetime() {
     let home = FakeHome::start(|args| match args[0].as_str() {
@@ -525,6 +542,7 @@ fn request() -> DispatchRequest {
     }
 }
 
+/// Go `TestRPopAuthMarksRequestReadThenCloseAmbiguous`.
 #[tokio::test]
 async fn rpop_read_then_close_is_ambiguous_and_fences() {
     let home = FakeHome::start(|args| match args[0].as_str() {
@@ -542,6 +560,8 @@ async fn rpop_read_then_close_is_ambiguous_and_fences() {
     assert_eq!(home.count("rpop"), 1);
 }
 
+/// Go `TestRPopAuthLeavesHELLOSetupInterruptionDeterministic` and
+/// `TestRPopAuthLeavesPreSendFailureDeterministic`.
 #[tokio::test]
 async fn failures_before_rpop_is_sent_are_deterministic() {
     // Setup interruption: the probe connection closes before RPOP.
@@ -575,6 +595,7 @@ async fn failures_before_rpop_is_sent_are_deterministic() {
     assert!(!error.is_ambiguous() && !unreachable.fenced(), "{error:?}");
 }
 
+/// Go `TestAbortAmbiguousDispatchClosesBlockedRPopWithoutWaitingForResponse`.
 #[tokio::test]
 async fn abort_releases_a_blocked_rpop_without_waiting_for_home() {
     let home = FakeHome::start(|args| match args[0].as_str() {
@@ -622,6 +643,7 @@ async fn dropping_an_issued_rpop_fences_the_lifetime() {
     assert!(client.fenced() && client.ambiguous_dispatch());
 }
 
+/// Go `TestAbortAmbiguousDispatchFencesConcurrentRPop`.
 #[tokio::test]
 async fn concurrent_rpops_after_abort_are_all_fenced_without_dialing() {
     let home = FakeHome::start(|_| fake::raw("+PONG\r\n")).await;
@@ -700,6 +722,8 @@ async fn get_config_switches_to_the_least_loaded_cluster_node() {
     assert_eq!(client.cluster_nodes().len(), 2);
 }
 
+/// Go `TestGetConfigContinuesAfterClusterDiscoveryResponseError` and
+/// `TestGetConfigSkipsSecondDialAfterClusterTransportFailure`.
 #[tokio::test]
 async fn cluster_discovery_errors_split_by_transport() {
     // A Home error reply or an unusable payload still fetches the config.
@@ -789,6 +813,50 @@ fn disabled_discovery_never_switches_targets() {
     assert!(client.cluster_nodes().is_empty());
 }
 
+/// Go `TestRedisOptionsHomeTLSDisabled`, `TestRedisOptionsHomeTLSEnabledUsesSeedHostAsServerName`
+/// and `TestRedisOptionsHomeTLSEnabledUsesExplicitServerName`: no TLS without `enable`;
+/// with it, the seed host is verified even after failing over to a cluster node's
+/// address, unless an explicit server name is set.
+#[test]
+fn tls_server_names_follow_the_seed_host_or_the_explicit_name() {
+    let client = |host: &str, tls: crate::config::HomeTlsConfig| {
+        Client::with_options(
+            HomeConfig {
+                enabled: true,
+                host: host.into(),
+                port: 444,
+                tls,
+                ..Default::default()
+            },
+            Duration::from_millis(200),
+            "x".into(),
+        )
+    };
+    let enabled = crate::config::HomeTlsConfig {
+        enable: true,
+        ..Default::default()
+    };
+    let plain = client("127.0.0.1", Default::default());
+    assert_eq!(plain.dial_server_name("127.0.0.1").unwrap(), None);
+    let seeded = client("home.example.com", enabled.clone());
+    assert_eq!(
+        seeded.dial_server_name("127.0.0.1").unwrap().as_deref(),
+        Some("home.example.com")
+    );
+    let explicit = client(
+        "127.0.0.1",
+        crate::config::HomeTlsConfig {
+            server_name: "home.example.com".into(),
+            insecure_skip_verify: true,
+            ..enabled
+        },
+    );
+    assert_eq!(
+        explicit.dial_server_name("127.0.0.1").unwrap().as_deref(),
+        Some("home.example.com")
+    );
+}
+
 #[test]
 fn heartbeat_timeout_fails_over_at_once_and_skips_the_current_target() {
     let client = failover_client(false);
@@ -863,6 +931,8 @@ fn short_heartbeat(client: &Client, revision: i64) {
         .unwrap();
 }
 
+/// Go `TestRunConfigSubscriberLifetimeReturnsAfterHeartbeatLoss` and
+/// `TestRunConfigSubscriberLifetimeRebuildsFreshCommandPoolBeforeReady`.
 #[tokio::test]
 async fn subscriber_lifetime_applies_updates_until_the_heartbeat_is_lost() {
     let home = subscriber_home(ACK, Arc::new(AtomicUsize::new(1))).await;
@@ -913,6 +983,8 @@ async fn subscriber_lifetime_applies_updates_until_the_heartbeat_is_lost() {
     assert!(home.count("ping") >= 1);
 }
 
+/// Go `TestConfigSubscriberUsesAppliedLifecycleRevisionAndRebuildsCommands` and
+/// `TestRunConfigSubscriberLifetimePreservesTakeoverWhenFreshCommandProbeFails`.
 #[tokio::test]
 async fn membership_args_and_takeover_eligibility_follow_go() {
     // Probe fails after a protocol-one ACK: takeover eligibility must survive.
@@ -942,6 +1014,7 @@ async fn membership_args_and_takeover_eligibility_follow_go() {
     );
 }
 
+/// Go `TestRunConfigSubscriberLifetimeRejectsInvalidSubscriptionACK`.
 #[tokio::test]
 async fn invalid_acks_and_legacy_rejections_end_the_lifetime() {
     let wrong = subscriber_home(
@@ -1033,6 +1106,7 @@ async fn cluster_channel_updates_replace_the_node_list() {
     let _ = run.await;
 }
 
+/// Go `TestIssuedRPopAuthErrorClassification` (protocol errors after the request).
 #[tokio::test]
 async fn corrupt_rpop_replies_are_ambiguous() {
     // go-redis rejects negative lengths other than -1 as protocol errors, not Nil.
@@ -1047,4 +1121,81 @@ async fn corrupt_rpop_replies_are_ambiguous() {
         assert!(error.is_ambiguous(), "{reply:?}: {error:?}");
         assert!(client.fenced(), "{reply:?}");
     }
+}
+
+/// Go `TestMembershipTakeoverUnavailableError`: Home's takeover refusal and an old
+/// Home's SUBSCRIBE arity error are told apart, and unrelated errors are neither.
+#[test]
+fn membership_errors_classify_like_go() {
+    let server = |message: &str| Error::Server(message.into());
+    assert!(server("ERR membership_takeover_unavailable").is_membership_takeover_unavailable());
+    let legacy = server("ERR wrong number of arguments for 'subscribe' command");
+    assert!(!legacy.is_membership_takeover_unavailable() && legacy.is_legacy_membership_protocol());
+    for unrelated in [
+        server("ERR connection refused"),
+        server("ERR duplicate certificate"),
+        Error::Timeout,
+    ] {
+        assert!(!unrelated.is_membership_takeover_unavailable() && !unrelated.is_legacy_membership_protocol());
+    }
+}
+
+/// Go `TestClientLPushInFlightSnapshotErrorKeepsHeartbeat`.
+#[tokio::test]
+async fn a_failed_snapshot_push_keeps_the_heartbeat() {
+    let home = FakeHome::start(|args| match args[0].to_lowercase().as_str() {
+        "lpush" => fake::raw("-ERR unavailable\r\n"),
+        _ => fake::raw("+PONG\r\n"),
+    })
+    .await;
+    let client = home.client();
+    client.set_heartbeat(true);
+    assert!(client.lpush_in_flight_snapshot(br#"{"revision":1}"#).await.is_err());
+    assert!(client.heartbeat_ok());
+}
+
+/// Go `TestClientClosePermanentlyFencesDispatch`: a closed client dispatches nothing and
+/// never opens a pool again.
+#[tokio::test]
+async fn a_closed_client_stays_fenced() {
+    let home = FakeHome::start(|_| fake::raw("+PONG\r\n")).await;
+    let client = home.client();
+    client.close();
+    assert_eq!(client.rpop_auth(&request()).await.unwrap_err(), Error::DispatchFenced);
+    assert_eq!(client.kv_get("k").await.unwrap_err(), Error::DispatchFenced);
+    assert!(client.ensure_pools().is_err());
+    assert!(home.commands().is_empty(), "nothing was dialed");
+}
+
+/// Go `TestDefaultProductionClientTimeouts`: operations and the subscription heartbeat
+/// both default to three seconds.
+#[test]
+fn production_timeouts_match_go() {
+    let client = Client::new(HomeConfig {
+        enabled: true,
+        host: "127.0.0.1".into(),
+        port: 6379,
+        ..Default::default()
+    });
+    assert_eq!(client.op_timeout(), Duration::from_secs(3));
+    assert_eq!(client.subscription_parameters().1, Duration::from_secs(3));
+}
+
+/// Go `TestQueryToLowerMap` and `TestModelsRequestOmitsEmptyCredentials`: names are
+/// lower-cased and repeated values joined; an empty map is omitted from the request.
+#[tokio::test]
+async fn models_requests_lower_case_and_omit_empty_maps() {
+    let query = crate::client::lower_map([("Key", "v1"), ("Key", "v2"), ("Token", "abc")]);
+    assert_eq!(query["key"], "v1, v2");
+    assert_eq!(query["token"], "abc");
+    assert!(crate::client::lower_map([]).is_empty());
+    let home = FakeHome::start(|_| fake::bulk("[]")).await;
+    let client = home.client();
+    client.get_models(&BTreeMap::new(), &BTreeMap::new()).await.unwrap();
+    let sent = home
+        .commands()
+        .into_iter()
+        .find(|c| c[0].eq_ignore_ascii_case("get"))
+        .unwrap();
+    assert_eq!(sent[1], r#"{"type":"models"}"#);
 }

@@ -257,6 +257,7 @@ mod tests {
         }
     }
 
+    /// Go `TestConcurrencyReleaseFrameFixture`.
     #[test]
     fn frame_matches_go_fixture() {
         // internal/home/testdata/concurrency_release.json
@@ -276,6 +277,8 @@ mod tests {
         assert!(flusher.mark_dirty(group(""), 1).is_none());
     }
 
+    /// Go `TestReleaseFlusherRetriesLatestCumulativeSequence` (the retry after a failure
+    /// is `failures_back_off_exponentially_up_to_the_max`).
     #[tokio::test(start_paused = true)]
     async fn bursts_collapse_to_the_latest_sequence_and_tickets_complete() {
         let recorder = Arc::new(Recorder::default());
@@ -310,6 +313,7 @@ mod tests {
         task.await.unwrap();
     }
 
+    /// Go `TestReleaseFlusherCoalescesDirtyWakesDuringFailureBackoff`.
     #[tokio::test(start_paused = true)]
     async fn failures_back_off_exponentially_up_to_the_max() {
         let recorder = Arc::new(Recorder::default());
@@ -355,6 +359,7 @@ mod tests {
         }
     }
 
+    /// Go `TestReleaseFlusherStopsWithLifetime`.
     #[tokio::test(start_paused = true)]
     async fn shutdown_interrupts_a_stuck_round_and_flush_all_honours_its_bound() {
         let flusher = ReleaseFlusher::new();
@@ -399,5 +404,204 @@ mod tests {
         let lonely = ReleaseFlusher::new();
         lonely.mark_dirty(group("a"), 1);
         assert!(lonely.flush_all(Duration::from_millis(50)).await.is_err());
+    }
+
+    /// A sender whose first send waits for `release`, recording every frame.
+    struct Gated {
+        started: Notify,
+        release: Notify,
+        frames: Mutex<Vec<i64>>,
+    }
+
+    impl ReleaseSender for Gated {
+        fn send<'a>(&'a self, frame: &'a ReleaseFrame) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>> {
+            Box::pin(async move {
+                let first = {
+                    let mut frames = self.frames.lock().unwrap();
+                    frames.push(frame.release_seq);
+                    frames.len() == 1
+                };
+                if first {
+                    self.started.notify_one();
+                    self.release.notified().await;
+                }
+                Ok(())
+            })
+        }
+
+        fn limiter(&self) -> CredentialConcurrency {
+            CredentialConcurrency::default()
+        }
+    }
+
+    /// Go `TestReleaseFlusherDoesNotLoseASequenceMarkedDuringSend`.
+    #[tokio::test(start_paused = true)]
+    async fn a_sequence_marked_during_a_send_is_sent_next() {
+        let sender = Arc::new(Gated {
+            started: Notify::new(),
+            release: Notify::new(),
+            frames: Mutex::default(),
+        });
+        let flusher = ReleaseFlusher::new();
+        flusher.set_sender(Some(sender.clone()));
+        flusher.mark_dirty(group("a"), 1);
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn({
+            let flusher = flusher.clone();
+            let shutdown = shutdown.clone();
+            async move { flusher.run(shutdown).await }
+        });
+        sender.started.notified().await;
+        let latest = flusher.mark_dirty(group("a"), 2).unwrap();
+        sender.release.notify_one();
+        latest.wait(Duration::from_secs(1)).await.unwrap();
+        assert_eq!(*sender.frames.lock().unwrap(), vec![1, 2]);
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go `TestReleaseFlusherUsesCurrentLimiterConfig`: the timings come from the
+    /// current sender's limiter settings.
+    #[test]
+    fn timings_follow_the_current_limiter_config() {
+        let flusher = ReleaseFlusher::new();
+        let defaults = CredentialConcurrency::default().with_defaults();
+        assert_eq!(flusher.timings(), (defaults.flush_interval(), defaults.max_backoff()));
+        let cfg = CredentialConcurrency {
+            release_flush_interval: 5_000_000,
+            release_max_backoff: 25_000_000,
+            ..CredentialConcurrency::default()
+        };
+        flusher.set_sender(Some(Arc::new(Recorder {
+            cfg,
+            ..Recorder::default()
+        })));
+        assert_eq!(flusher.timings(), (Duration::from_millis(5), Duration::from_millis(25)));
+    }
+
+    /// Go `TestReleaseFlusherFlushForceUsesBoundedContext`: after a failed round, a
+    /// forced flush runs at once instead of waiting out the backoff.
+    #[tokio::test(start_paused = true)]
+    async fn a_forced_flush_bypasses_the_backoff() {
+        let recorder = Arc::new(Recorder {
+            cfg: CredentialConcurrency {
+                release_flush_interval: 1_000_000_000,
+                release_max_backoff: 1_000_000_000,
+                ..CredentialConcurrency::default()
+            },
+            ..Recorder::default()
+        });
+        recorder.fail.store(true, Ordering::SeqCst);
+        let flusher = ReleaseFlusher::new();
+        flusher.set_sender(Some(recorder.clone()));
+        flusher.mark_dirty(group("a"), 1);
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn({
+            let flusher = flusher.clone();
+            let shutdown = shutdown.clone();
+            async move { flusher.run(shutdown).await }
+        });
+        while recorder.frames.lock().unwrap().is_empty() {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+        recorder.fail.store(false, Ordering::SeqCst);
+        let start = tokio::time::Instant::now();
+        flusher.flush_all(Duration::from_millis(40)).await.unwrap();
+        assert!(
+            start.elapsed() < Duration::from_millis(40),
+            "no wait for the 1s backoff"
+        );
+        assert_eq!(recorder.frames.lock().unwrap().len(), 2);
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go `TestScopeEndBlocksDrainUntilReleaseSinkFlushesFinalSequence`: a drain waits
+    /// for a scope's release sink, which runs outside the registry lock, and the final
+    /// sequence then flushes.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_drain_waits_for_the_sink_and_the_final_sequence_flushes() {
+        let recorder = Arc::new(Recorder::default());
+        let flusher = ReleaseFlusher::new();
+        flusher.set_sender(Some(recorder.clone()));
+        let shutdown = CancellationToken::new();
+        let task = tokio::spawn({
+            let flusher = flusher.clone();
+            let shutdown = shutdown.clone();
+            async move { flusher.run(shutdown).await }
+        });
+        let registry = crate::registry::Registry::new();
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel::<()>();
+        let (leave_tx, leave_rx) = std::sync::mpsc::channel::<()>();
+        let leave_rx = Mutex::new(leave_rx);
+        let sink = flusher.sink();
+        registry.set_release_sink(Some(Arc::new(move |group, sequence| {
+            let _ = entered_tx.send(());
+            let _ = leave_rx.lock().unwrap().recv();
+            sink(group, sequence)
+        })));
+        let spec = crate::registry::ScopeSpec {
+            request_id: "req".into(),
+            credential_id: "cred-1".into(),
+            model: "gpt".into(),
+            kind: "http".into(),
+            started_at: std::time::SystemTime::now(),
+            accounted: true,
+        };
+        let scope = registry.install(registry.begin_dispatch().unwrap(), spec).unwrap();
+        let ender = std::thread::spawn(move || scope.end());
+        entered_rx.recv().unwrap();
+        let drain = tokio::spawn({
+            let registry = registry.clone();
+            async move { registry.drain(Duration::from_secs(1)).await }
+        });
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(!drain.is_finished(), "the sink is still running");
+        let (replaced_tx, replaced_rx) = std::sync::mpsc::channel::<()>();
+        std::thread::spawn({
+            let registry = registry.clone();
+            move || {
+                registry.set_release_sink(None);
+                let _ = replaced_tx.send(());
+            }
+        });
+        replaced_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("the sink does not hold the registry lock");
+        assert_eq!(
+            registry.begin_dispatch().err(),
+            Some(crate::registry::RegistryError::NotAccepting)
+        );
+        leave_tx.send(()).unwrap();
+        ender.join().unwrap();
+        drain.await.unwrap().unwrap();
+        flusher.flush_all(Duration::from_secs(1)).await.unwrap();
+        assert_eq!(recorder.frames.lock().unwrap().last().map(|f| f.release_seq), Some(1));
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go `TestReleaseFlusherSenderReplacementPreservesTicket`: a ticket from a failed
+    /// lifetime completes once the next lifetime's sender acknowledges the sequence.
+    #[tokio::test]
+    async fn a_ticket_survives_a_sender_replacement() {
+        let old = Arc::new(Recorder::default());
+        old.fail.store(true, Ordering::SeqCst);
+        let flusher = ReleaseFlusher::new();
+        flusher.set_sender(Some(old.clone()));
+        let ticket = flusher.mark_dirty(group("cred-1"), 1).unwrap();
+        assert!(flusher.flush().await, "the old lifetime failed");
+        let new = Arc::new(Recorder::default());
+        flusher.set_sender(Some(new.clone()));
+        assert!(!flusher.flush().await);
+        assert_eq!(
+            *new.frames.lock().unwrap(),
+            vec![ReleaseFrame {
+                credential_id: "cred-1".into(),
+                model: "gpt".into(),
+                release_seq: 1
+            }]
+        );
+        ticket.wait(Duration::from_secs(1)).await.unwrap();
     }
 }

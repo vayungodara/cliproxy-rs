@@ -299,7 +299,7 @@ impl Duplex {
     async fn run(mut self) {
         loop {
             if self.input_ready && !self.done {
-                self.progress();
+                self.progress().await;
             }
             let deliver = !self.outbox.is_empty();
             if self.done && !deliver {
@@ -327,7 +327,7 @@ impl Duplex {
             };
             match step {
                 Step::Upstream(read) => self.upstream(read),
-                Step::Client(frame) => self.client(frame),
+                Step::Client(frame) => self.client(frame).await,
                 Step::Writer(ended) => self.fail(match ended {
                     Ok(Err(error)) => error,
                     Ok(Ok(())) | Err(_) => local("websocket writer stopped"),
@@ -377,7 +377,7 @@ impl Duplex {
     /// Writer progress after a state change: a deferred steer once pending creates have
     /// started, then queued creates while steering allows them (`flushPendingCreates`).
     /// Each step needs room in the write queue (Go's writer is blocked meanwhile).
-    fn progress(&mut self) {
+    async fn progress(&mut self) {
         if let Some(steer) = self.deferred_steer.take() {
             if !self.pending.is_empty() || self.writes.capacity() == 0 {
                 self.deferred_steer = Some(steer);
@@ -392,7 +392,7 @@ impl Duplex {
             && self.outbox.len() < OUTBOX
         {
             let payload = self.queued_creates.pop_front().expect("non-empty");
-            self.create(payload);
+            self.create(payload).await;
         }
     }
 
@@ -407,7 +407,7 @@ impl Duplex {
     }
 
     /// One client frame (the writer's input loop).
-    fn client(&mut self, frame: Option<Bytes>) {
+    async fn client(&mut self, frame: Option<Bytes>) {
         let Some(frame) = frame else {
             // The downstream reader stopped: Go's writer fails with `context.Canceled`,
             // a connection error that does not cool the credential.
@@ -440,7 +440,7 @@ impl Duplex {
             }
             "response.create" | "response.append" => {
                 if self.queued_creates.is_empty() && self.ready_for_create() {
-                    self.create(payload);
+                    self.create(payload).await;
                 } else if self.queued_creates.len() >= MAX_PENDING {
                     self.fail(local("too many outstanding response.create requests"));
                 } else {
@@ -463,7 +463,7 @@ impl Duplex {
     }
 
     /// `processCreatePayload`.
-    fn create(&mut self, mut payload: String) {
+    async fn create(&mut self, mut payload: String) {
         let append = gjson::get(&payload, "type").str() == "response.append";
         let mut parent = gjson::get(&payload, "previous_response_id").str().trim().to_owned();
         if append && parent.is_empty() && !self.response_id.is_empty() {
@@ -512,7 +512,7 @@ impl Duplex {
                 return;
             }
         };
-        let (body, replay) = Replay::apply(&self.initial.replay.cache, &next, body);
+        let (body, replay) = Replay::apply(&self.initial.replay.cache, &next, body).await;
         // ponytail: Go starts a usage record per response; this stream reports every
         // response's events to the bootstrap attempt's record and keeps its request.
         let (body, _) = request::prompt_cache(&next, body, Some(&self.exec_session), true);

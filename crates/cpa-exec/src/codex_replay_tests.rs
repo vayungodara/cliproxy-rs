@@ -141,3 +141,60 @@ fn entries_keep_the_newest_turns() {
     assert_eq!(items[0], br#"{"type":"cpa_codex_replay_turn","id":"t44"}"#);
     assert!(cache.get("m", "other").is_none());
 }
+
+/// Go's Home KV backend for Codex replay, recorded by the reference's
+/// internal/cache/zz_rustgolden_test.go: base64 item arrays appended by CAS against the
+/// value read, known turns not appended twice, TTL renewal on read and deletion.
+#[tokio::test]
+async fn home_kv_replay_matches_go() {
+    use std::sync::{Arc, Mutex};
+    let golden: serde_json::Value =
+        serde_json::from_str(include_str!("claude/testdata/go_codex_replay_home.json")).unwrap();
+    let steps = golden["steps"].as_array().unwrap();
+    let values = Arc::new(Mutex::new(std::collections::HashMap::new()));
+    let home = cpa_home::fake::FakeHome::start(crate::claude::kv_test::kv_home(values)).await;
+    let client = home.client();
+    let turn = |id: &str, call: &str| -> Vec<Vec<u8>> {
+        vec![
+            format!(r#"{{"type":"cpa_codex_replay_turn","id":" {id} ","call_ids":["{call}"],"extra":1}}"#).into_bytes(),
+            format!(r#"{{"type":"function_call","id":"fc","call_id":"{call}","name":"f","arguments":"{{\"a\":\"<b>\"}}","status":"completed"}}"#).into_bytes(),
+            br#"{"type":"message","role":"assistant"}"#.to_vec(),
+        ]
+    };
+    let mut seen = 0;
+    let mut calls = || {
+        let all: Vec<serde_json::Value> = home
+            .commands()
+            .iter()
+            .filter_map(|c| crate::claude::kv_test::as_go_call(c))
+            .collect();
+        let new = all[seen..].to_vec();
+        seen = all.len();
+        serde_json::Value::from(new)
+    };
+    let texts = |items: Option<Vec<Vec<u8>>>| -> serde_json::Value {
+        items
+            .unwrap_or_default()
+            .into_iter()
+            .map(|i| String::from_utf8(i).unwrap())
+            .collect()
+    };
+    assert!(super::home_append(&client, " gpt-5 ", " sess-1 ", &turn("m1", "c1")).await);
+    assert_eq!(calls(), steps[0]["calls"], "append_first");
+    let items = super::home_get(&client, "gpt-5", "sess-1").await.unwrap();
+    assert_eq!(texts(items), steps[1]["result"]["items"], "get_first");
+    assert_eq!(calls(), steps[1]["calls"], "get_first");
+    assert!(super::home_append(&client, "gpt-5", "sess-1", &turn("m2", "c2")).await);
+    assert_eq!(calls(), steps[2]["calls"], "append_second");
+    assert!(super::home_append(&client, "gpt-5", "sess-1", &turn("m1", "c1")).await);
+    assert_eq!(calls(), steps[3]["calls"], "append_known");
+    let items = super::home_get(&client, "gpt-5", "sess-1").await.unwrap();
+    assert_eq!(texts(items), steps[4]["result"]["items"], "get_both");
+    assert_eq!(calls(), steps[4]["calls"], "get_both");
+    assert!(!super::home_append(&client, "gpt-5", "sess-1", &[br#"{"type":"message"}"#.to_vec()]).await);
+    assert_eq!(calls(), steps[5]["calls"], "append_nothing");
+    super::home_delete(&client, "gpt-5", "sess-1").await.unwrap();
+    assert_eq!(calls(), steps[6]["calls"], "delete");
+    assert!(super::home_get(&client, "gpt-5", "sess-1").await.unwrap().is_none());
+    assert_eq!(calls(), steps[7]["calls"], "get_missing");
+}

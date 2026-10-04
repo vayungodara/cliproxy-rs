@@ -42,6 +42,11 @@ pub fn bulk(s: impl AsRef<[u8]>) -> Reply {
     Reply::Bytes(out)
 }
 
+/// Marks `client`'s heartbeat healthy or not, as the subscriber's heartbeat would.
+pub fn set_heartbeat(client: &Client, ok: bool) {
+    client.set_heartbeat(ok);
+}
+
 pub fn raw(s: &str) -> Reply {
     Reply::Bytes(s.as_bytes().to_vec())
 }

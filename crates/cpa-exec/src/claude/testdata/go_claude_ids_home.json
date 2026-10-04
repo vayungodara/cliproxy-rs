@@ -1,0 +1,229 @@
+{
+  "cases": [
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:session-id:a4a6d307ad00fa67176e1099fdbc4f4a09bb527a7f24718a5030f2f173d11f7f"
+        ],
+        [
+          "setnx",
+          "cpa:claude:session-id:a4a6d307ad00fa67176e1099fdbc4f4a09bb527a7f24718a5030f2f173d11f7f",
+          "\u003cuuid\u003e",
+          3600000
+        ],
+        [
+          "get",
+          "cpa:claude:session-id:a4a6d307ad00fa67176e1099fdbc4f4a09bb527a7f24718a5030f2f173d11f7f"
+        ]
+      ],
+      "scenario": {
+        "name": "session_new",
+        "kind": "session",
+        "api_key": "sk-a",
+        "preset": null
+      },
+      "value": "\u003cuuid\u003e"
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:session-id:18519d64d0d18b0e84e43301547425933dc0394576666e8da1ef1790fb64ca9f"
+        ],
+        [
+          "expire",
+          "cpa:claude:session-id:18519d64d0d18b0e84e43301547425933dc0394576666e8da1ef1790fb64ca9f",
+          3600000
+        ]
+      ],
+      "scenario": {
+        "name": "session_existing",
+        "kind": "session",
+        "api_key": "sk-b",
+        "preset": {
+          "cpa:claude:session-id:18519d64d0d18b0e84e43301547425933dc0394576666e8da1ef1790fb64ca9f": " 11111111-2222-4333-8444-555555555555 "
+        }
+      },
+      "value": "11111111-2222-4333-8444-555555555555"
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:session-id:923e700d172fdfb7e2d3d189270520d3f716e86cd133bd546c6eae20e158ed47"
+        ],
+        [
+          "setnx",
+          "cpa:claude:session-id:923e700d172fdfb7e2d3d189270520d3f716e86cd133bd546c6eae20e158ed47",
+          "\u003cuuid\u003e",
+          3600000
+        ],
+        [
+          "get",
+          "cpa:claude:session-id:923e700d172fdfb7e2d3d189270520d3f716e86cd133bd546c6eae20e158ed47"
+        ]
+      ],
+      "error": "home kv session id missing after set",
+      "scenario": {
+        "name": "session_blank_fails",
+        "kind": "session",
+        "api_key": "sk-c",
+        "preset": {
+          "cpa:claude:session-id:923e700d172fdfb7e2d3d189270520d3f716e86cd133bd546c6eae20e158ed47": "  "
+        }
+      }
+    },
+    {
+      "calls": [],
+      "scenario": {
+        "name": "session_empty_key",
+        "kind": "session",
+        "api_key": "",
+        "preset": null
+      },
+      "value": "\u003cuuid\u003e"
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:user-id:c51e138cb02bbe8dc2174f02e46e3ffa779c1e8d75f43088cbe17220dcf71fcb"
+        ],
+        [
+          "get",
+          "cpa:claude:session-id:c51e138cb02bbe8dc2174f02e46e3ffa779c1e8d75f43088cbe17220dcf71fcb"
+        ],
+        [
+          "setnx",
+          "cpa:claude:session-id:c51e138cb02bbe8dc2174f02e46e3ffa779c1e8d75f43088cbe17220dcf71fcb",
+          "\u003cuuid\u003e",
+          3600000
+        ],
+        [
+          "get",
+          "cpa:claude:session-id:c51e138cb02bbe8dc2174f02e46e3ffa779c1e8d75f43088cbe17220dcf71fcb"
+        ],
+        [
+          "setnx",
+          "cpa:claude:user-id:c51e138cb02bbe8dc2174f02e46e3ffa779c1e8d75f43088cbe17220dcf71fcb",
+          "\u003cuser_id\u003e",
+          3600000
+        ],
+        [
+          "get",
+          "cpa:claude:user-id:c51e138cb02bbe8dc2174f02e46e3ffa779c1e8d75f43088cbe17220dcf71fcb"
+        ]
+      ],
+      "carries_stored_session": true,
+      "scenario": {
+        "name": "user_new",
+        "kind": "user",
+        "api_key": "sk-d",
+        "preset": null
+      },
+      "value": "\u003cuser_id\u003e"
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:user-id:52569f26ef22824aef8a0855e1d441ca6e568bfa3eb5c71d44e2b35de8fb12f3"
+        ],
+        [
+          "get",
+          "cpa:claude:session-id:52569f26ef22824aef8a0855e1d441ca6e568bfa3eb5c71d44e2b35de8fb12f3"
+        ],
+        [
+          "expire",
+          "cpa:claude:session-id:52569f26ef22824aef8a0855e1d441ca6e568bfa3eb5c71d44e2b35de8fb12f3",
+          3600000
+        ],
+        [
+          "setnx",
+          "cpa:claude:user-id:52569f26ef22824aef8a0855e1d441ca6e568bfa3eb5c71d44e2b35de8fb12f3",
+          "\u003cuser_id\u003e",
+          3600000
+        ],
+        [
+          "get",
+          "cpa:claude:user-id:52569f26ef22824aef8a0855e1d441ca6e568bfa3eb5c71d44e2b35de8fb12f3"
+        ]
+      ],
+      "carries_stored_session": true,
+      "scenario": {
+        "name": "user_new_with_session",
+        "kind": "user",
+        "api_key": "sk-e",
+        "preset": {
+          "cpa:claude:session-id:52569f26ef22824aef8a0855e1d441ca6e568bfa3eb5c71d44e2b35de8fb12f3": "11111111-2222-4333-8444-555555555555"
+        }
+      },
+      "value": "\u003cuser_id\u003e"
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:user-id:1ef9a477f6c6253951727a1d602e3f8f4bac9dff191d98f455317d587c4e38c1"
+        ],
+        [
+          "expire",
+          "cpa:claude:user-id:1ef9a477f6c6253951727a1d602e3f8f4bac9dff191d98f455317d587c4e38c1",
+          3600000
+        ]
+      ],
+      "carries_stored_session": false,
+      "scenario": {
+        "name": "user_existing",
+        "kind": "user",
+        "api_key": "sk-f",
+        "preset": {
+          "cpa:claude:user-id:1ef9a477f6c6253951727a1d602e3f8f4bac9dff191d98f455317d587c4e38c1": "{\"device_id\":\"abababababababababababababababababababababababababababababababab\",\"account_uuid\":\"\",\"session_id\":\"11111111-2222-4333-8444-555555555555\"}"
+        }
+      },
+      "value": "{\"device_id\":\"abababababababababababababababababababababababababababababababab\",\"account_uuid\":\"\",\"session_id\":\"11111111-2222-4333-8444-555555555555\"}"
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:claude:user-id:fdddfe56f65fdcbdea6322ac29c53ef6daa0b4f5c79a4b200a5e8c2bf8bbc864"
+        ],
+        [
+          "get",
+          "cpa:claude:session-id:fdddfe56f65fdcbdea6322ac29c53ef6daa0b4f5c79a4b200a5e8c2bf8bbc864"
+        ],
+        [
+          "setnx",
+          "cpa:claude:session-id:fdddfe56f65fdcbdea6322ac29c53ef6daa0b4f5c79a4b200a5e8c2bf8bbc864",
+          "\u003cuuid\u003e",
+          3600000
+        ],
+        [
+          "get",
+          "cpa:claude:session-id:fdddfe56f65fdcbdea6322ac29c53ef6daa0b4f5c79a4b200a5e8c2bf8bbc864"
+        ],
+        [
+          "setnx",
+          "cpa:claude:user-id:fdddfe56f65fdcbdea6322ac29c53ef6daa0b4f5c79a4b200a5e8c2bf8bbc864",
+          "\u003cuser_id\u003e",
+          3600000
+        ],
+        [
+          "get",
+          "cpa:claude:user-id:fdddfe56f65fdcbdea6322ac29c53ef6daa0b4f5c79a4b200a5e8c2bf8bbc864"
+        ]
+      ],
+      "error": "home kv user id missing after set",
+      "scenario": {
+        "name": "user_invalid_fails",
+        "kind": "user",
+        "api_key": "sk-g",
+        "preset": {
+          "cpa:claude:user-id:fdddfe56f65fdcbdea6322ac29c53ef6daa0b4f5c79a4b200a5e8c2bf8bbc864": "nope"
+        }
+      }
+    }
+  ]
+}

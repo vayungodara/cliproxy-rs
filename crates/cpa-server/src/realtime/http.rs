@@ -245,10 +245,12 @@ pub(super) async fn call(
         Err(message) => return fail(503, &message),
     };
     let selection_headers = principal.selection_headers(&headers);
-    let lease = match select_oauth(&rt, &cfg, None, &selection_headers, &body, None).await {
+    let lease = match select_oauth(&rt, &cfg, None, &selection_headers, &body, None, &call.model, "http").await {
         Ok(lease) => lease,
         Err(rejection) => return rejection.render(realtime),
     };
+    let home = lease.is_remote();
+    let model = call.model.clone();
     let credential = lease.credential.clone();
     let traced = |response| with_trace(response, &credential);
     let (mut upstream_body, mut upstream_content_type) = (call.body, call.content_type);
@@ -287,12 +289,25 @@ pub(super) async fn call(
         session: header_session(&selection_headers, &body, None, ""),
     };
     let call_url = rt.executors.codex.live_endpoints().call_url.clone();
-    let upstream = match rt
+    // A Home pick runs on its attempt context: Home's drain cancels the request
+    // (Go `context.Canceled`, status 499).
+    let mut drain = super::drained(Some(&lease));
+    if futures_util::FutureExt::now_or_never(&mut drain).is_some() {
+        return traced(fail(crate::remote::CLIENT_CLOSED, "context canceled"));
+    }
+    let post = rt
         .executors
         .codex
-        .live_post(&target, &call_url, upstream_headers, Bytes::from(upstream_body))
-        .await
-    {
+        .live_post(&target, &call_url, upstream_headers, Bytes::from(upstream_body));
+    let posted = tokio::select! {
+        biased;
+        _ = drain => {
+            let text = crate::remote::cancelled_request("POST", &call_url);
+            return traced(fail(crate::remote::CLIENT_CLOSED, &text));
+        }
+        posted = post => posted,
+    };
+    let upstream = match posted {
         Ok(upstream) => upstream,
         Err(e) => {
             let status = if e.status == 0 { 502 } else { e.status };
@@ -305,7 +320,15 @@ pub(super) async fn call(
     let location = header_text(&upstream.headers, header::LOCATION);
     let upstream_content_type = header_text(&upstream.headers, header::CONTENT_TYPE);
     let (mut data, read_error) = live::read_limited(upstream).await;
-    drop(lease);
+    if home && status == 401 {
+        super::report_unauthorized(
+            &rt,
+            &credential,
+            &model,
+            &data,
+            super::session_ids(&selection_headers, &body),
+        );
+    }
     if let Some(error) = read_error {
         let message = match error {
             BodyError::TooLarge => "Codex live response body too large",
@@ -344,11 +367,15 @@ pub(super) async fn call(
     let mut on_failure: Option<Box<dyn FnOnce() + Send>> = None;
     if success && !call_id.is_empty() {
         let media = media.as_mut().and_then(|guard| guard.0.take());
+        // Go `selection.Retain()`: the call keeps its Home pick until it ends.
+        let hold = home.then(|| super::calls::HomeHold::new(lease));
         let stored = live_state.calls.put(
             &call_id,
             Call {
                 auth_id: credential.id.clone(),
                 session_id,
+                model,
+                home: hold.clone(),
                 owner_key: principal.key.clone(),
                 owner_provider: principal.provider.clone(),
                 secret_principal: principal
@@ -361,6 +388,21 @@ pub(super) async fn call(
             },
         );
         if let Some(stored) = stored {
+            // Go binds the media and the session's end to the pick: Home draining it
+            // closes the media ("home_selection_closed") and ends the pick.
+            if let Some(drained) = hold.as_ref().and_then(|hold| hold.drained()) {
+                let (hold, media) = (hold.clone(), media.clone());
+                let watcher = tokio::spawn(async move {
+                    drained.await;
+                    if let Some(media) = media {
+                        media.close("home_selection_closed");
+                    }
+                    if let Some(hold) = hold {
+                        hold.end();
+                    }
+                });
+                stored.resources.add(watcher.abort_handle());
+            }
             // The media ending on its own, or the answer never reaching the client, ends
             // the call; weak, so the call can drop.
             let calls = Arc::downgrade(&live_state.calls);
@@ -454,20 +496,38 @@ pub(super) async fn hangup(
     }
     let cfg = rt.config();
     let selection_headers = principal.selection_headers(&headers);
-    let lease = match select_oauth(
-        &rt,
-        &cfg,
-        Some(&stored.auth_id),
-        &selection_headers,
-        &[],
-        Some(&call_id),
-    )
-    .await
-    {
-        Ok(lease) => lease,
-        Err(rejection) => return rejection.render(true),
+    // Go: the call's active Home pick, else a pick pinned to the call's credential that
+    // ends with this request.
+    let (credential, lease) = match stored.home.as_ref().and_then(|hold| hold.active()) {
+        Some(credential) => (credential, None),
+        None => {
+            let lease = match select_oauth(
+                &rt,
+                &cfg,
+                Some(&stored.auth_id),
+                &selection_headers,
+                &[],
+                Some(&call_id),
+                &stored.model,
+                "http",
+            )
+            .await
+            {
+                Ok(lease) => lease,
+                Err(rejection) => return rejection.render(true),
+            };
+            (lease.credential.clone(), Some(lease))
+        }
     };
-    let credential = lease.credential.clone();
+    let home = lease.as_ref().map_or(stored.home.is_some(), |lease| lease.is_remote());
+    let drain = match &lease {
+        Some(lease) => super::drained(Some(lease)),
+        None => stored
+            .home
+            .as_ref()
+            .and_then(|hold| hold.drained())
+            .unwrap_or_else(|| Box::pin(std::future::pending())),
+    };
     let traced = |response| with_trace(response, &credential);
     let body = match read_limited(body, live::MAX_BODY).await {
         Ok(body) => body,
@@ -504,12 +564,20 @@ pub(super) async fn hangup(
         "{}/realtime/calls/{call_id}/hangup",
         live::http_base(&rt.executors.codex.live_endpoints().api_base)
     );
-    let upstream = match rt
+    let post = rt
         .executors
         .codex
-        .live_post(&target, &url, upstream_headers, Bytes::from(body))
-        .await
-    {
+        .live_post(&target, &url, upstream_headers, Bytes::from(body));
+    let posted = tokio::select! {
+        biased;
+        _ = drain => Err(cpa_core::exec::ExecError::local(
+            crate::remote::CLIENT_CLOSED,
+            cpa_core::exec::FailureScope::Transport,
+            crate::remote::cancelled_request("POST", &url),
+        )),
+        posted = post => posted,
+    };
+    let upstream = match posted {
         Ok(upstream) => upstream,
         Err(e) => {
             let status = if e.status == 0 { 502 } else { e.status };
@@ -529,6 +597,15 @@ pub(super) async fn hangup(
     copy_headers(&mut response_headers, &upstream.headers, &HANDSHAKE_HEADERS);
     let (data, read_error) = live::read_limited(upstream).await;
     drop(lease);
+    if home && status == 401 {
+        super::report_unauthorized(
+            &rt,
+            &credential,
+            &stored.model,
+            &data,
+            (stored.session_id.clone(), String::new()),
+        );
+    }
     if read_error.is_some() {
         return traced(realtime_error(
             502,
