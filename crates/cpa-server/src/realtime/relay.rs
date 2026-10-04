@@ -50,6 +50,11 @@ pub(crate) trait MediaSession: Send + Sync {
     fn set_close_handler(&self, handler: CloseHandler);
     /// Idempotent.
     fn close(&self, reason: &str);
+    /// Runs `then` once a started close finished (Go's `CloseWithReason` returns after
+    /// the peers closed); at once when the session has nothing left to close.
+    fn after_close(&self, then: Box<dyn FnOnce() + Send>) {
+        then();
+    }
 }
 
 /// The relay for new calls: `None` when disabled, `Err` with Go's message when it could

@@ -10,11 +10,14 @@ use axum::extract::{OriginalUri, Path, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
+use cpa_core::exec::{CaptureEvent, CaptureSink};
 use cpa_exec::codex_live::{self as live, BodyError, LiveTarget, ShapeError};
 use futures_util::StreamExt;
 
 use super::calls::Call;
-use super::{Live, Principal, header_session, live_error, panic_response, realtime_error, select_oauth, with_trace};
+use super::{
+    Live, Principal, header_session, live_error, panic_response, realtime_error, select_oauth, trace, with_trace,
+};
 use crate::runtime::Runtime;
 
 pub(super) enum ReadError {
@@ -30,7 +33,7 @@ async fn read_upstream(
 ) -> (Vec<u8>, Option<BodyError>) {
     tokio::select! {
         biased;
-        _ = drain => (Vec::new(), Some(BodyError::Read)),
+        _ = drain => (Vec::new(), Some(BodyError::Read("context canceled".into()))),
         read = live::read_limited(upstream) => read,
     }
 }
@@ -265,11 +268,17 @@ pub(super) async fn call(
     let home = lease.is_remote();
     let model = call.model.clone();
     let credential = lease.credential.clone();
-    let traced = |response| with_trace(response, &credential);
+    // A Home pick runs on its attempt context: Home's drain cancels the request
+    // (Go `context.Canceled`, status 499).
+    let mut drain = super::drained(Some(&lease));
+    // The media session and the lease, released unless the call keeps them.
+    let mut held = Held {
+        media: None,
+        lease: Some(lease),
+    };
+    let trace = trace(&credential);
+    let traced = |response| with_trace(response, &trace);
     let (mut upstream_body, mut upstream_content_type) = (call.body, call.content_type);
-    // The relay's session, closed unless the call keeps it (Go's deferred
-    // `request_not_retained` close).
-    let mut media = None;
     if let Some(relay) = relay {
         let offer = match live::request_sdp(&upstream_body, &upstream_content_type) {
             Ok(offer) => offer,
@@ -284,27 +293,25 @@ pub(super) async fn call(
             Ok(created) => created,
             Err(e) => return traced(fail(e.status, &e.message)),
         };
-        let guard = MediaGuard(Some(session));
+        held.media = Some(session);
         match live::replace_sdp(&upstream_body, &upstream_content_type, &upstream_offer) {
             Ok((body, content_type)) => (upstream_body, upstream_content_type) = (body, content_type),
             Err(ShapeError::Invalid(message)) => return traced(fail(400, &message)),
             Err(ShapeError::NilMap) => return traced(panic_response()),
         }
-        media = Some(guard);
     }
     let session_id = super::session_id(&selection_headers, &body);
     let mut upstream_headers = live::protocol_headers(&headers);
     upstream_headers.push(("Content-Type".into(), upstream_content_type));
+    let capture = request_capture();
     let target = LiveTarget {
         credential: &credential,
         cfg: &cfg,
         client: &headers,
         session: header_session(&selection_headers, &body, None, ""),
+        capture: capture.clone(),
     };
     let call_url = rt.executors.codex.live_endpoints().call_url.clone();
-    // A Home pick runs on its attempt context: Home's drain cancels the request
-    // (Go `context.Canceled`, status 499).
-    let mut drain = super::drained(Some(&lease));
     if futures_util::FutureExt::now_or_never(&mut drain).is_some() {
         return traced(fail(crate::remote::CLIENT_CLOSED, "context canceled"));
     }
@@ -332,7 +339,9 @@ pub(super) async fn call(
     copy_headers(&mut response_headers, &upstream.headers, &CALL_RESPONSE_HEADERS);
     let location = header_text(&upstream.headers, header::LOCATION);
     let upstream_content_type = header_text(&upstream.headers, header::CONTENT_TYPE);
+    record_metadata(&capture, status, &upstream.headers);
     let (mut data, read_error) = read_upstream(upstream, &mut drain).await;
+    record_body(&capture, &data, read_error.as_ref());
     if home && status == 401 {
         super::report_unauthorized(
             &rt,
@@ -345,7 +354,7 @@ pub(super) async fn call(
     if let Some(error) = read_error {
         let message = match error {
             BodyError::TooLarge => "Codex live response body too large",
-            BodyError::Read => "Failed to read Codex live response",
+            BodyError::Read(_) => "Failed to read Codex live response",
         };
         return traced(fail(502, message));
     }
@@ -353,10 +362,10 @@ pub(super) async fn call(
     let mut call_id = String::new();
     if success {
         call_id = live::call_id_from_location(&location);
-        if call_id.is_empty() && media.is_some() {
+        if call_id.is_empty() && held.media.is_some() {
             return traced(fail(502, "Codex live response is missing a valid call ID"));
         }
-        if let Some(MediaGuard(Some(session))) = &media {
+        if let Some(session) = &held.media {
             session.set_call_id(&call_id);
         }
         if !call_id.is_empty()
@@ -366,7 +375,7 @@ pub(super) async fn call(
             response_headers.insert(header::LOCATION, value);
         }
     }
-    if success && let Some(MediaGuard(Some(session))) = &media {
+    if success && let Some(session) = &held.media {
         let answer = match live::response_sdp(&data, &upstream_content_type) {
             Ok(answer) => answer,
             Err(message) => return traced(fail(502, &message)),
@@ -379,9 +388,13 @@ pub(super) async fn call(
     }
     let mut on_failure: Option<Box<dyn FnOnce() + Send>> = None;
     if success && !call_id.is_empty() {
-        let media = media.as_mut().and_then(|guard| guard.0.take());
+        let media = held.media.take();
         // Go `selection.Retain()`: the call keeps its Home pick until it ends.
-        let hold = home.then(|| super::calls::HomeHold::new(lease));
+        let hold = if home {
+            held.lease.take().map(super::calls::HomeHold::new)
+        } else {
+            None
+        };
         let stored = live_state.calls.put(
             &call_id,
             Call {
@@ -407,11 +420,13 @@ pub(super) async fn call(
                 let (hold, media) = (hold.clone(), media.clone());
                 let watcher = tokio::spawn(async move {
                     drained.await;
-                    if let Some(media) = media {
-                        media.close("home_selection_closed");
-                    }
-                    if let Some(hold) = hold {
-                        hold.end();
+                    let lease = hold.and_then(|hold| hold.end());
+                    match media {
+                        Some(media) => {
+                            media.close("home_selection_closed");
+                            media.after_close(Box::new(move || drop(lease)));
+                        }
+                        None => drop(lease),
                     }
                 });
                 stored.resources.add(watcher.abort_handle());
@@ -438,13 +453,49 @@ pub(super) async fn call(
     traced(tracked(status, response_headers, data, on_failure))
 }
 
-/// Closes a media session the call did not keep (`request_not_retained`).
-struct MediaGuard(Option<Arc<dyn super::relay::MediaSession>>);
+/// This request's upstream capture, when request logging runs for it.
+fn request_capture() -> CaptureSink {
+    crate::request_logging::current()
+        .map(|log| log.capture_sink())
+        .unwrap_or_default()
+}
 
-impl Drop for MediaGuard {
+/// `RecordAPIResponseMetadata` with `callResponseHeaders`.
+fn record_metadata(capture: &CaptureSink, status: u16, headers: &HeaderMap) {
+    if capture.enabled() {
+        capture.record(CaptureEvent::ResponseMetadata(
+            status,
+            &live::call_response_headers(headers),
+        ));
+    }
+}
+
+/// `AppendAPIResponseChunk` with what was read, then `RecordAPIResponseError` when the
+/// read failed.
+fn record_body(capture: &CaptureSink, data: &[u8], error: Option<&BodyError>) {
+    capture.record(CaptureEvent::ResponseChunk(data));
+    if let Some(error) = error {
+        capture.record(CaptureEvent::ResponseError(&error.to_string()));
+    }
+}
+
+/// What a live call request holds until the call keeps it: the media session, closed
+/// with `request_not_retained`, and the credential lease, released once that close
+/// finished (Go's deferred `CloseWithReason`, then the deferred selection `End`).
+struct Held {
+    media: Option<Arc<dyn super::relay::MediaSession>>,
+    lease: Option<crate::runtime::Lease>,
+}
+
+impl Drop for Held {
     fn drop(&mut self) {
-        if let Some(session) = self.0.take() {
-            session.close("request_not_retained");
+        let lease = self.lease.take();
+        match self.media.take() {
+            Some(session) => {
+                session.close("request_not_retained");
+                session.after_close(Box::new(move || drop(lease)));
+            }
+            None => drop(lease),
         }
     }
 }
@@ -541,7 +592,8 @@ pub(super) async fn hangup(
             .and_then(|hold| hold.drained())
             .unwrap_or_else(|| Box::pin(std::future::pending())),
     };
-    let traced = |response| with_trace(response, &credential);
+    let trace = trace(&credential);
+    let traced = |response| with_trace(response, &trace);
     let body = match read_limited(body, live::MAX_BODY).await {
         Ok(body) => body,
         Err(ReadError::TooLarge) => {
@@ -567,11 +619,13 @@ pub(super) async fn hangup(
     if !content_type.is_empty() {
         upstream_headers.push(("Content-Type".into(), content_type));
     }
+    let capture = request_capture();
     let target = LiveTarget {
         credential: &credential,
         cfg: &cfg,
         client: &headers,
         session: header_session(&selection_headers, &[], Some(&call_id), &stored.session_id),
+        capture: capture.clone(),
     };
     let url = format!(
         "{}/realtime/calls/{call_id}/hangup",
@@ -608,8 +662,12 @@ pub(super) async fn hangup(
         response_headers.insert(header::CONTENT_TYPE, content_type.clone());
     }
     copy_headers(&mut response_headers, &upstream.headers, &HANDSHAKE_HEADERS);
+    record_metadata(&capture, status, &upstream.headers);
     let (data, read_error) = read_upstream(upstream, &mut drain).await;
-    drop(lease);
+    record_body(&capture, &data, read_error.as_ref());
+    // A local lease ends here; a temporary Home pick after the call (Go's deferred
+    // `End("request_closed")` runs after the hangup completed it).
+    let lease = lease.filter(|lease| lease.is_remote());
     if home && status == 401 {
         super::report_unauthorized(
             &rt,
@@ -629,6 +687,9 @@ pub(super) async fn hangup(
     }
     if (200..300).contains(&status) {
         live_state.calls.complete(&stored, "client_hangup");
+        if let (Some(lease), Some(media)) = (lease, &stored.media) {
+            media.after_close(Box::new(move || drop(lease)));
+        }
     }
     traced(written(status, response_headers, data))
 }

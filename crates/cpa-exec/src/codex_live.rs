@@ -15,7 +15,7 @@ use cpa_common::gostr::{GoStr, quote as go_quote, trim_space};
 use cpa_common::json::{self as gj, GoValue, Kind};
 use cpa_core::config::Config;
 use cpa_core::credential::Credential;
-use cpa_core::exec::ExecError;
+use cpa_core::exec::{CaptureEvent, CaptureSink, ExecError, UpstreamRequest};
 use http::HeaderMap;
 
 use crate::codex::CodexExecutor;
@@ -797,8 +797,18 @@ pub fn direct_headers(client: &HeaderMap) -> Vec<(String, String)> {
 pub enum BodyError {
     /// More than [`MAX_BODY`] bytes.
     TooLarge,
-    /// The read failed after the returned bytes.
-    Read,
+    /// The read failed after the returned bytes; the transport's error.
+    Read(String),
+}
+
+impl std::fmt::Display for BodyError {
+    /// Go's error text (`errBodyTooLarge`, or the read error).
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BodyError::TooLarge => f.write_str("Codex live request body too large"),
+            BodyError::Read(text) => f.write_str(text),
+        }
+    }
 }
 
 /// `readLimitedBody`: at most `MAX_BODY` bytes, keeping what arrived on error.
@@ -815,7 +825,14 @@ pub async fn read_limited(upstream: Upstream) -> (Vec<u8>, Option<BodyError>) {
                     return (out, Some(BodyError::TooLarge));
                 }
             }
-            Err(_) => return (out, Some(BodyError::Read)),
+            // The shared client's text: it withholds transport causes, which can name
+            // credential-bearing URLs.
+            Err(e) => {
+                return (
+                    out,
+                    Some(BodyError::Read(String::from_utf8_lossy(&e.body).into_owned())),
+                );
+            }
         }
     }
     (out, None)
@@ -854,12 +871,91 @@ pub struct LiveTarget<'a> {
     pub client: &'a HeaderMap,
     /// The request's session, for `$CPA-SESSION-ID`.
     pub session: Option<String>,
+    /// The request log's upstream capture (Go's `helps.Record*` calls). The live
+    /// sockets pass none: Go writes no request log for GET requests.
+    pub capture: CaptureSink,
 }
 
 impl LiveTarget<'_> {
     fn view(&self) -> View<'_> {
         View::for_request(self.credential, self.cfg).with_session(self.session.clone())
     }
+
+    /// `RecordAPIRequest` as live.go and capabilities.go call it: provider `codex`, the
+    /// selected credential and `headersForLogging`.
+    fn record_post(&self, url: &str, headers: &[(String, String)], body: &[u8]) {
+        if !self.capture.enabled() {
+            return;
+        }
+        let (auth_type, auth_value) = account_info(self.credential);
+        let headers = logged_headers(headers);
+        self.capture.record(CaptureEvent::Request(UpstreamRequest {
+            url,
+            method: "POST",
+            headers: &headers,
+            body,
+            provider: "codex",
+            auth_id: &self.credential.id,
+            auth_label: &self.credential.label,
+            auth_type,
+            auth_value: &auth_value,
+        }));
+    }
+}
+
+/// Go `Auth.AccountInfo`: `oauth` with the account email, or `api_key` with the key.
+fn account_info(credential: &Credential) -> (&'static str, String) {
+    match cpa_core::registry::dynamic::auth_kind(credential) {
+        Some("oauth") => (
+            "oauth",
+            credential.str("email").map(|e| e.trim().to_owned()).unwrap_or_default(),
+        ),
+        Some("apikey") => (
+            "api_key",
+            credential
+                .attributes
+                .get("api_key")
+                .map(|k| k.trim().to_owned())
+                .unwrap_or_default(),
+        ),
+        _ => ("", String::new()),
+    }
+}
+
+/// `headersForLogging`: an attestation token is logged as `[REDACTED]`.
+fn logged_headers(headers: &[(String, String)]) -> Vec<(String, String)> {
+    let attestation = |name: &str| canonical_header(name) == "X-Oai-Attestation";
+    if !headers
+        .iter()
+        .find(|(n, _)| attestation(n))
+        .is_some_and(|(_, v)| !v.is_empty())
+    {
+        return headers.to_vec();
+    }
+    let mut out: Vec<(String, String)> = headers.iter().filter(|(n, _)| !attestation(n)).cloned().collect();
+    out.push(("X-Oai-Attestation".into(), "[REDACTED]".into()));
+    out
+}
+
+/// `callResponseHeaders`: what request logs keep of a live upstream response.
+pub fn call_response_headers(headers: &HeaderMap) -> Vec<(String, String)> {
+    [
+        "Content-Type",
+        "Location",
+        "Retry-After",
+        "X-Request-Id",
+        "OpenAI-Request-Id",
+    ]
+    .iter()
+    .flat_map(|name| {
+        headers.get_all(*name).iter().map(move |v| {
+            (
+                canonical_header(name),
+                String::from_utf8_lossy(v.as_bytes()).into_owned(),
+            )
+        })
+    })
+    .collect()
 }
 
 impl CodexExecutor {
@@ -913,8 +1009,10 @@ impl CodexExecutor {
         body: Bytes,
     ) -> Result<Upstream, ExecError> {
         let view = target.view();
+        let headers = Self::live_credential_headers(&view, target.client, headers);
+        target.record_post(url, &headers, &body);
         let mut go = GoHeaders::new();
-        for (name, value) in Self::live_credential_headers(&view, target.client, headers) {
+        for (name, value) in headers {
             go.add_raw(&name, value);
         }
         let route = |next: &url::Url| {
@@ -923,7 +1021,14 @@ impl CodexExecutor {
                 order: None,
             })
         };
-        proxy::send_routed(&route, url, go, body, None).await
+        let sent = proxy::send_routed(&route, url, go, body, None).await;
+        if let Err(e) = &sent {
+            // `RecordAPIResponseError` on a transport failure.
+            target
+                .capture
+                .record(CaptureEvent::ResponseError(&String::from_utf8_lossy(&e.body)));
+        }
+        sent
     }
 
     /// Dials a live WebSocket with Go's standard dialer rules (credential or global

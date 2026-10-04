@@ -9,9 +9,9 @@
 //! A credential with a proxy keeps the upstream peer on loopback and reaches the upstream
 //! over ICE-TCP through that proxy (tunnel.rs, Go tcp_proxy.go).
 //!
-//! ponytail: pion behaviours webrtc-rs 0.21 lacks (more at `ice_url`, `advertise`). (1)
+//! ponytail: pion behaviour webrtc-rs 0.21 lacks (more at `ice_url`, `advertise`):
 //! `disable-private-remote-ips` filters the client's offered candidates, not peer-reflexive
-//! ones learned from STUN. (2) Host candidates are IPv4 only.
+//! ones learned from STUN.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -49,9 +49,12 @@ const MAX_MESSAGE: usize = 256 << 10;
 const BUFFERED_MAX: usize = 1 << 20;
 /// Opus as Go registers it (payload type 111).
 const OPUS_FMTP: &str = "minptime=10;useinbandfec=1";
-// ponytail: Go waits for ICE gathering until the request ends; a fixed bound keeps an
-// unreachable STUN/TURN server from holding a session slot.
-const GATHER_TIMEOUT: Duration = Duration::from_secs(30);
+/// How long gathering may run before the session goes on with the candidates it has.
+/// pion gives each STUN server its 5 s `stunGatherTimeout`, then completes gathering;
+/// webrtc-rs 0.21 keeps a timed-out STUN client and never completes.
+// ponytail: a TURN allocation slower than this loses its relay candidate, which pion
+// would still wait for.
+const GATHER_BOUND: Duration = Duration::from_secs(6);
 
 pub(super) struct Relay {
     config: RelayConfig,
@@ -71,9 +74,10 @@ impl Relay {
                 "codex.live-media-relay: TURN over TCP or TLS is not supported by this build; these ICE servers are skipped"
             );
         }
-        if !config.public_ip.trim().is_empty() && config.public_ip.trim().parse::<Ipv4Addr>().is_err() {
-            // ponytail: host candidates are IPv4 only, so only an IPv4 public-ip applies.
-            tracing::warn!("codex.live-media-relay.public-ip is not IPv4; host candidates keep their addresses");
+        if !config.public_ip.trim().is_empty() && config.public_ip.trim().parse::<IpAddr>().is_err() {
+            tracing::warn!(
+                "codex.live-media-relay.public-ip is not an IP address; host candidates keep their addresses"
+            );
         }
         Ok(Self {
             config: config.clone(),
@@ -89,7 +93,12 @@ impl Relay {
         if side == Side::Up && shared.proxy.is_some() {
             return self.build(side, shared, Net::Loopback, false).await;
         }
-        let ip = self.bind_ip.unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        // pion gathers host candidates on every interface of both families.
+        let ips: Vec<IpAddr> = match self.bind_ip {
+            Some(ip) => vec![ip],
+            None if ipv6_host() => vec![Ipv4Addr::UNSPECIFIED.into(), Ipv6Addr::UNSPECIFIED.into()],
+            None => vec![Ipv4Addr::UNSPECIFIED.into()],
+        };
         let (min, max) = (self.config.udp_port_min, self.config.udp_port_max);
         let ports: Vec<u16> = if min == 0 {
             vec![0]
@@ -99,18 +108,15 @@ impl Relay {
             (0..span).map(|i| min + ((start + i) % span) as u16).collect()
         };
         let mut last = String::from("no free UDP port in the codex.live-media-relay range");
-        for port in ports {
-            if port != 0 && std::net::UdpSocket::bind((ip, port)).is_err() {
-                continue;
-            }
-            let addr = SocketAddr::new(ip, port);
-            match self.build(side, shared, Net::Udp(addr), true).await {
+        let mut cursors = vec![0; ips.len()];
+        while let Some(addrs) = next_ports(&ips, &ports, &mut cursors, port_free) {
+            match self.build(side, shared, Net::Udp(addrs.clone()), true).await {
                 Ok(pc) => return Ok(pc),
                 // pion only logs a failed mDNS socket (no multicast interface); webrtc-rs
                 // fails the peer, so retry without mDNS queries.
                 Err(e) if e.contains("No such device") || e.contains("multicast") => {
                     tracing::debug!(error = %e, "codex live media: mDNS unavailable; continuing without it");
-                    match self.build(side, shared, Net::Udp(addr), false).await {
+                    match self.build(side, shared, Net::Udp(addrs), false).await {
                         Ok(pc) => return Ok(pc),
                         Err(e) => last = e,
                     }
@@ -136,8 +142,8 @@ impl Relay {
             .map_err(|e| format!("register WebRTC interceptors: {e}"))?;
         let mut settings = SettingEngineBuilder::new();
         let (udp, tcp, ice_servers) = match net {
-            Net::Udp(addr) => {
-                if addr.ip().is_loopback() {
+            Net::Udp(addrs) => {
+                if addrs.iter().any(|a| a.ip().is_loopback()) {
                     settings = settings.with_include_loopback_candidate(true);
                 }
                 let servers = self
@@ -150,7 +156,7 @@ impl Relay {
                         credential: s.credential.clone(),
                     })
                     .collect();
-                (vec![addr], vec![], servers)
+                (addrs, vec![], servers)
             }
             Net::Loopback => {
                 use rtc::ice::network_type::NetworkType;
@@ -284,8 +290,22 @@ impl MediaRelay for Relay {
             // Closes the session if setup fails or this future is dropped (the request
             // went away mid-negotiation), as Go's `Close` on those paths.
             let mut guard = SetupGuard(Some(shared.clone()));
-            let sdp = self.start(offer, &shared).await?;
+            let started = self.start(offer, &shared).await;
             guard.0 = None;
+            let sdp = match started {
+                Ok(sdp) => sdp,
+                Err(e) => {
+                    // Go's `Close` returns after the peers closed; so does this error, so
+                    // the caller's credential outlives the session.
+                    shared.close("closed");
+                    let (done, closed) = tokio::sync::oneshot::channel();
+                    shared.on_closed(Box::new(move || {
+                        let _ = done.send(());
+                    }));
+                    let _ = closed.await;
+                    return Err(e);
+                }
+            };
             Ok((Arc::new(Session(shared)) as Arc<dyn MediaSession>, sdp))
         })
     }
@@ -293,8 +313,9 @@ impl MediaRelay for Relay {
 
 /// Where a peer's sockets live.
 enum Net {
-    /// One UDP socket (the configured port range, or any port).
-    Udp(SocketAddr),
+    /// UDP on these wildcards or addresses, all on one port (the configured range, or
+    /// any port).
+    Udp(Vec<SocketAddr>),
     /// UDP and TCP on loopback only: a proxied session's upstream peer.
     Loopback,
 }
@@ -455,14 +476,63 @@ fn ungathered_ice_urls(config: &RelayConfig) -> Vec<String> {
         .collect()
 }
 
-/// pion's `SetNAT1To1IPs(public-ip, host)`: IPv4 host candidates advertise the public
-/// address (the socket stays bound locally). webrtc-rs keeps the setting but never applies
-/// it, so the gathered SDP is rewritten.
-fn advertise(sdp: &str, public_ip: &str) -> String {
-    let public_ip = public_ip.trim();
-    if public_ip.parse::<Ipv4Addr>().is_err() {
-        return sdp.to_owned();
+/// The next bind addresses to try: for each family the next port of `ports` (from its
+/// cursor on) that is free in that family, like pion's per-address port allocation. Each
+/// family keeps its own cursor; a failed attempt advances them all. `None` once a family
+/// has no free port left.
+fn next_ports(
+    ips: &[IpAddr],
+    ports: &[u16],
+    cursors: &mut [usize],
+    free: impl Fn(IpAddr, u16) -> bool,
+) -> Option<Vec<SocketAddr>> {
+    let mut addrs = Vec::with_capacity(ips.len());
+    for (ip, cursor) in ips.iter().zip(cursors.iter_mut()) {
+        while ports.get(*cursor).is_some_and(|port| *port != 0 && !free(*ip, *port)) {
+            *cursor += 1;
+        }
+        addrs.push(SocketAddr::new(*ip, *ports.get(*cursor)?));
+        *cursor += 1;
     }
+    Some(addrs)
+}
+
+/// Whether `port` can be bound in `ip`'s family (IPv6 checked on its own, not as a
+/// dual-stack socket that would also need the IPv4 port).
+fn port_free(ip: IpAddr, port: u16) -> bool {
+    use socket2::{Domain, Socket, Type};
+    let addr = SocketAddr::new(ip, port);
+    let Ok(socket) = Socket::new(Domain::for_address(addr), Type::DGRAM, None) else {
+        return false;
+    };
+    if ip.is_ipv6() && socket.set_only_v6(true).is_err() {
+        return false;
+    }
+    socket.bind(&addr.into()).is_ok()
+}
+
+/// Whether webrtc-rs turns `[::]` into IPv6 host candidates: some interface address is
+/// not loopback, unspecified or link-local. Without one it would bind the wildcard itself
+/// and advertise `::`.
+fn ipv6_host() -> bool {
+    rtc::shared::ifaces::ifaces().is_ok_and(|list| {
+        list.iter().filter_map(|i| i.addr).any(|a| match a.ip() {
+            IpAddr::V6(v) => !(v.is_loopback() || v.is_unspecified() || v.is_unicast_link_local()),
+            IpAddr::V4(_) => false,
+        })
+    })
+}
+
+/// pion's `SetNAT1To1IPs(public-ip, host)`: host candidates of the public address's family
+/// advertise it (the socket stays bound locally); the other family keeps its addresses.
+/// webrtc-rs keeps the setting but never applies it, so the gathered SDP is rewritten.
+fn advertise(sdp: &str, public_ip: &str) -> String {
+    // net.IP semantics: an IPv4-mapped address is IPv4 and prints as one.
+    let Ok(public) = public_ip.trim().parse::<IpAddr>().map(|ip| ip.to_canonical()) else {
+        return sdp.to_owned();
+    };
+    let public_ip = public.to_string();
+    let public_ip = public_ip.as_str();
     sdp.split_inclusive('\n')
         .map(|line| {
             let Some(rest) = line.strip_prefix("a=candidate:") else {
@@ -470,7 +540,11 @@ fn advertise(sdp: &str, public_ip: &str) -> String {
             };
             let mut fields: Vec<&str> = rest.split(' ').collect();
             let host = fields.get(6) == Some(&"typ") && fields.get(7).is_some_and(|t| t.trim_end() == "host");
-            if host && fields.get(4).is_some_and(|a| a.parse::<Ipv4Addr>().is_ok()) {
+            let family = |a: &&str| {
+                a.parse::<IpAddr>()
+                    .is_ok_and(|ip| ip.to_canonical().is_ipv4() == public.is_ipv4())
+            };
+            if host && fields.get(4).is_some_and(family) {
                 fields[4] = public_ip;
                 return format!("a=candidate:{}", fields.join(" "));
             }
@@ -548,6 +622,17 @@ struct Shared {
     local_offer: OnceLock<String>,
     /// The proxied answer's candidate tunnels, closed with the session.
     tunnels: Mutex<Vec<Tunnel>>,
+    /// Run once a close finished; `None` after that.
+    after_close: AfterClose,
+}
+
+type AfterClose = Arc<Mutex<Option<Vec<Box<dyn FnOnce() + Send>>>>>;
+
+fn run_after_close(hooks: &AfterClose) {
+    let hooks = hooks.lock().unwrap_or_else(PoisonError::into_inner).take();
+    for hook in hooks.into_iter().flatten() {
+        hook();
+    }
 }
 
 impl Shared {
@@ -576,7 +661,20 @@ impl Shared {
             proxy,
             local_offer: OnceLock::new(),
             tunnels: Mutex::default(),
+            after_close: Arc::new(Mutex::new(Some(Vec::new()))),
         })
+    }
+
+    /// Runs `then` once a started close finished, or at once after that.
+    fn on_closed(&self, then: Box<dyn FnOnce() + Send>) {
+        let mut hooks = self.after_close.lock().unwrap_or_else(PoisonError::into_inner);
+        match hooks.as_mut() {
+            Some(pending) => pending.push(then),
+            None => {
+                drop(hooks);
+                then();
+            }
+        }
     }
 
     /// `installCandidateTunnels`: false (and the tunnels closed) once the session closed.
@@ -654,12 +752,21 @@ impl Shared {
         tasks.push(tokio::spawn(task).abort_handle());
     }
 
+    /// Waits for ICE gathering to complete, at most [`GATHER_BOUND`]; past it the local
+    /// description carries the candidates gathered so far.
     async fn gathered(&self, side: Side) -> Result<(), String> {
         let mut rx = self.gathered[side as usize].subscribe();
-        match tokio::time::timeout(GATHER_TIMEOUT, rx.wait_for(|done| *done)).await {
+        match tokio::time::timeout(GATHER_BOUND, rx.wait_for(|done| *done)).await {
             Ok(Ok(_)) => Ok(()),
             Ok(Err(_)) => Err("peer connection closed".into()),
-            Err(_) => Err("context deadline exceeded".into()),
+            Err(_) => {
+                tracing::debug!(
+                    media_session_id = %self.id,
+                    peer = side.name(),
+                    "codex live WebRTC gathering incomplete; continuing with the gathered candidates"
+                );
+                Ok(())
+            }
         }
     }
 
@@ -741,16 +848,21 @@ impl Shared {
         let pcs = std::mem::take(&mut *self.created.lock().unwrap_or_else(PoisonError::into_inner));
         // The slot is released only after both peers closed and freed their ports.
         let slot = self.lock().slot.take();
-        if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-            runtime.spawn(async move {
-                for channel in channels {
-                    let _ = channel.close().await;
-                }
-                for pc in pcs {
-                    let _ = pc.close().await;
-                }
-                drop(slot);
-            });
+        let hooks = self.after_close.clone();
+        match tokio::runtime::Handle::try_current() {
+            Ok(runtime) => {
+                runtime.spawn(async move {
+                    for channel in channels {
+                        let _ = channel.close().await;
+                    }
+                    for pc in pcs {
+                        let _ = pc.close().await;
+                    }
+                    drop(slot);
+                    run_after_close(&hooks);
+                });
+            }
+            Err(_) => run_after_close(&hooks),
         }
     }
 }
@@ -967,6 +1079,10 @@ impl MediaSession for Session {
 
     fn close(&self, reason: &str) {
         self.0.close(reason);
+    }
+
+    fn after_close(&self, then: Box<dyn FnOnce() + Send>) {
+        self.0.on_closed(then);
     }
 }
 
