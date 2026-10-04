@@ -48,7 +48,7 @@ func canonical(raw string) string {
 
 func main() {
 	gin.SetMode(gin.TestMode)
-	buildinfo.Version = "cliproxy-rs-0.1.0"
+	buildinfo.Version = "cliproxy-rs-0.1.1"
 	root, err := os.MkdirTemp("", "cpa-capture-go-")
 	if err != nil {
 		panic(err)
