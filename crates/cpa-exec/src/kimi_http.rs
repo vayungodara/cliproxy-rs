@@ -311,10 +311,8 @@ pub(crate) fn preferred_interval(credential: &Credential) -> Option<chrono::Dura
         _ => None,
     });
     from_metadata.or_else(|| {
-        KEYS.iter().find_map(|k| {
-            let s = credential.attributes.get(*k)?;
-            go_duration(s).or_else(|| s.trim().parse().ok().and_then(seconds))
-        })
+        KEYS.iter()
+            .find_map(|k| parse_duration_string(credential.attributes.get(*k)?))
     })
 }
 
@@ -325,11 +323,10 @@ fn go_duration(s: &str) -> Option<chrono::Duration> {
         .map(chrono::Duration::nanoseconds)
 }
 
-/// Plain seconds, to the millisecond; non-positive is absent.
+/// Plain seconds as Go converts them, `time.Duration(secs * float64(time.Second))`;
+/// non-positive is absent.
 fn seconds(value: f64) -> Option<chrono::Duration> {
-    (value > 0.0)
-        .then(|| chrono::Duration::try_milliseconds((value * 1000.0) as i64))
-        .flatten()
+    (value > 0.0).then(|| chrono::Duration::nanoseconds((value * 1e9) as i64))
 }
 
 /// `parseDurationString`: a Go duration, else plain seconds; non-positive is absent.
@@ -800,6 +797,8 @@ mod tests {
         assert_eq!(parse_duration_string("1005ms"), Some(ms(1005)));
         assert_eq!(parse_duration_string("10"), Some(chrono::Duration::seconds(10)));
         assert_eq!(parse_duration_string("-1s"), None);
+        assert_eq!(parse_duration_string(" 1h "), Some(chrono::Duration::hours(1)));
+        assert_eq!(parse_duration_string("1.5"), Some(ms(1500)));
         assert_eq!(go_duration("10"), None);
         assert_eq!(go_duration("h"), None);
     }
