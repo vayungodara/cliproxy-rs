@@ -329,7 +329,7 @@ api-keys:
       keys: [{api-key: fake-x, alpha-search: true}]
 `
 
-// readsEdge holds the null, prune and sanitizer edges from the delivery-2 review.
+// readsEdge holds yaml.v3 null handling, omitempty pruning and sanitizer edge cases.
 const readsEdge = `config-version: 8
 server:
   discovery:
@@ -497,6 +497,44 @@ func decoderEdges() []step {
 	)
 }
 
+// configYAMLWrites drives v0 PUT /config.yaml (Go PutConfigYAML): uploads that load,
+// syntax and shape errors (400) and LoadConfig validation errors (422).
+func configYAMLWrites() []step {
+	r := "/config.yaml"
+	v8Head := "config-version: 8\nmanagement:\n  secret-key: fake-secret\n"
+	legacyHead := "remote-management:\n  secret-key: fake-secret\n"
+	return steps(
+		put(r, "config-version: 8\nmanagement:\n  secret-key: fake-secret\n    # indented comment\nobservability:\n  logs:\n    debug: true\nrouting:\n  strategy: fill-first\n"),
+		get("/debug"),
+		put(r, "remote-management:\n  secret-key: fake-secret\ndebug: false\nrequest-retry: 4\napi-keys: [fake-k1]\n"),
+		get("/request-retry"), get("/api-keys"),
+		put(r, "a: [\n"), put(r, "- 1\n"), put(r, "plain scalar\n"),
+		put(r, "config-version: 8\nmanagement:\n  secret-key: fake-secret\napi-keys:\n  claude:\n    - name: c\n      keys: [{api-key: fake-k, weight: 2000000}]\n"),
+		put(r, "config-version: 8\nmanagement:\n  secret-key: fake-secret\nserver:\n  trusted-proxies: [not-an-ip]\n"),
+		put(r, "config-version: 8\nmanagement:\n  secret-key: fake-secret\napi-keys:\n  gemini: {name: x}\n"),
+		put(r, "config-version: 8\nmanagement:\n  secret-key: fake-secret\napi-keys:\n  codex:\n    - name: x\n      keys: [{api-key: fake-k, weight: 1.5}]\n"),
+		put(r, "config-version: 8\nmanagement:\n  secret-key: fake-secret\napi-keys:\n  xai: [{name: x}]\n"),
+		put(r, "config-version: 7\nmanagement:\n  secret-key: fake-secret\n"),
+		put(r, "remote-management:\n  secret-key: fake-secret\ngemini-api-key:\n  - api-key: fake-k\n    weight: 2000000\n"),
+		put(r, "openai-compatibility:\n  - name: o\n    base-url: http://127.0.0.1:9\n    api-key-entries: [{api-key: a}, {api-key: b, weight: x}]\nremote-management:\n  secret-key: fake-secret\n"),
+		put(r, v8Head+"api-keys:\n  gemini:\n    - name: g\n      keys:\n        - api-key: fake-k\n          <<: {weight: null}\n"),
+		put(r, legacyHead+"gemini-api-key: [{api-key: fake-k, weight: 1.5}]\n"),
+		put(r, v8Head+"api-keys:\n  gemini:\n    - unexpected: true\n      keys: []\n"),
+		put(r, v8Head+"api-keys:\n  codex:\n    - name: c\n      keys: [plain]\n"),
+		put(r, v8Head+"api-keys:\n  xai:\n    - name: x\n      keys: [{api-key: fake-k, base-url: http://x.invalid}]\n"),
+		put(r, v8Head+"api-keys:\n  openai-compatibility:\n    - name: o\n      base-url: http://127.0.0.1:9\n      extra: 1\n      keys: [{api-key: fake-k}]\n"),
+		put(r, "config-version: 8\nmanagement:\n  secret-key: "+strings.Repeat("a", 73)+"\n"),
+		put(r, legacyHead+"gemini-api-key: [{api-key: fake-k, weight: 2000000}]\napi-keys: {gemini: []}\n"),
+		get("/gemini-api-key"),
+		get("/request-retry"),
+		// Last: a 72-byte key is accepted and replaces the harness key (later reads 401).
+		put(r, "config-version: 8\nmanagement:\n  secret-key: "+strings.Repeat("b", 72)+"\n"),
+		// An empty upload is accepted (200) and leaves no management key; the harness
+		// has no watcher to disable the routes as a real server's reload does, so the
+		// Rust test checks that case on its own.
+	)
+}
+
 func claudeWrites() []step {
 	r := "/claude-api-key"
 	return steps(
@@ -648,6 +686,7 @@ func main() {
 		{Name: "vertex-writes", YAML: writesV8, Steps: keyListWrites("/vertex-api-key")},
 		{Name: "openai-writes", YAML: writesV8, Steps: openAIWrites()},
 		{Name: "map-writes", YAML: writesV8, Steps: mapWrites()},
+		{Name: "config-yaml-put", YAML: writesV8, Steps: configYAMLWrites()},
 		{Name: "legacy-writes", YAML: legacyFull, Steps: cat(claudeWrites(), mapWrites())},
 	} {
 		out = append(out, run(s))

@@ -525,6 +525,226 @@ pub(crate) async fn auth_url(
     super::oauth::auth_url(State(state), RawQuery(Some(query))).await
 }
 
+/// Go `NormalizeCommentIndentation`: comment lines lose their leading spaces and tabs.
+fn normalize_comment_indentation(text: &str) -> String {
+    text.split('\n')
+        .map(|line| {
+            let trimmed = line.trim_start_matches([' ', '\t']);
+            if trimmed.starts_with('#') { trimmed } else { line }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The checks Go's `flattenV8` makes on v8 key groups while decoding (`expandV8Groups`,
+/// `validateWeightSequenceNode`), which make an upload 400 rather than 422. `root` is
+/// the merge-expanded document.
+fn v8_group_error(root: &serde_yaml_ng::Value) -> Option<String> {
+    let families = root.get("api-keys")?.as_mapping()?;
+    for (_, family) in view::KEY_FAMILIES {
+        let Some(groups) = families.get(family) else { continue };
+        let Some(groups) = groups.as_sequence() else {
+            return Some(format!("api-keys.{family} must be a list"));
+        };
+        for (index, group) in groups.iter().enumerate() {
+            let Some(group) = group.as_mapping() else {
+                return Some(format!("api-keys.{family}[{index}] must be a mapping"));
+            };
+            let Some(keys) = group.get("keys").filter(|k| k.is_sequence()) else {
+                return Some(format!("api-keys.{family}[{index}].keys must be a list"));
+            };
+            if let Some(e) = weight_error_in(keys, &format!("api-keys.{family}.keys")) {
+                return Some(e.message);
+            }
+            if family == "openai-compatibility" {
+                continue;
+            }
+            let unsupported = group
+                .keys()
+                .map(|k| k.as_str().unwrap_or_default())
+                .find(|field| *field != "name" && *field != "keys" && !view::SHARED_KEY_FIELDS.contains(field));
+            if let Some(field) = unsupported {
+                return Some(format!("api-keys.{family}: unsupported group field {field}"));
+            }
+            for key in keys.as_sequence().into_iter().flatten() {
+                let Some(key) = key.as_mapping() else {
+                    return Some(format!("api-keys.{family} key must be a mapping"));
+                };
+                if key.contains_key("base-url") {
+                    return Some(format!("api-keys.{family}: base-url belongs to the group"));
+                }
+            }
+        }
+    }
+    None
+}
+
+/// A weight Go's config loading rejects.
+struct WeightError {
+    /// `<path>[<i>].weight: <reason>`.
+    message: String,
+    /// The weight as written.
+    value: serde_yaml_ng::Value,
+}
+
+/// Go `validateWeightMappingNode` on each mapping of a sequence: the first weight that
+/// is not an integer or is above the limit.
+fn weight_error_in(items: &serde_yaml_ng::Value, path: &str) -> Option<WeightError> {
+    for (i, item) in items.as_sequence()?.iter().enumerate() {
+        let Some(weight) = item.as_mapping().and_then(|m| m.get("weight")) else {
+            continue;
+        };
+        let reason = match weight.as_i64().filter(|_| weight.is_number()) {
+            None => "weight must be an integer",
+            Some(w) if w > 1_000_000 => "weight must not exceed 1000000",
+            Some(_) => continue,
+        };
+        return Some(WeightError {
+            message: format!("{path}[{i}].weight: {reason}"),
+            value: weight.clone(),
+        });
+    }
+    None
+}
+
+/// Go `validateCredentialWeightYAML` (run first by `LoadConfig`, so 422) on the legacy
+/// key lists and OpenAI-compatible `api-key-entries` of the merge-expanded document, in
+/// document order, skipping lists a v8 family replaces. A weight that is neither a
+/// number nor null fails Go's decode into `*int` before that: 400.
+// ponytail: that 400 message names the value where yaml.v3 also names the line.
+fn legacy_weight_error(root: &serde_yaml_ng::Value) -> Option<Response> {
+    let v8 = root.get("api-keys").and_then(serde_yaml_ng::Value::as_mapping);
+    // Go's flattenV8 replaces a legacy list with the v8 family when that is present.
+    let superseded = |legacy: &str| {
+        view::KEY_FAMILIES
+            .iter()
+            .any(|(old, new)| *old == legacy && v8.is_some_and(|m| m.contains_key(*new)))
+    };
+    let mut found = None;
+    for (name, value) in root.as_mapping()? {
+        let name = name.as_str().unwrap_or_default();
+        if superseded(name) {
+            continue;
+        }
+        if name == "openai-compatibility" {
+            found = value
+                .as_sequence()
+                .into_iter()
+                .flatten()
+                .enumerate()
+                .find_map(|(p, provider)| {
+                    let entries = provider.as_mapping()?.get("api-key-entries")?;
+                    weight_error_in(entries, &format!("openai-compatibility[{p}].api-key-entries"))
+                });
+        } else if view::KEY_FAMILIES.iter().any(|(legacy, _)| *legacy == name) {
+            found = weight_error_in(value, name);
+        }
+        if found.is_some() {
+            break;
+        }
+    }
+    let e = found?;
+    // yaml.v3 decodes a float into an int (truncating); only the raw-tag check after
+    // decoding rejects it.
+    Some(if !e.value.is_number() && !e.value.is_null() {
+        let written = serde_yaml_ng::to_string(&e.value).unwrap_or_default();
+        let message = format!(
+            "yaml: unmarshal errors:\n  cannot unmarshal {} into int",
+            written.trim()
+        );
+        go_json(
+            StatusCode::BAD_REQUEST,
+            &json!({"error": "invalid_yaml", "message": message}),
+        )
+    } else {
+        go_json(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            &json!({"error": "invalid_config", "message": e.message}),
+        )
+    })
+}
+
+/// Go `PutConfigYAML` (v0 only; v8 has its own writer): the upload must decode and load
+/// as a config, then is written as sent (comment lines unindented) and reloaded, which
+/// hashes a plaintext management key as Go's `LoadConfig` does.
+///
+/// Go answers 400 for what fails while decoding (syntax, shape, v8 key groups) and 422
+/// for `LoadConfig` validation. ponytail: a type mismatch (`port: abc`) is also a decode
+/// error in Go but only `Config::parse` finds it here, so it is 422; and syntax messages
+/// are this parser's, not yaml.v3's.
+pub(crate) async fn put_config_yaml(State(state): State<Arc<Management>>, body: Bytes) -> Response {
+    let fail = |status: StatusCode, error: &str, message: String| {
+        go_json(status, &json!({ "error": error, "message": message }))
+    };
+    let Ok(text) = std::str::from_utf8(&body).map(str::to_owned) else {
+        return fail(
+            StatusCode::BAD_REQUEST,
+            "invalid_yaml",
+            "yaml: invalid leading UTF-8 octet".into(),
+        );
+    };
+    let root = match serde_yaml_ng::from_str::<serde_yaml_ng::Value>(&text) {
+        Err(e) => return fail(StatusCode::BAD_REQUEST, "invalid_yaml", e.to_string()),
+        Ok(root @ serde_yaml_ng::Value::Mapping(_)) => root,
+        Ok(serde_yaml_ng::Value::Null) if text.trim().is_empty() => serde_yaml_ng::Value::Null,
+        Ok(_) => {
+            return fail(
+                StatusCode::BAD_REQUEST,
+                "invalid_yaml",
+                "config must be a mapping".into(),
+            );
+        }
+    };
+    if let Err(e) = cpa_core::config::ConfigDocument::parse(&text) {
+        return fail(StatusCode::BAD_REQUEST, "invalid_yaml", format!("{e:#}"));
+    }
+    // Go checks the alias- and merge-expanded tree (`expandConfigAliases`).
+    let mut root = root;
+    if let Err(e) = cpa_core::config::expand_merges(&mut root) {
+        return fail(StatusCode::BAD_REQUEST, "invalid_yaml", format!("{e:#}"));
+    }
+    if let Some(e) = v8_group_error(&root) {
+        return fail(StatusCode::BAD_REQUEST, "invalid_yaml", e);
+    }
+    if let Some(answer) = legacy_weight_error(&root) {
+        return answer;
+    }
+    let cfg = match cpa_core::config::Config::parse(&text) {
+        Ok(cfg) => cfg,
+        Err(e) => return fail(StatusCode::UNPROCESSABLE_ENTITY, "invalid_config", format!("{e:#}")),
+    };
+    // Go's LoadConfig hashes a plaintext key during validation, and bcrypt refuses more
+    // than 72 bytes (the Rust crate would silently truncate).
+    let secret = &cfg.management.secret_key;
+    if !secret.is_empty() && !cpa_core::config::is_bcrypt(secret) && secret.len() > 72 {
+        return fail(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "invalid_config",
+            "failed to hash remote management key: bcrypt: password length exceeds 72 bytes".into(),
+        );
+    }
+    tokio::task::spawn_blocking(move || {
+        let _guard = state.disk.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let text = normalize_comment_indentation(&text);
+        if cpa_core::config::ConfigDocument::write(&state.path, &text).is_err() {
+            return fail(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "write_failed",
+                "failed to write config".into(),
+            );
+        }
+        match cpa_core::config::Config::load(&state.path) {
+            Ok(cfg) => {
+                state.publish(cfg, None);
+                go_json(StatusCode::OK, &json!({"changed": ["config"], "ok": true}))
+            }
+            Err(e) => fail(StatusCode::INTERNAL_SERVER_ERROR, "reload_failed", format!("{e:#}")),
+        }
+    })
+    .await
+    .unwrap_or_else(|_| json_error(StatusCode::INTERNAL_SERVER_ERROR, "internal_error"))
+}
+
 /// POST /v0/management/vertex/import: v8 `/oauth/import?provider=vertex`.
 pub(crate) async fn vertex_import(RawQuery(raw): RawQuery) -> Response {
     let query = match raw.filter(|r| !r.is_empty()) {
@@ -564,6 +784,14 @@ mod tests {
         assert_eq!(list(r#"{"items":[]}"#), None);
         assert_eq!(list(r#"["a"] x"#), None);
         assert_eq!(list(r#""x""#), None);
+    }
+
+    #[test]
+    fn comment_lines_lose_their_indentation_like_go() {
+        assert_eq!(
+            normalize_comment_indentation("a:\n    # c\n  b: 1 # d\n\t#e\n"),
+            "a:\n# c\n  b: 1 # d\n#e\n"
+        );
     }
 
     #[test]

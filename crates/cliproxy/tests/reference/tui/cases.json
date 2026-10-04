@@ -1,0 +1,548 @@
+[
+ {
+  "name": "dashboard-en",
+  "tab": "dashboard",
+  "width": 80,
+  "locale": "en",
+  "input": {
+   "config": {
+    "debug": true,
+    "request-retry": 3,
+    "proxy-url": "socks5://127.0.0.1:1080",
+    "logging-to-file": false,
+    "routing": {
+     "strategy": "fill-first"
+    }
+   },
+   "files": [
+    {
+     "name": "a.json",
+     "disabled": false
+    },
+    {
+     "name": "b.json",
+     "disabled": true
+    }
+   ],
+   "keys": [
+    "k1",
+    "k2",
+    "k3"
+   ]
+  }
+ },
+ {
+  "name": "dashboard-zh",
+  "tab": "dashboard",
+  "width": 60,
+  "locale": "zh",
+  "input": {
+   "config": {
+    "usage-statistics-enabled": false,
+    "request-retry": 2.5
+   },
+   "files": [],
+   "keys": []
+  }
+ },
+ {
+  "name": "dashboard-narrow",
+  "tab": "dashboard",
+  "width": 30,
+  "locale": "en",
+  "input": {
+   "config": {
+    "usage-statistics-enabled": "yes"
+   },
+   "files": [
+    {
+     "name": "a.json"
+    }
+   ],
+   "keys": [
+    "k"
+   ]
+  }
+ },
+ {
+  "name": "dashboard-error",
+  "tab": "dashboard",
+  "width": 80,
+  "locale": "en",
+  "input": {
+   "config": {},
+   "files": [],
+   "keys": [],
+   "error": "HTTP 401: {\"error\":\"invalid management key\"}"
+  }
+ },
+ {
+  "name": "config-en",
+  "tab": "config",
+  "width": 100,
+  "locale": "en",
+  "input": {
+   "config": {
+    "debug": false,
+    "proxy-url": "",
+    "request-retry": 2,
+    "max-retry-interval": 30,
+    "force-model-prefix": false,
+    "logging-to-file": true,
+    "logs-max-total-size-mb": 0,
+    "error-logs-max-files": 10,
+    "usage-statistics-enabled": true,
+    "request-log": false,
+    "quota-exceeded": {
+     "switch-project": true,
+     "switch-preview-model": false
+    },
+    "routing": {
+     "strategy": "round-robin"
+    },
+    "ws-auth": true
+   },
+   "down": 3
+  }
+ },
+ {
+  "name": "config-zh-updated",
+  "tab": "config",
+  "width": 90,
+  "locale": "zh",
+  "input": {
+   "config": {
+    "debug": false,
+    "proxy-url": "",
+    "request-retry": 2,
+    "max-retry-interval": 30,
+    "force-model-prefix": false,
+    "logging-to-file": true,
+    "logs-max-total-size-mb": 0,
+    "error-logs-max-files": 10,
+    "usage-statistics-enabled": true,
+    "request-log": false,
+    "quota-exceeded": {
+     "switch-project": true,
+     "switch-preview-model": false
+    },
+    "routing": {
+     "strategy": "round-robin"
+    },
+    "ws-auth": true
+   },
+   "update_ok": true
+  }
+ },
+ {
+  "name": "config-update-error",
+  "tab": "config",
+  "width": 90,
+  "locale": "en",
+  "input": {
+   "config": {
+    "debug": false,
+    "proxy-url": "",
+    "request-retry": 2,
+    "max-retry-interval": 30,
+    "force-model-prefix": false,
+    "logging-to-file": true,
+    "logs-max-total-size-mb": 0,
+    "error-logs-max-files": 10,
+    "usage-statistics-enabled": true,
+    "request-log": false,
+    "quota-exceeded": {
+     "switch-project": true,
+     "switch-preview-model": false
+    },
+    "routing": {
+     "strategy": "round-robin"
+    },
+    "ws-auth": true
+   },
+   "down": 6,
+   "update_error": "HTTP 400: {\"error\":\"invalid body\"}"
+  }
+ },
+ {
+  "name": "config-editing",
+  "tab": "config",
+  "width": 90,
+  "locale": "en",
+  "input": {
+   "config": {
+    "debug": false,
+    "proxy-url": "",
+    "request-retry": 2,
+    "max-retry-interval": 30,
+    "force-model-prefix": false,
+    "logging-to-file": true,
+    "logs-max-total-size-mb": 0,
+    "error-logs-max-files": 10,
+    "usage-statistics-enabled": true,
+    "request-log": false,
+    "quota-exceeded": {
+     "switch-project": true,
+     "switch-preview-model": false
+    },
+    "routing": {
+     "strategy": "round-robin"
+    },
+    "ws-auth": true
+   },
+   "down": 4,
+   "edit": "7"
+  }
+ },
+ {
+  "name": "config-empty",
+  "tab": "config",
+  "width": 90,
+  "locale": "en",
+  "input": {
+   "config": null
+  }
+ },
+ {
+  "name": "auth-expanded",
+  "tab": "auth",
+  "width": 100,
+  "locale": "en",
+  "input": {
+   "files": [
+    {
+     "name": "claude-user@example.com.json",
+     "channel": "claude",
+     "email": "user@example.com",
+     "disabled": false,
+     "status": "active",
+     "priority": 3,
+     "prefix": "team",
+     "auth_type": "oauth",
+     "created_at": "2026-10-01T00:00:00Z",
+     "project_id": null
+    },
+    {
+     "name": "a-very-long-auth-file-name-over-24.json",
+     "channel": "codex",
+     "email": "someone.with.a.long.address@example.com",
+     "disabled": true,
+     "proxy_url": null,
+     "priority": 1.5,
+     "status_message": "token expired",
+     "updated_at": 1700000000
+    }
+   ],
+   "down": 1,
+   "expand": true
+  }
+ },
+ {
+  "name": "auth-confirm",
+  "tab": "auth",
+  "width": 100,
+  "locale": "zh",
+  "input": {
+   "files": [
+    {
+     "name": "claude-user@example.com.json",
+     "channel": "claude",
+     "email": "user@example.com",
+     "disabled": false,
+     "status": "active",
+     "priority": 3,
+     "prefix": "team",
+     "auth_type": "oauth",
+     "created_at": "2026-10-01T00:00:00Z",
+     "project_id": null
+    },
+    {
+     "name": "a-very-long-auth-file-name-over-24.json",
+     "channel": "codex",
+     "email": "someone.with.a.long.address@example.com",
+     "disabled": true,
+     "proxy_url": null,
+     "priority": 1.5,
+     "status_message": "token expired",
+     "updated_at": 1700000000
+    }
+   ],
+   "confirm": true
+  }
+ },
+ {
+  "name": "auth-action",
+  "tab": "auth",
+  "width": 100,
+  "locale": "en",
+  "input": {
+   "files": [
+    {
+     "name": "claude-user@example.com.json",
+     "channel": "claude",
+     "email": "user@example.com",
+     "disabled": false,
+     "status": "active",
+     "priority": 3,
+     "prefix": "team",
+     "auth_type": "oauth",
+     "created_at": "2026-10-01T00:00:00Z",
+     "project_id": null
+    },
+    {
+     "name": "a-very-long-auth-file-name-over-24.json",
+     "channel": "codex",
+     "email": "someone.with.a.long.address@example.com",
+     "disabled": true,
+     "proxy_url": null,
+     "priority": 1.5,
+     "status_message": "token expired",
+     "updated_at": 1700000000
+    }
+   ],
+   "action": "Deleted x.json"
+  }
+ },
+ {
+  "name": "auth-edit",
+  "tab": "auth",
+  "width": 100,
+  "locale": "en",
+  "input": {
+   "files": [
+    {
+     "name": "claude-user@example.com.json",
+     "channel": "claude",
+     "email": "user@example.com",
+     "disabled": false,
+     "status": "active",
+     "priority": 3,
+     "prefix": "team",
+     "auth_type": "oauth",
+     "created_at": "2026-10-01T00:00:00Z",
+     "project_id": null
+    },
+    {
+     "name": "a-very-long-auth-file-name-over-24.json",
+     "channel": "codex",
+     "email": "someone.with.a.long.address@example.com",
+     "disabled": true,
+     "proxy_url": null,
+     "priority": 1.5,
+     "status_message": "token expired",
+     "updated_at": 1700000000
+    }
+   ],
+   "edit": "1",
+   "expand": true
+  }
+ },
+ {
+  "name": "auth-empty",
+  "tab": "auth",
+  "width": 60,
+  "locale": "en",
+  "input": {
+   "files": []
+  }
+ },
+ {
+  "name": "keys",
+  "tab": "keys",
+  "width": 90,
+  "locale": "en",
+  "input": {
+   "keys": [
+    "sk-abcdefghijklmnop",
+    "short"
+   ],
+   "gemini-api-key": [
+    {
+     "api-key": "AIzaFakeFakeFake1234",
+     "base-url": "https://g.example.invalid",
+     "prefix": "team"
+    }
+   ],
+   "claude-api-key": [
+    {
+     "api-key": "sk-ant-fake-123456789"
+    }
+   ],
+   "vertex-api-key": [],
+   "openai-compatibility": [
+    {
+     "name": "local",
+     "base-url": "http://127.0.0.1:11434/v1",
+     "prefix": "ollama"
+    }
+   ],
+   "down": 1,
+   "confirm": true
+  }
+ },
+ {
+  "name": "keys-add-zh",
+  "tab": "keys",
+  "width": 90,
+  "locale": "zh",
+  "input": {
+   "keys": [],
+   "add": true
+  }
+ },
+ {
+  "name": "keys-error",
+  "tab": "keys",
+  "width": 90,
+  "locale": "en",
+  "input": {
+   "keys": [
+    "sk-abcdefghijklmnop"
+   ],
+   "error": "HTTP 400: {\"error\":\"invalid body\"}"
+  }
+ },
+ {
+  "name": "oauth-idle",
+  "tab": "oauth",
+  "width": 80,
+  "locale": "en",
+  "input": {
+   "down": 2
+  }
+ },
+ {
+  "name": "oauth-web",
+  "tab": "oauth",
+  "width": 80,
+  "locale": "en",
+  "input": {
+   "start": {
+    "url": "https://auth.example.invalid/oauth/authorize?client_id=fake-client&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&state=fake-state-0123456789&code_challenge=abcdefghijklmnopqrstuvwxyz",
+    "provider": "Codex (OpenAI)",
+    "user_code": "",
+    "device": false,
+    "expires_in": 0
+   }
+  }
+ },
+ {
+  "name": "oauth-device-zh",
+  "tab": "oauth",
+  "width": 80,
+  "locale": "zh",
+  "input": {
+   "start": {
+    "url": "https://kimi.example.invalid/device",
+    "provider": "Kimi (kimi.com)",
+    "user_code": "ABCD-1234",
+    "device": true,
+    "expires_in": 900
+   }
+  }
+ },
+ {
+  "name": "oauth-error",
+  "tab": "oauth",
+  "width": 80,
+  "locale": "en",
+  "input": {
+   "start": {
+    "url": "https://auth.example.invalid/oauth/authorize?client_id=fake-client&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&state=fake-state-0123456789&code_challenge=abcdefghijklmnopqrstuvwxyz",
+    "provider": "xAI",
+    "user_code": "",
+    "device": true,
+    "expires_in": 0
+   },
+   "poll_error": "OAuth flow timed out"
+  }
+ },
+ {
+  "name": "logs-warn",
+  "tab": "logs",
+  "width": 80,
+  "locale": "en",
+  "input": {
+   "lines": [
+    "2026-10-03 12:00:00 [info ] [main.go:10] started",
+    "2026-10-03 12:00:01 [debug] [x.go:2] noise",
+    "2026-10-03 12:00:02 [warn ] [x.go:3] slow upstream",
+    "2026-10-03 12:00:03 [error] [x.go:4] request failed",
+    "plain line"
+   ],
+   "filter": "3"
+  }
+ },
+ {
+  "name": "logs-paused-zh",
+  "tab": "logs",
+  "width": 80,
+  "locale": "zh",
+  "input": {
+   "lines": [
+    "2026-10-03 12:00:00 [info ] [main.go:10] started",
+    "2026-10-03 12:00:01 [debug] [x.go:2] noise",
+    "2026-10-03 12:00:02 [warn ] [x.go:3] slow upstream",
+    "2026-10-03 12:00:03 [error] [x.go:4] request failed",
+    "plain line"
+   ],
+   "pause": true
+  }
+ },
+ {
+  "name": "logs-empty",
+  "tab": "logs",
+  "width": 60,
+  "locale": "en",
+  "input": {
+   "lines": []
+  }
+ },
+ {
+  "name": "gate-error",
+  "tab": "gate",
+  "width": 80,
+  "locale": "en",
+  "input": {
+   "password": "",
+   "error": "Connection failed: HTTP 401: {\"error\":\"invalid management key\"}"
+  }
+ },
+ {
+  "name": "gate-zh",
+  "tab": "gate",
+  "width": 80,
+  "locale": "zh",
+  "input": {
+   "password": "secret"
+  }
+ },
+ {
+  "name": "bars-wide",
+  "tab": "bars",
+  "width": 100,
+  "locale": "en",
+  "input": {
+   "active": 1
+  }
+ },
+ {
+  "name": "bars-narrow",
+  "tab": "bars",
+  "width": 40,
+  "locale": "en",
+  "input": {
+   "active": 5
+  }
+ },
+ {
+  "name": "bars-no-logs-zh",
+  "tab": "bars",
+  "width": 120,
+  "locale": "zh",
+  "input": {
+   "active": 4,
+   "logs": false
+  }
+ }
+]

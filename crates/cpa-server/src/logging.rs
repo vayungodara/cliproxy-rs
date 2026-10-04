@@ -5,11 +5,12 @@
 //! [`init`] installs the subscriber once; [`configure`] applies a config snapshot
 //! and acts only on the settings that changed, as Go's reload does.
 
+use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Mutex, MutexGuard, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
 use std::time::Duration;
 
 use cpa_core::config::Config;
@@ -29,6 +30,7 @@ const MAIN_LOG: &str = "main.log";
 const CLEANER_INTERVAL: Duration = Duration::from_secs(60);
 
 static OUTPUT: Mutex<Output> = Mutex::new(Output::Stdout);
+static HOOK: Mutex<Option<Arc<LogHook>>> = Mutex::new(None);
 static STATE: Mutex<Option<Applied>> = Mutex::new(None);
 static LEVEL: OnceLock<reload::Handle<LevelFilter, tracing_subscriber::Registry>> = OnceLock::new();
 static CLEANER_GENERATION: AtomicU64 = AtomicU64::new(0);
@@ -112,6 +114,54 @@ pub fn init() {
     {
         INSTALLED.store(true, Ordering::SeqCst);
     }
+}
+
+/// Go's TUI `LogHook` (internal/tui/loghook.go): every formatted log line, the
+/// newest kept when full (Go drops the oldest buffered line).
+pub struct LogHook {
+    lines: Mutex<VecDeque<String>>,
+    capacity: usize,
+    ready: tokio::sync::Notify,
+}
+
+impl LogHook {
+    fn push(&self, line: String) {
+        let mut lines = self.lines.lock().unwrap_or_else(PoisonError::into_inner);
+        if lines.len() >= self.capacity {
+            lines.pop_front();
+        }
+        lines.push_back(line);
+        drop(lines);
+        self.ready.notify_one();
+    }
+
+    /// The next line, waiting for one.
+    pub async fn next(&self) -> String {
+        loop {
+            if let Some(line) = self.lines.lock().unwrap_or_else(PoisonError::into_inner).pop_front() {
+                return line;
+            }
+            self.ready.notified().await;
+        }
+    }
+}
+
+/// The standalone TUI's log capture (Go `log.AddHook(hook)` with the logger output set
+/// to `io.Discard`): every line also goes to the returned hook, and stdout output is
+/// dropped until [`release`]. Output to `main.log` continues.
+pub fn capture(capacity: usize) -> Arc<LogHook> {
+    let hook = Arc::new(LogHook {
+        lines: Mutex::new(VecDeque::new()),
+        capacity: capacity.max(1),
+        ready: tokio::sync::Notify::new(),
+    });
+    *HOOK.lock().unwrap_or_else(PoisonError::into_inner) = Some(hook.clone());
+    hook
+}
+
+/// Ends [`capture`]: lines go to stdout again.
+pub fn release() {
+    *HOOK.lock().unwrap_or_else(PoisonError::into_inner) = None;
 }
 
 /// Go `ConfigureLogOutput` (when `logging-to-file` or `logs-max-total-size-mb`
@@ -408,7 +458,13 @@ impl<'a> MakeWriter<'a> for GlobalWriter {
 
 impl Write for OutputGuard {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        // tracing writes each formatted event in one call.
+        let hooked = HOOK.lock().unwrap_or_else(PoisonError::into_inner).clone();
+        if let Some(hook) = &hooked {
+            hook.push(String::from_utf8_lossy(buf).trim_end_matches(['\n', '\r']).to_owned());
+        }
         match &mut *self.0 {
+            Output::Stdout if hooked.is_some() => Ok(buf.len()),
             Output::Stdout => io::stdout().write(buf),
             Output::File(file) => file.write(buf, MAX_FILE_SIZE),
         }
