@@ -296,7 +296,7 @@ impl ClaudeExecutor {
         }
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let original_translated = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
-        let prepared = ctx
+        let mut prepared = ctx
             .prepare_messages(&req, &translated, &original_translated, upstream_stream)
             .await?;
         // reporter.SetTranslatedReasoningEffort on the body sent upstream.
@@ -304,7 +304,7 @@ impl ClaudeExecutor {
             req.usage.request(Format::Claude, prepared.body.as_bytes());
         }
         let response = self
-            .send(&ctx, &prepared, "/v1/messages", Some(&req.usage), req.capture())
+            .send(&ctx, &mut prepared, "/v1/messages", Some(&req.usage), req.capture())
             .await;
         let response = response.inspect_err(|error| {
             // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
@@ -458,10 +458,10 @@ impl ClaudeExecutor {
                 body: ResponseBody::Buffered(render(&tokens::count(body.as_bytes())?)),
             });
         }
-        let prepared = ctx.prepare_count(&req, &translated).await?;
+        let mut prepared = ctx.prepare_count(&req, &translated).await?;
         let capture = req.capture();
         let response = self
-            .send(&ctx, &prepared, "/v1/messages/count_tokens", None, capture)
+            .send(&ctx, &mut prepared, "/v1/messages/count_tokens", None, capture)
             .await?;
         let body = match response.body {
             ResponseBody::Stream(raw) => collect(raw).await.inspect_err(|e| capture_error(capture, e))?,
@@ -484,7 +484,7 @@ impl ClaudeExecutor {
     async fn send(
         &self,
         ctx: &Ctx<'_>,
-        prepared: &Prepared,
+        prepared: &mut Prepared,
         path: &str,
         usage: Option<&cpa_core::exec::UsageSink>,
         capture: &CaptureSink,
@@ -492,6 +492,9 @@ impl ClaudeExecutor {
         let usage = usage.filter(|u| u.enabled());
         let url = format!("{}{path}?beta=true", ctx.base_url);
         let fast = ctx.first_party && prepared.fast;
+        // The body moves into the request; nothing reads it after the send.
+        let body = Bytes::from(std::mem::take(&mut prepared.body));
+        let prepared = &*prepared;
         let mut headers = GoHeaders::new();
         for (name, value) in &prepared.headers {
             headers.add_raw(name, value.as_str());
@@ -520,7 +523,7 @@ impl ClaudeExecutor {
                 url: &url,
                 method: "POST",
                 headers: &prepared.headers,
-                body: prepared.body.as_bytes(),
+                body: &body,
                 provider: ctx.log_provider,
                 auth_id: &ctx.credential.id,
                 auth_label: &ctx.credential.label,
@@ -531,7 +534,7 @@ impl ClaudeExecutor {
         if let Some(usage) = usage {
             usage.round_trip_started();
         }
-        let mut upstream = crate::proxy::send_routed(&route, &url, headers, Bytes::from(prepared.body.clone()), None)
+        let mut upstream = crate::proxy::send_routed(&route, &url, headers, body, None)
             .await
             .map_err(|e| {
                 capture_error(capture, &e);
@@ -838,21 +841,21 @@ fn sanitize_for_upstream(body: &str, base_model: &str, preserve_empty_thinking: 
             sanitize_claude_messages_for_claude_upstream(body.as_bytes(), base_model, preserve_empty_thinking).0;
         body = text(sanitized);
     }
-    let tools = rawjson::get(&body, "tools").array().len();
-    for t in 0..tools {
-        if !gjson::get(&body, &format!("tools.{t}.type"))
-            .str()
-            .starts_with("web_search_")
-        {
+    // sanitizeClaudeWebSearchDomains: one pass over the tools, then the deletes.
+    let mut empty = Vec::new();
+    for (t, tool) in rawjson::get(&body, "tools").array().iter().enumerate() {
+        if !tool.get("type").str().starts_with("web_search_") {
             continue;
         }
         for field in ["allowed_domains", "blocked_domains"] {
-            let path = format!("tools.{t}.{field}");
-            let v = gjson::get(&body, &path).json().to_owned();
-            if gjson::parse(&v).kind() == gjson::Kind::Array && gjson::parse(&v).array().is_empty() {
-                body = rawjson::delete(&body, &path);
+            let v = tool.get(field);
+            if v.kind() == gjson::Kind::Array && v.array().is_empty() {
+                empty.push(format!("tools.{t}.{field}"));
             }
         }
+    }
+    for path in empty {
+        body = rawjson::delete(&body, &path);
     }
     body
 }
@@ -1068,7 +1071,7 @@ impl<'a> Ctx<'a> {
         original_translated: &[u8],
         upstream_stream: bool,
     ) -> Result<Prepared, ExecError> {
-        let original = String::from_utf8_lossy(&req.original_body).into_owned();
+        let original = String::from_utf8_lossy(&req.original_body);
         let detection = detect::detect(&req.headers, &original, false, &self.settings);
         let confirmed = detection.confirmed;
         let derived = self.derived_session(req);
@@ -1333,7 +1336,7 @@ impl<'a> Ctx<'a> {
     }
 
     async fn prepare_count(&self, req: &ExecRequest, translated: &[u8]) -> Result<Prepared, ExecError> {
-        let original = String::from_utf8_lossy(&req.original_body).into_owned();
+        let original = String::from_utf8_lossy(&req.original_body);
         let detection = detect::detect(&req.headers, &original, true, &self.settings);
         let confirmed = detection.confirmed;
         let session_id = if self.cli_profile {
