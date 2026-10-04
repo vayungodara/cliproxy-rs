@@ -38,6 +38,20 @@ fn should_fail_poll(consecutive_errors: u32, max_errors: u32) -> bool {
     consecutive_errors >= max_errors
 }
 
+/// When polling gives up: `expires_in` seconds from the server, else Go's default for
+/// the flow. A value too large for `Instant` (Go's `Time.Add` cannot overflow) falls
+/// back to the device timeout instead of panicking.
+fn poll_deadline(now: Instant, expires_in: i64, device: bool) -> Instant {
+    let timeout = if expires_in > 0 {
+        Duration::from_secs(expires_in as u64)
+    } else if device {
+        DEVICE_POLL_TIMEOUT
+    } else {
+        DEFAULT_POLL_TIMEOUT
+    };
+    now.checked_add(timeout).unwrap_or(now + DEVICE_POLL_TIMEOUT)
+}
+
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum State {
     Idle,
@@ -373,14 +387,7 @@ impl OAuthTab {
             return cmd(async { Msg::None });
         };
         cmd(async move {
-            let timeout = if expires_in > 0 {
-                Duration::from_secs(expires_in as u64)
-            } else if device {
-                DEVICE_POLL_TIMEOUT
-            } else {
-                DEFAULT_POLL_TIMEOUT
-            };
-            let deadline = Instant::now() + timeout;
+            let deadline = poll_deadline(Instant::now(), expires_in, device);
             let mut errors = 0;
             let poll = |done: bool, message: String, err: Option<String>| {
                 Msg::OAuthPoll(Poll {
@@ -542,6 +549,15 @@ mod tests {
         tab.state = State::Remote;
         tab.polled(poll("st", 4, true));
         assert_eq!(tab.state, State::Success);
+    }
+
+    #[test]
+    fn poll_deadline_survives_huge_expiry() {
+        let now = Instant::now();
+        assert_eq!(poll_deadline(now, 90, true), now + Duration::from_secs(90));
+        assert_eq!(poll_deadline(now, 0, false), now + DEFAULT_POLL_TIMEOUT);
+        assert_eq!(poll_deadline(now, -1, true), now + DEVICE_POLL_TIMEOUT);
+        assert_eq!(poll_deadline(now, i64::MAX, false), now + DEVICE_POLL_TIMEOUT);
     }
 
     // Go TestShouldFailOAuthStatusPoll.
