@@ -441,6 +441,18 @@ async fn v0_config_yaml_put_writes_like_go() {
     assert_eq!(res.text().await.unwrap(), r#"{"changed":["config"],"ok":true}"#);
     let saved = std::fs::read_to_string(&path).unwrap();
     assert!(saved.contains("\n# indented comment\n"), "{saved}");
+    // A `#` line inside a block scalar is content; unindenting it ends the scalar and
+    // leaves `second` dangling. The upload is valid as sent, so the check must run on
+    // the unindented text, and the file must stay as it was.
+    let block = with_auth_dir(
+        "config-version: 8\nmanagement:\n  secret-key: fake-secret\nnote: |\n  # first\n  second\n",
+        &dir,
+    );
+    serde_yaml_ng::from_str::<serde_yaml_ng::Value>(&block).expect("valid as sent");
+    let res = put(&block).await.unwrap();
+    assert_eq!(res.status().as_u16(), 400);
+    assert!(res.text().await.unwrap().starts_with(r#"{"error":"invalid_yaml""#));
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), saved);
     assert!(saved.contains("strategy: fill-first"), "{saved}");
     assert!(!saved.contains("secret-key: fake-secret"), "the key is hashed: {saved}");
     // The hashed key still authenticates.

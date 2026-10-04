@@ -664,8 +664,8 @@ fn legacy_weight_error(root: &serde_yaml_ng::Value) -> Option<Response> {
     })
 }
 
-/// Go `PutConfigYAML` (v0 only; v8 has its own writer): the upload must decode and load
-/// as a config, then is written as sent (comment lines unindented) and reloaded, which
+/// Go `PutConfigYAML` (v0 only; v8 has its own writer): the upload, with comment lines
+/// unindented, must decode and load as a config, then is written and reloaded, which
 /// hashes a plaintext management key as Go's `LoadConfig` does.
 ///
 /// Go answers 400 for what fails while decoding (syntax, shape, v8 key groups) and 422
@@ -676,13 +676,17 @@ pub(crate) async fn put_config_yaml(State(state): State<Arc<Management>>, body: 
     let fail = |status: StatusCode, error: &str, message: String| {
         go_json(status, &json!({ "error": error, "message": message }))
     };
-    let Ok(text) = std::str::from_utf8(&body).map(str::to_owned) else {
+    let Ok(text) = std::str::from_utf8(&body) else {
         return fail(
             StatusCode::BAD_REQUEST,
             "invalid_yaml",
             "yaml: invalid leading UTF-8 octet".into(),
         );
     };
+    // Validate the bytes that will be written. Go validates the upload and unindents
+    // comment lines only while writing, which can break a block scalar holding a `#` line
+    // after the file is already overwritten.
+    let text = normalize_comment_indentation(text);
     let root = match serde_yaml_ng::from_str::<serde_yaml_ng::Value>(&text) {
         Err(e) => return fail(StatusCode::BAD_REQUEST, "invalid_yaml", e.to_string()),
         Ok(root @ serde_yaml_ng::Value::Mapping(_)) => root,
@@ -725,7 +729,6 @@ pub(crate) async fn put_config_yaml(State(state): State<Arc<Management>>, body: 
     }
     tokio::task::spawn_blocking(move || {
         let _guard = state.disk.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        let text = normalize_comment_indentation(&text);
         if cpa_core::config::ConfigDocument::write(&state.path, &text).is_err() {
             return fail(
                 StatusCode::INTERNAL_SERVER_ERROR,
