@@ -345,3 +345,93 @@ async fn unregistered_and_unserved_models_follow_go_error_contracts() {
     );
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+/// The executor hands the request log its upstream headers unmasked; the log writer
+/// masks them. A Claude request served with request logging on writes a file that holds
+/// the upstream `Authorization` token, a credential's own `X-Api-Key` header and the
+/// account's API key only in their masked form.
+#[tokio::test]
+async fn request_log_masks_upstream_credentials() {
+    const API_KEY: &str = "sk-upstream-secret-0123456789";
+    const HEADER_KEY: &str = "custom-header-secret-abcdef";
+    let _registry = REGISTRY.lock().await;
+    let log: Log = Arc::default();
+    let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(log.clone())).await;
+    let dir = auth_dir("request-log", &[]);
+    let logs = dir.join("logs");
+    std::fs::create_dir_all(&logs).unwrap();
+    let mut config = Config::parse(&format!(
+        "request-log: true\nclaude-api-key:\n  - api-key: {API_KEY}\n    base-url: {upstream_url}\n    \
+         headers:\n      X-Api-Key: {HEADER_KEY}\n"
+    ))
+    .unwrap();
+    config.api_keys = vec!["client-key-1".into()];
+    config.auth_dir = dir.clone();
+    let creds = cpa_core::config::credentials::from_config(&config)
+        .into_iter()
+        .map(cpa_server::testing::local)
+        .collect();
+    let executors = Executors {
+        claude: ClaudeExecutor::new(&upstream_url).unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let rt = Arc::new(cpa_server::testing::runtime(config, creds, executors));
+    cpa_server::install_registry(&rt);
+    let management = cpa_server::management::Management::with_options(
+        rt.clone(),
+        dir.join("config.yaml"),
+        cpa_server::management::Options {
+            log_dir: Some(logs.clone()),
+            management_password: Some(String::new()),
+            auth_dir: Some(dir.clone()),
+            ..Default::default()
+        },
+    );
+    let proxy = serve(cpa_server::request_logging::router(&management, router(rt))).await;
+
+    let res = wreq::Client::new()
+        .post(format!("{proxy}/v1/messages"))
+        .header("x-api-key", "client-key-1")
+        .body(r#"{"model":"claude-opus-5-5","messages":[{"role":"user","content":"hi"}]}"#)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status().as_u16(), 200);
+    assert_eq!(res.text().await.unwrap(), JSON_REPLY);
+    // The secret really went upstream, so the log had it to mask.
+    assert_eq!(log.lock().unwrap()[0].authorization, format!("Bearer {API_KEY}"));
+
+    // The file is written once the response completes.
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
+    let content = loop {
+        let files: Vec<_> = std::fs::read_dir(&logs)
+            .unwrap()
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().is_some_and(|e| e == "log"))
+            .collect();
+        if let [file] = files.as_slice() {
+            let content = std::fs::read_to_string(file).unwrap();
+            if content.contains("=== API RESPONSE 1 ===") {
+                break content;
+            }
+        }
+        assert!(tokio::time::Instant::now() < deadline, "no request log in {logs:?}");
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    };
+    for line in [
+        "Auth: provider=claude",
+        "type=api_key value=sk-u...6789",
+        "Authorization: Bearer sk-u...6789",
+        "X-Api-Key: cust...cdef",
+    ] {
+        assert!(content.contains(line), "missing {line:?} in:\n{content}");
+    }
+    for secret in [API_KEY, HEADER_KEY, "client-key-1"] {
+        assert!(!content.contains(secret), "{secret:?} leaked into:\n{content}");
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
