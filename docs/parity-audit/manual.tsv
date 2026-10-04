@@ -160,6 +160,7 @@ M2-0050	covered	compat scenarios chat_text_only_tool_results, chat_image_model_k
 M2-0051	covered	compat scenario chat_video_input_passthrough
 M2-0052	partial	crates/cpa-exec/src/codex_request.rs	codex	Not ported by name.
 M2-0053	covered	recorded replay: crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (internal/signature calls)
+M2-0059	partial		translate	Byte results of all five cases are replayed; TestLowercaseClaudeToolSchemaTypesReusesLowercaseSchema also asserts that the input buffer is returned without a copy, which the replay does not check (it compares returned bytes only).
 M2-0078	partial	crates/cpa-translate/src/common.rs, sse.rs; cpa_common::json	translate	Unit cases not ported.
 M2-0109	covered	n/a: Go package import boundary check
 M2-0133	covered	crates/cpa-common/tests/fixtures/gemini_schema.json: every JSON literal mined from gemini_schema_test.go run through Go's cleaners (crates/cpa-common/tests/gemini_schema.rs)
@@ -310,8 +311,11 @@ M3-0281	partial	crates/cpa-exec/src/meta_wire.rs	device-providers	Not ported by 
 M3-0282	partial	crates/cpa-common/tests/payload.rs (payload_go.json)	server	Not ported by name.
 M3-0285	partial	crates/cpa-exec/src/kimi_replay.rs; device fixtures (crates/cpa-exec/tests/device_fixtures/kimi)	device-providers	Not ported by name.
 M3-0297	partial	crates/cpa-translate/src/antigravity_claude.rs; claude-antigravity goldens (bypass modes, signature carriers)	translate	Unit cases not ported.
-M3-0300				The unmatched case bounds Go allocations for a 4 MiB payload; it has no Rust counterpart.
+M3-0300				The unmatched case bounds Go allocations for a 4 MiB payload; it has no Rust counterpart. Three matched cases also assert that the input buffer is returned without a copy, which the replay does not check (it compares returned bytes only).
+M3-0303	partial		translate	Byte results of both cases are replayed; TestRewriteInteractionsFunctionNamesReusesNormalizedPayload also asserts that the input buffer is returned without a copy, which the replay does not check (it compares returned bytes only).
+M3-0307	partial		translate	The byte result is replayed; the case also asserts that the input buffer is returned without a copy, which the replay does not check (it compares returned bytes only).
 M3-0317				The unmatched case asserts Go slice reuse (setCodexToolChoiceFromGeminiToolConfig keeps the same backing array); its value result is in the pair goldens.
+M3-0319	partial		translate	Byte results of both cases are replayed; TestSetInteractionsCodexRawIfDifferentReusesMatchingValue also asserts that the input buffer is returned without a copy, which the replay does not check (it compares returned bytes only).
 M3-0327	partial	crates/cpa-server/src/session.rs, dispatch.rs (execution metadata)	server	15 Go cases; not ported by name.
 M3-0328	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	codex	Not ported by name.
 M3-0330	covered	crates/cpa-exec/src/codex_oauth_tests.rs login_file_bytes_match_go_storage_serializer
