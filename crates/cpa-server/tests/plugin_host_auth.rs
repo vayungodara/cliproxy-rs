@@ -201,3 +201,65 @@ async fn plugin_auth_callbacks_read_and_save_the_credential_store() {
     drop(guard);
     let _ = std::fs::remove_dir_all(&work);
 }
+
+/// A binding is keyed by the credential's scheduling key; for an OpenAI-compatible
+/// credential that is its `provider_key`, not its raw provider.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn affinity_lookup_finds_custom_provider_bindings() {
+    let work = cpa_plugin::testing::scratch(
+        std::path::Path::new(env!("CARGO_TARGET_TMPDIR")),
+        "plugin-affinity-compat",
+    );
+    let auths = work.join("auths");
+    std::fs::create_dir_all(&auths).unwrap();
+    let config_path = work.join("config.yaml");
+    std::fs::write(
+        &config_path,
+        format!(
+            "config-version: 8\nauth-dir: {}\nrouting:\n  session-affinity: true\n",
+            auths.display()
+        ),
+    )
+    .unwrap();
+    let config = Config::load(&config_path).unwrap();
+    let mut meta = serde_json::Map::new();
+    meta.insert("type".into(), "openai-compatibility".into());
+    let mut compat = cpa_core::credential::Credential::from_file(&auths, &auths.join("acme.json"), meta).unwrap();
+    compat.attributes.insert("provider_key".into(), "acme".into());
+    assert_eq!(compat.provider, "openai-compatibility");
+    let index = cpa_core::config::credentials::auth_index(&compat);
+    let rt = Arc::new(cpa_server::testing::runtime(
+        config,
+        vec![compat],
+        Executors {
+            claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
+            devices: Default::default(),
+            openai: Default::default(),
+            google: Default::default(),
+        },
+    ));
+    let _state = Management::with_options(rt.clone(), config_path, Options::default());
+    cpa_server::plugins::start(&rt).await;
+    let host = rt.plugins().clone();
+    let instance = Arc::new(CallbackInstance::default());
+    let guard = callback_context(&host, "p", instance.clone(), RequestScope::default());
+    let mut selection = Selection::new("acme", "up-model");
+    selection.session = Some("s1".into());
+    drop(rt.store().select(selection).expect("the compat credential is picked"));
+    let (h, i) = (host.clone(), instance.clone());
+    tokio::task::spawn_blocking(move || {
+        let lookup = |provider: &str| {
+            let request = format!(r#"{{"provider":"{provider}","model":"up-model","session_id":"s1"}}"#);
+            result(&call_from_plugin(&h, "p", &i, "host.affinity.lookup", request.as_bytes()).unwrap())
+        };
+        let bound = lookup("acme");
+        assert_eq!(bound["status"], "bound", "{bound}");
+        assert_eq!(bound["auth_index"], index.as_str());
+        assert_eq!(lookup("openai-compatibility")["status"], "unbound");
+    })
+    .await
+    .unwrap();
+    drop(guard);
+    let _ = std::fs::remove_dir_all(&work);
+}
