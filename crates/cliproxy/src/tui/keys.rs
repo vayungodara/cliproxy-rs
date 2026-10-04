@@ -44,6 +44,9 @@ pub struct KeysTab {
     pub editing: bool,
     pub adding: bool,
     edit_index: usize,
+    /// The key being edited or awaiting delete confirmation. The API addresses keys by
+    /// index, so a refresh that moves it cancels the action.
+    target: String,
     pub input: TextInput,
 }
 
@@ -65,6 +68,7 @@ impl KeysTab {
             editing: false,
             adding: false,
             edit_index: 0,
+            target: String::new(),
             input,
         }
     }
@@ -114,6 +118,13 @@ impl KeysTab {
                 self.openai = data.openai;
                 if self.cursor >= self.keys.len() {
                     self.cursor = self.keys.len().saturating_sub(1);
+                }
+                let index = self.confirm.or(self.editing.then_some(self.edit_index));
+                if index.is_some_and(|i| self.keys.get(i) != Some(&self.target)) {
+                    self.confirm = None;
+                    self.editing = false;
+                    self.input.blur();
+                    self.status = Some((t("key_changed").to_owned(), s::error()));
                 }
             }
             Err(e) => self.err = Some(e),
@@ -217,7 +228,8 @@ impl KeysTab {
                     self.editing = true;
                     self.adding = false;
                     self.edit_index = self.cursor;
-                    self.input.set_value(&self.keys[self.cursor]);
+                    self.target = self.keys[self.cursor].clone();
+                    self.input.set_value(&self.target);
                     self.input.prompt = t("edit_key_prompt").to_owned();
                     self.input.focus();
                     self.refresh();
@@ -226,6 +238,7 @@ impl KeysTab {
             "d" => {
                 if self.cursor < count {
                     self.confirm = Some(self.cursor);
+                    self.target = self.keys[self.cursor].clone();
                     self.refresh();
                 }
             }
@@ -334,5 +347,44 @@ fn append_details(info: &mut String, entry: &Object) {
     let base = s::get_string(entry, "base-url");
     if !base.is_empty() {
         info.push_str(&format!(" → {base}"));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn data(keys: &[&str]) -> Result<Data, String> {
+        Ok(Data {
+            api_keys: keys.iter().map(|k| (*k).to_owned()).collect(),
+            providers: Vec::new(),
+            openai: Vec::new(),
+        })
+    }
+
+    /// Keys are deleted and edited by index; a refresh that moves the chosen key
+    /// cancels the action instead of hitting its neighbour.
+    #[test]
+    fn a_refresh_that_moves_the_key_cancels_delete_and_edit() {
+        let mut tab = KeysTab::new(Arc::new(Client::new("http://127.0.0.1:1", "")));
+        tab.data(data(&["k1", "k2", "k3"]));
+        tab.key("down");
+        tab.key("d");
+        tab.data(data(&["k1", "k2", "k4"]));
+        assert_eq!(tab.confirm, Some(1), "unmoved key keeps the prompt");
+        tab.data(data(&["k1", "k3", "k2"]));
+        assert_eq!(tab.confirm, None);
+        assert!(tab.key("y").is_empty());
+
+        tab.key("e");
+        assert!(tab.editing);
+        tab.data(data(&["k2"]));
+        assert!(!tab.editing);
+        assert!(tab.key("enter").is_empty());
+        let _locale = super::super::i18n::LOCALE_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        tab.locale();
+        assert!(tab.vp.text().iter().any(|l| l.contains(t("key_changed"))));
     }
 }
