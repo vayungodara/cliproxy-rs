@@ -115,7 +115,7 @@ copies their multi-MiB payloads; that is expected. Run the tests with external n
 denied.
 
 Known gaps: the extraction does not interpret registry mocks or assertions about Go slice
-backing addresses, tests that call internal helpers rather than converters are not
+backing addresses, tests that call unlisted internal helpers rather than converters are not
 harvested, and plugin hooks (M6) are not exercised.
 The dynamic model registry is empty during generation, so capabilities come from the
 static catalogs only.
