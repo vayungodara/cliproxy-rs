@@ -270,3 +270,35 @@ fn protocol_headers_keep_values_and_canonical_names() {
     client.insert("originator", "Codex CLI".parse().unwrap());
     assert!(direct_headers(&client).contains(&("Originator".to_owned(), "Codex CLI".to_owned())));
 }
+
+#[test]
+fn redact_sdp_hides_ice_credentials_in_every_wrapping() {
+    let raw = b"v=0\r\na=ice-ufrag:Ufr4g\r\na=ice-pwd:s3cret+pass/word\r\na=mid:0\r\n";
+    assert_eq!(
+        &*redact_sdp(raw),
+        b"v=0\r\na=ice-ufrag:[REDACTED]\r\na=ice-pwd:[REDACTED]\r\na=mid:0\r\n"
+    );
+    // Bare LF line ends and a value at the end of the body.
+    assert_eq!(
+        &*redact_sdp(b"a=ice-pwd:p1\na=ice-pwd:p2"),
+        b"a=ice-pwd:[REDACTED]\na=ice-pwd:[REDACTED]"
+    );
+    // JSON strings: the value ends at an escape or the closing quote; `\/` is part of it.
+    let json = br#"{"sdp":"v=0\r\na=ice-pwd:ab\/cd\r\na=ice-ufrag:uf","session":{}}"#;
+    assert_eq!(
+        &*redact_sdp(json),
+        br#"{"sdp":"v=0\r\na=ice-pwd:[REDACTED]\r\na=ice-ufrag:[REDACTED]","session":{}}"#
+    );
+    // A multipart field keeps its boundary lines.
+    let multipart = b"--b\r\nContent-Disposition: form-data; name=\"sdp\"\r\n\r\na=ice-pwd:mp\r\n--b--\r\n";
+    assert_eq!(
+        &*redact_sdp(multipart),
+        b"--b\r\nContent-Disposition: form-data; name=\"sdp\"\r\n\r\na=ice-pwd:[REDACTED]\r\n--b--\r\n"
+    );
+    // Other bodies, and an empty value, stay as they are, without a copy.
+    assert!(matches!(
+        redact_sdp(b"v=0\r\na=mid:0\r\n"),
+        std::borrow::Cow::Borrowed(_)
+    ));
+    assert_eq!(&*redact_sdp(b"a=ice-pwd:\r\n"), b"a=ice-pwd:\r\n");
+}

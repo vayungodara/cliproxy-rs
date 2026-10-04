@@ -237,3 +237,104 @@ async fn transport_errors_are_captured() {
     assert!(!answer.contains("Status:"), "{answer}");
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// SDP ICE credentials never reach the request log, in any section, while the client and
+/// the upstream still get them byte for byte.
+#[tokio::test]
+async fn sdp_ice_credentials_stay_out_of_the_whole_log() {
+    const ANSWER: &str = "v=0\r\na=ice-ufrag:answerufrag\r\na=ice-pwd:answer+pwd/secret\r\n";
+    let dir = scratch();
+    let received = Arc::new(std::sync::Mutex::new(Vec::<u8>::new()));
+    let upstream_url = serve(axum::Router::new().fallback({
+        let received = received.clone();
+        move |body: axum::body::Bytes| async move {
+            *received.lock().unwrap() = body.to_vec();
+            let mut response = (StatusCode::CREATED, ANSWER).into_response();
+            let h = response.headers_mut();
+            h.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/sdp"));
+            h.insert(header::LOCATION, HeaderValue::from_static("/v1/live/call-123"));
+            response
+        }
+    }))
+    .await;
+    let proxy = start(&dir, &upstream_url).await;
+    let body = r#"{"sdp":"v=0\r\na=ice-ufrag:offerufrag\r\na=ice-pwd:offer+pwd/secret\r\n","session":{"model":"gpt-live-1-codex"}}"#;
+    let response = wreq::Client::new()
+        .post(format!("{proxy}/v1/live"))
+        .header("content-type", "application/json")
+        .body(body)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status().as_u16(), 201);
+    assert_eq!(
+        response.text().await.unwrap(),
+        ANSWER,
+        "the client gets the answer unchanged"
+    );
+    let sent = String::from_utf8(received.lock().unwrap().clone()).unwrap();
+    assert!(
+        sent.contains(r"a=ice-ufrag:offerufrag\r\na=ice-pwd:offer+pwd/secret\r\n"),
+        "the upstream gets the offer's credentials: {sent}"
+    );
+
+    let log = log_with(&dir, "/calls").await;
+    for secret in ["offerufrag", "offer+pwd", "answerufrag", "answer+pwd", "pwd/secret"] {
+        assert!(!log.contains(secret), "{secret} in {log}");
+    }
+    for (name, line) in [
+        ("REQUEST BODY", r"a=ice-ufrag:[REDACTED]\r\na=ice-pwd:[REDACTED]\r\n"),
+        ("API REQUEST 1", r"a=ice-ufrag:[REDACTED]\r\na=ice-pwd:[REDACTED]\r\n"),
+        ("API RESPONSE 1", "a=ice-ufrag:[REDACTED]\r\na=ice-pwd:[REDACTED]"),
+        ("RESPONSE", "a=ice-ufrag:[REDACTED]\r\na=ice-pwd:[REDACTED]\r\n"),
+    ] {
+        let text = section(&log, name);
+        assert!(text.contains(line), "{name}: {text}");
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// Bodies past the in-memory limit go to the spool file; their ICE credentials are
+/// redacted before they get there.
+#[tokio::test]
+async fn sdp_ice_credentials_stay_out_of_spooled_sections() {
+    let padding = "a=x-pad:0123456789abcdef0123456789abcdef0123456789abcdef\r\n".repeat(2048);
+    let answer = format!("v=0\r\n{padding}a=ice-ufrag:answerufrag\r\na=ice-pwd:answerpwd\r\n");
+    assert!(answer.len() > 100 << 10, "past the in-memory limit");
+    let dir = scratch();
+    let upstream_url = serve(axum::Router::new().fallback({
+        let answer = answer.clone();
+        // Reads the whole offer first, as a real server would before answering.
+        move |_offer: axum::body::Bytes| async move {
+            let mut response = (StatusCode::CREATED, answer).into_response();
+            let h = response.headers_mut();
+            h.insert(header::CONTENT_TYPE, HeaderValue::from_static("application/sdp"));
+            h.insert(header::LOCATION, HeaderValue::from_static("/v1/live/call-123"));
+            response
+        }
+    }))
+    .await;
+    let proxy = start(&dir, &upstream_url).await;
+    let offer = format!("v=0\r\n{padding}a=ice-ufrag:offerufrag\r\na=ice-pwd:offerpwd\r\n");
+    let response = wreq::Client::new()
+        .post(format!("{proxy}/v1/live"))
+        .header("content-type", "application/sdp")
+        .body(offer)
+        .send()
+        .await
+        .unwrap();
+    let status = response.status().as_u16();
+    let text = response.text().await.unwrap();
+    assert_eq!(status, 201, "{text}");
+    assert_eq!(text, answer);
+    let log = log_with(&dir, "/calls").await;
+    for secret in ["offerufrag", "offerpwd", "answerufrag", "answerpwd"] {
+        assert!(!log.contains(secret), "{secret} in the log");
+    }
+    for name in ["API REQUEST 1", "API RESPONSE 1"] {
+        let text = section(&log, name);
+        assert!(text.contains("a=x-pad:"), "{name} logged in full");
+        assert!(text.contains("a=ice-pwd:[REDACTED]"), "{name} redacted");
+    }
+    let _ = std::fs::remove_dir_all(dir);
+}

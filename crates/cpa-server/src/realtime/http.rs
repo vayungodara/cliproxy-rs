@@ -237,6 +237,10 @@ pub(super) async fn call(
 ) -> Response {
     let realtime = uri.path().starts_with("/v1/realtime");
     let fail = |status, message: &str| live_error(realtime, status, message);
+    // Offers and answers carry ICE credentials; the request log keeps them out.
+    if let Some(log) = crate::request_logging::current() {
+        log.redact_sdp();
+    }
     let body = match read_limited(body, live::MAX_BODY).await {
         Ok(body) => body,
         Err(ReadError::TooLarge) => return fail(413, "Codex live request body too large"),
