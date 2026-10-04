@@ -546,7 +546,50 @@ fn main() -> anyhow::Result<()> {
     }
     let builtin = plugin_cli::builtin_values(&cmd, &matches);
     let host = plugins.map(|(host, _)| host).unwrap_or_default();
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    trim_heap_periodically();
     runtime.block_on(run(args, host, builtin))
+}
+
+/// glibc keeps the memory that request handling frees in its per-thread arenas and only
+/// returns the top of each arena to the kernel, so after a burst of large prompts the
+/// process stays near its peak size while most of that memory is free. `malloc_trim`
+/// hands the free pages of every arena back. Trimming under load costs page faults on
+/// the next requests, so it runs once the process goes quiet (under 50 ms of CPU in five
+/// seconds), and at least once a minute. See docs/BENCHMARKS.md (Claude soak).
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+fn trim_heap_periodically() {
+    const TICK: Duration = Duration::from_secs(5);
+    const QUIET: Duration = Duration::from_millis(50);
+    const MAX_GAP: u32 = 12;
+    fn cpu_time() -> Duration {
+        // SAFETY: getrusage writes only into the struct it is given.
+        let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
+        unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) };
+        let tv = |t: libc::timeval| Duration::new(t.tv_sec as u64, t.tv_usec as u32 * 1000);
+        tv(usage.ru_utime) + tv(usage.ru_stime)
+    }
+    let trim = || {
+        let (mut last, mut ticks, mut trimmed) = (cpu_time(), 0, false);
+        loop {
+            std::thread::sleep(TICK);
+            let now = cpu_time();
+            let quiet = now.saturating_sub(last) < QUIET;
+            last = now;
+            ticks += 1;
+            if !quiet {
+                trimmed = false;
+            }
+            if (quiet && !trimmed) || ticks >= MAX_GAP {
+                // SAFETY: malloc_trim only releases the allocator's own free memory.
+                unsafe { libc::malloc_trim(0) };
+                (ticks, trimmed) = (0, true);
+            }
+        }
+    };
+    if let Err(e) = std::thread::Builder::new().name("heap-trim".into()).spawn(trim) {
+        tracing::warn!("heap trim thread not started: {e}");
+    }
 }
 
 async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String)>) -> anyhow::Result<()> {
