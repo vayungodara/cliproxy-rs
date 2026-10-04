@@ -976,6 +976,14 @@ impl Matcher {
         }
     }
 
+    /// A fresh matcher on `limits` that keeps counting access generations, so a lease
+    /// picked before the change never evicts a binding made after it.
+    pub fn reset(&mut self, limits: Limits) {
+        let access = self.access;
+        *self = Self::new(limits);
+        self.access = access;
+    }
+
     pub fn limits(&self) -> Limits {
         self.limits
     }

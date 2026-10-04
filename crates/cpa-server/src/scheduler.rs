@@ -660,8 +660,9 @@ impl Scheduler {
             self.rotations.clear();
             self.cursors.clear();
             self.affinity.clear();
-            // Go builds a new selector, and with it a new matcher on the new TTL.
-            self.lcp = crate::lcp::Matcher::new(crate::lcp::Limits {
+            // Go builds a new selector, and with it a new matcher on the new TTL. Unlike
+            // Go, access generations keep counting (docs/DIFFERENCES-FROM-GO.md).
+            self.lcp.reset(crate::lcp::Limits {
                 ttl: next.session_affinity_ttl,
                 ..Default::default()
             });
@@ -1825,6 +1826,47 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// The failure of a request picked before a policy change removes nothing bound
+    /// after it, though the change replaced the matcher.
+    #[test]
+    fn delayed_failure_keeps_binding_made_after_policy_change() {
+        let a = cred("a", serde_json::json!({}));
+        let p = Policy {
+            session_affinity: true,
+            ..Default::default()
+        };
+        let next = Policy {
+            session_affinity_ttl: Duration::from_secs(600),
+            ..p.clone()
+        };
+        let now = Instant::now();
+        let mut s = Scheduler::default();
+        let body = br#"{"messages":[{"role":"user","content":"hello"}]}"#;
+        let request = crate::lcp::Request::new("openai", body, "client-key").unwrap();
+        let sel = Selection {
+            lcp: Some(std::sync::Arc::new(request.clone())),
+            ..selection("m")
+        };
+        let ranks = |_: &Credential| Windows::default();
+        let mut old = None;
+        for _ in 0..5 {
+            old = s.pick_session(&tag(&[&a]), &sel, &p, &ranks, now).unwrap().1;
+        }
+        let old = old.unwrap();
+        s.configure(&p, &next);
+        let fresh = s
+            .pick_session(&tag(&[&a]), &sel, &next, &ranks, now)
+            .unwrap()
+            .1
+            .unwrap();
+        assert!(fresh.access > old.access, "{} after {}", fresh.access, old.access);
+        let failure = Outcome::Failure(ExecError::local(500, FailureScope::Credential, "boom"));
+        s.session_result(&a, &sel, &failure, &p, Some(&old), now);
+        let namespace = request.namespace("m");
+        let kept = s.lcp.find(&namespace, request.prepared(), now);
+        assert_eq!(kept.map(|m| m.auth), Some("a".to_owned()));
     }
 
     #[test]
