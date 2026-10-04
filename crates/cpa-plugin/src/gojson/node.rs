@@ -51,11 +51,22 @@ impl Node {
             let mut done = match next {
                 Node::Null => Some(serde_json::Value::Null),
                 Node::Bool(b) => Some(serde_json::Value::Bool(*b)),
-                Node::Number(n) => Some(
-                    serde_json::Number::from_f64(parse_f64(n)?)
-                        .map(serde_json::Value::Number)
-                        .unwrap_or(serde_json::Value::Null),
-                ),
+                Node::Number(n) => match parse_f64(n) {
+                    Ok(f) => Some(
+                        serde_json::Number::from_f64(f)
+                            .map(serde_json::Value::Number)
+                            .unwrap_or(serde_json::Value::Null),
+                    ),
+                    Err(e) => {
+                        for open in stack {
+                            match open {
+                                Open::Array(_, out) => out.into_iter().for_each(dispose),
+                                Open::Object(_, out, _) => out.into_iter().for_each(|(_, v)| dispose(v)),
+                            }
+                        }
+                        return Err(e);
+                    }
+                },
                 Node::String(s) => Some(serde_json::Value::String(s.clone())),
                 Node::Array(items) => {
                     stack.push(Open::Array(items.iter(), Vec::with_capacity(items.len())));
@@ -73,7 +84,10 @@ impl Node {
                         None => return Ok(value),
                         Some(Open::Array(_, out)) => out.push(value),
                         Some(Open::Object(_, out, key)) => {
-                            out.insert(std::mem::take(key), value);
+                            // A duplicate key replaces the earlier value, which may be deep.
+                            if let Some(old) = out.insert(std::mem::take(key), value) {
+                                dispose(old);
+                            }
                         }
                     }
                 }
@@ -153,6 +167,21 @@ impl Node {
             }
         }
         out
+    }
+}
+
+/// Drops a `serde_json::Value` with an explicit stack; its own drop glue recurses
+/// once per nesting level.
+fn dispose(value: serde_json::Value) {
+    let mut pending = vec![value];
+    while let Some(mut value) = pending.pop() {
+        match &mut value {
+            serde_json::Value::Array(items) => pending.append(items),
+            serde_json::Value::Object(members) => {
+                pending.extend(std::mem::take(members).into_iter().map(|(_, v)| v));
+            }
+            _ => {}
+        }
     }
 }
 
@@ -526,5 +555,12 @@ mod tests {
         let dup = parse(br#"{"k":{"x":1},"k":[2,{"y":null}]}"#).unwrap();
         assert_eq!(dup.to_value().unwrap(), serde_json::json!({"k": [2.0, {"y": null}]}));
         assert_eq!(dup.to_json(), br#"{"k":{"x":1},"k":[2,{"y":null}]}"#);
+        // A deep value replaced by a later duplicate, and deep values already built
+        // when a later number overflows, are freed without recursion.
+        let deep = format!("{}{}", "[".repeat(9990), "]".repeat(9990));
+        let replaced = parse(format!(r#"{{"k":{deep},"k":0}}"#).as_bytes()).unwrap();
+        assert_eq!(replaced.to_value().unwrap(), serde_json::json!({"k": 0.0}));
+        let overflow = parse(format!(r#"[{deep},1e400]"#).as_bytes()).unwrap();
+        assert!(overflow.to_value().is_err());
     }
 }
