@@ -57,11 +57,41 @@ type usageOut struct {
 	Failed        bool   `json:"failed"`
 }
 
-var records = make(chan usage.Record, 64)
+// records holds the published usage records by trace ID. Each turn runs under its own
+// trace ID, so a record the usage dispatcher delivers late still belongs to its turn.
+var records = struct {
+	sync.Mutex
+	byTrace map[string]usage.Record
+}{byTrace: map[string]usage.Record{}}
 
 type capturePlugin struct{}
 
-func (capturePlugin) HandleUsage(_ context.Context, r usage.Record) { records <- r }
+func (capturePlugin) HandleUsage(_ context.Context, r usage.Record) {
+	records.Lock()
+	defer records.Unlock()
+	if _, seen := records.byTrace[r.TraceID]; seen {
+		panic("second usage record for turn " + r.TraceID)
+	}
+	records.byTrace[r.TraceID] = r
+}
+
+// usageFor waits up to wait for the turn's record.
+func usageFor(traceID string, wait time.Duration) *usageOut {
+	deadline := time.Now().Add(wait)
+	for {
+		records.Lock()
+		r, ok := records.byTrace[traceID]
+		records.Unlock()
+		if ok {
+			return &usageOut{Input: r.Detail.InputTokens, Output: r.Detail.OutputTokens, Reasoning: r.Detail.ReasoningTokens,
+				Cached: r.Detail.CachedTokens, Total: r.Detail.TotalTokens, Effort: r.ReasoningEffort, ResponseModel: r.ResponseModel, Failed: r.Failed}
+		}
+		if time.Now().After(deadline) {
+			return nil
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
 
 type reply struct {
 	Status int    `json:"status"`
@@ -272,24 +302,17 @@ func run(s *scenario) {
 	}
 	normalize := func(text string) string { return strings.ReplaceAll(text, up.addr, "UPSTREAM") }
 
-	for _, t := range s.Turns {
+	traceID := func(i int) string { return fmt.Sprintf("%s#%d", s.Name, i) }
+	for i, t := range s.Turns {
 		up.mu.Lock()
 		up.turn = t
 		up.mu.Unlock()
-		for len(records) > 0 {
-			<-records
-		}
 		if t.Close {
 			exec.CloseExecutionSession(s.Session)
 			time.Sleep(50 * time.Millisecond)
 		} else {
-			runTurn(exec, auths[t.Auth], s.Session, t)
-			select {
-			case r := <-records:
-				t.Usage = &usageOut{Input: r.Detail.InputTokens, Output: r.Detail.OutputTokens, Reasoning: r.Detail.ReasoningTokens,
-					Cached: r.Detail.CachedTokens, Total: r.Detail.TotalTokens, Effort: r.ReasoningEffort, ResponseModel: r.ResponseModel, Failed: r.Failed}
-			case <-time.After(300 * time.Millisecond):
-			}
+			runTurn(exec, auths[t.Auth], s.Session, traceID(i), t)
+			t.Usage = usageFor(traceID(i), 300*time.Millisecond)
 		}
 		up.mu.Lock()
 		up.turn = nil
@@ -326,9 +349,15 @@ func run(s *scenario) {
 		}
 	}
 	exec.CloseExecutionSession(s.Session)
+	// A record that arrived after its turn's wait still belongs to that turn.
+	for i, t := range s.Turns {
+		if !t.Close && t.Usage == nil {
+			t.Usage = usageFor(traceID(i), 0)
+		}
+	}
 }
 
-func runTurn(exec *executor.XAIAutoExecutor, auth *cliproxyauth.Auth, session string, t *turn) {
+func runTurn(exec *executor.XAIAutoExecutor, auth *cliproxyauth.Auth, session, traceID string, t *turn) {
 	model := t.Model
 	if model == "" {
 		model = "grok-4.3"
@@ -337,7 +366,7 @@ func runTurn(exec *executor.XAIAutoExecutor, auth *cliproxyauth.Auth, session st
 	for k, v := range t.Headers {
 		headers.Set(k, v)
 	}
-	ctx := cliproxyexecutor.WithDownstreamWebsocket(context.Background())
+	ctx := usage.WithTraceID(cliproxyexecutor.WithDownstreamWebsocket(context.Background()), traceID)
 	if t.Continuation {
 		ctx = cliproxyexecutor.WithRequiredUpstreamWebsocket(ctx)
 	}
