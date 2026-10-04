@@ -78,6 +78,10 @@ pub struct Management {
 pub struct Options {
     /// `--password`: accepted from loopback clients only, like Go's local password.
     pub local_password: String,
+    /// `-tui -standalone`: the local password alone keeps management on, across
+    /// reloads, for loopback clients. Go refuses every request without a configured
+    /// secret, so its standalone TUI cannot sign in with a keyless config.
+    pub standalone: bool,
     /// Overrides the `MANAGEMENT_PASSWORD` environment variable when set.
     pub management_password: Option<String>,
     /// Overrides [`observability::LATEST_RELEASE_URL`] (tests point it at a local server).
