@@ -21,9 +21,11 @@ pub(super) struct Call {
     /// The credential that created it; the sideband and hangup are pinned to it.
     pub auth_id: String,
     /// The request's session (`$CPA-SESSION-ID` for the sideband and hangup).
-    // ponytail: Go also keeps the model and parent session for Home dispatch and
-    // logging metadata; neither is ported.
     pub session_id: String,
+    /// The upstream model the call was selected for (Home picks and results).
+    pub model: String,
+    /// The Home pick the call keeps (Go `liveSession.homeSelection`), in Home mode.
+    pub home: Option<Arc<HomeHold>>,
     /// Who created it: only the same client key may join or hang up.
     pub owner_key: String,
     pub owner_provider: String,
@@ -59,6 +61,51 @@ impl Resources {
         for handle in handles {
             handle.abort();
         }
+    }
+}
+
+/// A Home pick a call keeps for its lifetime (Go `liveSession.homeSelection`, retained):
+/// the sideband and hangup run on its credential. Ending the call ends it; Home
+/// draining it closes what was bound to it.
+pub(super) struct HomeHold {
+    lease: Mutex<Option<crate::runtime::Lease>>,
+    /// Relays bound to the selection (Go `selection.Bind`), closed when it ends.
+    bound: Resources,
+}
+
+impl HomeHold {
+    pub fn new(lease: crate::runtime::Lease) -> Arc<Self> {
+        Arc::new(Self {
+            lease: Mutex::new(Some(lease)),
+            bound: Resources::default(),
+        })
+    }
+
+    /// Go `selection.Active()`: the credential while the pick has neither ended nor
+    /// been drained.
+    pub fn active(&self) -> Option<Arc<cpa_core::credential::Credential>> {
+        let lease = self.lease.lock().unwrap_or_else(PoisonError::into_inner);
+        lease
+            .as_ref()
+            .filter(|lease| !lease.remote_cancel_requested())
+            .map(|lease| lease.credential.clone())
+    }
+
+    /// Resolves when Home drains the pick; `None` once it ended.
+    pub fn drained(&self) -> Option<futures_util::future::BoxFuture<'static, ()>> {
+        let lease = self.lease.lock().unwrap_or_else(PoisonError::into_inner);
+        lease.as_ref().and_then(crate::runtime::Lease::remote_cancelled)
+    }
+
+    /// Go `selection.Bind`: `handle` is aborted when the pick ends.
+    pub fn bind(&self, handle: AbortHandle) {
+        self.bound.add(handle);
+    }
+
+    /// Go `selection.End`: releases the pick and closes what was bound to it.
+    pub fn end(&self) {
+        drop(self.lease.lock().unwrap_or_else(PoisonError::into_inner).take());
+        self.bound.close();
     }
 }
 
@@ -222,6 +269,9 @@ fn end(entry: Entry, reason: &str) {
     entry.call.resources.close();
     if let Some(media) = &entry.call.media {
         media.close(reason);
+    }
+    if let Some(home) = &entry.call.home {
+        home.end();
     }
 }
 

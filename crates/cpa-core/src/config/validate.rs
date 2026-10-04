@@ -232,7 +232,27 @@ pub fn parse_duration(s: &str) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use super::parse_duration;
+    use super::{Value, in_flight, parse_duration};
+
+    /// Go `TestCredentialInFlightConfigDurationBounds` and
+    /// `TestCredentialInFlightConfigRejectsUnsafeBounds`.
+    #[test]
+    fn in_flight_bounds_follow_go() {
+        let valid = |yaml: &str| in_flight(Some(&serde_yaml_ng::from_str::<Value>(yaml).unwrap())).is_ok();
+        assert!(valid(""), "the defaults");
+        assert!(
+            valid("snapshot-interval: 1s\nstale-after: 3s\n"),
+            "exactly three intervals"
+        );
+        assert!(!valid("snapshot-interval: 1s\nstale-after: 2999999999ns\n"));
+        // time.Duration(math.MaxInt64 / 2).String() and time.Duration(math.MaxInt64).String().
+        assert!(!valid(
+            "snapshot-interval: 1281023h53m38.427387903s\nstale-after: 2562047h47m16.854775807s\n"
+        ));
+        assert!(!valid("stale-after: 5s\n"), "below three default intervals");
+        assert!(!valid(&format!("max-revision-bytes: {}\n", 16 * 1024 * 1024 + 1)));
+        assert!(!valid(&format!("max-part-bytes: {}\n", i64::MAX)));
+    }
 
     /// Values that overflowed before: Go rejects out-of-range uint16 ports at decode
     /// and wraps `max-sessions * 2` (here to i64::MIN, so the range check passes).

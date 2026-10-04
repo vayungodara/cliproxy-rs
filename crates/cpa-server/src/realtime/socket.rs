@@ -220,12 +220,37 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
     }
     let cfg = rt.config();
     let selection_headers = principal.selection_headers(&headers);
-    let lease = match select_oauth(&rt, &cfg, Some(&call.auth_id), &selection_headers, &[], Some(&call_id)).await {
-        Ok(lease) => lease,
-        Err(rejection) => return rejection.render(realtime),
+    // Go: the call's Home pick (a drained one ends the call), else a pick pinned to the
+    // call's credential that lasts as long as this relay.
+    let (credential, lease) = match &call.home {
+        Some(hold) => match hold.active() {
+            Some(credential) => (credential, None),
+            None => {
+                let mut guard = guard;
+                guard.consume = true;
+                return fail(503, "Codex live Home selection unavailable");
+            }
+        },
+        None => {
+            let lease = match select_oauth(
+                &rt,
+                &cfg,
+                Some(&call.auth_id),
+                &selection_headers,
+                &[],
+                Some(&call_id),
+                &call.model,
+                "websocket",
+            )
+            .await
+            {
+                Ok(lease) => lease,
+                Err(rejection) => return rejection.render(realtime),
+            };
+            (lease.credential.clone(), Some(lease))
+        }
     };
-    let credential = lease.credential.clone();
-    drop(lease);
+    let home = call.home.is_some() || lease.as_ref().is_some_and(|lease| lease.is_remote());
     let target = LiveTarget {
         credential: &credential,
         cfg: &cfg,
@@ -241,6 +266,15 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
     {
         Ok(upstream) => upstream,
         Err(error) => {
+            if home {
+                report_dial_unauthorized(
+                    &rt,
+                    &credential,
+                    &call.model,
+                    &error,
+                    (call.session_id.clone(), String::new()),
+                );
+            }
             return with_trace(
                 dial_failed(error, |status| fail(status, "Codex live sideband upstream unavailable")),
                 &credential,
@@ -254,11 +288,53 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
         let mut guard = guard;
         guard.consume = true;
         guard.call.resources.add(relay.abort_handle());
+        // Go binds both sockets to the pick: Home draining it closes the relay.
+        if let Some(hold) = &guard.call.home {
+            hold.bind(relay.abort_handle());
+        }
+        let drained = super::drained(lease.as_ref());
         async move {
-            let _ = relay.await;
+            let _ = until_drained(relay, drained).await;
+            drop(lease);
             drop(guard);
         }
     })
+}
+
+/// Waits for `relay`, aborting it once `drained` resolves (Go binds the sockets to the
+/// Home selection).
+async fn until_drained(
+    relay: tokio::task::JoinHandle<()>,
+    drained: futures_util::future::BoxFuture<'static, ()>,
+) -> Result<(), tokio::task::JoinError> {
+    let abort = relay.abort_handle();
+    tokio::select! {
+        result = relay => result,
+        _ = drained => {
+            abort.abort();
+            Ok(())
+        }
+    }
+}
+
+/// Go `ReportHomeUnauthorized` for a rejected upstream handshake: the handshake body,
+/// else the dial error's text.
+fn report_dial_unauthorized(
+    rt: &Runtime,
+    credential: &cpa_core::credential::Credential,
+    model: &str,
+    error: &DialError,
+    session: (String, String),
+) {
+    let Some(handshake) = error.response.as_ref().filter(|h| h.status == 401) else {
+        return;
+    };
+    let body = if handshake.body.is_empty() {
+        error.message.as_bytes()
+    } else {
+        &handshake.body
+    };
+    super::report_unauthorized(rt, credential, model, body, session);
 }
 
 /// `HandleDirectWebsocket`.
@@ -295,12 +371,22 @@ async fn direct(inbound: Inbound, model: String) -> Response {
     }
     let cfg = rt.config();
     let selection_headers = principal.selection_headers(&headers);
-    let lease = match select_oauth(&rt, &cfg, None, &selection_headers, &[], None).await {
+    let lease = match select_oauth(
+        &rt,
+        &cfg,
+        None,
+        &selection_headers,
+        &[],
+        None,
+        &selection_model,
+        "websocket",
+    )
+    .await
+    {
         Ok(lease) => lease,
         Err(rejection) => return rejection.render(true),
     };
     let credential = lease.credential.clone();
-    drop(lease);
     let traced = |response| with_trace(response, &credential);
     let target = LiveTarget {
         credential: &credential,
@@ -317,6 +403,15 @@ async fn direct(inbound: Inbound, model: String) -> Response {
     {
         Ok(upstream) => upstream,
         Err(error) => {
+            if lease.is_remote() {
+                report_dial_unauthorized(
+                    &rt,
+                    &credential,
+                    &selection_model,
+                    &error,
+                    super::session_ids(&selection_headers, &[]),
+                );
+            }
             return traced(dial_failed(error, |status| {
                 let (status, message, kind, code) = match status {
                     404 | 501 => (
@@ -367,8 +462,14 @@ async fn direct(inbound: Inbound, model: String) -> Response {
     let Some(ws) = ws.ok().filter(|_| acceptable_handshake(&headers)) else {
         return traced(bad_handshake());
     };
-    upgrade(ws, upstream, |relay| async move {
-        let _ = relay.await;
+    // Go `selection.Retain()` until the session closes; Home draining the pick closes
+    // the sockets bound to it.
+    upgrade(ws, upstream, move |relay| {
+        let drained = super::drained(Some(&lease));
+        async move {
+            let _ = until_drained(relay, drained).await;
+            drop(lease);
+        }
     })
 }
 

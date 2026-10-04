@@ -461,7 +461,8 @@ pub async fn run_publisher(
         }
         let freeze = registry.freeze();
         for frame in encode(&freeze, observed_at, &cfg) {
-            if client.lpush_in_flight_snapshot(&frame).await.is_err() {
+            // Go passes the publisher context to every push: a cancelled one fails.
+            if shutdown.is_cancelled() || client.lpush_in_flight_snapshot(&frame).await.is_err() {
                 tracing::warn!("failed to publish in-flight snapshot frame");
                 break;
             }
@@ -478,6 +479,20 @@ mod tests {
         SystemTime::UNIX_EPOCH + Duration::from_nanos(nanos as u64)
     }
 
+    /// Go's frames byte for byte (go_auth_golden.json), part and overflow alike: the
+    /// field order, tags and required keys Go `TestCredentialInFlightWireContractFixture`
+    /// pins. (`TestCredentialInFlightWireContractRejectsInvalidJSON` checks Home's
+    /// decoder; a node only writes these frames.) The golden also runs the inputs of
+    /// Go's encoder tests, named after them:
+    /// `TestEncodeHomeInFlightFreezePreservesPartitionsAndBarrier`,
+    /// `…UsesOverflowWithoutPartialAggregates`, `…UsesDeterministicBoundedMultipartFrames`,
+    /// `…OverflowsWhenFinalAggregatePartExceedsPartCount`,
+    /// `…TruncatesDetailsBeforeTotalOverflow`, `…BoundsStringsAndExcludesSensitiveFields`,
+    /// `…OverflowsForRawAggregateKey`, `…KeepsRawAggregateGroupsDistinct`,
+    /// `…DropsInvalidDetailsWithoutDiscardingAggregates`,
+    /// `…CanonicalizesUnaccountedModelsWithFallback` and
+    /// `…SetsGlobalDetailTruncationMetadata` (their zero start times become the epoch:
+    /// a Rust scope always records its start).
     #[test]
     fn frames_match_go_bytes() {
         let doc: Json = serde_json::from_str(include_str!("../tests/fixtures/go_auth_golden.json")).unwrap();
@@ -587,8 +602,15 @@ mod tests {
         assert_eq!(rfc3339_nano(t("2026-07-21T12:00:00Z")), "2026-07-21T12:00:00Z");
     }
 
+    /// Go `TestHomeInFlightPublisherConfigFromConfigValidatesAndUpdates`.
     #[test]
     fn publisher_config_from_defaults_is_valid() {
+        let fast = CredentialInFlight {
+            snapshot_interval: "25ms".into(),
+            ..CredentialInFlight::default()
+        };
+        let fast = PublisherConfig::from_config(&fast).unwrap();
+        assert_eq!(fast.snapshot_interval, Duration::from_millis(25));
         let cfg = PublisherConfig::from_config(&CredentialInFlight::default()).unwrap();
         assert!(cfg.valid());
         assert_eq!(cfg.snapshot_interval, Duration::from_secs(2));
@@ -600,5 +622,164 @@ mod tests {
         assert_eq!(settings.get(), None);
         settings.apply(cfg);
         assert_eq!(settings.get(), Some(cfg));
+    }
+
+    /// A publisher on a fake Home, recording when each snapshot frame arrived.
+    struct Published {
+        home: crate::fake::FakeHome,
+        client: Client,
+        arrivals: Arc<std::sync::Mutex<Vec<(std::time::Instant, Json)>>>,
+    }
+
+    impl Published {
+        async fn start(heartbeat: bool) -> Self {
+            let arrivals: Arc<std::sync::Mutex<Vec<(std::time::Instant, Json)>>> = Arc::default();
+            let seen = arrivals.clone();
+            let home = crate::fake::FakeHome::start(move |args| {
+                if args[0].eq_ignore_ascii_case("lpush") && args[1] == "in-flight-snapshot" {
+                    let frame = serde_json::from_str(&args[2]).unwrap();
+                    seen.lock().unwrap().push((std::time::Instant::now(), frame));
+                }
+                crate::fake::raw(":1\r\n")
+            })
+            .await;
+            let client = Client::new(home.config());
+            crate::fake::set_heartbeat(&client, heartbeat);
+            Self { home, client, arrivals }
+        }
+
+        fn arrivals(&self) -> Vec<(std::time::Instant, Json)> {
+            self.arrivals.lock().unwrap().clone()
+        }
+
+        async fn wait_for(&self, count: usize) -> Vec<(std::time::Instant, Json)> {
+            tokio::time::timeout(Duration::from_secs(2), async {
+                loop {
+                    let arrivals = self.arrivals();
+                    if arrivals.len() >= count {
+                        return arrivals;
+                    }
+                    tokio::time::sleep(Duration::from_millis(2)).await;
+                }
+            })
+            .await
+            .unwrap_or_else(|_| panic!("{count} snapshots within 2s"))
+        }
+    }
+
+    /// Go `homeInFlightPublisherTestConfig`.
+    fn test_settings(interval: Duration) -> PublisherSettings {
+        let settings = PublisherSettings::default();
+        settings.apply(PublisherConfig {
+            snapshot_interval: interval,
+            max_part_bytes: 1024,
+            max_part_count: 2,
+            max_revision_bytes: 2048,
+            max_aggregate_groups: 2,
+            max_details: 1,
+            max_string_bytes: 32,
+        });
+        assert!(settings.get().is_some());
+        settings
+    }
+
+    /// Go `TestHomeInFlightPublisherPinsLifetimeRegistry` and
+    /// `TestHomeInFlightPublisherReplacementStopsOldLifetimeAndPinsDependencies`: a
+    /// publisher snapshots at once from its own lifetime's registry, and once stopped
+    /// sends nothing while its replacement publishes the new registry.
+    #[tokio::test]
+    async fn a_publisher_pins_its_lifetime_and_stops_when_replaced() {
+        let settings = test_settings(Duration::from_millis(10));
+        let old = Published::start(true).await;
+        let old_registry = Registry::new();
+        old_registry.observe_barrier(11);
+        let stop_old = CancellationToken::new();
+        let old_task = tokio::spawn(run_publisher(
+            old.client.clone(),
+            old_registry,
+            settings.clone(),
+            stop_old.clone(),
+        ));
+        assert_eq!(old.wait_for(1).await[0].1["barrier_revision"], 11);
+        stop_old.cancel();
+        tokio::time::timeout(Duration::from_secs(1), old_task)
+            .await
+            .unwrap()
+            .unwrap();
+        let sent_by_old = old.arrivals().len();
+
+        let new = Published::start(true).await;
+        let new_registry = Registry::new();
+        new_registry.observe_barrier(22);
+        let stop_new = CancellationToken::new();
+        tokio::spawn(run_publisher(
+            new.client.clone(),
+            new_registry.clone(),
+            settings,
+            stop_new.clone(),
+        ));
+        assert_eq!(new.wait_for(1).await[0].1["barrier_revision"], 22);
+        tokio::time::sleep(Duration::from_millis(30)).await;
+        assert_eq!(old.arrivals().len(), sent_by_old, "the replaced publisher stopped");
+        assert_eq!(new_registry.freeze().barrier_revision, 22);
+        stop_new.cancel();
+        drop(old.home);
+    }
+
+    /// Go `TestHomeInFlightPublisherSkipsFreezeAndPublishWithoutHeartbeat` and
+    /// `TestHomeInFlightPublisherCancellationExits`: without a heartbeat nothing is
+    /// frozen or sent, and cancelling ends the publisher at once.
+    #[tokio::test]
+    async fn without_a_heartbeat_nothing_is_frozen_or_sent() {
+        for interval in [Duration::from_millis(10), Duration::from_secs(3600)] {
+            let published = Published::start(false).await;
+            let registry = Registry::new();
+            let stop = CancellationToken::new();
+            let task = tokio::spawn(run_publisher(
+                published.client.clone(),
+                registry.clone(),
+                test_settings(interval),
+                stop.clone(),
+            ));
+            tokio::time::sleep(Duration::from_millis(30)).await;
+            stop.cancel();
+            tokio::time::timeout(Duration::from_secs(1), task)
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(published.arrivals().is_empty());
+            assert_eq!(registry.freeze().revision, 1, "the publisher never froze the registry");
+        }
+    }
+
+    /// Go `TestHomeInFlightPublisherAppliesConfigUpdateAtNextTimerCycle`: a new interval
+    /// takes effect after the pending timer fires, not before.
+    #[tokio::test]
+    async fn a_new_interval_applies_at_the_next_timer_cycle() {
+        let settings = test_settings(Duration::from_millis(60));
+        let published = Published::start(true).await;
+        let stop = CancellationToken::new();
+        tokio::spawn(run_publisher(
+            published.client.clone(),
+            Registry::new(),
+            settings.clone(),
+            stop.clone(),
+        ));
+        published.wait_for(1).await;
+        let updated = std::time::Instant::now();
+        settings.apply(PublisherConfig {
+            snapshot_interval: Duration::from_millis(10),
+            ..settings.get().unwrap()
+        });
+        let arrivals = published.wait_for(3).await;
+        assert!(
+            arrivals[1].0.duration_since(updated) >= Duration::from_millis(30),
+            "the hot interval waited for the pending timer"
+        );
+        assert!(
+            arrivals[2].0.duration_since(arrivals[1].0) <= Duration::from_millis(35),
+            "then the new interval applies"
+        );
+        stop.cancel();
     }
 }

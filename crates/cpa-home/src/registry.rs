@@ -564,9 +564,11 @@ mod tests {
         assert_eq!(a.pending(), 0);
     }
 
+    /// Go `TestRegistryEndMarksOneDirtyGroup`, `TestUnaccountedScopeDoesNotRelease` and
+    /// `TestSetReleaseSinkReplaysExistingSequences`: one increment per accounted scope
+    /// end, none for an unaccounted one, and a new sink gets every group's latest.
     #[test]
     fn accounted_scopes_release_cumulative_sequences_per_group_once() {
-        // Go TestReleaseSequence semantics: one increment per accounted scope end.
         let registry = Registry::new();
         let seen = Arc::new(Mutex::new(Vec::new()));
         let sink_seen = seen.clone();
@@ -607,6 +609,7 @@ mod tests {
         assert_eq!(replayed, vec![("a".to_owned(), 2), ("b".to_owned(), 1)]);
     }
 
+    /// Go `TestScopeEndIsExactlyOnce`.
     #[test]
     fn binding_is_single_and_end_closes_the_resource() {
         let registry = Registry::new();
@@ -627,6 +630,7 @@ mod tests {
         assert_eq!(scope.bind(|| {}), Err(RegistryError::NotAccepting));
     }
 
+    /// Go `TestDrainRejectsLateInstallAndCancelsBoundScopes`.
     #[tokio::test]
     async fn drain_cancels_resources_rejects_work_and_waits_for_owners() {
         let registry = Registry::new();
@@ -668,6 +672,7 @@ mod tests {
         assert_eq!(registry.pending(), 0);
     }
 
+    /// Go `TestDrainReturnsWhenBlockingResourceCloseExceedsContext`.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn release_waits_for_a_close_in_progress_and_drain_stays_bounded() {
         let registry = Registry::new();
@@ -752,6 +757,8 @@ mod tests {
         assert_eq!((registry.active(), *released.lock().unwrap()), (0, 1));
     }
 
+    /// Go `TestFreezeInFlightWaitsForPendingBarrierAndCopiesScopes` (a Rust freeze owns
+    /// its observations, so Go's copy check holds by construction).
     #[test]
     fn barrier_publishes_only_after_older_dispatches_resolve() {
         let registry = Registry::new();
@@ -765,5 +772,112 @@ mod tests {
         drop(newer);
         registry.observe_barrier(3);
         assert_eq!(registry.freeze().barrier_revision, 5);
+    }
+
+    /// Go `TestDrainWaitsForPendingDispatch`, `TestDrainRejectsLateInstall` and
+    /// `TestWaitPendingDoesNotDrainActiveScope`: a drain waits for an unresolved
+    /// dispatch, which can no longer install; waiting for pending dispatches ignores
+    /// active scopes and keeps the registry accepting.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn drains_and_pending_waits_wait_for_unresolved_dispatches() {
+        let registry = Registry::new();
+        let pending = registry.begin_dispatch().unwrap();
+        let drain = tokio::spawn({
+            let registry = registry.clone();
+            async move { registry.drain(Duration::from_secs(1)).await }
+        });
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(!drain.is_finished(), "the dispatch is unresolved");
+        assert_eq!(
+            registry.install(pending, spec("a", false)).err(),
+            Some(RegistryError::NotAccepting)
+        );
+        assert_eq!(drain.await.unwrap(), Ok(()));
+
+        let registry = Registry::new();
+        let active = registry
+            .install(registry.begin_dispatch().unwrap(), spec("a", false))
+            .unwrap();
+        let pending = registry.begin_dispatch().unwrap();
+        let wait = tokio::spawn({
+            let registry = registry.clone();
+            async move { registry.wait_pending(Duration::from_secs(1)).await }
+        });
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert!(!wait.is_finished(), "the dispatch is unresolved");
+        drop(pending);
+        assert_eq!(wait.await.unwrap(), Ok(()));
+        assert!(registry.begin_dispatch().is_ok(), "still accepting");
+        active.end();
+    }
+
+    /// Go `TestDrainWaitsForBlockingResourceClose`,
+    /// `TestConcurrentDrainWaitsForBlockingResourceClose`,
+    /// `TestConcurrentCloseWaitsForBlockingResourceClose` and `TestDrainRejectsLateBind`:
+    /// drains, closes and ends all wait for a close in progress, and a draining registry
+    /// refuses a new binding.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn drains_closes_and_ends_wait_for_a_blocking_close() {
+        type Blocking = (Scope, std::sync::mpsc::Receiver<()>, std::sync::mpsc::Sender<()>);
+        let blocking = |registry: &Registry| -> Blocking {
+            let scope = registry
+                .install(registry.begin_dispatch().unwrap(), spec("a", false))
+                .unwrap();
+            let (started_tx, started_rx) = std::sync::mpsc::channel::<()>();
+            let (release_tx, release_rx) = std::sync::mpsc::channel::<()>();
+            scope
+                .bind(move || {
+                    let _ = started_tx.send(());
+                    let _ = release_rx.recv();
+                })
+                .unwrap();
+            (scope, started_rx, release_tx)
+        };
+        let settle = || std::thread::sleep(Duration::from_millis(20));
+
+        let registry = Registry::new();
+        let (scope, started, release) = blocking(&registry);
+        let drain = |registry: &Registry| {
+            let registry = registry.clone();
+            tokio::spawn(async move { registry.drain(Duration::from_secs(2)).await })
+        };
+        let first = drain(&registry);
+        started.recv().unwrap();
+        let ender = std::thread::spawn(move || scope.end());
+        let second = drain(&registry);
+        settle();
+        assert!(!first.is_finished() && !second.is_finished() && !ender.is_finished());
+        release.send(()).unwrap();
+        ender.join().unwrap();
+        assert_eq!(first.await.unwrap(), Ok(()));
+        assert_eq!(second.await.unwrap(), Ok(()));
+
+        let registry = Registry::new();
+        let (scope, started, release) = blocking(&registry);
+        let close = |registry: &Registry| {
+            let registry = registry.clone();
+            std::thread::spawn(move || registry.close())
+        };
+        let first = close(&registry);
+        started.recv().unwrap();
+        let second = close(&registry);
+        settle();
+        assert!(!first.is_finished() && !second.is_finished());
+        release.send(()).unwrap();
+        first.join().unwrap();
+        second.join().unwrap();
+        drop(scope);
+
+        let registry = Registry::new();
+        let scope = registry
+            .install(registry.begin_dispatch().unwrap(), spec("a", false))
+            .unwrap();
+        let drain = drain(&registry);
+        while registry.accepting() {
+            tokio::time::sleep(Duration::from_millis(1)).await;
+        }
+        assert_eq!(scope.bind(|| {}), Err(RegistryError::NotAccepting));
+        scope.end();
+        assert_eq!(drain.await.unwrap(), Ok(()));
     }
 }

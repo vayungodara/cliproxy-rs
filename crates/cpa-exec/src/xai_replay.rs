@@ -6,6 +6,9 @@
 //! next turn. After a completed response the executor caches the replayable output items
 //! (reasoning, assistant message, tool calls) per (model, session), and the next request
 //! of that session gets the items its input lacks inserted before the matching turn.
+//!
+//! In Home mode the cache lives in Home KV (`cpa:xai:reasoning-replay:*`) as Go writes
+//! it, so every node replays the same session state.
 
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
@@ -33,6 +36,8 @@ const EVICT_BATCH: usize = 128;
 pub(crate) struct ReplayScope {
     pub model_name: String,
     pub session_key: String,
+    /// Home writes the response waits for.
+    pub writes: crate::home_replay::Writes,
 }
 
 impl ReplayScope {
@@ -46,7 +51,7 @@ struct Entry {
     timestamp: Instant,
 }
 
-/// The in-process replay cache (Go's package-level map; Home KV mode is not ported).
+/// The in-process replay cache (Go's package-level map), used outside Home mode.
 // ponytail: Go also purges expired entries from a background ticker; here an expired
 // entry is dropped when read and capacity eviction bounds memory.
 #[derive(Default)]
@@ -109,6 +114,88 @@ impl Store {
     }
 }
 
+/// Go `XAIReasoningReplayStoreStatus`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum StoreStatus {
+    InvalidArgs = 0,
+    Stored = 1,
+    NoReplayableState = 2,
+    BackendError = 3,
+}
+
+/// `xaiReasoningReplayKVKey`.
+fn kv_key(scope: &ReplayScope) -> String {
+    format!(
+        "cpa:xai:reasoning-replay:{}:{}",
+        cpa_home::kv::hash_key_part(scope.model_name.trim()),
+        cpa_home::kv::hash_key_part(scope.session_key.trim())
+    )
+}
+
+/// Go `StoreXAIReasoningReplayItems` in Home mode: the normalized items as Go's
+/// `json.Marshal([][]byte)` (base64 strings), kept for an hour.
+async fn home_store(client: &cpa_home::Client, scope: &ReplayScope, items: &[Vec<u8>]) -> StoreStatus {
+    use base64::Engine;
+    if cache_key(scope).is_none() {
+        return StoreStatus::InvalidArgs;
+    }
+    let Some(normalized) = normalize_items(items) else {
+        return StoreStatus::NoReplayableState;
+    };
+    let encoded: Vec<String> = normalized
+        .iter()
+        .map(|item| base64::engine::general_purpose::STANDARD.encode(item))
+        .collect();
+    let raw = serde_json::to_vec(&encoded).unwrap_or_default();
+    let options = cpa_home::SetOptions {
+        ex: TTL,
+        ..Default::default()
+    };
+    match client.kv_set(&kv_key(scope), &raw, options).await {
+        Ok(true) => StoreStatus::Stored,
+        Ok(false) => StoreStatus::BackendError,
+        Err(error) => {
+            tracing::error!("home kv best-effort xai reasoning replay set failed prefix=cpa:xai:*: {error}");
+            StoreStatus::BackendError
+        }
+    }
+}
+
+/// Go `GetXAIReasoningReplayItemsRequired` in Home mode: a hit renews the TTL.
+async fn home_get(client: &cpa_home::Client, scope: &ReplayScope) -> Result<Option<Vec<Vec<u8>>>, String> {
+    use base64::Engine;
+    if cache_key(scope).is_none() {
+        return Ok(None);
+    }
+    let key = kv_key(scope);
+    let Some(raw) = client.kv_get(&key).await.map_err(|e| e.to_string())? else {
+        return Ok(None);
+    };
+    let encoded: Option<Vec<String>> = serde_json::from_slice(&raw).map_err(|e| e.to_string())?;
+    let items = encoded
+        .unwrap_or_default()
+        .iter()
+        .map(|item| base64::engine::general_purpose::STANDARD.decode(item))
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    if let Err(error) = client.kv_expire(&key, TTL).await {
+        tracing::warn!("home kv xai reasoning replay expire failed prefix=cpa:xai:*: {error}");
+    }
+    Ok(Some(items))
+}
+
+/// Go `DeleteXAIReasoningReplayItemRequired` in Home mode.
+async fn home_delete(client: &cpa_home::Client, scope: &ReplayScope) -> Result<(), String> {
+    if cache_key(scope).is_none() {
+        return Ok(());
+    }
+    client
+        .kv_del(&[&kv_key(scope)])
+        .await
+        .map(drop)
+        .map_err(|e| e.to_string())
+}
+
 /// `strings.TrimSpace(r.String())`.
 fn text(r: &Res<'_>) -> String {
     String::from_utf8_lossy(go_trim_space(&r.bytes())).into_owned()
@@ -126,6 +213,7 @@ pub(crate) fn scope(req: &ExecRequest, body: &[u8], downstream_websocket: bool) 
     ReplayScope {
         model_name: parse_suffix(&req.model).model_name,
         session_key: isolate(req, &session_key(req, body)),
+        writes: Default::default(),
     }
 }
 
@@ -166,13 +254,24 @@ fn isolate(req: &ExecRequest, key: &str) -> String {
     format!("caller:{prefix}:{key}")
 }
 
-/// `applyXAIReasoningReplayCacheRequired` after the scope is known.
-pub(crate) fn apply(store: &Store, scope: &ReplayScope, body: Vec<u8>) -> Vec<u8> {
+/// `applyXAIReasoningReplayCacheRequired` after the scope is known. A read failure
+/// (Home KV unavailable) only skips the replay, as in Go.
+pub(crate) async fn apply(store: &Store, scope: &ReplayScope, body: Vec<u8>) -> Vec<u8> {
     if !scope.valid() {
         return body;
     }
-    let Some(items) = store.get(scope) else {
-        return body;
+    let read = match cpa_home::kv::current_client() {
+        Ok(None) => Ok(store.get(scope)),
+        Ok(Some(client)) => home_get(&client, scope).await,
+        Err(error) => Err(error.to_string()),
+    };
+    let items = match read {
+        Ok(Some(items)) => items,
+        Ok(None) => return body,
+        Err(error) => {
+            tracing::warn!("xai reasoning replay cache read failed: {error}");
+            return body;
+        }
     };
     let items = filter_for_input(&body, items);
     if items.is_empty() {
@@ -202,15 +301,47 @@ pub(crate) fn cache_completed(store: &Store, scope: &ReplayScope, completed: &[u
         })
         .map(|item| item.raw().to_vec())
         .collect();
-    if !store.store(scope, &items) {
-        store.delete(scope);
+    match cpa_home::kv::current_client() {
+        Ok(None) => {
+            if !store.store(scope, &items) {
+                store.delete(scope);
+            }
+        }
+        // Go: a backend error keeps the previous entry.
+        Err(error) => {
+            tracing::error!("home kv best-effort xai reasoning replay set failed prefix=cpa:xai:*: {error}");
+        }
+        Ok(Some(client)) => {
+            let writes = scope.writes.clone();
+            let scope = scope.clone();
+            writes.spawn(async move {
+                if home_store(&client, &scope, &items).await == StoreStatus::NoReplayableState
+                    && let Err(error) = home_delete(&client, &scope).await
+                {
+                    tracing::warn!(
+                        "xai reasoning replay cache delete failed after non-replayable completed output: {error}"
+                    );
+                }
+            });
+        }
     }
 }
 
 /// `clearXAIReasoningReplayAfterCompaction`.
-pub(crate) fn clear(store: &Store, scope: &ReplayScope) {
-    if scope.valid() {
-        store.delete(scope);
+pub(crate) async fn clear(store: &Store, scope: &ReplayScope) {
+    if !scope.valid() {
+        return;
+    }
+    let deleted = match cpa_home::kv::current_client() {
+        Ok(None) => {
+            store.delete(scope);
+            Ok(())
+        }
+        Ok(Some(client)) => home_delete(&client, scope).await,
+        Err(error) => Err(error.to_string()),
+    };
+    if let Err(error) = deleted {
+        tracing::warn!("xai reasoning replay cache delete failed after successful compaction: {error}");
     }
 }
 
@@ -614,5 +745,60 @@ mod tests {
         assert_eq!(ids[1].len(), 64);
         assert!(ids[1].starts_with("call_xxx"));
         assert_eq!(comparable_call_ids("  call_1 "), vec!["call_1".to_owned()]);
+    }
+
+    /// Go's Home KV backend for xAI replay, recorded by the reference's
+    /// internal/cache/zz_rustgolden_test.go: keys, base64 values, TTLs, the store
+    /// statuses and the items read back.
+    #[tokio::test]
+    async fn home_kv_replay_matches_go() {
+        use std::sync::{Arc, Mutex};
+        let golden: serde_json::Value =
+            serde_json::from_str(include_str!("claude/testdata/go_xai_replay_home.json")).unwrap();
+        let steps = golden["steps"].as_array().unwrap();
+        let values = Arc::new(Mutex::new(HashMap::new()));
+        let home = cpa_home::fake::FakeHome::start(crate::claude::kv_test::kv_home(values)).await;
+        let client = home.client();
+        let scope = |model: &str| ReplayScope {
+            model_name: model.into(),
+            session_key: " sess-1 ".into(),
+            writes: Default::default(),
+        };
+        let anchored: Vec<Vec<u8>> = [
+            r#"{"type":"message","id":"m1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"<hi> & bye","annotations":[]}]}"#,
+            r#"{"type":"function_call","id":"fc1","call_id":"call_1","name":"lookup","arguments":"{\"q\":1}","status":"completed"}"#,
+            r#"{"type":"web_search_call","id":"ws1"}"#,
+        ]
+        .iter()
+        .map(|s| s.as_bytes().to_vec())
+        .collect();
+        let mut seen = 0;
+        let mut calls = || {
+            let all: Vec<serde_json::Value> = home
+                .commands()
+                .iter()
+                .filter_map(|c| crate::claude::kv_test::as_go_call(c))
+                .collect();
+            let new = all[seen..].to_vec();
+            seen = all.len();
+            serde_json::Value::from(new)
+        };
+        let status = home_store(&client, &scope(" grok-4 "), &anchored).await;
+        assert_eq!(status as i64, steps[0]["result"], "store_anchored");
+        assert_eq!(calls(), steps[0]["calls"], "store_anchored");
+        let items = home_get(&client, &scope("grok-4")).await.unwrap().unwrap();
+        let texts: Vec<String> = items.iter().map(|i| String::from_utf8(i.clone()).unwrap()).collect();
+        assert_eq!(serde_json::json!(texts), steps[1]["result"]["items"], "get");
+        assert_eq!(calls(), steps[1]["calls"], "get");
+        let status = home_store(&client, &scope("grok-4"), &anchored[..1]).await;
+        assert_eq!(status as i64, steps[2]["result"], "store_unanchored");
+        assert_eq!(calls(), steps[2]["calls"], "store_unanchored");
+        home_delete(&client, &scope("grok-4")).await.unwrap();
+        assert_eq!(calls(), steps[3]["calls"], "delete");
+        assert!(home_get(&client, &scope("grok-4")).await.unwrap().is_none());
+        assert_eq!(calls(), steps[4]["calls"], "get_missing");
+        let status = home_store(&client, &scope(""), &anchored).await;
+        assert_eq!(status as i64, steps[5]["result"], "store_invalid_scope");
+        assert_eq!(calls(), steps[5]["calls"], "store_invalid_scope");
     }
 }

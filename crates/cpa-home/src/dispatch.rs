@@ -242,6 +242,10 @@ impl DispatchResponse {
     pub fn parse(raw: &[u8]) -> Result<Self, String> {
         let mut response: DispatchResponse =
             serde_json::from_slice(raw).map_err(|_| "home returned invalid auth payload".to_owned())?;
+        // Go decodes `model_info` into its typed struct: a mistyped field fails the reply.
+        if response.model_info.as_ref().is_some_and(|info| !model_info_shape(info)) {
+            return Err("home returned invalid auth payload".to_owned());
+        }
         let auth_id = response.auth.get("id").and_then(Value::as_str).unwrap_or_default();
         if auth_id.trim().is_empty() {
             response.auth = serde_json::from_slice(raw).map_err(|_| "home returned invalid auth payload".to_owned())?;
@@ -262,6 +266,174 @@ impl DispatchResponse {
     }
 }
 
+/// Whether a JSON value has the shape a Go field type accepts.
+type Shape = fn(&Value) -> bool;
+
+/// Go's JSON decoding into a typed struct accepts null for any field and ignores
+/// unknown ones; `kinds` lists each known field with the shape it must have.
+fn typed_fields(object: &Map<String, Value>, kinds: &[(&str, Shape)]) -> bool {
+    kinds
+        .iter()
+        .all(|(key, shape)| object.get(*key).is_none_or(|v| v.is_null() || shape(v)))
+}
+
+fn is_int(v: &Value) -> bool {
+    v.as_i64().is_some()
+}
+
+fn is_strings(v: &Value) -> bool {
+    v.as_array()
+        .is_some_and(|a| a.iter().all(|s| s.is_string() || s.is_null()))
+}
+
+/// Go `registry.ThinkingSupport`.
+fn is_thinking(v: &Value) -> bool {
+    v.as_object().is_some_and(|t| {
+        typed_fields(
+            t,
+            &[
+                ("min", is_int),
+                ("max", is_int),
+                ("zero_allowed", Value::is_boolean),
+                ("dynamic_allowed", Value::is_boolean),
+                ("levels", is_strings),
+            ],
+        )
+    })
+}
+
+/// Go `homeDispatchModelInfo`.
+fn model_info_shape(info: &Value) -> bool {
+    info.is_null()
+        || info.as_object().is_some_and(|m| {
+            typed_fields(
+                m,
+                &[
+                    ("id", Value::is_string),
+                    ("type", Value::is_string),
+                    ("inputTokenLimit", is_int),
+                    ("outputTokenLimit", is_int),
+                    ("context_length", is_int),
+                    ("max_completion_tokens", is_int),
+                    ("thinking", is_thinking),
+                    (
+                        "native_capabilities",
+                        (|v: &Value| {
+                            v.as_object()
+                                .is_some_and(|n| typed_fields(n, &[("web_search", Value::is_boolean)]))
+                        }) as fn(&Value) -> bool,
+                    ),
+                    ("support_configuration_update", Value::is_boolean),
+                    ("user_defined", Value::is_boolean),
+                ],
+            )
+        })
+}
+
+/// Go `config.OpenAICompatibilityModel`, as Go's JSON decoding accepts it (null, or an
+/// object whose known fields have their types).
+pub fn compat_model_shape(model: &Value) -> bool {
+    model.is_null()
+        || model.as_object().is_some_and(|m| {
+            typed_fields(
+                m,
+                &[
+                    ("name", Value::is_string),
+                    ("alias", Value::is_string),
+                    ("display-name", Value::is_string),
+                    ("max-context-length", is_int),
+                    ("force-mapping", Value::is_boolean),
+                    ("image", Value::is_boolean),
+                    ("input-modalities", is_strings),
+                    ("output-modalities", is_strings),
+                    ("is-compat", Value::is_boolean),
+                    ("use-max-completion-tokens", Value::is_boolean),
+                    ("thinking", is_thinking),
+                ],
+            )
+        })
+}
+
+/// Go `homeAPIKeyModelOptions`: the `credential_options.models` entry Home mode uses for
+/// `model` reached through `route_model`. `None` when the options list no models (absent,
+/// not an array, or a mistyped entry); `Some` of an empty map when no entry matches.
+/// An entry whose upstream name (alias when unnamed) matches the model, exactly or
+/// suffix-free, and whose alias or name matches the route wins; then upstream names,
+/// then aliases.
+pub fn credential_model_options(
+    credential: &cpa_core::credential::Credential,
+    model: &str,
+    route_model: &str,
+) -> Option<Map<String, Value>> {
+    use cpa_common::gostr::GoStr;
+    let models = credential
+        .metadata
+        .get("credential_options")?
+        .as_object()?
+        .get("models")?;
+    let models: &[Value] = match models {
+        Value::Null => &[],
+        Value::Array(models) if models.iter().all(compat_model_shape) => models,
+        _ => return None,
+    };
+    let field = |m: &Value, key: &str| m.get(key).and_then(Value::as_str).unwrap_or_default().trim().to_owned();
+    let entry = |m: &Value| m.as_object().cloned().unwrap_or_default();
+    let requested = model.trim();
+    if requested.is_empty() {
+        return Some(Map::new());
+    }
+    let base = cpa_common::thinking::parse_suffix(requested)
+        .model_name
+        .trim()
+        .to_owned();
+    let route = cpa_core::registry::dynamic::strip_prefix(route_model.trim(), credential);
+    let routes: Vec<String> = if route.is_empty() {
+        Vec::new()
+    } else {
+        let route_base = cpa_common::thinking::parse_suffix(route).model_name;
+        let route_base = if route_base.is_empty() {
+            route.to_owned()
+        } else {
+            route_base
+        };
+        if route_base == route {
+            vec![route.to_owned()]
+        } else {
+            vec![route.to_owned(), route_base]
+        }
+    };
+    for route in &routes {
+        for candidate in [requested, base.as_str()] {
+            for m in models {
+                let (mut name, alias) = (field(m, "name"), field(m, "alias"));
+                if name.is_empty() {
+                    name = alias.clone();
+                }
+                if name.go_eq_fold(candidate) && (alias.go_eq_fold(route) || name.go_eq_fold(route)) {
+                    return Some(entry(m));
+                }
+            }
+        }
+    }
+    for use_alias in [false, true] {
+        for candidate in [requested, base.as_str()] {
+            if candidate.is_empty() {
+                continue;
+            }
+            for m in models {
+                let mut name = field(m, "name");
+                if use_alias || name.is_empty() {
+                    name = field(m, "alias");
+                }
+                if name.go_eq_fold(candidate) {
+                    return Some(entry(m));
+                }
+            }
+        }
+    }
+    Some(Map::new())
+}
+
 /// Go `verifyAccountedHomeConcurrencyIdentity`.
 pub fn verify_identity(tuple: &ConcurrencyTuple, auth_id: &str, auth_index: &str) -> Result<(), String> {
     if tuple.accounted && (auth_id != tuple.credential_id || auth_index != tuple.credential_id) {
@@ -274,6 +446,9 @@ pub fn verify_identity(tuple: &ConcurrencyTuple, auth_id: &str, auth_index: &str
 mod tests {
     use super::*;
 
+    /// Go `TestCanonicalHomeConcurrencyModelKeyMatchesHomeLimiter` (Go's malformed
+    /// UTF-8 input cannot reach a Rust `&str`; JSON decoding rejects it first, see
+    /// `malformed_tuples_are_present_errors`).
     #[test]
     fn model_keys_drop_only_recognized_suffixes() {
         assert_eq!(canonical_concurrency_model_key(" GPT-5(High) "), "gpt-5");
@@ -294,6 +469,8 @@ mod tests {
         assert_eq!(valid_concurrency_model_key(&"m".repeat(257)), None);
     }
 
+    /// Go `TestConcurrencyDispatchFixture` (accounted): the shared fixture's tuple and
+    /// identity; the pick side is `home::tests::picks_install_release_and_fence_like_go`.
     #[test]
     fn concurrency_fixture_round_trips() {
         let raw = include_bytes!("../tests/fixtures/concurrency_dispatch_accounted.json");
@@ -312,6 +489,11 @@ mod tests {
         assert!(verify_identity(&tuple, "cred-1", "other").is_err());
     }
 
+    /// Go `TestAccountedHomeConcurrencyTupleRequiresCanonicalLimiterModel`,
+    /// `TestInstallHomeConcurrencyScopeRejectsNonCanonicalTuple` and
+    /// `TestHomeConcurrencyTupleStringsAreValidUTF8`: a present tuple that is not
+    /// canonical is malformed (a fencing error); a body that is not UTF-8 JSON is not a
+    /// tuple at all.
     #[test]
     fn malformed_tuples_are_present_errors() {
         for raw in [
@@ -329,6 +511,9 @@ mod tests {
         assert_eq!(decode_concurrency(br#"{"auth":{}}"#), Ok(None));
     }
 
+    /// Go `TestConcurrencyDispatchFixture` (busy), `TestHomeBusyErrorMaps429AndRetryAfter`,
+    /// `TestHomeBusyErrorHeadersRoundUpMilliseconds` and
+    /// `TestHomeConcurrencyBusyErrorsRemainTypedWhenWrapped`.
     #[test]
     fn busy_fixture_maps_to_429_with_retry_after() {
         let raw = include_bytes!("../tests/fixtures/concurrency_dispatch_busy.json");
@@ -343,8 +528,20 @@ mod tests {
             }
         );
         assert_eq!(error.retry_after_header(), Some(1));
+        // Both busy codes stay busy without a retry hint, and keep retryable as sent.
+        for code in [
+            "credential_concurrency_exceeded",
+            "credential_model_concurrency_exceeded",
+        ] {
+            let raw = format!(r#"{{"error":{{"type":"{code}","message":"busy","retryable":false}}}}"#);
+            let error = decode_error(raw.as_bytes()).unwrap();
+            assert_eq!(error.kind, HomeErrorKind::Busy { retry_after: None }, "{code}");
+            assert_eq!((error.code.as_str(), error.retryable), (code, false));
+        }
     }
 
+    /// Go `TestHomeNoCandidateErrorsMapToServiceUnavailable` and
+    /// `TestHomeUserBillingAndPeriodLimitErrors`.
     #[test]
     fn error_codes_map_to_go_statuses() {
         let status = |code: &str| {
@@ -352,6 +549,8 @@ mod tests {
                 .unwrap()
                 .status
         };
+        assert_eq!(status("auth_not_found"), 503);
+        assert_eq!(status("auth_unavailable"), 503);
         assert_eq!(status("model_not_found"), 404);
         assert_eq!(status("MODEL_COOLDOWN"), 429);
         assert_eq!(status("no_credentials"), 401);

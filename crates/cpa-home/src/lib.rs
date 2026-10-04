@@ -8,6 +8,7 @@
 //! live in Home KV. An issued dispatch whose reply is lost fences the whole client
 //! lifetime (PARITY risk 8): a lease may exist that this node can no longer account for.
 
+pub mod applog;
 pub mod cert;
 pub mod client;
 pub mod config;
@@ -19,9 +20,11 @@ mod gojson;
 pub mod inflight;
 pub mod kv;
 mod private_fs;
+pub mod refresh;
 pub mod registry;
 pub mod release;
 pub mod resp;
+pub mod session_alias;
 mod subscriber;
 mod tls;
 

@@ -10,6 +10,7 @@ rust-version.workspace = true
 bytes.workspace = true
 cpa-common.workspace = true
 cpa-core.workspace = true
+cpa-home.workspace = true
 cpa-translate.workspace = true
 futures-util.workspace = true
 http.workspace = true
@@ -44,6 +45,7 @@ brotli-decompressor = "6"
 tokio-tungstenite = { version = "0.29", default-features = false, features = ["handshake"] }
 
 [dev-dependencies]
+cpa-home = { workspace = true, features = ["fake"] }
 axum = { workspace = true, features = ["ws"] }
 # Local TLS endpoints: Vertex's *.googleapis.com and the Go Claude test replay (already
 # in the graph via wreq).

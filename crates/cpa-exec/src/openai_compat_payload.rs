@@ -82,11 +82,99 @@ pub(crate) fn compat_entries(cfg: &Config) -> Vec<Compat> {
     out
 }
 
-/// `resolveCompatConfig`: the config entry by `config_index` for config-sourced
+/// One `credential_options.models` entry Home sent (JSON, Go's field names).
+fn home_compat_model(model: &serde_json::Value) -> Option<CompatModel> {
+    if !cpa_home::dispatch::compat_model_shape(model) {
+        return None;
+    }
+    let text = |key: &str| {
+        model
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .to_owned()
+    };
+    Some(CompatModel {
+        name: text("name"),
+        alias: text("alias"),
+        use_max_completion_tokens: model.get("use-max-completion-tokens") == Some(&serde_json::Value::Bool(true)),
+        input_modalities: model
+            .get("input-modalities")
+            .and_then(serde_json::Value::as_array)
+            .map(|list| list.iter().map(|m| m.as_str().unwrap_or_default().to_owned()).collect())
+            .unwrap_or_default(),
+    })
+}
+
+/// `resolveCompatConfig` in Home mode: Home sends no provider entries, so the selected
+/// credential's non-secret options make the entry. Its `credential_options` count when
+/// they decode; after a type error Go keeps the well-typed fields but counts them only
+/// when another source is present (here a mistyped model entry is dropped whole). The
+/// `support_prompt_cache_key` attribute overrides the flag, and the options entry Home
+/// mode selected for this attempt's model replaces the list. `None` outside Home mode
+/// or without any of the three.
+fn home_compat(credential: &Credential) -> Option<Compat> {
+    use cpa_core::config::credentials::{HOME_MODEL_OPTIONS, HOME_PROVIDER};
+    use serde_json::Value;
+    if !credential.attributes.contains_key(HOME_PROVIDER) {
+        return None;
+    }
+    let mut compat = Compat {
+        name: credential.attributes.get("compat_name").cloned().unwrap_or_default(),
+        ..Compat::default()
+    };
+    let mut present = false;
+    if let Some(options) = credential.metadata.get("credential_options") {
+        let mut decoded = options.is_object() || options.is_null();
+        if let Some(options) = options.as_object() {
+            match options.get("support-prompt-cache-key") {
+                None | Some(Value::Null) => {}
+                Some(Value::Bool(flag)) => compat.support_prompt_cache_key = *flag,
+                Some(_) => decoded = false,
+            }
+            match options.get("models") {
+                None | Some(Value::Null) => {}
+                Some(Value::Array(models)) => {
+                    for model in models {
+                        match home_compat_model(model) {
+                            Some(model) => compat.models.push(model),
+                            None => decoded = false,
+                        }
+                    }
+                }
+                Some(_) => decoded = false,
+            }
+        }
+        present = decoded;
+    }
+    if let Some(flag) = credential
+        .attributes
+        .get("support_prompt_cache_key")
+        .and_then(|raw| crate::xai::parse_bool(raw))
+    {
+        compat.support_prompt_cache_key = flag;
+        present = true;
+    }
+    if let Some(selected) = credential
+        .attributes
+        .get(HOME_MODEL_OPTIONS)
+        .and_then(|raw| serde_json::from_str::<Value>(raw).ok())
+        .and_then(|model| home_compat_model(&model))
+    {
+        compat.models = vec![selected];
+        present = true;
+    }
+    present.then_some(compat)
+}
+
+/// `resolveCompatConfig`: in Home mode the selected credential's options
+/// ([`home_compat`]); else the config entry by `config_index` for config-sourced
 /// credentials, else the first enabled entry whose name matches `compat_name`,
 /// `provider_key` or the provider.
-// ponytail: Home mode's credential_options path (M6) is not ported.
 pub(crate) fn resolve_compat(credential: &Credential, cfg: &Config) -> Option<Compat> {
+    if let Some(compat) = home_compat(credential) {
+        return Some(compat);
+    }
     let entries = compat_entries(cfg);
     let attr = |k: &str| credential.attributes.get(k).map(|v| v.trim()).unwrap_or_default();
     if matches!(credential.source, Source::Config { .. })
@@ -830,6 +918,81 @@ pub(crate) fn stream_data_error(payload: &[u8], event: &str) -> Option<u16> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A Home-dispatched OpenAI-compatible credential.
+    fn home_credential(metadata: serde_json::Value, attributes: &[(&str, &str)]) -> Credential {
+        let mut c = Credential {
+            id: "c1".into(),
+            provider: "openai-compatibility".into(),
+            source: Source::Config {
+                section: "home".into(),
+                index: 0,
+            },
+            disabled: false,
+            label: "home".into(),
+            attributes: Default::default(),
+            metadata: metadata.as_object().cloned().unwrap_or_default(),
+            revision: 0,
+        };
+        c.attributes
+            .insert(cpa_core::config::credentials::HOME_PROVIDER.into(), "contract".into());
+        c.attributes.insert("compat_name".into(), "contract".into());
+        for (k, v) in attributes {
+            c.attributes.insert((*k).into(), (*v).into());
+        }
+        c
+    }
+
+    /// Go `resolveCompatConfig` in Home mode: the selected credential's options make the
+    /// entry (the config's entries never count); the attribute overrides the cache-key
+    /// flag; the entry Home mode selected replaces the model list; mistyped options
+    /// count only alongside another source; nothing at all falls back to the config.
+    #[test]
+    fn home_credentials_take_their_compat_entry_from_their_options() {
+        let cfg = Config::parse(
+            "openai-compatibility:\n  - name: contract\n    base-url: http://127.0.0.1:9\n    support-prompt-cache-key: true\n    models:\n      - name: from-config\n",
+        )
+        .unwrap();
+        let options = serde_json::json!({"credential_options": {"support-prompt-cache-key": true,
+            "models": [{"name": "a", "use-max-completion-tokens": true}, {"name": "b"}]}});
+        let compat = resolve_compat(&home_credential(options.clone(), &[]), &cfg).unwrap();
+        assert!(compat.support_prompt_cache_key);
+        let names: Vec<&str> = compat.models.iter().map(|m| m.name.as_str()).collect();
+        assert_eq!(names, ["a", "b"]);
+        let off = home_credential(options.clone(), &[("support_prompt_cache_key", "0")]);
+        assert!(!resolve_compat(&off, &cfg).unwrap().support_prompt_cache_key);
+        let selected = home_credential(
+            options,
+            &[(
+                cpa_core::config::credentials::HOME_MODEL_OPTIONS,
+                r#"{"name":"b","input-modalities":["text"]}"#,
+            )],
+        );
+        let compat = resolve_compat(&selected, &cfg).unwrap();
+        assert_eq!(compat.models.len(), 1);
+        assert_eq!(
+            (compat.models[0].name.as_str(), compat.models[0].input_modalities.len()),
+            ("b", 1)
+        );
+        // Mistyped options alone are not an entry: the config one serves.
+        let mistyped = home_credential(serde_json::json!({"credential_options": {"models": "invalid"}}), &[]);
+        assert_eq!(resolve_compat(&mistyped, &cfg).unwrap().models[0].name, "from-config");
+        let with_flag = home_credential(
+            serde_json::json!({"credential_options": {"models": "invalid"}}),
+            &[("support_prompt_cache_key", "true")],
+        );
+        let compat = resolve_compat(&with_flag, &cfg).unwrap();
+        assert!(compat.support_prompt_cache_key && compat.models.is_empty());
+        let bare = home_credential(serde_json::json!({}), &[]);
+        assert_eq!(resolve_compat(&bare, &cfg).unwrap().models[0].name, "from-config");
+        // Outside Home mode the options are ignored.
+        let mut local = home_credential(
+            serde_json::json!({"credential_options": {"models": [{"name": "a"}]}}),
+            &[],
+        );
+        local.attributes.remove(cpa_core::config::credentials::HOME_PROVIDER);
+        assert_eq!(resolve_compat(&local, &cfg).unwrap().models[0].name, "from-config");
+    }
 
     #[test]
     fn retry_after_rules_follow_go() {

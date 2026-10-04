@@ -1711,7 +1711,8 @@ pub struct Tracker {
     model: ResponseModel,
     first: Option<std::time::Duration>,
     published: bool,
-    /// The request's client facts with this attempt's LCP session, when it has one.
+    /// The request's client facts under this attempt's session, when it has its own:
+    /// Home's canonical session for a dispatched credential, else its LCP pick's.
     client: Option<Client>,
 }
 
@@ -1762,6 +1763,10 @@ impl Tracker {
             ..Record::default()
         };
         let started = std::time::Instant::now();
+        let home_client = match home_session(&facts.client, credential) {
+            std::borrow::Cow::Owned(client) => Some(client),
+            std::borrow::Cow::Borrowed(_) => None,
+        };
         Self {
             queue: rt.clone(),
             facts: facts.clone(),
@@ -1778,7 +1783,7 @@ impl Tracker {
             model: ResponseModel::default(),
             first: None,
             published: false,
-            client: None,
+            client: home_client,
         }
     }
 
@@ -1960,32 +1965,122 @@ pub fn source(c: &cpa_core::credential::Credential, client_key: &str) -> String 
         .to_owned()
 }
 
-/// Go `AccessTokenSHA256`: hex SHA-256 of the metadata access token (top level or
-/// under `token`), empty without one.
+/// Go `AccessTokenSHA256`.
 pub fn access_token_sha256(c: &cpa_core::credential::Credential) -> String {
-    use sha2::{Digest, Sha256};
-    let pick = |m: &serde_json::Map<String, serde_json::Value>| {
-        ["access_token", "accessToken"]
-            .iter()
-            .find_map(|k| {
-                m.get(*k)
-                    .and_then(serde_json::Value::as_str)
-                    .map(str::trim)
-                    .filter(|v| !v.is_empty())
-            })
-            .map(str::to_owned)
+    cpa_core::config::credentials::access_token_sha256(c)
+}
+
+/// Go `Auth.AuthSourceKind` over a dispatched auth's attributes. Its last fallback,
+/// `FileName`, never reaches a Home auth: Go's auth JSON omits it.
+fn auth_source_kind(c: &cpa_core::credential::Credential) -> &'static str {
+    let attr = |k: &str| c.attributes.get(k).map_or("", |v| v.trim());
+    let normalize = |s: &str| match s.trim().to_lowercase().as_str() {
+        "config" => Some("config"),
+        "file" | "filesystem" => Some("file"),
+        "git" => Some("git"),
+        "memory" | "runtime" | "runtime_only" => Some("memory"),
+        "objectstore" | "object-store" => Some("objectstore"),
+        "postgres" | "postgresql" | "database" | "db" => Some("postgres"),
+        _ => None,
     };
-    let token = pick(&c.metadata).or_else(|| {
-        ["token", "Token"]
-            .iter()
-            .find_map(|k| c.metadata.get(*k).and_then(serde_json::Value::as_object).and_then(pick))
-    });
-    token.map_or_else(String::new, |t| {
-        Sha256::digest(t.as_bytes())
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect()
-    })
+    if attr("runtime_only").eq_ignore_ascii_case("true") {
+        return "memory";
+    }
+    if let Some(kind) = normalize(attr("source_backend")) {
+        return kind;
+    }
+    let source = attr("source");
+    if !source.is_empty() {
+        if source.to_lowercase().starts_with("config:") {
+            return "config";
+        }
+        return normalize(source).unwrap_or("file");
+    }
+    if attr("path").is_empty() { "" } else { "file" }
+}
+
+/// The request facts with the session Home dispatched under (Go
+/// `syncMetadataSessionToContext` with `CanonicalSessionIDMetadataKey`): a dispatched
+/// credential's canonical session and its parent replace the request's own.
+fn home_session<'a>(client: &'a Client, credential: &cpa_core::credential::Credential) -> std::borrow::Cow<'a, Client> {
+    let attr = |k: &str| credential.attributes.get(k).map_or("", |v| v.trim());
+    let session = attr(crate::remote::SESSION);
+    if session.is_empty() {
+        return std::borrow::Cow::Borrowed(client);
+    }
+    let parent = attr(crate::remote::PARENT_SESSION);
+    let mut client = client.clone();
+    client.session_id = session.to_owned();
+    client.parent_session_id = if parent == session {
+        String::new()
+    } else {
+        parent.to_owned()
+    };
+    std::borrow::Cow::Owned(client)
+}
+
+/// Go `Manager.reportHomeUnauthorized`: a result-only, zero-token record for an
+/// upstream 401 in Home mode that no executor reporter records (count-tokens attempts,
+/// Codex Alpha Search). It needs an auth index and an access-token fingerprint, so API
+/// keys publish nothing. `facts` carries what the request context holds: the alias,
+/// reasoning effort and service tier (Go's context defaults when it holds none).
+pub fn publish_home_unauthorized(
+    rt: &crate::Runtime,
+    facts: &Facts,
+    credential: &cpa_core::credential::Credential,
+    provider: &str,
+    model: &str,
+    body: &str,
+) {
+    let queue = rt.usage_queue();
+    if !queue.accepts() {
+        return;
+    }
+    let auth_index = cpa_core::config::credentials::auth_index(credential).trim().to_owned();
+    let access_token_sha256 = access_token_sha256(credential);
+    if auth_index.is_empty() || access_token_sha256.is_empty() {
+        return;
+    }
+    let provider = match provider.trim() {
+        "" => credential
+            .attributes
+            .get(crate::remote::PROVIDER)
+            .map_or(credential.provider.as_str(), String::as_str)
+            .trim(),
+        provider => provider,
+    };
+    let model = model.trim();
+    let alias = match facts.alias.trim() {
+        "" => model,
+        alias => alias,
+    };
+    let record = Record {
+        timestamp: go_timestamp(&chrono::Local::now()),
+        provider: provider.to_owned(),
+        executor_type: "home-result".into(),
+        model: model.to_owned(),
+        alias: alias.to_owned(),
+        source: auth_source_kind(credential).to_owned(),
+        auth_index,
+        access_token_sha256,
+        auth_type: cpa_core::registry::dynamic::auth_kind(credential)
+            .unwrap_or_default()
+            .to_owned(),
+        reasoning_effort: facts.reasoning_effort.trim().to_owned(),
+        service_tier: facts.service_tier.trim().to_owned(),
+        failed: true,
+        fail_status: 401,
+        fail_body: if body.is_empty() {
+            "upstream unauthorized".into()
+        } else {
+            body.to_owned()
+        },
+        ..Record::default()
+    };
+    // The record carries no client key (Go leaves `Record.APIKey` empty).
+    let mut client = home_session(&facts.client, credential).into_owned();
+    client.api_key.clear();
+    queue.enqueue(queued(&record, &client));
 }
 
 /// Go `time.Time.MarshalJSON` (RFC 3339 with trailing-zero-trimmed nanoseconds).
@@ -2417,6 +2512,162 @@ mod tests {
                 "{requested:?} -> {served:?}"
             );
         }
+    }
+
+    /// Go `Manager.ReportHomeUnauthorized` through Go's usage queue plugin
+    /// (zz_rustgolden_unauthorized_test.go in the reference): the same queued record,
+    /// or none without an access token. The first case reaches Go's session through
+    /// Home's canonical session on the credential, not the request's own.
+    #[test]
+    fn home_unauthorized_records_match_go() {
+        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/home_unauthorized_go.json")).unwrap();
+        let rt = usage_runtime();
+        let s = |v: &Value| v.as_str().unwrap_or_default().to_owned();
+        for case in fixture.as_array().unwrap() {
+            let name = s(&case["name"]);
+            let mut attributes: std::collections::BTreeMap<String, String> = case["attributes"]
+                .as_object()
+                .into_iter()
+                .flatten()
+                .map(|(k, v)| (k.clone(), s(v)))
+                .collect();
+            attributes.insert(cpa_core::config::credentials::HOME_AUTH_INDEX.into(), s(&case["index"]));
+            attributes.insert(crate::remote::PROVIDER.into(), s(&case["auth_provider"]));
+            let c = &case["client"];
+            let mut client = Client {
+                client_ip: s(&c["client_ip"]),
+                resolved_client_ip: s(&c["resolved_client_ip"]),
+                x_forwarded_for: s(&c["x_forwarded_for"]),
+                user_agent: s(&c["user_agent"]),
+                session_id: s(&c["session_id"]),
+                parent_session_id: s(&c["parent_session_id"]),
+                is_fork: c["is_fork"].as_bool().unwrap_or(false),
+                request_id: s(&c["request_id"]),
+                endpoint: s(&c["endpoint"]),
+                api_key: "client-key-must-not-appear".into(),
+                ..Default::default()
+            };
+            if name == "count_tokens_oauth_runtime" {
+                attributes.insert(crate::remote::SESSION.into(), client.session_id.clone());
+                attributes.insert(crate::remote::PARENT_SESSION.into(), client.parent_session_id.clone());
+                client.session_id = "the-request-own-session".into();
+                client.parent_session_id.clear();
+            }
+            let credential = cpa_core::credential::Credential {
+                id: s(&case["id"]),
+                provider: s(&case["auth_provider"]).to_lowercase(),
+                source: cpa_core::credential::Source::File(s(&case["id"]).into()),
+                disabled: false,
+                label: String::new(),
+                attributes,
+                metadata: case["metadata"].as_object().cloned().unwrap_or_default(),
+                revision: 0,
+            };
+            let request = &case["request"];
+            let with_options = request["with_options"].as_bool().unwrap_or(false);
+            let tier = s(&request["service_tier"]);
+            let facts = Facts {
+                client,
+                format: Format::Claude,
+                alias: if with_options {
+                    s(&request["alias"])
+                } else {
+                    String::new()
+                },
+                reasoning_effort: if with_options {
+                    s(&request["reasoning_effort"])
+                } else {
+                    String::new()
+                },
+                service_tier: if with_options && !tier.is_empty() {
+                    tier
+                } else {
+                    "default".into()
+                },
+                generate: true,
+                stream: true,
+            };
+            rt.usage_queue().pop_oldest(100);
+            let body = case["body"].as_str().unwrap_or_default();
+            publish_home_unauthorized(
+                &rt,
+                &facts,
+                &credential,
+                &s(&case["provider"]),
+                &s(&case["model"]),
+                body,
+            );
+            let mut got: Vec<Value> = rt
+                .usage_queue()
+                .pop_oldest(10)
+                .iter()
+                .map(|r| serde_json::from_slice(r).unwrap())
+                .collect();
+            if case["record"].is_null() {
+                assert!(got.is_empty(), "{name}: {got:?}");
+                continue;
+            }
+            assert_eq!(got.len(), 1, "{name}");
+            let mut want = case["record"].clone();
+            for record in [&mut want, &mut got[0]] {
+                let record = record.as_object_mut().unwrap();
+                assert!(record.remove("timestamp").is_some(), "{name}");
+                assert_eq!(
+                    record.remove("execution_id").map(|v| v.as_str().unwrap().len()),
+                    Some(36)
+                );
+            }
+            assert_eq!(got[0], want, "{name}");
+        }
+    }
+
+    /// Go `syncMetadataSessionToContext` in Home mode: a dispatched credential's
+    /// attempt reports the session Home was sent (its parent cleared when equal), not
+    /// the request's own; other credentials keep the request's.
+    #[test]
+    fn home_attempts_report_the_dispatched_session() {
+        let rt = usage_runtime();
+        let client = Client {
+            session_id: "request-session".into(),
+            parent_session_id: "request-parent".into(),
+            ..Client::default()
+        };
+        let facts = std::sync::Arc::new(Facts::new(client, Format::Claude, Format::Claude, "m", b"{}", false));
+        let record = |attrs: &[(&str, &str)]| {
+            let mut credential = credential_for("claude");
+            for (k, v) in attrs {
+                credential.attributes.insert((*k).into(), (*v).into());
+            }
+            rt.usage_queue().pop_oldest(100);
+            Tracker::start(&rt, &facts, &credential, "m").succeed();
+            let queued = rt.usage_queue().pop_oldest(10);
+            assert_eq!(queued.len(), 1);
+            let v: Value = serde_json::from_slice(&queued[0]).unwrap();
+            (v["session_id"].clone(), v["parent_session_id"].clone())
+        };
+        let uuid = |s: &str| Value::from(cpa_common::session::normalize_to_canonical_uuid(s));
+        assert_eq!(record(&[]), (uuid("request-session"), uuid("request-parent")));
+        assert_eq!(
+            record(&[
+                (crate::remote::SESSION, "home-session"),
+                (crate::remote::PARENT_SESSION, "")
+            ]),
+            (uuid("home-session"), Value::Null)
+        );
+        assert_eq!(
+            record(&[
+                (crate::remote::SESSION, "home-session"),
+                (crate::remote::PARENT_SESSION, "home-parent")
+            ]),
+            (uuid("home-session"), uuid("home-parent"))
+        );
+        assert_eq!(
+            record(&[
+                (crate::remote::SESSION, "home-session"),
+                (crate::remote::PARENT_SESSION, "home-session")
+            ]),
+            (uuid("home-session"), Value::Null)
+        );
     }
 
     /// Go's TTFT: from the upstream request to the first body byte; the first packet

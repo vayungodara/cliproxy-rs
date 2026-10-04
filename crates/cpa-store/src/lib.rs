@@ -3,7 +3,8 @@
 //! store mirrors its content into a local workspace; the server runs on those files
 //! and reports changes back through [`cpa_server::persist::StorePersister`].
 
-#[cfg(test)]
+// Used only by the object-store tests, which assert Unix modes.
+#[cfg(all(test, unix))]
 mod fake_s3;
 mod git;
 mod object;

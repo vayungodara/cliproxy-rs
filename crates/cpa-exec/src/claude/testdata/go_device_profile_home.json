@@ -1,0 +1,678 @@
+{
+  "cases": [
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:61610517c416526cb7ded22312f162ee7a6df44062f798872b331c840dc37838",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:61610517c416526cb7ded22312f162ee7a6df44062f798872b331c840dc37838"
+            ],
+            [
+              "set",
+              "cpa:claude:device-profile:61610517c416526cb7ded22312f162ee7a6df44062f798872b331c840dc37838",
+              "{\"user_agent\":\"claude-cli/2.1.280 (external, cli)\",\"package_version\":\"0.112.1\",\"runtime_version\":\"v26.3.0\",\"os\":\"MacOS\",\"arch\":\"arm64\"}",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        },
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:61610517c416526cb7ded22312f162ee7a6df44062f798872b331c840dc37838",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:61610517c416526cb7ded22312f162ee7a6df44062f798872b331c840dc37838"
+            ],
+            [
+              "expire",
+              "cpa:claude:device-profile:61610517c416526cb7ded22312f162ee7a6df44062f798872b331c840dc37838",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        },
+        {
+          "calls": [
+            [
+              "get",
+              "cpa:claude:device-profile:61610517c416526cb7ded22312f162ee7a6df44062f798872b331c840dc37838"
+            ],
+            [
+              "expire",
+              "cpa:claude:device-profile:61610517c416526cb7ded22312f162ee7a6df44062f798872b331c840dc37838",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "first_write_then_reuse",
+        "preset": null,
+        "config": null,
+        "steps": [
+          {
+            "auth": "cred-1",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          },
+          {
+            "auth": "cred-1",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          },
+          {
+            "auth": "cred-1",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "curl/8.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "get",
+              "cpa:claude:device-profile:86bb5e57485d8f9731a95c400c84d8f4aea749644a2b1a0cb5525ff59eec058a"
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "no_candidate_missing_is_baseline",
+        "preset": null,
+        "config": null,
+        "steps": [
+          {
+            "auth": "cred-2",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "curl/8.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:415f35bcc0ed455ce9ef313885ae5420726d83ea195ffc5ef493792e38f55c57",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:415f35bcc0ed455ce9ef313885ae5420726d83ea195ffc5ef493792e38f55c57"
+            ]
+          ],
+          "error": "home kv device profile lock not acquired and profile missing"
+        }
+      ],
+      "scenario": {
+        "name": "lock_held_and_missing_fails",
+        "preset": {
+          "cpa:claude:device-profile-lock:415f35bcc0ed455ce9ef313885ae5420726d83ea195ffc5ef493792e38f55c57": "1"
+        },
+        "config": null,
+        "steps": [
+          {
+            "auth": "cred-3",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:309921491267ef80cfb9866f2af6571dd4d02d22f4e3f1c3a8e2f8f16e44f642",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:309921491267ef80cfb9866f2af6571dd4d02d22f4e3f1c3a8e2f8f16e44f642"
+            ],
+            [
+              "expire",
+              "cpa:claude:device-profile:309921491267ef80cfb9866f2af6571dd4d02d22f4e3f1c3a8e2f8f16e44f642",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "lock_held_and_present_reuses",
+        "preset": {
+          "cpa:claude:device-profile-lock:309921491267ef80cfb9866f2af6571dd4d02d22f4e3f1c3a8e2f8f16e44f642": "1",
+          "cpa:claude:device-profile:309921491267ef80cfb9866f2af6571dd4d02d22f4e3f1c3a8e2f8f16e44f642": "{\"user_agent\":\"claude-cli/2.1.280 (external, cli, agent)\",\"package_version\":\"0.81.0\",\"runtime_version\":\"v26.3.0\",\"os\":\"Linux\",\"arch\":\"x64\"}"
+        },
+        "config": null,
+        "steps": [
+          {
+            "auth": "cred-4",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:a64d9f5c53032336f3b3671025db9950e3d3a8813baf2a8024be84d5b791c12b",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:a64d9f5c53032336f3b3671025db9950e3d3a8813baf2a8024be84d5b791c12b"
+            ],
+            [
+              "expire",
+              "cpa:claude:device-profile:a64d9f5c53032336f3b3671025db9950e3d3a8813baf2a8024be84d5b791c12b",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        },
+        {
+          "calls": [
+            [
+              "get",
+              "cpa:claude:device-profile:a64d9f5c53032336f3b3671025db9950e3d3a8813baf2a8024be84d5b791c12b"
+            ],
+            [
+              "expire",
+              "cpa:claude:device-profile:a64d9f5c53032336f3b3671025db9950e3d3a8813baf2a8024be84d5b791c12b",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "stored_mismatch_is_normalized",
+        "preset": {
+          "cpa:claude:device-profile:a64d9f5c53032336f3b3671025db9950e3d3a8813baf2a8024be84d5b791c12b": "{\"user_agent\":\" claude-cli/2.1.100 (external, cli) \",\"package_version\":\"0.1.0\",\"runtime_version\":\"v1.0.0\",\"os\":\"Linux\",\"arch\":\"x64\"}"
+        },
+        "config": null,
+        "steps": [
+          {
+            "auth": "cred-5",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          },
+          {
+            "auth": "cred-5",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "curl/8.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:5be1b94040238c216c65c26ff0fee2f1b2c17955e1bd18d6a20259c67983ed3e",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:5be1b94040238c216c65c26ff0fee2f1b2c17955e1bd18d6a20259c67983ed3e"
+            ],
+            [
+              "set",
+              "cpa:claude:device-profile:5be1b94040238c216c65c26ff0fee2f1b2c17955e1bd18d6a20259c67983ed3e",
+              "{\"user_agent\":\"claude-cli/2.1.280 (external, cli)\",\"package_version\":\"0.112.1\",\"runtime_version\":\"v26.3.0\",\"os\":\"MacOS\",\"arch\":\"arm64\"}",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "stored_empty_user_agent_is_rewritten",
+        "preset": {
+          "cpa:claude:device-profile:5be1b94040238c216c65c26ff0fee2f1b2c17955e1bd18d6a20259c67983ed3e": "{\"user_agent\":\"  \",\"os\":\"Linux\"}"
+        },
+        "config": null,
+        "steps": [
+          {
+            "auth": "cred-6",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:6f965b9c6ed131a86bb208d44d2bf3668dce6ed101a3eb4b7de9903af56308ad",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:6f965b9c6ed131a86bb208d44d2bf3668dce6ed101a3eb4b7de9903af56308ad"
+            ],
+            [
+              "set",
+              "cpa:claude:device-profile:6f965b9c6ed131a86bb208d44d2bf3668dce6ed101a3eb4b7de9903af56308ad",
+              "{\"user_agent\":\"claude-cli/2.1.280 (external, sdk-cli)\",\"package_version\":\"0.112.1\",\"runtime_version\":\"v26.3.0\",\"os\":\"MacOS\",\"arch\":\"arm64\"}",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, sdk-cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        },
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:a0715e88126aa0eb097e1616b0b14b80e4ac414d1682966d54260a3eef90f7eb",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:a0715e88126aa0eb097e1616b0b14b80e4ac414d1682966d54260a3eef90f7eb"
+            ],
+            [
+              "set",
+              "cpa:claude:device-profile:a0715e88126aa0eb097e1616b0b14b80e4ac414d1682966d54260a3eef90f7eb",
+              "{\"user_agent\":\"claude-cli/2.1.280 (external, claude-desktop)\",\"package_version\":\"0.112.1\",\"runtime_version\":\"v26.3.0\",\"os\":\"MacOS\",\"arch\":\"arm64\"}",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, claude-desktop)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        },
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:7bf80d33a3a09c37baf9fda1e59bc774464a000428043ab1b60d830f5f32b156",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:7bf80d33a3a09c37baf9fda1e59bc774464a000428043ab1b60d830f5f32b156"
+            ],
+            [
+              "set",
+              "cpa:claude:device-profile:7bf80d33a3a09c37baf9fda1e59bc774464a000428043ab1b60d830f5f32b156",
+              "{\"user_agent\":\"claude-cli/2.1.280 (external, cli)\",\"package_version\":\"0.112.1\",\"runtime_version\":\"v26.3.0\",\"os\":\"MacOS\",\"arch\":\"arm64\"}",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        },
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:8001c27439650c5c5a6b4ed94163b5ddeb4476362c71380e613fa20dfffcef50",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:8001c27439650c5c5a6b4ed94163b5ddeb4476362c71380e613fa20dfffcef50"
+            ],
+            [
+              "set",
+              "cpa:claude:device-profile:8001c27439650c5c5a6b4ed94163b5ddeb4476362c71380e613fa20dfffcef50",
+              "{\"user_agent\":\"claude-cli/2.1.280 (external, cli)\",\"package_version\":\"0.112.1\",\"runtime_version\":\"v26.3.0\",\"os\":\"MacOS\",\"arch\":\"arm64\"}",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "subclient_and_api_key_scopes",
+        "preset": null,
+        "config": null,
+        "steps": [
+          {
+            "auth": "cred-7",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, sdk-cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          },
+          {
+            "auth": "cred-7",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, claude-desktop)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          },
+          {
+            "auth": "",
+            "api_key": " sk-fake-scope ",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          },
+          {
+            "auth": "",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "get",
+              "cpa:claude:device-profile:1143b60688a882fe350acd545e27bff32f89982aa6f50c1dc53b618f4820a0d3"
+            ],
+            [
+              "expire",
+              "cpa:claude:device-profile:1143b60688a882fe350acd545e27bff32f89982aa6f50c1dc53b618f4820a0d3",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "MacOS",
+            "arm64"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "invalid_candidate_reads_stored",
+        "preset": {
+          "cpa:claude:device-profile:1143b60688a882fe350acd545e27bff32f89982aa6f50c1dc53b618f4820a0d3": "{\"user_agent\":\"claude-cli/2.1.280 (external, cli)\",\"package_version\":\"0.81.0\",\"runtime_version\":\"v26.3.0\",\"os\":\"Linux\",\"arch\":\"x64\"}"
+        },
+        "config": null,
+        "steps": [
+          {
+            "auth": "cred-8",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.281 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:1c047d1828acf8066227644cc7403febd0c2b5ad02971ffce7b55e02a3bb4b20",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:1c047d1828acf8066227644cc7403febd0c2b5ad02971ffce7b55e02a3bb4b20"
+            ],
+            [
+              "set",
+              "cpa:claude:device-profile:1c047d1828acf8066227644cc7403febd0c2b5ad02971ffce7b55e02a3bb4b20",
+              "{\"user_agent\":\"claude-cli/2.1.280 (external, cli)\",\"package_version\":\"0.112.1\",\"runtime_version\":\"v26.3.0\",\"os\":\"Mac\\u003cOS\\u003e\\u0026co\",\"arch\":\"arm\\u2028x\"}",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.280 (external, cli)",
+            "0.112.1",
+            "v26.3.0",
+            "Mac\u003cOS\u003e\u0026co",
+            "arm\u2028x"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "go_json_escaping",
+        "preset": null,
+        "config": {
+          "arch": "arm\u2028x",
+          "os": "Mac\u003cOS\u003e\u0026co"
+        },
+        "steps": [
+          {
+            "auth": "cred-10",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.280 (external, cli)",
+              "X-Stainless-Arch": "x64",
+              "X-Stainless-Os": "Windows",
+              "X-Stainless-Package-Version": "0.112.1",
+              "X-Stainless-Runtime-Version": "v26.3.0"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "results": [
+        {
+          "calls": [
+            [
+              "setnx",
+              "cpa:claude:device-profile-lock:520a1f03221f0dde0d5b09d149008818126d798f7993e1f01122b375c5da0754",
+              "1",
+              5000
+            ],
+            [
+              "get",
+              "cpa:claude:device-profile:520a1f03221f0dde0d5b09d149008818126d798f7993e1f01122b375c5da0754"
+            ],
+            [
+              "set",
+              "cpa:claude:device-profile:520a1f03221f0dde0d5b09d149008818126d798f7993e1f01122b375c5da0754",
+              "{\"user_agent\":\"claude-cli/2.1.300 (external, cli)\",\"package_version\":\"0.90.0\",\"runtime_version\":\"v26.3.0\",\"os\":\"Linux\",\"arch\":\"riscv64\"}",
+              604800000
+            ]
+          ],
+          "profile": [
+            "claude-cli/2.1.300 (external, cli)",
+            "0.90.0",
+            "v26.3.0",
+            "Linux",
+            "riscv64"
+          ]
+        }
+      ],
+      "scenario": {
+        "name": "configured_baseline",
+        "preset": null,
+        "config": {
+          "arch": "riscv64",
+          "os": "Linux",
+          "package-version": "0.90.0",
+          "user-agent": "claude-cli/2.1.300 (external, cli)"
+        },
+        "steps": [
+          {
+            "auth": "cred-9",
+            "api_key": "",
+            "headers": {
+              "User-Agent": "claude-cli/2.1.300 (external, cli)",
+              "X-Stainless-Package-Version": "0.90.0"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

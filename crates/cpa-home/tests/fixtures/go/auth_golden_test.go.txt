@@ -56,35 +56,97 @@ func TestRustGoldenHome(t *testing.T) {
 	}
 	def := rustCfg{262144, 64, 16777216, 100000, 10000, 256}
 	small := rustCfg{1024, 4, 4096, 100000, 10000, 256}
+	type goCase struct {
+		rev, barrier int64
+		observed     time.Time
+	}
+	unix := func(sec int64) int64 { return time.Unix(sec, 0).UnixNano() }
+	repeat := strings.Repeat
 	cases := []struct {
 		name string
 		cfg  rustCfg
 		obs  []rustObs
+		// The Go encoder tests' own revision, barrier and observation time
+		// (home_in_flight_publisher_test.go); their zero start times become the epoch,
+		// as a Rust scope always records its start.
+		goCase *goCase
 	}{
-		{"empty", def, nil},
+		{"empty", def, nil, nil},
 		{"fixture_like", def, []rustObs{
 			{"req-1", "cred-a", "gpt-5", "sse", base.UnixNano(), true},
 			{"req-2", "cred-a", "gpt-5", "http", base.Add(time.Second).UnixNano(), true},
 			{"req-3", "cred-a", "GPT-5(high)", "http", base.Add(123456789).UnixNano(), false},
-		}},
-		{"multipart_truncated", small, mkObs(40, func(i int) string { return fmt.Sprintf("cred-%d", i%3) }, func(i int) string { return "model-<x>&" }, func(i int) bool { return i%2 == 0 })},
-		{"part_count_limit", rustCfg{1024, 2, 2048, 100000, 10000, 256}, mkObs(30, func(i int) string { return fmt.Sprintf("c%d", i%2) }, func(int) string { return "m" }, func(int) bool { return true })},
-		{"aggregate_overflow", rustCfg{262144, 64, 16777216, 3, 10000, 256}, mkObs(10, func(i int) string { return fmt.Sprintf("c%d", i) }, func(int) string { return "m" }, func(int) bool { return true })},
-		{"aggregates_dont_fit", rustCfg{1024, 1, 1024, 100000, 10000, 256}, mkObs(40, func(i int) string { return fmt.Sprintf("credential-%02d", i) }, func(int) string { return "m" }, func(int) bool { return true })},
+		}, nil},
+		{"multipart_truncated", small, mkObs(40, func(i int) string { return fmt.Sprintf("cred-%d", i%3) }, func(i int) string { return "model-<x>&" }, func(i int) bool { return i%2 == 0 }), nil},
+		{"part_count_limit", rustCfg{1024, 2, 2048, 100000, 10000, 256}, mkObs(30, func(i int) string { return fmt.Sprintf("c%d", i%2) }, func(int) string { return "m" }, func(int) bool { return true }), nil},
+		{"aggregate_overflow", rustCfg{262144, 64, 16777216, 3, 10000, 256}, mkObs(10, func(i int) string { return fmt.Sprintf("c%d", i) }, func(int) string { return "m" }, func(int) bool { return true }), nil},
+		{"aggregates_dont_fit", rustCfg{1024, 1, 1024, 100000, 10000, 256}, mkObs(40, func(i int) string { return fmt.Sprintf("credential-%02d", i) }, func(int) string { return "m" }, func(int) bool { return true }), nil},
 		{"long_strings", rustCfg{262144, 64, 16777216, 100000, 10000, 8}, []rustObs{
 			{"request-ééé-long", "c1", "unknown-model-name", "http", base.UnixNano(), false},
 			{"r", "c1", "m", "stream", base.UnixNano(), true},
 			{"  ", "c1", "m", "http", base.UnixNano(), true},
-		}},
-		{"long_credential", rustCfg{262144, 64, 16777216, 100000, 10000, 4}, []rustObs{{"r", "credential", "m", "http", base.UnixNano(), true}}},
-		{"max_details", rustCfg{262144, 64, 16777216, 100000, 3, 256}, mkObs(9, func(int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true })},
-		{"zero_config", rustCfg{}, mkObs(2, func(int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true })},
-		{"revision_limit", rustCfg{1024, 8, 1500, 100000, 10000, 256}, mkObs(25, func(i int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true })},
+		}, nil},
+		{"long_credential", rustCfg{262144, 64, 16777216, 100000, 10000, 4}, []rustObs{{"r", "credential", "m", "http", base.UnixNano(), true}}, nil},
+		{"max_details", rustCfg{262144, 64, 16777216, 100000, 3, 256}, mkObs(9, func(int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true }), nil},
+		{"zero_config", rustCfg{}, mkObs(2, func(int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true }), nil},
+		{"revision_limit", rustCfg{1024, 8, 1500, 100000, 10000, 256}, mkObs(25, func(i int) string { return "c" }, func(int) string { return "m" }, func(int) bool { return true }), nil},
+		{"TestEncodeHomeInFlightFreezePreservesPartitionsAndBarrier", rustCfg{1024, 64, 16384, 100000, 1, 256}, []rustObs{
+			{"req-a", "cred", "gpt-5", "http", unix(10), true},
+			{"req-b", "cred", "gpt-5", "sse", unix(11), false},
+		}, &goCase{9, 14, time.Unix(12, 0)}},
+		{"TestEncodeHomeInFlightFreezeUsesOverflowWithoutPartialAggregates", rustCfg{256, 1, 256, 1, 0, 256}, []rustObs{
+			{"", "a", "m1", "http", 0, false},
+			{"", "b", "m2", "http", 0, true},
+		}, &goCase{10, 15, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeUsesDeterministicBoundedMultipartFrames", rustCfg{300, 8, 2048, 8, 3, 256}, []rustObs{
+			{"req-c", "cred", "model", "http", unix(12), false},
+			{"req-a", "cred", "model", "http", unix(10), false},
+			{"req-b", "cred", "model", "http", unix(11), false},
+		}, &goCase{4, 0, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeOverflowsWhenFinalAggregatePartExceedsPartCount", rustCfg{1024, 2, 2048, 3, 0, 512}, []rustObs{
+			{"", repeat("a", 300), repeat("a", 300), "", 0, true},
+			{"", repeat("b", 300), repeat("b", 300), "", 0, true},
+			{"", repeat("c", 300), repeat("c", 300), "", 0, true},
+		}, &goCase{13, 0, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeTruncatesDetailsBeforeTotalOverflow", rustCfg{512, 8, 1000, 8, 5, 128}, func() []rustObs {
+			var obs []rustObs
+			for index := 0; index < 5; index++ {
+				obs = append(obs, rustObs{repeat(string(rune('a'+index)), 60), "cred", "model", "http", unix(int64(index)), false})
+			}
+			return obs
+		}(), &goCase{12, 0, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeBoundsStringsAndExcludesSensitiveFields", rustCfg{1024, 2, 2048, 8, 1, 8}, []rustObs{
+			{repeat("request", 20), repeat("credential", 20), repeat("model", 20), repeat("kind", 20), 0, false},
+		}, &goCase{3, 0, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeOverflowsForRawAggregateKey", rustCfg{1024, 2, 2048, 2, 1, 8}, []rustObs{
+			{"", "credential-id-exceeds-limit", "model", "http", 0, false},
+		}, &goCase{0, 0, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeKeepsRawAggregateGroupsDistinct", rustCfg{1024, 2, 2048, 1, 0, 8}, []rustObs{
+			{"", "credential-a", "model", "http", 0, false},
+			{"", "credential-b", "model", "http", 0, false},
+		}, &goCase{0, 0, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeDropsInvalidDetailsWithoutDiscardingAggregates", rustCfg{1024, 2, 2048, 2, 2, 64}, []rustObs{
+			{"", "cred-a", "model-a", "http", unix(1), false},
+			{"request-b", "cred-a", "model-a", "http", unix(2), false},
+		}, &goCase{21, 0, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeCanonicalizesUnaccountedModelsWithFallback", rustCfg{1024, 2, 2048, 3, 2, 64}, []rustObs{
+			{"request-a", "cred-a", "GPT-5(HIGH)", "http", unix(1), false},
+			{"request-b", "cred-b", "   ", "http", unix(2), false},
+		}, &goCase{22, 0, time.Unix(20, 0)}},
+		{"TestEncodeHomeInFlightFreezeSetsGlobalDetailTruncationMetadata", rustCfg{300, 8, 2048, 4, 2, 8}, []rustObs{
+			{repeat("r", 32), "cred-a", "model-a", "http", unix(1), false},
+			{"request-b", "cred-b", "model-b", "http", unix(2), false},
+			{"request-c", "cred-c", "model-c", "http", unix(3), false},
+		}, &goCase{0, 0, time.Unix(20, 0)}},
 	}
 	observedAt := time.Date(2026, 7, 21, 12, 0, 0, 120000000, time.UTC)
 	var inflight []map[string]any
 	for _, tc := range cases {
-		freeze := executionregistry.Freeze{Revision: 7, BarrierRevision: 11}
+		rev, barrier, observed := int64(7), int64(11), observedAt
+		if tc.goCase != nil {
+			rev, barrier, observed = tc.goCase.rev, tc.goCase.barrier, tc.goCase.observed.UTC()
+		}
+		freeze := executionregistry.Freeze{Revision: rev, BarrierRevision: barrier}
 		for _, o := range tc.obs {
 			freeze.Executions = append(freeze.Executions, executionregistry.Observation{
 				RequestID: o.RequestID, CredentialID: o.CredentialID, Model: o.Model, RequestKind: o.RequestKind,
@@ -100,7 +162,7 @@ func TestRustGoldenHome(t *testing.T) {
 			MaxDetails:         tc.cfg.MaxDetails,
 			MaxStringBytes:     tc.cfg.MaxStringBytes,
 		}
-		frames := encodeHomeInFlightFreeze(freeze, observedAt, cfg)
+		frames := encodeHomeInFlightFreeze(freeze, observed, cfg)
 		var raws []string
 		for _, f := range frames {
 			raw, err := json.Marshal(f)
@@ -109,7 +171,7 @@ func TestRustGoldenHome(t *testing.T) {
 			}
 			raws = append(raws, string(raw))
 		}
-		inflight = append(inflight, map[string]any{"name": tc.name, "cfg": tc.cfg, "observations": tc.obs, "observed_unix_nano": observedAt.UnixNano(), "revision": 7, "barrier": 11, "frames": raws})
+		inflight = append(inflight, map[string]any{"name": tc.name, "cfg": tc.cfg, "observations": tc.obs, "observed_unix_nano": observed.UnixNano(), "revision": rev, "barrier": barrier, "frames": raws})
 	}
 	doc["inflight"] = inflight
 

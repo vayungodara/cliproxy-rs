@@ -356,7 +356,7 @@ impl XaiExecutor {
         let cfg = scoped(credential, cfg);
         let cfg = cfg.as_ref();
         if req.operation == Operation::CountTokens {
-            return self.count_tokens(&req, cfg);
+            return self.count_tokens(&req, cfg).await;
         }
         if req.alt.as_deref() == Some(COMPACT_ALT) {
             if req.stream {
@@ -381,7 +381,7 @@ impl XaiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let (token, _) = creds(credential);
         let base = chat_base_url(credential);
-        let prepared = request::prepare(&req, cfg, true, Format::Codex, &self.replay, downstream_websocket)?;
+        let prepared = request::prepare(&req, cfg, true, Format::Codex, &self.replay, downstream_websocket).await?;
         // SetTranslatedReasoningEffort(body, "xai"): Go reads xai like codex.
         if req.usage.enabled() {
             req.usage.request(Format::Codex, &prepared.body);
@@ -396,10 +396,14 @@ impl XaiExecutor {
         let headers = upstream.headers.clone();
         let body = if req.stream {
             let lines = wire::lines(upstream, MAX_LINE);
-            ResponseBody::Stream(Pipeline::new(&req, prepared, self.replay.clone()).run(lines))
+            let writes = prepared.replay_scope.writes.clone();
+            ResponseBody::Stream(writes.gate(Pipeline::new(&req, prepared, self.replay.clone()).run(lines)))
         } else {
             let data = wire::read_all(upstream).await?;
-            ResponseBody::Buffered(buffered(&req, prepared, &self.replay, &data)?)
+            let writes = prepared.replay_scope.writes.clone();
+            let body = buffered(&req, prepared, &self.replay, &data);
+            writes.settle().await;
+            ResponseBody::Buffered(body?)
         };
         Ok(ExecResponse {
             status: 200,
@@ -426,7 +430,8 @@ impl XaiExecutor {
             Format::OpenAIResponse,
             &self.replay,
             downstream_websocket,
-        )?;
+        )
+        .await?;
         let mut body = std::mem::take(&mut p.body);
         gj::delete(&mut body, "stream");
         gj::delete(&mut body, "tools");
@@ -459,7 +464,7 @@ impl XaiExecutor {
         if req.usage.enabled() {
             req.usage.response_body(Format::OpenAIResponse, &data);
         }
-        replay::clear(&self.replay, &p.replay_scope);
+        replay::clear(&self.replay, &p.replay_scope).await;
         Ok((p, data, headers))
     }
 
@@ -510,8 +515,8 @@ impl XaiExecutor {
     }
 
     /// CountTokens: O200kBase estimate of the prepared body, no upstream call.
-    fn count_tokens(&self, req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
-        let p = request::prepare(req, cfg, false, Format::Codex, &self.replay, false)?;
+    async fn count_tokens(&self, req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
+        let p = request::prepare(req, cfg, false, Format::Codex, &self.replay, false).await?;
         let count = count_input_tokens(&p.body).map_err(|e| {
             ExecError::local(
                 500,

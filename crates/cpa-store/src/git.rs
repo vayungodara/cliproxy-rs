@@ -4,13 +4,17 @@
 //! (history is squashed on purpose: it holds secrets) and is pushed with
 //! force-with-lease, so concurrent writers never silently overwrite each other.
 //!
+//! A repository whose HEAD can no longer be read (missing objects or packs) is
+//! recovered as Go does: a fresh clone beside it, the local edits the remote did not
+//! touch carried over, then swapped in, with a rollback when any step fails.
+//!
 //! ponytail: drives the `git` executable instead of an embedded git library; the
-//! container needs `git` installed. go-git's corruption recovery (re-clone while
-//! preserving local edits) is not ported: a corrupt repository is reported and the
-//! operator removes `<root>` to re-clone.
+//! container needs `git` installed. Any failure to read HEAD's objects counts as
+//! corruption; go-git tells a missing object from other read errors, the CLI does not.
 
+use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
@@ -80,6 +84,148 @@ fn normalize(paths: &[String]) -> Result<Vec<String>> {
 /// Go `overlappingDirtyPath`.
 fn overlaps(a: &str, b: &str) -> bool {
     a == b || a.starts_with(&format!("{b}/")) || b.starts_with(&format!("{a}/"))
+}
+
+/// What a recovery keeps of the corrupt repository: HEAD's tree (path to entry) and
+/// the local edits.
+#[derive(Clone)]
+struct Baseline {
+    tree: BTreeMap<String, String>,
+    dirty: Vec<String>,
+}
+
+/// Go `os.MkdirTemp(parent, ".gitstore-recovery-")`.
+fn recovery_dir(parent: &Path) -> std::io::Result<PathBuf> {
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    loop {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .subsec_nanos();
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = parent.join(format!(".gitstore-recovery-{}{nanos:09}{n}", std::process::id()));
+        let mut builder = std::fs::DirBuilder::new();
+        builder.recursive(false);
+        #[cfg(unix)]
+        std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+        match builder.create(&dir) {
+            Ok(()) => return Ok(dir),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
+        }
+    }
+}
+
+/// Go `applyRecoveryLocalChanges`: each preserved path of `source` replaces the same
+/// path in `target`; a path missing from `source` is removed from `target`.
+fn apply_local_changes(source: &Path, target: &Path, paths: &[String]) -> Result<()> {
+    for path in paths {
+        let from = source.join(path);
+        let to = target.join(path);
+        let remove = |to: &Path| -> std::io::Result<()> {
+            match std::fs::symlink_metadata(to) {
+                Ok(meta) if meta.is_dir() => std::fs::remove_dir_all(to),
+                Ok(_) => std::fs::remove_file(to),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(e) => Err(e),
+            }
+        };
+        let info = match std::fs::symlink_metadata(&from) {
+            Ok(info) => info,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                remove(&to).with_context(|| format!("preserve deletion {path}"))?;
+                continue;
+            }
+            Err(e) => return Err(anyhow!("inspect local change {path}: {e}")),
+        };
+        remove(&to).with_context(|| format!("replace recovered path {path}"))?;
+        if let Some(parent) = to.parent() {
+            mkdir_0700(parent).with_context(|| format!("create recovered parent for {path}"))?;
+        }
+        if info.file_type().is_symlink() {
+            let link = std::fs::read_link(&from).with_context(|| format!("read local symlink {path}"))?;
+            #[cfg(unix)]
+            std::os::unix::fs::symlink(&link, &to).with_context(|| format!("write local symlink {path}"))?;
+            #[cfg(not(unix))]
+            bail!(
+                "local change {path} is a symlink ({}); not supported here",
+                link.display()
+            );
+        } else if info.is_file() {
+            std::fs::copy(&from, &to).with_context(|| format!("write local change {path}"))?;
+        } else {
+            bail!("local change {path} has unsupported file mode");
+        }
+    }
+    Ok(())
+}
+
+/// Go `moveWorktreeEntries`: every entry but `.git`, undone on failure. The error
+/// carries whether entries were left in `target` (an undo failed too).
+fn move_entries(source: &Path, target: &Path) -> std::result::Result<(), (bool, anyhow::Error)> {
+    mkdir_0700(target).map_err(|e| (false, e))?;
+    // Read every entry before moving any (Go `os.ReadDir`), so a read error can never
+    // strand entries that were already moved.
+    let entries = std::fs::read_dir(source)
+        .and_then(|dir| {
+            dir.map(|entry| entry.map(|e| e.file_name()))
+                .collect::<std::io::Result<Vec<_>>>()
+        })
+        .map_err(|e| (false, anyhow!(e)))?;
+    let mut moved: Vec<std::ffi::OsString> = Vec::new();
+    for name in entries {
+        if name == ".git" {
+            continue;
+        }
+        if let Err(error) = std::fs::rename(source.join(&name), target.join(&name)) {
+            let mut error = anyhow!("move {}: {error}", name.to_string_lossy());
+            let mut kept = false;
+            for done in moved.iter().rev() {
+                if let Err(again) = std::fs::rename(target.join(done), source.join(done)) {
+                    kept = true;
+                    error = error.context(format!("restore {}: {again}", done.to_string_lossy()));
+                }
+            }
+            return Err((kept, error));
+        }
+        moved.push(name);
+    }
+    Ok(())
+}
+
+/// Go `installRecoveredGitDirectory`: moves the corrupt `.git` aside and the clone's in.
+/// Sets `retain` when the corrupt directory could not be put back after a failure.
+fn install_git_dir(git_dir: &Path, cloned: &Path, corrupt: &Path, retain: &mut bool) -> Result<()> {
+    std::fs::rename(git_dir, corrupt).context("backup corrupt git directory")?;
+    if let Err(error) = std::fs::rename(cloned, git_dir) {
+        let installed = anyhow!("install recovered git directory: {error}");
+        if let Err(again) = std::fs::rename(corrupt, git_dir) {
+            *retain = true;
+            return Err(installed.context(format!(
+                "restore corrupt git directory; backup retained at {}: {again}",
+                corrupt.display()
+            )));
+        }
+        return Err(installed);
+    }
+    Ok(())
+}
+
+/// Go `removeWorktreeEntries`.
+fn remove_entries(dir: &Path) -> std::io::Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        if entry.file_name() == ".git" {
+            continue;
+        }
+        let path = entry.path();
+        if entry.file_type()?.is_dir() {
+            std::fs::remove_dir_all(path)?;
+        } else {
+            std::fs::remove_file(path)?;
+        }
+    }
+    Ok(())
 }
 
 fn split_nul(bytes: &[u8]) -> Vec<String> {
@@ -251,6 +397,11 @@ impl GitStore {
                 self.tighten_permissions()?;
             }
         } else {
+            if let Err(corrupt) = self.verify_head() {
+                self.recover(None).map_err(|error| {
+                    anyhow!("git token store: verify repository before pull: {corrupt:#}; recovery failed: {error:#}")
+                })?;
+            }
             self.checkout_branch()?;
             self.pull()?;
         }
@@ -333,6 +484,31 @@ impl GitStore {
     /// changes to paths the remote did not touch, then restore tracked files that went
     /// missing from the working tree.
     fn pull(&self) -> Result<()> {
+        // Go captures the pre-pull tree and local edits for a recovery the pull may need.
+        let baseline = || -> Option<Baseline> {
+            Some(Baseline {
+                tree: self.rev("HEAD").ok().flatten().and(self.tree_entries("HEAD").ok())?,
+                dirty: self.dirty_paths().ok()?,
+            })
+        };
+        let before = baseline();
+        let recover = |cause: anyhow::Error| -> Result<()> {
+            self.recover(before.clone())
+                .map_err(|error| anyhow!("{cause:#}; recovery failed: {error:#}"))
+        };
+        if let Err(error) = self.pull_once() {
+            return match self.verify_head() {
+                Ok(()) => Err(error),
+                Err(_) => recover(error),
+            };
+        }
+        if let Err(corrupt) = self.verify_head() {
+            return recover(anyhow!("git token store: verify repository after pull: {corrupt:#}"));
+        }
+        self.restore_missing()
+    }
+
+    fn pull_once(&self) -> Result<()> {
         let fetched = self.run_in(&self.repo, &["fetch", "-q", "origin"])?;
         if !fetched.status.success() {
             let message = String::from_utf8_lossy(&fetched.stderr).to_lowercase();
@@ -360,7 +536,7 @@ impl GitStore {
             if !self.branch.is_empty() && !remote_empty {
                 bail!("git token store: pull: reference not found");
             }
-            return self.restore_missing();
+            return Ok(());
         };
         let base = self.rev("HEAD")?;
         if base.as_deref() == Some(remote.as_str()) {
@@ -369,7 +545,7 @@ impl GitStore {
         } else {
             self.reconcile(base.as_deref(), &remote, &branch)?;
         }
-        self.restore_missing()
+        Ok(())
     }
 
     fn reconcile(&self, base: Option<&str>, remote: &str, branch: &str) -> Result<()> {
@@ -438,6 +614,180 @@ impl GitStore {
             }
         }
         Ok(())
+    }
+
+    /// Go `verifyRepositoryHead`: nothing to check without a HEAD commit; otherwise its
+    /// commit, tree and every file's contents must be readable.
+    fn verify_head(&self) -> Result<()> {
+        let output = self.run_in(&self.repo, &["rev-parse", "-q", "--verify", "HEAD"])?;
+        if !output.status.success() {
+            return Ok(());
+        }
+        let head = String::from_utf8_lossy(&output.stdout).trim().to_owned();
+        let archived = self
+            .command(&self.repo, &["archive", "--format=tar", &head])
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .output()
+            .map_err(|e| anyhow!("run git: {e}"))?;
+        if !archived.status.success() {
+            bail!(
+                "object not found: {}",
+                self.redact(String::from_utf8_lossy(&archived.stderr).trim())
+            );
+        }
+        Ok(())
+    }
+
+    /// The files of `rev`'s tree in `dir`: path to `mode type hash` (Go diffs trees by
+    /// entry).
+    fn tree_entries_in(&self, dir: &Path, rev: &str) -> Result<BTreeMap<String, String>> {
+        let output = self.run_in(dir, &["ls-tree", "-r", "-z", "--full-tree", rev])?;
+        if !output.status.success() {
+            bail!("{}", self.redact(String::from_utf8_lossy(&output.stderr).trim()));
+        }
+        Ok(split_nul(&output.stdout)
+            .into_iter()
+            .filter_map(|line| {
+                let (entry, path) = line.split_once('\t')?;
+                Some((path.to_owned(), entry.to_owned()))
+            })
+            .collect())
+    }
+
+    fn tree_entries(&self, rev: &str) -> Result<BTreeMap<String, String>> {
+        self.tree_entries_in(&self.repo, rev)
+    }
+
+    /// Go `recoverRepositoryLocked`: clones the remote beside the repository, carries
+    /// the local edits over unless the remote changed the same paths, then swaps the
+    /// clone's `.git` and files in. Every failure before the swap leaves the repository
+    /// as it was; a failed swap is rolled back, and the backup is kept when even that
+    /// fails.
+    fn recover(&self, baseline: Option<Baseline>) -> Result<()> {
+        let baseline = match baseline {
+            Some(baseline) => baseline,
+            None => self.inspect_baseline().context("inspect recovery baseline")?,
+        };
+        let parent = self.repo.parent().unwrap_or(&self.repo).to_path_buf();
+        let root = recovery_dir(&parent).context("create recovery directory")?;
+        let mut retain = false;
+        let result = self.recover_into(&baseline, &root, &mut retain);
+        if !retain {
+            let _ = std::fs::remove_dir_all(&root);
+        }
+        result
+    }
+
+    /// Go `inspectRecoveryBaseline`: the local edits, then HEAD's tree.
+    fn inspect_baseline(&self) -> Result<Baseline> {
+        let dirty = self.dirty_paths().context("inspect worktree changes")?;
+        let tree = self.tree_entries("HEAD").context("inspect head tree")?;
+        Ok(Baseline { tree, dirty })
+    }
+
+    fn recover_into(&self, baseline: &Baseline, root: &Path, retain: &mut bool) -> Result<()> {
+        let clone = root.join("clone");
+        let clone_arg = clone.to_string_lossy().into_owned();
+        let mut args = vec!["clone", "-q"];
+        if !self.branch.is_empty() {
+            args.extend(["--branch", &self.branch]);
+        }
+        args.extend(["--", &self.remote, &clone_arg]);
+        let cloned = self.run_in(root, &args)?;
+        if !cloned.status.success() {
+            bail!(
+                "clone remote repository: {}",
+                self.redact(String::from_utf8_lossy(&cloned.stderr).trim())
+            );
+        }
+        let cloned_store = GitStore {
+            repo: clone.clone(),
+            ..self.shallow()
+        };
+        cloned_store.verify_head().context("verify cloned repository")?;
+        // Go `recoveryPreservedPaths`: local edits survive unless the remote changed an
+        // overlapping path since the baseline.
+        let remote = self
+            .tree_entries_in(&clone, "HEAD")
+            .context("inspect cloned repository tree")?;
+        if !baseline.dirty.is_empty() {
+            let changed = baseline
+                .tree
+                .keys()
+                .chain(remote.keys())
+                .filter(|path| baseline.tree.get(*path) != remote.get(*path));
+            for path in changed {
+                if let Some(local) = baseline.dirty.iter().find(|d| overlaps(path, d)) {
+                    bail!("remote path {path} conflicts with local change {local} during repository recovery");
+                }
+            }
+        }
+        let mut preserved = baseline.dirty.clone();
+        preserved.sort();
+        preserved.dedup();
+        apply_local_changes(&self.repo, &clone, &preserved).context("preserve local worktree changes")?;
+        let backup = root.join("worktree");
+        if let Err((kept, error)) = move_entries(&self.repo, &backup) {
+            *retain = kept;
+            return Err(if kept {
+                error.context(format!(
+                    "backup existing worktree; backup retained at {}",
+                    backup.display()
+                ))
+            } else {
+                error.context("backup existing worktree")
+            });
+        }
+        let git_dir = self.repo.join(".git");
+        let corrupt = root.join("corrupt.git");
+        // Go puts the worktree back after any failure to install the git directory,
+        // even when the corrupt directory itself could not be restored.
+        if let Err(installed) = install_git_dir(&git_dir, &clone.join(".git"), &corrupt, retain) {
+            if let Err((_, again)) = move_entries(&backup, &self.repo) {
+                *retain = true;
+                return Err(installed.context(format!(
+                    "restore worktree; backup retained at {}: {again:#}",
+                    backup.display()
+                )));
+            }
+            return Err(installed);
+        }
+        let installed = move_entries(&clone, &self.repo)
+            .map_err(|(_, error)| error.context("install recovered worktree"))
+            .and_then(|()| self.verify_head().context("verify recovered repository"));
+        if let Err(error) = installed {
+            if let Err(again) = self.rollback(&corrupt, &backup) {
+                *retain = true;
+                return Err(error.context(format!(
+                    "rollback recovered repository; backup retained at {}: {again:#}",
+                    root.display()
+                )));
+            }
+            return Err(error);
+        }
+        self.tighten_permissions()
+    }
+
+    /// Go `rollbackRecoveredRepository`.
+    fn rollback(&self, corrupt: &Path, backup: &Path) -> Result<()> {
+        remove_entries(&self.repo).context("remove recovered worktree")?;
+        let git_dir = self.repo.join(".git");
+        std::fs::remove_dir_all(&git_dir).context("remove recovered git directory")?;
+        std::fs::rename(corrupt, &git_dir).context("restore original git directory")?;
+        move_entries(backup, &self.repo).map_err(|(_, error)| error.context("restore original worktree"))
+    }
+
+    /// The same remote and credentials for another directory.
+    fn shallow(&self) -> GitStore {
+        GitStore {
+            remote: self.remote.clone(),
+            branch: self.branch.clone(),
+            username: self.username.clone(),
+            password: self.password.clone(),
+            repo: self.repo.clone(),
+            lock: Mutex::new(None),
+        }
     }
 
     /// Go `commitAndPushWithOptionsLocked`: one squashed commit of `paths`, pushed with
@@ -656,3 +1006,8 @@ pub(crate) async fn blocking<T: Send + 'static>(work: impl FnOnce() -> Result<T>
         .await
         .map_err(|e| anyhow!("store task failed: {e}"))?
 }
+
+// Local git remotes and file modes: Unix only, like tests/git.rs.
+#[cfg(all(test, unix))]
+#[path = "git_tests.rs"]
+mod tests;

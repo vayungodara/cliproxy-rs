@@ -341,12 +341,33 @@ impl Runtime {
             remote: Some(crate::remote::RemoteEnd {
                 end: Some(grant.end),
                 releases: releases.clone(),
+                cancel: grant.cancel,
             }),
             // ponytail: Go's Home dispatch keys its own session aliases on LCP matches
             // (home_session_alias.go); remote picks here carry no LCP binding.
             lcp: None,
         };
         Ok((lease, grant.request_retry))
+    }
+
+    /// Go `prepareHomeRequestAuth`: a dispatched credential that requests must wait for
+    /// (a Claude identity, a Meta mint) is prepared on this attempt's copy only,
+    /// serialized per credential ID. Home owns the stored credential, so nothing is
+    /// committed locally.
+    pub(crate) async fn prepare_remote(&self, lease: &mut Lease, cfg: &Config) -> Result<(), ExecError> {
+        if self.executors.readiness(&lease.credential, cfg) != Readiness::PrepareNow {
+            return Ok(());
+        }
+        let lock = self.store.prepare_lock(&lease.credential.id);
+        let _guard = lock.lock().await;
+        let patch = self
+            .executors
+            .prepare(&self.for_executor(&lease.credential), cfg)
+            .await?;
+        let mut prepared = (*lease.credential).clone();
+        patch.apply(&mut prepared.metadata);
+        lease.credential = Arc::new(prepared);
+        Ok(())
     }
 
     /// Prepares and commits one credential. `failed` is the revision whose token an
@@ -677,6 +698,21 @@ impl Lease {
     /// Whether the credential came from the remote dispatcher (Go Home mode).
     pub fn is_remote(&self) -> bool {
         self.remote.is_some()
+    }
+
+    /// Resolves when the dispatcher cancels this lease's execution.
+    pub(crate) fn remote_cancelled(&self) -> Option<futures_util::future::BoxFuture<'static, ()>> {
+        let signal = self.remote.as_ref()?.cancel.clone()?;
+        Some(crate::remote::cancelled(signal))
+    }
+
+    /// Whether the dispatcher cancelled this lease's execution (Go: its selection is
+    /// no longer `Active`).
+    pub(crate) fn remote_cancel_requested(&self) -> bool {
+        self.remote
+            .as_ref()
+            .and_then(|remote| remote.cancel.as_ref())
+            .is_some_and(|signal| *signal.borrow())
     }
 
     pub fn complete(mut self, outcome: Outcome) {
@@ -1519,16 +1555,60 @@ pub(crate) fn write_bytes_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<(
 
 /// A response stream that reports its lease's outcome on end, on the first error (after
 /// which it yields nothing more), or as `Cancelled` when dropped early.
+///
+/// A remote lease's cancellation (Go's selection-bound attempt context) is watched by
+/// its own task: a draining dispatcher closes the upstream body and ends the lease even
+/// while the client is not reading, and the reader then sees `context canceled`.
 pub struct Completing {
+    slot: Arc<Mutex<Slot>>,
+    watcher: Option<tokio::task::JoinHandle<()>>,
+}
+
+struct Slot {
     inner: ExecStream,
     lease: Option<Lease>,
+    /// The watcher ended the lease; the next poll yields the cancellation error.
+    cancelled: bool,
+    waker: Option<std::task::Waker>,
 }
 
 impl Completing {
     pub fn new(inner: ExecStream, lease: Lease) -> Self {
-        Self {
+        let cancelled = lease.remote_cancelled();
+        let slot = Arc::new(Mutex::new(Slot {
             inner,
             lease: Some(lease),
+            cancelled: false,
+            waker: None,
+        }));
+        let watcher = cancelled.map(|cancelled| {
+            let slot = Arc::downgrade(&slot);
+            tokio::spawn(async move {
+                cancelled.await;
+                let Some(slot) = slot.upgrade() else { return };
+                let (inner, lease, waker) = {
+                    let mut s = slot.lock().unwrap_or_else(PoisonError::into_inner);
+                    let Some(lease) = s.lease.take() else { return };
+                    s.cancelled = true;
+                    let inner = std::mem::replace(&mut s.inner, Box::pin(futures_util::stream::empty()));
+                    (inner, lease, s.waker.take())
+                };
+                // The upstream body closes first, then the lease ends.
+                drop(inner);
+                lease.complete(Outcome::Cancelled);
+                if let Some(waker) = waker {
+                    waker.wake();
+                }
+            })
+        });
+        Self { slot, watcher }
+    }
+}
+
+impl Drop for Completing {
+    fn drop(&mut self) {
+        if let Some(watcher) = &self.watcher {
+            watcher.abort();
         }
     }
 }
@@ -1537,19 +1617,25 @@ impl Stream for Completing {
     type Item = Result<Bytes, ExecError>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        let this = self.get_mut();
-        if this.lease.is_none() {
+        let mut s = self.slot.lock().unwrap_or_else(PoisonError::into_inner);
+        if std::mem::take(&mut s.cancelled) {
+            return Poll::Ready(Some(Err(crate::remote::cancelled_error())));
+        }
+        if s.lease.is_none() {
             return Poll::Ready(None);
         }
-        let item = ready!(this.inner.poll_next_unpin(cx));
+        if self.watcher.is_some() {
+            s.waker = Some(cx.waker().clone());
+        }
+        let item = ready!(s.inner.poll_next_unpin(cx));
         match &item {
             Some(Ok(_)) => {}
-            None => this.lease.take().unwrap().complete(Outcome::Success),
+            None => s.lease.take().unwrap().complete(Outcome::Success),
             Some(Err(e)) => {
                 // The upstream body closes before the lease ends: a remote lease's release
                 // must not reach the control plane while the response is still open.
-                this.inner = Box::pin(futures_util::stream::empty());
-                this.lease.take().unwrap().complete(Outcome::Failure(e.clone()));
+                s.inner = Box::pin(futures_util::stream::empty());
+                s.lease.take().unwrap().complete(Outcome::Failure(e.clone()));
             }
         }
         Poll::Ready(item)
@@ -1839,6 +1925,50 @@ mod tests {
         store.select(sel("claude")).unwrap().complete(Outcome::Success);
         assert_eq!(store.stats().failure, 1);
         assert_eq!(store.stats().success, 1);
+    }
+
+    /// Go `TestRetryIntervalFiltersCooldownCredentials` and
+    /// `TestRetryRoundAvailabilityRejectsStaleQuotaForNonRetryableStatus`: the next round
+    /// waits for the earliest cooldown within max-retry-interval, skipping longer ones,
+    /// and a credential cooling after a 402 or 404 never permits a round, whatever its
+    /// deadline, while one cooling after a 429 does.
+    #[test]
+    fn retry_wait_skips_cooldowns_beyond_the_cap_and_non_retryable_statuses() {
+        let now = Instant::now();
+        let selection = sel("claude");
+        let admit_all = |_: &Credential| Some(String::new());
+        // One credential per (status, retry-after seconds), each cooling from `now`.
+        let wait = |cap: u64, cooldowns: &[(u16, u64)]| {
+            let policy = Policy {
+                request_retry: 1,
+                max_retry_interval: Duration::from_secs(cap),
+                ..Policy::default()
+            };
+            let ids: Vec<String> = (0..cooldowns.len()).map(|i| format!("c{i}.json")).collect();
+            let store = CredentialStore::new(ids.iter().map(|id| cred(id, "claude", false)).collect());
+            for (id, (status, seconds)) in ids.iter().zip(cooldowns) {
+                let mut error = ExecError::local(*status, FailureScope::Model, "cooling");
+                error.retry_after = Some(Duration::from_secs(*seconds));
+                let credential = store.get(id).unwrap();
+                store.scheduler.lock().unwrap().record(
+                    &credential,
+                    &selection.model,
+                    &Outcome::Failure(error),
+                    &policy,
+                    now,
+                );
+            }
+            store.retry_wait_at(&selection, &policy, 429, &[], &admit_all, now)
+        };
+        let short_and_long = wait(30, &[(429, 10), (429, 60)]);
+        assert!(
+            short_and_long.is_some_and(|w| !w.is_zero() && w <= Duration::from_secs(10)),
+            "{short_and_long:?}"
+        );
+        assert_eq!(wait(30, &[(429, 60)]), None, "only a cooldown beyond the cap");
+        assert!(wait(3600, &[(429, 60)]).is_some(), "rate limit");
+        assert_eq!(wait(3600, &[(402, 60)]), None, "payment required");
+        assert_eq!(wait(3600, &[(404, 60)]), None, "not found");
     }
 
     #[test]
@@ -2296,6 +2426,7 @@ mod tests {
                 None
             })),
             releases: Default::default(),
+            cancel: None,
         });
         let guard = Probe(dropped.clone());
         let err = ExecError::local(502, FailureScope::Transport, "boom");
@@ -2322,5 +2453,60 @@ mod tests {
             AttemptStats::default(),
             "the local scheduler saw nothing"
         );
+    }
+    /// Go binds the attempt's cancellation to the Home selection: a drain closes the
+    /// upstream body and ends the lease while the client has stopped reading
+    /// (backpressure), and the reader then sees the cancellation once.
+    #[tokio::test]
+    async fn a_drain_ends_a_remote_stream_the_client_stopped_reading() {
+        use std::sync::atomic::AtomicBool;
+        struct Probe(Arc<AtomicBool>);
+        impl Drop for Probe {
+            fn drop(&mut self) {
+                self.0.store(true, Ordering::SeqCst);
+            }
+        }
+        let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
+        let dropped = Arc::new(AtomicBool::new(false));
+        let observed = Arc::new(Mutex::new(Vec::new()));
+        let mut lease = store.select(sel("claude")).unwrap();
+        let (seen, probe) = (observed.clone(), dropped.clone());
+        let (cancel_tx, cancel) = tokio::sync::watch::channel(false);
+        lease.remote = Some(crate::remote::RemoteEnd {
+            end: Some(Box::new(move || {
+                seen.lock().unwrap().push(probe.load(Ordering::SeqCst));
+                None
+            })),
+            releases: Default::default(),
+            cancel: Some(cancel),
+        });
+        let guard = Probe(dropped.clone());
+        let inner = futures_util::stream::iter(vec![Ok(Bytes::from_static(b"a"))])
+            .chain(futures_util::stream::pending())
+            .map(move |item| {
+                let _ = &guard;
+                item
+            })
+            .boxed();
+        let mut stream = Completing::new(inner, lease);
+        assert!(stream.next().await.unwrap().is_ok());
+        // The client stops polling; the dispatcher drains.
+        cancel_tx.send(true).unwrap();
+        for _ in 0..100 {
+            if !observed.lock().unwrap().is_empty() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert_eq!(
+            *observed.lock().unwrap(),
+            vec![true],
+            "body dropped first, then one end, without a poll"
+        );
+        let error = stream.next().await.unwrap().unwrap_err();
+        assert_eq!(String::from_utf8_lossy(&error.body), "context canceled");
+        assert!(stream.next().await.is_none());
+        drop(stream);
+        assert_eq!(observed.lock().unwrap().len(), 1);
     }
 }

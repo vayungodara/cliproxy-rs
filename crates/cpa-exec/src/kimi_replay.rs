@@ -7,7 +7,8 @@
 //! assistant turn. Writes are conditional on the generation read, so a slower request
 //! never overwrites newer content.
 //!
-//! ponytail: in-process cache only; Go's Home KV (cpa:kimi:*) backend is not ported.
+//! In Home mode the state lives in Home KV (`cpa:kimi:thinking-replay:*`, crate::home_replay)
+//! as Go writes it. Cache failures only skip replay, as in Go.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -23,6 +24,8 @@ const TTL: Duration = Duration::from_secs(3600);
 const MAX_ENTRIES: usize = 10240;
 const EVICT_BATCH: usize = 128;
 const MAX_TOTAL_BYTES: usize = 256 << 20;
+/// `kimiThinkingReplayCacheMaxSerializedBytes`.
+const MAX_SERIALIZED_BYTES: usize = MAX_BYTES_PER_ENTRY + 1024;
 
 #[derive(Clone)]
 struct Entry {
@@ -209,34 +212,73 @@ pub(crate) fn model_family(model: &str) -> String {
     }
 }
 
-/// One request's replay scope.
+/// Where one request's snapshot came from.
+enum Backend {
+    Local {
+        cache: Arc<ReplayCache>,
+        snapshot: Snapshot,
+    },
+    Home {
+        client: cpa_home::Client,
+        key: String,
+        snapshot: crate::home_replay::Snapshot,
+    },
+}
+
+/// One request's replay scope; `backend` is set once the cache read succeeded (Go
+/// `cacheReady`).
 pub(crate) struct Scope {
-    cache: Arc<ReplayCache>,
     key: String,
-    snapshot: Option<Snapshot>,
+    backend: Option<Backend>,
     pub(crate) applied: bool,
+    /// Home writes the response waits for.
+    pub(crate) writes: crate::home_replay::Writes,
 }
 
 impl Scope {
-    fn ready(&self) -> bool {
-        !self.key.is_empty() && self.snapshot.is_some()
-    }
-
     /// Caches complete replayable content, or clears stale content otherwise.
     pub(crate) fn store(&self, content: &[u8]) {
-        let Some(snapshot) = self.snapshot.filter(|_| self.ready()) else {
-            return;
-        };
         if replayable(content) {
-            self.cache.replace_if_unchanged(&self.key, snapshot, content);
+            self.write(Some(content));
         } else {
-            self.cache.delete_if_unchanged(&self.key, snapshot);
+            self.write(None);
         }
     }
 
     pub(crate) fn clear(&self) {
-        if let Some(snapshot) = self.snapshot.filter(|_| self.ready()) {
-            self.cache.delete_if_unchanged(&self.key, snapshot);
+        self.write(None);
+    }
+
+    /// Replaces (`Some`) or deletes (`None`) the state this request read, only if it is
+    /// still current.
+    fn write(&self, content: Option<&[u8]>) {
+        if self.key.is_empty() {
+            return;
+        }
+        match &self.backend {
+            None => {}
+            Some(Backend::Local { cache, snapshot }) => match content {
+                Some(content) => {
+                    cache.replace_if_unchanged(&self.key, *snapshot, content);
+                }
+                None => {
+                    cache.delete_if_unchanged(&self.key, *snapshot);
+                }
+            },
+            Some(Backend::Home { client, key, snapshot }) => {
+                let (client, key, snapshot) = (client.clone(), key.clone(), snapshot.clone());
+                let content = content.map(<[u8]>::to_vec);
+                self.writes.spawn(async move {
+                    let written = match &content {
+                        Some(content) => home_replace(&client, &key, &snapshot, content).await,
+                        None => home_delete(&client, &key, &snapshot).await,
+                    };
+                    if let Err(error) = written {
+                        let what = if content.is_some() { "replace" } else { "delete" };
+                        tracing::warn!("kimi thinking replay cache {what} failed: {error}");
+                    }
+                });
+            }
         }
     }
 
@@ -251,25 +293,50 @@ impl Scope {
 
 /// `prepareKimiThinkingReplayRequest`: restores cached content into `req.body` when it
 /// matches the latest assistant turn.
-pub(crate) fn prepare(cache: &Arc<ReplayCache>, req: &mut ExecRequest) -> Scope {
+pub(crate) async fn prepare(cache: &Arc<ReplayCache>, req: &mut ExecRequest) -> Scope {
     let family = model_family(&req.model);
     let session = session_key(req, &req.body);
-    let key = if family.trim().is_empty() || session.is_empty() {
+    let key = if family.trim().is_empty() || session.trim().is_empty() {
         String::new()
     } else {
-        format!("kimi-thinking-replay\0{}\0{}", family.trim(), session)
+        format!("kimi-thinking-replay\0{}\0{}", family.trim(), session.trim())
     };
     let mut scope = Scope {
-        cache: cache.clone(),
         key,
-        snapshot: None,
+        backend: None,
         applied: false,
+        writes: Default::default(),
     };
     if scope.key.is_empty() {
         return scope;
     }
-    let (content, snapshot) = cache.get(&scope.key, Instant::now());
-    scope.snapshot = Some(snapshot);
+    let content = match cpa_home::kv::current_client() {
+        Ok(None) => {
+            let (content, snapshot) = cache.get(&scope.key, Instant::now());
+            scope.backend = Some(Backend::Local {
+                cache: cache.clone(),
+                snapshot,
+            });
+            content.map(|c| c.to_vec())
+        }
+        Ok(Some(client)) => {
+            let key = kv_key(&family, &session);
+            match home_get(&client, &key).await {
+                Ok((snapshot, content)) => {
+                    scope.backend = Some(Backend::Home { client, key, snapshot });
+                    content
+                }
+                Err(error) => {
+                    tracing::warn!("kimi thinking replay cache read failed: {error}");
+                    None
+                }
+            }
+        }
+        Err(error) => {
+            tracing::warn!("kimi thinking replay cache read failed: {error}");
+            None
+        }
+    };
     if let Some(content) = content
         && let Some(updated) = restore_turn(&req.body, &content)
     {
@@ -277,6 +344,78 @@ pub(crate) fn prepare(cache: &Arc<ReplayCache>, req: &mut ExecRequest) -> Scope 
         scope.applied = true;
     }
     scope
+}
+
+/// `kimiThinkingReplayKVKey`.
+fn kv_key(family: &str, session: &str) -> String {
+    format!(
+        "cpa:kimi:thinking-replay:{}:{}",
+        cpa_home::kv::hash_key_part(family.trim()),
+        cpa_home::kv::hash_key_part(session.trim())
+    )
+}
+
+/// `decodeKimiThinkingReplayHomeValue`: `(content, deleted)`, or `None` when invalid. A
+/// bare content array is a legacy value.
+fn decode(raw: &[u8]) -> Option<(Option<Vec<u8>>, bool)> {
+    if raw.is_empty() || raw.len() > MAX_SERIALIZED_BYTES || !gj::valid(raw) {
+        return None;
+    }
+    if gj::parse(raw).is_array() {
+        return valid_content(raw).then(|| (Some(raw.to_vec()), false));
+    }
+    let generation = gj::get(raw, "generation");
+    if generation.kind != gj::Kind::String || generation.str().trim().is_empty() {
+        return None;
+    }
+    if gj::get(raw, "deleted").bool() {
+        return Some((None, true));
+    }
+    let content = gj::get(raw, "content");
+    let content = content.raw();
+    valid_content(content).then(|| (Some(content.to_vec()), false))
+}
+
+/// Go `GetKimiThinkingReplayWithSnapshotRequired` in Home mode: the snapshot and the
+/// content it holds (none for a tombstone). A hit renews the TTL.
+async fn home_get(
+    client: &cpa_home::Client,
+    key: &str,
+) -> Result<(crate::home_replay::Snapshot, Option<Vec<u8>>), String> {
+    let snapshot =
+        crate::home_replay::read_or_reserve(client, key, MAX_SERIALIZED_BYTES, "kimi thinking replay").await?;
+    let (content, _deleted) = decode(&snapshot.raw).ok_or("invalid kimi thinking replay content")?;
+    if let Err(error) = client.kv_expire(key, crate::home_replay::TTL).await {
+        tracing::warn!("home kv kimi thinking replay expire failed prefix=cpa:kimi:*: {error}");
+    }
+    Ok((snapshot, content))
+}
+
+/// Go `ReplaceKimiThinkingReplayIfUnchanged` in Home mode.
+async fn home_replace(
+    client: &cpa_home::Client,
+    key: &str,
+    snapshot: &crate::home_replay::Snapshot,
+    content: &[u8],
+) -> Result<bool, String> {
+    if !valid_content(content) {
+        return Ok(false);
+    }
+    let value = crate::home_replay::envelope(
+        &crate::home_replay::generation(),
+        Some(crate::home_replay::Payload::Content(content)),
+    );
+    crate::home_replay::swap(client, key, snapshot, &value).await
+}
+
+/// Go `DeleteKimiThinkingReplayIfUnchanged` in Home mode: a tombstone.
+async fn home_delete(
+    client: &cpa_home::Client,
+    key: &str,
+    snapshot: &crate::home_replay::Snapshot,
+) -> Result<bool, String> {
+    let tombstone = crate::home_replay::envelope(&crate::home_replay::generation(), None);
+    crate::home_replay::swap(client, key, snapshot, &tombstone).await
 }
 
 /// Go clears applied replay only for request rejections (status 400 and 422).
@@ -299,7 +438,7 @@ impl ReplayTarget for Scope {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
 
     const CACHED: &str = r#"[{"type":"thinking","thinking":"plan","signature":"sig-1"},{"type":"text","text":"Calling."},{"type":"tool_use","id":"toolu_1","name":"read","input":{"path":"a"}}]"#;
@@ -334,5 +473,88 @@ mod tests {
         let (_, stale) = cache.get("k", now);
         let late = now + TTL + PURGE_INTERVAL + Duration::from_secs(1);
         assert!(!cache.replace_at("k", stale, CACHED.as_bytes(), late));
+    }
+    /// Random generations read as `<gen>`, as in the Go golden.
+    pub(crate) fn normalize_generations(text: &str) -> String {
+        let bytes = text.as_bytes();
+        let shape = |i: usize| {
+            text.len() >= i + 36
+                && bytes[i..i + 36].iter().enumerate().all(|(j, b)| match j {
+                    8 | 13 | 18 | 23 => *b == b'-',
+                    _ => b.is_ascii_digit() || (b'a'..=b'f').contains(b),
+                })
+        };
+        let (mut out, mut i) = (String::new(), 0);
+        while i < text.len() {
+            if shape(i) {
+                out.push_str("<gen>");
+                i += 36;
+            } else {
+                let c = text[i..].chars().next().unwrap();
+                out.push(c);
+                i += c.len_utf8();
+            }
+        }
+        out
+    }
+
+    /// Go's Home KV backend for Kimi replay, recorded by the reference's
+    /// internal/cache/zz_rustgolden_test.go: reservation, CAS writes against the read
+    /// bytes, tombstones, legacy arrays and invalid values.
+    #[tokio::test]
+    async fn home_kv_replay_matches_go() {
+        let golden: serde_json::Value =
+            serde_json::from_str(include_str!("claude/testdata/go_kimi_replay_home.json")).unwrap();
+        let steps = golden["steps"].as_array().unwrap();
+        let values = Arc::new(Mutex::new(HashMap::new()));
+        let home = cpa_home::fake::FakeHome::start(crate::claude::kv_test::kv_home(values.clone())).await;
+        let client = home.client();
+        let content = br#"[ {"type":"thinking","thinking":"a<b & c","signature":"sig"}, {"type":"tool_use","id":"t1","name":"f","input":{}} ]"#;
+        let mut seen = 0;
+        let mut calls = || {
+            let all: Vec<serde_json::Value> = home
+                .commands()
+                .iter()
+                .filter_map(|c| crate::claude::kv_test::as_go_call(c))
+                .map(|call| serde_json::from_str(&normalize_generations(&call.to_string())).unwrap())
+                .collect();
+            let new = all[seen..].to_vec();
+            seen = all.len();
+            serde_json::Value::from(new)
+        };
+        let text = |c: &Option<Vec<u8>>| String::from_utf8(c.clone().unwrap_or_default()).unwrap();
+        let key = kv_key(" k3 ", " sess-1 ");
+        let (first, got) = home_get(&client, &key).await.unwrap();
+        assert_eq!(
+            (text(&got), got.is_some()),
+            ("".into(), steps[0]["result"]["found"].as_bool().unwrap())
+        );
+        assert_eq!(calls(), steps[0]["calls"], "get_reserves");
+        assert_eq!(home_replace(&client, &key, &first, content).await, Ok(true));
+        assert_eq!(calls(), steps[1]["calls"], "replace");
+        let (second, got) = home_get(&client, &key).await.unwrap();
+        assert_eq!(text(&got), steps[2]["result"]["content"].as_str().unwrap());
+        assert_eq!(calls(), steps[2]["calls"], "get_content");
+        assert_eq!(home_replace(&client, &key, &first, content).await, Ok(false));
+        assert_eq!(calls(), steps[3]["calls"], "replace_stale");
+        assert_eq!(home_delete(&client, &key, &second).await, Ok(true));
+        assert_eq!(calls(), steps[4]["calls"], "delete");
+        let (_, got) = home_get(&client, &key).await.unwrap();
+        assert!(got.is_none());
+        assert_eq!(calls(), steps[5]["calls"], "get_deleted");
+        values.lock().unwrap().insert(
+            kv_key("k3", "legacy"),
+            r#"[{"type":"thinking","thinking":"x","signature":"s"}]"#.into(),
+        );
+        let (_, got) = home_get(&client, &kv_key("k3", "legacy")).await.unwrap();
+        assert_eq!(text(&got), steps[6]["result"]["content"].as_str().unwrap());
+        assert_eq!(calls(), steps[6]["calls"], "get_legacy");
+        values
+            .lock()
+            .unwrap()
+            .insert(kv_key("k3", "bad"), r#"{"generation":" "}"#.into());
+        let error = home_get(&client, &kv_key("k3", "bad")).await.unwrap_err();
+        assert_eq!(error, steps[7]["result"]["error_text"].as_str().unwrap());
+        assert_eq!(calls(), steps[7]["calls"], "get_invalid");
     }
 }

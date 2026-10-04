@@ -891,7 +891,7 @@ impl XaiExecutor {
         if base.is_empty() {
             base = DEFAULT_API_BASE_URL.to_owned();
         }
-        let mut prepared = request::prepare(&req, cfg, true, Format::Codex, &self.replay, true)?;
+        let mut prepared = request::prepare(&req, cfg, true, Format::Codex, &self.replay, true).await?;
         let previous = text(&gj::get(&req.body, "previous_response_id")).trim().to_owned();
         if !previous.is_empty() {
             gj::set_str(&mut prepared.body, "previous_response_id", &previous);
@@ -969,7 +969,7 @@ impl XaiExecutor {
             alias: prepared.web_search_alias,
             items: OutputItems::default(),
             store: self.replay.clone(),
-            scope: prepared.replay_scope,
+            scope: prepared.replay_scope.clone(),
             mapper,
             frame,
             transcript_reset,
@@ -987,7 +987,7 @@ impl XaiExecutor {
         Ok(ExecResponse {
             status: 200,
             headers: handshake.unwrap_or_default(),
-            body: ResponseBody::Stream(stream),
+            body: ResponseBody::Stream(prepared.replay_scope.writes.gate(stream)),
         })
     }
 

@@ -781,6 +781,7 @@ dependencies = [
  "chrono",
  "cpa-common",
  "cpa-core",
+ "cpa-home",
  "cpa-translate",
  "flate2",
  "futures-util",
@@ -824,6 +825,7 @@ dependencies = [
  "tokio-btls",
  "tokio-util",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

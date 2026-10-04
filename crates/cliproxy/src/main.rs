@@ -717,6 +717,11 @@ async fn serve(
         ..Default::default()
     };
     let management = cpa_server::management::Management::with_options(rt.clone(), config_path, options);
+    if home.is_some() {
+        // Go enables the usage queue in Home mode whatever the management secret
+        // (`redisqueue.SetEnabled(... || cfg.Home.Enabled)`); the forwarder drains it.
+        rt.usage_queue().configure(true, &rt.config());
+    }
     // Go applies the plugin config before serving; later publishes resync the host.
     cpa_server::plugins::start(&rt).await;
     // Home mode: the config comes from Home, and management answers 404 (Go

@@ -1,0 +1,49 @@
+{
+  "entries": [
+    {
+      "level": "warning",
+      "time": "2026-10-03T09:01:02.12Z",
+      "request_id": "--------",
+      "line": "[2026-10-03 09:01:02] [--------] [warn ] upstream \u003cslow\u003e \u0026 retried\n",
+      "payload": "{\"line\":\"[2026-10-03 09:01:02] [--------] [warn ] upstream \\u003cslow\\u003e \\u0026 retried\\n\",\"level\":\"warning\",\"timestamp\":\"2026-10-03T09:01:02.12Z\"}"
+    },
+    {
+      "level": "info",
+      "time": "2026-10-03T09:01:02+02:00",
+      "request_id": " req-123456789 ",
+      "line": "[2026-10-03 09:01:02] [23456789] [info ] plain\n",
+      "payload": "{\"line\":\"[2026-10-03 09:01:02] [23456789] [info ] plain\\n\",\"level\":\"info\",\"timestamp\":\"2026-10-03T09:01:02+02:00\",\"request_id\":\"req-123456789\"}"
+    },
+    {
+      "level": "error",
+      "time": "2026-10-03T09:01:02.000000001Z",
+      "request_id": "",
+      "line": "[2026-10-03 09:01:02] [--------] [error] boom \"quoted\" \u2028\n",
+      "payload": "{\"line\":\"[2026-10-03 09:01:02] [--------] [error] boom \\\"quoted\\\" \\u2028\\n\",\"level\":\"error\",\"timestamp\":\"2026-10-03T09:01:02.000000001Z\"}"
+    },
+    {
+      "level": "debug",
+      "time": "2026-10-03T09:01:02.999999999-05:30",
+      "request_id": "",
+      "line": "[2026-10-03 09:01:02] [--------] [debug] debug\n",
+      "payload": "{\"line\":\"[2026-10-03 09:01:02] [--------] [debug] debug\\n\",\"level\":\"debug\",\"timestamp\":\"2026-10-03T09:01:02.999999999-05:30\"}"
+    },
+    {
+      "level": "trace",
+      "time": "2026-10-03T09:01:02.0000005Z",
+      "request_id": "",
+      "line": "[2026-10-03 09:01:02] [--------] [trace] trace\n",
+      "payload": "{\"line\":\"[2026-10-03 09:01:02] [--------] [trace] trace\\n\",\"level\":\"trace\",\"timestamp\":\"2026-10-03T09:01:02.0000005Z\"}"
+    }
+  ],
+  "unsupported": {
+    "": false,
+    "  UNKNOWN COMMAND  ": true,
+    "ERR Unsupported Key: cpa:app-log": true,
+    "ERR denied": false,
+    "ERR unknown command 'RPUSH'": true,
+    "ERR unsupported command": true,
+    "ERR wrong number of arguments for 'rpush' command": false
+  },
+  "wrapped_unsupported": true
+}

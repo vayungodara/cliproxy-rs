@@ -156,11 +156,16 @@ pub(crate) struct Plan<'a> {
     pub use_oauth_betas: bool,
     pub session_id: &'a str,
     pub settings: &'a Settings,
-    pub credential_id: &'a str,
     pub attributes: &'a std::collections::BTreeMap<String, String>,
     /// `$CPA-SESSION-ID` in custom credential headers: the explicit session only
     /// (`cpa_common::session::cpa_session_id`), empty when there is none.
     pub cpa_session: &'a str,
+    /// The stabilized device profile (`ResolveClaudeDeviceProfileRequired`), resolved
+    /// by the caller when stabilization is on and the caller is confirmed Claude Code.
+    pub device_profile: Option<Profile>,
+    /// The key's cached session ID (`CachedSessionIDRequired`), resolved by the caller
+    /// when `session_id` is empty.
+    pub cached_session_id: &'a str,
 }
 
 fn new_request_id() -> String {
@@ -180,8 +185,7 @@ pub(crate) fn build(p: &Plan<'_>) -> GoHeader {
     h.set("Content-Type", "application/json");
     let preserve_caller = !p.cli_fingerprint && !p.confirmed;
     let stabilize = p.settings.header_defaults.stabilize_device_profile;
-    let device_profile =
-        (stabilize && p.confirmed).then(|| profile::resolve(p.credential_id, p.api_key, p.incoming, p.settings));
+    let device_profile = p.device_profile.clone();
     let incoming_betas = header_values(p.incoming, "anthropic-beta").join(",").trim().to_owned();
     let requested: Requested = betas::requested(&incoming_betas, p.extra_betas);
     let advisor = requested.contains(betas::ADVISOR_TOOL) || betas::has_advisor_tool(p.body);
@@ -379,8 +383,7 @@ pub(crate) fn build(p: &Plan<'_>) -> GoHeader {
     if !p.session_id.trim().is_empty() {
         h.set("X-Claude-Code-Session-Id", p.session_id.trim());
     } else {
-        let cached = super::session::cached_session_id(p.api_key);
-        identity(&mut h, "X-Claude-Code-Session-Id", &cached);
+        identity(&mut h, "X-Claude-Code-Session-Id", p.cached_session_id);
     }
     for name in [
         "X-Claude-Code-Agent-Id",
@@ -621,9 +624,10 @@ mod tests {
             use_oauth_betas: true,
             session_id: "dd01238e-cdb5-5572-8f27-a28d98fe9075",
             settings: &settings,
-            credential_id: "c.json",
             attributes: &attributes,
             cpa_session: "",
+            device_profile: None,
+            cached_session_id: "",
         });
         let (pairs, order) = wire(h, true, false);
         let names: Vec<&str> = pairs.iter().map(|(k, _)| k.as_str()).collect();

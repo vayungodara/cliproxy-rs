@@ -356,6 +356,10 @@ pub enum ResolvedSource {
     /// `cliproxy.resolved_codex_oauth_model_info`: a Codex OAuth credential's plan
     /// catalog model.
     CodexOAuth,
+    /// `cliproxy.resolved_home_model_info`: Home's definition of the model it
+    /// dispatched (Go `attachResolvedHomeModelInfo`); Go's `ResolvedModelInfo` reads it
+    /// before the other two.
+    Home,
 }
 
 impl fmt::Debug for ExecRequest {

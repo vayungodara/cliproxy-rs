@@ -155,7 +155,7 @@ impl KimiExecutor {
         if req.operation == Operation::CountTokens {
             return claude.execute_delegated(&delegated, req, cfg, delegation).await;
         }
-        let scope = kimi_replay::prepare(&self.replay, &mut req);
+        let scope = kimi_replay::prepare(&self.replay, &mut req).await;
         let streaming = req.stream;
         let mut response = match claude.execute_delegated(&delegated, req, cfg, delegation).await {
             Ok(response) => response,
@@ -163,6 +163,7 @@ impl KimiExecutor {
                 if scope.applied && kimi_replay::clears_after(&error) {
                     scope.clear();
                 }
+                scope.writes.settle().await;
                 return Err(error);
             }
         };
@@ -172,13 +173,15 @@ impl KimiExecutor {
                 if !streaming {
                     scope.store_response(&body);
                 }
+                scope.writes.settle().await;
                 ResponseBody::Buffered(body)
             }
             ResponseBody::Stream(stream) => {
                 let restored = stream
                     .map(move |event| event.map(|e| restore_response_model(&e, &client_model)))
                     .boxed();
-                ResponseBody::Stream(crate::replay::wrap_stream(restored, scope))
+                let writes = scope.writes.clone();
+                ResponseBody::Stream(writes.gate(crate::replay::wrap_stream(restored, scope)))
             }
         };
         Ok(response)

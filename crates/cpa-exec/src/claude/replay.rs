@@ -8,7 +8,8 @@
 //! conditional on the generation the request read, so a slower request never
 //! overwrites newer content.
 //!
-//! ponytail: in-process cache only; Go's Home KV backend is not ported.
+//! In Home mode the state lives in Home KV (`cpa:claude:thinking-replay:*`,
+//! crate::home_replay) as Go writes it; cache failures only skip replay.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -27,6 +28,8 @@ const MAX_BYTES_PER_SESSION: usize = MAX_BYTES_PER_ENTRY;
 const MAX_TURNS_PER_SESSION: usize = 64;
 const MAX_TOTAL_BYTES: usize = 256 << 20;
 const SWEEP_INTERVAL: Duration = Duration::from_secs(600);
+/// `claudeThinkingReplayCacheMaxSerializedBytes`.
+const MAX_SERIALIZED_BYTES: usize = MAX_BYTES_PER_SESSION + 1024;
 
 use crate::replay::{Accumulator, MAX_BLOCKS_PER_ENTRY, MAX_BYTES_PER_ENTRY, ReplayTarget};
 
@@ -184,14 +187,7 @@ impl ReplayCache {
         } else {
             entry.contents.clone()
         };
-        if !contents.iter().any(|existing| json_equal(existing, content)) {
-            contents.push(Arc::from(content));
-            while contents.len() > MAX_TURNS_PER_SESSION
-                || contents.iter().map(|c| c.len()).sum::<usize>() > MAX_BYTES_PER_SESSION
-            {
-                contents.remove(0);
-            }
-        }
+        append_turn(&mut contents, content);
         let generation = inner.generation();
         inner.put(
             key,
@@ -226,6 +222,94 @@ impl ReplayCache {
     }
 }
 
+/// `appendClaudeThinkingReplayContent`: a new turn unless an equal one is cached, oldest
+/// turns dropped beyond 64 turns or 8 MiB.
+fn append_turn<T: AsRef<[u8]> + for<'a> From<&'a [u8]>>(contents: &mut Vec<T>, content: &[u8]) {
+    if contents.iter().any(|existing| json_equal(existing.as_ref(), content)) {
+        return;
+    }
+    contents.push(T::from(content));
+    while contents.len() > MAX_TURNS_PER_SESSION
+        || contents.iter().map(|c| c.as_ref().len()).sum::<usize>() > MAX_BYTES_PER_SESSION
+    {
+        contents.remove(0);
+    }
+}
+
+/// `claudeThinkingReplayKVKey`.
+fn kv_key(family: &str, session: &str) -> String {
+    format!(
+        "cpa:claude:thinking-replay:{}:{}",
+        cpa_home::kv::hash_key_part(family.trim()),
+        cpa_home::kv::hash_key_part(session.trim())
+    )
+}
+
+/// `decodeClaudeThinkingReplayHomeValue`: `Some(contents)` (empty for a tombstone), or
+/// `None` when invalid.
+fn decode(raw: &[u8]) -> Option<Vec<Vec<u8>>> {
+    if raw.is_empty() || raw.len() > MAX_SERIALIZED_BYTES || !gj::valid(raw) || !gj::parse(raw).is_object() {
+        return None;
+    }
+    let generation = gj::get(raw, "generation");
+    if generation.kind != gj::Kind::String || generation.str().trim().is_empty() {
+        return None;
+    }
+    if gj::get(raw, "deleted").bool() {
+        return Some(Vec::new());
+    }
+    let contents: Vec<Vec<u8>> = gj::get(raw, "contents")
+        .array()
+        .iter()
+        .map(|content| content.raw().to_vec())
+        .collect();
+    (!contents.is_empty() && contents.iter().all(|c| valid_content(c))).then_some(contents)
+}
+
+/// Go `GetClaudeThinkingReplayWithSnapshotRequired` in Home mode. A hit renews the TTL.
+async fn home_get(
+    client: &cpa_home::Client,
+    key: &str,
+) -> Result<(crate::home_replay::Snapshot, Vec<Vec<u8>>), String> {
+    let snapshot =
+        crate::home_replay::read_or_reserve(client, key, MAX_SERIALIZED_BYTES, "Claude thinking replay").await?;
+    let contents = decode(&snapshot.raw).ok_or("invalid Claude thinking replay content")?;
+    if let Err(error) = client.kv_expire(key, crate::home_replay::TTL).await {
+        tracing::warn!("home kv Claude thinking replay expire failed: {error}");
+    }
+    Ok((snapshot, contents))
+}
+
+/// Go `ReplaceClaudeThinkingReplayIfUnchanged` in Home mode: the read turns plus this
+/// one.
+async fn home_append(
+    client: &cpa_home::Client,
+    key: &str,
+    snapshot: &crate::home_replay::Snapshot,
+    content: &[u8],
+) -> Result<bool, String> {
+    if !valid_content(content) {
+        return Ok(false);
+    }
+    let mut contents = decode(&snapshot.raw).ok_or("invalid Claude thinking replay snapshot")?;
+    append_turn(&mut contents, content);
+    let value = crate::home_replay::envelope(
+        &crate::home_replay::generation(),
+        Some(crate::home_replay::Payload::Contents(&contents)),
+    );
+    crate::home_replay::swap(client, key, snapshot, &value).await
+}
+
+/// Go `DeleteClaudeThinkingReplayIfUnchanged` in Home mode: a tombstone.
+async fn home_delete(
+    client: &cpa_home::Client,
+    key: &str,
+    snapshot: &crate::home_replay::Snapshot,
+) -> Result<bool, String> {
+    let tombstone = crate::home_replay::envelope(&crate::home_replay::generation(), None);
+    crate::home_replay::swap(client, key, snapshot, &tombstone).await
+}
+
 /// `validClaudeThinkingReplayContent`.
 fn valid_content(content: &[u8]) -> bool {
     if content.is_empty() || content.len() > MAX_BYTES_PER_SESSION || !gj::valid(content) {
@@ -235,19 +319,33 @@ fn valid_content(content: &[u8]) -> bool {
     root.is_array() && (1..=MAX_BLOCKS_PER_ENTRY).contains(&root.array().len())
 }
 
-/// One request's replay scope (Go `claudeThinkingReplayScope`).
+/// Where one request's snapshot came from.
+enum Backend {
+    Local {
+        cache: Arc<ReplayCache>,
+        key: String,
+        snapshot: Snapshot,
+    },
+    Home {
+        client: cpa_home::Client,
+        key: String,
+        snapshot: crate::home_replay::Snapshot,
+    },
+}
+
+/// One request's replay scope (Go `claudeThinkingReplayScope` with a successful read).
 pub(crate) struct Scope {
-    cache: Arc<ReplayCache>,
-    key: String,
-    snapshot: Snapshot,
+    backend: Backend,
     pub(crate) applied: bool,
+    /// Home writes the response waits for.
+    pub(crate) writes: crate::home_replay::Writes,
 }
 
 impl Scope {
     /// `cacheClaudeThinkingReplayContent`: append replayable content, else clear.
     fn store(&self, content: &[u8]) {
         if crate::replay::replayable(content) {
-            self.cache.append_if_unchanged(&self.key, self.snapshot, content);
+            self.write(Some(content));
         } else {
             self.clear();
         }
@@ -255,7 +353,35 @@ impl Scope {
 
     /// `clearClaudeThinkingReplayContent`.
     pub(crate) fn clear(&self) {
-        self.cache.delete_if_unchanged(&self.key, self.snapshot);
+        self.write(None);
+    }
+
+    /// Appends (`Some`) or deletes (`None`) only if the state read is still current.
+    fn write(&self, content: Option<&[u8]>) {
+        match &self.backend {
+            Backend::Local { cache, key, snapshot } => match content {
+                Some(content) => {
+                    cache.append_if_unchanged(key, *snapshot, content);
+                }
+                None => {
+                    cache.delete_if_unchanged(key, *snapshot);
+                }
+            },
+            Backend::Home { client, key, snapshot } => {
+                let (client, key, snapshot) = (client.clone(), key.clone(), snapshot.clone());
+                let content = content.map(<[u8]>::to_vec);
+                self.writes.spawn(async move {
+                    let written = match &content {
+                        Some(content) => home_append(&client, &key, &snapshot, content).await,
+                        None => home_delete(&client, &key, &snapshot).await,
+                    };
+                    if let Err(error) = written {
+                        let what = if content.is_some() { "replace" } else { "delete" };
+                        tracing::warn!("claude compatible thinking replay cache {what} failed: {error}");
+                    }
+                });
+            }
+        }
     }
 
     /// `cacheClaudeThinkingReplayResponse`: the `content` array of a buffered message,
@@ -325,7 +451,7 @@ pub(crate) struct Gate<'a> {
 /// `prepareClaudeThinkingReplayRequest` when `claudeThinkingReplayEnabled`: Claude
 /// clients of an is-compat Claude API-key model. Restores every cached turn into
 /// `req.body`. `None` when replay does not apply or no session identity exists.
-pub(crate) fn prepare(cache: &Arc<ReplayCache>, gate: &Gate<'_>, req: &mut ExecRequest) -> Option<Scope> {
+pub(crate) async fn prepare(cache: &Arc<ReplayCache>, gate: &Gate<'_>, req: &mut ExecRequest) -> Option<Scope> {
     let enabled = req.source_format == cpa_core::format::Format::Claude
         && gate.credential.provider.trim().eq_ignore_ascii_case("claude")
         && auth_kind_is_api_key(gate.credential)
@@ -340,8 +466,37 @@ pub(crate) fn prepare(cache: &Arc<ReplayCache>, gate: &Gate<'_>, req: &mut ExecR
     if family.is_empty() || session.trim().is_empty() {
         return None;
     }
-    let key = format!("claude-thinking-replay\0{family}\0{}", session.trim());
-    let (contents, snapshot) = cache.get(&key, Instant::now());
+    let (backend, contents): (Backend, Vec<Arc<[u8]>>) = match cpa_home::kv::current_client() {
+        Ok(None) => {
+            let key = format!("claude-thinking-replay\0{family}\0{}", session.trim());
+            let (contents, snapshot) = cache.get(&key, Instant::now());
+            (
+                Backend::Local {
+                    cache: cache.clone(),
+                    key,
+                    snapshot,
+                },
+                contents,
+            )
+        }
+        Ok(Some(client)) => {
+            let key = kv_key(&family, &session);
+            match home_get(&client, &key).await {
+                Ok((snapshot, contents)) => (
+                    Backend::Home { client, key, snapshot },
+                    contents.into_iter().map(Arc::from).collect(),
+                ),
+                Err(error) => {
+                    tracing::warn!("claude compatible thinking replay cache read failed: {error}");
+                    return None;
+                }
+            }
+        }
+        Err(error) => {
+            tracing::warn!("claude compatible thinking replay cache read failed: {error}");
+            return None;
+        }
+    };
     let mut body: Option<Vec<u8>> = None;
     for cached in &contents {
         if let Some(updated) = crate::replay::restore_turn(body.as_deref().unwrap_or(&req.body), cached) {
@@ -353,10 +508,9 @@ pub(crate) fn prepare(cache: &Arc<ReplayCache>, gate: &Gate<'_>, req: &mut ExecR
         req.body = Bytes::from(body);
     }
     Some(Scope {
-        cache: cache.clone(),
-        key,
-        snapshot,
+        backend,
         applied,
+        writes: Default::default(),
     })
 }
 
@@ -384,10 +538,13 @@ mod tests {
     fn scope(cache: &Arc<ReplayCache>) -> Scope {
         let (_, snapshot) = cache.get("k", Instant::now());
         Scope {
-            cache: cache.clone(),
-            key: "k".into(),
-            snapshot,
+            backend: Backend::Local {
+                cache: cache.clone(),
+                key: "k".into(),
+                snapshot,
+            },
             applied: false,
+            writes: Default::default(),
         }
     }
 
@@ -507,5 +664,75 @@ mod tests {
             format!("claude:{prefix}:claude-x")
         );
         assert_eq!(model_family(&credential, "k", "", " "), "");
+    }
+
+    /// Go's Home KV backend for Claude replay, recorded by the reference's
+    /// internal/cache/zz_rustgolden_test.go: reservation, CAS appends against the read
+    /// bytes, stale writes, deduplicated turns, tombstones and the rejected legacy form.
+    #[tokio::test]
+    async fn home_kv_replay_matches_go() {
+        use std::collections::HashMap;
+        use std::sync::Mutex;
+        let golden: serde_json::Value =
+            serde_json::from_str(include_str!("testdata/go_claude_replay_home.json")).unwrap();
+        let steps = golden["steps"].as_array().unwrap();
+        let values = Arc::new(Mutex::new(HashMap::new()));
+        let home = cpa_home::fake::FakeHome::start(super::super::kv_test::kv_home(values.clone())).await;
+        let client = home.client();
+        let turn_a = br#"[ {"type":"thinking","thinking":"a<b","signature":"sig-a"}, {"type":"tool_use","id":"t1","name":"f","input":{}} ]"#;
+        let turn_b = br#"[{"type":"thinking","thinking":"b","signature":"sig-b"},{"type":"tool_use","id":"t2","name":"f","input":{"x":1}}]"#;
+        let mut seen = 0;
+        let mut calls = || {
+            let all: Vec<serde_json::Value> = home
+                .commands()
+                .iter()
+                .filter_map(|c| super::super::kv_test::as_go_call(c))
+                .map(|call| {
+                    serde_json::from_str(&crate::kimi_replay::tests::normalize_generations(&call.to_string())).unwrap()
+                })
+                .collect();
+            let new = all[seen..].to_vec();
+            seen = all.len();
+            serde_json::Value::from(new)
+        };
+        let texts = |contents: &[Vec<u8>]| -> serde_json::Value {
+            contents.iter().map(|c| String::from_utf8(c.clone()).unwrap()).collect()
+        };
+        let key = kv_key(" claude:x ", " sess-1 ");
+        let (first, got) = home_get(&client, &key).await.unwrap();
+        assert_eq!(texts(&got), steps[0]["result"]["contents"]);
+        assert_eq!(calls(), steps[0]["calls"], "get_reserves");
+        assert_eq!(home_append(&client, &key, &first, turn_a).await, Ok(true));
+        assert_eq!(calls(), steps[1]["calls"], "append_a");
+        assert_eq!(home_append(&client, &key, &first, turn_b).await, Ok(false));
+        assert_eq!(calls(), steps[2]["calls"], "append_stale");
+        let (second, got) = home_get(&client, &key).await.unwrap();
+        assert_eq!(texts(&got), steps[3]["result"]["contents"]);
+        assert_eq!(calls(), steps[3]["calls"], "get_a");
+        assert_eq!(home_append(&client, &key, &second, turn_b).await, Ok(true));
+        assert_eq!(calls(), steps[4]["calls"], "append_b");
+        let (third, got) = home_get(&client, &key).await.unwrap();
+        assert_eq!(texts(&got), steps[5]["result"]["contents"]);
+        assert_eq!(calls(), steps[5]["calls"], "get_ab");
+        assert_eq!(home_append(&client, &key, &third, turn_a).await, Ok(true));
+        assert_eq!(calls(), steps[6]["calls"], "append_duplicate");
+        let (fourth, got) = home_get(&client, &key).await.unwrap();
+        assert_eq!(texts(&got), steps[7]["result"]["contents"]);
+        assert_eq!(calls(), steps[7]["calls"], "get_after_duplicate");
+        assert_eq!(home_delete(&client, &key, &fourth).await, Ok(true));
+        assert_eq!(calls(), steps[8]["calls"], "delete");
+        let (_, got) = home_get(&client, &key).await.unwrap();
+        assert!(got.is_empty());
+        assert_eq!(calls(), steps[9]["calls"], "get_deleted");
+        let legacy = kv_key("claude:x", "legacy");
+        values.lock().unwrap().insert(
+            legacy.clone(),
+            r#"[{"type":"thinking","thinking":"x","signature":"s"}]"#.into(),
+        );
+        assert_eq!(
+            home_get(&client, &legacy).await.unwrap_err(),
+            steps[10]["result"]["error_text"].as_str().unwrap()
+        );
+        assert_eq!(calls(), steps[10]["calls"], "get_legacy_rejected");
     }
 }

@@ -550,6 +550,15 @@ impl Client {
         Dialer::new(&state.cfg.tls, host, state.cfg.port, &server_name, timeout)
     }
 
+    /// The TLS name the next dial verifies (`None` without TLS), after moving the
+    /// target to `host` as a cluster failover would.
+    #[cfg(test)]
+    pub(crate) fn dial_server_name(&self, host: &str) -> Result<Option<String>> {
+        let mut state = self.state();
+        state.cfg.host = host.to_owned();
+        Ok(self.dialer(&state, self.0.op_timeout)?.server_name().map(str::to_owned))
+    }
+
     /// Go `ensureClients`.
     pub(crate) fn ensure_pools(&self) -> Result<()> {
         if self.fenced() {

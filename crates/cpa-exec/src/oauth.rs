@@ -4,7 +4,8 @@
 //! independently constructed services never rotate the same token twice. Token and
 //! profile calls use the credential's effective proxy through the shared transport.
 //!
-//! ponytail: Home KV identity is not ported (process-local only).
+//! In Home mode the device pool of a dispatched credential is shared through Home KV
+//! (`ensure_device_pool`), so every node presents the same device.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -369,19 +370,8 @@ impl OAuth {
         let access = credential.str("access_token").unwrap_or_default().to_owned();
         if access.contains("sk-ant-oat") {
             if !canonical_pool(credential.metadata.get("claude_device_ids")) {
-                let normalized = credential
-                    .metadata
-                    .get("claude_device_ids")
-                    .and_then(Value::as_array)
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .map(|s| s.trim().to_ascii_lowercase())
-                    .find(|s| valid_device(s));
-                patch.set.insert(
-                    "claude_device_ids".into(),
-                    json!([normalized.unwrap_or(random_hex(32)?)]),
-                );
+                let device = ensure_device_pool(credential).await?;
+                patch.set.insert("claude_device_ids".into(), json!([device]));
             }
             if credential.str("account_uuid").unwrap_or_default().trim().is_empty()
                 && !patch.set.contains_key("account_uuid")
@@ -499,6 +489,106 @@ fn copy_profile(patch: &mut MetadataPatch, profile: &Value) {
             ("/organization/name", "organization_name"),
         ],
     );
+}
+
+/// Go `NormalizeDeviceIDPool` for the one-device pool: the first valid ID, trimmed
+/// and lower-cased.
+fn normalize_pool<'a>(values: impl IntoIterator<Item = &'a str>) -> Option<String> {
+    values
+        .into_iter()
+        .map(|s| s.trim().to_ascii_lowercase())
+        .find(|s| valid_device(s))
+}
+
+/// Go `EnsureClaudeCredentialDevicePoolRequired` for a credential without a canonical
+/// pool: its own valid device or a new one, and in Home mode the pool Home KV holds
+/// for the credential's auth index (written once with NX, canonicalized with XX).
+async fn ensure_device_pool(credential: &Credential) -> Result<String, ExecError> {
+    let candidate = normalize_pool(
+        credential
+            .metadata
+            .get("claude_device_ids")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str),
+    );
+    match cpa_home::kv::current_client() {
+        Ok(None) => candidate.map_or_else(|| random_hex(32), Ok),
+        Ok(Some(client)) => home_device_pool(&client, credential, candidate).await,
+        Err(error) => Err(pool_error(format!("Home KV client: {error}"))),
+    }
+}
+
+fn pool_error(message: String) -> ExecError {
+    ExecError::local(
+        500,
+        FailureScope::Transport,
+        format!("ensure Claude credential device pool: {message}"),
+    )
+}
+
+async fn home_device_pool(
+    client: &cpa_home::Client,
+    credential: &Credential,
+    candidate: Option<String>,
+) -> Result<String, ExecError> {
+    let mut identity = cpa_core::config::credentials::auth_index(credential).trim().to_owned();
+    if identity.is_empty() {
+        identity = credential.id.trim().to_owned();
+    }
+    if identity.is_empty() {
+        return Err(pool_error("credential identity is empty".into()));
+    }
+    let key = format!(
+        "cpa:claude:credential-device-pool:{}",
+        cpa_home::kv::hash_key_part(&identity)
+    );
+    let encode = |device: &str| format!(r#"["{device}"]"#).into_bytes();
+    let stored = client
+        .kv_get(&key)
+        .await
+        .map_err(|e| pool_error(format!("Home KV get: {e}")))?;
+    if let Some(stored) = stored.and_then(|raw| serde_json::from_slice::<Vec<String>>(&raw).ok())
+        && let Some(device) = normalize_pool(stored.iter().map(String::as_str))
+    {
+        // Go `HasCanonicalDeviceIDPool`.
+        if stored.len() != 1 || stored[0] != device {
+            let options = cpa_home::SetOptions {
+                xx: true,
+                ..Default::default()
+            };
+            let written = client
+                .kv_set(&key, &encode(&device), options)
+                .await
+                .map_err(|e| pool_error(format!("canonicalize Home KV value: {e}")))?;
+            if !written {
+                return Err(pool_error("canonical Home KV value was not written".into()));
+            }
+        }
+        return Ok(device);
+    }
+    let device = match candidate {
+        Some(device) => device,
+        None => random_hex(32)?,
+    };
+    let options = cpa_home::SetOptions {
+        nx: true,
+        ..Default::default()
+    };
+    client
+        .kv_set(&key, &encode(&device), options)
+        .await
+        .map_err(|e| pool_error(format!("Home KV set: {e}")))?;
+    let raw = client
+        .kv_get(&key)
+        .await
+        .map_err(|e| pool_error(format!("Home KV reread: {e}")))?
+        .ok_or_else(|| pool_error("Home KV value missing after set".into()))?;
+    let stored: Vec<String> =
+        serde_json::from_slice(&raw).map_err(|e| pool_error(format!("decode Home KV value: {e}")))?;
+    normalize_pool(stored.iter().map(String::as_str))
+        .ok_or_else(|| pool_error("Home KV pool has 0 entries, want 1".into()))
 }
 
 fn valid_device(s: &str) -> bool {

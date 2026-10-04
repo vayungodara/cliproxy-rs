@@ -1,0 +1,71 @@
+{
+  "steps": [
+    {
+      "calls": [
+        [
+          "set",
+          "cpa:xai:reasoning-replay:3ef9aadb6a5ad1747bd59fbb877d5acdce83e466610b93707f05174ed955483c:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          "[\"eyJ0eXBlIjoibWVzc2FnZSIsInJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50IjpbeyJ0eXBlIjoib3V0cHV0X3RleHQiLCJ0ZXh0IjoiPGhpPiAmIGJ5ZSJ9XX0=\",\"eyJ0eXBlIjoiZnVuY3Rpb25fY2FsbCIsImNhbGxfaWQiOiJjYWxsXzEiLCJuYW1lIjoibG9va3VwIiwiYXJndW1lbnRzIjoie1wicVwiOjF9In0=\"]",
+          3600000
+        ]
+      ],
+      "name": "store_anchored",
+      "result": 1
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:xai:reasoning-replay:3ef9aadb6a5ad1747bd59fbb877d5acdce83e466610b93707f05174ed955483c:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ],
+        [
+          "expire",
+          "cpa:xai:reasoning-replay:3ef9aadb6a5ad1747bd59fbb877d5acdce83e466610b93707f05174ed955483c:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c",
+          3600000
+        ]
+      ],
+      "name": "get",
+      "result": {
+        "error": false,
+        "items": [
+          "{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"\u003chi\u003e \u0026 bye\"}]}",
+          "{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"}"
+        ],
+        "ok": true
+      }
+    },
+    {
+      "calls": [],
+      "name": "store_unanchored",
+      "result": 2
+    },
+    {
+      "calls": [
+        [
+          "del",
+          "cpa:xai:reasoning-replay:3ef9aadb6a5ad1747bd59fbb877d5acdce83e466610b93707f05174ed955483c:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ]
+      ],
+      "name": "delete",
+      "result": false
+    },
+    {
+      "calls": [
+        [
+          "get",
+          "cpa:xai:reasoning-replay:3ef9aadb6a5ad1747bd59fbb877d5acdce83e466610b93707f05174ed955483c:abe633f3a47a2758174eabe9160daf36c4b1a33e8642ebf96e8f91c3fcbd5f9c"
+        ]
+      ],
+      "name": "get_missing",
+      "result": {
+        "items": 0,
+        "ok": false
+      }
+    },
+    {
+      "calls": [],
+      "name": "store_invalid_scope",
+      "result": 0
+    }
+  ]
+}

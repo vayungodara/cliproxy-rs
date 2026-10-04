@@ -1,0 +1,249 @@
+{
+  "hierarchy": [
+    {
+      "primary": "a:agent:1",
+      "fallback": "x",
+      "want": true
+    },
+    {
+      "primary": "claude:1",
+      "fallback": "claude:2",
+      "want": true
+    },
+    {
+      "primary": "claude:1",
+      "fallback": "codex:2",
+      "want": false
+    },
+    {
+      "primary": "plain",
+      "fallback": "other",
+      "want": true
+    },
+    {
+      "primary": "plain",
+      "fallback": "pck:k",
+      "want": false
+    },
+    {
+      "primary": "a",
+      "fallback": "a",
+      "want": false
+    },
+    {
+      "primary": "",
+      "fallback": "x",
+      "want": false
+    },
+    {
+      "primary": "x",
+      "fallback": "",
+      "want": false
+    },
+    {
+      "primary": ":lead",
+      "fallback": ":other",
+      "want": false
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "fallback_joins_primary",
+      "ttl_secs": 60,
+      "calls": [
+        {
+          "primary": "sess-a",
+          "fallback": "pck:k1",
+          "at_secs": 0,
+          "want": "sess-a"
+        },
+        {
+          "primary": "pck:k1",
+          "fallback": "",
+          "at_secs": 10,
+          "want": "sess-a"
+        },
+        {
+          "primary": "sess-a",
+          "fallback": "",
+          "at_secs": 20,
+          "want": "sess-a"
+        }
+      ]
+    },
+    {
+      "name": "prompt_key_bridges_conversations",
+      "ttl_secs": 60,
+      "calls": [
+        {
+          "primary": "pck:k",
+          "fallback": "conv-a",
+          "at_secs": 0,
+          "want": "pck:k"
+        },
+        {
+          "primary": "pck:k",
+          "fallback": "conv-b",
+          "at_secs": 1,
+          "want": "pck:k"
+        },
+        {
+          "primary": "conv-a",
+          "fallback": "",
+          "at_secs": 2,
+          "want": "pck:k"
+        },
+        {
+          "primary": "conv-b",
+          "fallback": "",
+          "at_secs": 3,
+          "want": "pck:k"
+        }
+      ]
+    },
+    {
+      "name": "expiry_forgets",
+      "ttl_secs": 60,
+      "calls": [
+        {
+          "primary": "sess-x",
+          "fallback": "pck:x",
+          "at_secs": 0,
+          "want": "sess-x"
+        },
+        {
+          "primary": "pck:x",
+          "fallback": "",
+          "at_secs": 61,
+          "want": "pck:x"
+        },
+        {
+          "primary": "sess-x",
+          "fallback": "",
+          "at_secs": 62,
+          "want": "sess-x"
+        }
+      ]
+    },
+    {
+      "name": "existing_group_without_alias",
+      "ttl_secs": 60,
+      "calls": [
+        {
+          "primary": "solo",
+          "fallback": "",
+          "at_secs": 0,
+          "want": "solo"
+        },
+        {
+          "primary": "solo",
+          "fallback": "",
+          "at_secs": 5,
+          "want": "solo"
+        },
+        {
+          "primary": "other",
+          "fallback": "solo",
+          "at_secs": 6,
+          "want": "solo"
+        },
+        {
+          "primary": "other",
+          "fallback": "",
+          "at_secs": 7,
+          "want": "solo"
+        }
+      ]
+    },
+    {
+      "name": "two_prompt_keys_keep_one",
+      "ttl_secs": 60,
+      "calls": [
+        {
+          "primary": "sess-p",
+          "fallback": "pck:1",
+          "at_secs": 0,
+          "want": "sess-p"
+        },
+        {
+          "primary": "sess-p",
+          "fallback": "pck:2",
+          "at_secs": 1,
+          "want": "sess-p"
+        },
+        {
+          "primary": "pck:2",
+          "fallback": "",
+          "at_secs": 2,
+          "want": "sess-p"
+        },
+        {
+          "primary": "pck:1",
+          "fallback": "",
+          "at_secs": 3,
+          "want": "pck:1"
+        }
+      ]
+    },
+    {
+      "name": "merging_two_groups",
+      "ttl_secs": 60,
+      "calls": [
+        {
+          "primary": "g1",
+          "fallback": "a1",
+          "at_secs": 0,
+          "want": "g1"
+        },
+        {
+          "primary": "g2",
+          "fallback": "a2",
+          "at_secs": 1,
+          "want": "g2"
+        },
+        {
+          "primary": "a1",
+          "fallback": "a2",
+          "at_secs": 2,
+          "want": "g1"
+        },
+        {
+          "primary": "a2",
+          "fallback": "",
+          "at_secs": 3,
+          "want": "g1"
+        },
+        {
+          "primary": "g2",
+          "fallback": "",
+          "at_secs": 4,
+          "want": "g1"
+        }
+      ]
+    },
+    {
+      "name": "blank_inputs",
+      "ttl_secs": 0,
+      "calls": [
+        {
+          "primary": "  ",
+          "fallback": "",
+          "at_secs": 0,
+          "want": ""
+        },
+        {
+          "primary": " s ",
+          "fallback": " ",
+          "at_secs": 0,
+          "want": "s"
+        },
+        {
+          "primary": "s",
+          "fallback": "",
+          "at_secs": 3599,
+          "want": "s"
+        }
+      ]
+    }
+  ]
+}

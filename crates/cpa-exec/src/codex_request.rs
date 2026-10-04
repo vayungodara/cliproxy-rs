@@ -59,6 +59,9 @@ pub(crate) struct Settings {
     pub client: cpa_common::codex_client::Settings,
     /// The `models` of the `codex-api-key` entry the credential resolves to.
     pub key_models: Vec<serde_json::Value>,
+    /// The credential, when Home dispatched it (Go `cfg.Home.Enabled`): its
+    /// `credential_options` decide is-compat when nothing else does.
+    pub home: Option<cpa_core::credential::Credential>,
     /// `response-steering`: full-duplex WebSocket turns (codex_websockets_duplex.go).
     pub response_steering: bool,
     /// `multimedia.gpt-image-2-base-model`, trimmed: the Images API's tool-call model.
@@ -90,12 +93,21 @@ impl Settings {
         settings.key_models = cpa_core::config::credentials::resolve_api_key_entry(cfg, "codex", view.credential)
             .map(|entry| entry.models)
             .unwrap_or_default();
+        if view
+            .credential
+            .attributes
+            .contains_key(cpa_core::config::credentials::HOME_PROVIDER)
+        {
+            settings.home = Some(view.credential.clone());
+        }
         settings
     }
 
     /// `resolveCodexModelIsCompat`: the model dispatch bound to the attempt, else the
     /// credential's config entry, where the first model whose name or alias equals the
-    /// base or requested model decides; none means not compat.
+    /// base or requested model decides; none means not compat. Without config models,
+    /// `CodexAPIKeyModelIsCompat` for the base, then the requested model: in Home mode
+    /// the credential's `credential_options` entry for that model.
     pub fn is_compat(&self, req: &ExecRequest) -> bool {
         if let Some(resolved) = &req.resolved_model {
             return resolved.is_compat();
@@ -104,6 +116,15 @@ impl Settings {
         let requested = req.model.trim();
         let base = base_model(&req.model);
         let target = base.trim();
+        if self.key_models.is_empty() {
+            let home = |model: &str| {
+                self.home
+                    .as_ref()
+                    .and_then(|c| cpa_home::dispatch::credential_model_options(c, model, model))
+                    .is_some_and(|options| options.get("is-compat") == Some(&serde_json::Value::Bool(true)))
+            };
+            return home(target) || home(&req.model);
+        }
         self.key_models
             .iter()
             .find(|m| {
@@ -148,6 +169,7 @@ impl Settings {
             payload: cpa_common::payload::Rules::from_config(cfg),
             client: cpa_common::codex_client::Settings::from_config(cfg),
             key_models: Vec::new(),
+            home: None,
             response_steering: response_steering(cfg),
             image_base_model: text(&["multimedia", "gpt-image-2-base-model"]),
         }
@@ -1292,6 +1314,67 @@ pub(crate) fn ws_headers(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Go `TestHomeCodexCompatUsesSelectedCredentialOptions`: without a binding or config
+    /// models, a Home credential's `credential_options` decide is-compat for the upstream
+    /// name, its alias and its suffixed form; another credential and standalone mode do
+    /// not see them.
+    #[test]
+    fn home_codex_is_compat_reads_the_credential_options() {
+        let mut credential = Credential {
+            id: "c1".into(),
+            provider: "codex".into(),
+            source: cpa_core::credential::Source::File("c1".into()),
+            disabled: false,
+            label: String::new(),
+            attributes: Default::default(),
+            metadata: serde_json::json!({"credential_options": {"models": [{"name": "upstream", "alias": "alias", "is-compat": true}]}})
+                .as_object()
+                .cloned()
+                .unwrap(),
+            revision: 0,
+        };
+        let settings = |c: &Credential| Settings {
+            home: c
+                .attributes
+                .contains_key(cpa_core::config::credentials::HOME_PROVIDER)
+                .then(|| c.clone()),
+            ..Settings::default()
+        };
+        let request = |model: &str| ExecRequest {
+            operation: cpa_core::exec::Operation::Generate,
+            source_format: Format::Codex,
+            response_format: Format::Codex,
+            requested_model: model.into(),
+            model: model.into(),
+            original_body: Default::default(),
+            body: Default::default(),
+            stream: false,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            request_path: String::new(),
+            headers: Default::default(),
+            caller: cpa_core::exec::Caller {
+                principal: String::new(),
+                source: "",
+            },
+            resolved_model: None,
+            usage: Default::default(),
+        };
+        credential
+            .attributes
+            .insert(cpa_core::config::credentials::HOME_PROVIDER.into(), "codex".into());
+        for model in ["upstream", "alias", "upstream(high)"] {
+            assert!(settings(&credential).is_compat(&request(model)), "{model}");
+        }
+        let mut other = credential.clone();
+        other.metadata.clear();
+        assert!(!settings(&other).is_compat(&request("upstream")));
+        credential.attributes.clear();
+        assert!(!settings(&credential).is_compat(&request("upstream")), "standalone");
+    }
 
     #[test]
     fn durations_follow_go_parse_duration() {

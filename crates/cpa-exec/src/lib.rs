@@ -45,6 +45,7 @@ mod devin_wire;
 pub mod gemini;
 mod gemini_payload;
 mod gemini_stream;
+mod home_replay;
 pub mod kimi;
 pub mod kimi_auth;
 #[cfg(test)]

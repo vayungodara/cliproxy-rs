@@ -298,8 +298,9 @@ impl Failure {
 
     /// An error the route returns untouched (claude_executor_fast_error.go).
     pub fn direct(&self) -> Option<&ExecError> {
+        // Go finds the direct response through any wrapper, a Home round marker included.
         match self {
-            Failure::Exec(e) if e.direct => Some(e),
+            Failure::Exec(e) | Failure::Remote { error: e, .. } if e.direct => Some(e),
             _ => None,
         }
     }
@@ -454,14 +455,15 @@ where
         nonstream_keepalive(&call, &rt.config())
     };
     let trace = Arc::new(Trace::with_request_id(crate::observability::current_request_id()));
-    let mut run = Box::pin({
+    // A keep-alive moves `run` into the response body, past the request's gate.
+    let mut run = Box::pin(crate::remote::keep_query_credential({
         let (rt, trace) = (rt.clone(), trace.clone());
         async move {
             let result = run_with_bootstrap_retries(&rt, call, &trace).await;
             let upstream = upstream_headers(&rt.config(), &result);
             (result, upstream)
         }
-    });
+    }));
     // Upstream headers and the trace ID go on a rendered response; once a keep-alive
     // committed the headers they are lost, as in Go.
     let traced = {
@@ -771,7 +773,9 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         &call.caller.principal,
     );
     // Go's usage reporter: one record per Generate attempt while the queue accepts.
-    let usage = (call.operation == Operation::Generate && rt.usage_queue().accepts()).then(|| {
+    // Home count-tokens attempts record only their upstream 401s (`reportHomeUnauthorized`).
+    let home_count = call.operation == Operation::CountTokens && rt.remote_dispatch().is_some();
+    let facts = ((call.operation == Operation::Generate || home_count) && rt.usage_queue().accepts()).then(|| {
         Arc::new(crate::usage_record::Facts::new(
             usage_client(&cfg, &call, trace, &session),
             call.entry,
@@ -781,6 +785,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             call.stream,
         ))
     });
+    let (usage, unauthorized) = if home_count { (None, facts) } else { (facts, None) };
     // `WithPinnedAuthID`: every other credential is excluded in every round.
     // A remote dispatcher receives the pinned ID itself.
     let mut pinned_exclusion: Vec<String> = match call.pinned() {
@@ -844,6 +849,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             call: &call,
             request: &request,
             usage: usage.as_ref(),
+            unauthorized: unauthorized.as_ref(),
             aliases: &aliases,
             compact,
             trace,
@@ -937,6 +943,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
                 alias: &alias,
                 compact,
                 keep_model: call.selection_model.is_some(),
+                unauthorized: None,
             };
             match attempt(rt, &cfg, &policy, &call, &request, usage.as_ref(), lease, target).await {
                 Attempt::Done(done) => return Ok(done),
@@ -1003,6 +1010,8 @@ struct RemoteContext<'a> {
     call: &'a Call,
     request: &'a ExecRequest,
     usage: Option<&'a Arc<crate::usage_record::Facts>>,
+    /// Home count-tokens requests: the facts their upstream 401s are recorded with.
+    unauthorized: Option<&'a Arc<crate::usage_record::Facts>>,
     aliases: &'a std::collections::HashMap<String, Vec<cpa_core::registry::dynamic::OAuthAlias>>,
     compact: bool,
     trace: &'a Trace,
@@ -1177,11 +1186,7 @@ async fn run_remote(
     let pinned = cx.call.pinned().is_some_and(|p| !p.trim().is_empty());
     let max_wait = cx.policy.max_retry_interval;
     let default_retry = cx.policy.request_retry as i64;
-    // Go `homeRetryAllowed`.
-    let allowed = |attempt: i64, limit: i64| {
-        let limit = if limit < 0 { default_retry.max(0) } else { limit };
-        attempt >= 0 && attempt < limit
-    };
+    let allowed = |attempt: i64, limit: i64| home_retry_allowed(default_retry, attempt, limit);
     let mut limit: i64 = -1;
     let mut attempt: i64 = 0;
     let (mut pending, mut waited) = (false, false);
@@ -1239,6 +1244,13 @@ async fn run_remote(
             }
         }
     }
+}
+
+/// Go `homeRetryAllowed`: `attempt` is below the round limit, Home's when one was
+/// observed (`limit >= 0`), else the configured request-retry.
+fn home_retry_allowed(default_retry: i64, attempt: i64, limit: i64) -> bool {
+    let limit = if limit < 0 { default_retry.max(0) } else { limit };
+    attempt >= 0 && attempt < limit
 }
 
 /// Go `shouldRetryAfterErrorWithHomeRetryLimit` in Home mode.
@@ -1326,7 +1338,13 @@ async fn remote_round(
         let mut last: Option<RemoteFault> = None;
         let mut upstream: Option<RemoteFault> = None;
         let mut timing = RoundTiming::default();
+        // Go `homeAuthCount`: the buffered loop counts every pick; the streaming loop
+        // counts only failed executions, so a same-credential retry still advances it.
+        let mut count: i64 = 0;
         loop {
+            if !stream || count == 0 {
+                count += 1;
+            }
             let allow_same =
                 stream && same_pending && !last_id.is_empty() && same_retries.get(&last_id).copied().unwrap_or(0) == 0;
             let capped = max_credentials > 0 && tried.len() >= max_credentials;
@@ -1339,7 +1357,7 @@ async fn remote_round(
             let mut selection = base.clone();
             selection.retry_round = round.max(0) as usize;
             selection.exclude = if stream { excluded.clone() } else { tried.clone() };
-            let request = remote_request(cx.call, &selection, tried.len(), cx.trace);
+            let request = remote_request(cx.call, &selection, count, cx.trace);
             let (lease, request_retry) = match cx
                 .rt
                 .acquire_remote(remote, selection.clone(), request, &releases)
@@ -1468,8 +1486,46 @@ async fn remote_round(
                 alias: &alias,
                 compact: cx.compact,
                 keep_model: cx.call.selection_model.is_some(),
+                unauthorized: cx.unauthorized,
             };
-            match attempt(cx.rt, cx.cfg, cx.policy, cx.call, cx.request, cx.usage, lease, target).await {
+            let cancelled = lease
+                .remote_cancelled()
+                .unwrap_or_else(|| Box::pin(std::future::pending()));
+            // Go: draining the registry cancels the attempt context; the execution stops
+            // and the round moves on (the registry then refuses new picks). A failed
+            // preparation ends the attempt (Go reports it and redispatches), but it is
+            // not an upstream error and does not advance the streaming count.
+            let run = async {
+                let mut lease = lease;
+                match cx.rt.prepare_remote(&mut lease, cx.cfg).await {
+                    Ok(()) => (
+                        attempt(cx.rt, cx.cfg, cx.policy, cx.call, cx.request, cx.usage, lease, target).await,
+                        false,
+                    ),
+                    Err(error) => {
+                        lease.complete(Outcome::Failure(error.clone()));
+                        (
+                            Attempt::Next(Fault {
+                                error,
+                                bootstrap: false,
+                            }),
+                            true,
+                        )
+                    }
+                }
+            };
+            let (outcome, prepare_failed) = tokio::select! {
+                biased;
+                outcome = run => outcome,
+                _ = cancelled => (
+                    Attempt::Next(Fault {
+                        error: crate::remote::cancelled_error(),
+                        bootstrap: false,
+                    }),
+                    false,
+                ),
+            };
+            match outcome {
                 Attempt::Done(done) => return Ok(done),
                 Attempt::Stop(fault) => {
                     // Go's streaming loop acknowledges the release before honouring a
@@ -1490,8 +1546,13 @@ async fn remote_round(
                         }
                         last_id = id.clone();
                         same_pending = !exclude;
+                        if !prepare_failed {
+                            count += 1;
+                        }
                     }
-                    let fault = RemoteFault::from_attempt(fault, false);
+                    let mut fault = RemoteFault::from_attempt(fault, false);
+                    // A preparation never reached the upstream, in any round.
+                    fault.upstream &= !prepare_failed;
                     if fault.upstream {
                         upstream = Some(fault.clone());
                     }
@@ -1537,25 +1598,15 @@ fn no_auth(base: &Selection) -> Failure {
 
 /// Go's RPOP request for one pick: the route model, session hierarchy, downstream
 /// headers (Home authenticates the client with them), and this round's exclusions.
-// ponytail: no Home session-alias canonicalization and no `?key=` header fallback;
-// the local session resolution and the request headers are sent as they are.
-fn remote_request(call: &Call, selection: &Selection, picks: usize, trace: &Trace) -> crate::remote::RemoteRequest {
-    let headers = call
-        .headers
-        .iter()
-        .map(|(name, value)| {
-            (
-                name.as_str().to_owned(),
-                String::from_utf8_lossy(value.as_bytes()).into_owned(),
-            )
-        })
-        .collect();
+/// The dispatcher canonicalizes the session (Go `homeDispatchSessionIDs`).
+fn remote_request(call: &Call, selection: &Selection, count: i64, trace: &Trace) -> crate::remote::RemoteRequest {
+    let headers = crate::remote::home_headers(&call.headers, Some(&call.caller));
     crate::remote::RemoteRequest {
         model: selection.model.clone(),
         session_id: selection.session.clone().unwrap_or_default(),
         parent_session_id: selection.session_parent.clone().unwrap_or_default(),
         headers,
-        count: picks as i64 + 1,
+        count,
         retry_round: selection.retry_round as i64,
         excluded: selection.exclude.clone(),
         pinned: call.pinned().unwrap_or_default().to_owned(),
@@ -1567,6 +1618,7 @@ fn remote_request(call: &Call, selection: &Selection, picks: usize, trace: &Trac
         } else {
             "http"
         },
+        credential_policy: String::new(),
     }
 }
 
@@ -1610,6 +1662,9 @@ struct Target<'a> {
     /// The request model is not the selection model (Interactions agents): execute
     /// the request model, keep cooldown state on the selection model.
     keep_model: bool,
+    /// Record an upstream 401 as a Home result (Go `reportHomeUnauthorized` for Home
+    /// count-tokens attempts, which no executor reporter records).
+    unauthorized: Option<&'a Arc<crate::usage_record::Facts>>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1627,7 +1682,18 @@ async fn attempt(
     let mut last = None;
     let mut refreshed = false;
     for (i, upstream) in target.models.iter().enumerate() {
-        let state = registry::state_model(target.selection_model, &route_model, upstream, target.pooled);
+        // Go `stateModelForExecution`: the upstream model when Home chose one.
+        let home_model = lease
+            .credential
+            .attributes
+            .get(crate::remote::UPSTREAM_MODEL)
+            .map(|m| m.trim())
+            .filter(|m| !m.is_empty());
+        let state = match home_model {
+            Some(home) if upstream.trim().is_empty() => home.to_owned(),
+            Some(_) => upstream.trim().to_owned(),
+            None => registry::state_model(target.selection_model, &route_model, upstream, target.pooled),
+        };
         lease.execution_model = state.clone();
         let mut req = attempt_request(
             request,
@@ -1636,6 +1702,7 @@ async fn attempt(
             &route_model,
             upstream,
             target.keep_model,
+            call.stream,
         );
         // Go `syncMetadataSessionToContext`: an LCP pick's session is the attempt's
         // canonical session, for `$CPA-SESSION-ID` and the usage record.
@@ -1671,9 +1738,12 @@ async fn attempt(
             }
         };
         let mut executed = execute(lease.credential.clone(), req.clone()).await;
-        // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential.
+        // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential. Home
+        // credentials never refresh here (Go home_unauthorized_refresh): the 401 goes to
+        // Home and the round moves on, even when a local credential shares the ID.
         if let Err(error) = &executed
             && !refreshed
+            && !lease.is_remote()
             && classify::is_unauthorized(error)
             && let Some(current) = rt.refresh_after_unauthorized(&lease.credential, cfg).await
         {
@@ -1727,6 +1797,18 @@ async fn attempt(
             }
         };
         let error = &fault.error;
+        if let Some(facts) = target.unauthorized
+            && classify::is_unauthorized(error)
+        {
+            crate::usage_record::publish_home_unauthorized(
+                rt,
+                facts,
+                &lease.credential,
+                &crate::remote::selection_provider(&lease.credential),
+                &state,
+                &classify::error_text(error),
+            );
+        }
         let action = policy.error_action(&lease.credential, error);
         let neutral = (target.compact && classify::is_compact_neutral(error) && !action.force_cooldown)
             || (call.operation == Operation::CountTokens
@@ -1759,31 +1841,13 @@ async fn attempt(
 
 /// Go's client request metadata for usage records (handlers.go `GetContextWithCancel`
 /// and `syncMetadataSessionToContext`).
-// ponytail: `server.trusted-proxies` is read from the request's config snapshot; Go
-// applies it at startup only.
 fn usage_client(
     cfg: &Config,
     call: &Call,
     trace: &Trace,
     session: &crate::session::Session,
 ) -> crate::usage_record::Client {
-    let trusted = cfg.derived(|c| cpa_core::config::TrustedProxies::new(&c.trusted_proxies));
-    let text = |v: &axum::http::HeaderValue| String::from_utf8_lossy(v.as_bytes()).into_owned();
-    let forwarded: Vec<String> = call.headers.get_all("x-forwarded-for").iter().map(text).collect();
     crate::usage_record::Client {
-        client_ip: call.peer.map(|p| p.ip().to_string()).unwrap_or_default(),
-        resolved_client_ip: trusted
-            .client_ip(call.peer, |name| call.headers.get(name).map(|v| v.as_bytes()))
-            .trim()
-            .to_owned(),
-        x_forwarded_for: forwarded.join(", ").trim().to_owned(),
-        user_agent: call
-            .headers
-            .get("user-agent")
-            .map(text)
-            .unwrap_or_default()
-            .trim()
-            .to_owned(),
         session_id: session.id.clone().unwrap_or_default(),
         parent_session_id: session.parent.clone().unwrap_or_default(),
         is_fork: session.fork,
@@ -1797,6 +1861,35 @@ fn usage_client(
             call.request_path
         ),
         api_key: call.caller.principal.clone(),
+        ..request_client(cfg, &call.headers, call.peer)
+    }
+}
+
+/// The downstream peer's part of Go's client request metadata: addresses and agent.
+// ponytail: `server.trusted-proxies` is read from the request's config snapshot; Go
+// applies it at startup only.
+pub(crate) fn request_client(
+    cfg: &Config,
+    headers: &axum::http::HeaderMap,
+    peer: Option<std::net::SocketAddr>,
+) -> crate::usage_record::Client {
+    let trusted = cfg.derived(|c| cpa_core::config::TrustedProxies::new(&c.trusted_proxies));
+    let text = |v: &axum::http::HeaderValue| String::from_utf8_lossy(v.as_bytes()).into_owned();
+    let forwarded: Vec<String> = headers.get_all("x-forwarded-for").iter().map(text).collect();
+    crate::usage_record::Client {
+        client_ip: peer.map(|p| p.ip().to_string()).unwrap_or_default(),
+        resolved_client_ip: trusted
+            .client_ip(peer, |name| headers.get(name).map(|v| v.as_bytes()))
+            .trim()
+            .to_owned(),
+        x_forwarded_for: forwarded.join(", ").trim().to_owned(),
+        user_agent: headers
+            .get("user-agent")
+            .map(text)
+            .unwrap_or_default()
+            .trim()
+            .to_owned(),
+        ..Default::default()
     }
 }
 
@@ -1863,7 +1956,10 @@ impl futures_util::Stream for Tracked {
 }
 
 /// The request one upstream model attempt executes: the upstream model (unless the
-/// request keeps its own model), with Go's `attachResolvedExecutionModelInfo` binding.
+/// request keeps its own model), with Go's `attachResolvedExecutionModelInfo` binding,
+/// then `attachResolvedHomeModelInfo` for a Home credential executing the selection's
+/// model. Go's stream path binds Home's model before the local one, so the local
+/// binding never lends it configuration-update support there.
 fn attempt_request(
     request: &ExecRequest,
     cfg: &Config,
@@ -1871,6 +1967,7 @@ fn attempt_request(
     route_model: &str,
     upstream: &str,
     keep_model: bool,
+    stream: bool,
 ) -> ExecRequest {
     let mut req = request.clone();
     if !keep_model {
@@ -1883,6 +1980,10 @@ fn attempt_request(
         upstream,
         keep_model.then_some(request.model.as_str()),
     );
+    let local = req.resolved_model.as_ref().filter(|_| !stream);
+    if !keep_model && let Some(home) = crate::capabilities::bind_home(credential, local) {
+        req.resolved_model = Some(home);
+    }
     req
 }
 
@@ -2015,6 +2116,41 @@ fn rewrite_lines(payload: &Bytes, target: &str) -> Bytes {
 mod tests {
     use super::*;
 
+    /// Go finds a direct response through the Home round marker: the raw upstream
+    /// answer goes out unchanged, without the safe `Retry-After`.
+    #[test]
+    fn direct_errors_stay_direct_under_a_home_round_marker() {
+        let mut raw = ExecError::local(429, cpa_core::exec::FailureScope::Credential, "raw fast-mode body");
+        raw.direct = true;
+        raw.headers
+            .insert(axum::http::header::CONTENT_TYPE, "text/plain".parse().unwrap());
+        let failure = Failure::Remote {
+            error: raw,
+            retry_after: Some(2),
+        };
+        assert!(failure.direct().is_some());
+        let response = crate::errors::write(&failure, |_, _| unreachable!());
+        assert_eq!(response.status().as_u16(), 429);
+        assert_eq!(response.headers()["content-type"], "text/plain");
+        assert!(response.headers().get("retry-after").is_none());
+    }
+
+    /// Go `isConnectionLifecycleError` on the texts executors produce.
+    #[test]
+    fn lifecycle_errors_follow_go() {
+        let transport = |text: &str| ExecError::local(502, cpa_core::exec::FailureScope::Transport, text);
+        assert!(lifecycle(&transport("websocket: close 1000 (normal)")));
+        assert!(lifecycle(&transport(
+            "websocket: close 1006 (abnormal closure): unexpected EOF"
+        )));
+        assert!(lifecycle(&transport("EOF")));
+        assert!(!lifecycle(&transport("websocket: close 1011 (internal server error)")));
+        assert!(!lifecycle(&transport("read failed")));
+        // A status keeps the credential/status path, whatever the text says.
+        let statused = ExecError::local(500, cpa_core::exec::FailureScope::Credential, "unexpected EOF");
+        assert!(!lifecycle(&statused));
+    }
+
     /// Go starts the non-stream keep-alive in the non-stream generate handlers only, and
     /// `NonStreamingKeepAliveInterval` treats 0 and below as off.
     #[test]
@@ -2099,17 +2235,47 @@ mod tests {
             resolved_model: None,
             usage: Default::default(),
         };
-        let req = attempt_request(&request, &cfg, &credential, "sol", "gpt-6-sol", false);
+        let req = attempt_request(&request, &cfg, &credential, "sol", "gpt-6-sol", false, false);
         assert_eq!(req.model, "gpt-6-sol");
         let bound = req.resolved_model.unwrap();
         assert_eq!(
             (bound.info.id.as_str(), bound.source, bound.is_compat()),
             ("gpt-6-sol", cpa_core::exec::ResolvedSource::ApiKey, true)
         );
-        let kept = attempt_request(&request, &cfg, &credential, "selection", "gpt-6-sol", true);
+        let kept = attempt_request(&request, &cfg, &credential, "selection", "gpt-6-sol", true, false);
         assert_eq!(kept.model, "sol");
         let bound = kept.resolved_model.unwrap();
         assert_eq!((bound.info.id.as_str(), bound.is_compat()), ("sol", false));
+
+        // Go `attachResolvedHomeModelInfo` after the local binding: Home's definition
+        // replaces it, lends local configuration-update support only off the stream path,
+        // and is skipped when the attempt keeps the request's own model.
+        let mut home = credential.clone();
+        home.attributes
+            .insert(crate::remote::MODEL_INFO.into(), r#"{"id":"gpt-6-sol"}"#.into());
+        let caps = |req: &ExecRequest| {
+            let bound = req.resolved_model.as_ref().unwrap();
+            let caps = cpa_common::thinking::ModelCaps::from(&bound.info);
+            (bound.source, caps.support_configuration_update, bound.is_compat())
+        };
+        let cfg = Config::parse(
+            "config-version: 8\napi-keys:\n  codex:\n    - base-url: https://codex.example\n      models:\n        - name: gpt-6-sol\n          alias: sol\n          is-compat: true\n          support-configuration-update: true\n      keys:\n        - api-key: xk1\n",
+        )
+        .unwrap();
+        let home_source = cpa_core::exec::ResolvedSource::Home;
+        let buffered = attempt_request(&request, &cfg, &home, "sol", "gpt-6-sol", false, false);
+        assert_eq!(
+            caps(&buffered),
+            (home_source, true, false),
+            "local is-compat never carries"
+        );
+        let streamed = attempt_request(&request, &cfg, &home, "sol", "gpt-6-sol", false, true);
+        assert_eq!(caps(&streamed), (home_source, false, false));
+        let kept = attempt_request(&request, &cfg, &home, "selection", "gpt-6-sol", true, false);
+        assert_eq!(
+            kept.resolved_model.unwrap().source,
+            cpa_core::exec::ResolvedSource::ApiKey
+        );
     }
 
     #[test]
@@ -2173,6 +2339,107 @@ mod tests {
         // Go trims a bare JSON stream chunk.
         let bare = Bytes::from_static(b" {\"modelVersion\":\"up\"}\n");
         assert_eq!(rewrite_event(&bare, "alias"), r#"{"modelVersion":"alias"}"#);
+    }
+
+    /// A Home `model_cooldown` pick failure.
+    fn home_cooldown(retry_after: Duration, request_retry: Option<i64>) -> RemoteFault {
+        RemoteFault::from_pick(crate::remote::RemoteError {
+            error: ExecError::local(
+                429,
+                cpa_core::exec::FailureScope::Credential,
+                "model_cooldown: all Home credentials are cooling down",
+            ),
+            code: "model_cooldown".into(),
+            kind: crate::remote::RemoteErrorKind::Cooldown {
+                retry_after: Some(retry_after),
+                request_retry,
+            },
+        })
+    }
+
+    /// [`remote_retry_wait`] as Go `shouldRetryAfterErrorWithHomeRetryLimit` asks it,
+    /// with `request-retry` configured.
+    fn retry_wait(
+        error: &RemoteFault,
+        request_retry: i64,
+        attempt: i64,
+        max_wait: Duration,
+        limit: i64,
+        pinned: bool,
+    ) -> Option<Duration> {
+        let allowed = |attempt: i64, limit: i64| home_retry_allowed(request_retry, attempt, limit);
+        remote_retry_wait(error, attempt, max_wait, limit, pinned, &allowed)
+    }
+
+    /// Go `TestHomeRetryPolicyAllowsRemoteCooldownWithoutLocalCredentials`: a Home
+    /// cooldown is retried within request-retry and the maximum wait, and an exhausted
+    /// round without timing starts the next one at once, even with no maximum wait.
+    #[test]
+    fn home_cooldowns_retry_within_request_retry_and_the_maximum_wait() {
+        let ms = Duration::from_millis;
+        let cooldown = home_cooldown(ms(10), None);
+        assert_eq!(
+            retry_wait(&cooldown, 1, 0, Duration::from_secs(1), -1, false),
+            Some(ms(10))
+        );
+        assert_eq!(
+            retry_wait(&cooldown, 1, 1, Duration::from_secs(1), -1, false),
+            None,
+            "after the configured round"
+        );
+        assert_eq!(
+            retry_wait(&cooldown, 1, 0, Duration::ZERO, -1, false),
+            None,
+            "no maximum wait"
+        );
+        let unavailable = ExecError::local(502, cpa_core::exec::FailureScope::Credential, "upstream unavailable");
+        let round = RemoteFault::local(Failure::Exec(unavailable)).exhausted(None, false);
+        assert_eq!(
+            retry_wait(&round, 1, 0, Duration::ZERO, -1, false),
+            Some(Duration::ZERO)
+        );
+        // ponytail: Go's negative-retry-after case (`homeRetryRoundTiming.invalid`) has no
+        // Rust counterpart: Duration is unsigned, Home's `retry_after_ms` is kept only
+        // when positive (as in Go `home_concurrency.go`), and the upstream Retry-After
+        // parsers drop negative values; only Go's test-made errors carry one.
+    }
+
+    /// Go `TestHomeRetryPolicyUsesRemoteCredentialOverrideBeforeSelection`: a cooldown's
+    /// request_retry replaces the configured one before any credential was picked,
+    /// including an explicit 0, but never for a pinned request.
+    #[test]
+    fn a_cooldown_request_retry_overrides_the_configured_one_unless_pinned() {
+        let ms = Duration::from_millis;
+        let second = Duration::from_secs(1);
+        let one = home_cooldown(ms(10), Some(1));
+        assert_eq!(retry_wait(&one, 0, 0, second, -1, false), Some(ms(10)));
+        assert_eq!(
+            retry_wait(&one, 0, 1, second, -1, false),
+            None,
+            "one additional round only"
+        );
+        assert_eq!(
+            retry_wait(&one, 0, 0, second, -1, true),
+            None,
+            "pinned keeps its own limit"
+        );
+        let zero = home_cooldown(ms(10), Some(0));
+        assert_eq!(retry_wait(&zero, 3, 0, second, -1, false), None, "an explicit 0 wins");
+    }
+
+    /// Go `TestHomeRetryRoundCredentialLimitStartsNextRoundImmediately`: a round ended
+    /// by max-retry-credentials starts the next one at once, while the client still
+    /// sees the round's retry-after.
+    #[test]
+    fn a_credential_limit_starts_the_next_round_immediately() {
+        let mut limited = ExecError::local(429, cpa_core::exec::FailureScope::Credential, "credential rate limited");
+        limited.retry_after = Some(Duration::from_secs(5));
+        let round = RemoteFault::local(Failure::Exec(limited)).exhausted(Some(Duration::from_secs(5)), true);
+        assert_eq!(
+            retry_wait(&round, 1, 0, Duration::from_secs(1), -1, false),
+            Some(Duration::ZERO)
+        );
+        assert_eq!(round.safe_retry_after(), Some(5));
     }
 
     #[test]

@@ -1714,6 +1714,431 @@
       ],
       "observed_unix_nano": 1784635200120000000,
       "revision": 7
+    },
+    {
+      "barrier": 14,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 64,
+        "max_revision_bytes": 16384,
+        "max_aggregate_groups": 100000,
+        "max_details": 1,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":9,\"observed_at\":\"1970-01-01T00:00:12Z\",\"barrier_revision\":14,\"part_index\":0,\"part_count\":1,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"cred\",\"model\":\"gpt-5\",\"status\":\"accounted\",\"count\":1},{\"credential_id\":\"cred\",\"model\":\"gpt-5\",\"status\":\"unaccounted\",\"count\":1}],\"details\":[{\"request_id\":\"req-a\",\"credential_id\":\"cred\",\"model\":\"gpt-5\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:10Z\"}]}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezePreservesPartitionsAndBarrier",
+      "observations": [
+        {
+          "request_id": "req-a",
+          "credential_id": "cred",
+          "model": "gpt-5",
+          "request_kind": "http",
+          "started_unix_nano": 10000000000,
+          "accounted": true
+        },
+        {
+          "request_id": "req-b",
+          "credential_id": "cred",
+          "model": "gpt-5",
+          "request_kind": "sse",
+          "started_unix_nano": 11000000000,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 12000000000,
+      "revision": 9
+    },
+    {
+      "barrier": 15,
+      "cfg": {
+        "max_part_bytes": 256,
+        "max_part_count": 1,
+        "max_revision_bytes": 256,
+        "max_aggregate_groups": 1,
+        "max_details": 0,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":10,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":15,\"aggregate_group_count\":2}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeUsesOverflowWithoutPartialAggregates",
+      "observations": [
+        {
+          "request_id": "",
+          "credential_id": "a",
+          "model": "m1",
+          "request_kind": "http",
+          "started_unix_nano": 0,
+          "accounted": false
+        },
+        {
+          "request_id": "",
+          "credential_id": "b",
+          "model": "m2",
+          "request_kind": "http",
+          "started_unix_nano": 0,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 10
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 300,
+        "max_part_count": 8,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 8,
+        "max_details": 3,
+        "max_string_bytes": 256
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":4,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":0,\"part_count\":4,\"aggregates\":[{\"credential_id\":\"cred\",\"model\":\"model\",\"status\":\"unaccounted\",\"count\":3}]}",
+        "{\"kind\":\"part\",\"revision\":4,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":1,\"part_count\":4,\"details\":[{\"request_id\":\"req-a\",\"credential_id\":\"cred\",\"model\":\"model\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:10Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":4,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":2,\"part_count\":4,\"details\":[{\"request_id\":\"req-b\",\"credential_id\":\"cred\",\"model\":\"model\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:11Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":4,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":3,\"part_count\":4,\"details\":[{\"request_id\":\"req-c\",\"credential_id\":\"cred\",\"model\":\"model\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:12Z\"}]}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeUsesDeterministicBoundedMultipartFrames",
+      "observations": [
+        {
+          "request_id": "req-c",
+          "credential_id": "cred",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 12000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-a",
+          "credential_id": "cred",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 10000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "req-b",
+          "credential_id": "cred",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 11000000000,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 4
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 2,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 3,
+        "max_details": 0,
+        "max_string_bytes": 512
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":13,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"aggregate_group_count\":3}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeOverflowsWhenFinalAggregatePartExceedsPartCount",
+      "observations": [
+        {
+          "request_id": "",
+          "credential_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "model": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "request_kind": "",
+          "started_unix_nano": 0,
+          "accounted": true
+        },
+        {
+          "request_id": "",
+          "credential_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "model": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "request_kind": "",
+          "started_unix_nano": 0,
+          "accounted": true
+        },
+        {
+          "request_id": "",
+          "credential_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "model": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "request_kind": "",
+          "started_unix_nano": 0,
+          "accounted": true
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 13
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 512,
+        "max_part_count": 8,
+        "max_revision_bytes": 1000,
+        "max_aggregate_groups": 8,
+        "max_details": 5,
+        "max_string_bytes": 128
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":12,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":0,\"part_count\":2,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"cred\",\"model\":\"model\",\"status\":\"unaccounted\",\"count\":5}],\"details\":[{\"request_id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"credential_id\":\"cred\",\"model\":\"model\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:00Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":12,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":1,\"part_count\":2,\"details_truncated\":true,\"details\":[{\"request_id\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"credential_id\":\"cred\",\"model\":\"model\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:01Z\"},{\"request_id\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"credential_id\":\"cred\",\"model\":\"model\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:02Z\"}]}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeTruncatesDetailsBeforeTotalOverflow",
+      "observations": [
+        {
+          "request_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "credential_id": "cred",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 0,
+          "accounted": false
+        },
+        {
+          "request_id": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "credential_id": "cred",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 1000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "credential_id": "cred",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 2000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "credential_id": "cred",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 3000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "credential_id": "cred",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 4000000000,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 12
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 2,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 8,
+        "max_details": 1,
+        "max_string_bytes": 8
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":3,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"aggregate_group_count\":1}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeBoundsStringsAndExcludesSensitiveFields",
+      "observations": [
+        {
+          "request_id": "requestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequestrequest",
+          "credential_id": "credentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredentialcredential",
+          "model": "modelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodelmodel",
+          "request_kind": "kindkindkindkindkindkindkindkindkindkindkindkindkindkindkindkindkindkindkindkind",
+          "started_unix_nano": 0,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 3
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 2,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 2,
+        "max_details": 1,
+        "max_string_bytes": 8
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":0,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"aggregate_group_count\":1}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeOverflowsForRawAggregateKey",
+      "observations": [
+        {
+          "request_id": "",
+          "credential_id": "credential-id-exceeds-limit",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 0,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 0
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 2,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 1,
+        "max_details": 0,
+        "max_string_bytes": 8
+      },
+      "frames": [
+        "{\"kind\":\"overflow\",\"revision\":0,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"aggregate_group_count\":2}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeKeepsRawAggregateGroupsDistinct",
+      "observations": [
+        {
+          "request_id": "",
+          "credential_id": "credential-a",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 0,
+          "accounted": false
+        },
+        {
+          "request_id": "",
+          "credential_id": "credential-b",
+          "model": "model",
+          "request_kind": "http",
+          "started_unix_nano": 0,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 0
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 2,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 2,
+        "max_details": 2,
+        "max_string_bytes": 64
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":21,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":0,\"part_count\":1,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"cred-a\",\"model\":\"model-a\",\"status\":\"unaccounted\",\"count\":2}],\"details\":[{\"request_id\":\"request-b\",\"credential_id\":\"cred-a\",\"model\":\"model-a\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:02Z\"}]}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeDropsInvalidDetailsWithoutDiscardingAggregates",
+      "observations": [
+        {
+          "request_id": "",
+          "credential_id": "cred-a",
+          "model": "model-a",
+          "request_kind": "http",
+          "started_unix_nano": 1000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "request-b",
+          "credential_id": "cred-a",
+          "model": "model-a",
+          "request_kind": "http",
+          "started_unix_nano": 2000000000,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 21
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 1024,
+        "max_part_count": 2,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 3,
+        "max_details": 2,
+        "max_string_bytes": 64
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":22,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":0,\"part_count\":1,\"aggregates\":[{\"credential_id\":\"cred-a\",\"model\":\"gpt-5\",\"status\":\"unaccounted\",\"count\":1},{\"credential_id\":\"cred-b\",\"model\":\"unknown\",\"status\":\"unaccounted\",\"count\":1}],\"details\":[{\"request_id\":\"request-a\",\"credential_id\":\"cred-a\",\"model\":\"gpt-5\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:01Z\"},{\"request_id\":\"request-b\",\"credential_id\":\"cred-b\",\"model\":\"unknown\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:02Z\"}]}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeCanonicalizesUnaccountedModelsWithFallback",
+      "observations": [
+        {
+          "request_id": "request-a",
+          "credential_id": "cred-a",
+          "model": "GPT-5(HIGH)",
+          "request_kind": "http",
+          "started_unix_nano": 1000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "request-b",
+          "credential_id": "cred-b",
+          "model": "   ",
+          "request_kind": "http",
+          "started_unix_nano": 2000000000,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 22
+    },
+    {
+      "barrier": 0,
+      "cfg": {
+        "max_part_bytes": 300,
+        "max_part_count": 8,
+        "max_revision_bytes": 2048,
+        "max_aggregate_groups": 4,
+        "max_details": 2,
+        "max_string_bytes": 8
+      },
+      "frames": [
+        "{\"kind\":\"part\",\"revision\":0,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":0,\"part_count\":5,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"cred-a\",\"model\":\"model-a\",\"status\":\"unaccounted\",\"count\":1}]}",
+        "{\"kind\":\"part\",\"revision\":0,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":1,\"part_count\":5,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"cred-b\",\"model\":\"model-b\",\"status\":\"unaccounted\",\"count\":1}]}",
+        "{\"kind\":\"part\",\"revision\":0,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":2,\"part_count\":5,\"details_truncated\":true,\"aggregates\":[{\"credential_id\":\"cred-c\",\"model\":\"model-c\",\"status\":\"unaccounted\",\"count\":1}]}",
+        "{\"kind\":\"part\",\"revision\":0,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":3,\"part_count\":5,\"details_truncated\":true,\"details\":[{\"request_id\":\"rrrrrrrr\",\"credential_id\":\"cred-a\",\"model\":\"model-a\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:01Z\"}]}",
+        "{\"kind\":\"part\",\"revision\":0,\"observed_at\":\"1970-01-01T00:00:20Z\",\"barrier_revision\":0,\"part_index\":4,\"part_count\":5,\"details_truncated\":true,\"details\":[{\"request_id\":\"request-\",\"credential_id\":\"cred-b\",\"model\":\"model-b\",\"request_kind\":\"http\",\"started_at\":\"1970-01-01T00:00:02Z\"}]}"
+      ],
+      "name": "TestEncodeHomeInFlightFreezeSetsGlobalDetailTruncationMetadata",
+      "observations": [
+        {
+          "request_id": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr",
+          "credential_id": "cred-a",
+          "model": "model-a",
+          "request_kind": "http",
+          "started_unix_nano": 1000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "request-b",
+          "credential_id": "cred-b",
+          "model": "model-b",
+          "request_kind": "http",
+          "started_unix_nano": 2000000000,
+          "accounted": false
+        },
+        {
+          "request_id": "request-c",
+          "credential_id": "cred-c",
+          "model": "model-c",
+          "request_kind": "http",
+          "started_unix_nano": 3000000000,
+          "accounted": false
+        }
+      ],
+      "observed_unix_nano": 20000000000,
+      "revision": 0
     }
   ],
   "model_keys": [

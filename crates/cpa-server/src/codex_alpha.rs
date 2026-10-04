@@ -119,6 +119,18 @@ async fn alpha_search(
     if primary.is_empty() {
         (primary, parent) = cpa_common::session::session_ids(&selection_headers, &body, &meta);
     }
+    // Go's Alpha Search context holds only the request ID and this session hierarchy
+    // (it never passes `GetContextWithCancel`); Home's canonical session replaces it.
+    let client = crate::usage_record::Client {
+        session_id: primary.clone(),
+        parent_session_id: if parent == primary {
+            String::new()
+        } else {
+            parent.clone()
+        },
+        request_id: crate::observability::current_request_id().unwrap_or_default(),
+        ..Default::default()
+    };
     let bound = |s: String| (!s.is_empty()).then(|| cpa_common::session::bound_session_identity(&s));
     let selection = Selection {
         provider: "codex".into(),
@@ -130,7 +142,23 @@ async fn alpha_search(
         ..Selection::default()
     };
     // ponytail: one selection, no failover or outcome recording, as in Go; plugin model
-    // routing and Home dispatch are not ported.
+    // routing is not ported.
+    if let Some(remote) = rt.remote_dispatch() {
+        let lease = match home_lease(&rt, remote.as_ref(), selection, &headers).await {
+            Ok(lease) => lease,
+            Err(response) => return *response,
+        };
+        let facts = crate::usage_record::Facts {
+            client,
+            format: cpa_core::format::Format::OpenAIResponse,
+            alias: String::new(),
+            reasoning_effort: String::new(),
+            service_tier: "default".into(),
+            generate: false,
+            stream: false,
+        };
+        return search(&rt, lease, &body, &headers, &model, &cfg, &capture, Some(&facts)).await;
+    }
     let lease = match rt.acquire(selection, &cfg, policy, &rt.registry()).await {
         Ok(lease) => lease,
         // Go answers `gin.H{"error": err.Error()}` with the selector's error text.
@@ -173,18 +201,105 @@ async fn alpha_search(
             return error(e.status, &String::from_utf8_lossy(&e.body));
         }
     };
-    // `ResolveExecutionModel`: the first credential-resolved candidate, else the route model.
-    let aliases = cpa_core::registry::dynamic::global_aliases(&cfg);
-    let execution_model = cpa_core::registry::dynamic::execution_models(&aliases, &lease.credential, &model)
-        .0
-        .into_iter()
-        .next()
-        .unwrap_or_else(|| model.clone());
-    let result = rt
+    search(&rt, lease, &body, &headers, &model, &cfg, &capture, None).await
+}
+
+/// Go `SelectHomeAuthWithCredentialPolicy`: Home picks under `codex_alpha_search_v1`;
+/// a pick the policy does not allow ends and is excluded from the next one.
+async fn home_lease(
+    rt: &Arc<Runtime>,
+    remote: &dyn crate::remote::RemoteDispatch,
+    selection: Selection,
+    headers: &HeaderMap,
+) -> Result<crate::runtime::Lease, Box<Response>> {
+    let request = crate::remote::RemoteRequest {
+        model: selection.model.clone(),
+        session_id: selection.session.clone().unwrap_or_default(),
+        parent_session_id: selection.session_parent.clone().unwrap_or_default(),
+        headers: crate::remote::home_headers(headers, None),
+        count: 1,
+        retry_round: 0,
+        excluded: Vec::new(),
+        pinned: String::new(),
+        request_id: crate::observability::current_request_id().unwrap_or_default(),
+        kind: "http",
+        credential_policy: "codex_alpha_search_v1".into(),
+    };
+    let accept = |c: &Credential| crate::remote::selection_provider(c) == "codex" && allowed(c);
+    crate::remote::select(rt, remote, selection, request, accept)
+        .await
+        .map_err(|refused| {
+            Box::new(with_retry_after(
+                error(refused.status, &refused.text),
+                refused.retry_after,
+            ))
+        })
+}
+
+/// One Alpha Search on `lease`'s credential. A Home pick reports an upstream 401 as a
+/// Home result with `unauthorized` (Go `ReportHomeUnauthorized`).
+#[allow(clippy::too_many_arguments)]
+async fn search(
+    rt: &Arc<Runtime>,
+    lease: crate::runtime::Lease,
+    body: &Bytes,
+    headers: &HeaderMap,
+    model: &str,
+    cfg: &cpa_core::config::Config,
+    capture: &cpa_core::exec::CaptureSink,
+    unauthorized: Option<&crate::usage_record::Facts>,
+) -> Response {
+    let model = model.to_owned();
+    // `ResolveExecutionModel`: Home's upstream model for a dispatched credential, else the
+    // first credential-resolved candidate, else the route model.
+    let aliases = cpa_core::registry::dynamic::global_aliases(cfg);
+    let execution_model = lease
+        .credential
+        .attributes
+        .get(crate::remote::UPSTREAM_MODEL)
+        .map(|m| m.trim().to_owned())
+        .filter(|m| !m.is_empty())
+        .unwrap_or_else(|| {
+            cpa_core::registry::dynamic::execution_models(&aliases, &lease.credential, &model)
+                .0
+                .into_iter()
+                .next()
+                .unwrap_or_else(|| model.clone())
+        });
+    // Go runs a Home pick on the selection's attempt context: a draining dispatcher
+    // cancels it before or during the upstream call (`context.Canceled`, status 499).
+    let search = rt
         .executors
         .codex
-        .alpha_search(&lease.credential, &body, &headers, &execution_model, &cfg, &capture)
-        .await;
+        .alpha_search(&lease.credential, body, headers, &execution_model, cfg, capture);
+    let result = match lease.remote_cancelled() {
+        None => search.await,
+        Some(mut cancelled) => {
+            if futures_util::FutureExt::now_or_never(&mut cancelled).is_some() {
+                return error(crate::remote::CLIENT_CLOSED, "context canceled");
+            }
+            tokio::select! {
+                biased;
+                _ = cancelled => {
+                    let text = match rt.executors.codex.alpha_search_url(&lease.credential, cfg) {
+                        Some(url) => crate::remote::cancelled_request("POST", &url),
+                        None => "context canceled".to_owned(),
+                    };
+                    return error(crate::remote::CLIENT_CLOSED, &text);
+                }
+                result = search => result,
+            }
+        }
+    };
+    if let (Ok(response), Some(facts)) = (&result, unauthorized)
+        && response.status == 401
+    {
+        let body = match &response.body {
+            cpa_core::exec::ResponseBody::Buffered(bytes) => String::from_utf8_lossy(bytes).into_owned(),
+            _ => String::new(),
+        };
+        crate::usage_record::publish_home_unauthorized(rt, facts, &lease.credential, "codex", &model, &body);
+    }
     // Dropping the lease reports `Cancelled`: Go's Alpha Search never marks a result.
     drop(lease);
     match result {

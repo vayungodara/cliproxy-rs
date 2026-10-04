@@ -342,6 +342,7 @@ mod tests {
         assert!(got.validate_lifecycle(2 * SECOND).is_err());
     }
 
+    /// Go `TestValidateCredentialConcurrencyAcceptsHomeAuthoritativeHeartbeat`.
     #[test]
     fn home_authoritative_heartbeat_passes_intrinsic_but_not_lifecycle_validation() {
         let mut cfg = CredentialConcurrency::default().with_defaults();
@@ -401,6 +402,7 @@ mod tests {
         }
     }
 
+    /// Go `TestValidateCredentialConcurrencyLifecycleRejectsSafetyOverflow`.
     #[test]
     fn lifecycle_sum_overflow_is_rejected() {
         let cfg = CredentialConcurrency {
@@ -443,6 +445,44 @@ mod tests {
             (snapshot, stale, staging),
             (Duration::from_secs(1), Duration::from_secs(10), Duration::from_secs(60))
         );
+    }
+
+    /// Go `TestCredentialConcurrencyLifecycleFixture`: the shared lifecycle fixture
+    /// (hot durations given as YAML strings) decodes to the defaults with revision 1 and
+    /// validates; with a node heartbeat timeout of 3s, or a zero CPA heartbeat under a
+    /// 20s node timeout, the lifecycle invariant fails.
+    #[test]
+    fn the_lifecycle_fixture_validates_like_go() {
+        let fixture = |heartbeat: &str, revision: &str| {
+            parse(&format!(
+                "credentials:\n concurrency:\n{revision}  cpa-heartbeat-timeout: {heartbeat}\n  cpa-cancel-bound: 5s\n  reclaim-grace: 5s\n  cleanup-interval: 5s\n  release-flush-interval: 250ms\n  release-max-backoff: 2s\n  busy-retry-min: 250ms\n  busy-retry-max: 1s\n  max-limit: 1000000\n"
+            ))
+            .unwrap()
+        };
+        let defaults = fixture("3s", "  lifecycle-config-revision: 1\n");
+        let mut expected = CredentialConcurrency::default().with_defaults();
+        expected.lifecycle_config_revision = 1;
+        let fields = |c: &CredentialConcurrency| {
+            (
+                c.lifecycle_config_revision,
+                c.observation_barrier_revision,
+                c.cpa_heartbeat_timeout,
+                c.cpa_cancel_bound,
+                c.reclaim_grace,
+                c.cleanup_interval,
+                c.release_flush_interval,
+                c.release_max_backoff,
+                c.busy_retry_min,
+                c.busy_retry_max,
+                c.max_limit,
+            )
+        };
+        assert_eq!(fields(&defaults), fields(&expected));
+        defaults.validate().unwrap();
+        assert!(fixture("3s", "").validate_lifecycle(3 * SECOND).is_err());
+        let zero = fixture("0s", "");
+        assert_eq!(zero.cpa_heartbeat_timeout, 0, "an explicit zero is kept");
+        assert!(zero.with_defaults().validate_lifecycle(20 * SECOND).is_err());
     }
 
     #[test]

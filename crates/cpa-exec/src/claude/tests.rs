@@ -64,8 +64,8 @@ fn request(case: &Value) -> ExecRequest {
     }
 }
 
-#[test]
-fn pipeline_reproduces_go_upstream_captures() {
+#[tokio::test]
+async fn pipeline_reproduces_go_upstream_captures() {
     let captures: Value = serde_json::from_str(include_str!("testdata/go_captures.json")).unwrap();
     let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
     let credential = harness_credential();
@@ -77,10 +77,12 @@ fn pipeline_reproduces_go_upstream_captures() {
         ctx.today = "2026-10-02".into();
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if req.operation == Operation::CountTokens {
-            ctx.prepare_count(&req, &translated).unwrap()
+            ctx.prepare_count(&req, &translated).await.unwrap()
         } else {
             let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
-            ctx.prepare_messages(&req, &translated, &original, req.stream).unwrap()
+            ctx.prepare_messages(&req, &translated, &original, req.stream)
+                .await
+                .unwrap()
         };
         assert_eq!(prepared.body, case["upstream_body"].as_str().unwrap(), "{name}: body");
         let go: Vec<(String, String)> = case["upstream_headers"]
@@ -532,11 +534,12 @@ async fn scenarios_match_go(run: &str, selected: fn(&str) -> bool) {
         ctx.today = scenario["date"].as_str().unwrap().into();
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if count {
-            ctx.prepare_count(&req, &translated)
+            ctx.prepare_count(&req, &translated).await
         } else {
             // generate(): translated clients always stream upstream.
             let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
             ctx.prepare_messages(&req, &translated, &original, stream || source != Format::Claude)
+                .await
         };
         if scenario["upstream"].as_array().is_none_or(Vec::is_empty) {
             // Go failed before sending (thinking validation and the like).
