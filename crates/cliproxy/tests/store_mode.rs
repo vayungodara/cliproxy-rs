@@ -13,7 +13,9 @@ fn scratch(name: &str) -> PathBuf {
         .as_nanos();
     let dir = std::env::temp_dir().join(format!("cliproxy-store-{name}-{}-{nanos}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    dir
+    // The binary resolves its store root from the canonical working directory
+    // (macOS temp paths sit behind the /var -> /private/var symlink).
+    dir.canonicalize().unwrap()
 }
 
 fn git(dir: &Path, args: &[&str]) -> Option<String> {
@@ -24,10 +26,35 @@ fn git(dir: &Path, args: &[&str]) -> Option<String> {
         .then(|| String::from_utf8_lossy(&output.stdout).trim().to_owned())
 }
 
+/// The child process, killed and reaped even when an assertion fails first.
+struct Server(Child);
+
+impl std::ops::Deref for Server {
+    type Target = Child;
+    fn deref(&self) -> &Child {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for Server {
+    fn deref_mut(&mut self) -> &mut Child {
+        &mut self.0
+    }
+}
+
+impl Drop for Server {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
 /// The binary with a clean environment: only what the store selection needs.
-fn cliproxy(wd: &Path, env: &[(&str, &str)]) -> Child {
+/// `-local-model` keeps the model catalog updaters from fetching remote URLs.
+fn cliproxy(wd: &Path, env: &[(&str, &str)]) -> Server {
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_cliproxy"));
-    cmd.current_dir(wd)
+    cmd.arg("-local-model")
+        .current_dir(wd)
         .env_clear()
         .env("PATH", std::env::var("PATH").unwrap_or_default())
         .env("HOME", wd)
@@ -36,7 +63,7 @@ fn cliproxy(wd: &Path, env: &[(&str, &str)]) -> Child {
     for (key, value) in env {
         cmd.env(key, value);
     }
-    cmd.spawn().unwrap()
+    Server(cmd.spawn().unwrap())
 }
 
 /// Lines from stdout and stderr as they arrive.
