@@ -1366,6 +1366,15 @@ mod tests {
     use axum::response::IntoResponse;
     use tower_service::Service;
 
+    /// `capture_go.json`, recorded with the Go generator's `buildinfo.Version` pinned to
+    /// `cliproxy-rs-0.1.0` (tests/reference/capture/main.go). The version of this build
+    /// replaces it, so a release bump needs no re-recording.
+    fn capture_go() -> serde_json::Value {
+        let text = include_str!("../tests/fixtures/capture_go.json")
+            .replace("cliproxy-rs-0.1.0", concat!("cliproxy-rs-", env!("CARGO_PKG_VERSION")));
+        serde_json::from_str(&text).unwrap()
+    }
+
     fn management(dir: &Path, enabled: bool, commercial: bool) -> Arc<Management> {
         let config = cpa_core::config::Config::parse(&format!(
             "observability: {{logs: {{request-log: {enabled}}}}}\nserver: {{commercial-mode: {commercial}}}\n"
@@ -1713,8 +1722,7 @@ mod tests {
 
     #[tokio::test]
     async fn go_middleware_goldens() {
-        let fixture: serde_json::Value =
-            serde_json::from_str(include_str!("../tests/fixtures/capture_go.json")).unwrap();
+        let fixture: serde_json::Value = capture_go();
         let date = regex::Regex::new(r"\d{4}-\d\d-\d\dT\d{6}").unwrap();
         for case in fixture["cases"].as_array().unwrap() {
             let dir = scratch();
@@ -1805,8 +1813,7 @@ mod tests {
     #[tokio::test]
     async fn websocket_sink_stays_open_after_upgrade_and_matches_go() {
         use base64::Engine;
-        let fixture: serde_json::Value =
-            serde_json::from_str(include_str!("../tests/fixtures/capture_go.json")).unwrap();
+        let fixture: serde_json::Value = capture_go();
         let dir = scratch();
         let state = management(&dir, true, false);
         let (tx, mut rx) = tokio::sync::mpsc::channel(1);
@@ -1849,8 +1856,7 @@ mod tests {
 
     #[test]
     fn go_masking_collisions_and_retention() {
-        let fixture: serde_json::Value =
-            serde_json::from_str(include_str!("../tests/fixtures/capture_go.json")).unwrap();
+        let fixture: serde_json::Value = capture_go();
         for case in fixture["masks"].as_array().unwrap() {
             assert_eq!(
                 String::from_utf8(masked_header(
@@ -2159,8 +2165,7 @@ mod tests {
     #[tokio::test]
     async fn hot_enable_captures_only_frames_written_while_enabled_like_go() {
         use futures_util::StreamExt;
-        let fixture: serde_json::Value =
-            serde_json::from_str(include_str!("../tests/fixtures/capture_go.json")).unwrap();
+        let fixture: serde_json::Value = capture_go();
         for case in fixture["reloads"].as_array().unwrap() {
             let dir = scratch();
             let state = management(&dir, false, false);
@@ -2220,8 +2225,7 @@ mod tests {
     #[tokio::test]
     async fn compression_body_bytes_match_real_go_including_raw_error_fallback() {
         use base64::Engine;
-        let fixture: serde_json::Value =
-            serde_json::from_str(include_str!("../tests/fixtures/capture_go.json")).unwrap();
+        let fixture: serde_json::Value = capture_go();
         for case in fixture["brotli_prefixes"].as_array().unwrap() {
             let input = base64::engine::general_purpose::STANDARD
                 .decode(case["input"].as_str().unwrap())
