@@ -231,6 +231,30 @@ pub fn auth_kind(c: &Credential) -> Option<&'static str> {
     oauth.then_some("oauth")
 }
 
+/// Go `Auth.AccountInfo()`: the account kind and value request logs print. OAuth
+/// reports the trimmed metadata `email`, an API key the trimmed `api_key` attribute;
+/// an unclassified credential reports nothing.
+pub fn account_info(c: &Credential) -> (&'static str, String) {
+    match auth_kind(c) {
+        Some("oauth") => (
+            "oauth",
+            c.metadata
+                .get("email")
+                .and_then(Value::as_str)
+                .map(|e| e.trim().to_owned())
+                .unwrap_or_default(),
+        ),
+        Some("apikey") => (
+            "api_key",
+            c.attributes
+                .get("api_key")
+                .map(|k| k.trim().to_owned())
+                .unwrap_or_default(),
+        ),
+        _ => ("", String::new()),
+    }
+}
+
 /// `auth.AuthKind() == AuthKindAPIKey`.
 pub fn is_api_key(c: &Credential) -> bool {
     auth_kind(c) == Some("apikey")
@@ -1376,6 +1400,38 @@ mod tests {
             c.attributes.insert((*k).into(), (*v).into());
         }
         Arc::new(c)
+    }
+
+    /// Go `Auth.AccountInfo` (sdk/cliproxy/auth/types.go): kind first, then the
+    /// trimmed email or API key; a non-string email or an unclassified auth is empty.
+    #[test]
+    fn account_info_matches_go() {
+        let oauth = file(
+            "o.json",
+            serde_json::json!({"type":"claude","email":" a@b.test ","access_token":"t"}),
+            &[],
+        );
+        assert_eq!(account_info(&oauth), ("oauth", "a@b.test".into()));
+        let odd = file(
+            "x.json",
+            serde_json::json!({"type":"claude","email":7,"access_token":"t"}),
+            &[],
+        );
+        assert_eq!(account_info(&odd), ("oauth", String::new()));
+        let key = file(
+            "k.json",
+            serde_json::json!({"type":"claude","email":"ignored@b.test"}),
+            &[("api_key", " sk-1 ")],
+        );
+        assert_eq!(account_info(&key), ("api_key", "sk-1".into()));
+        let declared = file(
+            "d.json",
+            serde_json::json!({"type":"claude"}),
+            &[("auth_kind", "API-KEY")],
+        );
+        assert_eq!(account_info(&declared), ("api_key", String::new()));
+        let bare = file("b.json", serde_json::json!({"type":"claude"}), &[]);
+        assert_eq!(account_info(&bare), ("", String::new()));
     }
 
     fn config(provider: &str, id: &str, meta: Value, attrs: &[(&str, &str)]) -> Arc<Credential> {

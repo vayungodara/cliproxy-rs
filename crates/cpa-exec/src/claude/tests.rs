@@ -365,7 +365,13 @@ async fn finish_reply(scenario: &Value, ctx: &Ctx<'_>, prepared: &Prepared) -> R
         body: futures_util::stream::iter([Ok(Bytes::from(body))]).boxed(),
     };
     let fast = ctx.first_party && prepared.fast;
-    finish(decode_upstream(upstream).await, fast, ctx.settings.model_level_cooling).await
+    finish(
+        decode_upstream(upstream).await,
+        fast,
+        ctx.settings.model_level_cooling,
+        &Default::default(),
+    )
+    .await
 }
 
 /// The error Rust builds from the scenario's upstream reply matches what Go's conductor
@@ -642,6 +648,7 @@ async fn scenarios_match_go(run: &str, selected: fn(&str) -> bool) {
                     )
                 }),
                 Default::default(),
+                Default::default(),
             )
             .map(|e| String::from_utf8(e.unwrap().to_vec()).unwrap())
             .collect()
@@ -863,6 +870,220 @@ async fn usage_reports_follow_go_reporter_calls() {
     )
     .await;
     assert_eq!(usage.kinds(), ["discard"]);
+}
+
+/// Owned copies of the capture events an executor records.
+#[derive(Default)]
+pub(super) struct Captured(pub std::sync::Mutex<Vec<String>>);
+
+impl cpa_core::exec::CaptureObserver for Captured {
+    fn record(&self, event: cpa_core::exec::CaptureEvent<'_>) {
+        use cpa_core::exec::CaptureEvent::*;
+        let line = match event {
+            Request(r) => {
+                let names: Vec<&str> = r.headers.iter().map(|(k, _)| k.as_str()).collect();
+                format!(
+                    "request {} {} provider={} id={} label={} type={} value={} body={} headers={}",
+                    r.method,
+                    r.url.split_once("//").unwrap().1.split_once('/').unwrap().1,
+                    r.provider,
+                    r.auth_id,
+                    r.auth_label,
+                    r.auth_type,
+                    r.auth_value,
+                    !r.body.is_empty(),
+                    names.join(","),
+                )
+            }
+            ResponseMetadata(status, headers) => {
+                let names: Vec<&str> = headers.iter().map(|(k, _)| k.as_str()).collect();
+                format!("metadata {status} {}", names.join(","))
+            }
+            ResponseChunk(chunk) => format!("chunk {}", String::from_utf8_lossy(chunk)),
+            ResponseError(error) => format!("error {error}"),
+            _ => "websocket".into(),
+        };
+        self.0.lock().unwrap().push(line);
+    }
+}
+
+/// Go's request-log sites in claude_executor_execute.go, _stream.go and _tokens.go:
+/// RecordAPIRequest before each send (executor-built headers, provider and
+/// AccountInfo), RecordAPIResponseMetadata with Go's canonical header names, the whole
+/// body (Execute, count_tokens, error bodies) or each scanner line (ExecuteStream) as
+/// chunks, and RecordAPIResponseError on transport failures.
+#[tokio::test]
+async fn request_logs_follow_go_capture_sites() {
+    use axum::response::IntoResponse;
+    let wire: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
+    let seen = wire.clone();
+    let router = axum::Router::new().fallback(move |uri: http::Uri, sent: http::HeaderMap, body: String| async move {
+        *seen.lock().unwrap() = sent.keys().map(|k| k.as_str().to_owned()).collect();
+        let mut headers = http::HeaderMap::new();
+        headers.insert(http::header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.append("x-dup", "one".parse().unwrap());
+        headers.append("x-dup", "two".parse().unwrap());
+        if uri.path().ends_with("count_tokens") {
+            return (headers, r#"{"input_tokens":4}"#.to_owned()).into_response();
+        }
+        if body.contains("rate me") {
+            return (
+                http::StatusCode::TOO_MANY_REQUESTS,
+                headers,
+                r#"{"type":"error","error":{"type":"rate_limit_error","message":"slow"}}"#.to_owned(),
+            )
+                .into_response();
+        }
+        if gjson::get(&body, "stream").bool() {
+            let events = "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"m\",\"usage\":{\"input_tokens\":1}}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
+            return ([(http::header::CONTENT_TYPE, "text/event-stream")], events.to_owned()).into_response();
+        }
+        (headers, r#"{"id":"m","type":"message","role":"assistant","model":"claude-sonnet-4-6","content":[],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}"#.to_owned()).into_response()
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let closed = {
+        let probe = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        format!("http://{}", probe.local_addr().unwrap())
+    };
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let credential = |base_url: &str| {
+        let mut c = Credential::from_file(
+            Path::new("/fake"),
+            Path::new("/fake/claude.json"),
+            serde_json::json!({"type":"claude"}).as_object().unwrap().clone(),
+        )
+        .unwrap();
+        c.label = "fixture-label".into();
+        c.attributes.insert("api_key".into(), " fake-gateway-key ".into());
+        c.attributes.insert("base_url".into(), base_url.to_owned());
+        c
+    };
+    let cfg = Config::parse("").unwrap();
+    let run = |base_url: String, text: &'static str, operation: Operation, stream: bool, delegation: Delegation| {
+        let captured = Arc::new(Captured::default());
+        let body = Bytes::from(format!(
+            r#"{{"model":"claude-sonnet-4-6","max_tokens":8,"stream":{stream},"messages":[{{"role":"user","content":"{text}"}}]}}"#
+        ));
+        let req = ExecRequest {
+            operation,
+            source_format: Format::Claude,
+            response_format: Format::Claude,
+            requested_model: "claude-sonnet-4-6".into(),
+            model: "claude-sonnet-4-6".into(),
+            original_body: body.clone(),
+            body,
+            stream,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            resolved_model: None,
+            usage: cpa_core::exec::UsageSink::default()
+                .with_capture(cpa_core::exec::CaptureSink::new(captured.clone())),
+            request_path: String::new(),
+            headers: Default::default(),
+            caller: Caller {
+                principal: "fake-client".into(),
+                source: "x-api-key",
+            },
+        };
+        let (executor, cfg) = (&executor, &cfg);
+        async move {
+            let credential = credential(&base_url);
+            if let Ok(ExecResponse {
+                body: ResponseBody::Stream(events),
+                ..
+            }) = executor.execute_delegated(&credential, req, cfg, delegation).await
+            {
+                let _: Vec<_> = events.collect().await;
+            }
+            std::mem::take(&mut *captured.0.lock().unwrap())
+        }
+    };
+    let request = |path: &str, provider: &str| {
+        format!(
+            "request POST {path}?beta=true provider={provider} id=claude.json label=fixture-label type=api_key value=fake-gateway-key body=true headers="
+        )
+    };
+    // The logged headers are exactly the executor's own headers on the wire: everything
+    // the upstream received except what the transport adds (Host, Content-Length).
+    let logged_match_wire = |event: &str| {
+        let mut logged: Vec<String> = event
+            .rsplit_once("headers=")
+            .unwrap()
+            .1
+            .split(',')
+            .map(str::to_lowercase)
+            .collect();
+        let mut sent: Vec<String> = wire
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|k| !matches!(k.as_str(), "host" | "content-length"))
+            .cloned()
+            .collect();
+        logged.sort();
+        sent.sort();
+        assert_eq!(logged, sent, "{event}");
+    };
+    let metadata = "metadata 200 Content-Type,X-Dup,X-Dup,Content-Length,Date";
+    // Execute: the whole decoded body as one chunk.
+    let events = run(base.clone(), "hi", Operation::Generate, false, Delegation::default()).await;
+    assert_eq!(events.len(), 3, "{events:?}");
+    assert!(events[0].starts_with(&request("v1/messages", "claude")), "{events:?}");
+    logged_match_wire(&events[0]);
+    assert_eq!(events[1], metadata);
+    assert!(events[2].starts_with(r#"chunk {"id":"m""#), "{events:?}");
+    // ExecuteStream: every scanner line, blank lines included, up to message_stop.
+    let events = run(base.clone(), "hi", Operation::Generate, true, Delegation::default()).await;
+    assert!(events[0].starts_with(&request("v1/messages", "claude")), "{events:?}");
+    logged_match_wire(&events[0]);
+    assert!(events[1].starts_with("metadata 200 Content-Type"), "{events:?}");
+    assert_eq!(
+        events[2..],
+        [
+            "chunk event: message_start",
+            r#"chunk data: {"type":"message_start","message":{"id":"m","usage":{"input_tokens":1}}}"#,
+            "chunk ",
+            "chunk event: message_stop",
+            r#"chunk data: {"type":"message_stop"}"#,
+            "chunk ",
+        ]
+    );
+    // An upstream error: its metadata, then the error body.
+    let events = run(
+        base.clone(),
+        "rate me",
+        Operation::Generate,
+        false,
+        Delegation::default(),
+    )
+    .await;
+    assert_eq!(events[1], metadata.replace("200", "429"));
+    assert!(events[2].starts_with(r#"chunk {"type":"error""#), "{events:?}");
+    // Kimi's embedded executor counts upstream and logs provider kimi.
+    let kimi = Delegation {
+        count_upstream: true,
+        request_log_provider: Some("kimi"),
+        ..Default::default()
+    };
+    let events = run(base.clone(), "hi", Operation::CountTokens, false, kimi).await;
+    assert_eq!(events.len(), 3, "{events:?}");
+    assert!(
+        events[0].starts_with(&request("v1/messages/count_tokens", "kimi")),
+        "{events:?}"
+    );
+    logged_match_wire(&events[0]);
+    assert_eq!(
+        events[1..],
+        [metadata.to_owned(), r#"chunk {"input_tokens":4}"#.to_owned()]
+    );
+    // A transport failure: the request, then the error.
+    let events = run(closed, "hi", Operation::Generate, false, Delegation::default()).await;
+    assert_eq!(events.len(), 2, "{events:?}");
+    assert!(events[1].starts_with("error "), "{events:?}");
 }
 
 /// Go's in-process compat replay across two requests (store, then restore), replayed

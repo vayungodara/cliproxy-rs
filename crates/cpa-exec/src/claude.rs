@@ -45,7 +45,10 @@ use std::sync::Arc;
 use bytes::{Bytes, BytesMut};
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
-use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, FailureScope, Operation, ResponseBody};
+use cpa_core::exec::{
+    CaptureEvent, CaptureSink, ExecError, ExecRequest, ExecResponse, FailureScope, Operation, ResponseBody,
+    UpstreamRequest,
+};
 use cpa_core::format::Format;
 use futures_util::StreamExt;
 
@@ -103,6 +106,9 @@ pub struct Delegation {
     pub upstream_model: Option<fn(&str) -> String>,
     /// `countTokensUpstream`: count on the upstream for every origin and credential.
     pub count_upstream: bool,
+    /// `requestLogProvider`: the provider request logs name (Kimi logs `kimi`); `None`
+    /// is the executor's identifier, `claude`.
+    pub request_log_provider: Option<&'static str>,
 }
 
 pub struct ClaudeExecutor {
@@ -282,7 +288,9 @@ impl ClaudeExecutor {
         if req.usage.enabled() {
             req.usage.request(Format::Claude, prepared.body.as_bytes());
         }
-        let response = self.send(&ctx, &prepared, "/v1/messages", Some(&req.usage)).await;
+        let response = self
+            .send(&ctx, &prepared, "/v1/messages", Some(&req.usage), req.capture())
+            .await;
         let response = response.inspect_err(|error| {
             // shouldClearKimiThinkingReplayAfterError: an upstream rejection of applied replay.
             if let Some(scope) = replay.filter(|s| s.applied)
@@ -310,21 +318,30 @@ impl ClaudeExecutor {
                 // ExecuteStream publishes through its stream buffer only (no
                 // EnsurePublished): a stream that never carried usage records nothing.
                 req.usage.usage_required();
+                let (usage, capture) = (req.usage.clone(), req.capture().clone());
                 let relayed = if req.response_format == Format::Claude {
-                    stream::relay(raw, reverse, done, req.usage.clone())
+                    stream::relay(raw, reverse, done, usage, capture)
                 } else {
-                    stream::relay_translated(raw, reverse, done, req.usage.clone())
+                    stream::relay_translated(raw, reverse, done, usage, capture)
                 };
                 ResponseBody::Stream(relayed.map(move |r| r.map_err(|e| fast_request_error(fast, e))).boxed())
             }
             ResponseBody::Stream(raw) => {
-                let data = collect(raw).await.map_err(wrap)?;
+                let capture = req.capture();
+                let data = collect(raw).await.map_err(|e| {
+                    capture_error(capture, &e);
+                    wrap(e)
+                })?;
+                capture.record(CaptureEvent::ResponseChunk(&data));
                 if upstream_stream {
                     // Translated Execute publishes with streamUsage.Publish only: no usage
                     // seen, no record. A restore failure below keeps the usage seen so far
                     // (streamUsage.PublishFailure), which the server does for Claude.
                     req.usage.usage_required();
-                    stream::validate_buffered(&data).map_err(wrap)?;
+                    stream::validate_buffered(&data).map_err(|e| {
+                        capture_error(capture, &e);
+                        wrap(e)
+                    })?;
                     let id = stream::buffered_message_id(&data);
                     session::commit(
                         &continuity.key,
@@ -341,9 +358,10 @@ impl ClaudeExecutor {
                         // ObserveResponseModel and ObserveClaudeStream, before restore.
                         req.usage.response_line(Format::Claude, line);
                         out.extend(stream::restore_line(line, &reverse).map_err(|m| {
-                            wrap(plain_error(format!(
-                                "restore Claude OAuth tool name from streaming response: {m}"
-                            )))
+                            let error =
+                                plain_error(format!("restore Claude OAuth tool name from streaming response: {m}"));
+                            capture_error(capture, &error);
+                            wrap(error)
                         })?);
                     }
                     if let Some(scope) = replay {
@@ -368,6 +386,7 @@ impl ClaudeExecutor {
                     let restored = alias::restore_response(&text, &reverse).map_err(|m| {
                         let message = format!("restore Claude OAuth tool name from response: {m}");
                         req.usage.publish_failure(0, &message);
+                        capture.record(CaptureEvent::ResponseError(&message));
                         wrap(plain_error(message))
                     })?;
                     if let Some(scope) = replay {
@@ -425,11 +444,15 @@ impl ClaudeExecutor {
             });
         }
         let prepared = ctx.prepare_count(&req, &translated)?;
-        let response = self.send(&ctx, &prepared, "/v1/messages/count_tokens", None).await?;
+        let capture = req.capture();
+        let response = self
+            .send(&ctx, &prepared, "/v1/messages/count_tokens", None, capture)
+            .await?;
         let body = match response.body {
-            ResponseBody::Stream(raw) => collect(raw).await?,
+            ResponseBody::Stream(raw) => collect(raw).await.inspect_err(|e| capture_error(capture, e))?,
             ResponseBody::Buffered(b) => b,
         };
+        capture.record(CaptureEvent::ResponseChunk(&body));
         Ok(ExecResponse {
             status: response.status,
             headers: response.headers,
@@ -449,6 +472,7 @@ impl ClaudeExecutor {
         prepared: &Prepared,
         path: &str,
         usage: Option<&cpa_core::exec::UsageSink>,
+        capture: &CaptureSink,
     ) -> Result<RawResponse, ExecError> {
         let usage = usage.filter(|u| u.enabled());
         let url = format!("{}{path}?beta=true", ctx.base_url);
@@ -473,12 +497,37 @@ impl ClaudeExecutor {
                 }
             })
         };
+        // helps.RecordAPIRequest: the header map the executor built (Go spelling, the
+        // transport's own headers excluded), unmasked; every physical send.
+        if capture.enabled() {
+            let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(ctx.credential);
+            capture.record(CaptureEvent::Request(UpstreamRequest {
+                url: &url,
+                method: "POST",
+                headers: &prepared.headers,
+                body: prepared.body.as_bytes(),
+                provider: ctx.log_provider,
+                auth_id: &ctx.credential.id,
+                auth_label: &ctx.credential.label,
+                auth_type,
+                auth_value: &auth_value,
+            }));
+        }
         if let Some(usage) = usage {
             usage.round_trip_started();
         }
         let mut upstream = crate::proxy::send_routed(&route, &url, headers, Bytes::from(prepared.body.clone()), None)
             .await
-            .map_err(|e| fast_request_error(fast, e))?;
+            .map_err(|e| {
+                capture_error(capture, &e);
+                fast_request_error(fast, e)
+            })?;
+        if capture.enabled() {
+            capture.record(CaptureEvent::ResponseMetadata(
+                upstream.status,
+                &go_headers(&upstream.headers),
+            ));
+        }
         if let Some(usage) = usage.cloned() {
             let mut marked = false;
             upstream.body = upstream
@@ -500,17 +549,53 @@ impl ClaudeExecutor {
             self.quota
                 .observe_model(&ctx.credential.id, &ctx.base_model, &upstream.headers);
         }
-        finish(decode_upstream(upstream).await, fast, ctx.settings.model_level_cooling).await
+        finish(
+            decode_upstream(upstream).await,
+            fast,
+            ctx.settings.model_level_cooling,
+            capture,
+        )
+        .await
+    }
+}
+
+/// `httpResp.Header.Clone()` for request logs: Go's canonical names, every value.
+fn go_headers(headers: &http::HeaderMap) -> Vec<(String, String)> {
+    headers
+        .iter()
+        .map(|(name, value)| {
+            (
+                crate::proxy::canonical_header(name.as_str()),
+                String::from_utf8_lossy(value.as_bytes()).into_owned(),
+            )
+        })
+        .collect()
+}
+
+/// `helps.RecordAPIResponseError` with the error's text.
+fn capture_error(capture: &CaptureSink, error: &ExecError) {
+    if capture.enabled() {
+        capture.record(CaptureEvent::ResponseError(&String::from_utf8_lossy(&error.body)));
     }
 }
 
 /// The response half of Go's Execute, ExecuteStream and countTokensUpstream: the
 /// decoded 2xx body, or the error Go builds from a non-2xx answer. An undecodable or
 /// unreadable error body keeps the upstream status and says why.
-async fn finish(decoded: Decoded, fast: bool, model_level_cooling: bool) -> Result<RawResponse, ExecError> {
+/// Request logs record a decode failure, an unreadable error body, and the error body
+/// itself, at Go's sites.
+async fn finish(
+    decoded: Decoded,
+    fast: bool,
+    model_level_cooling: bool,
+    capture: &CaptureSink,
+) -> Result<RawResponse, ExecError> {
     let Decoded { status, headers, body } = decoded;
     if (200..300).contains(&status) {
-        let body = body.map_err(|m| fast_request_error(fast, plain_error(m)))?;
+        let body = body.map_err(|m| {
+            capture.record(CaptureEvent::ResponseError(&m));
+            fast_request_error(fast, plain_error(m))
+        })?;
         return Ok(RawResponse {
             status,
             headers,
@@ -519,6 +604,7 @@ async fn finish(decoded: Decoded, fast: bool, model_level_cooling: bool) -> Resu
     }
     let data = match body {
         Err(m) => {
+            capture.record(CaptureEvent::ResponseError(&m));
             let message = format!("failed to decode error response body: {m}");
             let error = upstream_error(status, headers, Bytes::from(message), false, model_level_cooling);
             return Err(fast_request_error(fast, error));
@@ -537,12 +623,14 @@ async fn finish(decoded: Decoded, fast: bool, model_level_cooling: bool) -> Resu
                         } else {
                             String::from_utf8_lossy(&e.body).into_owned()
                         };
+                        capture.record(CaptureEvent::ResponseError(&reason));
                         break Bytes::from(format!("failed to read error response body: {reason}"));
                     }
                 }
             }
         }
     };
+    capture.record(CaptureEvent::ResponseChunk(&data));
     Err(upstream_error(status, headers, data, fast, model_level_cooling))
 }
 
@@ -640,6 +728,8 @@ struct Ctx<'a> {
     upstream_model: String,
     /// `isKimiMessagesUpstream`.
     kimi: bool,
+    /// `upstreamRequestLogProvider`: the provider request logs name.
+    log_provider: &'static str,
     /// Normalized execution-session ID (websocket executions), or empty.
     execution: String,
     /// `cliproxyauth.ResolvedModelInfo`: the capabilities dispatch bound to this attempt.
@@ -827,6 +917,7 @@ impl<'a> Ctx<'a> {
             proxy: Proxy::effective(credential, cfg),
             upstream_model: delegation.upstream_model.map_or_else(|| base.clone(), |f| f(&base)),
             kimi: kimi_upstream(&credential.provider, &base_url),
+            log_provider: delegation.request_log_provider.unwrap_or("claude"),
             execution: session::normalize(req.execution_session.as_deref().unwrap_or_default()),
             is_compat: req.resolved_model.as_ref().is_some_and(|r| r.is_compat()),
             codex: cpa_common::codex_client::Settings::from_config(cfg),

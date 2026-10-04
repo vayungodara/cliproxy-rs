@@ -144,11 +144,13 @@ impl KimiExecutor {
             .attributes
             .insert("base_url".into(), claude_base_url(credential));
         let client_model = req.model.clone();
-        // NewKimiExecutor's embedded ClaudeExecutor: normalized upstream model, and
-        // count_tokens always upstream (KimiExecutor.CountTokens -> countTokensUpstream).
+        // NewKimiExecutor's embedded ClaudeExecutor: normalized upstream model, count_tokens
+        // always upstream (KimiExecutor.CountTokens -> countTokensUpstream), and request
+        // logs naming kimi (requestLogProvider).
         let delegation = Delegation {
             upstream_model: Some(normalize_upstream_model),
             count_upstream: true,
+            request_log_provider: Some("kimi"),
         };
         if req.operation == Operation::CountTokens {
             return claude.execute_delegated(&delegated, req, cfg, delegation).await;
