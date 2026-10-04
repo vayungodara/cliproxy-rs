@@ -57,7 +57,6 @@ The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, coold
 
 Not available on cliproxy-rs:
 
-- `PUT /v0/management/config.yaml`. The v8 `PUT /v8/management/config.yaml` works.
 - `server/latest-version` answers `502` with "no release repository is configured" until cliproxy-rs publishes releases. Go asks GitHub for the latest CLIProxyAPI release.
 
 The bundled dashboard checks which server it is talking to and marks these features as not available instead of failing.
