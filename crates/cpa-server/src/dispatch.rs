@@ -853,6 +853,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             aliases: &aliases,
             compact,
             trace,
+            user_key: Default::default(),
         };
         return run_remote(context, remote, selection).await;
     }
@@ -1015,6 +1016,9 @@ struct RemoteContext<'a> {
     aliases: &'a std::collections::HashMap<String, Vec<cpa_core::registry::dynamic::OAuthAlias>>,
     compact: bool,
     trace: &'a Trace,
+    /// The client key Home authenticated on the latest pick that sent one (Go
+    /// `setHomeUserAPIKeyOnGinContext`, which keeps it for the rest of the request).
+    user_key: std::sync::Mutex<String>,
 }
 
 /// Go `homeRetryRoundExhaustedError`: the round ended; its timing decides the next.
@@ -1358,7 +1362,7 @@ async fn remote_round(
             selection.retry_round = round.max(0) as usize;
             selection.exclude = if stream { excluded.clone() } else { tried.clone() };
             let request = remote_request(cx.call, &selection, count, cx.trace);
-            let (lease, request_retry) = match cx
+            let (lease, request_retry, user_key) = match cx
                 .rt
                 .acquire_remote(remote, selection.clone(), request, &releases)
                 .await
@@ -1442,6 +1446,32 @@ async fn remote_round(
                 tried.push(id.clone());
             }
             cx.trace.selected(&lease.credential);
+            // Go `setHomeUserAPIKeyOnGinContext`: in Home mode the local client keys are
+            // cleared, so the key Home authenticated is the caller for this attempt and
+            // every later one (usage records, caller-scoped executor state). A pick
+            // without one keeps the previous key.
+            if !user_key.is_empty() {
+                *cx.user_key.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = user_key;
+            }
+            let user_key = cx
+                .user_key
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            let home_caller = (!user_key.is_empty()).then(|| {
+                let mut request = cx.request.clone();
+                request.caller.principal = user_key.clone();
+                let usage = cx.usage.map(|facts| {
+                    let mut facts = (**facts).clone();
+                    facts.client.api_key = user_key;
+                    Arc::new(facts)
+                });
+                (request, usage)
+            });
+            let (request, usage) = match &home_caller {
+                Some((request, usage)) => (request, usage.as_ref()),
+                None => (cx.request, cx.usage),
+            };
             // Go `executeHomeOnce`: Home's upstream model when it chose one, and only the
             // first model either way.
             let (mut models, mut alias) = registry::execution_models(cx.aliases, &lease.credential, &selection.model);
@@ -1499,7 +1529,7 @@ async fn remote_round(
                 let mut lease = lease;
                 match cx.rt.prepare_remote(&mut lease, cx.cfg).await {
                     Ok(()) => (
-                        attempt(cx.rt, cx.cfg, cx.policy, cx.call, cx.request, cx.usage, lease, target).await,
+                        attempt(cx.rt, cx.cfg, cx.policy, cx.call, request, usage, lease, target).await,
                         false,
                     ),
                     Err(error) => {

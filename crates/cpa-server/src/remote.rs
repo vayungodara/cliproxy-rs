@@ -113,6 +113,9 @@ pub struct RemoteGrant {
     pub cancel: Option<CancelSignal>,
     /// The request-retry limit Home set for this request (Go `selection.requestRetry`).
     pub request_retry: Option<i64>,
+    /// The client key Home authenticated (Go `dispatch.UserAPIKey`), trimmed; empty
+    /// when Home sent none. Private request context, like `Caller::principal`.
+    pub user_api_key: String,
 }
 
 /// How a failed pick takes part in retries (Go's typed Home errors).
@@ -238,7 +241,7 @@ pub(crate) async fn select(
             excluded: tried.clone(),
             ..request.clone()
         };
-        let (lease, _) = rt
+        let (lease, _, _) = rt
             .acquire_remote(remote, selection.clone(), pick, &releases)
             .await
             .map_err(|failed| Refusal {

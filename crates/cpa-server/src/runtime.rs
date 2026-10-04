@@ -321,14 +321,15 @@ impl Runtime {
     }
 
     /// One remote pick (Go `pickHomeDispatchSelection`): the lease ends through the
-    /// dispatcher, and its release joins `releases`.
+    /// dispatcher, and its release joins `releases`. Also returns Home's request-retry
+    /// limit and the client key Home authenticated (empty when it sent none).
     pub(crate) async fn acquire_remote(
         &self,
         dispatch: &dyn crate::remote::RemoteDispatch,
         selection: Selection,
         request: crate::remote::RemoteRequest,
         releases: &crate::remote::PendingReleases,
-    ) -> Result<(Lease, Option<i64>), crate::remote::RemoteError> {
+    ) -> Result<(Lease, Option<i64>, String), crate::remote::RemoteError> {
         let grant = dispatch.dispatch(request).await?;
         let lease = Lease {
             store: self.store.clone(),
@@ -347,7 +348,7 @@ impl Runtime {
             // (home_session_alias.go); remote picks here carry no LCP binding.
             lcp: None,
         };
-        Ok((lease, grant.request_retry))
+        Ok((lease, grant.request_retry, grant.user_api_key))
     }
 
     /// Go `prepareHomeRequestAuth`: a dispatched credential that requests must wait for
