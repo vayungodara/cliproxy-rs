@@ -151,6 +151,7 @@ const ZH: &[(&str, &str)] = &[
     ("key_added", "已添加 API Key"),
     ("key_updated", "已更新 API Key"),
     ("key_deleted", "已删除 API Key"),
+    ("key_changed", "✗ API Key 列表已变化，操作已取消"),
     ("copied", "✓ 已复制到剪贴板"),
     ("copy_failed", "✗ 复制失败"),
     ("new_key_prompt", "  New Key: "),
@@ -315,6 +316,7 @@ const EN: &[(&str, &str)] = &[
     ("key_added", "API Key added"),
     ("key_updated", "API Key updated"),
     ("key_deleted", "API Key deleted"),
+    ("key_changed", "✗ The API key list changed; the action was cancelled"),
     ("copied", "✓ Copied to clipboard"),
     ("copy_failed", "✗ Copy failed"),
     ("new_key_prompt", "  New Key: "),
@@ -411,6 +413,6 @@ mod tests {
             table.iter().map(|(k, _)| *k).collect()
         }
         assert_eq!(keys(ZH), keys(EN));
-        assert_eq!(EN.len(), 137);
+        assert_eq!(EN.len(), 138);
     }
 }

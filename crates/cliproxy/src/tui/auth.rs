@@ -36,7 +36,8 @@ pub struct AuthTab {
     width: usize,
     pub cursor: usize,
     pub expanded: Option<usize>,
-    pub confirm: Option<usize>,
+    /// The file awaiting delete confirmation, by name: a refresh can reorder the list.
+    pub confirm: Option<String>,
     status: Option<(String, Style)>,
     pub editing: bool,
     edit_field: usize,
@@ -88,6 +89,11 @@ impl AuthTab {
             Ok(files) => {
                 self.err = None;
                 self.files = files;
+                if let Some(name) = &self.confirm
+                    && !self.files.iter().any(|f| s::get_string(f, "name") == *name)
+                {
+                    self.confirm = None;
+                }
                 if self.cursor >= self.files.len() {
                     self.cursor = self.files.len().saturating_sub(1);
                 }
@@ -124,19 +130,17 @@ impl AuthTab {
         if self.editing {
             return self.edit_key(key);
         }
-        if let Some(index) = self.confirm {
+        if self.confirm.is_some() {
             return match key {
                 "y" | "Y" => {
-                    self.confirm = None;
-                    if index < self.files.len() {
-                        let (client, name) = (self.client.clone(), self.name(index));
-                        return self.act(async move {
-                            client.delete_auth_file(&name).await?;
-                            Ok(tf("deleted", &name))
-                        });
-                    }
-                    self.refresh();
-                    Vec::new()
+                    let Some(name) = self.confirm.take() else {
+                        return Vec::new();
+                    };
+                    let client = self.client.clone();
+                    self.act(async move {
+                        client.delete_auth_file(&name).await?;
+                        Ok(tf("deleted", &name))
+                    })
                 }
                 "n" | "N" | "esc" => {
                     self.confirm = None;
@@ -170,7 +174,7 @@ impl AuthTab {
             }
             "d" | "D" => {
                 if self.cursor < count {
-                    self.confirm = Some(self.cursor);
+                    self.confirm = Some(self.name(self.cursor));
                     self.refresh();
                 }
             }
@@ -306,7 +310,7 @@ impl AuthTab {
                 icon.patch_style(row_style),
                 span(rest, row_style),
             ]);
-            if self.confirm == Some(i) {
+            if self.confirm.as_deref() == Some(name.as_str()) {
                 doc.text(format!("    {}", tf("confirm_delete", &name)), s::warning());
             }
             if self.editing && i == self.cursor {
@@ -387,4 +391,32 @@ fn updated_field(field: &str, name: &str) -> String {
         parts.next().unwrap_or_default(),
     );
     format!("{a}{field}{b}{name}{c}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn files(names: &[&str]) -> Result<Vec<Object>, String> {
+        Ok(names
+            .iter()
+            .map(|n| serde_json::json!({ "name": n }).as_object().cloned().unwrap())
+            .collect())
+    }
+
+    /// A refresh between `d` and `y` must not move the delete to another file.
+    #[test]
+    fn delete_targets_the_file_chosen_before_a_refresh() {
+        let mut tab = AuthTab::new(Arc::new(Client::new("http://127.0.0.1:1", "")));
+        tab.files(files(&["a.json", "b.json", "c.json"]));
+        tab.key("down");
+        tab.key("d");
+        tab.files(files(&["c.json", "b.json"]));
+        assert_eq!(tab.confirm.as_deref(), Some("b.json"));
+        tab.files(files(&["b.json", "a.json"]));
+        assert_eq!(tab.confirm.as_deref(), Some("b.json"));
+        tab.files(files(&["a.json", "c.json"]));
+        assert_eq!(tab.confirm, None);
+        assert!(tab.key("y").is_empty());
+    }
 }
