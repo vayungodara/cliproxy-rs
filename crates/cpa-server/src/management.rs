@@ -56,6 +56,8 @@ pub struct Management {
     pub(crate) log_dir: PathBuf,
     /// The remote store mirroring config and auth files, when one is configured.
     pub(crate) store: Option<Arc<dyn crate::persist::StorePersister>>,
+    /// Pins auth-dir across reloads (tests only; see [`Options::auth_dir`]).
+    auth_dir: Option<PathBuf>,
     /// The zone log line timestamps are parsed in (Go `time.Local` when `None`).
     pub(crate) log_zone: logs::Zone,
     access: access::Access,
@@ -78,6 +80,10 @@ pub struct Options {
     pub store: Option<Arc<dyn crate::persist::StorePersister>>,
     /// Parses log line timestamps in this zone instead of the local one (tests only).
     pub log_zone: Option<chrono::FixedOffset>,
+    /// Scans this directory for credentials on every reload instead of the config's
+    /// auth-dir, so a config without one never reads the default `~/.cli-proxy-api`
+    /// (tests only). A configured store still wins.
+    pub auth_dir: Option<PathBuf>,
 }
 
 impl Management {
@@ -116,6 +122,7 @@ impl Management {
             .unwrap_or_else(|| crate::logging::resolve_log_dir(&cfg));
         let mut options = options;
         let store = options.store.take();
+        let auth_dir = options.auth_dir.take();
         let log_zone = options.log_zone;
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
@@ -133,6 +140,7 @@ impl Management {
             login_base,
             log_dir,
             store,
+            auth_dir,
             log_zone,
         });
         oauth::install_callback_sink(&state);
@@ -145,6 +153,8 @@ impl Management {
     pub(crate) fn lock_auth_dir(&self, cfg: &mut Config) {
         if let Some(store) = &self.store {
             cfg.auth_dir = store.auth_dir();
+        } else if let Some(dir) = &self.auth_dir {
+            cfg.auth_dir = dir.clone();
         }
     }
 

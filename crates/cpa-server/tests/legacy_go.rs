@@ -107,7 +107,10 @@ fn group_difference(saved: &Value, go: &serde_json::Map<String, Value>) -> Optio
 }
 
 async fn serve(path: &std::path::Path) -> (String, tokio::task::JoinHandle<()>) {
-    let config = Config::load(path).unwrap();
+    // A private auth-dir, so a config without one never reads ~/.cli-proxy-api.
+    let auth = path.parent().unwrap().join("auth");
+    let mut config = Config::load(path).unwrap();
+    config.auth_dir = auth.clone();
     // As main.rs starts the server: config keys are credentials from the start.
     let credentials = cpa_core::config::credentials::load(&config);
     let rt = Arc::new(cpa_server::testing::runtime(
@@ -126,6 +129,9 @@ async fn serve(path: &std::path::Path) -> (String, tokio::task::JoinHandle<()>) 
         path.to_path_buf(),
         Options {
             management_password: Some(String::new()),
+            auth_dir: Some(auth),
+            // Sign-in flows that start a device login hit this closed port, never a provider.
+            login_base: Some("http://127.0.0.1:1".into()),
             ..Options::default()
         },
     );
@@ -283,7 +289,7 @@ async fn v0_aliases_match_v8_and_lists_carry_live_auth_indexes() {
     assert_eq!(entries.len(), 2);
     let config = Config::load(&path).unwrap();
     let expected = |key: &str| {
-        let creds = cpa_core::config::credentials::load(&config);
+        let creds = cpa_core::config::credentials::from_config(&config);
         let c = creds
             .iter()
             .find(|c| c.attributes.get("api_key").map(String::as_str) == Some(key))
