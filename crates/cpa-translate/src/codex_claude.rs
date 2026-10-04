@@ -202,7 +202,7 @@ fn strip_dialect_keywords(value: &mut GoValue) {
 
 /// normalizeToolParameters: an object schema with `properties`, without dialect keywords
 /// or unsupported regex escapes, re-encoded without HTML escaping.
-fn normalize_tool_parameters(raw: &[u8]) -> Vec<u8> {
+pub(crate) fn normalize_tool_parameters(raw: &[u8]) -> Vec<u8> {
     const DEFAULT: &[u8] = br#"{"type":"object","properties":{}}"#;
     let raw = trim_space(raw);
     if raw.is_empty() || raw == b"null" || !gj::valid(raw) {

@@ -17,6 +17,7 @@ import (
 
 type harvestArg struct {
 	S    *string `json:"s"`
+	SB   *string `json:"sb"`
 	B    *string `json:"b"`
 	Bool *bool   `json:"bool"`
 	P    string  `json:"p"`
@@ -70,8 +71,12 @@ func (a harvestArg) str() string {
 	switch {
 	case a.S != nil:
 		return *a.S
-	case a.B != nil:
-		raw, err := base64.StdEncoding.DecodeString(*a.B)
+	case a.SB != nil || a.B != nil:
+		enc := a.SB
+		if enc == nil {
+			enc = a.B
+		}
+		raw, err := base64.StdEncoding.DecodeString(*enc)
 		if err != nil {
 			panic(err)
 		}
@@ -169,4 +174,64 @@ func harvested(root string, r registration, existing []fixture) []fixture {
 		add(streams[key].test, streams[key].f)
 	}
 	return out
+}
+
+// helperFixtures writes the recorded helper calls (records with results) to path:
+// src/go_helper_tests.rs replays each against its Rust counterpart. A test's repeated calls
+// with the same arguments are kept once.
+func helperFixtures(path string) {
+	in := os.Getenv("HARVEST_JSONL")
+	if in == "" {
+		panic("helpers needs HARVEST_JSONL")
+	}
+	f, err := os.Open(in)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1<<20), 64<<20)
+	type call struct {
+		Name    string            `json:"name"`
+		Fn      string            `json:"fn"`
+		Args    []json.RawMessage `json:"args"`
+		Results []json.RawMessage `json:"results"`
+	}
+	var out []call
+	seen := map[string]bool{}
+	for sc.Scan() {
+		if len(sc.Bytes()) > 4*harvestMaxInput {
+			continue
+		}
+		var rec struct {
+			Fn      string            `json:"fn"`
+			Line    int               `json:"line"`
+			Test    string            `json:"test"`
+			Args    []json.RawMessage `json:"args"`
+			Results []json.RawMessage `json:"results"`
+		}
+		if err := json.Unmarshal(sc.Bytes(), &rec); err != nil {
+			panic(err)
+		}
+		if rec.Results == nil {
+			continue
+		}
+		key, _ := json.Marshal([]any{rec.Fn, rec.Args, rec.Test})
+		if seen[string(key)] {
+			continue
+		}
+		seen[string(key)] = true
+		out = append(out, call{Name: fmt.Sprintf("%s:%d", rec.Test, rec.Line), Fn: rec.Fn, Args: rec.Args, Results: rec.Results})
+	}
+	if err := sc.Err(); err != nil {
+		panic(err)
+	}
+	raw, err := json.MarshalIndent(map[string]any{"calls": out}, "", " ")
+	if err != nil {
+		panic(err)
+	}
+	if err := os.WriteFile(path, append(raw, '\n'), 0o644); err != nil {
+		panic(err)
+	}
+	fmt.Printf("helpers: %d calls\n", len(out))
 }

@@ -25,7 +25,7 @@ pub static PAIR: Registered = registered!(
 );
 
 /// The part fields that can carry a function name.
-const NAME_FIELDS: [&str; 4] = ["functionCall", "functionResponse", "function_call", "function_response"];
+pub(crate) const NAME_FIELDS: [&str; 4] = ["functionCall", "functionResponse", "function_call", "function_response"];
 
 // ---------------------------------------------------------------------------------------
 // Request
@@ -188,7 +188,7 @@ fn normalize_tools(raw: &mut Vec<u8>, tools: &Res<'_>, names: &HashMap<Vec<u8>, 
 
 /// removeEmptyGeminiFunctionTools: empty declaration lists, then tools left empty, then
 /// an empty `tools` array are removed.
-fn remove_empty_function_tools(raw: &mut Vec<u8>) {
+pub(crate) fn remove_empty_function_tools(raw: &mut Vec<u8>) {
     let tools = gj::get(raw, "request.tools").into_owned();
     if tools.is_array() && tools.array().is_empty() {
         gj::delete(raw, "request.tools");
@@ -429,7 +429,7 @@ fn function_response_raw(response: &[u8], fallback: &[u8]) -> Vec<u8> {
 /// fixCLIToolResponse: function responses leave their contents and follow the model turn
 /// whose calls they answer (oldest pending group first) as one `function` content.
 /// Contents that are not objects are dropped. `None` when there are no contents.
-fn fix_cli_tool_response(input: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn fix_cli_tool_response(input: &[u8]) -> Option<Vec<u8>> {
     let contents = gj::get(input, "request.contents");
     if !contents.exists() {
         return None;
@@ -673,7 +673,7 @@ pub(crate) fn sanitize_claude_signatures(raw: Vec<u8>) -> Vec<u8> {
 // Responses
 
 /// restoreUsageMetadata: the executor's `cpaUsageMetadata` back to `usageMetadata`.
-fn restore_usage(mut chunk: Vec<u8>) -> Vec<u8> {
+pub(crate) fn restore_usage(mut chunk: Vec<u8>) -> Vec<u8> {
     let usage = gj::get(&chunk, "cpaUsageMetadata").into_owned();
     if usage.exists() {
         gj::set_raw(&mut chunk, "usageMetadata", &usage.raw);

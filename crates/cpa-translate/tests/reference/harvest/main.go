@@ -43,6 +43,9 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"unicode/utf8"
+
+	"github.com/tidwall/gjson"
 )
 
 var mu sync.Mutex
@@ -61,6 +64,9 @@ func testName(function string) string {
 }
 
 func encode(v any) any {
+	if v == nil {
+		return map[string]any{"null": true}
+	}
 	if ctx, ok := v.(context.Context); ok {
 		out := map[string]any{"ctx": true}
 		if alt, ok := ctx.Value("alt").(string); ok {
@@ -68,9 +74,18 @@ func encode(v any) any {
 		}
 		return out
 	}
+	if r, ok := v.(gjson.Result); ok {
+		return map[string]any{"json": r.Raw, "exists": r.Exists(), "valid": utf8.ValidString(r.Raw), "jb": base64.StdEncoding.EncodeToString([]byte(r.Raw))}
+	}
+	if e, ok := v.(error); ok {
+		return map[string]any{"err": e.Error()}
+	}
 	rv := reflect.ValueOf(v)
 	switch rv.Kind() {
 	case reflect.String:
+		if !utf8.ValidString(rv.String()) {
+			return map[string]any{"sb": base64.StdEncoding.EncodeToString([]byte(rv.String()))}
+		}
 		return map[string]any{"s": rv.String()}
 	case reflect.Bool:
 		return map[string]any{"bool": rv.Bool()}
@@ -80,45 +95,54 @@ func encode(v any) any {
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
 			return map[string]any{"b": base64.StdEncoding.EncodeToString(rv.Bytes()), "nil": rv.IsNil()}
 		}
+		if k := rv.Type().Elem().Kind(); k == reflect.String || (k == reflect.Slice && rv.Type().Elem().Elem().Kind() == reflect.Uint8) {
+			items := make([]any, rv.Len())
+			for i := range items {
+				items[i] = encode(rv.Index(i).Interface())
+			}
+			return map[string]any{"list": items, "nil": rv.IsNil()}
+		}
 	case reflect.Ptr:
 		return map[string]any{"p": fmt.Sprintf("%p", v)}
+	case reflect.Map:
+		if m, ok := v.(map[string]string); ok {
+			return map[string]any{"map": m}
+		}
 	}
 	return map[string]any{"other": fmt.Sprintf("%T", v)}
 }
 
-// Begin logs one call when the wrapper's caller is a test file.
-func Begin(fn string, args ...any) {
-	path := os.Getenv("HARVEST_OUT")
-	if path == "" {
-		return
+// site is the call site two frames above its caller when that is a test file: the file,
+// line and enclosing Test function.
+func site() (string, int, string, bool) {
+	if os.Getenv("HARVEST_OUT") == "" {
+		return "", 0, "", false
 	}
-	_, file, line, ok := runtime.Caller(2)
+	_, file, line, ok := runtime.Caller(3)
 	if !ok || !strings.HasSuffix(file, "_test.go") {
-		return
+		return "", 0, "", false
 	}
 	pcs := make([]uintptr, 64)
-	frames := runtime.CallersFrames(pcs[:runtime.Callers(2, pcs)])
-	test := ""
+	frames := runtime.CallersFrames(pcs[:runtime.Callers(3, pcs)])
 	for {
 		frame, more := frames.Next()
-		if test = testName(frame.Function); test != "" || !more {
-			break
+		if test := testName(frame.Function); test != "" {
+			return filepath.Base(file), line, test, true
+		}
+		if !more {
+			return "", 0, "", false
 		}
 	}
-	if test == "" {
-		return
-	}
-	encoded := make([]any, len(args))
-	for i, a := range args {
-		encoded[i] = encode(a)
-	}
-	raw, err := json.Marshal(map[string]any{"fn": fn, "file": filepath.Base(file), "line": line, "test": test, "args": encoded})
+}
+
+func write(record map[string]any) {
+	raw, err := json.Marshal(record)
 	if err != nil {
 		panic(err)
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(os.Getenv("HARVEST_OUT"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		panic(err)
 	}
@@ -126,6 +150,44 @@ func Begin(fn string, args ...any) {
 	if _, err := f.Write(append(raw, '\n')); err != nil {
 		panic(err)
 	}
+}
+
+func encodeAll(values []any) []any {
+	out := make([]any, len(values))
+	for i, v := range values {
+		out[i] = encode(v)
+	}
+	return out
+}
+
+// Begin logs one converter call when the wrapper's caller is a test file.
+func Begin(fn string, args ...any) {
+	file, line, test, ok := site()
+	if !ok {
+		return
+	}
+	write(map[string]any{"fn": fn, "file": file, "line": line, "test": test, "args": encodeAll(args)})
+}
+
+// Rec is one helper call from a test file, its arguments encoded before the call.
+type Rec struct{ record map[string]any }
+
+// Enter starts recording a helper call when the wrapper's caller is a test file.
+func Enter(fn string, args ...any) *Rec {
+	file, line, test, ok := site()
+	if !ok {
+		return nil
+	}
+	return &Rec{map[string]any{"fn": fn, "file": file, "line": line, "test": test, "args": encodeAll(args)}}
+}
+
+// Leave logs the call with its results.
+func (r *Rec) Leave(results ...any) {
+	if r == nil {
+		return
+	}
+	r.record["results"] = encodeAll(results)
+	write(r.record)
 }
 `
 
@@ -185,6 +247,31 @@ func main() {
 			}
 		}
 	}
+	// Helpers whose Rust counterparts tests/go_helpers replays: their results are logged too.
+	values := map[string][]string{
+		"internal/client/codex/apply-patch": {"IsCustomTool", "Description", "WrapInput", "UnwrapInput", "EscapeInputFragment", "Parameters"},
+		"internal/translator/common": {"DeriveClaudeUserID", "AttachCacheControl", "AttachMessageCacheControl", "AttachToolMessageCacheControl",
+			"SystemReminderText", "RequestModelName", "ContainsJSONRef", "BuildClaudeStructuredOutputInstruction",
+			"AntigravityToolNameToUpstream", "AntigravityUpstreamToolNameToClient", "SanitizeDevinToolDescription", "NormalizeOpenAIFileData",
+			"ObfuscateExecCommandDescription", "ObfuscateWriteStdinDescription", "IsDevinCodexAppAutomationUpdate",
+			"MergeAdjacentGeminiContents", "ContentHasGeminiFunctionResponse", "ReorderGeminiUserParts", "MergeAdjacentGeminiUserContents",
+			"SplitGeminiFunctionResponseTurns", "SetGeminiFunctionResponseResult", "AlignOpenAIToolCallMessages"},
+		"internal/util":                          {"NormalizeClaudeToolInputSchema", "HasUnsupportedUnicodePropertyEscape", "GeminiClaudeToolUseID", "IsClaudeCodeAttributionSystemText"},
+		"internal/translator/antigravity/gemini":                 {"fixCLIToolResponse", "removeEmptyGeminiFunctionTools", "rewriteGeminiFunctionNames", "restoreUsageMetadata"},
+		"internal/translator/antigravity/interactions":           {"rewriteInteractionsFunctionNames"},
+		"internal/translator/antigravity/openai/chat-completions": {"normalizeAntigravityOpenAIThinkingConfig"},
+		"internal/translator/claude/gemini":                      {"normalizeClaudeToolSchema", "lowercaseClaudeToolSchemaTypes"},
+		"internal/translator/codex/claude":                       {"normalizeToolParameters"},
+		"internal/translator/codex/gemini":                       {"cleanGeminiCodexToolParameters"},
+		"internal/translator/codex/interactions":                 {"cleanedCodexToolParameters", "setInteractionsCodexRawIfDifferent"},
+	}
+	valued := map[string]bool{}
+	for rel, names := range values {
+		for _, name := range names {
+			add(filepath.Join(root, rel), name)
+			valued[filepath.Join(root, rel)+"."+name] = true
+		}
+	}
 	sdkDir := filepath.Join(root, "sdk/translator")
 	for _, name := range []string{"TranslateRequest", "TranslateStream", "TranslateNonStream"} {
 		add(sdkDir, name)
@@ -196,7 +283,7 @@ func main() {
 	sort.Strings(dirs)
 	total := 0
 	for _, dir := range dirs {
-		total += instrument(root, dir, targets[dir])
+		total += instrument(root, dir, targets[dir], valued)
 	}
 	fmt.Printf("instrumented %d functions in %d packages\n", total, len(dirs))
 }
@@ -244,7 +331,7 @@ func importName(spec *ast.ImportSpec) string {
 }
 
 // instrument renames each target and writes the wrappers into zz_harvest_wrappers.go.
-func instrument(root, dir string, names map[string]bool) int {
+func instrument(root, dir string, names, valued map[string]bool) int {
 	renames := map[string][]int{} // file -> offsets of names to rename
 	var wrappers bytes.Buffer
 	imports := map[string]string{module + "/internal/harvest": ""}
@@ -316,8 +403,21 @@ func instrument(root, dir string, names map[string]bool) int {
 			plain[k] = strings.TrimSuffix(a, "...")
 		}
 		fmt.Fprintf(&wrappers, "\nfunc %s(%s) (%s) {\n", d.Name.Name, strings.Join(params, ", "), strings.Join(results, ", "))
-		fmt.Fprintf(&wrappers, "\tharvest.Begin(%q, %s)\n", filepath.ToSlash(rel)+"."+d.Name.Name, strings.Join(plain, ", "))
 		call := fmt.Sprintf("harvestOrig_%s(%s)", d.Name.Name, strings.Join(args, ", "))
+		if valued[dir+"."+d.Name.Name] && len(results) > 0 {
+			rs := make([]string, len(results))
+			for k := range rs {
+				rs[k] = fmt.Sprintf("r%d", k)
+			}
+			fmt.Fprintf(&wrappers, "\trec := harvest.Enter(%q", filepath.ToSlash(rel)+"."+d.Name.Name)
+			for _, a := range plain {
+				fmt.Fprintf(&wrappers, ", %s", a)
+			}
+			fmt.Fprintf(&wrappers, ")\n\t%s := %s\n\trec.Leave(%s)\n\treturn %s\n}\n", strings.Join(rs, ", "), call, strings.Join(rs, ", "), strings.Join(rs, ", "))
+			count++
+			continue
+		}
+		fmt.Fprintf(&wrappers, "\tharvest.Begin(%q, %s)\n", filepath.ToSlash(rel)+"."+d.Name.Name, strings.Join(plain, ", "))
 		if len(results) == 0 {
 			fmt.Fprintf(&wrappers, "\t%s\n}\n", call)
 		} else {

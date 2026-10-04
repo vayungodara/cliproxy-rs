@@ -375,7 +375,7 @@ fn file_part(file: &Res<'_>) -> Option<Vec<u8>> {
 const DRAFT_07: &[u8] = b"http://json-schema.org/draft-07/schema#";
 
 /// normalizeClaudeToolSchema: closed objects with the draft-07 `$schema`.
-fn normalize_schema(params: &Res<'_>) -> Vec<u8> {
+pub(crate) fn normalize_schema(params: &Res<'_>) -> Vec<u8> {
     let mut cleaned = params.raw.to_vec();
     if params.get("additionalProperties").kind != Kind::False {
         gj::set_bool(&mut cleaned, "additionalProperties", false);
@@ -388,7 +388,7 @@ fn normalize_schema(params: &Res<'_>) -> Vec<u8> {
 }
 
 /// lowercaseClaudeToolSchemaTypes: every `type` value as a lowercase string.
-fn lowercase_types(mut tool: Vec<u8>) -> Vec<u8> {
+pub(crate) fn lowercase_types(mut tool: Vec<u8>) -> Vec<u8> {
     for path in cpa_common::gemini_schema::walk(&gj::parse(&tool), b"type") {
         let value = gj::get(&tool, &path);
         let lower = go_lower(&value.bytes());

@@ -96,9 +96,18 @@ tool=$(mktemp -d)
 cp "$crate"/tests/reference/harvest/main.go "$tool/"
 (cd "$tool" && go mod init harvesttool && go run . "$scratch")
 (cd "$scratch" && go mod download && HARVEST_OUT="$scratch/calls.jsonl" \
-  go test -count=1 ./internal/translator/... ./sdk/translator/... ./test/...)
+  go test -count=1 ./internal/translator/... ./sdk/translator/... ./test/... \
+    ./internal/util/... ./internal/client/codex/apply-patch/...)
 # Then run the pair generation above with HARVEST_JSONL="$scratch/calls.jsonl".
 ```
+
+The same run records helper calls with their results (value mode): the helpers listed in
+`values` in `harvest/main.go` (apply-patch tool, translator/common and util helpers, and
+package-private helpers of some pairs) log arguments before the call and results after,
+when a test calls them directly. `go run . "$reference" "$crate/tests/fixtures/pairs"
+helpers` with `HARVEST_JSONL` set writes `../fixtures/go_helpers.json`, one record per
+test and distinct arguments, and `src/go_helper_tests.rs` replays every record against the
+Rust port of that helper. A helper joins value mode only together with a replay arm.
 
 Two allocation-bound Go tests (`...BoundsLargePayloadCopies`,
 `...ReusesLargeNormalizedPayload`) fail in the instrumented copy because the recorder

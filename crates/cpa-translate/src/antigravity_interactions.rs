@@ -27,7 +27,7 @@ pub static PAIR: Registered = registered!(
     token_count: None,
 );
 
-const NAME_FIELDS: [&str; 2] = ["functionCall", "functionResponse"];
+pub(crate) const NAME_FIELDS: [&str; 2] = ["functionCall", "functionResponse"];
 
 // ---------------------------------------------------------------------------------------
 // Request

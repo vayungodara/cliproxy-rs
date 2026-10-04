@@ -1,0 +1,6427 @@
+{
+ "calls": [
+  {
+   "name": "TestConvertAntigravityResponseToClaudeUsesStableGeminiToolProvenanceID:1370",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": "native-call-1"
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"y\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "cpa_gemini_1bf997c3599657d6c97d05664d116e18"
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_PreservesFunctionResponseParts:335",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtb3B1cy00LTYtdGhpbmtpbmciLAoJCSJyZXF1ZXN0IjogewoJCQkiY29udGVudHMiOiBbCgkJCQl7CgkJCQkJInJvbGUiOiAibW9kZWwiLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJewoJCQkJCQkJImZ1bmN0aW9uQ2FsbCI6IHsibmFtZSI6ICJzY3JlZW5zaG90IiwgImFyZ3MiOiB7fX0KCQkJCQkJfQoJCQkJCV0KCQkJCX0sCgkJCQl7CgkJCQkJInJvbGUiOiAiZnVuY3Rpb24iLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJewoJCQkJCQkJImZ1bmN0aW9uUmVzcG9uc2UiOiB7CgkJCQkJCQkJImlkIjogInRvb2wtMDAxIiwKCQkJCQkJCQkibmFtZSI6ICJzY3JlZW5zaG90IiwKCQkJCQkJCQkicmVzcG9uc2UiOiB7InJlc3VsdCI6ICJTY3JlZW5zaG90IHRha2VuIn0sCgkJCQkJCQkJInBhcnRzIjogWwoJCQkJCQkJCQl7ImlubGluZURhdGEiOiB7Im1pbWVUeXBlIjogImltYWdlL3BuZyIsICJkYXRhIjogImlWQk9SIn19CgkJCQkJCQkJXQoJCQkJCQkJfQoJCQkJCQl9CgkJCQkJXQoJCQkJfQoJCQldCgkJfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtb3B1cy00LTYtdGhpbmtpbmciLAoJCSJyZXF1ZXN0IjogewoJCQkiY29udGVudHMiOiBbewoJCQkJCSJyb2xlIjogIm1vZGVsIiwKCQkJCQkicGFydHMiOiBbCgkJCQkJCXsKCQkJCQkJCSJmdW5jdGlvbkNhbGwiOiB7Im5hbWUiOiAic2NyZWVuc2hvdCIsICJhcmdzIjoge319CgkJCQkJCX0KCQkJCQldCgkJCQl9LHsicGFydHMiOlt7CgkJCQkJCQkiZnVuY3Rpb25SZXNwb25zZSI6IHsKCQkJCQkJCQkiaWQiOiAidG9vbC0wMDEiLAoJCQkJCQkJCSJuYW1lIjogInNjcmVlbnNob3QiLAoJCQkJCQkJCSJyZXNwb25zZSI6IHsicmVzdWx0IjogIlNjcmVlbnNob3QgdGFrZW4ifSwKCQkJCQkJCQkicGFydHMiOiBbCgkJCQkJCQkJCXsiaW5saW5lRGF0YSI6IHsibWltZVR5cGUiOiAiaW1hZ2UvcG5nIiwgImRhdGEiOiAiaVZCT1IifX0KCQkJCQkJCQldCgkJCQkJCQl9CgkJCQkJCX1dLCJyb2xlIjoiZnVuY3Rpb24ifV0KCQl9Cgl9",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_BackfillsEmptyFunctionResponseName:399",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFsKCQkJCXsKCQkJCQkicm9sZSI6ICJtb2RlbCIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uQ2FsbCI6IHsibmFtZSI6ICJCYXNoIiwgImFyZ3MiOiB7ImNtZCI6ICJscyJ9fX0KCQkJCQldCgkJCQl9LAoJCQkJewoJCQkJCSJyb2xlIjogImZ1bmN0aW9uIiwKCQkJCQkicGFydHMiOiBbCgkJCQkJCXsiZnVuY3Rpb25SZXNwb25zZSI6IHsibmFtZSI6ICIiLCAicmVzcG9uc2UiOiB7Im91dHB1dCI6ICJmaWxlMS50eHQifX19CgkJCQkJXQoJCQkJfQoJCQldCgkJfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFt7CgkJCQkJInJvbGUiOiAibW9kZWwiLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJeyJmdW5jdGlvbkNhbGwiOiB7Im5hbWUiOiAiQmFzaCIsICJhcmdzIjogeyJjbWQiOiAibHMifX19CgkJCQkJXQoJCQkJfSx7InBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjogeyJuYW1lIjogIkJhc2giLCAicmVzcG9uc2UiOiB7Im91dHB1dCI6ICJmaWxlMS50eHQifX19XSwicm9sZSI6ImZ1bmN0aW9uIn1dCgkJfQoJfQ==",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_BackfillsMultipleEmptyNames:446",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFsKCQkJCXsKCQkJCQkicm9sZSI6ICJtb2RlbCIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uQ2FsbCI6IHsibmFtZSI6ICJSZWFkIiwgImFyZ3MiOiB7InBhdGgiOiAiL2EifX19LAoJCQkJCQl7ImZ1bmN0aW9uQ2FsbCI6IHsibmFtZSI6ICJHcmVwIiwgImFyZ3MiOiB7InBhdHRlcm4iOiAieCJ9fX0KCQkJCQldCgkJCQl9LAoJCQkJewoJCQkJCSJyb2xlIjogImZ1bmN0aW9uIiwKCQkJCQkicGFydHMiOiBbCgkJCQkJCXsiZnVuY3Rpb25SZXNwb25zZSI6IHsibmFtZSI6ICIiLCAicmVzcG9uc2UiOiB7InJlc3VsdCI6ICJjb250ZW50IGEifX19LAoJCQkJCQl7ImZ1bmN0aW9uUmVzcG9uc2UiOiB7Im5hbWUiOiAiIiwgInJlc3BvbnNlIjogeyJyZXN1bHQiOiAibWF0Y2ggeCJ9fX0KCQkJCQldCgkJCQl9CgkJCV0KCQl9Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFt7CgkJCQkJInJvbGUiOiAibW9kZWwiLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJeyJmdW5jdGlvbkNhbGwiOiB7Im5hbWUiOiAiUmVhZCIsICJhcmdzIjogeyJwYXRoIjogIi9hIn19fSwKCQkJCQkJeyJmdW5jdGlvbkNhbGwiOiB7Im5hbWUiOiAiR3JlcCIsICJhcmdzIjogeyJwYXR0ZXJuIjogIngifX19CgkJCQkJXQoJCQkJfSx7InBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjogeyJuYW1lIjogIlJlYWQiLCAicmVzcG9uc2UiOiB7InJlc3VsdCI6ICJjb250ZW50IGEifX19LHsiZnVuY3Rpb25SZXNwb25zZSI6IHsibmFtZSI6ICJHcmVwIiwgInJlc3BvbnNlIjogeyJyZXN1bHQiOiAibWF0Y2ggeCJ9fX1dLCJyb2xlIjoiZnVuY3Rpb24ifV0KCQl9Cgl9",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_PreservesExistingName:500",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFsKCQkJCXsKCQkJCQkicm9sZSI6ICJtb2RlbCIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uQ2FsbCI6IHsibmFtZSI6ICJCYXNoIiwgImFyZ3MiOiB7fX19CgkJCQkJXQoJCQkJfSwKCQkJCXsKCQkJCQkicm9sZSI6ICJmdW5jdGlvbiIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uUmVzcG9uc2UiOiB7Im5hbWUiOiAiQmFzaCIsICJyZXNwb25zZSI6IHsicmVzdWx0IjogIm9rIn19fQoJCQkJCV0KCQkJCX0KCQkJXQoJCX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFt7CgkJCQkJInJvbGUiOiAibW9kZWwiLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJeyJmdW5jdGlvbkNhbGwiOiB7Im5hbWUiOiAiQmFzaCIsICJhcmdzIjoge319fQoJCQkJCV0KCQkJCX0seyJwYXJ0cyI6W3siZnVuY3Rpb25SZXNwb25zZSI6IHsibmFtZSI6ICJCYXNoIiwgInJlc3BvbnNlIjogeyJyZXN1bHQiOiAib2sifX19XSwicm9sZSI6ImZ1bmN0aW9uIn1dCgkJfQoJfQ==",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_MoreResponsesThanCalls:546",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFsKCQkJCXsKCQkJCQkicm9sZSI6ICJtb2RlbCIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uQ2FsbCI6IHsibmFtZSI6ICJCYXNoIiwgImFyZ3MiOiB7fX19CgkJCQkJXQoJCQkJfSwKCQkJCXsKCQkJCQkicm9sZSI6ICJmdW5jdGlvbiIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uUmVzcG9uc2UiOiB7Im5hbWUiOiAiIiwgInJlc3BvbnNlIjogeyJyZXN1bHQiOiAib2sifX19LAoJCQkJCQl7ImZ1bmN0aW9uUmVzcG9uc2UiOiB7Im5hbWUiOiAiIiwgInJlc3BvbnNlIjogeyJyZXN1bHQiOiAiZXh0cmEifX19CgkJCQkJXQoJCQkJfQoJCQldCgkJfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFt7CgkJCQkJInJvbGUiOiAibW9kZWwiLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJeyJmdW5jdGlvbkNhbGwiOiB7Im5hbWUiOiAiQmFzaCIsICJhcmdzIjoge319fQoJCQkJCV0KCQkJCX0seyJwYXJ0cyI6W3siZnVuY3Rpb25SZXNwb25zZSI6IHsibmFtZSI6ICJCYXNoIiwgInJlc3BvbnNlIjogeyJyZXN1bHQiOiAib2sifX19XSwicm9sZSI6ImZ1bmN0aW9uIn1dCgkJfQoJfQ==",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_MultipleGroupsFIFO:604",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFsKCQkJCXsKCQkJCQkicm9sZSI6ICJtb2RlbCIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uQ2FsbCI6IHsibmFtZSI6ICJSZWFkIiwgImFyZ3MiOiB7fX19CgkJCQkJXQoJCQkJfSwKCQkJCXsKCQkJCQkicm9sZSI6ICJmdW5jdGlvbiIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uUmVzcG9uc2UiOiB7Im5hbWUiOiAiIiwgInJlc3BvbnNlIjogeyJyZXN1bHQiOiAiZmlsZSBjb250ZW50In19fQoJCQkJCV0KCQkJCX0sCgkJCQl7CgkJCQkJInJvbGUiOiAibW9kZWwiLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJeyJmdW5jdGlvbkNhbGwiOiB7Im5hbWUiOiAiR3JlcCIsICJhcmdzIjoge319fQoJCQkJCV0KCQkJCX0sCgkJCQl7CgkJCQkJInJvbGUiOiAiZnVuY3Rpb24iLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJeyJmdW5jdGlvblJlc3BvbnNlIjogeyJuYW1lIjogIiIsICJyZXNwb25zZSI6IHsicmVzdWx0IjogIm1hdGNoIn19fQoJCQkJCV0KCQkJCX0KCQkJXQoJCX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8tcHJldmlldyIsCgkJInJlcXVlc3QiOiB7CgkJCSJjb250ZW50cyI6IFt7CgkJCQkJInJvbGUiOiAibW9kZWwiLAoJCQkJCSJwYXJ0cyI6IFsKCQkJCQkJeyJmdW5jdGlvbkNhbGwiOiB7Im5hbWUiOiAiUmVhZCIsICJhcmdzIjoge319fQoJCQkJCV0KCQkJCX0seyJwYXJ0cyI6W3siZnVuY3Rpb25SZXNwb25zZSI6IHsibmFtZSI6ICJSZWFkIiwgInJlc3BvbnNlIjogeyJyZXN1bHQiOiAiZmlsZSBjb250ZW50In19fV0sInJvbGUiOiJmdW5jdGlvbiJ9LHsKCQkJCQkicm9sZSI6ICJtb2RlbCIsCgkJCQkJInBhcnRzIjogWwoJCQkJCQl7ImZ1bmN0aW9uQ2FsbCI6IHsibmFtZSI6ICJHcmVwIiwgImFyZ3MiOiB7fX19CgkJCQkJXQoJCQkJfSx7InBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjogeyJuYW1lIjogIkdyZXAiLCAicmVzcG9uc2UiOiB7InJlc3VsdCI6ICJtYXRjaCJ9fX1dLCJyb2xlIjoiZnVuY3Rpb24ifV0KCQl9Cgl9",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_AttachesSiblingInlineDataToNearestFunctionResponse:1050",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsXzEifX1dfSx7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6InJlYWQiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJSZWFkIGltYWdlIGZpbGUgW2ltYWdlL3BuZ10ifSwiaWQiOiJjYWxsXzEifX0seyJpbmxpbmVfZGF0YSI6eyJtaW1lX3R5cGUiOiJpbWFnZS9wbmciLCJkYXRhIjoiUVVKRCJ9fV19XX19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsXzEifX1dfSx7InBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0IjoiUmVhZCBpbWFnZSBmaWxlIFtpbWFnZS9wbmddIn0sImlkIjoiY2FsbF8xIiwicGFydHMiOlt7ImlubGluZURhdGEiOnsibWltZVR5cGUiOiJpbWFnZS9wbmciLCJkYXRhIjoiUVVKRCJ9fV19fV0sInJvbGUiOiJmdW5jdGlvbiJ9XX19",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_AttachesSiblingInlineDataToNearestFunctionResponse:1050",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsXzEifX1dfSx7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6InJlYWQiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvayJ9LCJpZCI6ImNhbGxfMSJ9fSx7ImlubGluZURhdGEiOnsibWltZVR5cGUiOiJpbWFnZS93ZWJwIiwiZGF0YSI6Ik5FVyJ9fV19XX19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsXzEifX1dfSx7InBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifSwiaWQiOiJjYWxsXzEiLCJwYXJ0cyI6W3siaW5saW5lRGF0YSI6eyJtaW1lVHlwZSI6ImltYWdlL3dlYnAiLCJkYXRhIjoiTkVXIn19XX19XSwicm9sZSI6ImZ1bmN0aW9uIn1dfX0=",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_AttachesSiblingInlineDataToNearestFunctionResponse:1050",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsXzEifX1dfSx7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6InJlYWQiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvayJ9LCJpZCI6ImNhbGxfMSIsInBhcnRzIjpbeyJpbmxpbmVEYXRhIjp7Im1pbWVUeXBlIjoiaW1hZ2UvZ2lmIiwiZGF0YSI6Ik9MRCJ9fV19fSx7ImlubGluZURhdGEiOnsibWltZVR5cGUiOiJpbWFnZS93ZWJwIiwiZGF0YSI6Ik5FVyJ9fV19XX19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsXzEifX1dfSx7InBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifSwiaWQiOiJjYWxsXzEiLCJwYXJ0cyI6W3siaW5saW5lRGF0YSI6eyJtaW1lVHlwZSI6ImltYWdlL2dpZiIsImRhdGEiOiJPTEQifX0seyJpbmxpbmVEYXRhIjp7Im1pbWVUeXBlIjoiaW1hZ2Uvd2VicCIsImRhdGEiOiJORVcifX1dfX1dLCJyb2xlIjoiZnVuY3Rpb24ifV19fQ==",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_AttachesSiblingInlineDataToNearestFunctionResponse:1050",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsX2EifX0seyJmdW5jdGlvbkNhbGwiOnsibmFtZSI6InJlYWQiLCJpZCI6ImNhbGxfYiJ9fV19LHsicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3siZnVuY3Rpb25SZXNwb25zZSI6eyJuYW1lIjoicmVhZCIsInJlc3BvbnNlIjp7InJlc3VsdCI6IkEifSwiaWQiOiJjYWxsX2EifX0seyJpbmxpbmVfZGF0YSI6eyJtaW1lX3R5cGUiOiJpbWFnZS9wbmciLCJkYXRhIjoiQUFBIn19LHsiZnVuY3Rpb25SZXNwb25zZSI6eyJuYW1lIjoicmVhZCIsInJlc3BvbnNlIjp7InJlc3VsdCI6IkIifSwiaWQiOiJjYWxsX2IifX0seyJpbmxpbmVfZGF0YSI6eyJtaW1lX3R5cGUiOiJpbWFnZS9qcGVnIiwiZGF0YSI6IkJCQiJ9fV19XX19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsX2EifX0seyJmdW5jdGlvbkNhbGwiOnsibmFtZSI6InJlYWQiLCJpZCI6ImNhbGxfYiJ9fV19LHsicGFydHMiOlt7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6InJlYWQiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJBIn0sImlkIjoiY2FsbF9hIiwicGFydHMiOlt7ImlubGluZURhdGEiOnsibWltZVR5cGUiOiJpbWFnZS9wbmciLCJkYXRhIjoiQUFBIn19XX19LHsiZnVuY3Rpb25SZXNwb25zZSI6eyJuYW1lIjoicmVhZCIsInJlc3BvbnNlIjp7InJlc3VsdCI6IkIifSwiaWQiOiJjYWxsX2IiLCJwYXJ0cyI6W3siaW5saW5lRGF0YSI6eyJtaW1lVHlwZSI6ImltYWdlL2pwZWciLCJkYXRhIjoiQkJCIn19XX19XSwicm9sZSI6ImZ1bmN0aW9uIn1dfX0=",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_AttachesSiblingInlineDataToNearestFunctionResponse:1050",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsX2EifX0seyJmdW5jdGlvbkNhbGwiOnsibmFtZSI6InJlYWQiLCJpZCI6ImNhbGxfYiJ9fV19LHsicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3siaW5saW5lX2RhdGEiOnsibWltZV90eXBlIjoiaW1hZ2UvcG5nIiwiZGF0YSI6IkxFQUQifX0seyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0IjoiQSJ9LCJpZCI6ImNhbGxfYSJ9fSx7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6InJlYWQiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJCIn0sImlkIjoiY2FsbF9iIn19XX1dfX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsX2EifX0seyJmdW5jdGlvbkNhbGwiOnsibmFtZSI6InJlYWQiLCJpZCI6ImNhbGxfYiJ9fV19LHsicGFydHMiOlt7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6InJlYWQiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJBIn0sImlkIjoiY2FsbF9hIiwicGFydHMiOlt7ImlubGluZURhdGEiOnsibWltZVR5cGUiOiJpbWFnZS9wbmciLCJkYXRhIjoiTEVBRCJ9fV19fSx7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6InJlYWQiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJCIn0sImlkIjoiY2FsbF9iIn19XSwicm9sZSI6ImZ1bmN0aW9uIn1dfX0=",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponse_AttachesSiblingInlineDataToNearestFunctionResponse:1050",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsXzEifX1dfSx7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6InJlYWQiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvayJ9LCJpZCI6ImNhbGxfMSJ9fSx7ImlubGluZURhdGEiOnsiZGF0YSI6IlFVSkQifX1dfV19fQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJyZWFkIiwiaWQiOiJjYWxsXzEifX1dfSx7InBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifSwiaWQiOiJjYWxsXzEiLCJwYXJ0cyI6W3siaW5saW5lRGF0YSI6eyJtaW1lVHlwZSI6ImltYWdlL3BuZyIsImRhdGEiOiJRVUpEIn19XX19XSwicm9sZSI6ImZ1bmN0aW9uIn1dfX0=",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestRestoreUsageMetadata:37",
+   "fn": "internal/translator/antigravity/gemini.restoreUsageMetadata",
+   "args": [
+    {
+     "b": "eyJtb2RlbFZlcnNpb24iOiJnZW1pbmktMy1wcm8iLCJjcGFVc2FnZU1ldGFkYXRhIjp7InByb21wdFRva2VuQ291bnQiOjEwMCwiY2FuZGlkYXRlc1Rva2VuQ291bnQiOjIwMH19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJtb2RlbFZlcnNpb24iOiJnZW1pbmktMy1wcm8iLCJ1c2FnZU1ldGFkYXRhIjp7InByb21wdFRva2VuQ291bnQiOjEwMCwiY2FuZGlkYXRlc1Rva2VuQ291bnQiOjIwMH19",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestRestoreUsageMetadata:37",
+   "fn": "internal/translator/antigravity/gemini.restoreUsageMetadata",
+   "args": [
+    {
+     "b": "eyJtb2RlbFZlcnNpb24iOiJnZW1pbmktMy1wcm8iLCJ1c2FnZU1ldGFkYXRhIjp7InByb21wdFRva2VuQ291bnQiOjEwMH19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJtb2RlbFZlcnNpb24iOiJnZW1pbmktMy1wcm8iLCJ1c2FnZU1ldGFkYXRhIjp7InByb21wdFRva2VuQ291bnQiOjEwMH19",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestRestoreUsageMetadata:37",
+   "fn": "internal/translator/antigravity/gemini.restoreUsageMetadata",
+   "args": [
+    {
+     "b": "e30=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "e30=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestRewriteGeminiFunctionNamesReusesNormalizedPayload:14",
+   "fn": "internal/translator/antigravity/gemini.rewriteGeminiFunctionNames",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJsb29rdXAiLCJhcmdzIjp7fX19XX0seyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJsb29rdXAiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvayJ9fX1dfV0sInRvb2xDb25maWciOnsiZnVuY3Rpb25DYWxsaW5nQ29uZmlnIjp7ImFsbG93ZWRGdW5jdGlvbk5hbWVzIjpbImxvb2t1cCJdfX19fQ==",
+     "nil": false
+    },
+    {
+     "map": null
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJsb29rdXAiLCJhcmdzIjp7fX19XX0seyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJsb29rdXAiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvayJ9fX1dfV0sInRvb2xDb25maWciOnsiZnVuY3Rpb25DYWxsaW5nQ29uZmlnIjp7ImFsbG93ZWRGdW5jdGlvbk5hbWVzIjpbImxvb2t1cCJdfX19fQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestRemoveEmptyGeminiFunctionToolsReusesNormalizedPayload:24",
+   "fn": "internal/translator/antigravity/gemini.removeEmptyGeminiFunctionTools",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7InRvb2xzIjpbeyJmdW5jdGlvbkRlY2xhcmF0aW9ucyI6W3sibmFtZSI6Imxvb2t1cCJ9XX1dfX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7InRvb2xzIjpbeyJmdW5jdGlvbkRlY2xhcmF0aW9ucyI6W3sibmFtZSI6Imxvb2t1cCJ9XX1dfX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestRemoveEmptyGeminiFunctionToolsDeletesEmptyArray:34",
+   "fn": "internal/translator/antigravity/gemini.removeEmptyGeminiFunctionTools",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7InRvb2xzIjpbXX19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7fX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestRewriteGeminiFunctionNamesNormalizesNonStringNames:44",
+   "fn": "internal/translator/antigravity/gemini.rewriteGeminiFunctionNames",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOnRydWUsImFyZ3MiOnt9fX1dfV0sInRvb2xDb25maWciOnsiZnVuY3Rpb25DYWxsaW5nQ29uZmlnIjp7ImFsbG93ZWRGdW5jdGlvbk5hbWVzIjpbdHJ1ZV19fX19",
+     "nil": false
+    },
+    {
+     "map": null
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJ0cnVlIiwiYXJncyI6e319fV19XSwidG9vbENvbmZpZyI6eyJmdW5jdGlvbkNhbGxpbmdDb25maWciOnsiYWxsb3dlZEZ1bmN0aW9uTmFtZXMiOlsidHJ1ZSJdfX19fQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponseReusesHistoryWithoutFunctionResponses:57",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiaGVsbG8ifV19LHsicm9sZSI6Im1vZGVsIiwicGFydHMiOlt7InRleHQiOiJ3b3JsZCJ9XX1dfX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiaGVsbG8ifV19LHsicm9sZSI6Im1vZGVsIiwicGFydHMiOlt7InRleHQiOiJ3b3JsZCJ9XX1dfX0=",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestFixCLIToolResponsePreservesObjectNormalization:72",
+   "fn": "internal/translator/antigravity/gemini.fixCLIToolResponse",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjp7ImZpcnN0Ijp7InJvbGUiOiJ1c2VyIiwicGFydHMiOlt7InRleHQiOiJoZWxsbyJ9XX19fX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiaGVsbG8ifV19XX19",
+     "nil": false
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestRewriteInteractionsFunctionNamesReusesNormalizedPayload:12",
+   "fn": "internal/translator/antigravity/interactions.rewriteInteractionsFunctionNames",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJsb29rdXAiLCJhcmdzIjp7fX19XX0seyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJsb29rdXAiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvayJ9fX1dfV0sInRvb2xDb25maWciOnsiZnVuY3Rpb25DYWxsaW5nQ29uZmlnIjp7ImFsbG93ZWRGdW5jdGlvbk5hbWVzIjpbImxvb2t1cCJdfX19fQ==",
+     "nil": false
+    },
+    {
+     "map": null
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJsb29rdXAiLCJhcmdzIjp7fX19XX0seyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJsb29rdXAiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvayJ9fX1dfV0sInRvb2xDb25maWciOnsiZnVuY3Rpb25DYWxsaW5nQ29uZmlnIjp7ImFsbG93ZWRGdW5jdGlvbk5hbWVzIjpbImxvb2t1cCJdfX19fQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestRewriteInteractionsFunctionNamesNormalizesNonStringNames:22",
+   "fn": "internal/translator/antigravity/interactions.rewriteInteractionsFunctionNames",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOnRydWUsImFyZ3MiOnt9fX1dfV0sInRvb2xDb25maWciOnsiZnVuY3Rpb25DYWxsaW5nQ29uZmlnIjp7ImFsbG93ZWRGdW5jdGlvbk5hbWVzIjpbdHJ1ZV19fX19",
+     "nil": false
+    },
+    {
+     "map": null
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImNvbnRlbnRzIjpbeyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJ0cnVlIiwiYXJncyI6e319fV19XSwidG9vbENvbmZpZyI6eyJmdW5jdGlvbkNhbGxpbmdDb25maWciOnsiYWxsb3dlZEZ1bmN0aW9uTmFtZXMiOlsidHJ1ZSJdfX19fQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeAntigravityOpenAIThinkingConfigReusesCanonicalConfig:8",
+   "fn": "internal/translator/antigravity/openai/chat-completions.normalizeAntigravityOpenAIThinkingConfig",
+   "args": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImdlbmVyYXRpb25Db25maWciOnsidGhpbmtpbmdDb25maWciOnsiaW5jbHVkZVRob3VnaHRzIjp0cnVlLCJ0aGlua2luZ0xldmVsIjoiaGlnaCIsInRoaW5raW5nQnVkZ2V0Ijo4MTkyfX19fQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyZXF1ZXN0Ijp7ImdlbmVyYXRpb25Db25maWciOnsidGhpbmtpbmdDb25maWciOnsiaW5jbHVkZVRob3VnaHRzIjp0cnVlLCJ0aGlua2luZ0xldmVsIjoiaGlnaCIsInRoaW5raW5nQnVkZ2V0Ijo4MTkyfX19fQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolSchemaPreservesCanonicalSchema:12",
+   "fn": "internal/translator/claude/gemini.normalizeClaudeToolSchema",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJ2YWx1ZSI6eyJ0eXBlIjoic3RyaW5nIn19LCJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2UsIiRzY2hlbWEiOiJodHRwOi8vanNvbi1zY2hlbWEub3JnL2RyYWZ0LTA3L3NjaGVtYSMifQ==",
+     "json": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"additionalProperties\":false,\"$schema\":\"http://json-schema.org/draft-07/schema#\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJ2YWx1ZSI6eyJ0eXBlIjoic3RyaW5nIn19LCJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2UsIiRzY2hlbWEiOiJodHRwOi8vanNvbi1zY2hlbWEub3JnL2RyYWZ0LTA3L3NjaGVtYSMifQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolSchemaCorrectsWrongTypes:22",
+   "fn": "internal/translator/claude/gemini.normalizeClaudeToolSchema",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoib2JqZWN0IiwiYWRkaXRpb25hbFByb3BlcnRpZXMiOiJmYWxzZSIsIiRzY2hlbWEiOjEyM30=",
+     "json": "{\"type\":\"object\",\"additionalProperties\":\"false\",\"$schema\":123}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwiYWRkaXRpb25hbFByb3BlcnRpZXMiOmZhbHNlLCIkc2NoZW1hIjoiaHR0cDovL2pzb24tc2NoZW1hLm9yZy9kcmFmdC0wNy9zY2hlbWEjIn0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestLowercaseClaudeToolSchemaTypesReusesLowercaseSchema:35",
+   "fn": "internal/translator/claude/gemini.lowercaseClaudeToolSchemaTypes",
+   "args": [
+    {
+     "b": "eyJuYW1lIjoibG9va3VwIiwiaW5wdXRfc2NoZW1hIjp7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7InZhbHVlIjp7InR5cGUiOiJzdHJpbmcifX19fQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJuYW1lIjoibG9va3VwIiwiaW5wdXRfc2NoZW1hIjp7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7InZhbHVlIjp7InR5cGUiOiJzdHJpbmcifX19fQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestLowercaseClaudeToolSchemaTypesNormalizesNonStringType:45",
+   "fn": "internal/translator/claude/gemini.lowercaseClaudeToolSchemaTypes",
+   "args": [
+    {
+     "b": "eyJpbnB1dF9zY2hlbWEiOnsidHlwZSI6MTIzfX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJpbnB1dF9zY2hlbWEiOnsidHlwZSI6IjEyMyJ9fQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestLowercaseClaudeToolSchemaTypesNormalizesUppercaseTypes:55",
+   "fn": "internal/translator/claude/gemini.lowercaseClaudeToolSchemaTypes",
+   "args": [
+    {
+     "b": "eyJpbnB1dF9zY2hlbWEiOnsidHlwZSI6Ik9CSkVDVCIsInByb3BlcnRpZXMiOnsidmFsdWUiOnsidHlwZSI6IlNUUklORyJ9fX19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJpbnB1dF9zY2hlbWEiOnsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsidmFsdWUiOnsidHlwZSI6InN0cmluZyJ9fX19",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeToolParameters_StripsNestedSchemaAndId:974",
+   "fn": "internal/translator/codex/claude.normalizeToolParameters",
+   "args": [
+    {
+     "s": "{\n\t\t\"type\": \"object\",\n\t\t\"$schema\": \"http://json-schema.org/draft-07/schema#\",\n\t\t\"$id\": \"https://example.invalid/root\",\n\t\t\"properties\": {\n\t\t\t\"q\": {\n\t\t\t\t\"type\": \"string\",\n\t\t\t\t\"$schema\": \"http://json-schema.org/draft-07/schema#\",\n\t\t\t\t\"$id\": \"https://example.invalid/q\"\n\t\t\t},\n\t\t\t\"tags\": {\n\t\t\t\t\"type\": \"array\",\n\t\t\t\t\"items\": {\"type\": \"string\", \"$id\": \"https://example.invalid/tag\"}\n\t\t\t},\n\t\t\t\"mode\": {\n\t\t\t\t\"anyOf\": [\n\t\t\t\t\t{\"type\": \"string\", \"$schema\": \"http://json-schema.org/draft-07/schema#\"},\n\t\t\t\t\t{\"type\": \"null\"}\n\t\t\t\t]\n\t\t\t},\n\t\t\t\"refField\": {\n\t\t\t\t\"$ref\": \"#/$defs/hint\"\n\t\t\t}\n\t\t},\n\t\t\"$defs\": {\n\t\t\t\"hint\": {\"type\": \"string\", \"$id\": \"https://example.invalid/hint\"}\n\t\t},\n\t\t\"required\": [\"q\"]\n\t}"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"$defs\":{\"hint\":{\"type\":\"string\"}},\"properties\":{\"mode\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"null\"}]},\"q\":{\"type\":\"string\"},\"refField\":{\"$ref\":\"#/$defs/hint\"},\"tags\":{\"items\":{\"type\":\"string\"},\"type\":\"array\"}},\"required\":[\"q\"],\"type\":\"object\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1027",
+   "fn": "internal/translator/codex/claude.normalizeToolParameters",
+   "args": [
+    {
+     "s": "{\n\t\t\"type\": \"object\",\n\t\t\"properties\": {\n\t\t\t\"$schema\": {\n\t\t\t\t\"type\": \"string\",\n\t\t\t\t\"$schema\": \"http://json-schema.org/draft-07/schema#\",\n\t\t\t\t\"$id\": \"https://example.invalid/sub-schema\"\n\t\t\t},\n\t\t\t\"$id\": {\n\t\t\t\t\"type\": \"string\"\n\t\t\t},\n\t\t\t\"config\": {\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"default\": {\n\t\t\t\t\t\"$id\": \"default-id-123\"\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"properties\":{\"$id\":{\"type\":\"string\"},\"$schema\":{\"type\":\"string\"},\"config\":{\"default\":{\"$id\":\"default-id-123\"},\"type\":\"object\"}},\"type\":\"object\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1047",
+   "fn": "internal/translator/codex/claude.normalizeToolParameters",
+   "args": [
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"type\":\"object\",\"properties\":{}}"
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1050",
+   "fn": "internal/translator/codex/claude.normalizeToolParameters",
+   "args": [
+    {
+     "s": "null"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"type\":\"object\",\"properties\":{}}"
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1056",
+   "fn": "internal/translator/codex/claude.normalizeToolParameters",
+   "args": [
+    {
+     "s": "{\"type\": [\"object\", \"null\"]}"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"properties\":{},\"type\":[\"object\",\"null\"]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanGeminiCodexToolParametersPreservesCanonicalSchema:12",
+   "fn": "internal/translator/codex/gemini.cleanGeminiCodexToolParameters",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJ2YWx1ZSI6eyJ0eXBlIjoic3RyaW5nIn19LCJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2V9",
+     "json": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"additionalProperties\":false}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJ2YWx1ZSI6eyJ0eXBlIjoic3RyaW5nIn19LCJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2V9",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestCleanGeminiCodexToolParametersNormalizesSchema:33",
+   "fn": "internal/translator/codex/gemini.cleanGeminiCodexToolParameters",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoib2JqZWN0IiwiJHNjaGVtYSI6ImRyYWZ0IiwiYWRkaXRpb25hbFByb3BlcnRpZXMiOnRydWV9",
+     "json": "{\"type\":\"object\",\"$schema\":\"draft\",\"additionalProperties\":true}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwiYWRkaXRpb25hbFByb3BlcnRpZXMiOmZhbHNlfQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestCleanedCodexToolParametersPreservesCanonicalSchema:12",
+   "fn": "internal/translator/codex/interactions.cleanedCodexToolParameters",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJ2YWx1ZSI6eyJ0eXBlIjoic3RyaW5nIn19LCJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2V9",
+     "json": "{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\"}},\"additionalProperties\":false}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJ2YWx1ZSI6eyJ0eXBlIjoic3RyaW5nIn19LCJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2V9",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSetInteractionsCodexRawIfDifferentReusesMatchingValue:23",
+   "fn": "internal/translator/codex/interactions.setInteractionsCodexRawIfDifferent",
+   "args": [
+    {
+     "b": "eyJ0b29sX2Nob2ljZSI6ImF1dG8iLCJpbnB1dCI6W119",
+     "nil": false
+    },
+    {
+     "s": "tool_choice"
+    },
+    {
+     "exists": true,
+     "jb": "ImF1dG8i",
+     "json": "\"auto\"",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0b29sX2Nob2ljZSI6ImF1dG8iLCJpbnB1dCI6W119",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityToolNameToUpstream:20",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "read_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_read_file"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityToolNameToUpstream:20",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "write_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_write_file"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityToolNameToUpstream:20",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "execute_code"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_execute_code"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityToolNameToUpstream:20",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "web_search"
+    }
+   ],
+   "results": [
+    {
+     "s": "web_search"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityToolNameToUpstream:20",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "get_weather"
+    }
+   ],
+   "results": [
+    {
+     "s": "get_weather"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityUpstreamToolNameToClient:41",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_read_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "read_file"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityUpstreamToolNameToClient:41",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_write_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "write_file"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityUpstreamToolNameToClient:41",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_execute_code"
+    }
+   ],
+   "results": [
+    {
+     "s": "execute_code"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityUpstreamToolNameToClient:41",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_weather"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_weather"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityUpstreamToolNameToClient:41",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_lookup"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_lookup"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityUpstreamToolNameToClient:41",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "web_search"
+    }
+   ],
+   "results": [
+    {
+     "s": "web_search"
+    }
+   ]
+  },
+  {
+   "name": "TestAntigravityUpstreamToolNameToClient:41",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "get_weather"
+    }
+   ],
+   "results": [
+    {
+     "s": "get_weather"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateInterleavedCalls:30",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "first😀\nlast"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"first😀\\nlast\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateInterleavedCalls:34",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "second中"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"second中\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 15 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 15 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 0 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 0 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 1 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 1 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 2 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 2 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 3 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 3 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 4 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 4 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 5 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 5 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 6 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 6 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 7 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 7 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 8 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 8 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 9 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 9 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 10 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 10 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 11 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 11 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 12 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 12 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 13 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 13 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 14 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 14 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchInputDecoderEverySplit:13",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n*** Add File: a.txt\n+中文 \\\"\n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n*** Add File: a.txt\\n+中文 \\\\\\\"\\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchInputDecoderPreviewBeforeClosingJSON:117",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n*** Add File: a.txt\n+  中😀\n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n*** Add File: a.txt\\n+  中😀\\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchInputDecoderFinishAndRepeatedTermination:239",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "  first\nsecond  \n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"  first\\nsecond  \\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchInputDecoderFinishAndRepeatedTermination:264",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "  first\nsecond  \nmore"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"  first\\nsecond  \\nmore\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchInputDecoderRejectsFinalPrefixConflict:277",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "other"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"other\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchInputDecoderRejectsFinalPrefixConflict:277",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "pre"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"pre\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchInputDecoderRejectsFinalPrefixConflict:277",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "prefix changed"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"prefix changed\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchInputDecoderErrorIsTerminal:295",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "safe"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"safe\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesBridgeDeltaAndFourCompletions:49",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+中文\\uD83D\\uDE00 \\\"\\\\\\n*** End Patch\\n\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "*** Begin Patch\n+中文😀 \"\\\n*** End Patch\n"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesBridgeStagesAndFinish:149",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "patch0"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"patch0\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesBridgeStagesAndFinish:149",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "patch1"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"patch1\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesRequestHistoryAndWinners:180",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"raw\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"{\\\"input\\\":\\\"raw\\\"}\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesNamespaceMixedNonStream:210",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "p"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"p\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesContinuationMissingSnapshots:229",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "p"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"p\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesContinuationNoInventedPreview:269",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "p"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"p\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesContinuationAllMatchedProvenance:306",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "p"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"p\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesContinuationCompletedWindow:318",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "p"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"p\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesContinuationCompletedWindow:323",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "different"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"different\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchResponsesContinuationOmittedMixedCompletedItems:337",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "p"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"p\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestAttachCacheControl_CopiesObject:14",
+   "fn": "internal/translator/common.AttachCacheControl",
+   "args": [
+    {
+     "b": "eyJ0eXBlIjoidGV4dCIsInRleHQiOiJoaSJ9",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJ0ZXh0IjoiaGkiLCJjYWNoZV9jb250cm9sIjp7InR5cGUiOiJlcGhlbWVyYWwiLCJ0dGwiOiI1bSJ9fQ==",
+     "json": "{\"text\":\"hi\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"5m\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoidGV4dCIsInRleHQiOiJoaSIsImNhY2hlX2NvbnRyb2wiOnsidHlwZSI6ImVwaGVtZXJhbCIsInR0bCI6IjVtIn19",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachCacheControl_IgnoresMissing:27",
+   "fn": "internal/translator/common.AttachCacheControl",
+   "args": [
+    {
+     "b": "eyJ0eXBlIjoidGV4dCIsInRleHQiOiJoaSJ9",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJ0ZXh0IjoiaGkifQ==",
+     "json": "{\"text\":\"hi\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoidGV4dCIsInRleHQiOiJoaSJ9",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachMessageCacheControl_PromotesStringContent:37",
+   "fn": "internal/translator/common.AttachMessageCacheControl",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoaSJ9",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoaSIsImNhY2hlX2NvbnRyb2wiOnsidHlwZSI6ImVwaGVtZXJhbCJ9fQ==",
+     "json": "{\"role\":\"user\",\"content\":\"hi\",\"cache_control\":{\"type\":\"ephemeral\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6ImhpIiwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIn19XX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachMessageCacheControl_SkipsWhenLastPartHasCacheControl:53",
+   "fn": "internal/translator/common.AttachMessageCacheControl",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6ImhpIiwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIn19XX0=",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJjYWNoZV9jb250cm9sIjp7InR5cGUiOiJlcGhlbWVyYWwiLCJ0dGwiOiIxaCJ9fQ==",
+     "json": "{\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6ImhpIiwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIn19XX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachToolMessageCacheControl_HoistsPartLevel:63",
+   "fn": "internal/translator/common.AttachToolMessageCacheControl",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XX1dfQ==",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJyb2xlIjoidG9vbCIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjQiLCJjYWNoZV9jb250cm9sIjp7InR5cGUiOiJlcGhlbWVyYWwifX1dLCJjYWNoZV9jb250cm9sIjp7InR5cGUiOiJlcGhlbWVyYWwiLCJ0dGwiOiIxaCJ9fQ==",
+     "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"text\",\"text\":\"4\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XSwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIn19XX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachToolMessageCacheControl_InvalidPartDoesNotBlockMessageLevel:89",
+   "fn": "internal/translator/common.AttachToolMessageCacheControl",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XX1dfQ==",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJyb2xlIjoidG9vbCIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjQiLCJjYWNoZV9jb250cm9sIjp7fX1dLCJjYWNoZV9jb250cm9sIjp7InR5cGUiOiJlcGhlbWVyYWwiLCJ0dGwiOiIxaCJ9fQ==",
+     "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"text\",\"text\":\"4\",\"cache_control\":{}}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XSwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIiwidHRsIjoiMWgifX1dfQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachToolMessageCacheControl_InvalidPartDoesNotBlockMessageLevel:89",
+   "fn": "internal/translator/common.AttachToolMessageCacheControl",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XX1dfQ==",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJyb2xlIjoidG9vbCIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjQiLCJjYWNoZV9jb250cm9sIjp7InR5cGUiOiJpbnZhbGlkIn19XSwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIiwidHRsIjoiMWgifX0=",
+     "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"text\",\"text\":\"4\",\"cache_control\":{\"type\":\"invalid\"}}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XSwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIiwidHRsIjoiMWgifX1dfQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachToolMessageCacheControl_InvalidPartDoesNotBlockMessageLevel:89",
+   "fn": "internal/translator/common.AttachToolMessageCacheControl",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XX1dfQ==",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJyb2xlIjoidG9vbCIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjQiLCJjYWNoZV9jb250cm9sIjp7InR5cGUiOiIgZXBoZW1lcmFsICJ9fV0sImNhY2hlX2NvbnRyb2wiOnsidHlwZSI6ImVwaGVtZXJhbCIsInR0bCI6IjFoIn19",
+     "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"text\",\"text\":\"4\",\"cache_control\":{\"type\":\" ephemeral \"}}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XSwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIiwidHRsIjoiMWgifX1dfQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachToolMessageCacheControl_InvalidPartDoesNotBlockMessageLevel:89",
+   "fn": "internal/translator/common.AttachToolMessageCacheControl",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XX1dfQ==",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJyb2xlIjoidG9vbCIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IjQiLCJjYWNoZV9jb250cm9sIjp7InR5cGUiOjEyM319XSwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIiwidHRsIjoiMWgifX0=",
+     "json": "{\"role\":\"tool\",\"content\":[{\"type\":\"text\",\"text\":\"4\",\"cache_control\":{\"type\":123}}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0b29sX3Jlc3VsdCIsInRvb2xfdXNlX2lkIjoiY2FsbF8xIiwiY29udGVudCI6W3sidHlwZSI6InRleHQiLCJ0ZXh0IjoiNCJ9XSwiY2FjaGVfY29udHJvbCI6eyJ0eXBlIjoiZXBoZW1lcmFsIiwidHRsIjoiMWgifX1dfQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAttachToolMessageCacheControl_NoToolResultLeavesMessageUntouched:104",
+   "fn": "internal/translator/common.AttachToolMessageCacheControl",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Imp1c3QgdGV4dCJ9XX0=",
+     "nil": false
+    },
+    {
+     "exists": true,
+     "jb": "eyJyb2xlIjoidG9vbCIsImNhY2hlX2NvbnRyb2wiOnsidHlwZSI6ImVwaGVtZXJhbCJ9fQ==",
+     "json": "{\"role\":\"tool\",\"cache_control\":{\"type\":\"ephemeral\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Imp1c3QgdGV4dCJ9XX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestBuildClaudeStructuredOutputInstruction:12",
+   "fn": "internal/translator/common.BuildClaudeStructuredOutputInstruction",
+   "args": [
+    {
+     "exists": false,
+     "jb": "",
+     "json": "",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    }
+   ]
+  },
+  {
+   "name": "TestBuildClaudeStructuredOutputInstruction:15",
+   "fn": "internal/translator/common.BuildClaudeStructuredOutputInstruction",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoidGV4dCJ9",
+     "json": "{\"type\":\"text\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    }
+   ]
+  },
+  {
+   "name": "TestBuildClaudeStructuredOutputInstruction:21",
+   "fn": "internal/translator/common.BuildClaudeStructuredOutputInstruction",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoianNvbl9vYmplY3QifQ==",
+     "json": "{\"type\":\"json_object\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "You must format your entire response as a valid JSON object. Do not include any explanations, markdown code blocks (such as ```json), or any text outside of the JSON object."
+    }
+   ]
+  },
+  {
+   "name": "TestBuildClaudeStructuredOutputInstruction:39",
+   "fn": "internal/translator/common.BuildClaudeStructuredOutputInstruction",
+   "args": [
+    {
+     "exists": true,
+     "jb": "ewoJCQkidHlwZSI6ICJqc29uX3NjaGVtYSIsCgkJCSJqc29uX3NjaGVtYSI6IHsKCQkJCSJuYW1lIjogImV4dHJhY3RlZF9mYWN0cyIsCgkJCQkiZGVzY3JpcHRpb24iOiAiRmFjdHMgZnJvbSB0ZXh0IiwKCQkJCSJzY2hlbWEiOiB7CgkJCQkJInR5cGUiOiAib2JqZWN0IiwKCQkJCQkicHJvcGVydGllcyI6IHsiZmFjdHMiOiB7InR5cGUiOiAiYXJyYXkifX0KCQkJCX0KCQkJfQoJCX0=",
+     "json": "{\n\t\t\t\"type\": \"json_schema\",\n\t\t\t\"json_schema\": {\n\t\t\t\t\"name\": \"extracted_facts\",\n\t\t\t\t\"description\": \"Facts from text\",\n\t\t\t\t\"schema\": {\n\t\t\t\t\t\"type\": \"object\",\n\t\t\t\t\t\"properties\": {\"facts\": {\"type\": \"array\"}}\n\t\t\t\t}\n\t\t\t}\n\t\t}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "You must format your entire response as valid JSON that conforms strictly to the following JSON schema:\nSchema Name: extracted_facts\nSchema Description: Facts from text\nJSON Schema:\n{\n\t\t\t\t\t\"type\": \"object\",\n\t\t\t\t\t\"properties\": {\"facts\": {\"type\": \"array\"}}\n\t\t\t\t}\nDo not include any explanations, markdown code blocks (such as ```json), or any text outside of the JSON object."
+    }
+   ]
+  },
+  {
+   "name": "TestBuildClaudeStructuredOutputInstruction:59",
+   "fn": "internal/translator/common.BuildClaudeStructuredOutputInstruction",
+   "args": [
+    {
+     "exists": true,
+     "jb": "ewoJCQkidHlwZSI6ICJqc29uX3NjaGVtYSIsCgkJCSJzY2hlbWEiOiB7CgkJCQkidHlwZSI6ICJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOiB7ImtleSI6IHsidHlwZSI6ICJzdHJpbmcifX0KCQkJfQoJCX0=",
+     "json": "{\n\t\t\t\"type\": \"json_schema\",\n\t\t\t\"schema\": {\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"properties\": {\"key\": {\"type\": \"string\"}}\n\t\t\t}\n\t\t}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "You must format your entire response as valid JSON that conforms strictly to the following JSON schema:\nJSON Schema:\n{\n\t\t\t\t\"type\": \"object\",\n\t\t\t\t\"properties\": {\"key\": {\"type\": \"string\"}}\n\t\t\t}\nDo not include any explanations, markdown code blocks (such as ```json), or any text outside of the JSON object."
+    }
+   ]
+  },
+  {
+   "name": "TestBuildClaudeStructuredOutputInstruction:67",
+   "fn": "internal/translator/common.BuildClaudeStructuredOutputInstruction",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjogImpzb25fc2NoZW1hIn0=",
+     "json": "{\"type\": \"json_schema\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "You must format your entire response as a valid JSON object. Do not include any explanations, markdown code blocks (such as ```json), or any text outside of the JSON object."
+    }
+   ]
+  },
+  {
+   "name": "TestSystemReminderText:76",
+   "fn": "internal/translator/common.SystemReminderText",
+   "args": [
+    {
+     "s": "Please call a tool now."
+    }
+   ],
+   "results": [
+    {
+     "s": "\u003csystem-reminder\u003e\nPlease call a tool now.\n\u003c/system-reminder\u003e"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_SameConversationIsStable:9",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImhlbGxvIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "aed247d5b4f6f6d76b83aaff44ae80eb714c3796bf953c8055d6fa7515b4b291"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_PreservesCallerSuppliedMetadataUserID:49",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWV0YWRhdGEiOnsidXNlcl9pZCI6ImNhbGxlci0xMjMifSwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImhlbGxvIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "caller-123"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_PreservesCallerSuppliedMetadataUserID:49",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWV0YWRhdGEiOnsidXNlcl9pZCI6IiAgY2FsbGVyLXNwYWNlcyAgIn0sIm1lc3NhZ2VzIjpbeyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoZWxsbyJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "  caller-spaces  "
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_PreservesCallerSuppliedMetadataUserID:49",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWV0YWRhdGEiOnsidXNlcl9pZCI6ImZvb1wiYmFyXG5iYXpcXHF1eCJ9LCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoiaGVsbG8ifV19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "foo\"bar\nbaz\\qux"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_PreservesCallerSuppliedMetadataUserID:49",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWV0YWRhdGEiOnsidXNlcl9pZCI6IntcImRldmljZV9pZFwiOlwiZGV2LTFcIixcInNlc3Npb25faWRcIjpcInNlc3MtMVwifSJ9LCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoiaGVsbG8ifV19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"device_id\":\"dev-1\",\"session_id\":\"sess-1\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_PreservesOpenAIUserField:58",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwidXNlciI6Im9wZW5haS11c2VyLTQ1NiIsIm1lc3NhZ2VzIjpbeyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoZWxsbyJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "openai-user-456"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_MetadataUserIDTakesPriorityOverUserField:65",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWV0YWRhdGEiOnsidXNlcl9pZCI6Im1ldGEtdXNlci0xIn0sInVzZXIiOiJvcGVuYWktdXNlci0yIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImhlbGxvIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "meta-user-1"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_CaseInsensitiveUserRole:73",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWVzc2FnZXMiOlt7InJvbGUiOiJVc2VyIiwiY29udGVudCI6Im1lc3NhZ2UgQSJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "dd840f924733b5bd15db297f32c0901edd4702c7fb6e522f61b27f4a3c067f05"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_CaseInsensitiveUserRole:74",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWVzc2FnZXMiOlt7InJvbGUiOiJVU0VSIiwiY29udGVudCI6Im1lc3NhZ2UgQiJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "074c9abfaa9c2847bac959b7d7d1b4af9b3c3313cf9426629c0bfdd6cb7dc828"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_IgnoresNonStringMetadataUserIDOrUser:85",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWV0YWRhdGEiOnsidXNlcl9pZCI6MTIzNDV9LCJ1c2VyIjp0cnVlLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoiaGVsbG8ifV19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "aed247d5b4f6f6d76b83aaff44ae80eb714c3796bf953c8055d6fa7515b4b291"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_DifferentSessionsAreDifferent:94",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwicHJvbXB0X2NhY2hlX2tleSI6InNlc3Npb24tYSIsIm1lc3NhZ2VzIjpbeyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoZWxsbyJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "9267c59af3b531f1631a1ec98e642459064f8d90c3ef3e01079bc8036c4e9a7a"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_DifferentSessionsAreDifferent:95",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwicHJvbXB0X2NhY2hlX2tleSI6InNlc3Npb24tYiIsIm1lc3NhZ2VzIjpbeyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoZWxsbyJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "7e3e3ca4a2eb51cc10f27901c2af7e1064b57f210aab2d11a70608e6c0bd0dbc"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_SessionIDVariants:104",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0Iiwic2Vzc2lvbl9pZCI6InNlc3MtYSIsIm1lc3NhZ2VzIjpbeyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoZWxsbyJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "95d62c5293a6065acacc1facd02ac7eea3e48c7d9d3f7e7bbacc331565a36c3b"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_SessionIDVariants:105",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0Iiwic2Vzc2lvbklkIjoic2Vzcy1iIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImhlbGxvIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "889b2b295c4a79e5005fe06d92ebd624766a7e2c07e681af33f1b21d82cc1581"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_ConversationIDVariants:119",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwiY29udmVyc2F0aW9uIjp7ImlkIjoiY29udi0xIn0sIm1lc3NhZ2VzIjpbeyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoZWxsbyJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "1366a706a2c843c9983d24eccf1cbcf29594becba018b792b54a4b9bc3049760"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_ConversationIDVariants:120",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwiY29udmVyc2F0aW9uIjoiY29udi0yIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImhlbGxvIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "620c7c476279226e4b19e288e751aa40e3ca96b5c0e22abad9ecd29e4e2a1223"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_ConversationIDVariants:121",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwiY29udmVyc2F0aW9uX2lkIjoiY29udi0zIiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImhlbGxvIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "4d55ce3b97e8a524dc077a1d6f75cae2cd36fed0789600e46c155f4660887a38"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_TurnGrowthKeepsSameUserID:134",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwicHJvbXB0X2NhY2hlX2tleSI6InNlc3Npb24tMSIsIm1lc3NhZ2VzIjpbeyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoZWxsbyJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "75f5b5d599a68ac51a23c147660904f126e22ce921d803a35036964ca394dc90"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_TurnGrowthKeepsSameUserID:135",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwicHJvbXB0X2NhY2hlX2tleSI6InNlc3Npb24tMSIsIm1lc3NhZ2VzIjpbeyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoZWxsbyJ9LHsicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOiJoaSJ9LHsicm9sZSI6InVzZXIiLCJjb250ZW50IjoiZm9sbG93IHVwIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "75f5b5d599a68ac51a23c147660904f126e22ce921d803a35036964ca394dc90"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_TurnGrowthWithoutSessionKeyKeepsSameUserID:144",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImZpcnN0IHByb21wdCJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "22d344f996238f7fb8d79ce219cd865da7515b7d1b74d76d75a6fae45ddb927c"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_TurnGrowthWithoutSessionKeyKeepsSameUserID:145",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6ImZpcnN0IHByb21wdCJ9LHsicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOiJoaSJ9LHsicm9sZSI6InVzZXIiLCJjb250ZW50Ijoic2Vjb25kIHByb21wdCJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "22d344f996238f7fb8d79ce219cd865da7515b7d1b74d76d75a6fae45ddb927c"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiTurnGrowthWithoutSessionKeyKeepsSameUserID:157",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6ImZpcnN0IGdlbWluaSBwcm9tcHQifV19XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "3037e515e79835bd84e78669c16f11ab67fcd925f90d5df30c028dfd19f6e80d"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiTurnGrowthWithoutSessionKeyKeepsSameUserID:158",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6ImZpcnN0IGdlbWluaSBwcm9tcHQifV19LHsicm9sZSI6Im1vZGVsIiwicGFydHMiOlt7InRleHQiOiJhbnN3ZXIifV19LHsicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6InNlY29uZCBwcm9tcHQifV19XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "3037e515e79835bd84e78669c16f11ab67fcd925f90d5df30c028dfd19f6e80d"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_FirstMessageFallback:170",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6Im1lc3NhZ2UgQSJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "dd840f924733b5bd15db297f32c0901edd4702c7fb6e522f61b27f4a3c067f05"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_FirstMessageFallback:171",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6Im1lc3NhZ2UgQiJ9XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "074c9abfaa9c2847bac959b7d7d1b4af9b3c3313cf9426629c0bfdd6cb7dc828"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_ResponsesInputString:183",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwiaW5wdXQiOiJoZWxsbyB3b3JsZCBBIn0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "ffbcf20a9711b00d714696e39e117dd8c8fee2af98578b2e9b8b42d2dd1f3816"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_ResponsesInputString:184",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS10ZXN0IiwiaW5wdXQiOiJoZWxsbyB3b3JsZCBCIn0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "1f803b8f6f3721b88eae2f1f670bebb1cb5d0813e216416da817ee87672ef00b"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_ResponsesInputArraySkipsSystemLevelItems:210",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtdGVzdCIsCgkJImlucHV0IjogWwoJCQl7InR5cGUiOiAibWVzc2FnZSIsICJyb2xlIjogInN5c3RlbSIsICJjb250ZW50IjogInN5c3RlbSBwcm9tcHQifSwKCQkJeyJ0eXBlIjogIm1lc3NhZ2UiLCAicm9sZSI6ICJkZXZlbG9wZXIiLCAiY29udGVudCI6ICJkZXYgcHJvbXB0In0sCgkJCXsidHlwZSI6ICJtZXNzYWdlIiwgInJvbGUiOiAidXNlciIsICJjb250ZW50IjogW3sidHlwZSI6ICJpbnB1dF90ZXh0IiwgInRleHQiOiAidXNlciBtZXNzYWdlIEEifV19CgkJXQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "d5c8c76ecaaaec83831ef1e37d5cf0c9edb66660354c6cee47b7cebaeace5e36"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_ResponsesInputArraySkipsSystemLevelItems:211",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtdGVzdCIsCgkJImlucHV0IjogWwoJCQl7InR5cGUiOiAibWVzc2FnZSIsICJyb2xlIjogInN5c3RlbSIsICJjb250ZW50IjogInN5c3RlbSBwcm9tcHQifSwKCQkJeyJ0eXBlIjogIm1lc3NhZ2UiLCAicm9sZSI6ICJkZXZlbG9wZXIiLCAiY29udGVudCI6ICJkZXYgcHJvbXB0In0sCgkJCXsidHlwZSI6ICJtZXNzYWdlIiwgInJvbGUiOiAidXNlciIsICJjb250ZW50IjogW3sidHlwZSI6ICJpbnB1dF90ZXh0IiwgInRleHQiOiAidXNlciBtZXNzYWdlIEIifV19CgkJXQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "1a9d8753bbc759d2cfef007076440587c279205f9ecf34adaafcb2255337bea5"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiContentsDefaultRole:223",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJjb250ZW50cyI6W3sicGFydHMiOlt7InRleHQiOiJnZW1pbmkgbWVzc2FnZSBBIn1dfV19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "ad232460886f074e559398f412302f1a330fd871d3d30c106b83f8a2792ab4fb"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiContentsDefaultRole:224",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJjb250ZW50cyI6W3sicGFydHMiOlt7InRleHQiOiJnZW1pbmkgbWVzc2FnZSBCIn1dfV19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "318f68f0e36cb4ee5cf1dee4d7e8b96dceabd02b545307d6491ead259b1c0738"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiContentsMultipleTextParts:236",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6IlByZWZpeCJ9LHsidGV4dCI6IlF1ZXN0aW9uIEEifV19XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "d9ef2cf8b070cb396d4efa03ac4914e13b4f70321eebb8c850d8063d834514ce"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiContentsMultipleTextParts:237",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJjb250ZW50cyI6W3sicm9sZSI6InVzZXIiLCJwYXJ0cyI6W3sidGV4dCI6IlByZWZpeCJ9LHsidGV4dCI6IlF1ZXN0aW9uIEIifV19XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "aa02f337fc6282b9fe78f0cad681f5991c1c09b6b4a38082e6a9bd968fbf1b28"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiContentsSkipsThoughtParts:268",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "ewoJCSJjb250ZW50cyI6IFsKCQkJewoJCQkJInJvbGUiOiAidXNlciIsCgkJCQkicGFydHMiOiBbCgkJCQkJeyJ0aG91Z2h0IjogdHJ1ZSwgInRleHQiOiAiaW50ZXJuYWwgdGhvdWdodCJ9LAoJCQkJCXsidGV4dCI6ICJ2aXNpYmxlIGNvbnRlbnQifQoJCQkJXQoJCQl9CgkJXQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "7f95cbbb6390703d7a6b6cced94878485642eab29843538a4eb462e173687f31"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiContentsSkipsThoughtParts:269",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "ewoJCSJjb250ZW50cyI6IFsKCQkJewoJCQkJInJvbGUiOiAidXNlciIsCgkJCQkicGFydHMiOiBbCgkJCQkJeyJ0ZXh0IjogInZpc2libGUgY29udGVudCJ9CgkJCQldCgkJCX0KCQldCgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "7f95cbbb6390703d7a6b6cced94878485642eab29843538a4eb462e173687f31"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiSystemInstruction:278",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJzeXN0ZW1JbnN0cnVjdGlvbiI6eyJwYXJ0cyI6W3sidGV4dCI6InN5c3RlbSBydWxlIEEifV19fQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "c5d3ddca784e98dfee6414ce74e76621fbdee8e59b811e5a80f4ebe21a6ba113"
+    }
+   ]
+  },
+  {
+   "name": "TestDeriveClaudeUserID_GeminiSystemInstruction:279",
+   "fn": "internal/translator/common.DeriveClaudeUserID",
+   "args": [
+    {
+     "b": "eyJzeXN0ZW1faW5zdHJ1Y3Rpb24iOnsicGFydHMiOlt7InRleHQiOiJzeXN0ZW0gcnVsZSBCIn1dfX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "b4f3c600af61519c0f860ac3583e32a803a99394a3f82e24b6f643b37ad815a3"
+    }
+   ]
+  },
+  {
+   "name": "TestIsDevinCodexAppAutomationUpdate:25",
+   "fn": "internal/translator/common.IsDevinCodexAppAutomationUpdate",
+   "args": [
+    {
+     "s": "mcp__codex_app"
+    },
+    {
+     "s": "automation_update"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestIsDevinCodexAppAutomationUpdate:25",
+   "fn": "internal/translator/common.IsDevinCodexAppAutomationUpdate",
+   "args": [
+    {
+     "s": "MCP__CODEX_APP"
+    },
+    {
+     "s": "AUTOMATION_UPDATE"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestIsDevinCodexAppAutomationUpdate:25",
+   "fn": "internal/translator/common.IsDevinCodexAppAutomationUpdate",
+   "args": [
+    {
+     "s": " mcp__codex_app "
+    },
+    {
+     "s": " automation_update "
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestIsDevinCodexAppAutomationUpdate:25",
+   "fn": "internal/translator/common.IsDevinCodexAppAutomationUpdate",
+   "args": [
+    {
+     "s": ""
+    },
+    {
+     "s": "mcp__codex_app__automation_update"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestIsDevinCodexAppAutomationUpdate:25",
+   "fn": "internal/translator/common.IsDevinCodexAppAutomationUpdate",
+   "args": [
+    {
+     "s": "other_namespace"
+    },
+    {
+     "s": "automation_update"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestIsDevinCodexAppAutomationUpdate:25",
+   "fn": "internal/translator/common.IsDevinCodexAppAutomationUpdate",
+   "args": [
+    {
+     "s": "mcp__codex_app"
+    },
+    {
+     "s": "exec_command"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestIsDevinCodexAppAutomationUpdate:25",
+   "fn": "internal/translator/common.IsDevinCodexAppAutomationUpdate",
+   "args": [
+    {
+     "s": ""
+    },
+    {
+     "s": "automation_update"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestIsDevinCodexAppAutomationUpdate:25",
+   "fn": "internal/translator/common.IsDevinCodexAppAutomationUpdate",
+   "args": [
+    {
+     "s": ""
+    },
+    {
+     "s": "exec_command"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestObfuscateExecCommandDescription:36",
+   "fn": "internal/translator/common.ObfuscateExecCommandDescription",
+   "args": [
+    {
+     "s": "Runs a command in a bash shell, returning output or a session ID for ongoing interaction."
+    }
+   ],
+   "results": [
+    {
+     "s": "Runs a command in a bash shell, returning output or an session ID for ongoing interaction."
+    }
+   ]
+  },
+  {
+   "name": "TestObfuscateExecCommandDescription:42",
+   "fn": "internal/translator/common.ObfuscateExecCommandDescription",
+   "args": [
+    {
+     "s": "Runs a command in a bash shell, returning output or an session ID for ongoing interaction."
+    }
+   ],
+   "results": [
+    {
+     "s": "Runs a command in a bash shell, returning output or an session ID for ongoing interaction."
+    }
+   ]
+  },
+  {
+   "name": "TestObfuscateExecCommandDescription:49",
+   "fn": "internal/translator/common.ObfuscateExecCommandDescription",
+   "args": [
+    {
+     "s": "Runs an arbitrary script in a container"
+    }
+   ],
+   "results": [
+    {
+     "s": "Runs an arbitrary script in a container"
+    }
+   ]
+  },
+  {
+   "name": "TestObfuscateWriteStdinDescription:58",
+   "fn": "internal/translator/common.ObfuscateWriteStdinDescription",
+   "args": [
+    {
+     "s": "Writes characters to an existing unified exec session and returns recent output."
+    }
+   ],
+   "results": [
+    {
+     "s": "Writes characters to a existing unified exec session and returns recent output."
+    }
+   ]
+  },
+  {
+   "name": "TestObfuscateWriteStdinDescription:64",
+   "fn": "internal/translator/common.ObfuscateWriteStdinDescription",
+   "args": [
+    {
+     "s": "Writes characters to a existing unified exec session and returns recent output."
+    }
+   ],
+   "results": [
+    {
+     "s": "Writes characters to a existing unified exec session and returns recent output."
+    }
+   ]
+  },
+  {
+   "name": "TestObfuscateWriteStdinDescription:71",
+   "fn": "internal/translator/common.ObfuscateWriteStdinDescription",
+   "args": [
+    {
+     "s": "Writes arbitrary input to a process"
+    }
+   ],
+   "results": [
+    {
+     "s": "Writes arbitrary input to a process"
+    }
+   ]
+  },
+  {
+   "name": "TestSanitizeDevinToolDescription:78",
+   "fn": "internal/translator/common.SanitizeDevinToolDescription",
+   "args": [
+    {
+     "s": "exec_command"
+    },
+    {
+     "s": "Runs a command in a bash shell, returning output or a session ID for ongoing interaction."
+    }
+   ],
+   "results": [
+    {
+     "s": "Runs a command in a bash shell, returning output or an session ID for ongoing interaction."
+    }
+   ]
+  },
+  {
+   "name": "TestSanitizeDevinToolDescription:83",
+   "fn": "internal/translator/common.SanitizeDevinToolDescription",
+   "args": [
+    {
+     "s": "mcp__codex_app__exec_command"
+    },
+    {
+     "s": "Runs a command in a bash shell, returning output or a session ID for ongoing interaction."
+    }
+   ],
+   "results": [
+    {
+     "s": "Runs a command in a bash shell, returning output or an session ID for ongoing interaction."
+    }
+   ]
+  },
+  {
+   "name": "TestSanitizeDevinToolDescription:89",
+   "fn": "internal/translator/common.SanitizeDevinToolDescription",
+   "args": [
+    {
+     "s": "write_stdin"
+    },
+    {
+     "s": "Writes characters to an existing unified exec session and returns recent output."
+    }
+   ],
+   "results": [
+    {
+     "s": "Writes characters to a existing unified exec session and returns recent output."
+    }
+   ]
+  },
+  {
+   "name": "TestSanitizeDevinToolDescription:95",
+   "fn": "internal/translator/common.SanitizeDevinToolDescription",
+   "args": [
+    {
+     "s": "other_tool"
+    },
+    {
+     "s": "Writes characters to an existing unified exec session and returns recent output."
+    }
+   ],
+   "results": [
+    {
+     "s": "Writes characters to an existing unified exec session and returns recent output."
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "test.pdf"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": "data:application/pdf;base64,JVBERi0xLjQK"
+    }
+   ],
+   "results": [
+    {
+     "s": "application/pdf"
+    },
+    {
+     "s": "JVBERi0xLjQK"
+    },
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "test.txt"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": "data:application/pdf;charset=binary;BASE64,JVBERi0xLjQK"
+    }
+   ],
+   "results": [
+    {
+     "s": "application/pdf"
+    },
+    {
+     "s": "JVBERi0xLjQK"
+    },
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "test.pdf"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": "DATA:application/pdf;base64,JVBERi0xLjQK"
+    }
+   ],
+   "results": [
+    {
+     "s": "application/pdf"
+    },
+    {
+     "s": "JVBERi0xLjQK"
+    },
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "TEST.PDF"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": "JVBERi0xLjQK"
+    }
+   ],
+   "results": [
+    {
+     "s": "application/pdf"
+    },
+    {
+     "s": "JVBERi0xLjQK"
+    },
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": ""
+    },
+    {
+     "s": "application/pdf"
+    },
+    {
+     "s": "JVBERi0xLjQK"
+    }
+   ],
+   "results": [
+    {
+     "s": "application/pdf"
+    },
+    {
+     "s": "JVBERi0xLjQK"
+    },
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "test.pdf"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "s": ""
+    },
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "test"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": "JVBERi0xLjQK"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "s": ""
+    },
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "test.pdf"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": "data:application/pdf,JVBERi0xLjQK"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "s": ""
+    },
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "test.pdf"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": "data:;base64,JVBERi0xLjQK"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "s": ""
+    },
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeOpenAIFileData:64",
+   "fn": "internal/translator/common.NormalizeOpenAIFileData",
+   "args": [
+    {
+     "s": "test.pdf"
+    },
+    {
+     "s": ""
+    },
+    {
+     "s": "data:application/pdf;base64,"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "s": ""
+    },
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestMergeAdjacentGeminiContents:11",
+   "fn": "internal/translator/common.MergeAdjacentGeminiContents",
+   "args": [
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [],
+     "nil": true
+    }
+   ]
+  },
+  {
+   "name": "TestMergeAdjacentGeminiContents:15",
+   "fn": "internal/translator/common.MergeAdjacentGeminiContents",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiaGVsbG8ifV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiaGVsbG8ifV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestMergeAdjacentGeminiContents:29",
+   "fn": "internal/translator/common.MergeAdjacentGeminiContents",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiZmlyc3QgcHJvbXB0In1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiPHN5c3RlbS1yZW1pbmRlcj5ydWxlIDE8L3N5c3RlbS1yZW1pbmRlcj4ifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiPHN5c3RlbS1yZW1pbmRlcj5ydWxlIDI8L3N5c3RlbS1yZW1pbmRlcj4ifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3sidGV4dCI6ImFzc2lzdGFudCBhbnN3ZXIifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiZm9sbG93LXVwIn1dfQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiZmlyc3QgcHJvbXB0In0seyJ0ZXh0IjoiPHN5c3RlbS1yZW1pbmRlcj5ydWxlIDE8L3N5c3RlbS1yZW1pbmRlcj4ifSx7InRleHQiOiI8c3lzdGVtLXJlbWluZGVyPnJ1bGUgMjwvc3lzdGVtLXJlbWluZGVyPiJ9XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3sidGV4dCI6ImFzc2lzdGFudCBhbnN3ZXIifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiZm9sbG93LXVwIn1dfQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestMergeAdjacentGeminiContents:69",
+   "fn": "internal/translator/common.MergeAdjacentGeminiContents",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoicXVlc3Rpb24ifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3sidGV4dCI6InRob3VnaHQiLCJ0aG91Z2h0Ijp0cnVlfV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3sidGV4dCI6ImFuc3dlciJ9XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoicXVlc3Rpb24ifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3sidGV4dCI6InRob3VnaHQiLCJ0aG91Z2h0Ijp0cnVlfV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3sidGV4dCI6ImFuc3dlciJ9XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestMergeAdjacentGeminiContents:81",
+   "fn": "internal/translator/common.MergeAdjacentGeminiContents",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbXX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiaGVsbG8ifV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiaGVsbG8ifV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestMergeAdjacentGeminiContents:92",
+   "fn": "internal/translator/common.MergeAdjacentGeminiContents",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifX19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiPHN5c3RlbS1yZW1pbmRlcj5yZW1pbmRlcjwvc3lzdGVtLXJlbWluZGVyPiJ9XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiPHN5c3RlbS1yZW1pbmRlcj5yZW1pbmRlcjwvc3lzdGVtLXJlbWluZGVyPiJ9LHsiZnVuY3Rpb25SZXNwb25zZSI6eyJuYW1lIjoicmVhZCIsInJlc3BvbnNlIjp7InJlc3VsdCI6Im9rIn19fV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestMergeAdjacentGeminiUserContents:115",
+   "fn": "internal/translator/common.MergeAdjacentGeminiUserContents",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoicHJvbXB0IDEifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoicHJvbXB0IDIifV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoicHJvbXB0IDEifSx7InRleHQiOiJwcm9tcHQgMiJ9XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestMergeAdjacentGeminiUserContents:131",
+   "fn": "internal/translator/common.MergeAdjacentGeminiUserContents",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0ZXN0IiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifX19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoidXNlciBub3RlIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvbl9yZXNwb25zZSI6eyJuYW1lIjoidGVzdDIiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvazIifX19XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0ZXN0IiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifX19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoidXNlciBub3RlIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvbl9yZXNwb25zZSI6eyJuYW1lIjoidGVzdDIiLCJyZXNwb25zZSI6eyJyZXN1bHQiOiJvazIifX19XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:144",
+   "fn": "internal/translator/common.SplitGeminiFunctionResponseTurns",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoicmVtaW5kZXIifSx7ImZ1bmN0aW9uUmVzcG9uc2UiOnsibmFtZSI6IkJhc2gifX1dfQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoicmVtaW5kZXIifV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:148",
+   "fn": "internal/translator/common.ContentHasGeminiFunctionResponse",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:148",
+   "fn": "internal/translator/common.ContentHasGeminiFunctionResponse",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoicmVtaW5kZXIifV19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:155",
+   "fn": "internal/translator/common.SplitGeminiFunctionResponseTurns",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:163",
+   "fn": "internal/translator/common.SplitGeminiFunctionResponseTurns",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiYmVmb3JlIn0seyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJvbmUifX0seyJmdW5jdGlvbl9yZXNwb25zZSI6eyJuYW1lIjoidHdvIn19LHsidGV4dCI6ImFmdGVyIn1dfQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJvbmUifX0seyJmdW5jdGlvbl9yZXNwb25zZSI6eyJuYW1lIjoidHdvIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiYmVmb3JlIn0seyJ0ZXh0IjoiYWZ0ZXIifV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:167",
+   "fn": "internal/translator/common.ContentHasGeminiFunctionResponse",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJvbmUifX0seyJmdW5jdGlvbl9yZXNwb25zZSI6eyJuYW1lIjoidHdvIn19XX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:167",
+   "fn": "internal/translator/common.ContentHasGeminiFunctionResponse",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoiYmVmb3JlIn0seyJ0ZXh0IjoiYWZ0ZXIifV19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:177",
+   "fn": "internal/translator/common.SplitGeminiFunctionResponseTurns",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25SZXNwb25zZSI6eyJuYW1lIjoibW9kZWwtcmVzcG9uc2UifX1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbXX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25SZXNwb25zZSI6eyJuYW1lIjoibW9kZWwtcmVzcG9uc2UifX1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbXX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:188",
+   "fn": "internal/translator/common.SplitGeminiFunctionResponseTurns",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0Ijoib25lIn0seyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJvbmUifX1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoidHdvIn0seyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0d28ifX1dfQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJvbmUifX1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0Ijoib25lIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0d28ifX1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoidHdvIn1dfQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:193",
+   "fn": "internal/translator/common.ContentHasGeminiFunctionResponse",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJvbmUifX1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:193",
+   "fn": "internal/translator/common.ContentHasGeminiFunctionResponse",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0Ijoib25lIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:193",
+   "fn": "internal/translator/common.ContentHasGeminiFunctionResponse",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0d28ifX1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:193",
+   "fn": "internal/translator/common.ContentHasGeminiFunctionResponse",
+   "args": [
+    {
+     "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0IjoidHdvIn1dfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:205",
+   "fn": "internal/translator/common.SplitGeminiFunctionResponseTurns",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0Ijoic3lzdGVtIHJlbWluZGVyIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJCYXNoIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJ0ZXh0Ijoic3lzdGVtIHJlbWluZGVyIn1dfQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSplitGeminiFunctionResponseTurns:223",
+   "fn": "internal/translator/common.SplitGeminiFunctionResponseTurns",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJBIn19LHsiZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJCIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJBIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJCIn19XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoibW9kZWwiLCJwYXJ0cyI6W3siZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJBIn19LHsiZnVuY3Rpb25DYWxsIjp7Im5hbWUiOiJCIn19XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsInBhcnRzIjpbeyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJBIn19LHsiZnVuY3Rpb25SZXNwb25zZSI6eyJuYW1lIjoiQiJ9fV19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestReorderGeminiUserParts:239",
+   "fn": "internal/translator/common.ReorderGeminiUserParts",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJ0ZXh0IjoiaGVsbG8ifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJpbmxpbmVfZGF0YSI6eyJtaW1lX3R5cGUiOiJpbWFnZS9wbmciLCJkYXRhIjoiYWJjIn19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJ0ZXh0IjoiaGVsbG8ifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJpbmxpbmVfZGF0YSI6eyJtaW1lX3R5cGUiOiJpbWFnZS9wbmciLCJkYXRhIjoiYWJjIn19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestReorderGeminiUserParts:250",
+   "fn": "internal/translator/common.ReorderGeminiUserParts",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJ0ZXh0IjoiY29udGV4dCJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifX19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJ0ZXh0IjoiY29udGV4dCJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifX19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestReorderGeminiUserParts:261",
+   "fn": "internal/translator/common.ReorderGeminiUserParts",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifX19",
+       "nil": false
+      },
+      {
+       "b": "eyJ0ZXh0IjoiPHN5c3RlbS1yZW1pbmRlcj5yZW1pbmRlcjwvc3lzdGVtLXJlbWluZGVyPiJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJ0ZXh0IjoiPHN5c3RlbS1yZW1pbmRlcj5yZW1pbmRlcjwvc3lzdGVtLXJlbWluZGVyPiJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJyZWFkIiwicmVzcG9uc2UiOnsicmVzdWx0Ijoib2sifX19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestReorderGeminiUserParts:280",
+   "fn": "internal/translator/common.ReorderGeminiUserParts",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJ0ZXh0IjoibGVhZGluZyJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0b29sMSIsInJlc3BvbnNlIjp7InJlc3VsdCI6IjEifX19",
+       "nil": false
+      },
+      {
+       "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0b29sMiIsInJlc3BvbnNlIjp7InJlc3VsdCI6IjIifX19",
+       "nil": false
+      },
+      {
+       "b": "eyJ0ZXh0IjoidHJhaWxpbmcifQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJ0ZXh0IjoibGVhZGluZyJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJ0ZXh0IjoidHJhaWxpbmcifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0b29sMSIsInJlc3BvbnNlIjp7InJlc3VsdCI6IjEifX19",
+       "nil": false
+      },
+      {
+       "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0b29sMiIsInJlc3BvbnNlIjp7InJlc3VsdCI6IjIifX19",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestContainsJSONRef:344",
+   "fn": "internal/translator/common.ContainsJSONRef",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyIkcmVmIjogIiMvY29tcG9uZW50cy9zY2hlbWFzL0Vycm9yTW9kZWwifQ==",
+     "json": "{\"$ref\": \"#/components/schemas/ErrorModel\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestContainsJSONRef:344",
+   "fn": "internal/translator/common.ContainsJSONRef",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJyZXNwb25zZXMiOnsiNDAwIjp7ImNvbnRlbnQiOnsiYXBwbGljYXRpb24vanNvbiI6eyJzY2hlbWEiOnsiJHJlZiI6IiMvY29tcG9uZW50cy9zY2hlbWFzL0Vycm9yTW9kZWwifX19fX19",
+     "json": "{\"responses\":{\"400\":{\"content\":{\"application/json\":{\"schema\":{\"$ref\":\"#/components/schemas/ErrorModel\"}}}}}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestContainsJSONRef:344",
+   "fn": "internal/translator/common.ContainsJSONRef",
+   "args": [
+    {
+     "exists": true,
+     "jb": "W3sic2NoZW1hIjp7IiRyZWYiOiIjL2NvbXBvbmVudHMvc2NoZW1hcy9FcnJvck1vZGVsIn19XQ==",
+     "json": "[{\"schema\":{\"$ref\":\"#/components/schemas/ErrorModel\"}}]",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestContainsJSONRef:344",
+   "fn": "internal/translator/common.ContainsJSONRef",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0ZW1wZXJhdHVyZSI6IDcyLCAiY2l0eSI6ICJTZWF0dGxlIn0=",
+     "json": "{\"temperature\": 72, \"city\": \"Seattle\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestContainsJSONRef:344",
+   "fn": "internal/translator/common.ContainsJSONRef",
+   "args": [
+    {
+     "exists": true,
+     "jb": "WzEsIDIsIHsibmFtZSI6ICJ0ZXN0In1d",
+     "json": "[1, 2, {\"name\": \"test\"}]",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestContainsJSONRef:344",
+   "fn": "internal/translator/common.ContainsJSONRef",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyIkcmVmIjogMTIzfQ==",
+     "json": "{\"$ref\": 123}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestContainsJSONRef:344",
+   "fn": "internal/translator/common.ContainsJSONRef",
+   "args": [
+    {
+     "exists": true,
+     "jb": "InRoaXMgaXMganVzdCBhIHN0cmluZyBjb250YWluaW5nICRyZWYi",
+     "json": "\"this is just a string containing $ref\"",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestSetGeminiFunctionResponseResult:356",
+   "fn": "internal/translator/common.SetGeminiFunctionResponseResult",
+   "args": [
+    {
+     "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0ZXN0In19",
+     "nil": false
+    },
+    {
+     "s": "functionResponse.response.result"
+    },
+    {
+     "exists": true,
+     "jb": "eyJzY2hlbWEiOnsiJHJlZiI6IiMvY29tcG9uZW50cy9zY2hlbWFzL0Vycm9yTW9kZWwifX0=",
+     "json": "{\"schema\":{\"$ref\":\"#/components/schemas/ErrorModel\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0ZXN0IiwicmVzcG9uc2UiOnsicmVzdWx0Ijoie1wic2NoZW1hXCI6e1wiJHJlZlwiOlwiIy9jb21wb25lbnRzL3NjaGVtYXMvRXJyb3JNb2RlbFwifX0ifX19",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSetGeminiFunctionResponseResult:366",
+   "fn": "internal/translator/common.SetGeminiFunctionResponseResult",
+   "args": [
+    {
+     "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0ZXN0In19",
+     "nil": false
+    },
+    {
+     "s": "functionResponse.response.result"
+    },
+    {
+     "exists": true,
+     "jb": "eyJvayI6dHJ1ZSwiY29kZSI6MjAwfQ==",
+     "json": "{\"ok\":true,\"code\":200}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0ZXN0IiwicmVzcG9uc2UiOnsicmVzdWx0Ijp7Im9rIjp0cnVlLCJjb2RlIjoyMDB9fX19",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestSetGeminiFunctionResponseResult:379",
+   "fn": "internal/translator/common.SetGeminiFunctionResponseResult",
+   "args": [
+    {
+     "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0ZXN0In19",
+     "nil": false
+    },
+    {
+     "s": "functionResponse.response"
+    },
+    {
+     "exists": true,
+     "jb": "eyJzY2hlbWEiOnsiJHJlZiI6IiMvY29tcG9uZW50cy9zY2hlbWFzL0Vycm9yTW9kZWwifX0=",
+     "json": "{\"schema\":{\"$ref\":\"#/components/schemas/ErrorModel\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJmdW5jdGlvblJlc3BvbnNlIjp7Im5hbWUiOiJ0ZXN0IiwicmVzcG9uc2UiOnsicmVzdWx0Ijoie1wic2NoZW1hXCI6e1wiJHJlZlwiOlwiIy9jb21wb25lbnRzL3NjaGVtYXMvRXJyb3JNb2RlbFwifX0ifX19",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:12",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [],
+     "nil": true
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [],
+     "nil": true
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:16",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoaSJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJoaSJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:28",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJzdGFydCJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsXzEiLCJ0eXBlIjoiZnVuY3Rpb24iLCJmdW5jdGlvbiI6eyJuYW1lIjoiZjEifX1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfMSIsImNvbnRlbnQiOiJyZXMxIn0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6ImRvbmUifQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJzdGFydCJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsXzEiLCJ0eXBlIjoiZnVuY3Rpb24iLCJmdW5jdGlvbiI6eyJuYW1lIjoiZjEifX1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfMSIsImNvbnRlbnQiOiJyZXMxIn0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6ImRvbmUifQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:50",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJzdGFydCJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsX2EiLCJ0eXBlIjoiZnVuY3Rpb24ifSx7ImlkIjoiY2FsbF9iIiwidHlwZSI6ImZ1bmN0aW9uIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6InRoaW5raW5nIHBhcnQiLCJyZWFzb25pbmdfY29udGVudCI6InN0ZXAgMSJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJzeXN0ZW0gcmVtaW5kZXIifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfYiIsImNvbnRlbnQiOiJyZXNfYiJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfYSIsImNvbnRlbnQiOiJyZXNfYSJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJmaW5hbCBwcm9tcHQifQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJzdGFydCJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsX2EiLCJ0eXBlIjoiZnVuY3Rpb24ifSx7ImlkIjoiY2FsbF9iIiwidHlwZSI6ImZ1bmN0aW9uIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfYiIsImNvbnRlbnQiOiJyZXNfYiJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfYSIsImNvbnRlbnQiOiJyZXNfYSJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6InRoaW5raW5nIHBhcnQiLCJyZWFzb25pbmdfY29udGVudCI6InN0ZXAgMSJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJzeXN0ZW0gcmVtaW5kZXIifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJmaW5hbCBwcm9tcHQifQ==",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:93",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsXzEifSx7ImlkIjoiY2FsbF8yIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJtaWRkbGUifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfMSIsImNvbnRlbnQiOiJyZXMxIn0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsXzEifSx7ImlkIjoiY2FsbF8yIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJtaWRkbGUifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfMSIsImNvbnRlbnQiOiJyZXMxIn0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:106",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJzdGFydCJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfb3JwaGFuIiwiY29udGVudCI6Im9ycGhhbiJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJzdGFydCJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfb3JwaGFuIiwiY29udGVudCI6Im9ycGhhbiJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:121",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJkdXBfY2FsbCJ9XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJkdXBfY2FsbCJ9XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJtaWRkbGUifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImR1cF9jYWxsIiwiY29udGVudCI6InJlcyJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJkdXBfY2FsbCJ9XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJkdXBfY2FsbCJ9XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJtaWRkbGUifQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImR1cF9jYWxsIiwiY29udGVudCI6InJlcyJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:136",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiIifSx7ImlkIjoiY2FsbF9hIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJyZW1pbmRlciJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfYSIsImNvbnRlbnQiOiJyZXNfYSJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiIifSx7ImlkIjoiY2FsbF9hIn1dfQ==",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJyZW1pbmRlciJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfYSIsImNvbnRlbnQiOiJyZXNfYSJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:155",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJjdXN0b21faWQiOjkyMjMzNzIwMzY4NTQ3NzU4MDcsInByZWNpc2VfcmF0aW8iOjAuMTIzNDU2Nzg5MDEyMzQ1NjcsInJvbGUiOiJhc3Npc3RhbnQiLCJ0b29sX2NhbGxzIjpbeyJmdW5jdGlvbiI6eyJuYW1lIjoicCJ9LCJpZCI6ImNhbGxfcCIsInR5cGUiOiJmdW5jdGlvbiJ9XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJjb250ZW50IjoiaW50ZXJ2ZW5pbmciLCJyb2xlIjoidXNlciJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJjb250ZW50Ijoib2siLCJyb2xlIjoidG9vbCIsInRpbWVzdGFtcF9ucyI6MTc4OTcwMzI1NjAwMDAwMDAwMSwidG9vbF9jYWxsX2lkIjoiY2FsbF9wIn0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJjdXN0b21faWQiOjkyMjMzNzIwMzY4NTQ3NzU4MDcsInByZWNpc2VfcmF0aW8iOjAuMTIzNDU2Nzg5MDEyMzQ1NjcsInJvbGUiOiJhc3Npc3RhbnQiLCJ0b29sX2NhbGxzIjpbeyJmdW5jdGlvbiI6eyJuYW1lIjoicCJ9LCJpZCI6ImNhbGxfcCIsInR5cGUiOiJmdW5jdGlvbiJ9XX0=",
+       "nil": false
+      },
+      {
+       "b": "eyJjb250ZW50Ijoib2siLCJyb2xlIjoidG9vbCIsInRpbWVzdGFtcF9ucyI6MTc4OTcwMzI1NjAwMDAwMDAwMSwidG9vbF9jYWxsX2lkIjoiY2FsbF9wIn0=",
+       "nil": false
+      },
+      {
+       "b": "eyJjb250ZW50IjoiaW50ZXJ2ZW5pbmciLCJyb2xlIjoidXNlciJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:175",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfZnV0dXJlIiwiY29udGVudCI6InJlcyJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsX2Z1dHVyZSJ9XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfZnV0dXJlIiwiY29udGVudCI6InJlcyJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsX2Z1dHVyZSJ9XX0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestAlignOpenAIToolCallMessages:192",
+   "fn": "internal/translator/common.AlignOpenAIToolCallMessages",
+   "args": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsXzEifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJyZW1pbmRlciAxIn0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfMSIsImNvbnRlbnQiOiJyZXMgMSJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsXzIifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJyZW1pbmRlciAyIn0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfMiIsImNvbnRlbnQiOiJyZXMgMiJ9",
+       "nil": false
+      }
+     ],
+     "nil": false
+    },
+    {
+     "list": [],
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "list": [
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsXzEifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfMSIsImNvbnRlbnQiOiJyZXMgMSJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJyZW1pbmRlciAxIn0=",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoiYXNzaXN0YW50IiwidG9vbF9jYWxscyI6W3siaWQiOiJjYWxsXzIifV19",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidG9vbCIsInRvb2xfY2FsbF9pZCI6ImNhbGxfMiIsImNvbnRlbnQiOiJyZXMgMiJ9",
+       "nil": false
+      },
+      {
+       "b": "eyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJyZW1pbmRlciAyIn0=",
+       "nil": false
+      }
+     ],
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestRequestModelNamePrefersOriginalRequest:9",
+   "fn": "internal/translator/common.RequestModelName",
+   "args": [
+    {
+     "b": "eyJtb2RlbCI6Im9yaWdpbmFsLW1vZGVsIn0=",
+     "nil": false
+    },
+    {
+     "b": "eyJtb2RlbCI6InRyYW5zbGF0ZWQtbW9kZWwifQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "original-model"
+    }
+   ]
+  },
+  {
+   "name": "TestRequestModelNameSupportsWrappedRequest:17",
+   "fn": "internal/translator/common.RequestModelName",
+   "args": [
+    {
+     "b": "",
+     "nil": true
+    },
+    {
+     "b": "eyJyZXF1ZXN0Ijp7Im1vZGVsIjoid3JhcHBlZC1tb2RlbCJ9fQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "wrapped-model"
+    }
+   ]
+  },
+  {
+   "name": "TestIsClaudeCodeAttributionSystemText:40",
+   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
+   "args": [
+    {
+     "s": "x-anthropic-billing-header: cc_version=2.1.63.abc; cc_entrypoint=cli; cch=12345;"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestIsClaudeCodeAttributionSystemText:40",
+   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
+   "args": [
+    {
+     "s": "\n\t x-anthropic-billing-header: cc_version=2.1.63.abc; cch=12345;"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestIsClaudeCodeAttributionSystemText:40",
+   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
+   "args": [
+    {
+     "s": "You are helpful."
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestIsClaudeCodeAttributionSystemText:40",
+   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
+   "args": [
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJImFueU9mIjogWwoJCQkJCXsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsiYSI6eyJ0eXBlIjoic3RyaW5nIn19fSwKCQkJCQl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImIiOnsidHlwZSI6ImludGVnZXIifX19CgkJCQldCgkJCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJpbnRlZ2VyIn19LCJ0eXBlIjoib2JqZWN0In0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsKCQkJCQkibmVzdGVkIjp7Im9uZU9mIjpbeyJ0eXBlIjoic3RyaW5nIn0seyJ0eXBlIjoibnVtYmVyIn1dfQoJCQkJfSwKCQkJCSJvbmVPZiI6WwoJCQkJCXsicHJvcGVydGllcyI6eyJhIjp7InR5cGUiOiJzdHJpbmcifX0sInJlcXVpcmVkIjpbImEiXX0sCgkJCQkJeyJwcm9wZXJ0aWVzIjp7ImIiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsiYiJdfQoJCQkJXQoJCQl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJzdHJpbmcifSwibmVzdGVkIjp7Im9uZU9mIjpbeyJ0eXBlIjoic3RyaW5nIn0seyJ0eXBlIjoibnVtYmVyIn1dfX0sInR5cGUiOiJvYmplY3QifQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsiYSI6eyJ0eXBlIjoic3RyaW5nIn0sImIiOnsidHlwZSI6InN0cmluZyJ9fSwKCQkJCSJhbnlPZiI6W3sicmVxdWlyZWQiOlsiYSJdfSx7InJlcXVpcmVkIjpbImIiXX1dCgkJCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJzdHJpbmcifX0sInR5cGUiOiJvYmplY3QifQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsiYmFzZSI6eyJ0eXBlIjoiYm9vbGVhbiJ9fSwKCQkJCSJyZXF1aXJlZCI6WyJiYXNlIl0sCgkJCQkiYWxsT2YiOlsKCQkJCQl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsiYSJdfSwKCQkJCQl7InByb3BlcnRpZXMiOnsiYiI6eyJ0eXBlIjoiaW50ZWdlciJ9fSwicmVxdWlyZWQiOlsiYSIsImIiXX0KCQkJCV0KCQkJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJpbnRlZ2VyIn0sImJhc2UiOnsidHlwZSI6ImJvb2xlYW4ifX0sInJlcXVpcmVkIjpbImJhc2UiLCJhIiwiYiJdLCJ0eXBlIjoib2JqZWN0In0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsicXVlcnkiOnsidHlwZSI6InN0cmluZyJ9fSwKCQkJCSJyZXF1aXJlZCI6WyJxdWVyeSJdLAoJCQkJImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjpmYWxzZQoJCQl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2UsInByb3BlcnRpZXMiOnsicXVlcnkiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsicXVlcnkiXSwidHlwZSI6Im9iamVjdCJ9",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "eyJ0eXBlIjo=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6e319",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "dHJ1ZQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6e319",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^(?!__.*__$)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\"\\./[\\]]{1,200}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\P{L}+$"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\\\p{Cc}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\\\\\p{Cc}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\\\\\\\p{Cc}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^[0-9a-f]{32}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^(?!__.*__$).{1,200}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^(a)\\1$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^[^\\0]*$"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^[^\\x00]*$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\\\0$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "abc\\"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "\\p"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "\\p{"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestGeminiClaudeToolUseIDStableAndBound:7",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": "native-call-1"
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"y\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "cpa_gemini_1bf997c3599657d6c97d05664d116e18"
+    }
+   ]
+  },
+  {
+   "name": "TestGeminiClaudeToolUseIDStableAndBound:8",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": "native-call-1"
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"new_string\":\"y\",\"old_string\":\"x\",\"file_path\":\"/tmp/a\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "cpa_gemini_1bf997c3599657d6c97d05664d116e18"
+    }
+   ]
+  },
+  {
+   "name": "TestGeminiClaudeToolUseIDStableAndBound:12",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": "native-call-1"
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"z\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "cpa_gemini_15a28b6f64ce0270add76903c16eaacd"
+    }
+   ]
+  },
+  {
+   "name": "TestGeminiClaudeToolUseIDStableAndBound:15",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": ""
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"y\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolContract:13",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6ImFwcGx5X3BhdGNoIiwiZGVzY3JpcHRpb24iOiJUaGlzIGlzIGEgRlJFRUZPUk0gdG9vbCwgc28gZG8gbm90IHdyYXAgdGhlIHBhdGNoIGluIEpTT04uIiwiZm9ybWF0Ijp7InR5cGUiOiJncmFtbWFyIiwic3ludGF4IjoibGFyayIsImRlZmluaXRpb24iOiJzdGFydDogYmVnaW5fcGF0Y2ggaHVuaysgZW5kX3BhdGNoIn19",
+     "json": "{\"type\":\"custom\",\"name\":\"apply_patch\",\"description\":\"This is a FREEFORM tool, so do not wrap the patch in JSON.\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: begin_patch hunk+ end_patch\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolContract:16",
+   "fn": "internal/client/codex/apply-patch.Parameters",
+   "args": [],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJpbnB1dCI6eyJ0eXBlIjoic3RyaW5nIiwiZGVzY3JpcHRpb24iOiJUaGUgY29tcGxldGUgYXBwbHlfcGF0Y2ggcGF0Y2ggdGV4dC4ifX0sInJlcXVpcmVkIjpbImlucHV0Il0sImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjpmYWxzZX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolContract:20",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6ImFwcGx5X3BhdGNoIiwiZGVzY3JpcHRpb24iOiJUaGlzIGlzIGEgRlJFRUZPUk0gdG9vbCwgc28gZG8gbm90IHdyYXAgdGhlIHBhdGNoIGluIEpTT04uIiwiZm9ybWF0Ijp7InR5cGUiOiJncmFtbWFyIiwic3ludGF4IjoibGFyayIsImRlZmluaXRpb24iOiJzdGFydDogYmVnaW5fcGF0Y2ggaHVuaysgZW5kX3BhdGNoIn19",
+     "json": "{\"type\":\"custom\",\"name\":\"apply_patch\",\"description\":\"This is a FREEFORM tool, so do not wrap the patch in JSON.\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: begin_patch hunk+ end_patch\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Call this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch\n\nOriginal patch grammar:\nstart: begin_patch hunk+ end_patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolContract:30",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n*** Add File: a.txt\n+hello\n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n*** Add File: a.txt\\n+hello\\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolContract:30",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n*** Add File: a.txt\\n+hello\\n*** End Patch\\n\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "*** Begin Patch\n*** Add File: a.txt\n+hello\n*** End Patch\n"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6ImFwcGx5X3BhdGNoIn0=",
+     "json": "{\"type\":\"custom\",\"name\":\"apply_patch\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6IiBcdGFwcGx5X3BhdGNoXG4ifQ==",
+     "json": "{\"type\":\"custom\",\"name\":\" \\tapply_patch\\n\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiZnVuY3Rpb24iLCJuYW1lIjoiYXBwbHlfcGF0Y2gifQ==",
+     "json": "{\"type\":\"function\",\"name\":\"apply_patch\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiZnVuY3Rpb24iLCJmdW5jdGlvbiI6eyJuYW1lIjoiYXBwbHlfcGF0Y2gifX0=",
+     "json": "{\"type\":\"function\",\"function\":{\"name\":\"apply_patch\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6InNoZWxsIn0=",
+     "json": "{\"type\":\"custom\",\"name\":\"shell\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6IkFQUExZX1BBVENIIn0=",
+     "json": "{\"type\":\"custom\",\"name\":\"APPLY_PATCH\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6ImZ1bmN0aW9ucy5hcHBseV9wYXRjaCJ9",
+     "json": "{\"type\":\"custom\",\"name\":\"functions.apply_patch\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiIGN1c3RvbSAiLCJuYW1lIjoiYXBwbHlfcGF0Y2gifQ==",
+     "json": "{\"type\":\" custom \",\"name\":\"apply_patch\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJuYW1lIjoiYXBwbHlfcGF0Y2gifQ==",
+     "json": "{\"name\":\"apply_patch\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIn0=",
+     "json": "{\"type\":\"custom\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjp0cnVlLCJuYW1lIjoiYXBwbHlfcGF0Y2gifQ==",
+     "json": "{\"type\":true,\"name\":\"apply_patch\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6NDJ9",
+     "json": "{\"type\":\"custom\",\"name\":42}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6bnVsbH0=",
+     "json": "{\"type\":\"custom\",\"name\":null}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": true,
+     "jb": "e30=",
+     "json": "{}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolRecognition:60",
+   "fn": "internal/client/codex/apply-patch.IsCustomTool",
+   "args": [
+    {
+     "exists": false,
+     "jb": "",
+     "json": "",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolParameters:68",
+   "fn": "internal/client/codex/apply-patch.Parameters",
+   "args": [],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJpbnB1dCI6eyJ0eXBlIjoic3RyaW5nIiwiZGVzY3JpcHRpb24iOiJUaGUgY29tcGxldGUgYXBwbHlfcGF0Y2ggcGF0Y2ggdGV4dC4ifX0sInJlcXVpcmVkIjpbImlucHV0Il0sImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjpmYWxzZX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolParametersAreIndependent:94",
+   "fn": "internal/client/codex/apply-patch.Parameters",
+   "args": [],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJpbnB1dCI6eyJ0eXBlIjoic3RyaW5nIiwiZGVzY3JpcHRpb24iOiJUaGUgY29tcGxldGUgYXBwbHlfcGF0Y2ggcGF0Y2ggdGV4dC4ifX0sInJlcXVpcmVkIjpbImlucHV0Il0sImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjpmYWxzZX0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionRules:118",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJ0eXBlIjoiY3VzdG9tIiwibmFtZSI6ImFwcGx5X3BhdGNoIn0=",
+     "json": "{\"type\":\"custom\",\"name\":\"apply_patch\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Call this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionRules:118",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJkZXNjcmlwdGlvbiI6IiIsImZvcm1hdCI6eyJkZWZpbml0aW9uIjoiIn19",
+     "json": "{\"description\":\"\",\"format\":{\"definition\":\"\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Call this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionRules:118",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJkZXNjcmlwdGlvbiI6IkVkaXQgZmlsZXMuIiwiZm9ybWF0Ijp7InR5cGUiOiJncmFtbWFyIiwic3ludGF4IjoibGFyayJ9fQ==",
+     "json": "{\"description\":\"Edit files.\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Edit files.\n\nCall this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionRules:118",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJmb3JtYXQiOnsiZGVmaW5pdGlvbiI6InN0YXJ0OiBiZWdpbl9wYXRjaCBodW5rKyBlbmRfcGF0Y2gifX0=",
+     "json": "{\"format\":{\"definition\":\"start: begin_patch hunk+ end_patch\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Call this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch\n\nOriginal patch grammar:\nstart: begin_patch hunk+ end_patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionPreservesNonWrapperInstructions:164",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJkZXNjcmlwdGlvbiI6IlVzZSBhcHBseV9wYXRjaCB0byBlZGl0IGZpbGVzLlxuICBLZWVwIGNvbnRleHQgbGluZXMgaW50YWN0LlxuRG8gbm90IHJ1biB0aGUgcGF0Y2ggb24gdGhlIHByb3h5LiJ9",
+     "json": "{\"description\":\"Use apply_patch to edit files.\\n  Keep context lines intact.\\nDo not run the patch on the proxy.\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Use apply_patch to edit files.\n  Keep context lines intact.\nDo not run the patch on the proxy.\n\nCall this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionPreservesNonWrapperInstructions:164",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJkZXNjcmlwdGlvbiI6IkVkaXQgZmlsZXMgb25seS4gVGhpcyBpcyBhIEZSRUVGT1JNIHRvb2wsIHNvIGRvIG5vdCB3cmFwIHRoZSBwYXRjaCBpbiBKU09OLiBQcmVzZXJ2ZSBsaW5lIGVuZGluZ3MuXG4gIEtlZXAgaW5kZW50YXRpb24uIn0=",
+     "json": "{\"description\":\"Edit files only. This is a FREEFORM tool, so do not wrap the patch in JSON. Preserve line endings.\\n  Keep indentation.\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Edit files only.  Preserve line endings.\n  Keep indentation.\n\nCall this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionPreservesNonWrapperInstructions:164",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJkZXNjcmlwdGlvbiI6IlRoaXMgaXMgYSBGUkVFRk9STSB0b29sLCBzbyBkbyBub3Qgd3JhcCB0aGUgcGF0Y2ggaW4gSlNPTi4ifQ==",
+     "json": "{\"description\":\"This is a FREEFORM tool, so do not wrap the patch in JSON.\"}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Call this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionPreservesGrammar:199",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJmb3JtYXQiOnsiZGVmaW5pdGlvbiI6IiBcbnN0YXJ0OiBiZWdpbl9wYXRjaCBodW5rKyBlbmRfcGF0Y2hcclxuICBiZWdpbl9wYXRjaDogXCIqKiogQmVnaW4gUGF0Y2hcIlxuXG4ifX0=",
+     "json": "{\"format\":{\"definition\":\" \\nstart: begin_patch hunk+ end_patch\\r\\n  begin_patch: \\\"*** Begin Patch\\\"\\n\\n\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Call this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch\n\nOriginal patch grammar:\n \nstart: begin_patch hunk+ end_patch\r\n  begin_patch: \"*** Begin Patch\"\n\n"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionPreservesGrammar:199",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJkZXNjcmlwdGlvbiI6IlRoaXMgaXMgYSBGUkVFRk9STSB0b29sLCBzbyBkbyBub3Qgd3JhcCB0aGUgcGF0Y2ggaW4gSlNPTi4iLCJmb3JtYXQiOnsiZGVmaW5pdGlvbiI6Ii8vIFRoaXMgaXMgYSBGUkVFRk9STSB0b29sLCBzbyBkbyBub3Qgd3JhcCB0aGUgcGF0Y2ggaW4gSlNPTi5cbnN0YXJ0OiBiZWdpbl9wYXRjaCBodW5rKyBlbmRfcGF0Y2gifX0=",
+     "json": "{\"description\":\"This is a FREEFORM tool, so do not wrap the patch in JSON.\",\"format\":{\"definition\":\"// This is a FREEFORM tool, so do not wrap the patch in JSON.\\nstart: begin_patch hunk+ end_patch\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Call this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch\n\nOriginal patch grammar:\n// This is a FREEFORM tool, so do not wrap the patch in JSON.\nstart: begin_patch hunk+ end_patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolDescriptionEnvironmentGrammar:213",
+   "fn": "internal/client/codex/apply-patch.Description",
+   "args": [
+    {
+     "exists": true,
+     "jb": "eyJmb3JtYXQiOnsiZGVmaW5pdGlvbiI6InN0YXJ0OiBiZWdpbl9wYXRjaCBlbnZpcm9ubWVudF9pZD8gaHVuaysgZW5kX3BhdGNoXG5lbnZpcm9ubWVudF9pZDogXCIqKiogRW52aXJvbm1lbnQgSUQ6XCIgL1teXFxuXSsvXG4ifX0=",
+     "json": "{\"format\":{\"definition\":\"start: begin_patch environment_id? hunk+ end_patch\\nenvironment_id: \\\"*** Environment ID:\\\" /[^\\\\n]+/\\n\"}}",
+     "valid": true
+    }
+   ],
+   "results": [
+    {
+     "s": "Call this function with a JSON object whose input field contains the complete patch text.\nUse the Codex apply_patch format, not a conventional git unified diff.\nStart with *** Begin Patch and end with *** End Patch.\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\nEvery added-file content line starts with +.\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\nExample input:\n*** Begin Patch\n*** Update File: src/main.go\n@@\n-old\n+new\n*** End Patch\n\nUse *** Environment ID: as specified by the patch grammar.\n\nOriginal patch grammar:\nstart: begin_patch environment_id? hunk+ end_patch\nenvironment_id: \"*** Environment ID:\" /[^\\n]+/\n"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:241",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:244",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:247",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:241",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "patch"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"patch\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:244",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "patch"
+    }
+   ],
+   "results": [
+    {
+     "s": "patch"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:247",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "patch"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:241",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "  context\n+added\r\n\tline\n "
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"  context\\n+added\\r\\n\\tline\\n \"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:244",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "  context\n+added\r\n\tline\n "
+    }
+   ],
+   "results": [
+    {
+     "s": "  context\\n+added\\r\\n\\tline\\n "
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:247",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"  context\\n+added\\r\\n\\tline\\n \"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "  context\n+added\r\n\tline\n "
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:241",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "\"C:\\file\""
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"\\\"C:\\\\file\\\"\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:244",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "\"C:\\file\""
+    }
+   ],
+   "results": [
+    {
+     "s": "\\\"C:\\\\file\\\""
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:247",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"\\\"C:\\\\file\\\"\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "\"C:\\file\""
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:241",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "\u0000\b\f\r\t"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"\\u0000\\b\\f\\r\\t\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:244",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "\u0000\b\f\r\t"
+    }
+   ],
+   "results": [
+    {
+     "s": "\\u0000\\b\\f\\r\\t"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:247",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"\\u0000\\b\\f\\r\\t\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "\u0000\b\f\r\t"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:241",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "补丁🙂"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"补丁🙂\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:244",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "补丁🙂"
+    }
+   ],
+   "results": [
+    {
+     "s": "补丁🙂"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:247",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"补丁🙂\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "补丁🙂"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:241",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "\u003c\u003e\u0026\u2028\u2029"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"\\u003c\\u003e\\u0026\\u2028\\u2029\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:244",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "\u003c\u003e\u0026\u2028\u2029"
+    }
+   ],
+   "results": [
+    {
+     "s": "\\u003c\\u003e\\u0026\\u2028\\u2029"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolInputEncoding:247",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"\\u003c\\u003e\\u0026\\u2028\\u2029\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "\u003c\u003e\u0026\u2028\u2029"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolEscapeInputFragmentsCompose:259",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "*** Begin Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "*** Begin Patch\\n"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolEscapeInputFragmentsCompose:259",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "  context\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "  context\\n"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolEscapeInputFragmentsCompose:259",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "-\"old\"\r\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "-\\\"old\\\"\\r\\n"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolEscapeInputFragmentsCompose:259",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "+C:\\new\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "+C:\\\\new\\n"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolEscapeInputFragmentsCompose:259",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "+补丁🙂\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "+补丁🙂\\n"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolEscapeInputFragmentsCompose:259",
+   "fn": "internal/client/codex/apply-patch.EscapeInputFragment",
+   "args": [
+    {
+     "s": "*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "*** End Patch\\n"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "patch"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"  context\\n\\tline\\r\\n\\n \"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "  context\n\tline\r\n\n "
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": " \n\t{ \"input\" : \"patch\" }\r\n "
+    }
+   ],
+   "results": [
+    {
+     "s": "patch"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"\\u0069nput\":\"patch\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "patch"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"补丁🙂\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "补丁🙂"
+    },
+    {
+     "null": true
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch arguments object: EOF"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": " \r\n\t "
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch arguments object: EOF"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must contain the input field"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"patch\":\"text\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must contain the input field"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"Input\":\"text\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must contain the input field"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":null}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch input must be a string"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":true}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch input must be a string"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":1}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch input must be a string"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":[]}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch input must be a string"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":{}}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch input must be a string"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\",\"other\":\"value\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must contain only one input field"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"other\":\"value\",\"input\":\"patch\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must contain the input field"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"first\",\"input\":\"second\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must contain only one input field"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\",\"input\":\"patch\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must contain only one input field"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"first\",\"\\u0069nput\":\"second\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must contain only one input field"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\"}{\"input\":\"second\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must not contain trailing JSON"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\"} []"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must not contain trailing JSON"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\"} null"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must not contain trailing JSON"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\"} true"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must not contain trailing JSON"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\"} invalid"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch arguments end: invalid character 'i' looking for beginning of value"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "[\"patch\"]"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must be a JSON object"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "\"patch\""
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must be a JSON object"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "null"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must be a JSON object"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "1"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must be a JSON object"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "false"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "apply_patch arguments must be a JSON object"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch arguments object: invalid character '*' looking for beginning of value"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\""
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch arguments closing brace: EOF"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\" \"patch\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch input value: invalid character '\"' after object key"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch input value: invalid character '}' looking for beginning of value"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch input value: unexpected EOF"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"patch\",}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch arguments closing brace: invalid character '}' looking for beginning of object key string"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{input:\"patch\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch input key: invalid character 'i'"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"line\nline\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch input value: invalid character '\\n' in string literal"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchToolUnwrapInput:323",
+   "fn": "internal/client/codex/apply-patch.UnwrapInput",
+   "args": [
+    {
+     "s": "{\"input\":\"\\x\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    },
+    {
+     "err": "decode apply_patch input value: invalid character 'x' in string escape code"
+    }
+   ]
+  }
+ ]
+}
