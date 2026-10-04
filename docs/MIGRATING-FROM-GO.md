@@ -53,11 +53,10 @@ The one provider that is not available yet, Antigravity, is listed in the README
 
 ## Management API differences
 
-The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, cooldown reset, usage, logs, model definitions and plugins behave as in Go, and so do the older `/v0/management` routes, apart from those listed below. OAuth sign-in through the API works for Claude, Codex, Kimi, Meta, xAI and Devin. Antigravity sign-in, plugin-provided sign-in and the Vertex import (`oauth/import`) return `404` with `provider_not_found`.
+The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, cooldown reset, usage, logs, model definitions and plugins behave as in Go, and so do the older `/v0/management` routes, apart from those listed below. OAuth sign-in through the API works for Claude, Codex, Kimi, Meta, xAI and Devin. Antigravity sign-in and the Vertex import (`oauth/import`) return `404` with `provider_not_found`.
 
 Not available on cliproxy-rs:
 
-- The plugin store (`GET /v8/management/plugins/store`, `POST /v8/management/plugins/store/{id}/install` and the v0 `plugin-store` routes). Listing, enabling, configuring and deleting plugins work, and so do the plugin quota routes.
 - `PUT /v0/management/config.yaml`. The v8 `PUT /v8/management/config.yaml` works.
 - `server/latest-version` answers `502` with "no release repository is configured" until cliproxy-rs publishes releases. Go asks GitHub for the latest CLIProxyAPI release.
 
