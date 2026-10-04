@@ -34,63 +34,141 @@ impl Node {
     }
 
     /// Go's `any` view: numbers as float64, objects with the last duplicate winning.
+    /// Walks with an explicit stack, so the 10000 levels `parse` accepts cannot
+    /// overflow the thread stack.
     pub fn to_value(&self) -> Result<serde_json::Value, DecodeError> {
-        Ok(match self {
-            Node::Null => serde_json::Value::Null,
-            Node::Bool(b) => serde_json::Value::Bool(*b),
-            Node::Number(n) => {
-                let f = parse_f64(n)?;
-                serde_json::Number::from_f64(f)
-                    .map(serde_json::Value::Number)
-                    .unwrap_or(serde_json::Value::Null)
-            }
-            Node::String(s) => serde_json::Value::String(s.clone()),
-            Node::Array(items) => serde_json::Value::Array(items.iter().map(Node::to_value).collect::<Result<_, _>>()?),
-            Node::Object(members) => {
-                let mut map = serde_json::Map::new();
-                for (k, v) in members {
-                    map.insert(k.clone(), v.to_value()?);
+        enum Open<'a> {
+            Array(std::slice::Iter<'a, Node>, Vec<serde_json::Value>),
+            Object(
+                std::slice::Iter<'a, (String, Node)>,
+                serde_json::Map<String, serde_json::Value>,
+                String,
+            ),
+        }
+        let mut stack: Vec<Open> = Vec::new();
+        let mut next = self;
+        loop {
+            let mut done = match next {
+                Node::Null => Some(serde_json::Value::Null),
+                Node::Bool(b) => Some(serde_json::Value::Bool(*b)),
+                Node::Number(n) => Some(
+                    serde_json::Number::from_f64(parse_f64(n)?)
+                        .map(serde_json::Value::Number)
+                        .unwrap_or(serde_json::Value::Null),
+                ),
+                Node::String(s) => Some(serde_json::Value::String(s.clone())),
+                Node::Array(items) => {
+                    stack.push(Open::Array(items.iter(), Vec::with_capacity(items.len())));
+                    None
                 }
-                serde_json::Value::Object(map)
+                Node::Object(members) => {
+                    stack.push(Open::Object(members.iter(), serde_json::Map::new(), String::new()));
+                    None
+                }
+            };
+            // Attach finished values to their parents until a parent has another child.
+            loop {
+                if let Some(value) = done.take() {
+                    match stack.last_mut() {
+                        None => return Ok(value),
+                        Some(Open::Array(_, out)) => out.push(value),
+                        Some(Open::Object(_, out, key)) => {
+                            out.insert(std::mem::take(key), value);
+                        }
+                    }
+                }
+                match stack.last_mut() {
+                    None => unreachable!("an open container is pending"),
+                    Some(Open::Array(items, _)) => {
+                        if let Some(item) = items.next() {
+                            next = item;
+                            break;
+                        }
+                    }
+                    Some(Open::Object(members, _, key)) => {
+                        if let Some((k, v)) = members.next() {
+                            key.clone_from(k);
+                            next = v;
+                            break;
+                        }
+                    }
+                }
+                done = Some(match stack.pop() {
+                    Some(Open::Array(_, out)) => serde_json::Value::Array(out),
+                    Some(Open::Object(_, out, _)) => serde_json::Value::Object(out),
+                    None => unreachable!(),
+                });
             }
-        })
+        }
     }
 
     /// Compact JSON text (for `json.RawMessage` fields).
     pub fn to_json(&self) -> Vec<u8> {
+        enum Step<'a> {
+            Node(&'a Node),
+            Key(&'a str),
+            Byte(u8),
+        }
         let mut out = Vec::new();
-        self.write(&mut out);
+        let mut steps = vec![Step::Node(self)];
+        while let Some(step) = steps.pop() {
+            let node = match step {
+                Step::Byte(b) => {
+                    out.push(b);
+                    continue;
+                }
+                Step::Key(k) => {
+                    cpa_common::json::marshal_str(&mut out, k.as_bytes(), false);
+                    continue;
+                }
+                Step::Node(node) => node,
+            };
+            match node {
+                Node::Null => out.extend_from_slice(b"null"),
+                Node::Bool(b) => out.extend_from_slice(if *b { b"true" } else { b"false" }),
+                Node::Number(n) => out.extend_from_slice(n.as_bytes()),
+                Node::String(s) => cpa_common::json::marshal_str(&mut out, s.as_bytes(), false),
+                Node::Array(items) => {
+                    out.push(b'[');
+                    steps.push(Step::Byte(b']'));
+                    for (i, item) in items.iter().enumerate().rev() {
+                        steps.push(Step::Node(item));
+                        if i > 0 {
+                            steps.push(Step::Byte(b','));
+                        }
+                    }
+                }
+                Node::Object(members) => {
+                    out.push(b'{');
+                    steps.push(Step::Byte(b'}'));
+                    for (i, (k, v)) in members.iter().enumerate().rev() {
+                        steps.push(Step::Node(v));
+                        steps.push(Step::Byte(b':'));
+                        steps.push(Step::Key(k));
+                        if i > 0 {
+                            steps.push(Step::Byte(b','));
+                        }
+                    }
+                }
+            }
+        }
         out
     }
+}
 
-    fn write(&self, out: &mut Vec<u8>) {
-        match self {
-            Node::Null => out.extend_from_slice(b"null"),
-            Node::Bool(b) => out.extend_from_slice(if *b { b"true" } else { b"false" }),
-            Node::Number(n) => out.extend_from_slice(n.as_bytes()),
-            Node::String(s) => cpa_common::json::marshal_str(out, s.as_bytes(), false),
-            Node::Array(items) => {
-                out.push(b'[');
-                for (i, item) in items.iter().enumerate() {
-                    if i > 0 {
-                        out.push(b',');
-                    }
-                    item.write(out);
-                }
-                out.push(b']');
-            }
-            Node::Object(members) => {
-                out.push(b'{');
-                for (i, (k, v)) in members.iter().enumerate() {
-                    if i > 0 {
-                        out.push(b',');
-                    }
-                    cpa_common::json::marshal_str(out, k.as_bytes(), false);
-                    out.push(b':');
-                    v.write(out);
-                }
-                out.push(b'}');
-            }
+/// Frees nested containers with an explicit stack instead of the recursive
+/// drop glue, which overflows the thread stack on deeply nested documents.
+impl Drop for Node {
+    fn drop(&mut self) {
+        let mut pending: Vec<Node> = Vec::new();
+        let take = |node: &mut Node, pending: &mut Vec<Node>| match node {
+            Node::Array(items) => pending.append(items),
+            Node::Object(members) => pending.extend(members.drain(..).map(|(_, v)| v)),
+            _ => {}
+        };
+        take(self, &mut pending);
+        while let Some(mut node) = pending.pop() {
+            take(&mut node, &mut pending);
         }
     }
 }
@@ -432,5 +510,21 @@ mod tests {
         assert!(parse(deep.as_bytes()).is_err());
         let ok = format!("{}{}", "[".repeat(9999), "]".repeat(9999));
         assert!(parse(ok.as_bytes()).is_ok());
+    }
+
+    #[test]
+    fn deep_documents_convert_and_drop_without_recursion() {
+        let text = format!("{}1{}", r#"{"a":["#.repeat(4999), "]}".repeat(4999));
+        let node = parse(text.as_bytes()).unwrap();
+        assert_eq!(node.to_json(), text.as_bytes());
+        let mut value = node.to_value().unwrap();
+        for _ in 0..4999 {
+            value = value["a"][0].take();
+        }
+        assert_eq!(value, serde_json::json!(1.0));
+        // The last duplicate wins in Go's `any` view; the text keeps both.
+        let dup = parse(br#"{"k":{"x":1},"k":[2,{"y":null}]}"#).unwrap();
+        assert_eq!(dup.to_value().unwrap(), serde_json::json!({"k": [2.0, {"y": null}]}));
+        assert_eq!(dup.to_json(), br#"{"k":{"x":1},"k":[2,{"y":null}]}"#);
     }
 }

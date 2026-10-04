@@ -364,10 +364,11 @@ mod tests {
                 Some(line("enabled", "!!str `ééé\u{fffd}...` into bool")),
             ),
         ] {
-            let crate::gojson::Node::Object(fields) = crate::gojson::parse(body.as_bytes()).unwrap() else {
+            let node = crate::gojson::parse(body.as_bytes()).unwrap();
+            let crate::gojson::Node::Object(fields) = &node else {
                 panic!("object");
             };
-            assert_eq!(check_json_item(&fields).err(), want, "{body}");
+            assert_eq!(check_json_item(fields).err(), want, "{body}");
         }
         let yaml = |s: &str| serde_yaml_ng::from_str::<Value>(s).unwrap();
         assert_eq!(yaml_int(&yaml("5.7")), Some(5));
