@@ -17,8 +17,20 @@ pub struct RateLimitError {
 
 impl std::fmt::Display for RateLimitError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let at = chrono::DateTime::<chrono::Utc>::from(self.retry_at).format("%Y-%m-%dT%H:%M:%SZ");
-        write!(f, "GitHub API rate limited; retry after {at}")
+        let at = self
+            .retry_at
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .ok()
+            .and_then(|d| i64::try_from(d.as_secs()).ok())
+            .and_then(|secs| chrono::DateTime::from_timestamp(secs, 0));
+        match at {
+            Some(at) => write!(
+                f,
+                "GitHub API rate limited; retry after {}",
+                at.format("%Y-%m-%dT%H:%M:%SZ")
+            ),
+            None => f.write_str("GitHub API rate limited"),
+        }
     }
 }
 
@@ -54,6 +66,9 @@ pub struct GitHubRateLimiter {
     state: Mutex<State>,
     now: Option<fn() -> SystemTime>,
 }
+
+/// 9999-12-31T23:59:59Z, the latest `X-Ratelimit-Reset` kept as sent.
+const MAX_RESET: u64 = 253_402_300_799;
 
 static DEFAULT_LIMITER: std::sync::LazyLock<GitHubRateLimiter> = std::sync::LazyLock::new(GitHubRateLimiter::default);
 
@@ -128,7 +143,9 @@ impl GitHubRateLimiter {
             && let Ok(reset) = header("X-Ratelimit-Reset").parse::<i64>()
             && reset > 0
         {
-            let reset_at = SystemTime::UNIX_EPOCH + Duration::from_secs(reset as u64);
+            // Go keeps any reset; it is capped at year 9999 so the time stays
+            // representable and printable.
+            let reset_at = SystemTime::UNIX_EPOCH + Duration::from_secs((reset as u64).min(MAX_RESET));
             if retry_at.is_none_or(|at| reset_at > at) {
                 retry_at = Some(reset_at);
             }
@@ -165,10 +182,12 @@ fn prune(state: &mut State, now: SystemTime) {
     if state.next_prune_at.is_some_and(|at| now < at) {
         return;
     }
-    state
-        .entries
-        .retain(|_, e| e.retry_at.is_some_and(|at| now < at + Duration::from_secs(3600)));
-    state.next_prune_at = Some(now + Duration::from_secs(3600));
+    let hour = Duration::from_secs(3600);
+    state.entries.retain(|_, e| {
+        e.retry_at
+            .is_some_and(|at| at.checked_add(hour).is_none_or(|end| now < end))
+    });
+    state.next_prune_at = now.checked_add(hour);
 }
 
 /// Go `githubRetryAfter`: delta seconds or an HTTP date.
@@ -286,5 +305,40 @@ mod tests {
             err.to_string(),
             "GitHub API rate limited; retry after 1970-01-01T00:17:10Z"
         );
+    }
+
+    /// An absurd reset header neither panics now nor on the requests after it.
+    #[test]
+    fn extreme_resets_stay_usable() {
+        let limiter = GitHubRateLimiter::with_clock(|| SystemTime::UNIX_EPOCH + Duration::from_secs(1_000));
+        for (key, reset) in [("a", "10000000000000"), ("b", "9223372036854775807")] {
+            let headers: Headers = [
+                ("X-Ratelimit-Remaining".to_owned(), vec!["0".to_owned()]),
+                ("X-Ratelimit-Reset".to_owned(), vec![reset.to_owned()]),
+            ]
+            .into_iter()
+            .collect();
+            let err = limiter.observe(key, 403, &headers, None).unwrap_err();
+            assert_eq!(err.retry_at, at(MAX_RESET));
+            assert_eq!(
+                err.to_string(),
+                "GitHub API rate limited; retry after 9999-12-31T23:59:59Z"
+            );
+            assert_eq!(limiter.check(key).unwrap_err().retry_at, at(MAX_RESET));
+        }
+        // Later requests prune past the stored entries without overflowing.
+        let mut state = limiter.state.lock().unwrap();
+        state.next_prune_at = None;
+        prune(&mut state, at(1_000));
+        assert_eq!(state.entries.len(), 2);
+        drop(state);
+        assert!(limiter.check("other").is_ok());
+        assert!(limiter.observe("other", 200, &Headers::new(), None).is_ok());
+        // A time past chrono's range still prints.
+        let far = RateLimitError {
+            status: 429,
+            retry_at: at(1 << 50),
+        };
+        assert_eq!(far.to_string(), "GitHub API rate limited");
     }
 }
