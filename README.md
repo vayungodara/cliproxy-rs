@@ -9,9 +9,9 @@
 
 ## What is this?
 
-cliproxy-rs is a small server you run on your own computer. It lets your coding tools, such as Claude Code, Codex CLI or Cursor, use the AI subscriptions and API keys you already have, like a Claude Max plan or a ChatGPT plan, through one local address. A dashboard built into it shows which accounts work, how much of each plan's limits is left, and how to connect each tool.
+cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It is a small server you run on your own computer that gives your coding tools, such as Claude Code, Codex CLI or Cursor, one local endpoint for the Anthropic, OpenAI and Gemini APIs, and it translates requests and responses between those formats.
 
-It is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It reads the same `config.yaml` and the same account files, so you can switch between the two in either direction.
+It is meant as a drop-in replacement for the Go version. It reads the same `config.yaml` and the same auth files and serves the same v8 Management API, so you can switch between the two in either direction. The dashboard is built into the binary. It shows which accounts work, how much of each plan's limits is left, and how to connect each tool.
 
 <p align="center">
   <picture>
@@ -22,10 +22,10 @@ It is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyA
 
 ## Why would I want it?
 
-- You pay for Claude and ChatGPT plans and want Claude Code, Codex CLI and your editor to share them, with the 5-hour and weekly limits of every account on one screen.
-- You have several Claude or Codex accounts and want requests spread across them, or moved to the next account when one reaches its limit.
 - A tool speaks only one API: the proxy translates between the Anthropic, OpenAI and Gemini formats, so an OpenAI-only tool can use a Claude account and the other way round.
-- You run CLIProxyAPI and want a smaller, faster-starting binary with the dashboard built in.
+- You run CLIProxyAPI and want a smaller, faster-starting binary with the dashboard built in, without changing your config or auth files.
+- You want Claude Code, Codex CLI and your editor to use the subscriptions and API keys you already have, like a Claude Max plan or a ChatGPT plan, through one local address.
+- You want the 5-hour and weekly limits of your accounts on one screen.
 
 ## Quick start
 
@@ -43,15 +43,13 @@ It is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyA
 
    It installs the latest release after checking its checksum, writes a config with new keys to `~/.cliproxy-rs`, starts the proxy in the background and opens the dashboard in your browser. The keys stay in `~/.cliproxy-rs/keys.env` and are never printed.
 
-2. In the dashboard, sign in with the `CLIPROXY_MANAGEMENT_KEY` line from `keys.env` and choose Connect account.
+2. In the dashboard, sign in with the `CLIPROXY_MANAGEMENT_KEY` line from `keys.env` and choose Connect account. Read the note on [provider terms](#accounts-and-provider-terms) before you connect a subscription.
 
 3. Open Use with tools and copy the settings for Claude Code, Codex CLI or another tool.
 
 Run the same command again to upgrade; your config and keys stay as they are. [docs/INSTALL.md](docs/INSTALL.md#start-at-login) shows how to start the proxy when you log in.
 
 [docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) walks through the same steps in more detail.
-
-Using a subscription outside its official app can break the provider's terms, and providers have suspended accounts for it. Whether to do that is your call and your risk.
 
 ## Set up with an AI agent
 
@@ -77,9 +75,13 @@ claude
 
 [docs/CLIENTS.md](docs/CLIENTS.md) has copy-paste setups for Claude Code, Codex CLI, Gemini CLI, Amp, OpenCode, Factory Droid, Cline, Roo Code, Kilo Code, Cursor, Zed, Continue, Aider and the OpenAI, Anthropic and Gemini SDKs.
 
-## Several accounts
+## Accounts and provider terms
 
-Sign in to as many Claude and Codex accounts as you have, and choose how the proxy rotates between them: `round-robin`, `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition: spend the account whose weekly window resets soonest first). Session affinity keeps each conversation on one account so the provider's prompt cache stays warm, and an account that hits a limit rests while the others take over. [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing, cooldowns, the quota view, per-account proxies, Codex over WebSocket and reaching the proxy from your other machines over Tailscale.
+Using a subscription outside its official app can break the provider's terms, and providers have suspended accounts for it. Whether to do that is your call and your risk.
+
+### Several accounts
+
+Like CLIProxyAPI, the proxy can hold more than one Claude or Codex account. Each sign-in becomes one file in `auth-dir`, and a routing setting decides which account serves each request: `round-robin`, `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition that prefers the account whose weekly window resets soonest). Session affinity keeps each conversation on one account so the provider's prompt cache stays warm. When a provider answers 429, the proxy puts that account in a cooldown for that model and uses the next ready account. [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing, cooldowns, the quota view, per-account proxies, Codex over WebSocket and reaching the proxy from your other machines over Tailscale.
 
 ## Terminal UI
 
