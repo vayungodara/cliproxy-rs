@@ -628,17 +628,17 @@ mod tests {
     struct Published {
         home: crate::fake::FakeHome,
         client: Client,
-        arrivals: Arc<std::sync::Mutex<Vec<(std::time::Instant, Json)>>>,
+        arrivals: Arc<std::sync::Mutex<Vec<(tokio::time::Instant, Json)>>>,
     }
 
     impl Published {
         async fn start(heartbeat: bool) -> Self {
-            let arrivals: Arc<std::sync::Mutex<Vec<(std::time::Instant, Json)>>> = Arc::default();
+            let arrivals: Arc<std::sync::Mutex<Vec<(tokio::time::Instant, Json)>>> = Arc::default();
             let seen = arrivals.clone();
             let home = crate::fake::FakeHome::start(move |args| {
                 if args[0].eq_ignore_ascii_case("lpush") && args[1] == "in-flight-snapshot" {
                     let frame = serde_json::from_str(&args[2]).unwrap();
-                    seen.lock().unwrap().push((std::time::Instant::now(), frame));
+                    seen.lock().unwrap().push((tokio::time::Instant::now(), frame));
                 }
                 crate::fake::raw(":1\r\n")
             })
@@ -648,11 +648,11 @@ mod tests {
             Self { home, client, arrivals }
         }
 
-        fn arrivals(&self) -> Vec<(std::time::Instant, Json)> {
+        fn arrivals(&self) -> Vec<(tokio::time::Instant, Json)> {
             self.arrivals.lock().unwrap().clone()
         }
 
-        async fn wait_for(&self, count: usize) -> Vec<(std::time::Instant, Json)> {
+        async fn wait_for(&self, count: usize) -> Vec<(tokio::time::Instant, Json)> {
             tokio::time::timeout(Duration::from_secs(2), async {
                 loop {
                     let arrivals = self.arrivals();
@@ -753,8 +753,9 @@ mod tests {
     }
 
     /// Go `TestHomeInFlightPublisherAppliesConfigUpdateAtNextTimerCycle`: a new interval
-    /// takes effect after the pending timer fires, not before.
-    #[tokio::test]
+    /// takes effect after the pending timer fires, not before. Paused time: the timers
+    /// and arrival stamps share one controlled clock, so scheduler delay cannot skew them.
+    #[tokio::test(start_paused = true)]
     async fn a_new_interval_applies_at_the_next_timer_cycle() {
         let settings = test_settings(Duration::from_millis(60));
         let published = Published::start(true).await;
@@ -766,7 +767,7 @@ mod tests {
             stop.clone(),
         ));
         published.wait_for(1).await;
-        let updated = std::time::Instant::now();
+        let updated = tokio::time::Instant::now();
         settings.apply(PublisherConfig {
             snapshot_interval: Duration::from_millis(10),
             ..settings.get().unwrap()
