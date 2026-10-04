@@ -16,7 +16,9 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
-use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecSession, ExecStream, FailureScope, ResponseBody};
+use cpa_core::exec::{
+    ExecError, ExecRequest, ExecResponse, ExecSession, ExecStream, FailureScope, ResponseBody, SessionLease,
+};
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use gjson::Kind;
@@ -82,6 +84,9 @@ pub(crate) struct Upstream {
     /// The last request that touched the `collaboration` namespace on this socket renamed
     /// it (`multiAgentV2OptimizedConn`): later continuations restore upstream names too.
     multi_agent: std::sync::atomic::AtomicBool,
+    /// The Home pick this socket keeps (Go `session.lifecycle`); `true` once the socket
+    /// shut down, after which no pick binds.
+    lease: Mutex<(bool, Option<SessionLease>)>,
 }
 
 impl Upstream {
@@ -93,6 +98,7 @@ impl Upstream {
             link: Mutex::default(),
             reader: Mutex::default(),
             multi_agent: Default::default(),
+            lease: Mutex::default(),
         })
     }
 
@@ -140,12 +146,69 @@ impl Upstream {
         })
     }
 
-    /// Stops the reader and closes the socket. Idempotent.
+    /// Go `bindExecutionLifecycle`: the socket keeps the attempt's Home pick until it is
+    /// invalidated, replaced or closed, and Home draining the pick invalidates the
+    /// socket. A pick bound earlier ends (`target_replaced`).
+    pub(crate) fn bind(
+        self: &Arc<Self>,
+        session: &Arc<Session>,
+        lease: Option<&SessionLease>,
+    ) -> Result<(), ExecError> {
+        let Some(lease) = lease else { return Ok(()) };
+        if self
+            .lease
+            .lock()
+            .expect("lease")
+            .1
+            .as_ref()
+            .is_some_and(|l| l.same(lease))
+        {
+            return Ok(());
+        }
+        let (weak_session, weak_conn) = (Arc::downgrade(session), Arc::downgrade(self));
+        let close = Box::new(move || {
+            if let (Some(session), Some(conn)) = (weak_session.upgrade(), weak_conn.upgrade()) {
+                session.invalidate(
+                    &conn,
+                    &transport("codex websockets executor: execution lifecycle ended"),
+                    false,
+                );
+            }
+        });
+        let unbound = || transport("codex websockets executor: websocket connection closed during lifecycle bind");
+        if !lease.0.retain(close) {
+            session.invalidate(self, &unbound(), false);
+            return Err(unbound());
+        }
+        let previous = {
+            let mut slot = self.lease.lock().expect("lease");
+            if slot.0 {
+                drop(slot);
+                lease.0.end();
+                return Err(unbound());
+            }
+            slot.1.replace(lease.clone())
+        };
+        if let Some(previous) = previous {
+            previous.0.end();
+        }
+        Ok(())
+    }
+
+    /// Stops the reader and closes the socket, ending the Home pick it kept. Idempotent.
     pub(crate) fn shutdown(self: &Arc<Self>) {
         if let Some(reader) = self.reader.lock().expect("reader handle").take() {
             reader.abort();
         }
         self.deactivate();
+        let lease = {
+            let mut slot = self.lease.lock().expect("lease");
+            slot.0 = true;
+            slot.1.take()
+        };
+        if let Some(lease) = lease {
+            lease.0.end();
+        }
         let this = self.clone();
         tokio::spawn(async move {
             let _ = tokio::time::timeout(Duration::from_secs(1), async {
@@ -938,6 +1001,7 @@ impl CodexExecutor {
             )
             .await?
         };
+        conn.bind(&session, exec_session.lease.as_ref())?;
         if let Some(handshake) = &handshake {
             wire.ws_handshake(101, handshake);
         }
@@ -967,6 +1031,7 @@ impl CodexExecutor {
                     return Err(error);
                 }
             };
+            fresh.bind(&session, exec_session.lease.as_ref())?;
             rx = fresh.activate();
             restore = fresh.restores(optimized, conflict);
             wire.ws_request(&target.url, &headers, frame.as_bytes());

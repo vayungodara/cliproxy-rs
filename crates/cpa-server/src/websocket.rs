@@ -282,6 +282,8 @@ struct Connection {
     /// The upgrade request's WebSocket timeline, detached before the 101 (None when
     /// request logging is off).
     timeline: Option<crate::request_logging::WebsocketLog>,
+    /// The Home pick the session's pooled upstream socket keeps between turns.
+    home: Arc<crate::home_session::SessionHome>,
 }
 
 /// The downstream reader.
@@ -456,6 +458,7 @@ impl Connection {
             capture: Default::default(),
             request_id: None,
             timeline: None,
+            home: Arc::default(),
         }
     }
 
@@ -547,6 +550,8 @@ impl Connection {
         // The reader holds the other half: stop it so the socket closes now.
         client.stop();
         self.rt.executors.close_session(&self.session);
+        // The kept Home pick ends with the connection, before timeline delivery can wait.
+        self.home.close();
         sink.finish(client).await;
     }
 
@@ -907,9 +912,11 @@ impl Connection {
             session: ExecSession {
                 id: self.session.clone(),
                 continuation: ctx.native && ctx.requires_current,
+                lease: None,
             },
             pinned: (!self.pinned.is_empty()).then(|| self.pinned.clone()),
             on_selected: Some(on_selected),
+            home: Some(self.home.clone()),
         });
         let call = dispatch::Call {
             entry: Format::OpenAIResponse,

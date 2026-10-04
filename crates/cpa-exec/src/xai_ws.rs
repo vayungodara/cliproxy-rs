@@ -932,6 +932,7 @@ impl XaiExecutor {
             self.ws_ensure(&session, &target, &headers, cfg, credential, state.as_deref())
                 .await?
         };
+        conn.bind(&session, exec_session.lease.as_ref())?;
         let mut rx = conn.activate();
         if let Err(error) = conn.send(message.clone()).await {
             let error = pool_error(error);
@@ -948,6 +949,7 @@ impl XaiExecutor {
             let (fresh, fresh_handshake) = self
                 .ws_ensure(&session, &target, &headers, cfg, credential, state.as_deref())
                 .await?;
+            fresh.bind(&session, exec_session.lease.as_ref())?;
             rx = fresh.activate();
             if let Err(error) = fresh.send(message).await {
                 let error = pool_error(error);

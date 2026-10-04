@@ -121,6 +121,9 @@ pub struct SessionTurn {
     /// Called with each credential right before it is attempted
     /// (`WithSelectedAuthIDCallback`); the last call before success is the serving one.
     pub on_selected: Option<OnSelected>,
+    /// The Home pick the connection's pooled upstream socket keeps between turns; none
+    /// keeps every Home pick to its turn.
+    pub home: Option<Arc<crate::home_session::SessionHome>>,
 }
 
 /// The [`SessionTurn::on_selected`] callback.
@@ -1362,11 +1365,41 @@ async fn remote_round(
             selection.retry_round = round.max(0) as usize;
             selection.exclude = if stream { excluded.clone() } else { tried.clone() };
             let request = remote_request(cx.call, &selection, count, cx.trace);
-            let (lease, request_retry, user_key) = match cx
-                .rt
-                .acquire_remote(remote, selection.clone(), request, &releases)
-                .await
-            {
+            // Go `retainedHomeSessionSelection`: a WebSocket turn runs on the pick its
+            // session's pooled socket kept, when it still fits.
+            let kept = cx
+                .call
+                .turn
+                .as_ref()
+                .and_then(|turn| turn.home.as_ref())
+                .and_then(|home| {
+                    home.reuse(
+                        count <= 1 && round <= 0,
+                        &selection.model,
+                        &selection.exclude,
+                        cx.call.pinned(),
+                        &releases,
+                    )
+                });
+            let picked = match kept {
+                Some((lease, user_key, request_retry)) => Ok((lease, request_retry, user_key)),
+                None => {
+                    let home = cx.call.turn.as_ref().and_then(|turn| turn.home.as_ref());
+                    // Go `endHomeSelectionBeforeRedispatch` for a kept pick that ended.
+                    if home.is_some() {
+                        settle(releases.clone()).await?;
+                    }
+                    let picked = cx
+                        .rt
+                        .acquire_remote(remote, selection.clone(), request, &releases)
+                        .await;
+                    if let (Some(home), Ok((_, request_retry, _))) = (home, &picked) {
+                        home.granted(*request_retry);
+                    }
+                    picked
+                }
+            };
+            let (lease, request_retry, user_key) = match picked {
                 Ok(picked) => picked,
                 Err(error) => {
                     let code = error.code.clone();
@@ -1711,6 +1744,19 @@ async fn attempt(
     let route_model = lease.selection.model.clone();
     let mut last = None;
     let mut refreshed = false;
+    // Go `Options.ExecutionLifecycle`: a session turn's Home pick, which a pooled
+    // upstream socket may keep beyond the turn.
+    let home = call
+        .turn
+        .as_ref()
+        .and_then(|turn| turn.home.as_ref())
+        .filter(|_| lease.is_remote());
+    let pick = home.map(|home| home.pick(&lease.credential.id));
+    let mut guard = pick.clone().map(crate::home_session::PickGuard::new);
+    let session = call.turn.as_ref().map(|turn| cpa_core::exec::ExecSession {
+        lease: pick.as_ref().map(crate::home_session::Pick::lease),
+        ..turn.session.clone()
+    });
     for (i, upstream) in target.models.iter().enumerate() {
         // Go `stateModelForExecution`: the upstream model when Home chose one.
         let home_model = lease
@@ -1754,14 +1800,11 @@ async fn attempt(
         if let Some(on_selected) = call.on_selected() {
             on_selected(&lease.credential);
         }
+        let session = session.as_ref();
         let execute = |credential: Arc<cpa_core::credential::Credential>, req: ExecRequest| async move {
             let credential = rt.for_executor(&credential);
-            match (call.turn.as_ref(), call.media.as_ref().map(|m| m.kind)) {
-                (Some(turn), _) => {
-                    rt.executors
-                        .execute_in_session(&credential, req, cfg, &turn.session)
-                        .await
-                }
+            match (session, call.media.as_ref().map(|m| m.kind)) {
+                (Some(session), _) => rt.executors.execute_in_session(&credential, req, cfg, session).await,
                 (None, Some(MediaKind::Images)) => rt.executors.images(&credential, req, &call.request_path, cfg).await,
                 (None, Some(MediaKind::Videos)) => rt.executors.videos(&credential, req, &call.request_path, cfg).await,
                 (None, None) => rt.executors.execute(&credential, req, cfg).await,
@@ -1796,6 +1839,10 @@ async fn attempt(
                         rewrite_model(done, &target.alias.original_alias)
                     } else {
                         done
+                    };
+                    let user_key = &request.caller.principal;
+                    let Some(lease) = keep_home(home, guard.take(), lease, user_key) else {
+                        return Attempt::Done(done);
                     };
                     return Attempt::Done(match done {
                         Done::Stream { headers, first, rest } => Done::Stream {
@@ -1856,6 +1903,8 @@ async fn attempt(
         };
         // A credential-wide quota ends this credential's model pool.
         if stop || i + 1 == target.models.len() || classify::credential_scoped(error) {
+            // Go `End`: the socket that retained the pick closes before the release.
+            drop(guard.take());
             lease.complete(outcome);
             return if stop {
                 Attempt::Stop(fault)
@@ -1867,6 +1916,32 @@ async fn attempt(
         last = Some(fault);
     }
     Attempt::Next(last.expect("at least one model was attempted"))
+}
+
+/// Go `retainHomeWebsocketSelection`: after a successful turn, the Home lease moves to
+/// the pick a pooled upstream socket retained, which the session keeps for its next
+/// turn. Returns the lease when no socket retained the pick.
+fn keep_home(
+    home: Option<&Arc<crate::home_session::SessionHome>>,
+    guard: Option<crate::home_session::PickGuard>,
+    lease: Lease,
+    user_key: &str,
+) -> Option<Lease> {
+    let (Some(home), Some(mut guard)) = (home, guard) else {
+        return Some(lease);
+    };
+    let pick = guard.defuse()?;
+    let (credential, route) = (lease.credential.id.clone(), lease.selection.model.clone());
+    match pick.keep(lease) {
+        None => {
+            home.keep(pick, &credential, &route, user_key.to_owned());
+            None
+        }
+        Some(lease) => {
+            pick.close();
+            Some(lease)
+        }
+    }
 }
 
 /// Go's client request metadata for usage records (handlers.go `GetContextWithCancel`

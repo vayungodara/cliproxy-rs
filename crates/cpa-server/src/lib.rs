@@ -15,6 +15,7 @@ mod errors;
 mod gemini;
 mod gojson;
 mod home_models;
+pub mod home_session;
 mod images;
 pub mod keepalive;
 pub mod lcp;

@@ -250,6 +250,7 @@ async fn turns_match_go() {
                 let exec_session = ExecSession {
                     id: session.to_owned(),
                     continuation: turn["continuation"].as_bool().unwrap_or(false),
+                    lease: None,
                 };
                 match executor
                     .execute_in_session(credential, request(turn, session), &cfg, &exec_session)

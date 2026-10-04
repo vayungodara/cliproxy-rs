@@ -469,6 +469,45 @@ pub struct ExecSession {
     /// An executor that cannot honour that fails with [`ExecError::replay_required`]
     /// instead of opening a fresh connection (Go: `RequiredUpstreamWebsocket`).
     pub continuation: bool,
+    /// The Home pick this attempt runs on, when it came from Home (Go
+    /// `Options.ExecutionLifecycle`). An executor that pools the upstream socket hands
+    /// the pick to it; the pick then lasts as long as the socket.
+    pub lease: Option<SessionLease>,
+}
+
+/// A Home pick a pooled upstream socket can keep beyond the turn (Go
+/// `ExecutionLifecycle` with `Retain`).
+pub trait Retainable: Send + Sync {
+    /// Go `Bind` + `Retain`: the socket takes the pick over. Home draining the pick runs
+    /// `close` once, before the pick is released. False when the pick already ended; the
+    /// socket must not be kept then.
+    fn retain(&self, close: Box<dyn FnOnce() + Send>) -> bool;
+    /// Go `End`: the socket that kept the pick was invalidated, replaced or closed.
+    fn end(&self);
+}
+
+/// A shared [`Retainable`], compared by identity.
+#[derive(Clone)]
+pub struct SessionLease(pub std::sync::Arc<dyn Retainable>);
+
+impl SessionLease {
+    pub fn same(&self, other: &SessionLease) -> bool {
+        std::sync::Arc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl PartialEq for SessionLease {
+    fn eq(&self, other: &Self) -> bool {
+        self.same(other)
+    }
+}
+
+impl Eq for SessionLease {}
+
+impl fmt::Debug for SessionLease {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("SessionLease")
+    }
 }
 
 impl ExecError {

@@ -720,6 +720,14 @@ impl Lease {
         self.report(outcome);
     }
 
+    /// Joins a remote lease's release to `releases`: a Home pick a session kept ends or
+    /// runs again during a later request, which awaits the release before its next pick.
+    pub(crate) fn release_into(&mut self, releases: &crate::remote::PendingReleases) {
+        if let Some(remote) = &mut self.remote {
+            remote.releases = releases.clone();
+        }
+    }
+
     /// Records an intermediate outcome for one model of a pooled alias without ending
     /// the lease.
     pub fn note(&self, model: &str, outcome: &Outcome) {

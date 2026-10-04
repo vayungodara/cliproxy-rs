@@ -2885,6 +2885,104 @@ mod tests {
         assert!(releases(&home).iter().any(|f| f["credential_id"] == "cred-live"));
     }
 
+    /// A Codex Responses WebSocket upstream on loopback: every request frame gets
+    /// `response.created` and `response.completed`. Counts dials and closed sockets.
+    async fn responses_ws_upstream() -> (String, Arc<Mutex<(usize, usize)>>) {
+        use axum::extract::ws::{Message, WebSocketUpgrade};
+        let counts: Arc<Mutex<(usize, usize)>> = Arc::default();
+        let app = axum::Router::new().fallback({
+            let counts = counts.clone();
+            move |ws: WebSocketUpgrade| {
+                let counts = counts.clone();
+                async move {
+                    counts.lock().unwrap().0 += 1;
+                    ws.on_upgrade(move |mut socket| async move {
+                        while let Some(Ok(message)) = socket.recv().await {
+                            if !matches!(message, Message::Text(_)) {
+                                continue;
+                            }
+                            for event in [
+                                r#"{"type":"response.created","response":{"id":"r1","output":[]}}"#,
+                                r#"{"type":"response.completed","response":{"id":"r1","output":[],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}"#,
+                            ] {
+                                let _ = socket.send(Message::Text(event.into())).await;
+                            }
+                        }
+                        counts.lock().unwrap().1 += 1;
+                    })
+                }
+            }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        (base, counts)
+    }
+
+    /// Go `bindExecutionLifecycle` and `retainedHomeSessionSelection`: a Responses
+    /// WebSocket turn on a Home Codex key with upstream WebSockets leaves its pick with
+    /// the pooled socket. The pick outlives the response, the next turn runs on it
+    /// without another pick, and Home draining it closes the socket before the release.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_pooled_codex_socket_keeps_its_home_pick() {
+        use futures_util::StreamExt;
+        use wreq::ws::message::Message;
+        let (upstream, counts) = responses_ws_upstream().await;
+        let pick = |id: &str| {
+            format!(
+                r#"{{"model":"gpt-5-codex","auth_index":"{id}","concurrency":{{"accounted":true,"credential_id":"{id}","model":"gpt-5-codex"}},"auth":{{"id":"{id}","provider":"codex","attributes":{{"api_key":"sk-fake-{id}","base_url":"{upstream}","websockets":"true"}}}}}}"#
+            )
+        };
+        let home = scripted(
+            "port: 0\ncredentials:\n  concurrency:\n    lifecycle-config-revision: 1\n    cpa-cancel-bound: 20s\n",
+            vec![pick("cred-ws"), pick("cred-spare")],
+        )
+        .await;
+        let (base, rt, shutdown, task) = node_with(&home, cpa_exec::codex::CodexExecutor::new().unwrap()).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let mut socket = wreq::Client::new()
+            .websocket(format!("ws{}/v1/responses", base.trim_start_matches("http")))
+            .header("authorization", "Bearer client-key")
+            .send()
+            .await
+            .unwrap()
+            .into_websocket()
+            .await
+            .unwrap();
+        let turn = r#"{"type":"response.create","model":"gpt-5-codex","input":[{"type":"message","role":"user","content":"hi"}]}"#;
+        for round in 0..2 {
+            socket.send(Message::text(turn)).await.unwrap();
+            loop {
+                let next = tokio::time::timeout(Duration::from_secs(5), socket.next())
+                    .await
+                    .expect("turn completes");
+                let Some(Ok(Message::Text(text))) = next else {
+                    panic!("turn {round}: {next:?}");
+                };
+                if text.as_str().contains("response.completed") {
+                    break;
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            assert!(releases(&home).is_empty(), "turn {round}: the socket keeps the pick");
+        }
+        assert_eq!(rpops(&home).len(), 1, "the second turn ran on the kept pick");
+        assert_eq!(*counts.lock().unwrap(), (1, 0), "one pooled socket, still open");
+
+        let begun = std::time::Instant::now();
+        shutdown.cancel();
+        task.await.unwrap();
+        assert!(
+            begun.elapsed() < Duration::from_secs(5),
+            "the drain did not wait out the bound"
+        );
+        assert!(releases(&home).iter().any(|f| f["credential_id"] == "cred-ws"));
+        eventually("the drained socket closed", || counts.lock().unwrap().1 == 1).await;
+    }
+
     /// A Codex live upstream that stalls: the calls endpoint sends its headers and then
     /// never finishes the body, and the WebSocket endpoint accepts TCP but never answers
     /// the handshake. Counts requests that reached it.

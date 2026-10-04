@@ -218,6 +218,7 @@ fn session(continuation: bool) -> ExecSession {
     ExecSession {
         id: "conn-1".into(),
         continuation,
+        lease: None,
     }
 }
 
@@ -281,6 +282,112 @@ async fn turns_reuse_the_socket_and_close_session_releases_it() {
         tokio::time::sleep(Duration::from_millis(20)).await;
     }
     panic!("upstream socket still open after close_session");
+}
+
+/// A Home pick as the pooled socket sees it: records retain/end and keeps the closer.
+#[derive(Default)]
+struct FakePick {
+    retained: Mutex<usize>,
+    ended: Mutex<usize>,
+    close: Mutex<Option<Box<dyn FnOnce() + Send>>>,
+}
+
+impl cpa_core::exec::Retainable for FakePick {
+    fn retain(&self, close: Box<dyn FnOnce() + Send>) -> bool {
+        *self.retained.lock().unwrap() += 1;
+        *self.close.lock().unwrap() = Some(close);
+        true
+    }
+
+    fn end(&self) {
+        *self.ended.lock().unwrap() += 1;
+    }
+}
+
+fn session_with(continuation: bool, pick: &Arc<FakePick>) -> ExecSession {
+    ExecSession {
+        lease: Some(cpa_core::exec::SessionLease(pick.clone())),
+        ..session(continuation)
+    }
+}
+
+async fn ended(up: &Upstream, count: usize) {
+    for _ in 0..50 {
+        if *up.ended.lock().unwrap() == count {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    panic!("upstream socket still open");
+}
+
+/// Go `bindExecutionLifecycle`: the pooled socket keeps the turn's Home pick past the
+/// response; a later turn's pick replaces it (`target_replaced`), and draining that
+/// pick closes the socket, which then ends the pick (`connection_closed`).
+#[tokio::test]
+async fn pooled_socket_keeps_the_home_pick_until_it_closes() {
+    let (up, url) = upstream(vec![
+        Act::Send(vec![CREATED, COMPLETED]),
+        Act::Send(vec![CREATED, COMPLETED]),
+    ])
+    .await;
+    let executor = CodexExecutor::new().unwrap();
+    let (cfg, cred) = (Config::default(), credential(&url));
+    let first = Arc::new(FakePick::default());
+    let response = executor
+        .execute_in_session(&cred, request(BODY), &cfg, &session_with(false, &first))
+        .await
+        .unwrap();
+    assert_eq!(collect(response).await.len(), 2);
+    assert_eq!(*first.retained.lock().unwrap(), 1);
+    assert_eq!(
+        *first.ended.lock().unwrap(),
+        0,
+        "the response ended, the socket did not"
+    );
+
+    let second = Arc::new(FakePick::default());
+    let response = executor
+        .execute_in_session(&cred, request(BODY), &cfg, &session_with(true, &second))
+        .await
+        .unwrap();
+    assert_eq!(collect(response).await.len(), 2);
+    assert_eq!(*first.ended.lock().unwrap(), 1, "replaced on the same socket");
+    assert_eq!(*second.ended.lock().unwrap(), 0);
+    assert_eq!(up.dials.lock().unwrap().len(), 1);
+
+    let close = second.close.lock().unwrap().take().expect("closer bound");
+    close();
+    ended(&up, 1).await;
+    assert_eq!(*second.ended.lock().unwrap(), 1);
+    assert_eq!(executor.ws.len(), 1, "the downstream session stays");
+    let error = executor
+        .execute_in_session(&cred, request(BODY), &cfg, &session(true))
+        .await
+        .err()
+        .expect("the drained socket is gone");
+    assert!(error.is_replay_required(), "{error}");
+}
+
+/// Closing the downstream session ends the pick its socket kept.
+#[tokio::test]
+async fn closing_the_session_ends_the_kept_pick() {
+    let (up, url) = upstream(vec![Act::Send(vec![CREATED, COMPLETED])]).await;
+    let executor = CodexExecutor::new().unwrap();
+    let pick = Arc::new(FakePick::default());
+    let response = executor
+        .execute_in_session(
+            &credential(&url),
+            request(BODY),
+            &Config::default(),
+            &session_with(false, &pick),
+        )
+        .await
+        .unwrap();
+    collect(response).await;
+    executor.close_session("conn-1");
+    assert_eq!(*pick.ended.lock().unwrap(), 1);
+    ended(&up, 1).await;
 }
 
 /// A rejected handshake reports the upstream status with Go's classification and the
