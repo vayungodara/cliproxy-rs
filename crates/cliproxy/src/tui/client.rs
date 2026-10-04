@@ -52,6 +52,8 @@ pub fn marshal_map(pairs: Vec<(&str, Value)>) -> String {
 pub struct Client {
     base_url: String,
     secret: Mutex<String>,
+    /// The server's last `X-CPA-VERSION`.
+    version: Mutex<String>,
     http: wreq::Client,
 }
 
@@ -60,12 +62,21 @@ impl Client {
         Client {
             base_url: normalize_base_url(base_url),
             secret: Mutex::new(secret.trim().to_owned()),
+            version: Mutex::new(String::new()),
             http: cpa_exec::proxy::default_client(),
         }
     }
 
     pub fn base_url(&self) -> &str {
         &self.base_url
+    }
+
+    /// The server answered as cliproxy-rs (its `X-CPA-VERSION`), not Go CLIProxyAPI.
+    pub fn is_cliproxy_rs(&self) -> bool {
+        self.version
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .starts_with("cliproxy-rs")
     }
 
     /// Go `SetSecretKey`.
@@ -176,6 +187,9 @@ impl Client {
                 current = next;
             };
             headers_seen.store(true, std::sync::atomic::Ordering::Relaxed);
+            if let Some(version) = res.headers().get("x-cpa-version").and_then(|v| v.to_str().ok()) {
+                *self.version.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = version.to_owned();
+            }
             let status = res.status().as_u16();
             let data = res.bytes().await.map_err(|e| cause(&e))?;
             Ok((status, data.to_vec()))
