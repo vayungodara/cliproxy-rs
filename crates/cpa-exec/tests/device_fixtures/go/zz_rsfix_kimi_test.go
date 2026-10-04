@@ -136,7 +136,7 @@ func sseResp(body string) rsfixResponse {
 
 func TestRSFixKimi(t *testing.T) {
 	rsfixOut(t)
-	buildinfo.Version = "0.1.0"
+	buildinfo.Version = "0.1.1"
 	kimiMeta := map[string]any{"type": "kimi", "access_token": "kimi-access-fixture", "refresh_token": "kimi-refresh-fixture", "device_id": "dev-fixture-1"}
 	cases := []rsfixExecCase{
 		{
@@ -291,7 +291,7 @@ func TestRSFixKimi(t *testing.T) {
 
 func TestRSFixKimiRefresh(t *testing.T) {
 	rsfixOut(t)
-	buildinfo.Version = "0.1.0"
+	buildinfo.Version = "0.1.1"
 	for _, tc := range []struct {
 		name string
 		meta map[string]any
@@ -325,7 +325,7 @@ func TestRSFixKimiRefresh(t *testing.T) {
 
 func TestRSFixKimiLogin(t *testing.T) {
 	out := rsfixOut(t)
-	buildinfo.Version = "0.1.0"
+	buildinfo.Version = "0.1.1"
 	for _, tc := range []struct {
 		name     string
 		provider string
@@ -361,7 +361,7 @@ func TestRSFixKimiLogin(t *testing.T) {
 
 func TestRSFixKimiReplay(t *testing.T) {
 	rsfixOut(t)
-	buildinfo.Version = "0.1.0"
+	buildinfo.Version = "0.1.1"
 	signed := `{"id":"msg_1","type":"message","role":"assistant","model":"k3","content":[{"type":"thinking","thinking":"plan","signature":"sig-1"},{"type":"text","text":"Calling."},{"type":"tool_use","id":"toolu_1","name":"read","input":{"path":"a"}}],"stop_reason":"tool_use","usage":{"input_tokens":3,"output_tokens":1}}`
 	streamed := "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_2\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"k3\",\"content\":[],\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\n" +
 		"event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"thinking\",\"thinking\":\"\",\"signature\":\"\"}}\n\n" +
@@ -442,7 +442,7 @@ func gzipBody(s string) string {
 
 func TestRSFixKimiTransport(t *testing.T) {
 	rsfixOut(t)
-	buildinfo.Version = "0.1.0"
+	buildinfo.Version = "0.1.1"
 	meta := map[string]any{"type": "kimi", "access_token": "kimi-access-fixture", "device_id": "dev-fixture-1"}
 	okJSON := `{"id":"c9","object":"chat.completion","created":9,"model":"k2","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`
 	cases := []struct {

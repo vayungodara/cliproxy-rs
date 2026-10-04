@@ -23,7 +23,7 @@ import (
 
 func TestRSFixMeta(t *testing.T) {
 	rsfixOut(t)
-	buildinfo.Version = "0.1.0"
+	buildinfo.Version = "0.1.1"
 	created := `data: {"type":"response.created","response":{"id":"resp_m","status":"in_progress"}}`
 	itemDone := `data: {"type":"response.output_item.done","output_index":0,"item":{"id":"msg_1","type":"message","role":"assistant","content":[{"type":"output_text","text":"hi there"}]}}`
 	completedEmpty := `data: {"type":"response.completed","response":{"id":"resp_m","status":"completed","model":"muse-spark-1.3","output":[],"usage":{"input_tokens":5,"output_tokens":2,"total_tokens":7}}}`

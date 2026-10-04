@@ -45,7 +45,7 @@
         ],
         [
           "User-Agent",
-          "CLIProxyAPI/0.1.0"
+          "CLIProxyAPI/0.1.1"
         ],
         [
           "Content-Length",
@@ -81,7 +81,7 @@
         ],
         [
           "X-Msh-Version",
-          "0.1.0"
+          "0.1.1"
         ],
         [
           "Accept-Encoding",
@@ -100,7 +100,7 @@
         ],
         [
           "User-Agent",
-          "CLIProxyAPI/0.1.0"
+          "CLIProxyAPI/0.1.1"
         ],
         [
           "Content-Length",
@@ -140,7 +140,7 @@
         ],
         [
           "X-Msh-Version",
-          "0.1.0"
+          "0.1.1"
         ],
         [
           "Accept-Encoding",
