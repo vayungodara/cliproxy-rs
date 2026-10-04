@@ -763,6 +763,10 @@ async fn session_close_closes_unclaimed_tunnels() {
 /// channel over IPv6 (`::1` here; on a host with IPv6 interfaces it also binds `[::]`).
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn relays_over_ipv6() {
+    if std::net::UdpSocket::bind((std::net::Ipv6Addr::LOCALHOST, 0)).is_err() {
+        eprintln!("skipping relays_over_ipv6: this host cannot bind UDP on ::1");
+        return;
+    }
     let config = RelayConfig {
         enabled: true,
         max_sessions: 1,
