@@ -38,6 +38,24 @@ fn codex(id: &str, token: &str, plan: &str, priority: &str, base_url: &str) -> C
     credential
 }
 
+/// A private, empty `auth-dir`, removed when dropped: credential loading never falls back
+/// to `~/.cli-proxy-api`.
+struct AuthDir(std::path::PathBuf);
+
+impl AuthDir {
+    fn new() -> Self {
+        let dir = std::env::temp_dir().join(format!("cpa-it-auth-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        Self(dir)
+    }
+}
+
+impl Drop for AuthDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 #[tokio::test]
 async fn routed_images_never_select_a_free_codex_credential() {
     let seen: Arc<Mutex<Vec<String>>> = Arc::default();
@@ -63,7 +81,12 @@ async fn routed_images_never_select_a_free_codex_credential() {
         codex("codex-free.json", "at-FREE", "free", "10", &upstream),
         codex("codex-plus.json", "at-PLUS", "plus", "1", &upstream),
     ];
-    let cfg = Config::parse("access:\n  api-keys: [client-key]\n").unwrap();
+    let auth_dir = AuthDir::new();
+    let cfg = Config::parse(&format!(
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\n",
+        auth_dir.0.display()
+    ))
+    .unwrap();
     let executors = Executors {
         claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
         codex: cpa_exec::codex::CodexExecutor::new().unwrap(),
