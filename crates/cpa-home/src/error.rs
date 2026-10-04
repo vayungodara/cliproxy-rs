@@ -98,17 +98,19 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 /// A decode failure without the value text serde embeds in its messages
 /// (`invalid type: string "..."`): KV entries and enrollment JWTs carry secrets.
 pub(crate) fn redacted_decode_error(context: &str, error: &serde_json::Error) -> Error {
+    Error::Other(format!("{context}: {}", redacted_decode_text(error)))
+}
+
+/// The kind and position of a decode failure, never the value: for callers outside
+/// this crate that decode Home KV values themselves.
+pub fn redacted_decode_text(error: &serde_json::Error) -> String {
     let kind = match error.classify() {
         serde_json::error::Category::Io => "read",
         serde_json::error::Category::Syntax => "syntax",
         serde_json::error::Category::Data => "type",
         serde_json::error::Category::Eof => "truncated input",
     };
-    Error::Other(format!(
-        "{context}: {kind} error at line {} column {}",
-        error.line(),
-        error.column()
-    ))
+    format!("{kind} error at line {} column {}", error.line(), error.column())
 }
 
 #[cfg(test)]

@@ -140,17 +140,7 @@ fn encode_items(items: &[Vec<u8>]) -> Vec<u8> {
 }
 
 fn decode_items(raw: &[u8]) -> Result<Vec<Vec<u8>>, String> {
-    use base64::Engine;
-    let encoded: Option<Vec<String>> = serde_json::from_slice(raw).map_err(|e| e.to_string())?;
-    encoded
-        .unwrap_or_default()
-        .iter()
-        .map(|item| {
-            base64::engine::general_purpose::STANDARD
-                .decode(item)
-                .map_err(|e| e.to_string())
-        })
-        .collect()
+    cpa_home::kv::decode_byte_slices(raw)
 }
 
 /// Go `GetCodexReasoningReplayItemsRequired` in Home mode; a failed TTL renewal is an
