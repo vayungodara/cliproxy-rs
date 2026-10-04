@@ -22,6 +22,19 @@ pub(super) enum ReadError {
     Read(String),
 }
 
+/// [`live::read_limited`] on the pick's attempt context: Home draining the pick ends
+/// the read as a read error and drops the upstream response (Go cancels the body read).
+async fn read_upstream(
+    upstream: cpa_exec::proxy::Upstream,
+    drain: &mut futures_util::future::BoxFuture<'static, ()>,
+) -> (Vec<u8>, Option<BodyError>) {
+    tokio::select! {
+        biased;
+        _ = drain => (Vec::new(), Some(BodyError::Read)),
+        read = live::read_limited(upstream) => read,
+    }
+}
+
 /// `io.ReadAll(io.LimitReader(body, limit+1))`: more than `limit` bytes is too large.
 pub(super) async fn read_limited(body: Body, limit: usize) -> Result<Vec<u8>, ReadError> {
     let mut stream = body.into_data_stream();
@@ -301,7 +314,7 @@ pub(super) async fn call(
         .live_post(&target, &call_url, upstream_headers, Bytes::from(upstream_body));
     let posted = tokio::select! {
         biased;
-        _ = drain => {
+        _ = &mut drain => {
             let text = crate::remote::cancelled_request("POST", &call_url);
             return traced(fail(crate::remote::CLIENT_CLOSED, &text));
         }
@@ -319,7 +332,7 @@ pub(super) async fn call(
     copy_headers(&mut response_headers, &upstream.headers, &CALL_RESPONSE_HEADERS);
     let location = header_text(&upstream.headers, header::LOCATION);
     let upstream_content_type = header_text(&upstream.headers, header::CONTENT_TYPE);
-    let (mut data, read_error) = live::read_limited(upstream).await;
+    let (mut data, read_error) = read_upstream(upstream, &mut drain).await;
     if home && status == 401 {
         super::report_unauthorized(
             &rt,
@@ -520,7 +533,7 @@ pub(super) async fn hangup(
         }
     };
     let home = lease.as_ref().map_or(stored.home.is_some(), |lease| lease.is_remote());
-    let drain = match &lease {
+    let mut drain = match &lease {
         Some(lease) => super::drained(Some(lease)),
         None => stored
             .home
@@ -570,7 +583,7 @@ pub(super) async fn hangup(
         .live_post(&target, &url, upstream_headers, Bytes::from(body));
     let posted = tokio::select! {
         biased;
-        _ = drain => Err(cpa_core::exec::ExecError::local(
+        _ = &mut drain => Err(cpa_core::exec::ExecError::local(
             crate::remote::CLIENT_CLOSED,
             cpa_core::exec::FailureScope::Transport,
             crate::remote::cancelled_request("POST", &url),
@@ -595,7 +608,7 @@ pub(super) async fn hangup(
         response_headers.insert(header::CONTENT_TYPE, content_type.clone());
     }
     copy_headers(&mut response_headers, &upstream.headers, &HANDSHAKE_HEADERS);
-    let (data, read_error) = live::read_limited(upstream).await;
+    let (data, read_error) = read_upstream(upstream, &mut drain).await;
     drop(lease);
     if home && status == 401 {
         super::report_unauthorized(

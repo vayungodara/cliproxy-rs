@@ -258,12 +258,19 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
         session: header_session(&selection_headers, &[], Some(&call_id), &call.session_id),
     };
     let url = live::sideband_url(&rt.executors.codex.live_endpoints().api_base, style, &call_id);
-    let upstream = match rt
-        .executors
-        .codex
-        .live_websocket(&target, &url, live::protocol_headers(&headers), subprotocols(&headers))
-        .await
-    {
+    let drained = match &lease {
+        Some(lease) => super::drained(Some(lease)),
+        None => call
+            .home
+            .as_ref()
+            .and_then(|hold| hold.drained())
+            .unwrap_or_else(|| Box::pin(std::future::pending())),
+    };
+    let dial =
+        rt.executors
+            .codex
+            .live_websocket(&target, &url, live::protocol_headers(&headers), subprotocols(&headers));
+    let upstream = match until_drained_dial(dial, drained).await {
         Ok(upstream) => upstream,
         Err(error) => {
             if home {
@@ -299,6 +306,22 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
             drop(guard);
         }
     })
+}
+
+/// An upstream dial on the pick's attempt context: Home draining the pick fails it as a
+/// dial without a response (Go cancels the handshake), dropping the half-open socket.
+async fn until_drained_dial(
+    dial: impl std::future::Future<Output = Result<LiveSocket, DialError>>,
+    drained: impl std::future::Future<Output = ()> + Unpin,
+) -> Result<LiveSocket, DialError> {
+    tokio::select! {
+        biased;
+        _ = drained => Err(DialError {
+            response: None,
+            message: "context canceled".into(),
+        }),
+        dialed = dial => dialed,
+    }
 }
 
 /// Waits for `relay`, aborting it once `drained` resolves (Go binds the sockets to the
@@ -395,12 +418,12 @@ async fn direct(inbound: Inbound, model: String) -> Response {
         session: header_session(&selection_headers, &[], None, ""),
     };
     let url = live::direct_url(&rt.executors.codex.live_endpoints().api_base, &requested);
-    let mut upstream = match rt
+    let mut drained = super::drained(Some(&lease));
+    let dial = rt
         .executors
         .codex
-        .live_websocket(&target, &url, live::direct_headers(&headers), subprotocols(&headers))
-        .await
-    {
+        .live_websocket(&target, &url, live::direct_headers(&headers), subprotocols(&headers));
+    let mut upstream = match until_drained_dial(dial, &mut drained).await {
         Ok(upstream) => upstream,
         Err(error) => {
             if lease.is_remote() {
@@ -450,7 +473,13 @@ async fn direct(inbound: Inbound, model: String) -> Response {
         update.extend_from_slice(&cpa_common::json::compact(&session, true));
         update.push(b'}');
         let update = String::from_utf8_lossy(&update).into_owned();
-        if upstream.socket.send(up::Message::text(update)).await.is_err() {
+        // The write runs on the pick's attempt context too.
+        let sent = tokio::select! {
+            biased;
+            _ = &mut drained => false,
+            sent = upstream.socket.send(up::Message::text(update)) => sent.is_ok(),
+        };
+        if !sent {
             return traced(realtime_error(
                 502,
                 "Failed to apply Realtime client secret session",

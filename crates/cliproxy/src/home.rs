@@ -2885,6 +2885,120 @@ mod tests {
         assert!(releases(&home).iter().any(|f| f["credential_id"] == "cred-live"));
     }
 
+    /// A Codex live upstream that stalls: the calls endpoint sends its headers and then
+    /// never finishes the body, and the WebSocket endpoint accepts TCP but never answers
+    /// the handshake. Counts requests that reached it.
+    async fn stalled_live_upstream() -> (cpa_exec::codex::CodexExecutor, Arc<std::sync::atomic::AtomicUsize>) {
+        let reached: Arc<std::sync::atomic::AtomicUsize> = Arc::default();
+        let app = axum::Router::new().fallback({
+            let reached = reached.clone();
+            move || {
+                reached.fetch_add(1, Ordering::SeqCst);
+                async move {
+                    let body = futures_util::StreamExt::chain(
+                        futures_util::stream::once(async { Ok::<_, std::convert::Infallible>("v=0") }),
+                        futures_util::stream::pending(),
+                    );
+                    (
+                        axum::http::StatusCode::CREATED,
+                        [("location", "/v1/realtime/calls/rtc_live1")],
+                        axum::body::Body::from_stream(body),
+                    )
+                }
+            }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let silent = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let ws_base = format!("ws://{}/v1", silent.local_addr().unwrap());
+        tokio::spawn({
+            let reached = reached.clone();
+            async move {
+                let mut held = Vec::new();
+                while let Ok((socket, _)) = silent.accept().await {
+                    reached.fetch_add(1, Ordering::SeqCst);
+                    held.push(socket);
+                }
+            }
+        });
+        let codex = cpa_exec::codex::CodexExecutor::with_client(
+            wreq::Client::new(),
+            cpa_exec::codex_oauth::CodexOAuth::new(wreq::Client::new()),
+        )
+        .with_live_endpoints(format!("{base}/backend-api/codex/realtime/calls"), ws_base);
+        (codex, reached)
+    }
+
+    /// Home draining a live pick cancels every upstream read and handshake, not only
+    /// the wait for response headers: a stalled call body and a stalled Realtime
+    /// WebSocket handshake both end at once with a read or dial failure, instead of
+    /// holding the drain for the cancel bound.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_drain_cancels_stalled_live_reads_and_handshakes() {
+        let (codex, reached) = stalled_live_upstream().await;
+        let home = scripted(
+            "port: 0\ncredentials:\n  concurrency:\n    lifecycle-config-revision: 1\n    cpa-cancel-bound: 20s\n",
+            vec![
+                codex_pick("cred-call", Some("oat-call")),
+                codex_pick("cred-ws", Some("oat-ws")),
+            ],
+        )
+        .await;
+        let (base, rt, shutdown, task) = node_with(&home, codex).await;
+        eventually("dispatch published", || {
+            rt.remote_dispatch().is_some_and(|d| d.available())
+        })
+        .await;
+        let call = tokio::spawn({
+            let base = base.clone();
+            async move { live_call(&base).await }
+        });
+        let socket = tokio::spawn({
+            let base = base.clone();
+            async move {
+                let response = wreq::Client::new()
+                    .get(format!("{base}/v1/realtime?model=gpt-realtime"))
+                    .header("authorization", "Bearer client-key")
+                    .header("connection", "Upgrade")
+                    .header("upgrade", "websocket")
+                    .header("sec-websocket-version", "13")
+                    .header("sec-websocket-key", "dGhlIHNhbXBsZSBub25jZQ==")
+                    .send()
+                    .await
+                    .unwrap();
+                (response.status().as_u16(), response.text().await.unwrap())
+            }
+        });
+        eventually("both requests reached the upstream", || {
+            reached.load(Ordering::SeqCst) == 2
+        })
+        .await;
+        let begun = std::time::Instant::now();
+        shutdown.cancel();
+        task.await.unwrap();
+        assert!(
+            begun.elapsed() < Duration::from_secs(5),
+            "the drain did not wait out the bound"
+        );
+        let (status, body) = tokio::time::timeout(Duration::from_secs(5), call)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(status, 502, "{body}");
+        assert!(body.contains("Failed to read Codex live response"), "{body}");
+        let (status, body) = tokio::time::timeout(Duration::from_secs(5), socket)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(status, 502, "{body}");
+        assert!(body.contains("realtime_websocket_upstream_unavailable"), "{body}");
+        let released = releases(&home);
+        for id in ["cred-call", "cred-ws"] {
+            assert!(released.iter().any(|f| f["credential_id"] == id), "{id} released");
+        }
+    }
+
     /// Go `ReportHomeUnauthorized` from the live handlers: a call the upstream rejects,
     /// and a direct Realtime WebSocket whose handshake it rejects, each become a
     /// `home-result` record for the selection model.
