@@ -11,7 +11,7 @@
 
 cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It is a small server you run on your own computer that gives your coding tools, such as Claude Code, Codex CLI or Cursor, one local endpoint for the Anthropic, OpenAI and Gemini APIs, and it translates requests and responses between those formats.
 
-It is meant as a drop-in replacement for the Go version. It reads the same `config.yaml` and the same auth files and serves the same v8 Management API, so you can switch between the two in either direction. The dashboard is built into the binary. It shows which accounts work, how much of each plan's limits is left, and how to connect each tool.
+It aims to be a drop-in replacement for the Go version: it reads the same `config.yaml` and the same auth files and serves the same v8 Management API, so you can switch between the two in either direction. Parity is not complete yet; [docs/PARITY.md](docs/PARITY.md) tracks what is covered. The dashboard is built into the binary. It shows which accounts work, how much of each plan's limits is left, and how to connect each tool.
 
 <p align="center">
   <picture>
@@ -81,7 +81,7 @@ Using a subscription outside its official app can break the provider's terms, an
 
 ### Several accounts
 
-Like CLIProxyAPI, the proxy can hold more than one Claude or Codex account. Each sign-in becomes one file in `auth-dir`, and a routing setting decides which account serves each request: `round-robin`, `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition that prefers the account whose weekly window resets soonest). Session affinity keeps each conversation on one account so the provider's prompt cache stays warm. When a provider answers 429, the proxy puts that account in a cooldown for that model and uses the next ready account. [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing, cooldowns, the quota view, per-account proxies, Codex over WebSocket and reaching the proxy from your other machines over Tailscale.
+Like CLIProxyAPI, the proxy can hold more than one Claude or Codex account. Each sign-in becomes one file in `auth-dir`, and a routing setting decides which account serves each request: `round-robin`, `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition that prefers the account whose weekly window resets soonest). Session affinity, which is off by default, keeps each conversation on one account so the provider's prompt cache stays warm. When a provider answers 429, the proxy puts that account in a cooldown for that model and uses the next ready account. [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing, cooldowns, the quota view, per-account proxies, Codex over WebSocket and reaching the proxy from your other machines over Tailscale.
 
 ## Works with CLIProxyAPI apps
 
