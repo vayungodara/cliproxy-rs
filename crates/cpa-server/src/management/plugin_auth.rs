@@ -116,13 +116,7 @@ impl AuthManager for PluginAuthManager {
             },
             Err(e) => return Err(format!("register auth: {e}")),
         };
-        let store = state.rt.store();
-        let mut all: Vec<Credential> = store.snapshot().iter().map(|c| (**c).clone()).collect();
-        match all.iter_mut().find(|c| c.id == credential.id) {
-            Some(slot) => *slot = credential,
-            None => all.push(credential),
-        }
-        store.reconcile(all);
+        state.rt.store().upsert(credential);
         Ok(())
     }
 
