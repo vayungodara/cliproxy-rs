@@ -45,8 +45,11 @@ pub fn local(mut credential: Credential) -> Credential {
 }
 
 /// `credential` itself when it is local, otherwise a copy whose `proxy_url` is
-/// [`DENY_PROXY`].
-pub fn guarded(credential: &Arc<Credential>) -> Arc<Credential> {
+/// [`DENY_PROXY`]. A loopback base URL behind a proxy that is not loopback (its own or
+/// `requests.proxy-url`) gets a `direct` copy, so the mock is reached without the
+/// request ever going to that proxy. Only the credential's own loopback proxy exempts
+/// it: a loopback `requests.proxy-url` may be a real local proxy that forwards out.
+pub fn guarded(credential: &Arc<Credential>, cfg: &Config) -> Arc<Credential> {
     let text = |key: &str| {
         credential
             .attributes
@@ -56,13 +59,20 @@ pub fn guarded(credential: &Arc<Credential>) -> Arc<Credential> {
             .unwrap_or_default()
             .trim()
     };
-    let local =
-        credential.attributes.contains_key(LOCAL) || is_loopback(text("proxy_url")) || is_loopback(text("base_url"));
-    if local {
+    if credential.attributes.contains_key(LOCAL) || is_loopback(text("proxy_url")) {
         return credential.clone();
     }
+    let replacement = if is_loopback(text("base_url")) {
+        let proxy = cpa_exec::proxy::Proxy::effective_url(credential, cfg);
+        if is_loopback(&proxy) || cpa_exec::proxy::Proxy::parse(&proxy) == cpa_exec::proxy::Proxy::Direct {
+            return credential.clone();
+        }
+        "direct"
+    } else {
+        DENY_PROXY
+    };
     let mut copy = Credential::clone(credential);
-    copy.attributes.insert("proxy_url".into(), DENY_PROXY.into());
+    copy.attributes.insert("proxy_url".into(), replacement.into());
     Arc::new(copy)
 }
 
@@ -113,7 +123,10 @@ mod tests {
         ];
         let deny = Proxy::Url(DENY_PROXY.into());
         let global = Proxy::Url("http://127.0.0.1:7".into());
-        let got: Vec<Proxy> = creds.iter().map(|c| Proxy::effective(&guarded(c), &cfg)).collect();
+        let got: Vec<Proxy> = creds
+            .iter()
+            .map(|c| Proxy::effective(&guarded(c, &cfg), &cfg))
+            .collect();
         assert_eq!(
             got,
             [
@@ -130,6 +143,25 @@ mod tests {
         );
         // The stored credential is untouched.
         assert!(!creds[0].attributes.contains_key("proxy_url"));
+
+        // A loopback mock behind a proxy that is not loopback is reached directly.
+        let outside = Config::parse("requests:\n  proxy-url: http://proxy.example:3128\n").unwrap();
+        let mock = credential(&[("base_url", "http://127.0.0.1:4100")], serde_json::json!({}));
+        assert_eq!(Proxy::effective(&guarded(&mock, &outside), &outside), Proxy::Direct);
+        let own = credential(
+            &[
+                ("base_url", "http://127.0.0.1:4100"),
+                ("proxy_url", "http://proxy.example:1"),
+            ],
+            serde_json::json!({}),
+        );
+        assert_eq!(Proxy::effective(&guarded(&own, &cfg), &cfg), Proxy::Direct);
+        let elsewhere = credential(&[("base_url", "https://api.x.ai")], serde_json::json!({}));
+        assert_eq!(Proxy::effective(&guarded(&elsewhere, &outside), &outside), deny_proxy());
+    }
+
+    fn deny_proxy() -> Proxy {
+        Proxy::Url(DENY_PROXY.into())
     }
 
     /// A guarded credential fails with a connection error at the dead proxy; it never
@@ -137,7 +169,7 @@ mod tests {
     #[tokio::test]
     async fn guarded_credential_never_leaves_the_machine() {
         let cfg = Config::parse("{}\n").unwrap();
-        let guarded = guarded(&credential(&[], serde_json::json!({})));
+        let guarded = guarded(&credential(&[], serde_json::json!({})), &cfg);
         let client = cpa_exec::proxy::GoClients::new(Default::default()).get(&Proxy::effective(&guarded, &cfg));
         let err = client
             .get("https://provider.invalid/v1/models")
