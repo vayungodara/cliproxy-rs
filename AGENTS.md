@@ -24,7 +24,7 @@ A Rust rewrite of CLIProxyAPI (https://github.com/router-for-me/CLIProxyAPI) tar
 ## Rules
 
 - The full test suite is slow and memory-heavy (the BoringSSL build and the release link). While iterating, run the affected crate or a filter, for example `cargo test -p cpa-exec kimi`; CI runs fmt, `clippy -D warnings` and the whole suite. On a shared or small machine, add `CARGO_BUILD_JOBS=2 nice -n 19`.
-- Tests that compare against Go or PostgreSQL run fully only in CI, inside a network-denied namespace.
+- The Go and PostgreSQL comparison tests in `cargo test` run fully only in CI, inside a network-denied namespace. For a local Go/Rust differential run on Linux, use `./harness/run` (see `harness/README.md`).
 - Request bodies are forwarded byte for byte unless a ported rule rewrites them. Never re-serialize JSON just to pass it through.
 - Upstream credentials and client keys must never be logged or forwarded to the wrong side.
 - Tests use local mock upstreams and never send traffic to real provider accounts. Give every test a private `auth-dir`: without one, credential loading falls back to `~/.cli-proxy-api`, where real logins live. Build test runtimes with `cpa_server::testing::runtime`.
