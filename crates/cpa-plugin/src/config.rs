@@ -186,6 +186,51 @@ pub fn resolve_dir(dir: &str) -> Result<PathBuf, String> {
     Ok(platform::clean(std::path::Path::new(dir)))
 }
 
+/// `plugins.store-sources` as Go's `NormalizePluginsConfig` leaves it: trimmed, empty
+/// entries dropped.
+// ponytail: a malformed list (a mapping entry, a scalar instead of a list) makes Go's
+// config load fail; here it reads as no extra sources.
+pub fn store_sources(document: &Value) -> Vec<String> {
+    match get(document, "plugins").and_then(|p| get(p, "store-sources")) {
+        Some(Value::Sequence(items)) => items
+            .iter()
+            .map(|item| yaml_string(item).trim().to_owned())
+            .filter(|s| !s.is_empty())
+            .collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// `plugins.store-auth` as Go's `NormalizeAuthConfigs` leaves it.
+// ponytail: like `store_sources`, entries Go's typed decode rejects are read leniently.
+pub fn store_auth(document: &Value) -> Vec<crate::store::AuthConfig> {
+    let Some(Value::Sequence(items)) = get(document, "plugins").and_then(|p| get(p, "store-auth")) else {
+        return Vec::new();
+    };
+    let rules: Vec<_> = items
+        .iter()
+        .filter(|item| item.is_mapping())
+        .map(|item| {
+            let text = |key: &str| get(item, key).map(yaml_string).unwrap_or_default();
+            crate::store::AuthConfig {
+                matches: text("match"),
+                apply_to: match get(item, "apply-to") {
+                    Some(Value::Sequence(values)) => values.iter().map(yaml_string).collect(),
+                    _ => Vec::new(),
+                },
+                auth_type: text("type"),
+                token_env: text("token-env"),
+                username_env: text("username-env"),
+                password_env: text("password-env"),
+                header_name: text("header-name"),
+                header_value_env: text("header-value-env"),
+                allow_insecure: get(item, "allow-insecure").and_then(yaml_bool).unwrap_or(false),
+            }
+        })
+        .collect();
+    crate::store::normalize_auth_configs(&rules)
+}
+
 /// `plugins.dir` from a config document, unresolved.
 pub fn configured_dir(document: &Value) -> String {
     get(document, "plugins")

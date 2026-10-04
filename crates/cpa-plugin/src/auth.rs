@@ -183,6 +183,203 @@ impl PluginAuth {
 }
 
 impl PluginAuth {
+    /// Go `MergeExistingAuthMetadata`: keys the auth does not set are taken from the
+    /// existing file's JSON (token payload keys excepted), and its `disabled` unless
+    /// the auth sets one.
+    pub fn merge_existing(&mut self, existing: &serde_json::Map<String, Value>) {
+        if existing.is_empty() {
+            return;
+        }
+        if !self.metadata.contains_key("disabled")
+            && let Some(Value::Bool(disabled)) = existing.get("disabled")
+        {
+            self.disabled = *disabled;
+        }
+        let meta = self.provider.trim().eq_ignore_ascii_case("meta");
+        for (key, value) in existing {
+            if is_auth_token_payload_key(key) {
+                continue;
+            }
+            if meta
+                && matches!(
+                    canonical_metadata_key(key),
+                    "api_key" | "dca_token" | "dca_expired" | "dca_expires_at"
+                )
+            {
+                continue;
+            }
+            self.metadata.entry(key.clone()).or_insert_with(|| value.clone());
+        }
+    }
+
+    /// Go `FileTokenStore.Save` for a plugin auth: the file under `base_dir` (or the
+    /// auth's own path), written atomically with mode 0600 unless it already holds the
+    /// same JSON. Returns the path; without `create` (Go's auth creation intent, which
+    /// logins carry and command-line plugins do not) a disabled auth whose file does not
+    /// exist is skipped with an empty path.
+    pub fn save_file(mut self, base_dir: &str, create: bool) -> Result<String, String> {
+        use std::path::Path;
+        let mut metadata: serde_json::Map<String, Value> = std::mem::take(&mut self.metadata).into_iter().collect();
+        normalize_credential_metadata(&mut metadata);
+        // Go `ValidateAuthWeight`.
+        if let Some(raw) = self.attributes.get("weight") {
+            let weight = Value::String(raw.clone());
+            cpa_core::config::credentials::parse_weight(&weight).map_err(|e| {
+                format!(
+                    "auth filestore: invalid attributes weight: {}",
+                    crate::hostauth::go_weight_error(&weight, e)
+                )
+            })?;
+        }
+        if let Some(weight) = metadata.get("weight") {
+            cpa_core::config::credentials::parse_weight(weight).map_err(|e| {
+                format!(
+                    "auth filestore: invalid metadata weight: {}",
+                    crate::hostauth::go_weight_error(weight, e)
+                )
+            })?;
+        }
+        // Go `resolveAuthPath`.
+        let base_dir = base_dir.trim();
+        let path = match self.attributes.get(ATTRIBUTE_PATH).map(|p| p.trim()) {
+            Some(p) if !p.is_empty() => p.to_owned(),
+            _ => match self.file_name.trim() {
+                "" if self.id.is_empty() => return Err("auth filestore: missing id".into()),
+                "" if Path::new(&self.id).is_absolute() => self.id.clone(),
+                "" if base_dir.is_empty() => return Err("auth filestore: directory not configured".into()),
+                "" => Path::new(base_dir).join(&self.id).to_string_lossy().into_owned(),
+                name if Path::new(name).is_absolute() || base_dir.is_empty() => name.to_owned(),
+                name => Path::new(base_dir).join(name).to_string_lossy().into_owned(),
+            },
+        };
+        let path_ref = Path::new(&path);
+        // Only a missing file skips the save; any other stat failure goes on to fail
+        // in the write, as in Go.
+        if self.disabled
+            && !create
+            && std::fs::metadata(path_ref).is_err_and(|e| e.kind() == std::io::ErrorKind::NotFound)
+        {
+            return Ok(String::new());
+        }
+        if let Some(dir) = path_ref.parent().filter(|d| !d.as_os_str().is_empty()) {
+            create_private_dir(dir).map_err(|e| {
+                format!(
+                    "auth filestore: create dir failed: {}",
+                    crate::hostauth::path_error("mkdir", dir, &e)
+                )
+            })?;
+        }
+        metadata.insert("disabled".into(), self.disabled.into());
+        self.metadata = metadata.into_iter().collect();
+        // pluginTokenStorage.SaveTokenToFile.
+        let payload = self.storage_payload()?;
+        if let Ok(current) = std::fs::read(path_ref)
+            && json_payload_equal(&current, &payload)
+        {
+            return Ok(path);
+        }
+        atomic_write(path_ref, &payload)?;
+        Ok(path)
+    }
+}
+
+/// Go `IsAuthTokenPayloadKey`.
+fn is_auth_token_payload_key(key: &str) -> bool {
+    matches!(
+        key.trim().to_lowercase().as_str(),
+        "access_token"
+            | "refresh_token"
+            | "id_token"
+            | "session_id"
+            | "expired"
+            | "last_refresh"
+            | "expires_in"
+            | "timestamp"
+            | "token_type"
+            | "user_code"
+            | "verification_uri"
+            | "verification_uri_complete"
+    )
+}
+
+/// `os.MkdirAll(dir, 0o700)`.
+fn create_private_dir(dir: &std::path::Path) -> std::io::Result<()> {
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o700);
+    builder.create(dir)
+}
+
+/// Go `jsonPayloadEqual`: both decode and the values are deeply equal (numbers as
+/// float64).
+fn json_payload_equal(a: &[u8], b: &[u8]) -> bool {
+    fn same(a: &Value, b: &Value) -> bool {
+        match (a, b) {
+            (Value::Number(x), Value::Number(y)) => x.as_f64() == y.as_f64(),
+            (Value::Array(x), Value::Array(y)) => x.len() == y.len() && x.iter().zip(y).all(|(x, y)| same(x, y)),
+            (Value::Object(x), Value::Object(y)) => {
+                x.len() == y.len() && x.iter().all(|(k, v)| y.get(k).is_some_and(|w| same(v, w)))
+            }
+            _ => a == b,
+        }
+    }
+    let decode = |raw: &[u8]| crate::gojson::parse(raw).and_then(|n| n.to_value());
+    matches!((decode(a), decode(b)), (Ok(a), Ok(b)) if same(&a, &b))
+}
+
+/// Go `atomicWriteFile`: a 0600 temp file beside `path`, renamed over it.
+fn atomic_write(path: &std::path::Path, data: &[u8]) -> Result<(), String> {
+    use std::io::Write as _;
+    let dir = match path.parent() {
+        Some(d) if !d.as_os_str().is_empty() => d,
+        _ => std::path::Path::new("."),
+    };
+    create_private_dir(dir).map_err(|e| {
+        format!(
+            "create auth directory: {}",
+            crate::hostauth::path_error("mkdir", dir, &e)
+        )
+    })?;
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    // Go `os.CreateTemp(dir, ".plugin-auth-*.tmp")`: a fresh name until one is unused.
+    let mut attempt = 0u32;
+    let (tmp_path, mut tmp) = loop {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.subsec_nanos());
+        let candidate = dir.join(format!(".plugin-auth-{}{nanos}{attempt}.tmp", std::process::id()));
+        match options.open(&candidate) {
+            Ok(file) => break (candidate, file),
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && attempt < 10_000 => attempt += 1,
+            Err(e) => {
+                return Err(format!(
+                    "create temp auth file: {}",
+                    crate::hostauth::path_error("open", &candidate, &e)
+                ));
+            }
+        }
+    };
+    let result = tmp
+        .write_all(data)
+        .map_err(|e| {
+            format!(
+                "write temp auth file: {}",
+                crate::hostauth::path_error("write", &tmp_path, &e)
+            )
+        })
+        .and_then(|()| {
+            drop(tmp);
+            std::fs::rename(&tmp_path, path).map_err(|e| format!("rename temp auth file: {e}"))
+        });
+    let _ = std::fs::remove_file(&tmp_path);
+    result
+}
+
+impl PluginAuth {
     /// The credential as the host reads it back: Go `storageJSONFromAuth` takes the
     /// storage's `RawJSON`, which is [`PluginAuth::storage_payload`] (empty on error).
     pub fn view(&self) -> AuthView {
@@ -565,7 +762,7 @@ impl Host {
         req: &FrontendAuthRequest,
     ) -> Option<FrontendAuthOutcome> {
         let record = self.record(plugin_id)?;
-        if !self.record_current(&record) {
+        if !self.live(&record) {
             return None;
         }
         let resp: FrontendAuthResponse = self.call(&record, method::FRONTEND_AUTH_AUTHENTICATE, req).await.ok()?;
@@ -609,6 +806,58 @@ pub struct FrontendAuthOutcome {
 
 #[cfg(test)]
 mod tests {
+    // File modes are only checked where they exist.
+    #[cfg(unix)]
+    #[test]
+    fn save_file_follows_go_filestore() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = std::env::temp_dir().join(format!("cpa-plugin-save-file-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let base = dir.to_string_lossy().into_owned();
+        let auth = |file: &str, disabled: bool| {
+            let data = AuthData {
+                provider: "Rec".into(),
+                file_name: file.into(),
+                disabled,
+                storage_json: Bytes::from_static(br#"{"k":1,"base-url":"u"}"#),
+                ..Default::default()
+            };
+            PluginAuth::from_auth_data(data, "", "", &base).unwrap()
+        };
+        // A disabled auth without a file is not created.
+        assert_eq!(auth("gone.json", true).save_file(&base, false).unwrap(), "");
+        assert!(!dir.join("gone.json").exists());
+        // A new auth: merged storage, canonical keys, mode 0600.
+        let path = auth("new.json", false).save_file(&base, false).unwrap();
+        assert_eq!(path, dir.join("new.json").to_string_lossy());
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            r#"{"base_url":"u","disabled":false,"k":1,"type":"rec"}"#
+        );
+        assert_eq!(std::fs::metadata(&path).unwrap().permissions().mode() & 0o777, 0o600);
+        // Equal JSON is left as written.
+        std::fs::write(
+            &path,
+            r#"{ "k": 1.0, "type": "rec", "disabled": false, "base_url": "u" }"#,
+        )
+        .unwrap();
+        auth("new.json", false).save_file(&base, false).unwrap();
+        assert!(std::fs::read_to_string(&path).unwrap().starts_with("{ "));
+        // A stat failure other than "not found" goes on to fail in the write, as in Go.
+        // SAFETY: geteuid has no preconditions.
+        if unsafe { libc::geteuid() } != 0 {
+            let locked = dir.join("locked");
+            std::fs::create_dir_all(&locked).unwrap();
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o000)).unwrap();
+            let e = auth("locked/x.json", true).save_file(&base, false).unwrap_err();
+            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o700)).unwrap();
+            assert!(e.starts_with("create temp auth file: open "), "{e}");
+            assert!(e.ends_with(": permission denied"), "{e}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     use super::*;
 
     /// Go `pluginAuthDataToCoreAuth` and `mergedStorageJSON`.

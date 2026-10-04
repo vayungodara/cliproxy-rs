@@ -99,7 +99,7 @@ cliproxy-rs serves the same routes and the same v8 Management API as CLIProxyAPI
 These are not in cliproxy-rs yet. They are planned, in no fixed order:
 
 - Homebrew and AUR packages.
-- Plugins: the host callbacks plugins use to call back into the server, calling plugins on the request path (plugin providers, sign-in, models and usage), and the plugin store. Today plugins load, serve their own routes and report quotas, but requests do not pass through them.
+- Plugins: providers owned by a plugin (auth files a plugin parses, their models, and their executors without a model router), plugin schedulers, request and response translators, thinking appliers, the `host.model.*` callbacks and the WebSocket response observer. Today plugins load, serve their own routes and quotas, install from the plugin store, add command-line flags and sign in from the dashboard, and requests pass through their frontend auth, model routers, interceptors and usage hooks.
 - Home (cluster) mode: reporting usage, logs and in-flight requests back to Home, Home's KV storage, and syncing plugins managed by Home.
 - Google Antigravity.
 - Image generation and editing through Codex accounts, and importing Vertex service accounts from the dashboard (the command line works).

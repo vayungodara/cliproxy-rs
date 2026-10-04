@@ -490,6 +490,7 @@ dependencies = [
 name = "cpa-plugin"
 version = "0.1.1"
 dependencies = [
+ "async-compression",
  "base64 0.22.1",
  "bytes",
  "chrono",
@@ -497,6 +498,7 @@ dependencies = [
  "cpa-core",
  "cpa-exec",
  "cpa-translate",
+ "flate2",
  "futures-util",
  "http",
  "libc",
@@ -504,6 +506,7 @@ dependencies = [
  "serde_yaml_ng",
  "sha2",
  "tokio",
+ "tokio-util",
  "tracing",
  "url",
  "wreq",

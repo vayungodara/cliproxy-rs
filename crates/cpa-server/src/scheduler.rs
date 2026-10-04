@@ -1339,6 +1339,11 @@ pub struct CooldownState {
 }
 
 impl Scheduler {
+    /// Live session-affinity bindings whose key `matches` (see [`crate::affinity::Cache::bound`]).
+    pub(crate) fn affinity_bound(&self, now: Instant, matches: impl Fn(&crate::affinity::Key) -> bool) -> Vec<String> {
+        self.affinity.bound(now, matches)
+    }
+
     /// Unexpired cooldowns of one credential, model keys sorted, credential-wide first.
     pub(crate) fn cooldowns_of(&self, id: &str, now: Instant) -> Vec<CooldownState> {
         let mut out: Vec<CooldownState> = self

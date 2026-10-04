@@ -6,23 +6,39 @@
 use cpa_common::gostr::quote;
 
 /// What validation reads from a parsed URL.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct GoUrl {
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct GoUrl {
     /// Lowercased scheme, empty for a relative reference.
     pub scheme: String,
     /// `URL.Hostname()`: host without port or IPv6 brackets.
     pub hostname: String,
     /// `URL.Port()`: the numeric port, empty when absent.
     pub port: String,
+    /// `URL.Host`: host and port as parsed (unescaped, IPv6 in brackets).
+    pub host: String,
+    /// `URL.User != nil`: the authority carried user info.
+    pub has_user: bool,
+    /// The user info as written (before `@`), when present.
+    pub userinfo: String,
+    /// `URL.RawQuery`.
+    pub raw_query: String,
+    /// `URL.ForceQuery`: a `?` with nothing after it.
+    pub force_query: bool,
+    /// The fragment as written (`URL.EscapedFragment` for valid input).
+    pub fragment: String,
+    /// The path as written (`URL.EscapedPath` for valid input); empty for an opaque
+    /// URL.
+    pub raw_path: String,
 }
 
 /// `url.Parse`. The error is Go's `*url.Error` text.
-pub(crate) fn parse(raw: &str) -> Result<GoUrl, String> {
+pub fn parse(raw: &str) -> Result<GoUrl, String> {
     let (u, frag) = raw.split_once('#').unwrap_or((raw, ""));
-    let url = parse_inner(u).map_err(|e| format!("parse {}: {e}", quote_bytes(u.as_bytes())))?;
+    let mut url = parse_inner(u).map_err(|e| format!("parse {}: {e}", quote_bytes(u.as_bytes())))?;
     if !frag.is_empty() {
         unescape(frag.as_bytes(), Mode::Other).map_err(|e| format!("parse {}: {e}", quote_bytes(raw.as_bytes())))?;
     }
+    url.fragment = frag.to_owned();
     Ok(url)
 }
 
@@ -40,25 +56,27 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
     }
     if raw == "*" {
         return Ok(GoUrl {
-            scheme: String::new(),
-            hostname: String::new(),
-            port: String::new(),
+            raw_path: "*".into(),
+            ..GoUrl::default()
         });
     }
     let (scheme, rest) = scheme(raw)?;
     let scheme = scheme.to_ascii_lowercase();
-    let rest = if rest.ends_with('?') && rest.matches('?').count() == 1 {
-        &rest[..rest.len() - 1]
+    let force_query = rest.ends_with('?') && rest.matches('?').count() == 1;
+    let (rest, raw_query) = if force_query {
+        (&rest[..rest.len() - 1], "")
     } else {
-        rest.split_once('?').map_or(rest, |(r, _)| r)
+        rest.split_once('?').unwrap_or((rest, ""))
     };
+    let raw_query = raw_query.to_owned();
     if !rest.starts_with('/') {
         if !scheme.is_empty() {
             // A rootless path is opaque: no host.
             return Ok(GoUrl {
                 scheme,
-                hostname: String::new(),
-                port: String::new(),
+                raw_query,
+                force_query,
+                ..GoUrl::default()
             });
         }
         if rest.split('/').next().unwrap_or_default().contains(':') {
@@ -66,6 +84,7 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
         }
     }
     let mut host = String::new();
+    let mut userinfo = None;
     let mut path = rest;
     if (!scheme.is_empty() || !rest.starts_with("///")) && rest.starts_with("//") {
         let authority = &rest[2..];
@@ -73,12 +92,23 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
             Some(i) => (&authority[..i], &authority[i..]),
             None => (authority, ""),
         };
-        host = parse_authority(&scheme, authority)?;
+        (host, userinfo) = parse_authority(&scheme, authority)?;
         path = tail;
     }
     unescape(path.as_bytes(), Mode::Other)?;
     let (hostname, port) = split_host_port(&host);
-    Ok(GoUrl { scheme, hostname, port })
+    Ok(GoUrl {
+        scheme,
+        hostname,
+        port,
+        host,
+        has_user: userinfo.is_some(),
+        userinfo: userinfo.unwrap_or_default(),
+        raw_query,
+        force_query,
+        fragment: String::new(),
+        raw_path: path.to_owned(),
+    })
 }
 
 /// `getScheme`.
@@ -96,11 +126,12 @@ fn scheme(raw: &str) -> Result<(&str, &str), String> {
     Ok(("", raw))
 }
 
-/// `parseAuthority`: the host; userinfo is only validated.
-fn parse_authority(scheme: &str, authority: &str) -> Result<String, String> {
+/// `parseAuthority`: the host, and the user info as written when present (it is only
+/// validated).
+fn parse_authority(scheme: &str, authority: &str) -> Result<(String, Option<String>), String> {
     let at = authority.rfind('@');
     let host = parse_host(scheme, at.map_or(authority, |i| &authority[i + 1..]))?;
-    let Some(i) = at else { return Ok(host) };
+    let Some(i) = at else { return Ok((host, None)) };
     let userinfo = &authority[..i];
     let valid = userinfo.chars().all(|c| {
         c.is_ascii_alphanumeric()
@@ -137,7 +168,7 @@ fn parse_authority(scheme: &str, authority: &str) -> Result<String, String> {
             unescape(userinfo.as_bytes(), Mode::Other)?;
         }
     }
-    Ok(host)
+    Ok((host, Some(userinfo.to_owned())))
 }
 
 /// `validOptionalPort`: empty or `:` followed by digits.
@@ -309,7 +340,7 @@ pub(crate) fn quote_bytes(b: &[u8]) -> String {
 /// the same scheme, host and port that Go's `net/url` parses from `raw`. They disagree on
 /// inputs such as `https://evil.example\[::1%25.x.ai]/`, where Go starts the host at the
 /// last `[`; a request must never go to a host Go would not contact.
-pub(crate) fn same_authority(raw: &str) -> bool {
+pub fn same_authority(raw: &str) -> bool {
     let (Ok(go), Ok(wh)) = (parse(raw), url::Url::parse(raw)) else {
         return false;
     };

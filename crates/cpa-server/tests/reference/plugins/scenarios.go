@@ -2,19 +2,83 @@ package main
 
 import "encoding/json"
 
-// Fake credentials; nothing is sent anywhere.
+// Fake credentials; nothing is sent anywhere. The quota probes reach only the local
+// UPSTREAM server (or a closed loopback port).
 var authFiles = map[string]string{
 	"claude.json": `{"type":"claude","email":"a@example.invalid","access_token":"fake-access","refresh_token":"fake-refresh"}`,
 	"codex.json":  `{"type":"codex","email":"b@example.invalid","access_token":"fake-codex"}`,
+	"probe-ok.json": `{"type":"codex","email":"p1@example.invalid","access_token":"tok-1","quota_probe":{"url":"UPSTREAM/quota?t=$TOKEN$","method":" post ",` +
+		`"data":"{\"k\":\"$TOKEN$\"}","header":{"Authorization":"Bearer $TOKEN$","x-other":"1","x-num":2}}}`,
+	"probe-map.json": `{"type":"codex","email":"p2@example.invalid","access_token":"t2","quota_probe":{"url":"UPSTREAM/mapped","headers":{"X-H":"h"},"mapping":{` +
+		`"plan":"account.plan","tier_name":"","tierName":"account.tier","tier_id":"missing.path","tierId":"account.tier_id","groups":[` +
+		`{"display_name":"usage.label","buckets_path":"usage.items","window_key":"w","remaining_amount_key":"left","total_amount_key":"max","reset_time_key":"resets"},` +
+		`{"displayName":"Literal name","buckets":[{"remaining_fraction":"fixed.frac","window":"fixed.window","description":"just text","reset_time":"fixed.reset"},` +
+		`{"remaining_amount":"fixed.left","total_amount":"fixed.zero"},{"remaining_amount":"fixed.left","total_amount":"fixed.max","window":"weekly"}]},` +
+		`{"display_name":"nothing","buckets_path":"usage.none"}]}}}`,
+	"probe-mapfail.json":   `{"type":"codex","email":"p3@example.invalid","quota_probe":{"url":"UPSTREAM/mapped","mapping":{"plan":"no.such","groups":[{"buckets_path":"usage.none"}]}}}`,
+	"probe-status.json":    `{"type":"codex","email":"p4@example.invalid","quota_probe":{"url":"UPSTREAM/status500"}}`,
+	"probe-notjson.json":   `{"type":"codex","email":"p5@example.invalid","quota_probe":{"url":"UPSTREAM/notjson"}}`,
+	"probe-empty.json":     `{"type":"codex","email":"p6@example.invalid","quota_probe":{"url":"UPSTREAM/empty"}}`,
+	"probe-redirect.json":  `{"type":"codex","email":"p7@example.invalid","quota_probe":{"url":"UPSTREAM/redirect"}}`,
+	"probe-refused.json":   `{"type":"codex","email":"p8@example.invalid","quota_probe":{"url":"http://127.0.0.1:1/x"}}`,
+	"probe-notoken.json":   `{"type":"codex","email":"p9@example.invalid","quota_probe":{"url":"UPSTREAM/quota","header":{"A":"$TOKEN$"}}}`,
+	"probe-badurl.json":    `{"type":"codex","email":"p10@example.invalid","quota_probe":{"url":"http://[::1"}}`,
+	"probe-nourl.json":     `{"type":"codex","email":"p11@example.invalid","quota_probe":{"method":"GET","url":5}}`,
+	"probe-string.json":    `{"type":"codex","email":"p12@example.invalid","quota_probe":"UPSTREAM/quota"}`,
+	"probe-badgroup.json":  `{"type":"codex","email":"p13@example.invalid","quota_probe":{"url":"UPSTREAM/badgroup"}}`,
+	"probe-summary.json":   `{"type":"codex","email":"p14@example.invalid","quota_probe":{"url":"UPSTREAM/summary"}}`,
+	"probe-nohost.json":    `{"type":"codex","email":"p15@example.invalid","quota_probe":{"url":"http:///127.0.0.1:1/quota"}}`,
+	"probe-ftp.json":       `{"type":"codex","email":"p16@example.invalid","quota_probe":{"url":"ftp://127.0.0.1:1/quota"}}`,
+	"probe-headers.json":   `{"type":"codex","email":"p17@example.invalid","quota_probe":{"url":"UPSTREAM/quota","method":"ſ","header":{"Host":"other.example","Content-Length":"5","Transfer-Encoding":"chunked","Trailer":"X-T","x-a":"1"}}}`,
+	"probe-badheader.json": `{"type":"codex","email":"p18@example.invalid","quota_probe":{"url":"http://127.0.0.1:1/quota","header":{"Content-Length":"1\r\nX-Test: injected"}}}`,
+	"probe-badname.json":   `{"type":"codex","email":"p19@example.invalid","quota_probe":{"url":"http://127.0.0.1:1/quota","header":{"bad name":"1"}}}`,
+	"probe-sharp.json":     `{"type":"codex","email":"p20@example.invalid","quota_probe":{"url":"UPSTREAM/quota","method":"ß"}}`,
+	"probe-case.json":      `{"type":"codex","email":"p21@example.invalid","quota_probe":{"url":"UPSTREAM/case"}}`,
+}
+
+// upstreamRoutes are the probe server's answers by path (no Date header, so the
+// server time offset stays 0).
+var upstreamRoutes = map[string]struct {
+	Status   int
+	Body     string
+	Location string
+}{
+	"/quota": {200, `{"subscription":{"plan":"pro","tier_name":"T"},"serverTimeOffsetMs":0,"summary":[` +
+		`{"key":"k1","label":"Spend","value":1.5,"unit":" USD ","format":"currency","currency":" usd "},` +
+		`{"key":"k2","label":"Old","value":2,"format":"currency","currency":"DEM"},` +
+		`{"key":"k3","label":"Bad","value":3,"format":"currency","currency":"XYZ"},` +
+		`{"key":"k4","label":"N","value":4,"format":"number"},{"key":"k5","label":"S","value":"5"},` +
+		`{"key":" ","label":"x","value":1},{"key":"k6","label":"P","value":6,"format":"percent"}],` +
+		`"groups":[{"display_name":"G1","buckets":[{"window":"5h","remainingFraction":0.5},{"window":"d","remaining_fraction":0.25,"reset_time":"r"},` +
+		`{"window":"none"},{"window":"zero","remainingFraction":0}]},{"displayName":"G2","buckets":[{"remainingFraction":null}]},` +
+		`{"displayName":"G3"}]}`, ""},
+	"/case":     {200, `{"subscription":{"plan":"paid"},"Subscription":null}`, ""},
+	"/badgroup": {200, `{"subscription":{"plan":"pro"},"groups":[{"buckets":[{"remainingFraction":"0.5"}]}]}`, ""},
+	"/summary":  {200, `{"Summary":[{"key":"a","label":"A","value":1}],"summary":[{"key":"b","label":"B","value":2}],"groups":[]}`, ""},
+	"/mapped": {200, `{"account":{"plan":"team","tier":"Gold","tier_id":7},"usage":{"label":"Usage","items":[` +
+		`{"w":"5h","left":3,"max":4,"resets":"soon"},{"w":"day","remaining_fraction":"0.1","description":"d"},{"w":"bad","left":1,"max":0}]},` +
+		`"fixed":{"frac":"0.75","window":"monthly","reset":"later","left":2,"max":8,"zero":0}}`, ""},
+	"/status500": {500, "upstream exploded", ""},
+	"/notjson":   {200, "{not json", ""},
+	"/empty":     {200, `{"groups":[],"subscription":{"plan":" "}}`, ""},
+	"/redirect":  {302, "", "/quota?from=redirect"},
 }
 
 const initialConfig = `config-version: 8
+server:
+  port: 18317
 auth-dir: AUTHDIR
 management:
   secret-key: $HASH
 plugins:
   enabled: true
   dir: PLUGINDIR/./sub/..
+  store-sources:
+    - https://third.example/registry.json
+  store-auth:
+    - match: https://third.example/
+      type: bearer
+      token-env: CPA_STORE_ROUTES_TOKEN
   configs:
     recorder-a:
       enabled: true
@@ -103,6 +167,8 @@ func scenarios(r *runner) {
 	get("/v8/management/rec/c")
 
 	quotaScenarios(r)
+	probeScenarios(r)
+	oauthScenarios(r)
 
 	// Delete: a loaded configured plugin, a configured plugin without a file, misses.
 	r.http(httpArgs{Method: "DELETE", Path: v0 + "/recorder-c"})
@@ -115,6 +181,8 @@ func scenarios(r *runner) {
 	r.http(httpArgs{Method: "DELETE", Path: v8 + "/bad!id"})
 	get(v0)
 	get("/v0/management/rec/c")
+
+	storeScenarios(r)
 }
 
 func ok(v any) string {
@@ -201,4 +269,81 @@ func quotaScenarios(r *runner) {
 	// quota_test.go: the cooldown reset takes only an auth index.
 	post("/v0/management/reset-quota", `{"auth_id":"claude.json"}`)
 	post("/v0/management/reset-quota", `{"auth_index":"claude.json"}`)
+}
+
+// oauthScenarios covers ServePluginAuthURL, the plugin branch of GetAuthStatus and the
+// OAuth callback for plugin sessions (recorder-a is the auth provider "a").
+func oauthScenarios(r *runner) {
+	get := func(path string) { r.http(httpArgs{Method: "GET", Path: path}) }
+	post := func(path, body string) { r.http(httpArgs{Method: "POST", Path: path, Body: body}) }
+	start := func(state string) {
+		r.respond("a", "auth.login.start", ok(map[string]any{"Provider": "a", "URL": "https://login.example/a?x=1&y=<2>", "State": state, "Metadata": map[string]any{"k": "v", "n": 2}}))
+	}
+	start("st-1")
+	get("/v0/management/a-auth-url?foo=1&foo=2&bar=3")
+	r.records()
+	get("/v0/management/a-auth-url")
+	start("st-2")
+	get("/v8/management/oauth/auth-url?provider=A&x=1")
+	r.records()
+	start("bad state!")
+	get("/v0/management/a-auth-url")
+	start("  ")
+	get("/v0/management/a-auth-url")
+	r.respond("a", "auth.login.start", fail("cannot start"))
+	get("/v0/management/a-auth-url")
+	get("/v0/management/zzz-auth-url")
+	get("/v8/management/oauth/auth-url?provider=zzz")
+	get("/v8/management/oauth/auth-url?provider=a_b")
+	r.http(httpArgs{Method: "POST", Path: "/v0/management/a-auth-url"})
+	r.http(httpArgs{Method: "GET", Path: "/v0/management/a-auth-url", NoKey: true})
+	r.records()
+
+	// Callbacks for plugin sessions are written to the auth directory.
+	post("/v0/management/oauth-callback", `{"provider":"b","state":"st-1","code":"c1"}`)
+	post("/v0/management/oauth-callback", `{"provider":"A_B","state":"st-1","code":"c1"}`)
+	post("/v0/management/oauth-callback", `{"provider":"A","state":"st-1","code":" c1 ","error":""}`)
+	get("/v0/management/oauth-callback?state=st-2&error=denied")
+	r.authFiles()
+
+	// Polling.
+	r.respond("a", "auth.login.poll", ok(map[string]any{"Status": "pending"}))
+	get("/v0/management/get-auth-status?state=st-1")
+	r.respond("a", "auth.login.poll", ok(map[string]any{"Status": "later"}))
+	get("/v8/management/oauth/status?state=st-1")
+	r.records()
+	r.respond("a", "auth.login.poll", ok(map[string]any{"Status": "error", "Message": " denied <x> "}))
+	get("/v0/management/get-auth-status?state=st-1")
+	get("/v0/management/get-auth-status?state=st-1")
+	post("/v0/management/oauth-callback", `{"state":"st-1","code":"again"}`)
+	r.respond("a", "auth.login.poll", ok(map[string]any{"Status": "success", "Auths": []map[string]any{
+		{"Provider": "A", "FileName": "a-user.json", "Label": "user", "StorageJSON": []byte(`{"access_token":"t","expired":"2030-01-01T00:00:00Z"}`), "Metadata": map[string]any{"email": "u@example.invalid"}},
+		{"Provider": "a", "FileName": "a-two.json", "Disabled": true, "StorageJSON": []byte(`{"k":1}`)},
+	}}))
+	get("/v0/management/get-auth-status?state=st-2")
+	r.authFiles()
+	get("/v0/management/get-auth-status?state=st-2")
+	start("st-3")
+	get("/v0/management/a-auth-url")
+	r.respond("a", "auth.login.poll", ok(map[string]any{"Status": "success", "Auth": map[string]any{"Provider": " "}}))
+	get("/v0/management/get-auth-status?state=st-3")
+	start("st-4")
+	get("/v0/management/a-auth-url")
+	r.respond("a", "auth.login.poll", fail("poll broke"))
+	get("/v0/management/get-auth-status?state=st-4")
+	start("st-5")
+	get("/v0/management/a-auth-url")
+	r.http(httpArgs{Method: "DELETE", Path: "/v0/management/oauth-session?state=st-5"})
+	get("/v0/management/get-auth-status?state=st-5")
+	r.records()
+}
+
+// probeScenarios covers the declarative quota probe of FetchCredentialQuota.
+func probeScenarios(r *runner) {
+	for _, name := range []string{"probe-ok", "probe-map", "probe-mapfail", "probe-status", "probe-notjson", "probe-empty",
+		"probe-redirect", "probe-refused", "probe-notoken", "probe-badurl", "probe-nourl", "probe-string", "probe-badgroup", "probe-summary", "probe-nohost", "probe-ftp", "probe-headers",
+		"probe-badheader", "probe-badname", "probe-sharp", "probe-case"} {
+		r.http(httpArgs{Method: "POST", Path: "/v0/management/quota/fetch", Body: `{"auth_index":"AUTHINDEX(` + name + `.json)"}`})
+	}
+	r.upstreamRequests()
 }

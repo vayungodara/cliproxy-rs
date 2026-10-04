@@ -2,7 +2,7 @@
 //! Interactions routes) and `toClaudeError` (Claude routes).
 
 use axum::http::{HeaderValue, StatusCode, header};
-use axum::response::{IntoResponse, Response};
+use axum::response::Response;
 use serde_json::Value;
 
 use crate::dispatch::Failure;
@@ -93,14 +93,22 @@ pub fn claude_body(status: u16, text: &str) -> String {
 
 /// Writes a failure with the route's body shape.
 pub fn write(failure: &Failure, body: fn(u16, &str) -> String) -> Response {
+    // Go `writeDirectErrorResponse`: the filtered headers as given, JSON by default.
     if let Some(e) = failure.direct() {
         let status = StatusCode::from_u16(e.status).unwrap_or(StatusCode::BAD_GATEWAY);
-        let content_type = e
-            .headers
-            .get(header::CONTENT_TYPE)
-            .cloned()
-            .unwrap_or(HeaderValue::from_static("application/json"));
-        return (status, [(header::CONTENT_TYPE, content_type)], e.body.clone()).into_response();
+        let mut res = Response::new(axum::body::Body::from(e.body.clone()));
+        *res.status_mut() = status;
+        let headers = crate::respond::filter_upstream_headers(&e.headers);
+        for name in headers.keys() {
+            for value in headers.get_all(name) {
+                res.headers_mut().append(name.clone(), value.clone());
+            }
+        }
+        if !res.headers().contains_key(header::CONTENT_TYPE) {
+            res.headers_mut()
+                .insert(header::CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        }
+        return res;
     }
     let status = failure.status();
     let text = text_for(status, &failure.text());

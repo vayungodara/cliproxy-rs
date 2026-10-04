@@ -20,10 +20,26 @@ use crate::host::{Host, Inner, lock};
 use crate::streams::{Chunk, StreamBridge};
 
 /// What a callback context remembers about the request it serves.
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct RequestScope {
     /// Go `logging.GetRequestID`, added to `host.log` entries.
     pub request_id: String,
+    /// The request's upstream capture (Go's request-log context): `host.http.*`
+    /// records each plugin HTTP exchange in it.
+    pub capture: cpa_core::exec::CaptureSink,
+    /// The request's cancellation (Go's request context): `host.http.*` operations
+    /// opened under the context end when it fires.
+    pub cancel: tokio_util::sync::CancellationToken,
+}
+
+impl std::fmt::Debug for RequestScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RequestScope")
+            .field("request_id", &self.request_id)
+            .field("capture", &self.capture.enabled())
+            .field("cancelled", &self.cancel.is_cancelled())
+            .finish()
+    }
 }
 
 pub(crate) type Cleanup = Box<dyn FnOnce() + Send>;
@@ -58,8 +74,12 @@ impl Drop for ContextGuard {
 pub(crate) struct Callbacks {
     host: Weak<Inner>,
     next_context: AtomicU64,
+    next_cleanup: AtomicU64,
     contexts: Mutex<HashMap<String, Context>>,
     pub streams: Arc<StreamBridge>,
+    pub http: crate::hosthttp::HttpBridge,
+    /// The server's credential manager (Go `SetAuthManager`).
+    pub auth: std::sync::RwLock<Option<Arc<dyn crate::hostauth::AuthManager>>>,
     runtime: OnceLock<tokio::runtime::Handle>,
 }
 
@@ -68,8 +88,11 @@ impl Callbacks {
         Self {
             host,
             next_context: AtomicU64::new(0),
+            next_cleanup: AtomicU64::new(0),
             contexts: Mutex::default(),
             streams: Arc::default(),
+            http: Default::default(),
+            auth: Default::default(),
             runtime: OnceLock::new(),
         }
     }
@@ -112,6 +135,29 @@ impl Callbacks {
         }
     }
 
+    /// The runtime async callbacks run on (captured when plugins were handed the
+    /// dispatcher).
+    pub fn runtime_handle(&self) -> Option<tokio::runtime::Handle> {
+        self.runtime.get().cloned()
+    }
+
+    /// Go `addCallbackCleanupHandle`: runs `cleanup` when the context closes; `None`
+    /// (without running it) when the context is not open.
+    pub fn add_cleanup(&self, id: &str, cleanup: Cleanup) -> Option<u64> {
+        let handle = self.next_cleanup.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut contexts = lock(&self.contexts);
+        let ctx = contexts.get_mut(id.trim())?;
+        ctx.cleanups.push((handle, cleanup));
+        Some(handle)
+    }
+
+    /// Drops a cleanup without running it.
+    pub fn remove_cleanup(&self, id: &str, handle: u64) {
+        if let Some(ctx) = lock(&self.contexts).get_mut(id.trim()) {
+            ctx.cleanups.retain(|(h, _)| *h != handle);
+        }
+    }
+
     /// Go `callbackContextRegistry.lookup`.
     pub fn lookup(&self, id: &str) -> Option<(String, Option<Arc<CallbackInstance>>, RequestScope)> {
         let id = id.trim();
@@ -123,15 +169,27 @@ impl Callbacks {
             .map(|c| (c.plugin_id.clone(), c.instance.clone(), c.scope.clone()))
     }
 
-    /// Go `closeHostHTTPCallbackInstance`: rejects further callbacks from an instance.
-    pub fn close_instance(&self, _plugin_id: &str, instance: &Arc<CallbackInstance>) {
+    /// Go `closeHostHTTPCallbackInstance`: rejects further callbacks from an instance
+    /// and ends its HTTP operations and streams.
+    pub fn close_instance(&self, plugin_id: &str, instance: &Arc<CallbackInstance>) {
         instance.close();
+        if let Some(inner) = self.host.upgrade() {
+            self.http.close_instance(&Host::from_inner(inner), plugin_id, instance);
+        }
     }
 
     /// Go `closeHostHTTPPluginResources` for one plugin.
-    pub fn close_plugin(&self, _plugin_id: &str) {}
+    pub fn close_plugin(&self, plugin_id: &str) {
+        if let Some(inner) = self.host.upgrade() {
+            self.http.close_plugin(&Host::from_inner(inner), plugin_id);
+        }
+    }
 
-    pub fn close_all(&self) {}
+    pub fn close_all(&self) {
+        if let Some(inner) = self.host.upgrade() {
+            self.http.close_all(&Host::from_inner(inner));
+        }
+    }
 }
 
 /// The [`CallbackHandler`] plugins call into.
@@ -261,7 +319,20 @@ impl Host {
         ok_empty()
     }
 
-    fn call_service(&self, _caller: &Caller, method: &str, _request: &[u8]) -> Result<Bytes, CallbackError> {
-        Err(CallbackError::new(format!("unsupported host callback {method}")))
+    fn call_service(&self, caller: &Caller, method: &str, request: &[u8]) -> Result<Bytes, CallbackError> {
+        match method {
+            method::HOST_HTTP_DO => self.host_http_do(caller, request),
+            method::HOST_HTTP_DO_STREAM => self.host_http_do_stream(caller, request),
+            method::HOST_HTTP_OPERATION_OPEN => self.host_http_operation_open(caller, request),
+            method::HOST_HTTP_CANCEL => self.host_http_cancel(caller, request),
+            method::HOST_HTTP_STREAM_READ => self.host_http_stream_read(caller, request),
+            method::HOST_HTTP_STREAM_CLOSE => self.host_http_stream_close(caller, request),
+            method::HOST_AUTH_LIST => self.host_auth_list(request),
+            method::HOST_AUTH_GET => self.host_auth_get(request),
+            method::HOST_AUTH_GET_RUNTIME => self.host_auth_get_runtime(request),
+            method::HOST_AUTH_SAVE => self.host_auth_save(request),
+            method::HOST_AFFINITY_LOOKUP => self.host_affinity_lookup(request),
+            _ => Err(CallbackError::new(format!("unsupported host callback {method}"))),
+        }
     }
 }

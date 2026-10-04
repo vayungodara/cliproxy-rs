@@ -2,30 +2,45 @@
 //! `internal/api/server_management.go`): one [`cpa_plugin::Host`] per runtime, synced
 //! with every published config by a single worker so the latest config always wins.
 
-use std::collections::HashSet;
-use std::sync::{Arc, Weak};
+use std::collections::{HashMap, HashSet};
+use std::sync::{Arc, RwLock, Weak};
 
+use axum::body::{Body, Bytes};
+use axum::extract::Request;
+use axum::http::HeaderMap;
 use cpa_core::config::Config;
+use cpa_core::exec::Caller;
 use tokio::sync::watch;
 
 use crate::Runtime;
+
+pub(crate) mod execution;
+pub(crate) mod interceptors;
 
 /// The host plus the config it should converge on.
 pub struct PluginRuntime {
     host: cpa_plugin::Host,
     latest: watch::Sender<Option<Arc<Config>>>,
+    access: RwLock<Arc<AccessRegistry>>,
 }
 
 impl Default for PluginRuntime {
     fn default() -> Self {
-        Self {
-            host: cpa_plugin::Host::new(),
-            latest: watch::Sender::new(None),
-        }
+        Self::with_host(cpa_plugin::Host::new())
     }
 }
 
 impl PluginRuntime {
+    /// Wraps a host that is already running (the binary's, which loaded plugins for
+    /// their command-line flags before the config was read).
+    pub(crate) fn with_host(host: cpa_plugin::Host) -> Self {
+        Self {
+            host,
+            latest: watch::Sender::new(None),
+            access: RwLock::default(),
+        }
+    }
+
     pub fn host(&self) -> &cpa_plugin::Host {
         &self.host
     }
@@ -37,14 +52,233 @@ impl PluginRuntime {
 }
 
 /// Go's startup and reload sequence (`syncPluginRuntimeConfigForConfig` and
-/// `RefreshPluginManagementRoutes`): apply the config, then rebuild the plugin
-/// management routes around the built-in ones.
-/// ponytail: frontend auth, usage, model and executor registration join the sync with
-/// the dispatch wiring.
+/// `RefreshPluginManagementRoutes`): apply the config, register the client-key and
+/// plugin frontend auth providers, then rebuild the plugin management routes around the
+/// built-in ones.
+/// ponytail: usage, model and executor registration join the sync with the dispatch
+/// wiring.
 pub async fn sync(rt: &Runtime, cfg: Arc<Config>) {
     let host = rt.plugins();
-    host.apply_config(cfg).await;
+    host.apply_config(cfg.clone()).await;
+    // Go `configaccess.Register` (reload: `ApplyAccessProviders`) runs before the plugin
+    // providers register.
+    let (providers, exclusive) = host.frontend_auth_providers().await;
+    rt.plugin_runtime()
+        .register_access(!cfg.api_keys.is_empty(), providers, exclusive);
     host.register_management_routes(&reserved_management_routes()).await;
+}
+
+// ---- Frontend auth (Go `sdk/access`) -------------------------------------------------
+
+/// Go `sdkaccess.AccessProviderTypeConfigAPIKey`: the client-key provider's registry key.
+const CONFIG_PROVIDER_KEY: &str = "config-api-key";
+/// Go `sdkaccess.DefaultAccessProviderName`: the client-key provider's identifier.
+pub(crate) const CONFIG_PROVIDER: &str = "config-inline";
+
+/// Go's global access provider registry as the syncs leave it: keys in first-registration
+/// order (a re-registered key keeps its place; an unregistered one loses it), the plugin
+/// behind each plugin key, and the exclusive key.
+#[derive(Default)]
+struct AccessRegistry {
+    order: Vec<String>,
+    plugins: HashMap<String, String>,
+    exclusive: Option<String>,
+}
+
+enum Provider<'a> {
+    ClientKeys,
+    Plugin(&'a str),
+}
+
+impl AccessRegistry {
+    /// Go `RegisteredProviders`. The client-key provider is present exactly when keys are
+    /// configured now; before the first sync it sits first, as Go registers it before any
+    /// plugin.
+    fn providers(&self, client_keys: bool) -> Vec<Provider<'_>> {
+        if let Some(id) = self.exclusive.as_ref().and_then(|key| self.plugins.get(key)) {
+            return vec![Provider::Plugin(id)];
+        }
+        let mut out = Vec::with_capacity(self.order.len() + 1);
+        if client_keys && !self.order.iter().any(|k| k == CONFIG_PROVIDER_KEY) {
+            out.push(Provider::ClientKeys);
+        }
+        for key in &self.order {
+            if key == CONFIG_PROVIDER_KEY {
+                if client_keys {
+                    out.push(Provider::ClientKeys);
+                }
+            } else if let Some(id) = self.plugins.get(key) {
+                out.push(Provider::Plugin(id));
+            }
+        }
+        out
+    }
+}
+
+impl PluginRuntime {
+    fn access(&self) -> Arc<AccessRegistry> {
+        self.access.read().unwrap_or_else(|e| e.into_inner()).clone()
+    }
+
+    /// Go `configaccess.Register` then `RegisterFrontendAuthProviders`: register or
+    /// unregister the client-key provider, register each plugin provider, set the
+    /// exclusive key, and drop plugin keys no longer offered.
+    fn register_access(&self, client_keys: bool, providers: Vec<(String, String)>, exclusive: Option<String>) {
+        let mut slot = self.access.write().unwrap_or_else(|e| e.into_inner());
+        let mut next = AccessRegistry {
+            order: slot.order.clone(),
+            plugins: HashMap::new(),
+            exclusive,
+        };
+        let register = |order: &mut Vec<String>, key: &str| {
+            if !order.iter().any(|k| k == key) {
+                order.push(key.to_owned());
+            }
+        };
+        if client_keys {
+            register(&mut next.order, CONFIG_PROVIDER_KEY);
+        } else {
+            next.order.retain(|k| k != CONFIG_PROVIDER_KEY);
+        }
+        for (key, id) in providers {
+            register(&mut next.order, &key);
+            next.plugins.insert(key, id);
+        }
+        next.order
+            .retain(|k| k == CONFIG_PROVIDER_KEY || next.plugins.contains_key(k));
+        *slot = Arc::new(next);
+    }
+}
+
+/// A request the access providers let through.
+pub(crate) enum Access {
+    /// No provider registered: Go's manager returns no result and sets nothing.
+    Open,
+    /// Go `sdkaccess.Result`: the caller and the provider identifier that accepted it.
+    /// ponytail: a plugin's result metadata is not kept (`Caller` has no field for it;
+    /// only Go's Home mode reads it).
+    Granted { caller: Caller, provider: String },
+}
+
+/// Go `sdkaccess.AuthError` as the middlewares answer it.
+pub(crate) struct Denied {
+    pub status: u16,
+    pub message: &'static str,
+}
+
+const MISSING_API_KEY: &str = "Missing API key";
+
+/// Go `sdkaccess.Manager.Authenticate` over the registered providers: client keys, then
+/// plugin frontend auth providers in registration order (or only the exclusive one).
+/// The first acceptance wins; afterwards "Invalid API key" if any provider saw an
+/// invalid key, else "Missing API key". The request comes back with its body intact.
+pub(crate) async fn authenticate(rt: &Runtime, req: Request) -> (Request, Result<Access, Denied>) {
+    let config = rt.config();
+    let registry = rt.plugin_runtime().access();
+    let providers = registry.providers(!config.api_keys.is_empty());
+    if providers.is_empty() {
+        return (req, Ok(Access::Open));
+    }
+    let (parts, mut body) = req.into_parts();
+    let mut read: Option<Bytes> = None;
+    let mut invalid = false;
+    let mut outcome = None;
+    for provider in providers {
+        match provider {
+            Provider::ClientKeys => {
+                match crate::access::authenticate(
+                    &config.api_keys,
+                    &parts.headers,
+                    parts.uri.query().unwrap_or_default(),
+                ) {
+                    Ok(caller) => {
+                        outcome = Some(Ok(Access::Granted {
+                            caller,
+                            provider: CONFIG_PROVIDER.to_owned(),
+                        }));
+                        break;
+                    }
+                    Err(message) => invalid |= message != MISSING_API_KEY,
+                }
+            }
+            Provider::Plugin(id) => {
+                // Go `readAndRestoreRequestBody`: the whole body, once.
+                let bytes = match &read {
+                    Some(bytes) => bytes.clone(),
+                    None => match axum::body::to_bytes(std::mem::take(&mut body), usize::MAX).await {
+                        Ok(bytes) => read.insert(bytes).clone(),
+                        Err(error) => {
+                            tracing::error!(
+                                "authentication middleware error: failed to read plugin auth request body: {error}"
+                            );
+                            outcome = Some(Err(Denied {
+                                status: 500,
+                                message: "failed to read plugin auth request body",
+                            }));
+                            break;
+                        }
+                    },
+                };
+                let request = cpa_plugin::api::FrontendAuthRequest {
+                    method: parts.method.as_str().to_owned(),
+                    path: crate::management::percent_decode(parts.uri.path()),
+                    headers: go_request_header(&parts.headers),
+                    query: go_values(parts.uri.query().unwrap_or_default()),
+                    body: cpa_plugin::gojson::NonNilBytes(bytes),
+                };
+                if let Some(accepted) = rt.plugins().frontend_authenticate(id, &request).await {
+                    outcome = Some(Ok(Access::Granted {
+                        caller: Caller {
+                            principal: accepted.principal,
+                            source: "",
+                        },
+                        provider: accepted.provider,
+                    }));
+                    break;
+                }
+            }
+        }
+    }
+    let body = match read {
+        Some(bytes) => Body::from(bytes),
+        None => body,
+    };
+    let outcome = outcome.unwrap_or(Err(Denied {
+        status: 401,
+        message: if invalid { "Invalid API key" } else { MISSING_API_KEY },
+    }));
+    (Request::from_parts(parts, body), outcome)
+}
+
+/// A server request's `http.Header` as Go's handlers see it: canonical names, values in
+/// order, and no `Host` (Go moves it to `Request.Host`). A chunked request also loses
+/// `Transfer-Encoding`, `Content-Length` and `Trailer` (Go `readTransfer`).
+pub(crate) fn go_request_header(headers: &HeaderMap) -> cpa_plugin::gojson::Header {
+    let chunked = headers.contains_key(axum::http::header::TRANSFER_ENCODING);
+    let mut out = cpa_plugin::gojson::Header::new();
+    for (name, value) in headers {
+        let dropped = name == axum::http::header::HOST
+            || (chunked
+                && (name == axum::http::header::TRANSFER_ENCODING
+                    || name == axum::http::header::CONTENT_LENGTH
+                    || name == axum::http::header::TRAILER));
+        if dropped {
+            continue;
+        }
+        out.entry(cpa_exec::proxy::canonical_header(name.as_str()))
+            .or_default()
+            .push(String::from_utf8_lossy(value.as_bytes()).into_owned());
+    }
+    out
+}
+
+/// `Request.URL.Query()` as `url.Values`.
+pub(crate) fn go_values(raw_query: &str) -> cpa_plugin::gojson::Header {
+    let mut out = cpa_plugin::gojson::Header::new();
+    for (k, v) in crate::management::go_query(raw_query) {
+        out.entry(k).or_default().push(v);
+    }
+    out
 }
 
 /// Syncs the current config now, then follows every later publish. Call once at

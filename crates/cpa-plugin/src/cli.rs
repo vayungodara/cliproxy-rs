@@ -16,6 +16,7 @@ use crate::api::{
 };
 use crate::auth::PluginAuth;
 use crate::host::Host;
+use cpa_core::config::parse_duration;
 
 /// One registered plugin flag (Go `commandLineFlagRecord`).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -168,114 +169,6 @@ pub fn format_float_g(f: f64) -> String {
     format!("{sign}{out}")
 }
 
-/// Go `time.ParseDuration`, in nanoseconds (byte-for-byte port, including the float64
-/// fraction math and overflow bounds).
-pub fn parse_duration(s: &str) -> Option<i64> {
-    const LIMIT: u64 = 1 << 63;
-    let mut s = s.as_bytes();
-    let mut neg = false;
-    if let Some((&c, rest)) = s.split_first()
-        && (c == b'-' || c == b'+')
-    {
-        neg = c == b'-';
-        s = rest;
-    }
-    if s == b"0" {
-        return Some(0);
-    }
-    if s.is_empty() {
-        return None;
-    }
-    let mut d: u64 = 0;
-    while !s.is_empty() {
-        if !(s[0] == b'.' || s[0].is_ascii_digit()) {
-            return None;
-        }
-        // leadingInt
-        let mut v: u64 = 0;
-        let mut i = 0;
-        while i < s.len() && s[i].is_ascii_digit() {
-            if v > LIMIT / 10 {
-                return None;
-            }
-            v = v * 10 + u64::from(s[i] - b'0');
-            if v > LIMIT {
-                return None;
-            }
-            i += 1;
-        }
-        let pre = i > 0;
-        s = &s[i..];
-        // leadingFraction
-        let (mut f, mut scale, mut post) = (0u64, 1f64, false);
-        if s.first() == Some(&b'.') {
-            s = &s[1..];
-            let mut overflow = false;
-            let mut i = 0;
-            while i < s.len() && s[i].is_ascii_digit() {
-                if !overflow {
-                    if f > (LIMIT - 1) / 10 {
-                        overflow = true;
-                    } else {
-                        let y = f * 10 + u64::from(s[i] - b'0');
-                        if y > LIMIT {
-                            overflow = true;
-                        } else {
-                            f = y;
-                            scale *= 10.0;
-                        }
-                    }
-                }
-                i += 1;
-            }
-            post = i > 0;
-            s = &s[i..];
-        }
-        if !pre && !post {
-            return None;
-        }
-        let i = s
-            .iter()
-            .position(|c| *c == b'.' || c.is_ascii_digit())
-            .unwrap_or(s.len());
-        if i == 0 {
-            return None;
-        }
-        let unit: u64 = match &s[..i] {
-            b"ns" => 1,
-            b"us" => 1_000,
-            u if u == "µs".as_bytes() || u == "μs".as_bytes() => 1_000,
-            b"ms" => 1_000_000,
-            b"s" => 1_000_000_000,
-            b"m" => 60_000_000_000,
-            b"h" => 3_600_000_000_000,
-            _ => return None,
-        };
-        s = &s[i..];
-        if v > LIMIT / unit {
-            return None;
-        }
-        v *= unit;
-        if f > 0 {
-            v += (f as f64 * (unit as f64 / scale)) as u64;
-            if v > LIMIT {
-                return None;
-            }
-        }
-        d += v;
-        if d > LIMIT {
-            return None;
-        }
-    }
-    if neg {
-        return Some((d as i64).wrapping_neg());
-    }
-    if d > LIMIT - 1 {
-        return None;
-    }
-    Some(d as i64)
-}
-
 /// Go `time.Duration.String`.
 pub fn format_duration(d: i64) -> String {
     if d == 0 {
@@ -403,8 +296,8 @@ impl Host {
         let Some(flag) = state.command_line_flags.get_mut(name) else {
             return Ok(());
         };
-        let value =
-            normalize_flag_value(&flag.kind, raw).ok_or_else(|| format!("invalid {} value {raw:?}", flag.kind))?;
+        let value = normalize_flag_value(&flag.kind, raw)
+            .ok_or_else(|| format!("invalid {} value {}", flag.kind, cpa_common::gostr::quote(raw)))?;
         flag.value = value;
         flag.set = true;
         state.command_line_hits.insert(name.to_owned());

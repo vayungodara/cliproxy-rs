@@ -116,7 +116,7 @@ impl Proxy {
     /// Applies this proxy to a client. `inherit_env` mirrors Go's standard transport,
     /// which honours environment proxies when nothing is configured; the Claude uTLS
     /// transports dial directly instead.
-    pub(crate) fn apply(&self, builder: wreq::ClientBuilder, inherit_env: bool) -> wreq::Result<wreq::ClientBuilder> {
+    pub fn apply(&self, builder: wreq::ClientBuilder, inherit_env: bool) -> wreq::Result<wreq::ClientBuilder> {
         match self {
             Proxy::Url(url) => Ok(builder.proxy(wreq::Proxy::all(wreq_proxy_url(url).as_str())?)),
             Proxy::Inherit | Proxy::Invalid if inherit_env => EnvProxy::current().apply(builder),
@@ -568,8 +568,58 @@ pub async fn send_request(
     body: Option<Bytes>,
     timeout: Option<std::time::Duration>,
 ) -> Result<Upstream, ExecError> {
-    let initial =
-        url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
+    let raw = send_request_raw(route, method, url, headers, body, timeout)
+        .await
+        .map_err(|e| match e {
+            SendError::Transport { error, .. } => crate::upstream::transport_error(error),
+            SendError::Local { error, .. } => error,
+        })?;
+    Ok(Upstream {
+        status: raw.status,
+        headers: raw.headers,
+        body: raw.body.map(|r| r.map_err(body_error)).boxed(),
+    })
+}
+
+/// Why [`send_request_raw`] failed: the transport's own error (which may name the URL,
+/// so callers decide what to show), or a locally generated one. `url` is the URL Go's
+/// client names in its `*url.Error`: the failing hop (the caller's URL as written for
+/// the first request), or the rejected `Location` when the redirect limit is hit.
+#[derive(Debug)]
+pub enum SendError {
+    Transport { error: wreq::Error, url: String },
+    Local { error: ExecError, url: String },
+}
+
+/// [`Upstream`] with the transport's raw body errors and the response's protocol
+/// version (Go's response reader keeps framing headers by version).
+pub struct RawUpstream {
+    pub status: u16,
+    pub version: http::Version,
+    pub headers: HeaderMap,
+    pub body: BoxStream<'static, Result<Bytes, std::io::Error>>,
+}
+
+/// [`send_request`] without error sanitising, for callers that report Go's own error
+/// text (the plugin host's `host.http.*`).
+pub async fn send_request_raw(
+    route: &(dyn Fn(&url::Url) -> Result<Route, ExecError> + Sync),
+    method: wreq::Method,
+    url: &str,
+    headers: GoHeaders,
+    body: Option<Bytes>,
+    timeout: Option<std::time::Duration>,
+) -> Result<RawUpstream, SendError> {
+    let local = |error: ExecError, url: &str| SendError::Local {
+        error,
+        url: url.to_owned(),
+    };
+    let initial = url::Url::parse(url).map_err(|_| {
+        local(
+            ExecError::local(500, FailureScope::Request, "invalid upstream URL"),
+            url,
+        )
+    })?;
     let explicit_referer = headers.get("Referer").map(str::to_owned);
     // The caller's URL as written, for the first request only (GoHeaders::exact_target);
     // a URL with user info falls back to the parsed form (Go strips it from Referer).
@@ -588,7 +638,9 @@ pub async fn send_request(
     let mut hop_headers = headers.clone();
     let mut sent = 0;
     let (response, auto_gzip) = loop {
-        let hop = route(&current)?;
+        // The URL Go's client reports for this hop.
+        let hop_url = if sent == 0 { url.to_owned() } else { current.to_string() };
+        let hop = route(&current).map_err(|e| local(e, &hop_url))?;
         let mut builder = hop
             .client
             .request(
@@ -617,7 +669,10 @@ pub async fn send_request(
         } else {
             builder
         };
-        let response = builder.send().await.map_err(crate::upstream::transport_error)?;
+        let response = builder.send().await.map_err(|error| SendError::Transport {
+            error,
+            url: hop_url.clone(),
+        })?;
         if go_transport {
             remember_protocol(&current, response.version() == http::Version::HTTP_2);
         }
@@ -638,18 +693,20 @@ pub async fn send_request(
             None => current.join(&location),
         }
         .map_err(|_| {
-            ExecError::local(
-                500,
-                FailureScope::Transport,
-                format!("failed to parse Location header {location:?}"),
+            local(
+                ExecError::local(
+                    500,
+                    FailureScope::Transport,
+                    format!("failed to parse Location header {location:?}"),
+                ),
+                &hop_url,
             )
         })?;
         // defaultCheckRedirect: len(via) >= 10.
         if sent >= 10 {
-            return Err(ExecError::local(
-                500,
-                FailureScope::Transport,
-                "stopped after 10 redirects",
+            return Err(local(
+                ExecError::local(500, FailureScope::Transport, "stopped after 10 redirects"),
+                &location,
             ));
         }
         if (301..=303).contains(&status) {
@@ -714,6 +771,7 @@ pub async fn send_request(
         current = next;
     };
     let status = response.status().as_u16();
+    let version = response.version();
     let mut headers = response.headers().clone();
     let gzip = auto_gzip
         && headers
@@ -727,13 +785,16 @@ pub async fn send_request(
         let reader = tokio::io::BufReader::new(tokio_util::io::StreamReader::new(stream));
         let mut decoder = async_compression::tokio::bufread::GzipDecoder::new(reader);
         decoder.multiple_members(true);
-        tokio_util::io::ReaderStream::new(decoder)
-            .map(|r| r.map_err(body_error))
-            .boxed()
+        tokio_util::io::ReaderStream::new(decoder).boxed()
     } else {
-        stream.map(|r| r.map_err(body_error)).boxed()
+        stream.boxed()
     };
-    Ok(Upstream { status, headers, body })
+    Ok(RawUpstream {
+        status,
+        version,
+        headers,
+        body,
+    })
 }
 
 /// Origins (`scheme://host:port`) and whether their last answer came over HTTP/2.

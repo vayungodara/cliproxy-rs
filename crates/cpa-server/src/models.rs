@@ -38,6 +38,12 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
             .and_then(serde_yaml_ng::Value::as_bool)
             .unwrap_or(false)
     };
+    // Go `WriteModelListResponse`: plugin response interceptors see every list.
+    let intercept = |source: &'static str, response: Response| {
+        let rt = rt.clone();
+        let headers = headers.clone();
+        async move { crate::plugins::interceptors::model_list(&rt, source, &headers, response).await }
+    };
     // Go Home mode: the catalog Home answers for this client.
     if let Some(remote) = rt.remote_dispatch() {
         let entries = match crate::home_models::load(remote.as_ref(), &headers, &uri).await {
@@ -47,29 +53,36 @@ pub async fn unified(State(rt): State<Arc<Runtime>>, OriginalUri(uri): OriginalU
         let grok_shell = header("user-agent").is_some_and(|ua| ua.to_lowercase().contains("grok-shell"));
         // ponytail: Go builds the Codex client catalog (`client_version`) from Home's
         // model IDs with its template metadata; here such clients get the OpenAI list.
-        let body = if grok_shell {
-            crate::home_models::grok(&entries)
+        let (source, body) = if grok_shell {
+            ("openai", crate::home_models::grok(&entries))
         } else if anthropic && query_value(&uri, "client_version").is_none() {
-            crate::home_models::claude(&entries, disable_cloaking())
+            ("claude", crate::home_models::claude(&entries, disable_cloaking()))
         } else {
-            crate::home_models::openai(&entries)
+            ("openai", crate::home_models::openai(&entries))
         };
-        return respond::gin_json(200, body);
+        return intercept(source, respond::gin_json(200, body)).await;
     }
     if header("user-agent").is_some_and(|ua| ua.go_lower().contains("grok-shell")) {
         let registry = rt.registry();
-        return respond::gin_json(200, grok_list(registry.available_with(|c, m| rt.suspension(c, m))));
+        let list = grok_list(registry.available_with(|c, m| rt.suspension(c, m)));
+        return intercept("openai", respond::gin_json(200, list)).await;
     }
     if let Some(version) = query_value(&uri, "client_version") {
-        return crate::codex_models::response(&rt, &version);
+        return intercept("openai", crate::codex_models::response(&rt, &version)).await;
     }
     let registry = rt.registry();
-    let body = if anthropic {
-        claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking())
+    let (source, body) = if anthropic {
+        (
+            "claude",
+            claude_list(registry.available_with(|c, m| rt.suspension(c, m)), disable_cloaking()),
+        )
     } else {
-        openai_list(registry.available_with(|c, m| rt.suspension(c, m)))
+        (
+            "openai",
+            openai_list(registry.available_with(|c, m| rt.suspension(c, m))),
+        )
     };
-    respond::gin_json(200, body)
+    intercept(source, respond::gin_json(200, body)).await
 }
 
 /// Go `c.Request.URL.Query()[key]` present, with `c.Query(key)`'s first value.
@@ -258,7 +271,8 @@ pub async fn gemini_list(
         return match crate::home_models::load(remote.as_ref(), &headers, &uri).await {
             Ok(entries) => {
                 let models: Vec<Value> = entries.iter().map(crate::home_models::gemini).collect();
-                respond::gin_json(200, gojson::sorted(&json!({ "models": models })))
+                let response = respond::gin_json(200, gojson::sorted(&json!({ "models": models })));
+                crate::plugins::interceptors::model_list(&rt, "gemini", &headers, response).await
             }
             Err(response) => *response,
         };
@@ -286,7 +300,8 @@ pub async fn gemini_list(
             Value::Object(entry)
         })
         .collect();
-    respond::gin_json(200, gojson::sorted(&json!({ "models": models })))
+    let response = respond::gin_json(200, gojson::sorted(&json!({ "models": models })));
+    crate::plugins::interceptors::model_list(&rt, "gemini", &headers, response).await
 }
 
 /// `GET /v1beta/models/*action` (Go `GeminiGetHandler`).

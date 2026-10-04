@@ -525,7 +525,7 @@ pub(crate) fn claude_code_prompt_cache(model: &str, payload: &[u8], headers: &He
 }
 
 /// `EnsureResponsesUsageDetails`.
-pub(crate) fn ensure_responses_usage_details(payload: &[u8]) -> Vec<u8> {
+pub fn ensure_responses_usage_details(payload: &[u8]) -> Vec<u8> {
     let trimmed = go::trim_space(payload);
     if trimmed.is_empty() {
         return payload.to_vec();

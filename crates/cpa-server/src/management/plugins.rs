@@ -21,12 +21,12 @@ use super::{Management, access};
 // ---- Go JSON responses -------------------------------------------------------------
 
 /// gin `c.JSON` of a `gin.H` or `map[string]any`: keys sorted at every level.
-fn map_json(status: StatusCode, value: &Value) -> Response {
+pub(super) fn map_json(status: StatusCode, value: &Value) -> Response {
     body_json(status, crate::gojson::sorted(value))
 }
 
 /// gin `c.JSON` of a struct: fields in declaration order (the `json!` order here).
-fn struct_json(status: StatusCode, value: &Value) -> Response {
+pub(super) fn struct_json(status: StatusCode, value: &Value) -> Response {
     let mut out = String::new();
     ordered(value, &mut out);
     body_json(status, out)
@@ -46,7 +46,7 @@ fn body_json(status: StatusCode, body: String) -> Response {
 
 /// Go `url.ParseQuery` as `URL.Query()` uses it: pairs in order; a pair with a raw
 /// `;` or a bad percent escape is dropped, the rest kept; `+` is a space.
-pub(super) fn go_query(raw: &str) -> Vec<(String, String)> {
+pub(crate) fn go_query(raw: &str) -> Vec<(String, String)> {
     fn unescape(s: &str) -> Option<String> {
         let b = s.as_bytes();
         let mut out = Vec::with_capacity(b.len());
@@ -116,9 +116,9 @@ fn ordered(v: &Value, out: &mut String) {
 }
 
 /// An early response; boxed to keep `Result`s small.
-type Res<T> = Result<T, Box<Response>>;
+pub(super) type Res<T> = Result<T, Box<Response>>;
 
-fn error(status: StatusCode, code: &str, message: &str) -> Response {
+pub(super) fn error(status: StatusCode, code: &str, message: &str) -> Response {
     map_json(status, &json!({"error": code, "message": message}))
 }
 
@@ -127,23 +127,23 @@ fn not_found_plugin() -> Response {
 }
 
 /// Go `htmlsanitize.String` (`html.EscapeString`).
-fn esc(s: &str) -> String {
+pub(super) fn esc(s: &str) -> String {
     cpa_plugin::management::html_escape(s)
 }
 
 // ---- config view ---------------------------------------------------------------------
 
 /// The `plugins:` section as the management handlers read it from the live config.
-struct PluginsView {
-    enabled: bool,
+pub(super) struct PluginsView {
+    pub(super) enabled: bool,
     /// Go `normalizedPluginsDir`, before resolving.
-    dir: String,
+    pub(super) dir: String,
     /// Configured plugins by ID, with their raw subtree.
-    configs: BTreeMap<String, (ItemConfig, Yaml)>,
+    pub(super) configs: BTreeMap<String, (ItemConfig, Yaml)>,
 }
 
 impl PluginsView {
-    fn of(cfg: &Config) -> Self {
+    pub(super) fn of(cfg: &Config) -> Self {
         let plugins = cfg.document.get("plugins");
         let enabled = plugins
             .and_then(|p| p.get("enabled"))
@@ -162,7 +162,7 @@ impl PluginsView {
     }
 
     /// Go `pluginStoreDesiredVersions`: discovery then drops versions it rejects.
-    fn desired_versions(&self) -> BTreeMap<String, String> {
+    pub(super) fn desired_versions(&self) -> BTreeMap<String, String> {
         self.configs
             .iter()
             .filter_map(|(id, (_, raw))| {
@@ -201,12 +201,15 @@ fn store_desired_version(raw: &Yaml) -> String {
     normalize(&scalar("release-tag"))
 }
 
-fn resolved_dir(dir: &str) -> Res<std::path::PathBuf> {
+pub(super) fn resolved_dir(dir: &str) -> Res<std::path::PathBuf> {
     pcfg::resolve_dir(dir)
         .map_err(|e| Box::new(error(StatusCode::INTERNAL_SERVER_ERROR, "plugin_directory_invalid", &e)))
 }
 
-fn discover(dir: &std::path::Path, desired: &BTreeMap<String, String>) -> Res<Vec<cpa_plugin::platform::PluginFile>> {
+pub(super) fn discover(
+    dir: &std::path::Path,
+    desired: &BTreeMap<String, String>,
+) -> Res<Vec<cpa_plugin::platform::PluginFile>> {
     cpa_plugin::platform::discover(dir, desired).map_err(|e| {
         Box::new(error(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -217,7 +220,7 @@ fn discover(dir: &std::path::Path, desired: &BTreeMap<String, String>) -> Res<Ve
 }
 
 /// Go `pluginIDFromRequest`.
-fn plugin_id(raw: &str) -> Res<String> {
+pub(super) fn plugin_id(raw: &str) -> Res<String> {
     let id = raw.trim();
     if !cpa_plugin::platform::valid_id(id) {
         return Err(Box::new(error(
@@ -301,7 +304,7 @@ pub(crate) async fn list(State(state): State<Arc<Management>>) -> Response {
         entry.supports_quota = info.supports_quota;
         entry.quota_provider = esc(&info.quota_provider);
         entry.logo = esc(&meta.logo);
-        entry.config_fields = config_fields(&meta.config_fields);
+        entry.config_fields = config_fields(meta.config_field_list());
         entry.menus = info
             .menus
             .iter()
@@ -313,7 +316,7 @@ pub(crate) async fn list(State(state): State<Arc<Management>>) -> Response {
             "author": esc(&meta.author),
             "github_repository": esc(&meta.github_repository),
             "logo": esc(&meta.logo),
-            "config_fields": config_fields(&meta.config_fields),
+            "config_fields": config_fields(meta.config_field_list()),
         }));
     }
     let plugins: Vec<Value> = entries
@@ -411,7 +414,7 @@ pub(crate) async fn get_config(State(state): State<Arc<Management>>, UrlPath(raw
 // ---- config writes -------------------------------------------------------------------
 
 /// Why a plugin config write failed.
-enum Fail {
+pub(super) enum Fail {
     /// A response the edit produced.
     Response(Box<Response>),
     /// Reading, rendering or writing the file failed (Go's saver error).
@@ -433,7 +436,7 @@ impl Fail {
 /// Reads, edits and saves the config file the way `config_sync` does, then publishes
 /// it. Go's typed saver also writes `plugins.dir` resolved and cleaned (it was resolved
 /// at load), so the edit does the same.
-fn save(state: &Management, edit: impl FnOnce(&mut ConfigDocument) -> Res<()>) -> Result<(), Fail> {
+pub(super) fn save(state: &Management, edit: impl FnOnce(&mut ConfigDocument) -> Res<()>) -> Result<(), Fail> {
     let failed = |e: &dyn std::fmt::Display| Fail::Save(e.to_string());
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
     let original = std::fs::read_to_string(&state.path).map_err(|e| failed(&e))?;
@@ -494,26 +497,21 @@ fn ok_status() -> Response {
 }
 
 /// The current subtree for `id` as Go's `pluginConfigNode` sees it.
-fn current_node(doc: &ConfigDocument, id: &str) -> Mapping {
+pub(super) fn current_node(doc: &ConfigDocument, id: &str) -> Mapping {
     let raw = doc.get(&["plugins", "configs", id]).cloned().unwrap_or(Yaml::Null);
     config_node(&pcfg::item_config(id, &raw), &raw)
 }
 
-fn set_node(doc: &mut ConfigDocument, id: &str, node: Mapping) -> Res<()> {
+pub(super) fn set_node(doc: &mut ConfigDocument, id: &str, node: Mapping) -> Res<()> {
     doc.update(&["plugins", "configs", id], Yaml::Mapping(node), false)
         .map_err(|e| Box::new(Fail::Save(e.to_string()).into_response()))
 }
 
-/// Go `readPluginConfigObject`: a JSON object with numbers kept as written, decoded the
-/// way `json.Decoder.Decode` reports errors.
-/// ponytail: Go decodes only the first JSON value and ignores what follows it; trailing
-/// data is rejected here.
+/// Go `readPluginConfigObject`: a JSON object with numbers kept as written, read with
+/// `json.Decoder.Decode` (the first value; anything after it is never read).
 fn config_object(body: &[u8]) -> Res<Vec<(String, Node)>> {
     let invalid = |message: &str| Err(Box::new(error(StatusCode::BAD_REQUEST, "invalid_body", message)));
-    if body.iter().all(u8::is_ascii_whitespace) {
-        return invalid("EOF");
-    }
-    let kind = match pjson::parse(body) {
+    let kind = match pjson::parse_first(body) {
         Ok(mut node) => match &mut node {
             Node::Object(fields) => return Ok(std::mem::take(fields)),
             Node::Null => return invalid("body must be a JSON object"),
@@ -522,15 +520,7 @@ fn config_object(body: &[u8]) -> Res<Vec<(String, Node)>> {
             Node::Number(_) => "number",
             Node::Bool(_) => "bool",
         },
-        Err(e) => {
-            let message = e.to_string();
-            // json.Decoder reports a truncated value as io.ErrUnexpectedEOF.
-            return invalid(if message == "unexpected end of JSON input" {
-                "unexpected EOF"
-            } else {
-                &message
-            });
-        }
+        Err(e) => return invalid(&e.to_string()),
     };
     invalid(&format!(
         "json: cannot unmarshal {kind} into Go value of type map[string]interface {{}}"
@@ -608,7 +598,7 @@ pub(crate) async fn patch_enabled(
 }
 
 /// Go `setYAMLMappingValue`: replace in place, else append.
-fn set_key(node: &mut Mapping, key: &str, value: Yaml) {
+pub(super) fn set_key(node: &mut Mapping, key: &str, value: Yaml) {
     node.insert(Yaml::from(key), value);
 }
 
@@ -687,6 +677,12 @@ pub(crate) async fn patch_config(
 }
 
 // ---- DELETE /plugins/:id -------------------------------------------------------------
+
+/// `DELETE /v8/management/plugins/store`: gin's DELETE tree has only `plugins/:id`, so
+/// Go deletes the plugin with the ID `store`.
+pub(crate) async fn delete_store_id(State(state): State<Arc<Management>>) -> Response {
+    delete(State(state), UrlPath("store".to_owned())).await
+}
 
 /// Go `DeletePlugin`: removes the selected plugin file and its saved config.
 pub(crate) async fn delete(State(state): State<Arc<Management>>, UrlPath(raw): UrlPath<String>) -> Response {
@@ -818,6 +814,13 @@ pub(crate) async fn no_route(State(state): State<Arc<Management>>, req: Request)
 
 async fn serve_management(State(state): State<Arc<Management>>, req: Request) -> Response {
     let (parts, body) = req.into_parts();
+    // Go `ServePluginAuthURL` runs before the plugin-declared routes.
+    let path = super::percent_decode(parts.uri.path());
+    if let Some(response) =
+        super::plugin_oauth::serve_auth_url(&state, &path, parts.uri.query().unwrap_or_default()).await
+    {
+        return response;
+    }
     let host = state.rt.plugins();
     if !host.has_management_route(parts.method.as_str(), &super::percent_decode(parts.uri.path())) {
         return access::not_found();
@@ -838,22 +841,11 @@ async fn serve_management(State(state): State<Arc<Management>>, req: Request) ->
 }
 
 fn inbound(parts: &axum::http::request::Parts, body: Bytes) -> cpa_plugin::management::Inbound {
-    let mut headers = pjson::Header::new();
-    for (name, value) in &parts.headers {
-        headers
-            .entry(cpa_exec::proxy::canonical_header(name.as_str()))
-            .or_default()
-            .push(String::from_utf8_lossy(value.as_bytes()).into_owned());
-    }
-    let mut query = pjson::Header::new();
-    for (k, v) in go_query(parts.uri.query().unwrap_or_default()) {
-        query.entry(k).or_default().push(v);
-    }
     cpa_plugin::management::Inbound {
         method: parts.method.as_str().to_owned(),
         path: super::percent_decode(parts.uri.path()),
-        headers,
-        query,
+        headers: crate::plugins::go_request_header(&parts.headers),
+        query: crate::plugins::go_values(parts.uri.query().unwrap_or_default()),
         body,
         scope: Default::default(),
     }

@@ -23,5 +23,10 @@ cp "$here"/*.go "$module/"
   go mod edit -require=github.com/router-for-me/CLIProxyAPI/v8@v8.0.0
   go mod edit -replace=github.com/router-for-me/CLIProxyAPI/v8="$reference"
   go mod tidy >/dev/null 2>&1
-  go run . "$built" "$crate/tests/fixtures/plugin_routes_go.json"
+  # Test seams for the plugin store, overlaid into the build (the checkout is untouched).
+  printf '{"Replace": {"%s": "%s", "%s": "%s"}}\n' \
+    "$reference/internal/api/zz_fixture_hooks.go" "$here/overlay/api_hooks.go" \
+    "$reference/internal/api/handlers/management/zz_fixture_hooks.go" "$here/overlay/management_hooks.go" \
+    > overlay.json
+  go run -overlay overlay.json . "$built" "$crate/tests/fixtures/plugin_routes_go.json"
 )

@@ -22,15 +22,21 @@ use crate::scheduler::{ErrorRule, Policy};
 mod access;
 mod api_call;
 mod auth_files;
+mod iso_currency;
 pub(crate) mod legacy;
 mod logs;
 mod multipart;
 mod oauth;
 pub mod observability;
+mod plugin_auth;
+mod plugin_oauth;
+mod plugin_store;
 mod plugins;
 mod quota;
+mod quota_probe;
 pub use access::cors;
 pub(crate) use access::{Cors, cors_headers};
+pub(crate) use plugins::go_query;
 
 pub struct Management {
     pub(crate) rt: Arc<Runtime>,
@@ -63,6 +69,8 @@ pub struct Management {
     auth_dir: Option<PathBuf>,
     /// The zone log line timestamps are parsed in (Go `time.Local` when `None`).
     pub(crate) log_zone: logs::Zone,
+    /// Plugin store test seams and release cache (Go `Handler.pluginStore*`).
+    pub(crate) plugin_store: plugin_store::StoreState,
     access: access::Access,
 }
 
@@ -87,6 +95,13 @@ pub struct Options {
     /// auth-dir, so a config without one never reads the default `~/.cli-proxy-api`
     /// (tests only). A configured store still wins.
     pub auth_dir: Option<PathBuf>,
+    /// The only plugin store registry (Go `pluginStoreRegistryURL`; tests only).
+    pub plugin_store_registry_url: Option<String>,
+    /// The plugin store's HTTP client (Go `pluginStoreHTTPClient`; tests only).
+    pub plugin_store_http: Option<Arc<dyn cpa_plugin::store::Doer>>,
+    /// The plugin store's GitHub rate limiter (Go `pluginStoreRateLimiter`); the
+    /// process-wide one when unset.
+    pub plugin_store_rate_limiter: Option<Arc<cpa_plugin::store::GitHubRateLimiter>>,
 }
 
 impl Management {
@@ -127,6 +142,11 @@ impl Management {
         let store = options.store.take();
         let auth_dir = options.auth_dir.take();
         let log_zone = options.log_zone;
+        let plugin_store = plugin_store::StoreState::new(
+            options.plugin_store_registry_url.take(),
+            options.plugin_store_http.take(),
+            options.plugin_store_rate_limiter.take(),
+        );
         let access = access::Access::new(&cfg, options);
         rt.usage_queue().configure(access.available(), &cfg);
         let state = Arc::new(Self {
@@ -146,9 +166,11 @@ impl Management {
             store,
             auth_dir,
             log_zone,
+            plugin_store,
         });
         oauth::install_callback_sink(&state);
         access::start_purge(&state);
+        plugin_auth::attach(&state);
         state
     }
 
@@ -516,6 +538,27 @@ pub fn router(state: Arc<Management>) -> Router {
             .route(&format!("{v8}/{path}"), route.clone())
             .route(&format!("{v0}/{path}"), route);
     }
+    // Plugin store (plugin_store.go). gin keeps one route tree per method, so a DELETE of
+    // `plugins/store` is DeletePlugin with the ID `store`.
+    router = router
+        .route(
+            &format!("{v8}/plugins/store"),
+            methods()
+                .get(guarded!(s, plugin_store::list))
+                .delete(guarded!(s, plugins::delete_store_id)),
+        )
+        .route(
+            &format!("{v8}/plugins/store/{{id}}/install"),
+            methods().post(guarded!(s, plugin_store::install)),
+        )
+        .route(
+            &format!("{v0}/plugin-store"),
+            methods().get(guarded!(s, plugin_store::list)),
+        )
+        .route(
+            &format!("{v0}/plugin-store/{{id}}/install"),
+            methods().post(guarded!(s, plugin_store::install)),
+        );
     // Plugin quota (plugin_quota.go): per-plugin under v8 and v0, the credential-level
     // routes and the reset alias only under v0.
     for base in [v8, v0] {
