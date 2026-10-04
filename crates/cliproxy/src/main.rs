@@ -550,6 +550,18 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String)>) -> anyhow::Result<()> {
+    // An explicit remote URL makes `-tui` a pure management client: it needs no local
+    // config, store or Home bootstrap (Go loads them first and can fail or wait there).
+    // Login, import and plugin flags still run first, as in Go.
+    if args.tui
+        && !args.standalone
+        && !args.management_base_url.trim().is_empty()
+        && !command_mode(&args)
+        && !plugins.has_triggered_command_line_flags()
+    {
+        remote_tui(args.management_base_url.trim().to_owned(), args.password).await;
+        return Ok(());
+    }
     let wd = std::env::current_dir()?;
     let home_jwt = [
         args.home_jwt.clone(),
@@ -645,13 +657,8 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
             )
             .await;
         } else {
-            // Go: a pure management client; the server runs elsewhere.
             let base = resolve_management_base_url(&args.management_base_url, &config);
-            let password = args.password;
-            let run = tokio::task::spawn_blocking(move || tui::run(&base, &password, None, io::stdout())).await;
-            if let Err(e) = run.map_err(io::Error::other).and_then(|r| r) {
-                eprintln!("TUI error: {e}");
-            }
+            remote_tui(base, args.password).await;
         }
         return Ok(());
     }
@@ -667,6 +674,28 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
         None,
     )
     .await
+}
+
+/// Go's `commandMode`: a login or import flag is set.
+fn command_mode(args: &Args) -> bool {
+    !args.vertex_import.is_empty()
+        || args.antigravity_login
+        || args.codex_login
+        || args.codex_device_login
+        || args.claude_login
+        || args.kimi_login
+        || args.kimi_ai_login
+        || args.xai_login
+        || args.devin_login
+        || args.meta_login
+}
+
+/// Go's TUI client mode: a pure management client; the server runs elsewhere.
+async fn remote_tui(base: String, password: String) {
+    let run = tokio::task::spawn_blocking(move || tui::run(&base, &password, None, io::stdout())).await;
+    if let Err(e) = run.map_err(io::Error::other).and_then(|r| r) {
+        eprintln!("TUI error: {e}");
+    }
 }
 
 /// Go `resolveManagementBaseURL`: the flag, then `remote-management.base-url`, then
