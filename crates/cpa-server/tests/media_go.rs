@@ -65,8 +65,27 @@ const KEEP: [&str; 6] = [
     "Last-Modified",
 ];
 
-/// Scenarios whose Go body is Go's own dial error text: status and headers are compared.
+/// Scenarios whose Go error message is Go's own dial error text: the status, headers and
+/// the error envelope's `type` and `code` are compared, and the message must be a string.
 const STATUS_ONLY: [&str; 1] = ["video_content_connect_refused"];
+
+/// The error envelope check for a [`STATUS_ONLY`] scenario, `None` when it matches Go.
+fn gateway_error_diff(go: &str, rust: &str) -> Option<String> {
+    let parse = |s: &str| serde_json::from_str::<serde_json::Value>(s).ok();
+    let want = parse(go).expect("Go error body is JSON");
+    assert!(
+        want["error"]["type"].is_string() && want["error"]["code"].is_string(),
+        "{go}"
+    );
+    let Some(got) = parse(rust) else {
+        return Some(format!("body is not JSON: {rust}"));
+    };
+    let stable = |v: &serde_json::Value| (v["error"]["type"].clone(), v["error"]["code"].clone());
+    if stable(&got) != stable(&want) || !got["error"]["message"].is_string() {
+        return Some(format!("error envelope:\n  go   {go}\n  rust {rust}"));
+    }
+    None
+}
 
 /// Answers each connection with the next scripted reply and records the raw request,
 /// like the Go driver's capture server.
@@ -319,6 +338,9 @@ async fn media_routes_match_go() {
         }
         if compare_body && (response != s.response || response_b64 != s.response_b64) {
             diffs.push(format!("body:\n  go   {}\n  rust {response}", s.response));
+        }
+        if !compare_body && let Some(diff) = gateway_error_diff(&s.response, &response) {
+            diffs.push(diff);
         }
         if requests != s.requests {
             diffs.push(format!(
