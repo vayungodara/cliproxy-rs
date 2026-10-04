@@ -304,8 +304,14 @@ async fn sideband(inbound: Inbound, realtime: bool, style: Sideband, call_id: St
         let drained = super::drained(lease.as_ref());
         async move {
             let _ = until_drained(relay, drained).await;
-            drop(lease);
+            // Ending the call closes its media; a temporary pick ends once that close
+            // finished, as a stored call's selection does.
+            let media = guard.call.media.clone();
             drop(guard);
+            match media {
+                Some(media) => media.after_close(Box::new(move || drop(lease))),
+                None => drop(lease),
+            }
         }
     })
 }
