@@ -119,18 +119,16 @@ fn request_metadata(call: &Call) -> Metadata {
 }
 
 /// Go `AuthManager.AvailableProviders`: providers with an enabled credential, by their
-/// scheduling key, sorted.
+/// scheduling key, sorted. Go folds `kimi.com` and `kimi.ai` into `kimi` and `kimi-ai`
+/// here and in selection; selection here matches the key as is, so routers are offered
+/// the keys a routed provider can actually select.
 fn available_providers(rt: &Runtime) -> Vec<String> {
     let mut out: Vec<String> = rt
         .store()
         .snapshot()
         .iter()
         .filter(|c| !c.disabled)
-        .map(|c| match crate::registry::provider_key(c).as_str() {
-            "kimi.com" => "kimi".to_owned(),
-            "kimi.ai" => "kimi-ai".to_owned(),
-            key => key.to_owned(),
-        })
+        .map(|c| crate::registry::provider_key(c))
         .filter(|p| !p.is_empty())
         .collect();
     out.sort();
@@ -511,5 +509,51 @@ impl StreamState {
         if !frame.is_empty() {
             self.ready.push_back(Ok(Bytes::from(frame)));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use cpa_core::credential::Credential;
+
+    use super::*;
+
+    /// Every provider offered to a model router selects its credential when routed to,
+    /// including Kimi files typed with their domain.
+    #[test]
+    fn routers_are_offered_selectable_providers() {
+        let dir = cpa_plugin::testing::scratch(&std::env::temp_dir(), "plugin-available-providers");
+        let cred = |name: &str, provider: &str| {
+            let mut meta = serde_json::Map::new();
+            meta.insert("type".into(), provider.into());
+            Credential::from_file(&dir, &dir.join(name), meta).unwrap()
+        };
+        let creds = vec![
+            cred("a.json", "kimi.com"),
+            cred("b.json", "kimi.ai"),
+            cred("c.json", "claude"),
+        ];
+        let cfg = cpa_core::config::Config::parse(&format!("auth-dir: {}\n", dir.display())).unwrap();
+        let rt = std::sync::Arc::new(crate::testing::runtime(
+            cfg,
+            creds,
+            cpa_exec::Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        ));
+        let providers = available_providers(&rt);
+        assert_eq!(providers, ["claude", "kimi.ai", "kimi.com"]);
+        for (provider, id) in providers.iter().zip(["c.json", "b.json", "a.json"]) {
+            let lease = rt
+                .store()
+                .select(crate::runtime::Selection::new(provider, "some-model"))
+                .unwrap_or_else(|| panic!("{provider} selects a credential"));
+            assert_eq!(lease.credential.id, id);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
