@@ -67,11 +67,16 @@ pub(crate) type CloseHandler = Box<dyn FnOnce(String) + Send>;
 /// A started session and the offer to send upstream instead of the client's.
 pub(crate) type NewSession = Result<(Arc<dyn MediaSession>, String), RelayError>;
 
+/// What a session's setup keeps until it no longer needs closing (the caller's credential
+/// lease): dropped once setup started the session, or once a session whose setup failed
+/// or was cancelled finished closing.
+pub(crate) type Hold = Box<dyn Send>;
+
 /// Builds media sessions (`mediaRelayFactory`).
 pub(crate) trait MediaRelay: Send + Sync {
     /// Starts a session from the client's offer and returns it with the offer to send
     /// upstream instead.
-    fn new_session(&self, offer: String, route: Route) -> BoxFuture<'_, NewSession>;
+    fn new_session(&self, offer: String, route: Route, hold: Hold) -> BoxFuture<'_, NewSession>;
 }
 
 /// `config.CodexLiveMediaRelayConfig`, as `oauth.providers.codex.live-media-relay` holds it.

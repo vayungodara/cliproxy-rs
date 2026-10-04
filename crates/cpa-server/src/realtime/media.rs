@@ -38,7 +38,7 @@ use webrtc::peer_connection::{
 use webrtc::rtp_transceiver::RtpSender;
 
 use super::dialer::{self, Dial, proxy_scheme};
-use super::relay::{Limiter, MediaRelay, MediaSession, NewSession, RelayConfig, RelayError, Route, Slot};
+use super::relay::{Hold, Limiter, MediaRelay, MediaSession, NewSession, RelayConfig, RelayError, Route, Slot};
 use super::tunnel::{self, Tunnel};
 
 /// `realtimeDataChannelLabel`.
@@ -264,7 +264,7 @@ impl Relay {
 }
 
 impl MediaRelay for Relay {
-    fn new_session(&self, offer: String, route: Route) -> BoxFuture<'_, NewSession> {
+    fn new_session(&self, offer: String, route: Route, hold: Hold) -> BoxFuture<'_, NewSession> {
         Box::pin(async move {
             // `proxyutil.BuildDialer` before taking a slot.
             let proxy = dialer::build(&route.proxy_url)
@@ -288,16 +288,18 @@ impl MediaRelay for Relay {
                 None => tracing::info!(media_session_id = %shared.id, "codex live WebRTC media session created"),
             }
             // Closes the session if setup fails or this future is dropped (the request
-            // went away mid-negotiation), as Go's `Close` on those paths.
-            let mut guard = SetupGuard(Some(shared.clone()));
-            let started = self.start(offer, &shared).await;
-            guard.0 = None;
-            let sdp = match started {
+            // went away mid-negotiation), as Go's `Close` on those paths, and keeps `hold`
+            // until that close finished.
+            let mut guard = SetupGuard {
+                shared: Some(shared.clone()),
+                hold: Some(hold),
+            };
+            let sdp = match self.start(offer, &shared).await {
                 Ok(sdp) => sdp,
                 Err(e) => {
                     // Go's `Close` returns after the peers closed; so does this error, so
                     // the caller's credential outlives the session.
-                    shared.close("closed");
+                    drop(guard);
                     let (done, closed) = tokio::sync::oneshot::channel();
                     shared.on_closed(Box::new(move || {
                         let _ = done.send(());
@@ -306,6 +308,7 @@ impl MediaRelay for Relay {
                     return Err(e);
                 }
             };
+            guard.shared = None;
             Ok((Arc::new(Session(shared)) as Arc<dyn MediaSession>, sdp))
         })
     }
@@ -338,13 +341,20 @@ struct Proxied {
     scheme: String,
 }
 
-/// Closes a session whose setup did not finish.
-struct SetupGuard(Option<Arc<Shared>>);
+/// Closes a session whose setup did not finish, then drops `hold` once that close
+/// finished. Without a session to close, `hold` drops with the guard.
+struct SetupGuard {
+    shared: Option<Arc<Shared>>,
+    hold: Option<Hold>,
+}
 
 impl Drop for SetupGuard {
     fn drop(&mut self) {
-        if let Some(shared) = self.0.take() {
+        if let Some(shared) = self.shared.take() {
             shared.close("closed");
+            if let Some(hold) = self.hold.take() {
+                shared.on_closed(Box::new(move || drop(hold)));
+            }
         }
     }
 }
