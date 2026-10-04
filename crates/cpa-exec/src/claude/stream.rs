@@ -81,6 +81,9 @@ struct Relay {
     done: Option<OnComplete>,
     /// Go's usage reporter: every upstream line, before alias restore.
     usage: cpa_core::exec::UsageSink,
+    /// Request logs: every scanner line before restore (`AppendAPIResponseChunk`) and
+    /// the error that ends the stream (`RecordAPIResponseError`).
+    capture: cpa_core::exec::CaptureSink,
 }
 
 impl Relay {
@@ -92,6 +95,7 @@ impl Relay {
         observe(line, &mut self.message_id, &mut self.completed);
         // reporter.ObserveResponseModel and StreamUsageBuffer.ObserveClaudeStream.
         self.usage.response_line(cpa_core::format::Format::Claude, line);
+        self.capture.record(cpa_core::exec::CaptureEvent::ResponseChunk(line));
         let restored = match restore_line(line, &self.reverse) {
             Ok(restored) => restored,
             Err(message) => {
@@ -137,10 +141,18 @@ impl Relay {
     }
 
     fn fail(&mut self, error: ExecError) {
+        self.capture_error(&error);
         self.event.clear();
         self.ready.push_back(Err(error));
         self.finished = true;
         self.done = None;
+    }
+
+    fn capture_error(&self, error: &ExecError) {
+        if self.capture.enabled() {
+            let text = String::from_utf8_lossy(&error.body);
+            self.capture.record(cpa_core::exec::CaptureEvent::ResponseError(&text));
+        }
     }
 
     fn finish(&mut self) {
@@ -188,6 +200,7 @@ impl Relay {
             if error.scope == FailureScope::Transport {
                 error.body = Bytes::from_static(b"unexpected EOF");
             }
+            self.capture_error(&error);
             self.ready.push_back(Err(error));
         }
         self.finish();
@@ -196,14 +209,15 @@ impl Relay {
 
 /// Relays decoded upstream bytes as whole native SSE events. `done` runs once with
 /// the message ID when the upstream completed with `message_stop`.
-/// Every upstream line is reported to `usage` before alias restore.
+/// Every upstream line is reported to `usage` and `capture` before alias restore.
 pub(crate) fn relay(
     body: ExecStream,
     reverse: Reverse,
     done: OnComplete,
     usage: cpa_core::exec::UsageSink,
+    capture: cpa_core::exec::CaptureSink,
 ) -> ExecStream {
-    relay_with(body, reverse, done, false, usage)
+    relay_with(body, reverse, done, false, usage, capture)
 }
 
 /// [`relay`] for a translated client: the stream ends on the `message_stop` data line.
@@ -212,8 +226,9 @@ pub(crate) fn relay_translated(
     reverse: Reverse,
     done: OnComplete,
     usage: cpa_core::exec::UsageSink,
+    capture: cpa_core::exec::CaptureSink,
 ) -> ExecStream {
-    relay_with(body, reverse, done, true, usage)
+    relay_with(body, reverse, done, true, usage, capture)
 }
 
 fn relay_with(
@@ -222,9 +237,11 @@ fn relay_with(
     done: OnComplete,
     eager_terminal: bool,
     usage: cpa_core::exec::UsageSink,
+    capture: cpa_core::exec::CaptureSink,
 ) -> ExecStream {
     let relay = Relay {
         usage,
+        capture,
         body,
         reverse,
         line: BytesMut::new(),
@@ -333,6 +350,55 @@ mod tests {
         futures_util::stream::iter(items.into_iter().map(|r| r.map(Bytes::from_static))).boxed()
     }
 
+    /// Request logs: every scanner line before restore, then Go's
+    /// RecordAPIResponseError for the scanner error (`unexpected EOF`) or the restore
+    /// failure that ends the stream.
+    #[tokio::test]
+    async fn request_logs_record_lines_then_the_ending_error() {
+        let run = |body: ExecStream, reverse: Reverse| async move {
+            let captured = std::sync::Arc::new(crate::claude::tests::Captured::default());
+            let _: Vec<_> = relay(
+                body,
+                reverse,
+                Box::new(|_| {}),
+                Default::default(),
+                cpa_core::exec::CaptureSink::new(captured.clone()),
+            )
+            .collect()
+            .await;
+            std::mem::take(&mut *captured.0.lock().unwrap())
+        };
+        let broken = chunks(vec![
+            Ok(b"event: ping\r\ndata: {}\n\npartial"),
+            Err(ExecError::local(502, FailureScope::Transport, "connection reset")),
+        ]);
+        assert_eq!(
+            run(broken, Reverse::new()).await,
+            [
+                "chunk event: ping",
+                "chunk data: {}",
+                "chunk ",
+                "chunk partial",
+                "error unexpected EOF"
+            ]
+        );
+        // Two declared aliases share the suffix: the restore fails on the alias line.
+        let mut reverse = Reverse::new();
+        reverse.insert("mcp__srv1__query".into(), "mcp__srv1__query".into());
+        reverse.insert("mcp__srv2__query".into(), "mcp__srv2__query".into());
+        reverse.insert("mcp__virt__word_other".into(), "other".into());
+        let ambiguous = chunks(vec![Ok(
+            b"data: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"t\",\"name\":\"mcp__virt__query\",\"input\":{}}}\n\n",
+        )]);
+        let events = run(ambiguous, reverse).await;
+        assert_eq!(events.len(), 2, "{events:?}");
+        assert!(events[0].starts_with("chunk data: "), "{events:?}");
+        assert!(
+            events[1].starts_with("error restore Claude OAuth tool name from streaming response: "),
+            "{events:?}"
+        );
+    }
+
     #[tokio::test]
     async fn translated_streams_end_on_the_message_stop_line() {
         // Go's translated loop breaks right after the message_stop data line; the
@@ -343,15 +409,27 @@ mod tests {
                 .chain(futures_util::stream::pending())
                 .boxed()
         };
-        let out: Vec<_> = relay_translated(open(), Reverse::new(), Box::new(|_| {}), Default::default())
-            .map(Result::unwrap)
-            .collect()
-            .await;
+        let out: Vec<_> = relay_translated(
+            open(),
+            Reverse::new(),
+            Box::new(|_| {}),
+            Default::default(),
+            Default::default(),
+        )
+        .map(Result::unwrap)
+        .collect()
+        .await;
         assert_eq!(
             out[1],
             Bytes::from_static(b"event: message_stop\ndata: {\"type\":\"message_stop\"}\n")
         );
-        let mut native = relay(open(), Reverse::new(), Box::new(|_| {}), Default::default());
+        let mut native = relay(
+            open(),
+            Reverse::new(),
+            Box::new(|_| {}),
+            Default::default(),
+            Default::default(),
+        );
         assert!(native.next().await.is_some());
         let waited = tokio::time::timeout(std::time::Duration::from_millis(50), native.next()).await;
         assert!(waited.is_err(), "native output waits for the blank line");
@@ -369,6 +447,7 @@ mod tests {
             body,
             Reverse::new(),
             Box::new(move |id| *seen.lock().unwrap() = Some(id)),
+            Default::default(),
             Default::default(),
         )
         .map(Result::unwrap)
@@ -398,6 +477,7 @@ mod tests {
             Reverse::new(),
             Box::new(|_| panic!("not completed")),
             Default::default(),
+            Default::default(),
         )
         .collect()
         .await;
@@ -420,6 +500,7 @@ mod tests {
             reverse,
             Box::new(|_| {}),
             cpa_core::exec::UsageSink::new(usage.clone()),
+            Default::default(),
         )
         .map(Result::unwrap)
         .collect()
