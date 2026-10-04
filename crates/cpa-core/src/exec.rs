@@ -295,6 +295,12 @@ pub enum CaptureEvent<'a> {
 
 pub trait CaptureObserver: Send + Sync {
     fn record(&self, event: CaptureEvent<'_>);
+    /// Whether response events are kept right now (Go's `requestLogCaptureEnabled`).
+    /// An observer that drops them while logging is off says so, so executors need not
+    /// buffer data that exists only to be logged.
+    fn logs_responses(&self) -> bool {
+        true
+    }
 }
 
 /// Default no-op; providers call this at Go's logging_helpers call sites.
@@ -307,6 +313,10 @@ impl CaptureSink {
     }
     pub fn enabled(&self) -> bool {
         self.0.is_some()
+    }
+    /// Whether response chunks reach a log now: an observer is attached and keeps them.
+    pub fn logs_responses(&self) -> bool {
+        self.0.as_ref().is_some_and(|observer| observer.logs_responses())
     }
     pub fn record(&self, event: CaptureEvent<'_>) {
         if let Some(observer) = &self.0 {
