@@ -126,11 +126,34 @@ struct Conductor {
     input: tokio::sync::mpsc::Sender<Bytes>,
     session: String,
     model: String,
+    _auth_dir: AuthDir,
+}
+
+/// A private, empty `auth-dir`, removed when dropped: credential loading never falls back
+/// to `~/.cli-proxy-api`.
+struct AuthDir(std::path::PathBuf);
+
+impl AuthDir {
+    fn new() -> Self {
+        let dir = std::env::temp_dir().join(format!("cpa-it-auth-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        Self(dir)
+    }
+}
+
+impl Drop for AuthDir {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
 }
 
 impl Conductor {
     fn new(upstream: &str, keys: &[&str], model: &str, session: &str) -> Self {
-        let mut yaml = String::from("codex:\n  response-steering: true\ncodex-api-key:\n");
+        let auth_dir = AuthDir::new();
+        let mut yaml = format!(
+            "auth-dir: {}\ncodex:\n  response-steering: true\ncodex-api-key:\n",
+            auth_dir.0.display()
+        );
         for (i, key) in keys.iter().enumerate() {
             yaml.push_str(&format!(
                 "  - api-key: {key}\n    base-url: {upstream}\n    websockets: true\n    priority: {}\n    models:\n      - name: {model}\n",
@@ -157,6 +180,7 @@ impl Conductor {
             input,
             session: session.to_owned(),
             model: model.to_owned(),
+            _auth_dir: auth_dir,
         }
     }
 
