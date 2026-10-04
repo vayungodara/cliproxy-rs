@@ -247,6 +247,52 @@ pub fn response_sdp(body: &[u8], content_type: &str) -> Result<String, String> {
     Ok(String::from_utf8_lossy(body).into_owned())
 }
 
+/// A request log copy of a live body without SDP ICE credentials: each `a=ice-ufrag:`
+/// and `a=ice-pwd:` value becomes `[REDACTED]`, whether the SDP is raw, a multipart
+/// field or a JSON string. Go logs these bodies unchanged.
+pub fn redact_sdp(body: &[u8]) -> std::borrow::Cow<'_, [u8]> {
+    const NEEDLES: [&[u8]; 2] = [b"a=ice-ufrag:", b"a=ice-pwd:"];
+    let find = |from: usize| {
+        NEEDLES
+            .iter()
+            .filter_map(|n| {
+                body[from..]
+                    .windows(n.len())
+                    .position(|w| w == *n)
+                    .map(|i| from + i + n.len())
+            })
+            .min()
+    };
+    let Some(mut value) = find(0) else {
+        return body.into();
+    };
+    let mut out = Vec::with_capacity(body.len());
+    let mut copied = 0;
+    loop {
+        // The value ends at the line end, or in a JSON string at its closing quote or
+        // an escape (`\r\n`); an escaped `/` belongs to the value.
+        let mut end = value;
+        while end < body.len()
+            && !matches!(body[end], b'\r' | b'\n' | b'"')
+            && !(body[end] == b'\\' && body.get(end + 1) != Some(&b'/'))
+        {
+            end += if body[end] == b'\\' { 2 } else { 1 };
+        }
+        let end = end.min(body.len());
+        out.extend_from_slice(&body[copied..value]);
+        if end > value {
+            out.extend_from_slice(b"[REDACTED]");
+        }
+        copied = end;
+        match find(end) {
+            Some(next) => value = next,
+            None => break,
+        }
+    }
+    out.extend_from_slice(&body[copied..]);
+    out.into()
+}
+
 /// `modelFromJSON`: `session.model`, else `model`, trimmed; empty when Go's decode into
 /// `struct{Model; Session struct{Model}}` fails at all.
 pub fn model_from_json(body: &[u8]) -> String {

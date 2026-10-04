@@ -206,6 +206,7 @@ async fn capture(State(state): State<CaptureState>, mut request: Request, next: 
             api_timestamp: None,
             api_errors: Vec::new(),
             upstream: UpstreamCapture::default(),
+            redact_sdp: false,
         }))),
         Arc::new(Finished::default()),
     );
@@ -348,6 +349,14 @@ impl RequestLog {
         Some(WebsocketLog(Some(self.clone())))
     }
 
+    /// Logs this request's bodies, downstream and upstream, without SDP ICE credentials
+    /// (`cpa_exec::codex_live::redact_sdp`). The bytes on the wire are unchanged.
+    pub fn redact_sdp(&self) {
+        if let Some(record) = self.0.lock().unwrap_or_else(PoisonError::into_inner).as_mut() {
+            record.redact_sdp = true;
+        }
+    }
+
     pub fn api_request(&self, bytes: &[u8]) {
         if let Some(record) = self.0.lock().unwrap_or_else(PoisonError::into_inner).as_mut() {
             record.api_request.append(&record.state.dir, bytes);
@@ -453,6 +462,24 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
             return;
         }
         let enabled = request_log_on(&config);
+        // Upstream bodies are redacted as they enter the log. The live call handler
+        // records each body whole, as one event (bounded by its read limits), so an SDP
+        // line never spans two events.
+        let redacted;
+        let event = match event {
+            Request(info) if record.redact_sdp => {
+                redacted = cpa_exec::codex_live::redact_sdp(info.body);
+                Request(cpa_core::exec::UpstreamRequest {
+                    body: &redacted,
+                    ..info
+                })
+            }
+            ResponseChunk(chunk) if record.redact_sdp => {
+                redacted = cpa_exec::codex_live::redact_sdp(chunk);
+                ResponseChunk(&redacted)
+            }
+            event => event,
+        };
         match event {
             Request(info) => {
                 let capture = &mut record.upstream;
@@ -1072,6 +1099,9 @@ struct Record {
     api_timestamp: Option<DateTime<Local>>,
     api_errors: Vec<(u16, String)>,
     upstream: UpstreamCapture,
+    /// Set by the live call handler: bodies are logged without SDP ICE credentials,
+    /// upstream ones as they are recorded and downstream ones when the log is written.
+    redact_sdp: bool,
 }
 
 impl Record {
@@ -1111,6 +1141,13 @@ impl Record {
         } else {
             None
         };
+        if self.redact_sdp {
+            for body in [&mut self.request_body, &mut self.response] {
+                if let std::borrow::Cow::Owned(redacted) = cpa_exec::codex_live::redact_sdp(body) {
+                    *body = redacted;
+                }
+            }
+        }
         if enabled && let Some(home) = self.state.rt.remote_dispatch() {
             if home.available() {
                 let mut content = Vec::new();
