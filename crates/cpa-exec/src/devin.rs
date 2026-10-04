@@ -12,8 +12,8 @@
 //! quota from `GetUserStatus` (and only when `refresh_interval` asks for it, as Go's
 //! nil refresh lead implies).
 //!
-//! ponytail: Go's request/response log bodies (BuildDevinUpstreamLogBody and the
-//! upstream response summaries) are not produced; request logging is not ported here.
+//! Request logging records Go's readable log bodies instead of the protobuf
+//! (`devin_wire::request_log_body`, `response_log_body` and the stream summary).
 
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -35,11 +35,12 @@ use crate::devin_auth::DevinAuth;
 use crate::devin_models::resolve_chat_model_uid;
 use crate::devin_request::parse_interactions;
 use crate::devin_wire::{
-    CHAT_PATH, ChatRequest, DEFAULT_BASE_URL, FLAG_END_STREAM, FrameError, FrameReader, SensitiveWords, ToolCallDelta,
-    Usage, Utf8Split, build_chat_request, parse_dimension_groups, parse_frame, parse_trailer_error, sentry_trace,
-    wrap_envelope,
+    CHAT_PATH, ChatRequest, DEFAULT_BASE_URL, FLAG_END_STREAM, FrameError, FrameReader, RequestLog, ResponseLog,
+    SensitiveWords, ToolCall, ToolCallDelta, Usage, Utf8Split, build_chat_request, parse_dimension_groups, parse_frame,
+    parse_trailer_error, request_log_body, response_log_body, sanitize_system_prompt, sentry_trace, wrap_envelope,
 };
 use crate::gemini_stream::ClaudeInputTokens;
+use crate::kimi_http::{capture_chunk, capture_error, capture_metadata, capture_request};
 use crate::openai_compat_payload::ensure_responses_usage_details;
 use crate::proxy::{GoClients, GoHeaders, Proxy, default_client, read_all, send};
 
@@ -242,6 +243,28 @@ struct Prepared {
     body: Bytes,
     /// The chat model UID (Go `SetUpstreamModel` when non-empty).
     model_uid: String,
+    /// `BuildDevinUpstreamLogBody`: what request logging records instead of the
+    /// protobuf (built only when capture is on).
+    log_body: Vec<u8>,
+    /// `devinAuthLogFields`' value: the key's first and last four bytes.
+    auth_value: String,
+}
+
+/// `devinAuthLogFields`' value for a session key: its first and last four bytes, `***`
+/// for a short key, empty without one.
+fn auth_log_value(key: &str) -> String {
+    match key.len() {
+        0 => String::new(),
+        1..=8 => "***".into(),
+        n => {
+            let b = key.as_bytes();
+            format!(
+                "{}...{}",
+                String::from_utf8_lossy(&b[..4]),
+                String::from_utf8_lossy(&b[n - 4..])
+            )
+        }
+    }
 }
 
 impl DevinExecutor {
@@ -435,11 +458,30 @@ impl DevinExecutor {
             cascade_id: &cascade_id,
             matcher: matcher.as_deref(),
         });
+        let log_body = if req.capture().enabled() {
+            let system = sanitize_system_prompt(&parsed.system, matcher.as_deref());
+            request_log_body(&RequestLog {
+                interactions: &payload,
+                interactions_source: req.source_format == Format::Interactions,
+                model_uid: &model_uid,
+                system_prompt: &system,
+                prompts: &parsed.prompts,
+                tools: &parsed.tools,
+                temperature: parsed.temperature,
+                max_tokens,
+                session_id: &session_id,
+                cascade_id: &cascade_id,
+            })
+        } else {
+            Vec::new()
+        };
         Ok(Prepared {
             url: format!("{}{CHAT_PATH}", base.trim_end_matches('/')),
             headers: headers(credential, req, &key),
             body: Bytes::from(wrap_envelope(&proto)),
             model_uid,
+            log_body,
+            auth_value: auth_log_value(&key),
         })
     }
 
@@ -463,14 +505,28 @@ impl DevinExecutor {
             req.usage.upstream_model(&prepared.model_uid);
         }
         let client = self.clients.get(&Proxy::effective(credential, cfg));
+        let capture = req.capture().clone();
+        capture_request(
+            &capture,
+            credential,
+            &prepared.url,
+            &prepared.headers,
+            &prepared.log_body,
+            PROVIDER,
+            ("devin", &prepared.auth_value),
+        );
         req.usage.round_trip_started();
-        let mut upstream = send(&client, &prepared.url, prepared.headers, prepared.body, None).await?;
+        let mut upstream = send(&client, &prepared.url, prepared.headers, prepared.body, None)
+            .await
+            .inspect_err(|e| capture_error(&capture, e))?;
+        capture_metadata(&capture, upstream.status, &upstream.headers);
         upstream.body = crate::kimi_http::track_first_byte(upstream.body, &req.usage, false);
         if !(200..300).contains(&upstream.status) {
             let headers = upstream.headers.clone();
             let body = read_all(upstream.body, ERROR_BODY_LIMIT, true)
                 .await
                 .unwrap_or_default();
+            capture_chunk(&capture, &body);
             return Err(upstream_error(upstream.status, headers, body));
         }
         let reader = FrameReader::new(upstream.body);
@@ -504,6 +560,7 @@ impl DevinExecutor {
                 claude,
                 reader,
                 req.usage.clone(),
+                capture,
             );
             return Ok(ExecResponse {
                 status: upstream.status,
@@ -511,7 +568,12 @@ impl DevinExecutor {
                 body: ResponseBody::Stream(stream.run()),
             });
         }
-        let interactions = match consume_frames(reader, &req.model, &ctx_original).await {
+        let (consumed, log) = consume_frames(reader, &req.model, &ctx_original).await;
+        let built = consumed.as_ref().map(|(json, _)| json.as_slice()).unwrap_or_default();
+        if capture.enabled() && (log.is_some() || !built.is_empty()) {
+            capture_chunk(&capture, &response_log_body(log.as_ref(), built));
+        }
+        let interactions = match consumed {
             Ok((json, usage_model)) => {
                 if !usage_model.is_empty() {
                     req.usage.response_model(&String::from_utf8_lossy(&usage_model));
@@ -519,7 +581,10 @@ impl DevinExecutor {
                 json
             }
             Err(_) if apply_patch_requested(&ctx_original) => return Err(apply_patch_error()),
-            Err(e) => return Err(e),
+            Err(e) => {
+                capture_error(&capture, &e);
+                return Err(e);
+            }
         };
         let out = match pair {
             Some(pair) => (pair.non_stream)(&ctx, &interactions)
@@ -667,7 +732,7 @@ async fn consume_frames(
     mut reader: FrameReader,
     model: &str,
     original: &[u8],
-) -> Result<(Vec<u8>, Vec<u8>), ExecError> {
+) -> (Result<(Vec<u8>, Vec<u8>), ExecError>, Option<ResponseLog>) {
     let (mut pre_tool, mut post_tool, mut thinking) = (Vec::new(), Vec::new(), Vec::new());
     let (mut has_pre, mut has_post, mut has_thinking) = (false, false, false);
     let mut builders: Vec<ToolBuilder> = Vec::new();
@@ -675,17 +740,72 @@ async fn consume_frames(
     let mut last: Option<usize> = None;
     let mut usage: Option<Usage> = None;
     let mut signature: Vec<u8> = Vec::new();
+    let mut signature_type: Vec<u8> = Vec::new();
+    let mut unknown_fields: Vec<i64> = Vec::new();
+    let mut frames = 0;
     let mut stop_reason = 0;
     let mut saw_eos = false;
+    // Go's respLog for the frames read so far.
+    let log = |status: String,
+               builders: &[ToolBuilder],
+               usage: &Option<Usage>,
+               signature: &[u8],
+               signature_type: &[u8],
+               unknown_fields: &[i64],
+               frames: usize,
+               content: Vec<u8>,
+               thinking: &[u8]| {
+        Some(ResponseLog {
+            status,
+            frames,
+            content,
+            thinking: thinking.to_vec(),
+            signature: signature.to_vec(),
+            signature_type: signature_type.to_vec(),
+            tool_calls: builders
+                .iter()
+                .filter(|b| !(b.id.is_empty() && b.name.is_empty() && b.args.is_empty()))
+                .map(|b| ToolCall {
+                    id: b.id.clone(),
+                    name: b.name.clone(),
+                    arguments: b.args.clone(),
+                })
+                .collect(),
+            usage: usage.clone(),
+            unknown_fields: unknown_fields.to_vec(),
+        })
+    };
+    macro_rules! log_now {
+        ($status:expr) => {
+            log(
+                $status,
+                &builders,
+                &usage,
+                &signature,
+                &signature_type,
+                &unknown_fields,
+                frames,
+                [pre_tool.as_slice(), post_tool.as_slice()].concat(),
+                &thinking,
+            )
+        };
+    }
     loop {
         let (flag, payload) = match reader.next().await {
             Ok(frame) => frame,
             Err(FrameError::Eof) => break,
-            Err(FrameError::Failed(message)) => return Err(plain_error(message)),
+            Err(FrameError::Failed(message)) => {
+                return (
+                    Err(plain_error(message.clone())),
+                    log_now!(format!("read_error: {message}")),
+                );
+            }
         };
+        frames += 1;
         if flag & FLAG_END_STREAM != 0 {
             if let Some((code, message)) = parse_trailer_error(&payload) {
-                return Err(status_error(code, message));
+                let status = format!("trailer_error({code}): {message}");
+                return (Err(status_error(code, message)), log_now!(status));
             }
             saw_eos = true;
             break;
@@ -697,8 +817,16 @@ async fn consume_frames(
         if frame.stop_reason != 0 {
             stop_reason = frame.stop_reason;
         }
+        for field in &frame.unknown_fields {
+            if !unknown_fields.contains(field) {
+                unknown_fields.push(*field);
+            }
+        }
         merge_usage(&mut usage, frame.usage.as_ref(), &frame.dimension_groups);
         signature.extend_from_slice(&frame.signature);
+        if !frame.signature_type.is_empty() {
+            signature_type.clone_from(&frame.signature_type);
+        }
         if !frame.thinking.is_empty() {
             thinking.extend_from_slice(&frame.thinking);
             has_thinking = true;
@@ -765,13 +893,17 @@ async fn consume_frames(
         .iter()
         .any(|b| b.legacy && is_apply_patch_upstream_tool(original, &b.name))
     {
-        return Err(apply_patch_error());
+        return (Err(apply_patch_error()), None);
     }
     if !saw_eos {
-        return Err(plain_error(
-            "devin upstream stream terminated prematurely before EOS trailer",
-        ));
+        return (
+            Err(plain_error(
+                "devin upstream stream terminated prematurely before EOS trailer",
+            )),
+            log_now!("premature_eof_before_eos".into()),
+        );
     }
+    let response_log = log_now!("completed".into());
     let (status, finish_reason) = completion_status(stop_reason);
     let mut out =
         br#"{"id":"","model":"","status":"completed","steps":[],"usage":{"total_input_tokens":0,"total_output_tokens":0,"total_cached_tokens":0}}"#.to_vec();
@@ -829,7 +961,7 @@ async fn consume_frames(
     if let Some(u) = &usage {
         set_usage(&mut out, "usage", u);
     }
-    Ok((out, usage.map(|u| u.model_name).unwrap_or_default()))
+    (Ok((out, usage.map(|u| u.model_name).unwrap_or_default())), response_log)
 }
 
 /// A tool call slot opened by the stream (`devinActiveToolSlot`).
@@ -874,6 +1006,13 @@ struct DevinStream {
     translation_failed: bool,
     ended: bool,
     usage_sink: cpa_core::exec::UsageSink,
+    /// Request logging (Go's `AppendAPIResponseChunk` and `RecordAPIResponseError`).
+    capture: cpa_core::exec::CaptureSink,
+    /// What Go's end-of-stream summary reports: frames read, thinking, content and the
+    /// signature as received.
+    summary: ResponseLog,
+    /// No interactions event has been logged yet.
+    first_logged_event: bool,
 }
 
 /// `{"event_type":"step.stop","index":N}`.
@@ -914,6 +1053,7 @@ impl DevinStream {
         claude: ClaudeInputTokens,
         reader: FrameReader,
         usage_sink: cpa_core::exec::UsageSink,
+        capture: cpa_core::exec::CaptureSink,
     ) -> Self {
         // Go's Devin reporter takes the response model only from upstream usage frames
         // (`response_model`); reporting this neutral line marks the record as
@@ -946,6 +1086,12 @@ impl DevinStream {
             translation_failed: false,
             ended: false,
             usage_sink,
+            capture,
+            summary: ResponseLog {
+                status: "completed".into(),
+                ..ResponseLog::default()
+            },
+            first_logged_event: true,
         }
     }
 
@@ -1015,6 +1161,13 @@ impl DevinStream {
         }
         if kind == b"interaction.created" {
             self.created_sent = true;
+        }
+        if self.capture.enabled() {
+            if std::mem::take(&mut self.first_logged_event) {
+                capture_chunk(&self.capture, b"=== INTERMEDIATE INTERACTIONS STREAM ===\n");
+            }
+            // Go logs `trimmed + "\n"`.
+            capture_chunk(&self.capture, &[trimmed.as_slice(), b"\n"].concat());
         }
         if self.response_format == Format::Interactions {
             let mut frame = b"data: ".to_vec();
@@ -1239,6 +1392,7 @@ impl DevinStream {
                 return self.finish(Some(message), false);
             }
         };
+        self.summary.frames += 1;
         if flag & FLAG_END_STREAM != 0 {
             match parse_trailer_error(&payload) {
                 Some((code, message)) => self.trailer_error(code, message),
@@ -1259,10 +1413,15 @@ impl DevinStream {
         {
             self.usage_sink.response_model(&String::from_utf8_lossy(&u.model_name));
         }
+        self.summary.signature.extend_from_slice(&frame.signature);
+        if !frame.signature_type.is_empty() {
+            self.summary.signature_type.clone_from(&frame.signature_type);
+        }
         if !frame.thinking.is_empty() {
             if !self.pending.is_empty() && !self.flush_pending() {
                 return;
             }
+            self.summary.thinking.extend_from_slice(&frame.thinking);
             let chunk = self.thinking_buf.feed(&frame.thinking);
             if !chunk.is_empty() {
                 if self.content_started {
@@ -1316,6 +1475,7 @@ impl DevinStream {
             }
         }
         if !frame.content.is_empty() {
+            self.summary.content.extend_from_slice(&frame.content);
             let chunk = self.content_buf.feed(&frame.content);
             if !chunk.is_empty() {
                 if self.thought_started {
@@ -1342,6 +1502,8 @@ impl DevinStream {
         // Go: reporter.PublishFailure(errTrailer), a plain error: no status.
         self.usage_sink.publish_failure(0, &message);
         tracing::warn!("devin executor: trailer error ({code}): {message}");
+        self.capture
+            .record(cpa_core::exec::CaptureEvent::ResponseError(&message));
         let mut failed = br#"{"event_type":"response.failed","error":{"message":"","code":""}}"#.to_vec();
         gj::set_str(&mut failed, "error.message", &message);
         gj::set_str(&mut failed, "error.code", code.to_string());
@@ -1366,6 +1528,14 @@ impl DevinStream {
         // EnsurePublished records a success without usage, not the stream error.
         if read_error.is_some() || !saw_eos {
             self.usage_sink.publish();
+        }
+        if let Some(message) = &read_error {
+            self.capture
+                .record(cpa_core::exec::CaptureEvent::ResponseError(message));
+        } else if !saw_eos {
+            self.capture.record(cpa_core::exec::CaptureEvent::ResponseError(
+                "devin stream terminated prematurely before EOS trailer",
+            ));
         }
         if let Some(message) = read_error {
             let mut failed =
@@ -1408,6 +1578,18 @@ impl DevinStream {
         // Go publishes ParseInteractionsStreamUsage(completed event) once it is sent.
         if let Some(payload) = reported {
             self.usage_sink.response_line(Format::Interactions, &payload);
+        }
+        // Go's response summary: the signature as received (not reformatted), no tool
+        // calls.
+        if self.capture.enabled() && (self.usage.is_some() || !self.summary.signature.is_empty()) {
+            let summary = ResponseLog {
+                usage: self.usage.clone(),
+                ..std::mem::take(&mut self.summary)
+            };
+            let mut chunk = b"\n=== DEVIN UPSTREAM RESPONSE SUMMARY ===\n".to_vec();
+            chunk.extend_from_slice(&summary.marshal_indent());
+            chunk.push(b'\n');
+            capture_chunk(&self.capture, &chunk);
         }
         self.ended = true;
         if self.response_format == Format::Interactions {

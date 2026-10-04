@@ -85,6 +85,11 @@
     "body": "{\"id\":\"c3\",\"object\":\"chat.completion\",\"created\":3,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:39913",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:39913/coding/v1/chat/completions\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi-ai, type=oauth\n\nHeaders:\nAccept: application/json\nAuthorization: Bearer kimi...cess\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\nX-Msh-Device-Id: cli-proxy-api-device\nX-Msh-Device-Model: linux amd64\nX-Msh-Device-Name: e2b.local\nX-Msh-Platform: CLIProxyAPI\nX-Msh-Version: 0.1.0\n\nBody:\n{\"model\":\"k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 161\nContent-Type: application/json\n\nBody:\n{\"id\":\"c3\",\"object\":\"chat.completion\",\"created\":3,\"model\":\"kimi-k2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n"
+    },
     "usage": [
       {
         "cached_tokens": 0,

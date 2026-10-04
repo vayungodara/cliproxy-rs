@@ -251,7 +251,7 @@ func TestRSFixDevin(t *testing.T) {
 			for k, v := range attrs {
 				recordedAttrs[k] = v
 			}
-			auth := &cliproxyauth.Auth{ID: "devin-fixture.json", Provider: "devin", Attributes: attrs, Metadata: meta}
+			auth := &cliproxyauth.Auth{ID: "devin-fixture.json", Provider: "devin", Label: rsfixLabel("devin", meta, attrs), Attributes: attrs, Metadata: meta}
 			req := cliproxyexecutor.Request{Model: tc.model, Payload: []byte(body)}
 			opts := cliproxyexecutor.Options{SourceFormat: tc.source, Stream: tc.stream, OriginalRequest: []byte(body), Headers: tc.headers}
 			cfg := &config.Config{}
@@ -262,8 +262,9 @@ func TestRSFixDevin(t *testing.T) {
 				}
 				cfg = parsed
 			}
+			cfg.RequestLog = true
 			exec := NewDevinExecutor(cfg)
-			ctx := context.Background()
+			var takeCapture func() map[string]any
 			rsfixResetUsage()
 			var down rsfixDownstream
 			var execErr error
@@ -272,6 +273,9 @@ func TestRSFixDevin(t *testing.T) {
 				runs = 1
 			}
 			for i := 0; i < runs; i++ {
+				// One capture per run: the Rust test keeps the last run's.
+				var ctx context.Context
+				ctx, takeCapture = rsfixCapture(context.Background(), tc.headers, srv.URL())
 				down = rsfixDownstream{}
 				switch {
 				case tc.count:
@@ -302,7 +306,7 @@ func TestRSFixDevin(t *testing.T) {
 					down.Body = string(resp.Payload)
 				}
 			}
-			extra := map[string]any{"usage": rsfixTakeUsage()}
+			extra := map[string]any{"usage": rsfixTakeUsage(), "capture": takeCapture()}
 			if execErr != nil {
 				type retryAfter interface{ RetryAfter() *time.Duration }
 				var ra retryAfter

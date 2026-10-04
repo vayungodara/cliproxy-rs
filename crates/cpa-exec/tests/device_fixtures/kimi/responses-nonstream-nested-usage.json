@@ -86,6 +86,11 @@
     "body": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r9\",\"status\":\"completed\",\"model\":\"k3-nested\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"x\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:37631",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:37631/coding/v1/responses\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: application/json\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\nX-Msh-Device-Id: dev-fixture-1\nX-Msh-Device-Model: linux amd64\nX-Msh-Device-Name: e2b.local\nX-Msh-Platform: CLIProxyAPI\nX-Msh-Version: 0.1.0\n\nBody:\n{\"model\":\"k3\",\"input\":\"hi\",\"stream\":false}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 250\nContent-Type: application/json\n\nBody:\n{\"type\":\"response.completed\",\"response\":{\"id\":\"r9\",\"status\":\"completed\",\"model\":\"k3-nested\",\"output\":[{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"x\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}\n"
+    },
     "usage": [
       {
         "cached_tokens": 0,

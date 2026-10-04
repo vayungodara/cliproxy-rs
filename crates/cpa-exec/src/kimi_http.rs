@@ -736,6 +736,136 @@ pub(crate) fn track_first_byte(
     .boxed()
 }
 
+/// Go `Auth.AccountInfo()`: the credential kind and its loggable value, the email for
+/// OAuth and the API key for API-key credentials (masked by the capture sink).
+pub(crate) fn account_info(credential: &Credential) -> (&'static str, String) {
+    match cpa_core::registry::dynamic::auth_kind(credential) {
+        Some("oauth") => ("oauth", credential.str("email").unwrap_or_default().trim().to_owned()),
+        Some("apikey") => (
+            "api_key",
+            credential
+                .attributes
+                .get("api_key")
+                .map(|k| k.trim().to_owned())
+                .unwrap_or_default(),
+        ),
+        _ => ("", String::new()),
+    }
+}
+
+/// Go `http.Response.Header` for an HTTP/1.1 upstream response (net/http
+/// `ReadResponse`): canonical names, every value in order, with `Transfer-Encoding`
+/// moved out; `Connection` dropped when it carries `close`; `Trailer` and
+/// `Content-Length` dropped from chunked responses (Content-Length kept for statuses
+/// without a body); identical duplicate `Content-Length` values collapsed; and
+/// `Cache-Control: no-cache` added for `Pragma: no-cache`.
+// ponytail: the capture's view only; proxy::Upstream keeps the transport's headers for
+// every other use.
+pub(crate) fn go_response_headers(status: u16, headers: &http::HeaderMap) -> Vec<(String, String)> {
+    use http::header::{CACHE_CONTROL, CONNECTION, CONTENT_LENGTH, PRAGMA, TRAILER, TRANSFER_ENCODING};
+    let chunked = headers.contains_key(TRANSFER_ENCODING);
+    let close = headers.get_all(CONNECTION).iter().any(|v| {
+        v.as_bytes()
+            .split(|b| *b == b',')
+            .any(|t| t.trim_ascii().eq_ignore_ascii_case(b"close"))
+    });
+    let has_body = !(status / 100 == 1 || status == 204 || status == 304);
+    let mut length_seen = false;
+    let mut out: Vec<(String, String)> = headers
+        .iter()
+        .filter(|(name, _)| match *name {
+            n if n == TRANSFER_ENCODING => false,
+            n if n == CONNECTION => !close,
+            n if n == TRAILER => !chunked,
+            n if n == CONTENT_LENGTH => !(chunked && has_body) && !std::mem::replace(&mut length_seen, true),
+            _ => true,
+        })
+        .map(|(name, value)| {
+            (
+                crate::proxy::canonical_header(name.as_str()),
+                String::from_utf8_lossy(value.as_bytes()).into_owned(),
+            )
+        })
+        .collect();
+    if headers.get(PRAGMA).is_some_and(|v| v.as_bytes() == b"no-cache") && !headers.contains_key(CACHE_CONTROL) {
+        out.push(("Cache-Control".into(), "no-cache".into()));
+    }
+    out
+}
+
+/// Go `helps.RecordAPIRequest` at an executor's send site: `headers` as Go's request
+/// holds them, the auth fields as that call site fills them.
+pub(crate) fn capture_request(
+    capture: &cpa_core::exec::CaptureSink,
+    credential: &Credential,
+    url: &str,
+    headers: &crate::proxy::GoHeaders,
+    body: &[u8],
+    provider: &str,
+    (auth_type, auth_value): (&str, &str),
+) {
+    if !capture.enabled() {
+        return;
+    }
+    capture.record(cpa_core::exec::CaptureEvent::Request(cpa_core::exec::UpstreamRequest {
+        url,
+        method: "POST",
+        headers: headers.pairs(),
+        body,
+        provider,
+        auth_id: &credential.id,
+        auth_label: &credential.label,
+        auth_type,
+        auth_value,
+    }));
+}
+
+/// Go `helps.RecordAPIResponseMetadata(status, header)`.
+pub(crate) fn capture_metadata(capture: &cpa_core::exec::CaptureSink, status: u16, headers: &http::HeaderMap) {
+    if capture.enabled() {
+        let headers = go_response_headers(status, headers);
+        capture.record(cpa_core::exec::CaptureEvent::ResponseMetadata(status, &headers));
+    }
+}
+
+/// Go `helps.AppendAPIResponseChunk`.
+pub(crate) fn capture_chunk(capture: &cpa_core::exec::CaptureSink, chunk: &[u8]) {
+    capture.record(cpa_core::exec::CaptureEvent::ResponseChunk(chunk));
+}
+
+/// Go `helps.RecordAPIResponseError(err)` with the error's text.
+// ponytail: transport errors carry this crate's message, not Go's `Post "url": ...`
+// wording; upgrade by keeping the client error text on ExecError.
+pub(crate) fn capture_error(capture: &cpa_core::exec::CaptureSink, error: &ExecError) {
+    if capture.enabled() {
+        capture.record(cpa_core::exec::CaptureEvent::ResponseError(&String::from_utf8_lossy(
+            &error.body,
+        )));
+    }
+}
+
+/// Go's per-line `AppendAPIResponseChunk(line)` in a scanner loop, and the scan error
+/// it records after the loop.
+// ponytail: the scan error is recorded when the line reader reports it; Go skips the
+// record when an apply_patch end check already failed the stream (both failures in one
+// stream).
+pub(crate) fn capture_lines(
+    lines: cpa_core::exec::ExecStream,
+    capture: &cpa_core::exec::CaptureSink,
+) -> cpa_core::exec::ExecStream {
+    use futures_util::StreamExt;
+    if !capture.enabled() {
+        return lines;
+    }
+    let capture = capture.clone();
+    lines
+        .inspect(move |item| match item {
+            Ok(line) => capture_chunk(&capture, line),
+            Err(error) => capture_error(&capture, error),
+        })
+        .boxed()
+}
+
 /// A control-plane failure that must not echo upstream bodies (they may contain tokens).
 pub(crate) fn auth_error(status: u16, message: impl Into<String>) -> ExecError {
     ExecError::local(status, FailureScope::Credential, message)
@@ -744,6 +874,66 @@ pub(crate) fn auth_error(status: u16, message: impl Into<String>) -> ExecError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn response_headers_take_go_response_header_shape() {
+        // Expected values from Go 1.26 http.ReadResponse on the same raw responses.
+        let check = |status: u16, raw: &[(&str, &str)], want: &[&str]| {
+            let mut h = http::HeaderMap::new();
+            for (n, v) in raw {
+                h.append(http::HeaderName::from_bytes(n.as_bytes()).unwrap(), v.parse().unwrap());
+            }
+            let mut got: Vec<String> = go_response_headers(status, &h)
+                .into_iter()
+                .map(|(n, v)| format!("{n}: {v}"))
+                .collect();
+            got.sort();
+            assert_eq!(got, want, "{raw:?}");
+        };
+        check(
+            503,
+            &[
+                ("transfer-encoding", "chunked"),
+                ("content-length", "1"),
+                ("trailer", "X-Checksum"),
+                ("connection", "close"),
+                ("pragma", "no-cache"),
+                ("x-id", "a"),
+            ],
+            &["Cache-Control: no-cache", "Pragma: no-cache", "X-Id: a"],
+        );
+        check(
+            503,
+            &[
+                ("content-length", "1"),
+                ("content-length", "1"),
+                ("connection", "keep-alive"),
+                ("trailer", "X-Checksum"),
+                ("pragma", "no-cache"),
+                ("cache-control", "max-age=1"),
+                ("set-cookie", "s=1"),
+                ("set-cookie", "t=2"),
+            ],
+            &[
+                "Cache-Control: max-age=1",
+                "Connection: keep-alive",
+                "Content-Length: 1",
+                "Pragma: no-cache",
+                "Set-Cookie: s=1",
+                "Set-Cookie: t=2",
+                "Trailer: X-Checksum",
+            ],
+        );
+        check(
+            204,
+            &[
+                ("transfer-encoding", "chunked"),
+                ("content-length", "0"),
+                ("connection", "Keep-Alive, Close"),
+            ],
+            &["Content-Length: 0"],
+        );
+    }
 
     fn credential(meta: Value) -> Credential {
         Credential::from_file(

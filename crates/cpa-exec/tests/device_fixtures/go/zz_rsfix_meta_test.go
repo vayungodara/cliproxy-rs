@@ -151,7 +151,7 @@ func TestRSFixMeta(t *testing.T) {
 			for k, v := range attrs {
 				recordedAttrs[k] = v
 			}
-			auth := &cliproxyauth.Auth{ID: "meta-fixture.json", Provider: "meta", Attributes: attrs, Metadata: meta}
+			auth := &cliproxyauth.Auth{ID: "meta-fixture.json", Provider: "meta", Label: rsfixLabel("meta", meta, attrs), Attributes: attrs, Metadata: meta}
 			req := cliproxyexecutor.Request{Model: modelOf(tc.body), Payload: []byte(tc.body)}
 			opts := cliproxyexecutor.Options{SourceFormat: sdktranslator.FormatOpenAIResponse, Stream: tc.stream, Alt: tc.alt, OriginalRequest: []byte(tc.body), Headers: tc.headers}
 			cfg := &config.Config{}
@@ -162,8 +162,9 @@ func TestRSFixMeta(t *testing.T) {
 				}
 				cfg = parsed
 			}
+			cfg.RequestLog = true
 			exec := NewMetaExecutor(cfg)
-			ctx := context.Background()
+			ctx, takeCapture := rsfixCapture(context.Background(), tc.headers, srv.URL())
 			rsfixResetUsage()
 			var down rsfixDownstream
 			var execErr error
@@ -198,7 +199,7 @@ func TestRSFixMeta(t *testing.T) {
 				down.ErrStatus, down.ErrBody = rsfixStatus(err)
 				down.Body = string(resp.Payload)
 			}
-			extra := map[string]any{"usage": rsfixTakeUsage()}
+			extra := map[string]any{"usage": rsfixTakeUsage(), "capture": takeCapture()}
 			if tc.mint {
 				extra["metadata_after"] = auth.Metadata
 			}

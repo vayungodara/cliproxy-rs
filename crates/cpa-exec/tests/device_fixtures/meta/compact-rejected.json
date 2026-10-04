@@ -25,6 +25,9 @@
     "err_body": "/responses/compact not supported"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:46321"
+    },
     "credential_scoped": false,
     "usage": null
   }

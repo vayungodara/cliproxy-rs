@@ -20,6 +20,9 @@
     "body": "{\"total_tokens\":239,\"input_tokens\":239}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:44137"
+    },
     "usage": null
   }
 }

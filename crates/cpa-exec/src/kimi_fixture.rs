@@ -841,3 +841,385 @@ fn log_capture_sees_callsites_another_thread_registered_first() {
     assert_eq!(logs.len(), 1, "{logs:?}");
     assert!(logs[0].contains("log capture probe"), "{logs:?}");
 }
+
+/// One request-capture call (`cpa_core::exec::CaptureEvent`), owned.
+#[derive(Debug, Clone)]
+pub(crate) enum CaptureRecord {
+    Request {
+        url: String,
+        method: String,
+        headers: Vec<(String, String)>,
+        body: Vec<u8>,
+        auth: [String; 5],
+    },
+    Metadata(u16, Vec<(String, String)>),
+    Error(String),
+    Chunk(Vec<u8>),
+}
+
+/// Records what an executor reports to its request-capture sink.
+#[derive(Default)]
+pub(crate) struct CaptureLog(Mutex<Vec<CaptureRecord>>);
+
+impl cpa_core::exec::CaptureObserver for CaptureLog {
+    fn record(&self, event: cpa_core::exec::CaptureEvent<'_>) {
+        use cpa_core::exec::CaptureEvent as E;
+        let record = match event {
+            E::Request(r) => CaptureRecord::Request {
+                url: r.url.into(),
+                method: r.method.into(),
+                headers: r.headers.to_vec(),
+                body: r.body.to_vec(),
+                auth: [r.provider, r.auth_id, r.auth_label, r.auth_type, r.auth_value].map(String::from),
+            },
+            E::ResponseMetadata(status, headers) => CaptureRecord::Metadata(status, headers.to_vec()),
+            E::ResponseError(error) => CaptureRecord::Error(error.into()),
+            E::ResponseChunk(chunk) => CaptureRecord::Chunk(chunk.to_vec()),
+            _ => panic!("device providers send no upstream WebSocket events"),
+        };
+        self.0.lock().unwrap().push(record);
+    }
+}
+
+/// Go `util.HideAPIKey` (byte slicing, as Go slices strings).
+fn hide_key(key: &str) -> String {
+    let b = key.as_bytes();
+    let keep = match b.len() {
+        9.. => 4,
+        5..=8 => 2,
+        3..=4 => 1,
+        _ => return key.into(),
+    };
+    let s = |r: &[u8]| String::from_utf8_lossy(r).into_owned();
+    format!("{}...{}", s(&b[..keep]), s(&b[b.len() - keep..]))
+}
+
+/// Go `util.MaskSensitiveHeaderValue`.
+fn mask_header(name: &str, value: &str) -> String {
+    let lower = name.trim().to_lowercase();
+    if lower.contains("authorization") {
+        return match value.trim().split_once(' ') {
+            Some((scheme, rest)) => format!("{scheme} {}", hide_key(rest)),
+            None => hide_key(value),
+        };
+    }
+    if ["api-key", "apikey", "token", "secret"]
+        .iter()
+        .any(|k| lower.contains(k))
+    {
+        hide_key(value)
+    } else {
+        value.into()
+    }
+}
+
+/// Go `writeHeaders`: keys sorted, each value masked, `<none>` without headers.
+fn go_headers_text(out: &mut Vec<u8>, headers: &[(String, String)]) {
+    if headers.is_empty() {
+        out.extend_from_slice(b"<none>\n");
+        return;
+    }
+    let mut names: Vec<&String> = headers.iter().map(|(n, _)| n).collect();
+    names.sort();
+    names.dedup();
+    for name in names {
+        for (_, value) in headers.iter().filter(|(n, _)| n == name) {
+            out.extend_from_slice(format!("{name}: {}\n", mask_header(name, value)).as_bytes());
+        }
+    }
+}
+
+/// Go `formatAuthInfo`.
+fn go_auth_text([provider, id, label, kind, value]: &[String; 5]) -> String {
+    let mut parts = Vec::new();
+    for (key, v) in [("provider", provider), ("auth_id", id), ("label", label)] {
+        if !v.trim().is_empty() {
+            parts.push(format!("{key}={}", v.trim()));
+        }
+    }
+    let (kind, value) = (kind.trim().to_lowercase(), value.trim());
+    match kind.as_str() {
+        "api_key" if !value.is_empty() => parts.push(format!("type=api_key value={}", hide_key(value))),
+        "api_key" => parts.push("type=api_key".into()),
+        "oauth" => parts.push("type=oauth".into()),
+        "" => {}
+        _ if !value.is_empty() => parts.push(format!("type={kind} value={value}")),
+        _ => parts.push(format!("type={kind}")),
+    }
+    parts.join(", ")
+}
+
+/// Bytes as Go's JSON fixture writer stores them: each invalid UTF-8 byte becomes U+FFFD.
+fn go_lossy(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        match cpa_common::json::decode_rune(&bytes[i..]) {
+            (Some(c), size) => {
+                out.push(c);
+                i += size;
+            }
+            _ => {
+                out.push(char::REPLACEMENT_CHARACTER);
+                i += 1;
+            }
+        }
+    }
+    out
+}
+
+/// One Go `upstreamAttempt`.
+#[derive(Default)]
+struct GoAttempt {
+    request: Vec<u8>,
+    response: Vec<u8>,
+    intro: bool,
+    status: bool,
+    headers: bool,
+    body_started: bool,
+    has_content: bool,
+    prev_event: bool,
+    error: bool,
+    trailing: usize,
+}
+
+impl GoAttempt {
+    /// `writeAttemptResponse`, with its trailing-newline count.
+    fn write(&mut self, payload: &[u8]) {
+        if payload.is_empty() {
+            return;
+        }
+        let trailing = payload.iter().rev().take_while(|c| **c == b'\n').count();
+        self.trailing = if trailing == payload.len() {
+            trailing + self.trailing
+        } else {
+            trailing
+        };
+        self.response.extend_from_slice(payload);
+    }
+}
+
+impl CaptureLog {
+    pub(crate) fn sink(self: &Arc<Self>) -> cpa_core::exec::CaptureSink {
+        cpa_core::exec::CaptureSink::new(self.clone())
+    }
+
+    /// The raw `ResponseChunk` payloads, in order.
+    pub(crate) fn chunks(&self) -> Vec<Vec<u8>> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|r| match r {
+                CaptureRecord::Chunk(c) => Some(c.clone()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// The API_REQUEST and API_RESPONSE text Go's logging helpers (logging_helpers.go,
+    /// request log on, in memory) build from these calls, timestamps as `<time>`;
+    /// `None` where Go sets no value. A test-side rendering: the server's formatter
+    /// (cpa-server request_logging) is checked against Go separately.
+    pub(crate) fn go_text(&self) -> (Option<String>, Option<String>) {
+        let mut attempts: Vec<GoAttempt> = Vec::new();
+        let (mut request_set, mut response_set) = (false, false);
+        fn current(attempts: &mut Vec<GoAttempt>, request_set: &mut bool) -> usize {
+            if attempts.is_empty() {
+                attempts.push(GoAttempt {
+                    request: b"=== API REQUEST 1 ===\n<missing>\n\n".to_vec(),
+                    ..GoAttempt::default()
+                });
+                *request_set = true;
+            }
+            attempts.len() - 1
+        }
+        fn intro(attempts: &mut [GoAttempt], i: usize) {
+            if attempts[i].intro {
+                return;
+            }
+            if let Some(prev) = attempts[..i].iter().rev().find(|a| a.intro) {
+                let pad = 2usize.saturating_sub(prev.trailing);
+                attempts[i].write(&b"\n".repeat(pad));
+            }
+            let index = i + 1;
+            attempts[i].write(format!("=== API RESPONSE {index} ===\n").as_bytes());
+            attempts[i].write(b"Timestamp: <time>\n");
+            attempts[i].write(b"\n");
+            attempts[i].intro = true;
+        }
+        for record in self.0.lock().unwrap().iter() {
+            match record {
+                CaptureRecord::Request {
+                    url,
+                    method,
+                    headers,
+                    body,
+                    auth,
+                } => {
+                    let mut text = format!("=== API REQUEST {} ===\nTimestamp: <time>\n", attempts.len() + 1);
+                    if url.is_empty() {
+                        text.push_str("Upstream URL: <unknown>\n");
+                    } else {
+                        text.push_str(&format!("Upstream URL: {url}\n"));
+                    }
+                    if !method.is_empty() {
+                        text.push_str(&format!("HTTP Method: {method}\n"));
+                    }
+                    let auth = go_auth_text(auth);
+                    if !auth.is_empty() {
+                        text.push_str(&format!("Auth: {auth}\n"));
+                    }
+                    let mut request = text.into_bytes();
+                    request.extend_from_slice(b"\nHeaders:\n");
+                    go_headers_text(&mut request, headers);
+                    request.extend_from_slice(b"\nBody:\n");
+                    request.extend_from_slice(if body.is_empty() { b"<empty>" } else { body });
+                    request.extend_from_slice(b"\n\n");
+                    attempts.push(GoAttempt {
+                        request,
+                        ..GoAttempt::default()
+                    });
+                    request_set = true;
+                }
+                CaptureRecord::Metadata(status, headers) => {
+                    let i = current(&mut attempts, &mut request_set);
+                    intro(&mut attempts, i);
+                    let a = &mut attempts[i];
+                    if *status > 0 && !a.status {
+                        a.write(format!("Status: {status}\n").as_bytes());
+                        a.status = true;
+                    }
+                    if !a.headers {
+                        let mut text = b"Headers:\n".to_vec();
+                        go_headers_text(&mut text, headers);
+                        a.write(&text);
+                        a.headers = true;
+                        a.write(b"\n");
+                    }
+                    response_set = true;
+                }
+                CaptureRecord::Error(error) => {
+                    let i = current(&mut attempts, &mut request_set);
+                    intro(&mut attempts, i);
+                    let a = &mut attempts[i];
+                    if a.body_started && !a.has_content {
+                        a.body_started = false;
+                    }
+                    if a.error {
+                        a.write(b"\n");
+                    }
+                    a.write(format!("Error: {error}\n").as_bytes());
+                    a.error = true;
+                    response_set = true;
+                }
+                CaptureRecord::Chunk(chunk) => {
+                    let data = cpa_common::gostr::trim_space(chunk);
+                    if data.is_empty() {
+                        continue;
+                    }
+                    let i = current(&mut attempts, &mut request_set);
+                    intro(&mut attempts, i);
+                    let a = &mut attempts[i];
+                    if !a.headers {
+                        a.write(b"Headers:\n<none>\n");
+                        a.headers = true;
+                        a.write(b"\n");
+                    }
+                    if !a.body_started {
+                        a.write(b"Body:\n");
+                        a.body_started = true;
+                    }
+                    if a.has_content {
+                        a.write(if a.prev_event && data.starts_with(b"data:") {
+                            b"\n"
+                        } else {
+                            b"\n\n"
+                        });
+                    }
+                    a.write(data);
+                    a.has_content = true;
+                    a.prev_event = data.starts_with(b"event:");
+                    response_set = true;
+                }
+            }
+        }
+        let request =
+            request_set.then(|| go_lossy(&attempts.iter().flat_map(|a| a.request.clone()).collect::<Vec<u8>>()));
+        let response = response_set.then(|| {
+            let mut text: Vec<u8> = attempts.iter().flat_map(|a| a.response.clone()).collect();
+            if !text.is_empty() && !text.ends_with(b"\n") {
+                text.push(b'\n');
+            }
+            go_lossy(&text)
+        });
+        (request, response)
+    }
+}
+
+/// Checks the request capture against the request-log text Go built for the same
+/// fixture (`extra.capture`): the Go origin becomes `rust_origin`; values of `masked`
+/// header lines, random v4 UUIDs and interaction IDs are masked on both sides.
+pub(crate) fn assert_capture_like_go(name: &str, fx: &Value, log: &CaptureLog, rust_origin: &str, masked: &[&str]) {
+    let Some(capture) = fx["extra"]["capture"].as_object() else {
+        return;
+    };
+    let origin = capture["origin"].as_str().unwrap();
+    let uuid = regex::Regex::new("[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}").unwrap();
+    let interaction = regex::Regex::new("interaction_[0-9a-f]{8}-[0-9a-f]{3}").unwrap();
+    let normalize = |text: &str| -> String {
+        let text = uuid.replace_all(text, "<uuid>");
+        let text = interaction.replace_all(&text, "interaction_<id>");
+        text.lines()
+            .map(|line| {
+                match masked.iter().find(|m| {
+                    line.get(..m.len()).is_some_and(|head| head.eq_ignore_ascii_case(m))
+                        && line.get(m.len()..).is_some_and(|rest| rest.starts_with(": "))
+                }) {
+                    Some(m) => format!("{m}: <masked>"),
+                    None => line.to_owned(),
+                }
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    // Go's header lines carry the pinned recording version (`current_version`).
+    let current = |text: &str| -> String {
+        text.split('\n')
+            .map(|line| match line.split_once(": ") {
+                Some((name, value)) => format!("{name}: {}", current_version(name, value)),
+                None => line.to_owned(),
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    };
+    let go = |key: &str| {
+        capture
+            .get(key)
+            .and_then(Value::as_str)
+            .map(|t| normalize(&current(&t.replace(origin, rust_origin))))
+    };
+    let (request, response) = log.go_text();
+    assert_eq!(
+        request.map(|t| normalize(&t)),
+        go("request"),
+        "{name}: captured API_REQUEST"
+    );
+    assert_eq!(
+        response.map(|t| normalize(&t)),
+        go("response"),
+        "{name}: captured API_RESPONSE"
+    );
+}
+
+/// Every executor fixture of `provider` that recorded Go's request-log text, sorted.
+pub(crate) fn captured_fixtures(provider: &str) -> Vec<String> {
+    let dir = format!("{}/tests/device_fixtures/{provider}", env!("CARGO_MANIFEST_DIR"));
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(|e| e.ok()?.file_name().to_str()?.strip_suffix(".json").map(String::from))
+        .filter(|name| fixture(provider, name)["extra"]["capture"].is_object())
+        .collect();
+    names.sort();
+    names
+}

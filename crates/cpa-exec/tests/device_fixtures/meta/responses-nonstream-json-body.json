@@ -78,6 +78,11 @@
     "body": "{\"id\":\"resp_j\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:45387",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:45387/v1/responses\nHTTP Method: POST\nAuth: provider=meta, auth_id=meta-fixture.json, label=meta, type=oauth\n\nHeaders:\nAccept: text/event-stream\nAuthorization: Bearer meta...ture\nCache-Control: no-cache\nContent-Type: application/json\nUser-Agent: muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)\nX-Client-Id: tbh:tui\n\nBody:\n{\"model\":\"muse-spark-1.2\",\"input\":[{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"sys\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"f\",\"arguments\":\"{}\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 224\nContent-Type: application/json\n\nBody:\n{\"id\":\"resp_j\",\"object\":\"response\",\"status\":\"completed\",\"output\":[{\"type\":\"message\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2,\"output_tokens_details\":null}}\n"
+    },
     "usage": [
       {
         "cached_tokens": 0,

@@ -70,6 +70,11 @@
     "body": "{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"kimi-k3\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:46053",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:46053/coding/v1/messages?beta=true\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: application/json\nAccept-Encoding: gzip, deflate, br, zstd\nAnthropic-Version: 2023-06-01\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\n\nBody:\n{\"model\":\"k3\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"stream\":false}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 176\nContent-Type: application/json\n\nBody:\n{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"k3\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}],\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}\n"
+    },
     "usage": [
       {
         "cached_tokens": 0,

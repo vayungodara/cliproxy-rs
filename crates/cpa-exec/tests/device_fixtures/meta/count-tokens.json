@@ -24,6 +24,9 @@
     "body": "{\"response\":{\"usage\":{\"input_tokens\":33,\"output_tokens\":0,\"total_tokens\":33}}}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:43557"
+    },
     "usage": null
   }
 }

@@ -79,6 +79,11 @@
     "err_body": "{\"error\":{\"message\":\"model not found\"}}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:40065",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:40065/v1/responses\nHTTP Method: POST\nAuth: provider=meta, auth_id=meta-fixture.json, label=meta, type=oauth\n\nHeaders:\nAccept: text/event-stream\nAuthorization: Bearer meta...ture\nCache-Control: no-cache\nContent-Type: application/json\nUser-Agent: muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)\nX-Client-Id: tbh:tui\n\nBody:\n{\"model\":\"muse-spark-1.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 404\nHeaders:\nContent-Length: 39\nContent-Type: application/json\n\nBody:\n{\"error\":{\"message\":\"model not found\"}}\n"
+    },
     "credential_scoped": false,
     "now_unix": 1791017283,
     "retry_after_secs": 300,

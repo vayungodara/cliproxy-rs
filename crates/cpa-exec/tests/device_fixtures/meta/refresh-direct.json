@@ -72,6 +72,9 @@
   ],
   "downstream": {},
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:41091"
+    },
     "metadata_after": {
       "access_token": "minted-key",
       "api_key": "minted-key",

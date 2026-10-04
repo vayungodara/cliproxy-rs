@@ -20,6 +20,9 @@
     "err_body": "meta executor: meta-api-key requires a valid API key (DCA tokens require OAuth storage)"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:46415"
+    },
     "credential_scoped": false,
     "usage": null
   }

@@ -66,10 +66,10 @@ func rsfixRunExecutor(t *testing.T, provider string, exec cliproxyauth.ProviderE
 	for k, v := range meta {
 		recorded[k] = v
 	}
-	auth := &cliproxyauth.Auth{ID: provider + "-fixture.json", Provider: provider, Attributes: map[string]string{}, Metadata: meta}
+	auth := &cliproxyauth.Auth{ID: provider + "-fixture.json", Provider: provider, Label: rsfixLabel(provider, meta, nil), Attributes: map[string]string{}, Metadata: meta}
 	req := cliproxyexecutor.Request{Model: tc.model, Payload: []byte(tc.body)}
 	opts := cliproxyexecutor.Options{SourceFormat: tc.source, Stream: tc.stream, Alt: tc.alt, OriginalRequest: []byte(tc.body), Headers: tc.headers}
-	ctx := context.Background()
+	ctx, takeCapture := rsfixCapture(context.Background(), tc.headers, srv.URL())
 	rsfixResetUsage()
 	var down rsfixDownstream
 	switch {
@@ -122,7 +122,7 @@ func rsfixRunExecutor(t *testing.T, provider string, exec cliproxyauth.ProviderE
 		Responses:  tc.responses,
 		Upstream:   srv.Captured(),
 		Downstream: down,
-		Extra:      map[string]any{"usage": rsfixTakeUsage()},
+		Extra:      map[string]any{"usage": rsfixTakeUsage(), "capture": takeCapture()},
 	})
 }
 
@@ -284,6 +284,7 @@ func TestRSFixKimi(t *testing.T) {
 				}
 				cfg = parsed
 			}
+			cfg.RequestLog = true
 			rsfixRunExecutor(t, "kimi", NewKimiExecutor(cfg), tc, "base_url", "/coding")
 		})
 	}
@@ -507,10 +508,12 @@ func TestRSFixKimiTransport(t *testing.T) {
 				ginCtx.Request.Header.Set(k, v)
 			}
 			ctx := context.WithValue(context.Background(), "gin", ginCtx)
-			auth := &cliproxyauth.Auth{ID: "kimi-fixture.json", Provider: "kimi", Attributes: attrs, Metadata: m}
+			auth := &cliproxyauth.Auth{ID: "kimi-fixture.json", Provider: "kimi", Label: rsfixLabel("kimi", m, attrs), Attributes: attrs, Metadata: m}
 			req := cliproxyexecutor.Request{Model: "kimi-k2", Payload: []byte(tc.body)}
 			opts := cliproxyexecutor.Options{SourceFormat: sdktranslator.FormatOpenAI, Stream: tc.stream, OriginalRequest: []byte(tc.body), Headers: ginCtx.Request.Header.Clone()}
-			exec := NewKimiExecutor(&config.Config{})
+			logCfg := &config.Config{}
+			logCfg.RequestLog = true
+			exec := NewKimiExecutor(logCfg)
 			var down rsfixDownstream
 			if tc.stream {
 				result, err := exec.ExecuteStream(ctx, auth, req, opts)
@@ -534,7 +537,8 @@ func TestRSFixKimiTransport(t *testing.T) {
 				clientHeaders = append(clientHeaders, [2]string{k, v})
 			}
 			rsfixWrite(t, "kimi", rsfixFixture{Name: tc.name, Credential: map[string]any{"type": "kimi", "access_token": "kimi-access-fixture", "device_id": "dev-fixture-1"}, Attributes: attrs,
-				Request: map[string]any{"source": "openai", "model": "kimi-k2", "stream": tc.stream, "body": tc.body, "headers": clientHeaders}, Responses: tc.responses, Upstream: srv.Captured(), Downstream: down})
+				Request: map[string]any{"source": "openai", "model": "kimi-k2", "stream": tc.stream, "body": tc.body, "headers": clientHeaders}, Responses: tc.responses, Upstream: srv.Captured(), Downstream: down,
+				Extra: map[string]any{"capture": rsfixCaptureOf(ginCtx, srv.URL())}})
 		})
 	}
 }

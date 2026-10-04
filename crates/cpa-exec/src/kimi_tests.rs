@@ -734,3 +734,30 @@ async fn usage_reports_match_go_records() {
         crate::kimi_fixture::assert_usage_like_go(name, &fx, &log, down.failure.as_ref());
     }
 }
+
+#[tokio::test]
+async fn request_capture_matches_go() {
+    // kimi_executor.go's four RecordAPIRequest sites, their response metadata, chunks
+    // and errors, rendered as Go's request log and compared with Go's text.
+    let names = crate::kimi_fixture::captured_fixtures("kimi");
+    assert!(names.len() >= 30, "{names:?}");
+    for name in &names {
+        let fx = fixture("kimi", name);
+        if fx["request"]["source"] == "claude" {
+            // Claude clients go through the Claude executor, whose capture sites
+            // (claude_executor_*.go) belong to the Claude owner.
+            continue;
+        }
+        let mock = Mock::start(&fx["responses"]).await;
+        let cred = credential("kimi", &fx, Some(("base_url", format!("{}/coding", mock.url))));
+        let cfg = Config::parse(fx["request"]["config"].as_str().unwrap_or_default()).unwrap();
+        let capture = std::sync::Arc::new(crate::kimi_fixture::CaptureLog::default());
+        let mut req = request(&fx, "");
+        req.usage = cpa_core::exec::UsageSink::default().with_capture(capture.sink());
+        let result = KimiExecutor::with_client(default_client())
+            .execute(&claude(), &cred, req, &cfg)
+            .await;
+        let _ = downstream(result).await;
+        crate::kimi_fixture::assert_capture_like_go(name, &fx, &capture, &mock.url, &masked(&fx));
+    }
+}

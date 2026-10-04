@@ -1296,6 +1296,337 @@ impl Utf8Split {
     }
 }
 
+// ---- request logging (helps/devin_wire.go log bodies) ----------------------------------
+
+/// Go `json.Indent(dst, src, "", "  ")`: whitespace outside strings dropped, each
+/// element on its own line, empty objects and arrays kept as `{}` and `[]`. `None` when
+/// Go's scanner rejects `src` (callers then log it as is).
+pub(crate) fn go_indent(src: &[u8]) -> Option<Vec<u8>> {
+    if !cpa_common::json::std_valid(src) {
+        return None;
+    }
+    fn newline(out: &mut Vec<u8>, depth: usize) {
+        out.push(b'\n');
+        for _ in 0..depth {
+            out.extend_from_slice(b"  ");
+        }
+    }
+    let mut out = Vec::with_capacity(src.len() * 2);
+    let (mut depth, mut need_indent, mut in_string, mut escaped) = (0usize, false, false, false);
+    for &c in src {
+        if in_string {
+            out.push(c);
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        if matches!(c, b' ' | b'\t' | b'\n' | b'\r') {
+            continue;
+        }
+        if need_indent && c != b'}' && c != b']' {
+            need_indent = false;
+            depth += 1;
+            newline(&mut out, depth);
+        }
+        match c {
+            b'"' => {
+                in_string = true;
+                out.push(c);
+            }
+            b'{' | b'[' => {
+                need_indent = true;
+                out.push(c);
+            }
+            b',' => {
+                out.push(c);
+                newline(&mut out, depth);
+            }
+            b':' => out.extend_from_slice(b": "),
+            b'}' | b']' => {
+                if need_indent {
+                    need_indent = false;
+                } else {
+                    depth -= 1;
+                    newline(&mut out, depth);
+                }
+                out.push(c);
+            }
+            _ => out.push(c),
+        }
+    }
+    Some(out)
+}
+
+/// A JSON object written in Go struct-field order with `json.Marshal`'s escaping.
+struct GoObject(Vec<u8>);
+
+impl GoObject {
+    fn new() -> Self {
+        Self(vec![b'{'])
+    }
+
+    fn key(&mut self, key: &str) -> &mut Vec<u8> {
+        if self.0.len() > 1 {
+            self.0.push(b',');
+        }
+        cpa_common::json::marshal_str(&mut self.0, key.as_bytes(), true);
+        self.0.push(b':');
+        &mut self.0
+    }
+
+    fn string(&mut self, key: &str, value: &[u8]) {
+        cpa_common::json::marshal_str(self.key(key), value, true);
+    }
+
+    /// A string field with `omitempty`.
+    fn string_omit(&mut self, key: &str, value: &[u8]) {
+        if !value.is_empty() {
+            self.string(key, value);
+        }
+    }
+
+    fn int(&mut self, key: &str, value: impl std::fmt::Display) {
+        let value = value.to_string();
+        self.key(key).extend_from_slice(value.as_bytes());
+    }
+
+    fn raw(&mut self, key: &str, raw: &[u8]) {
+        self.key(key).extend_from_slice(raw);
+    }
+
+    fn end(mut self) -> Vec<u8> {
+        self.0.push(b'}');
+        self.0
+    }
+}
+
+fn go_array(items: impl IntoIterator<Item = Vec<u8>>) -> Vec<u8> {
+    let mut out = vec![b'['];
+    for (i, item) in items.into_iter().enumerate() {
+        if i > 0 {
+            out.push(b',');
+        }
+        out.extend_from_slice(&item);
+    }
+    out.push(b']');
+    out
+}
+
+/// `formatSignatureForLog`: sealed or printable-ASCII signatures as text, anything else
+/// as standard base64.
+fn signature_for_log(signature: &[u8]) -> Vec<u8> {
+    use base64::Engine as _;
+    if signature.starts_with(b"sealed.v1.") || signature.iter().all(|c| (32..=126).contains(c)) {
+        return signature.to_vec();
+    }
+    base64::engine::general_purpose::STANDARD.encode(signature).into_bytes()
+}
+
+/// `[]DevinToolCall` as encoding/json writes it: the struct has no JSON tags.
+fn tool_calls_json(calls: &[ToolCall]) -> Vec<u8> {
+    go_array(calls.iter().map(|tc| {
+        let mut o = GoObject::new();
+        o.string("ID", &tc.id);
+        o.string("Name", &tc.name);
+        o.string("Arguments", &tc.arguments);
+        o.end()
+    }))
+}
+
+/// `*DevinUsage` as encoding/json writes it.
+fn usage_json(u: &Usage) -> Vec<u8> {
+    let mut o = GoObject::new();
+    o.int("prompt_tokens", u.prompt_tokens);
+    o.int("completion_tokens", u.completion_tokens);
+    o.int("cached_tokens", u.cached_tokens);
+    if u.cache_write_tokens != 0 {
+        o.int("cache_write_tokens", u.cache_write_tokens);
+    }
+    if u.status_code != 0 {
+        o.int("status_code", u.status_code);
+    }
+    o.string_omit("request_id", &u.request_id);
+    o.string_omit("model_name", &u.model_name);
+    if !u.headers.is_empty() {
+        // A map: Go writes its keys sorted, as the BTreeMap holds them.
+        let mut h = vec![b'{'];
+        for (i, (k, v)) in u.headers.iter().enumerate() {
+            if i > 0 {
+                h.push(b',');
+            }
+            cpa_common::json::marshal_str(&mut h, k, true);
+            h.push(b':');
+            cpa_common::json::marshal_str(&mut h, v, true);
+        }
+        h.push(b'}');
+        o.raw("headers", &h);
+    }
+    o.end()
+}
+
+/// What `BuildDevinUpstreamLogBody` receives.
+pub(crate) struct RequestLog<'a> {
+    pub interactions: &'a [u8],
+    pub interactions_source: bool,
+    pub model_uid: &'a str,
+    /// The system prompt after `SanitizeDevinSystemPrompt`.
+    pub system_prompt: &'a [u8],
+    pub prompts: &'a [Prompt],
+    pub tools: &'a [Tool],
+    pub temperature: Option<f64>,
+    pub max_tokens: i64,
+    pub session_id: &'a str,
+    pub cascade_id: &'a str,
+}
+
+/// `BuildDevinUpstreamLogBody`: the request Go logs instead of the protobuf it sends.
+pub(crate) fn request_log_body(r: &RequestLog<'_>) -> Vec<u8> {
+    let prompts = r.prompts.iter().map(|p| {
+        let role: &[u8] = match p.source {
+            2 => b"assistant",
+            4 => b"tool",
+            _ => b"user",
+        };
+        let mut o = GoObject::new();
+        o.string_omit("id", p.message_id.as_bytes());
+        o.int("source", p.source);
+        o.string_omit("role", role);
+        o.string_omit("content", &p.content);
+        o.string_omit("thinking", &p.thinking);
+        o.string_omit("signature", &signature_for_log(&p.signature));
+        o.string_omit("signature_type", &p.signature_type);
+        if !p.tool_calls.is_empty() {
+            o.raw("tool_calls", &tool_calls_json(&p.tool_calls));
+        }
+        o.string_omit("tool_call_id", &p.tool_call_id);
+        if !p.images.is_empty() {
+            o.raw(
+                "images",
+                &go_array(p.images.iter().map(|img| {
+                    let mut i = GoObject::new();
+                    i.string("mime_type", &img.mime);
+                    i.int("data_len", img.base64.len());
+                    i.end()
+                })),
+            );
+        }
+        o.end()
+    });
+    let tools = r
+        .tools
+        .iter()
+        .filter(|t| !t.name.is_empty() && !is_codex_app_automation_update(b"", &t.name))
+        .map(|t| {
+            let mut o = GoObject::new();
+            o.string("name", &t.name);
+            o.string_omit("description", &tool_description(&t.name, &t.description));
+            if !t.parameters.is_empty() && cpa_common::json::std_valid(&t.parameters) {
+                // json.RawMessage: compacted with HTML escapes.
+                o.raw("parameters", &cpa_common::json::compact(&t.parameters, true));
+            }
+            o.end()
+        });
+    let prompts: Vec<Vec<u8>> = prompts.collect();
+    let tools: Vec<Vec<u8>> = tools.collect();
+    let mut o = GoObject::new();
+    o.string("model", r.model_uid.as_bytes());
+    o.string_omit("session_id", r.session_id.as_bytes());
+    o.string_omit("cascade_id", r.cascade_id.as_bytes());
+    o.string_omit("system_prompt", r.system_prompt);
+    let request = match r.temperature.map(cpa_common::json::json_float) {
+        // MarshalIndent fails on NaN or an infinity: Go logs only the model.
+        Some(None) => format!(r#"{{"model": {}}}"#, cpa_common::gostr::quote(r.model_uid)).into_bytes(),
+        temperature => {
+            if let Some(Some(t)) = temperature {
+                o.raw("temperature", t.as_bytes());
+            }
+            if r.max_tokens != 0 {
+                o.int("max_tokens", r.max_tokens);
+            }
+            if !prompts.is_empty() {
+                o.raw("prompts", &go_array(prompts));
+            }
+            if !tools.is_empty() {
+                o.raw("tools", &go_array(tools));
+            }
+            go_indent(&o.end()).unwrap_or_default()
+        }
+    };
+    if r.interactions_source || r.interactions.is_empty() {
+        return request;
+    }
+    let mut out = b"=== INTERMEDIATE INTERACTIONS ===\n".to_vec();
+    out.extend_from_slice(&go_indent(r.interactions).unwrap_or_else(|| r.interactions.to_vec()));
+    out.extend_from_slice(b"\n\n=== DEVIN UPSTREAM REQUEST ===\n");
+    out.extend_from_slice(&request);
+    out
+}
+
+/// `DevinUpstreamResponseLog`: the decoded frames Go logs for a response.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct ResponseLog {
+    pub status: String,
+    pub frames: usize,
+    pub content: Vec<u8>,
+    pub thinking: Vec<u8>,
+    pub signature: Vec<u8>,
+    pub signature_type: Vec<u8>,
+    pub tool_calls: Vec<ToolCall>,
+    pub usage: Option<Usage>,
+    pub unknown_fields: Vec<i64>,
+}
+
+impl ResponseLog {
+    /// `json.MarshalIndent(log, "", "  ")`.
+    pub(crate) fn marshal_indent(&self) -> Vec<u8> {
+        let mut o = GoObject::new();
+        o.string_omit("status", self.status.as_bytes());
+        o.int("frames_count", self.frames);
+        o.string_omit("content", &self.content);
+        o.string_omit("thinking", &self.thinking);
+        o.string_omit("signature", &self.signature);
+        o.string_omit("signature_type", &self.signature_type);
+        if !self.tool_calls.is_empty() {
+            o.raw("tool_calls", &tool_calls_json(&self.tool_calls));
+        }
+        if let Some(u) = &self.usage {
+            o.raw("usage", &usage_json(u));
+        }
+        if !self.unknown_fields.is_empty() {
+            o.raw(
+                "unknown_fields",
+                &go_array(self.unknown_fields.iter().map(|n| n.to_string().into_bytes())),
+            );
+        }
+        go_indent(&o.end()).unwrap_or_default()
+    }
+}
+
+/// `BuildDevinUpstreamResponseLogBody`: the decoded response, then the interactions
+/// built from it.
+pub(crate) fn response_log_body(log: Option<&ResponseLog>, interactions: &[u8]) -> Vec<u8> {
+    let mut out = Vec::new();
+    if let Some(log) = log {
+        let log = ResponseLog {
+            signature: signature_for_log(&log.signature),
+            ..log.clone()
+        };
+        out.extend_from_slice(b"=== DEVIN UPSTREAM RESPONSE ===\n");
+        out.extend_from_slice(&log.marshal_indent());
+        out.extend_from_slice(b"\n\n");
+    }
+    if !interactions.is_empty() {
+        out.extend_from_slice(b"=== INTERMEDIATE INTERACTIONS ===\n");
+        out.extend_from_slice(&go_indent(interactions).unwrap_or_else(|| interactions.to_vec()));
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
