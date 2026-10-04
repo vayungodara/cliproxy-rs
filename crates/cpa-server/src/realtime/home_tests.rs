@@ -714,3 +714,36 @@ async fn a_hangup_pick_ends_after_the_call_media_closed() {
     finish(&pending);
     assert_eq!(home.log(), ["media_closed", "pinned-oauth"]);
 }
+
+/// sideband.go: the sideband's temporary pick ends only after the call's media finished
+/// closing, as the call's own selection would.
+#[tokio::test]
+async fn a_sideband_pick_ends_after_the_call_media_closed() {
+    let home = FakeHome::with(vec![credential("pinned-oauth", "codex", "oauth")]);
+    let pending = Pending::default();
+    let (proxy, live, _) = start(home.clone(), None, HOUR, None).await;
+    live.calls.put(
+        "call-plain",
+        calls::Call {
+            auth_id: "pinned-oauth".into(),
+            model: "gpt-live-1-codex".into(),
+            media: Some(Arc::new(FakeSession {
+                log: home.log.clone(),
+                delayed: Some(pending.clone()),
+            })),
+            ..calls::Call::default()
+        },
+    );
+    let mut socket = open_socket(&proxy, "/v1/live/call-plain").await;
+    assert_eq!(home.requests().len(), 1);
+    socket.send(Message::close(None)).await.unwrap();
+    drop(socket);
+    eventually("the sideband ended the call", || {
+        live.calls.peek("call-plain").is_none() && home.log() == ["media_closed"]
+    })
+    .await;
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    assert_eq!(home.log(), ["media_closed"], "held until the media finished closing");
+    finish(&pending);
+    assert_eq!(home.log(), ["media_closed", "pinned-oauth"]);
+}
