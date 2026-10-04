@@ -156,7 +156,14 @@ impl AuthManager for PluginAuthManager {
             .collect();
         let store = state.rt.store();
         let snapshot = store.snapshot();
-        let provider_of = |id: &str| snapshot.iter().find(|c| c.id == id).map(|c| c.provider.clone());
+        // Bindings are keyed by scheduling key (an OpenAI-compatible credential's
+        // `provider_key`), which Go's `Auth.Provider` holds.
+        let provider_of = |id: &str| {
+            snapshot
+                .iter()
+                .find(|c| c.id == id)
+                .map(|c| crate::registry::provider_key(c))
+        };
         // Go keys bindings by provider, or `mixed` for a selection across providers;
         // here a mixed selection's scope lists its providers.
         let mixed = provider == "mixed";
@@ -178,7 +185,9 @@ impl AuthManager for PluginAuthManager {
             _ => return status("ambiguous"),
         };
         match snapshot.iter().find(|c| c.id == auth_id) {
-            Some(c) if mixed || c.provider == provider => ("bound".into(), Some(host_auth(&state, c))),
+            Some(c) if mixed || crate::registry::provider_key(c) == provider => {
+                ("bound".into(), Some(host_auth(&state, c)))
+            }
             _ => status("unbound"),
         }
     }
