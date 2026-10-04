@@ -116,9 +116,23 @@ pub(crate) fn plausible_user_agent(user_agent: &str, settings: &Settings) -> boo
     }
 }
 
+/// The host the Stainless headers describe. Unit tests pin Linux x64, the host the
+/// Go fixtures were recorded on, so they compare the same on every machine.
+#[cfg(not(test))]
+const HOST: (&str, &str) = (std::env::consts::OS, std::env::consts::ARCH);
+#[cfg(test)]
+const HOST: (&str, &str) = ("linux", "x86_64");
+
 /// Stainless OS/arch names for this host (`mapStainlessOS`, `mapStainlessArch`).
 pub(crate) fn host_os() -> String {
-    match std::env::consts::OS {
+    stainless_os(HOST.0)
+}
+pub(crate) fn host_arch() -> String {
+    stainless_arch(HOST.1)
+}
+
+fn stainless_os(os: &str) -> String {
+    match os {
         "macos" => "MacOS".into(),
         "windows" => "Windows".into(),
         "linux" => "Linux".into(),
@@ -126,8 +140,9 @@ pub(crate) fn host_os() -> String {
         other => format!("Other::{other}"),
     }
 }
-pub(crate) fn host_arch() -> String {
-    match std::env::consts::ARCH {
+
+fn stainless_arch(arch: &str) -> String {
+    match arch {
         "x86_64" => "x64".into(),
         "aarch64" => "arm64".into(),
         "x86" => "x86".into(),
@@ -274,6 +289,14 @@ pub(crate) fn resolve(credential_id: &str, api_key: &str, headers: &HeaderMap, s
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn stainless_host_names() {
+        assert_eq!(stainless_os("macos"), "MacOS");
+        assert_eq!(stainless_os("plan9"), "Other::plan9");
+        assert_eq!(stainless_arch("aarch64"), "arm64");
+        assert_eq!(stainless_arch("riscv64"), "other::riscv64");
+    }
     use super::*;
 
     #[test]

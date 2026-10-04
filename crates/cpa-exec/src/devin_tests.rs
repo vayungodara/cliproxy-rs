@@ -509,6 +509,13 @@ async fn check_executor_fixture(name: &str) {
                 "Sentry-Trace" if !custom_trace => {
                     assert!(trace.is_match(rv), "{name}: sentry trace {rv}");
                 }
+                // The frame embeds runtime.GOOS, so its length matches Go's only on Linux.
+                "Content-Length" => {
+                    assert_eq!(rv, &r.body.len().to_string(), "{name}: header {n}");
+                    if go_os_matches_fixture() {
+                        assert_eq!(rv, gv, "{name}: header {n}");
+                    }
+                }
                 _ => assert_eq!(rv, gv, "{name}: header {n}"),
             }
         }
