@@ -186,7 +186,10 @@ impl Runtime {
         }
         let key = key.trim();
         let mut offsets = self.pool_offsets.lock().unwrap_or_else(PoisonError::into_inner);
-        // Go never prunes; keys of removed credentials would accumulate here forever.
+        // ponytail: Go never prunes, so keys of removed credentials would accumulate
+        // forever. Past 4096 keys the map is cleared, which restarts rotation for every
+        // pool from offset 0. Upgrade path: drop a pool's key when its credential set
+        // changes in reconcile.
         if offsets.len() >= 4096 && !offsets.contains_key(key) {
             offsets.clear();
         }
@@ -1698,7 +1701,9 @@ mod tests {
             dir.join(format!(".claude-a.json.{}.0.tmp", std::process::id())),
         )
         .unwrap();
-        let store = CredentialStore::new(cpa_core::credential::load_dir(&dir).unwrap());
+        let mut cfg = cpa_core::config::Config::parse("").unwrap();
+        cfg.auth_dir = dir.clone();
+        let store = CredentialStore::new(cpa_core::config::credentials::from_auth_dir(&cfg));
         let rev = store.get("claude-a.json").unwrap().revision;
 
         let mut patch = MetadataPatch::default();

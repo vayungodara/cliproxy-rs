@@ -627,7 +627,7 @@ mod tests {
             responses(&[b"event: a\ndata: 1\n\nevent: b\ndata: 2\n\n"]),
             [b"event: a\ndata: 1\n\n".to_vec(), b"event: b\ndata: 2\n\n".to_vec()]
         );
-        // A valid data-only frame closes before the next data line (oracle finding 2).
+        // A valid data-only frame closes before the next data line.
         assert_eq!(
             responses(&[b"data: {}", b"data: []"]),
             [b"data: {}\n\n".to_vec(), b"data: []\n\n".to_vec()]

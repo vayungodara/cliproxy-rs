@@ -101,8 +101,7 @@ async fn proxy(dir: &Path, upstream_url: &str) -> String {
     config.auth_dir = dir.into();
     // Only the Claude executor is built on the mock; every other credential stays
     // guarded so it can never reach a provider.
-    let creds = cpa_core::credential::load_dir(dir)
-        .unwrap()
+    let creds = cpa_core::config::credentials::from_auth_dir(&config)
         .into_iter()
         .map(|c| {
             if c.provider == "claude" {

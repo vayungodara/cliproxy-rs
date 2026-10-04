@@ -14,15 +14,15 @@
 //! - `json`: Go-exact tidwall/gjson, tidwall/sjson and encoding/json behaviour, used by
 //!   every crate that edits JSON on the wire (owner: translators).
 //! - `codex_client`: executor/helps/codex_multi_agent_v2.go (Codex-client request rewrites
-//!   shared by every executor that serves Codex clients; owner: Codex thread).
+//!   shared by every executor that serves Codex clients; owner: Codex).
 //! - `codex_catalog`: the Codex client model catalog and store (client/codex/models,
-//!   registry/codex_client_models.go; owner: Codex thread).
+//!   registry/codex_client_models.go; owner: Codex).
 //! - `gemini_schema`: util/gemini_schema.go (JSON Schema cleaning for Gemini and Antigravity
 //!   tool and response schemas; owner: translators).
 //! - `session`: sdk/cliproxy/session (session identity, parent/child relationships and the
 //!   derived identity executors key provider sessions on; owner: server).
 //! - `gostr`: Go's `strings.ToLower`, `strings.EqualFold`, `strings.TrimSpace` and
-//!   `strconv.Quote` on Go's own Unicode tables (owner: Google thread).
+//!   `strconv.Quote` on Go's own Unicode tables (owner: Google).
 //!
 //! The proxy-aware HTTP client (executor/helps/proxy_helpers.go) touches the network and
 //! lives in cpa-exec instead.

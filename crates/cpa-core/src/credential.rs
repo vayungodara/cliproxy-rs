@@ -119,33 +119,3 @@ impl MetadataPatch {
         }
     }
 }
-
-/// Reads every `*.json` credential in `dir`. Unreadable or malformed files are skipped
-/// with a warning so one bad file cannot take the proxy down. A missing directory is empty.
-pub fn load_dir(dir: &Path) -> anyhow::Result<Vec<Credential>> {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
-        Err(e) => return Err(e.into()),
-    };
-    // ponytail: top-level files only. The watcher port decides whether nested
-    // directories count, matching internal/watcher.
-    let mut out = Vec::new();
-    for entry in entries {
-        let path = entry?.path();
-        if path.extension().is_none_or(|ext| ext != "json") {
-            continue;
-        }
-        let parsed = std::fs::read(&path)
-            .map_err(anyhow::Error::from)
-            .and_then(|bytes| Ok(serde_json::from_slice::<Map<String, Value>>(&bytes)?));
-        match parsed {
-            Ok(metadata) => out.extend(Credential::from_file(dir, &path, metadata)),
-            Err(e) => {
-                tracing::warn!(path = %path.display(), error = %e, "skipping credential file")
-            }
-        }
-    }
-    out.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(out)
-}
