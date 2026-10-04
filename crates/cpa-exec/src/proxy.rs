@@ -352,12 +352,6 @@ impl GoHeaders {
         Self::default()
     }
 
-    /// The request headers as Go's `http.Request.Header` holds them before the transport
-    /// adds its own (for upstream request capture).
-    pub fn pairs(&self) -> &[(String, String)] {
-        &self.headers
-    }
-
     /// `http.Header.Set`.
     pub fn set(&mut self, name: &str, value: impl Into<String>) {
         let name = canonical_header(name);
