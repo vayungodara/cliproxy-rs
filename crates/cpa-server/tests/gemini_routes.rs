@@ -343,3 +343,50 @@ async fn usage_records_match_go() {
     }
     assert_eq!(ran, 7, "usage scenarios in the Go fixtures");
 }
+
+/// With session affinity, a Gemini body nested far deeper than any conversation is
+/// served without its message prefix (the server does not overflow its stack), while a
+/// plain one gets an LCP session.
+#[tokio::test]
+async fn deeply_nested_body_skips_prefix_matching() {
+    let seen = Arc::new(Seen::default());
+    let up = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
+    // A private auth-dir: without one, credential loading reads the real ~/.cli-proxy-api.
+    let auth_dir = std::env::temp_dir().join(format!("cpa-gemini-deep-auths-{}", std::process::id()));
+    std::fs::create_dir_all(&auth_dir).unwrap();
+    let config = Config::parse(&format!(
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\nrouting:\n  session-affinity: true\napi-keys:\n  gemini:\n    - base-url: {up}/\n      headers:\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n      keys:\n        - api-key: AIza-fake-upstream\n",
+        auth_dir.display()
+    ))
+    .unwrap();
+    let credentials = cpa_core::config::credentials::load(&config);
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
+    let url = serve(router(rt)).await;
+    // Deep enough to overflow unbounded extraction, shallow enough for the derived ID.
+    let levels = 1000;
+    let deep = format!(
+        r#"{{"contents":[{{"role":"user","parts":{}{{"text":"hi"}}{}}}]}}"#,
+        "[".repeat(levels),
+        "]".repeat(levels)
+    );
+    let (status, _, text) = post(&url, "/v1beta/models/flash:generateContent", &deep).await;
+    assert_eq!(status, 200, "{text}");
+    let (status, _, text) = post(&url, "/v1beta/models/flash:generateContent", HI).await;
+    assert_eq!(status, 200, "{text}");
+    let sessions: Vec<String> = seen
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|s| s.4.clone().unwrap_or_default())
+        .collect();
+    assert_eq!(sessions.len(), 2);
+    assert!(!sessions[0].starts_with("s-lcp:"), "{sessions:?}");
+    assert!(sessions[1].starts_with("s-lcp:v1:"), "{sessions:?}");
+}

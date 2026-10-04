@@ -28,6 +28,9 @@ const MAX_PARTS: usize = 256;
 const MIN_COMPACTION_OVERLAP: usize = 2;
 const PROBE_WINDOW: usize = 32;
 const MAX_TAILS_PER_KEY: usize = 16;
+// ponytail: requests nested deeper than this skip the matcher (see `Request::new`); far
+// beyond any conversation. Iterative extraction would lift the ceiling.
+const MAX_NESTING: usize = 128;
 
 // Go RE2: `\d`, `\b` and `\s` are ASCII (`\s` is `[\t\n\f\r ]`, without `\v`); `(?i)`
 // folds Unicode (the `k` of `think` also matches U+212A); `.` with `s` matches any rune,
@@ -779,10 +782,12 @@ pub struct Request {
 
 impl Request {
     /// `None` when Go skips the matcher: an anonymous caller (no caller scope) or no
-    /// usable turns (empty, or system turns only).
+    /// usable turns (empty, or system turns only). Also `None` for a body nested deeper
+    /// than [`MAX_NESTING`], which Go walks on its growable stack: extraction recurses
+    /// once per level, and a native stack would overflow and abort the server.
     pub fn new(format: &str, body: &[u8], caller: &str) -> Option<Self> {
         let caller_scope = cpa_common::session::caller_scope(caller);
-        if caller_scope.is_empty() {
+        if caller_scope.is_empty() || nests_deeper(body, MAX_NESTING) {
             return None;
         }
         let prepared = Prepared::new(&extract(format, body));
@@ -802,6 +807,36 @@ impl Request {
     pub fn prepared(&self) -> &Prepared {
         &self.prepared
     }
+}
+
+/// Whether `body` has more than `limit` arrays and objects open at once (brackets
+/// inside strings do not count).
+fn nests_deeper(body: &[u8], limit: usize) -> bool {
+    let (mut depth, mut in_string, mut escaped) = (0usize, false, false);
+    for &c in body {
+        if in_string {
+            if escaped {
+                escaped = false;
+            } else if c == b'\\' {
+                escaped = true;
+            } else if c == b'"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match c {
+            b'"' => in_string = true,
+            b'{' | b'[' => {
+                depth += 1;
+                if depth > limit {
+                    return true;
+                }
+            }
+            b'}' | b']' => depth = depth.saturating_sub(1),
+            _ => {}
+        }
+    }
+    false
 }
 
 /// Go `MerklePrefixMatch` (and `MerklePrefixBindResult`, which has no credential or
