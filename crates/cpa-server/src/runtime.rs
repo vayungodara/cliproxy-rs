@@ -225,7 +225,7 @@ impl Runtime {
     /// ([`crate::testing`]) a copy that cannot leave the machine.
     pub(crate) fn for_executor(&self, credential: &Arc<Credential>) -> Arc<Credential> {
         if self.deny_external.load(std::sync::atomic::Ordering::Relaxed) {
-            crate::testing::guarded(credential)
+            crate::testing::guarded(credential, &self.config())
         } else {
             credential.clone()
         }
