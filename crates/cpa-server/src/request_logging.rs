@@ -1369,6 +1369,13 @@ mod tests {
     /// `capture_go.json`, recorded with the Go generator's `buildinfo.Version` pinned to
     /// `cliproxy-rs-0.1.0` (tests/reference/capture/main.go). The version of this build
     /// replaces it, so a release bump needs no re-recording.
+    /// A file every write to fails, on any OS (Linux-only `/dev/full` is not needed).
+    fn unwritable(dir: &Path) -> File {
+        let path = dir.join("unwritable");
+        File::create(&path).unwrap();
+        File::options().read(true).open(path).unwrap()
+    }
+
     fn capture_go() -> serde_json::Value {
         let text = include_str!("../tests/fixtures/capture_go.json")
             .replace("cliproxy-rs-0.1.0", concat!("cliproxy-rs-", env!("CARGO_PKG_VERSION")));
@@ -2081,7 +2088,7 @@ mod tests {
         }
         let dir = scratch();
         let mut spool = Spool::new(&dir, "request-body").unwrap();
-        spool.file = File::options().write(true).open("/dev/full").unwrap();
+        spool.file = unwritable(&dir);
         let capture = Arc::new(Mutex::new(Deferred {
             spool,
             length: None,
@@ -2145,7 +2152,7 @@ mod tests {
         .unwrap();
         assert_eq!(forwarded.len(), 102, "stalled logger must not delay/drop client output");
         assert_eq!(rx.len(), 100, "logger alone drops chunks above its queue limit");
-        let file = File::options().write(true).open("/dev/full").unwrap();
+        let file = unwritable(&dir);
         let worker = tokio::spawn(spool_response(file, rx, sink.clone()));
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         assert!(!worker.is_finished(), "disk failure must wait for HTTP completion");
