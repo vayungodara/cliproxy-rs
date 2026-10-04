@@ -330,3 +330,36 @@ async fn dropping_the_host_ends_operation_watchers() {
     }
     panic!("{} watcher tasks left", metrics.num_alive_tasks() - before);
 }
+
+/// `host.http.do` buffers at most `MAX_WHOLE_RESPONSE`; an endless answer fails as a
+/// read error instead of growing without bound.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn whole_body_reads_are_bounded() {
+    use tokio::io::AsyncWriteExt as _;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    tokio::spawn(async move {
+        let (mut conn, _) = listener.accept().await.unwrap();
+        let mut head = [0u8; 4096];
+        let _ = tokio::io::AsyncReadExt::read(&mut conn, &mut head).await;
+        let _ = conn.write_all(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n").await;
+        let chunk = vec![b'x'; 1 << 20];
+        while conn.write_all(&chunk).await.is_ok() {}
+    });
+    let host = Host::new();
+    let instance = Arc::new(CallbackInstance::default());
+    let guard = callback_context(&host, "p", instance.clone(), RequestScope::default());
+    let callback_id = guard.id().to_owned();
+    let (h, i) = (host.clone(), instance.clone());
+    let err = tokio::task::spawn_blocking(move || {
+        let request = format!(r#"{{"host_callback_id":"{callback_id}","url":"http://{addr}/big"}}"#);
+        call_from_plugin(&h, "p", &i, "host.http.do", request.as_bytes()).unwrap_err()
+    })
+    .await
+    .unwrap();
+    assert_eq!(
+        err.message,
+        format!("read host http response: response body exceeds {} bytes", 64 << 20)
+    );
+    drop(guard);
+}

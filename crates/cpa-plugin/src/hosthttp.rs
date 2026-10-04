@@ -38,6 +38,9 @@ use crate::host::{Host, lock};
 
 /// Go `DoStream`'s read buffer: no stream chunk is larger.
 const STREAM_READ: usize = 32 * 1024;
+/// The most `host.http.do` buffers. Go's `io.ReadAll` has no bound; a larger answer
+/// needs `host.http.do_stream`.
+const MAX_WHOLE_RESPONSE: usize = 64 << 20;
 
 go_struct! {
     /// `httpRequest` (the nested form of a host HTTP request).
@@ -857,6 +860,10 @@ impl Host {
             };
             match next {
                 None => break,
+                Some(Ok(chunk)) if body.len() + chunk.len() > MAX_WHOLE_RESPONSE => {
+                    error = Some(format!("response body exceeds {MAX_WHOLE_RESPONSE} bytes"));
+                    break;
+                }
                 Some(Ok(chunk)) => body.extend_from_slice(&chunk),
                 Some(Err(e)) => {
                     error = Some(go_read_error(&e));
