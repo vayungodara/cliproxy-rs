@@ -23,17 +23,17 @@ The dashboard says when the server lacks an endpoint instead of failing: actions
 ## Where it stands
 
 <!-- parity-summary:start -->
-Audit of 2026-10-03.
+Audit of 2026-10-04.
 
 | Milestone | Items | Covered | Partial | Missing |
 |---|---:|---:|---:|---:|
-| M1 | 118 | 51 | 67 | 0 |
-| M2 | 158 | 105 | 45 | 8 |
-| M3 | 350 | 184 | 116 | 50 |
-| M4 | 510 | 229 | 255 | 26 |
-| M5 | 303 | 173 | 109 | 21 |
-| M6 | 248 | 56 | 105 | 87 |
-| All | 1687 | 798 | 697 | 192 |
+| M1 | 118 | 53 | 65 | 0 |
+| M2 | 158 | 112 | 38 | 8 |
+| M3 | 350 | 192 | 109 | 49 |
+| M4 | 510 | 227 | 256 | 27 |
+| M5 | 303 | 168 | 114 | 21 |
+| M6 | 248 | 56 | 106 | 86 |
+| All | 1687 | 808 | 688 | 191 |
 <!-- parity-summary:end -->
 
 An item is covered when it is implemented and a Rust test or a fixture recorded from the Go server checks it. Partial means it works but not every case is pinned by a test, or only part of it is implemented; most partial items are Go test files whose behaviour other tests cover without porting each case. Missing means it is not implemented. A deliberate difference from Go, listed in [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md), counts as covered.

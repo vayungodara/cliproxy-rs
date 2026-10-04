@@ -384,7 +384,7 @@ def main():
 # Milestones whose rows have been reviewed by hand; the others are not rendered yet.
 AUDITED = ["M1", "M2", "M3", "M4", "M5", "M6"]
 # What the audited tree is called in the rendered pages: a release or a date.
-BASE = "2026-10-03"
+BASE = "2026-10-04"
 
 
 def title(r):

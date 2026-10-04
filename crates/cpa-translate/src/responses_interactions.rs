@@ -61,7 +61,7 @@ fn eq_fold(a: &[u8], b: &str) -> bool {
 }
 
 /// common.IsDevinCodexAppAutomationUpdate.
-fn is_devin_automation_update(namespace: &[u8], tool: &[u8]) -> bool {
+pub(crate) fn is_devin_automation_update(namespace: &[u8], tool: &[u8]) -> bool {
     let (namespace, tool) = (trim_space(namespace), trim_space(tool));
     (eq_fold(namespace, "mcp__codex_app") && eq_fold(tool, "automation_update"))
         || eq_fold(tool, "mcp__codex_app__automation_update")
@@ -116,25 +116,35 @@ fn obfuscate(
 }
 
 /// common.SanitizeDevinToolDescription.
-fn sanitize_devin_description(tool: &[u8], desc: Vec<u8>) -> Vec<u8> {
+pub(crate) fn sanitize_devin_description(tool: &[u8], desc: Vec<u8>) -> Vec<u8> {
     if desc.is_empty() {
         return desc;
     }
     let tool = go_lower(trim_space(tool));
     let mut desc = desc;
     if tool == b"exec_command" || tool.ends_with(b"__exec_command") {
-        desc = obfuscate(&desc, EXEC_TARGET, EXEC_OBFUSCATED, &EXEC_REGEX, EXEC_OBFUSCATED);
+        desc = obfuscate_exec_command_description(&desc);
     }
     if tool == b"write_stdin" || tool.ends_with(b"__write_stdin") {
-        desc = obfuscate(
-            &desc,
-            STDIN_TARGET,
-            STDIN_OBFUSCATED,
-            &STDIN_REGEX,
-            b"Writes characters to a existing unified exec session and returns recent output$1",
-        );
+        desc = obfuscate_write_stdin_description(&desc);
     }
     desc
+}
+
+/// common.ObfuscateExecCommandDescription.
+pub(crate) fn obfuscate_exec_command_description(desc: &[u8]) -> Vec<u8> {
+    obfuscate(desc, EXEC_TARGET, EXEC_OBFUSCATED, &EXEC_REGEX, EXEC_OBFUSCATED)
+}
+
+/// common.ObfuscateWriteStdinDescription.
+pub(crate) fn obfuscate_write_stdin_description(desc: &[u8]) -> Vec<u8> {
+    obfuscate(
+        desc,
+        STDIN_TARGET,
+        STDIN_OBFUSCATED,
+        &STDIN_REGEX,
+        b"Writes characters to a existing unified exec session and returns recent output$1",
+    )
 }
 
 /// setJSONValue: a string holding valid JSON is set raw (untrimmed).

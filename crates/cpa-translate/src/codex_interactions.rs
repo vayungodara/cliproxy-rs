@@ -478,7 +478,7 @@ const COPY_RAW_PATHS: [(&str, &str); 21] = [
 ];
 
 /// cleanedCodexToolParameters.
-fn cleaned_parameters(params: &Res<'_>) -> Vec<u8> {
+pub(crate) fn cleaned_parameters(params: &Res<'_>) -> Vec<u8> {
     let mut cleaned = params.raw.to_vec();
     if params.get("$schema").exists() {
         gj::delete(&mut cleaned, "$schema");
@@ -517,7 +517,7 @@ fn tool_from_declaration(declaration: &Res<'_>) -> Option<Vec<u8>> {
     Some(out)
 }
 
-fn set_raw_if_different(out: &mut Vec<u8>, path: &str, value: &Res<'_>) {
+pub(crate) fn set_raw_if_different(out: &mut Vec<u8>, path: &str, value: &Res<'_>) {
     let current = gj::get(out, path);
     if current.exists() && current.raw == value.raw {
         return;

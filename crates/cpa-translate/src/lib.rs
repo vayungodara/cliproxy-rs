@@ -498,6 +498,9 @@ thread_local! {
 }
 
 #[cfg(test)]
+mod go_helper_tests;
+
+#[cfg(test)]
 mod depth_tests {
     use super::{Depth, levels};
 

@@ -76,7 +76,7 @@ fn carrier_value(model: &str, signature: &[u8], direction: &str, target: &str) -
 }
 
 /// util.GeminiClaudeToolUseID: a stable ID from the call ID, name and canonical args.
-fn gemini_claude_tool_use_id(call_id: &[u8], name: &[u8], args: &[u8]) -> Vec<u8> {
+pub(crate) fn gemini_claude_tool_use_id(call_id: &[u8], name: &[u8], args: &[u8]) -> Vec<u8> {
     let (call_id, name) = (trim_space(call_id), trim_space(name));
     if call_id.is_empty() || name.is_empty() {
         return vec![];

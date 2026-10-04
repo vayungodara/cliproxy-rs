@@ -182,7 +182,7 @@ fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
 
 /// normalizeAntigravityOpenAIThinkingConfig: snake-case and misplaced thinking fields of a
 /// passed-through generationConfig move into camelCase `thinkingConfig`.
-fn normalize_thinking_config(out: &mut Vec<u8>) {
+pub(crate) fn normalize_thinking_config(out: &mut Vec<u8>) {
     let include = format!("{THINKING}.includeThoughts");
     for prefix in ["thinking_config", "thinkingConfig"] {
         for key in ["includeThoughts", "include_thoughts"] {

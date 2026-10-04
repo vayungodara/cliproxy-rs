@@ -627,6 +627,10 @@ func main() {
 		sdkRegistry(os.Args[1], os.Args[2])
 		return
 	}
+	if os.Args[3] == "helpers" {
+		helperFixtures(filepath.Join(os.Args[2], "..", "go_helpers.json"))
+		return
+	}
 	if os.Args[3] == "apply_patch_responses" {
 		applyPatchResponses(os.Args[2])
 		return

@@ -205,7 +205,7 @@ fn call_id(value: &Res<'_>) -> Vec<u8> {
 }
 
 /// cleanGeminiCodexToolParameters: no `$schema`, `additionalProperties: false`.
-fn clean_parameters(parameters: &Res<'_>) -> Vec<u8> {
+pub(crate) fn clean_parameters(parameters: &Res<'_>) -> Vec<u8> {
     let mut cleaned = parameters.raw.to_vec();
     if parameters.get("$schema").exists() {
         gj::delete(&mut cleaned, "$schema");

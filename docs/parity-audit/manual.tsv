@@ -110,10 +110,8 @@ M1-0104	partial	claude::tests::custom_origin_counts_locally_without_sending_cred
 M1-0105	partial	crates/cpa-exec/src/quota.rs latest_relevant_deadline_fractional_seconds_and_dates, overage_only_excludes_retry_after_and_unhealthy_missing_windows_do_not	claude	Equivalent cases; not ported by name.
 M1-0106	partial	crates/cpa-exec/src/claude.rs DEFAULT_BASE_URL handling	claude	Not ported by name.
 M1-0109	covered	recorded replay: crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (internal/thinking calls)
-M1-0110	partial	crates/cpa-translate/src/common.rs is_claude_code_attribution_text; translator goldens	translate	Unit cases not ported.
+M1-0110	partial	crates/cpa-translate/src/common.rs is_claude_code_attribution_text; translator goldens	claude	StripClaudeCodeAttributionSystem is ported in crates/cpa-exec/src/claude.rs (strip_attribution_system) without Go's case; IsClaudeCodeAttributionSystemText replays Go's calls (crates/cpa-translate/tests/fixtures/go_helpers.json).
 M1-0111	partial	inlined in crates/cpa-translate/src/antigravity_claude.rs; claude-antigravity goldens	translate	Unit cases not ported.
-M1-0112	partial	crates/cpa-translate/src/common.rs; translator goldens	translate	Unit cases not ported.
-M1-0113	partial	crates/cpa-translate/src/common.rs; translator goldens	translate	Unit cases not ported.
 M1-0114	partial	crates/cpa-translate/src/gemini.rs; translator goldens	translate	Unit cases not ported.
 M1-0115	partial	crates/cpa-server/src/claude.rs, errors.rs; routes.rs failover_stop_rules_and_cooldown_contracts	server	Not ported by name.
 M1-0116	partial	crates/cpa-server/src/claude.rs dd_model_ids_round_trip_like_go	server	Display-name and model-list cloaking cases are untested.
@@ -162,7 +160,6 @@ M2-0050	covered	compat scenarios chat_text_only_tool_results, chat_image_model_k
 M2-0051	covered	compat scenario chat_video_input_passthrough
 M2-0052	partial	crates/cpa-exec/src/codex_request.rs	codex	Not ported by name.
 M2-0053	covered	recorded replay: crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (internal/signature calls)
-M2-0059	partial	crates/cpa-translate/src/gemini_claude.rs schema normalization; goldens	translate	Table-driven schema cases are not mined.
 M2-0078	partial	crates/cpa-translate/src/common.rs, sse.rs; cpa_common::json	translate	Unit cases not ported.
 M2-0109	covered	n/a: Go package import boundary check
 M2-0133	covered	crates/cpa-common/tests/fixtures/gemini_schema.json: every JSON literal mined from gemini_schema_test.go run through Go's cleaners (crates/cpa-common/tests/gemini_schema.rs)
@@ -267,7 +264,6 @@ M3-0200	partial	crates/cpa-exec/src/xai_auth_tests.rs (9 tests from xai_auth_go.
 M3-0201	partial	crates/cpa-translate/src/replay_cache.rs (in-process store, tombstones, purge; 4 tests)	google	Owner of internal/cache with the Antigravity executor; snapshots, CAS and Home KV are not ported.
 M3-0202	partial	crates/cpa-exec/src/codex_replay.rs (cache per model and Claude Code agent/session); codex_replay_tests.rs replay_scenarios_match_go (Go-generated codex_go.json replay scenarios), entries_keep_the_newest_turns	codex	Not ported by name.
 M3-0203	partial	crates/cpa-exec/src/kimi_replay.rs family_shares_k3_variants_only, conditional_writes_keep_newer_content	device-providers	Not ported by name.
-M3-0205	partial	crates/cpa-translate/src/apply_patch.rs ports tool.go (is_custom_tool, description, parameters, wrap_input, unwrap_input, escape_input_fragment); exercised by apply_patch goldens and tests/fixtures/apply_patch_responses.json	translate	Unit cases not ported by name.
 M3-0211	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	codex	Not ported by name.
 M3-0212	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	codex	31 Go cases; not ported by name.
 M3-0213	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	codex	Not ported by name.
@@ -314,13 +310,8 @@ M3-0281	partial	crates/cpa-exec/src/meta_wire.rs	device-providers	Not ported by 
 M3-0282	partial	crates/cpa-common/tests/payload.rs (payload_go.json)	server	Not ported by name.
 M3-0285	partial	crates/cpa-exec/src/kimi_replay.rs; device fixtures (crates/cpa-exec/tests/device_fixtures/kimi)	device-providers	Not ported by name.
 M3-0297	partial	crates/cpa-translate/src/antigravity_claude.rs; claude-antigravity goldens (bypass modes, signature carriers)	translate	Unit cases not ported.
-M3-0300	partial	crates/cpa-translate/src/antigravity_gemini.rs; goldens	translate	Table-driven cases not mined.
-M3-0303	partial	crates/cpa-translate/src/antigravity_interactions.rs; goldens	translate	Table-driven cases not mined.
-M3-0307	partial	crates/cpa-translate/src/antigravity_chat.rs; goldens	translate	Table-driven case not mined.
-M3-0317	partial	crates/cpa-translate/src/codex_gemini.rs; goldens	translate	Table-driven cases not mined.
-M3-0319	partial	crates/cpa-translate/src/codex_interactions.rs; goldens	translate	Table-driven cases not mined.
-M3-0325	partial	crates/cpa-translate/src/antigravity_*.rs tool renames; goldens	translate	Unit cases not ported.
-M3-0326	partial	crates/cpa-translate/src/responses_interactions.rs Devin tool filtering; goldens	translate	Unit cases not ported.
+M3-0300				The unmatched case bounds Go allocations for a 4 MiB payload; it has no Rust counterpart.
+M3-0317				The unmatched case asserts Go slice reuse (setCodexToolChoiceFromGeminiToolConfig keeps the same backing array); its value result is in the pair goldens.
 M3-0327	partial	crates/cpa-server/src/session.rs, dispatch.rs (execution metadata)	server	15 Go cases; not ported by name.
 M3-0328	partial	cpa_common::codex_catalog (catalogs_match_go, validation_matches_go, versions_compare_like_go); served on GET /v1/models?client_version= by crates/cpa-server/src/codex_models.rs (tests/codex_models.rs client_version_selects_the_codex_catalog)	codex	Not ported by name.
 M3-0330	covered	crates/cpa-exec/src/codex_oauth_tests.rs login_file_bytes_match_go_storage_serializer
