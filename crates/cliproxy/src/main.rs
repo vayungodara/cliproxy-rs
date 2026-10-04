@@ -664,6 +664,7 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
         home_config,
         plugins,
         shutdown_signal(),
+        None,
     )
     .await
 }
@@ -768,11 +769,11 @@ async fn standalone_tui(
     } else {
         password
     };
-    let base = format!("http://127.0.0.1:{}", config.port);
     let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
     let shutdown = async {
         let _ = stopped.await;
     };
+    let (listening, listener) = tokio::sync::oneshot::channel();
     let server = tokio::spawn(serve(
         config,
         config_path,
@@ -782,19 +783,26 @@ async fn standalone_tui(
         home_config,
         plugins,
         shutdown,
+        Some(listening),
     ));
-    let ready = tui::wait_ready(&base, &password).await;
-    let result = if ready {
-        let run = tokio::task::spawn_blocking(move || tui::run(&base, &password, Some(hook), out)).await;
-        run.map_err(io::Error::other).and_then(|r| r)
-    } else {
-        Ok(())
+    // No listener means serve failed; its error is logged below.
+    let base = match listener.await {
+        Ok(listener) => standalone_base_url(listener),
+        Err(_) => Err("embedded server is not ready".to_owned()),
+    };
+    let result = match &base {
+        Ok(base) if tui::wait_ready(base, &password).await => {
+            let base = base.clone();
+            let run = tokio::task::spawn_blocking(move || tui::run(&base, &password, Some(hook), out)).await;
+            run.map_err(|e| e.to_string())
+                .and_then(|r| r.map_err(|e| e.to_string()))
+        }
+        Ok(_) => Err("embedded server is not ready".to_owned()),
+        Err(e) => Err(e.clone()),
     };
     drop(quiet);
     cpa_server::logging::release();
-    if !ready {
-        eprintln!("TUI error: embedded server is not ready");
-    } else if let Err(e) = result {
+    if let Err(e) = result {
         eprintln!("TUI error: {e}");
     }
     let _ = stop.send(());
@@ -910,6 +918,27 @@ async fn command(args: &Args, config: &Config) -> anyhow::Result<bool> {
     Ok(false)
 }
 
+/// The standalone TUI's server address: the bound one, or loopback for a wildcard bind.
+/// The local password works only from loopback, so other hosts are refused, and so is
+/// TLS, which would need the server certificate to be trusted for that address.
+fn standalone_base_url((addr, tls): (SocketAddr, bool)) -> Result<String, String> {
+    if tls {
+        return Err("the standalone TUI does not support server.tls; turn it off or run the TUI as a client".into());
+    }
+    let ip = match addr.ip() {
+        std::net::IpAddr::V4(ip) if ip.is_unspecified() => Ipv4Addr::LOCALHOST.into(),
+        std::net::IpAddr::V6(ip) if ip.is_unspecified() => Ipv6Addr::LOCALHOST.into(),
+        ip if ip.is_loopback() => ip,
+        ip => {
+            return Err(format!(
+                "the standalone TUI needs a loopback or wildcard host, not {ip}; run the TUI as a client"
+            ));
+        }
+    };
+    Ok(format!("http://{}", SocketAddr::new(ip, addr.port())))
+}
+
+/// `listening` (standalone TUI only) receives the bound address and whether TLS is on.
 #[allow(clippy::too_many_arguments)]
 async fn serve(
     config: Config,
@@ -920,6 +949,7 @@ async fn serve(
     home_config: Option<cpa_home::HomeConfig>,
     plugins: cpa_plugin::Host,
     shutdown: impl std::future::Future<Output = ()>,
+    listening: Option<tokio::sync::oneshot::Sender<(SocketAddr, bool)>>,
 ) -> anyhow::Result<()> {
     if config.api_keys.is_empty() && home_config.is_none() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
@@ -937,6 +967,10 @@ async fn serve(
     // Go `Server.Start`: TLS is validated after the listener is open.
     let tls = cpa_server::listener::tls_acceptor(&config)?;
     tracing::info!(addr = %listener.local_addr()?, tls = tls.is_some(), "listening");
+    let standalone = listening.is_some();
+    if let Some(listening) = listening {
+        let _ = listening.send((listener.local_addr()?, tls.is_some()));
+    }
     let executors = Executors {
         claude: ClaudeExecutor::new(DEFAULT_BASE_URL)?,
         codex: cpa_exec::codex::CodexExecutor::new()?,
@@ -964,6 +998,7 @@ async fn serve(
     rt.start_auto_refresh();
     let options = cpa_server::management::Options {
         local_password: password,
+        standalone,
         store: store.map(|store| store.persister),
         ..Default::default()
     };
@@ -1198,6 +1233,55 @@ mod tests {
         }
         assert_eq!(go_int("0x_1f").ok(), Some(31));
         assert_eq!(go_int("-9223372036854775808").ok(), Some(i64::MIN));
+    }
+
+    #[test]
+    fn standalone_url_follows_the_listener() {
+        let url = |addr: &str, tls| standalone_base_url((addr.parse().unwrap(), tls));
+        assert_eq!(url("127.0.0.1:4100", false).unwrap(), "http://127.0.0.1:4100");
+        assert_eq!(url("0.0.0.0:4101", false).unwrap(), "http://127.0.0.1:4101");
+        assert_eq!(url("[::]:4102", false).unwrap(), "http://[::1]:4102");
+        assert_eq!(url("[::1]:4103", false).unwrap(), "http://[::1]:4103");
+        assert!(url("192.0.2.7:4104", false).unwrap_err().contains("192.0.2.7"));
+        assert!(url("127.0.0.1:4105", true).unwrap_err().contains("server.tls"));
+    }
+
+    /// `-tui -standalone` with no management key anywhere and `port: 0`: the TUI finds
+    /// the ephemeral port and signs in with the generated password.
+    #[tokio::test]
+    async fn standalone_server_starts_without_any_secret() {
+        let dir = std::env::temp_dir().join(format!("cpa-standalone-{}", std::process::id()));
+        let auth = dir.join("auth");
+        std::fs::create_dir_all(&auth).unwrap();
+        let path = dir.join("config.yaml");
+        std::fs::write(
+            &path,
+            format!("host: 127.0.0.1\nport: 0\nauth-dir: '{}'\n", auth.display()),
+        )
+        .unwrap();
+        let config = Config::load(&path).unwrap();
+        assert!(config.management.secret_key.is_empty());
+        let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+        let (listening, listener) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(serve(
+            config,
+            path,
+            "fake-tui-password".into(),
+            true,
+            None,
+            None,
+            cpa_plugin::Host::default(),
+            async {
+                let _ = stopped.await;
+            },
+            Some(listening),
+        ));
+        let base = standalone_base_url(listener.await.unwrap()).unwrap();
+        assert_ne!(base, "http://127.0.0.1:0");
+        assert!(tui::wait_ready(&base, "fake-tui-password").await);
+        let _ = stop.send(());
+        server.await.unwrap().unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
