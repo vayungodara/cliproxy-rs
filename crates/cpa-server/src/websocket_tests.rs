@@ -636,3 +636,131 @@ async fn written_log(dir: &std::path::Path) -> String {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
 }
+
+/// A continuation pinned to its credential whose second turn the upstream fails with
+/// `failure` (after `shown`, events the client sees first). The client frames of that
+/// turn, the close as `close <code> <reason>` last.
+async fn pinned_continuation_failure(shown: &'static [&'static str], failure: &'static str) -> Vec<String> {
+    use futures_util::StreamExt;
+    use wreq::ws::message::Message as WsMessage;
+    const FIRST: [&str; 2] = [
+        r#"{"type":"response.created","response":{"id":"r1","status":"in_progress","output":[]}}"#,
+        r#"{"type":"response.completed","response":{"id":"r1","status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}}"#,
+    ];
+    let upstream = serve(axum::Router::new().fallback(move |ws: WebSocketUpgrade| async move {
+        ws.on_upgrade(move |mut socket: AxSocket| async move {
+            let mut turn = 0;
+            while let Some(Ok(message)) = socket.recv().await {
+                if !matches!(message, AxMessage::Text(_)) {
+                    continue;
+                }
+                turn += 1;
+                let events: Vec<&str> = if turn == 1 {
+                    FIRST.to_vec()
+                } else {
+                    shown.iter().copied().chain([failure]).collect()
+                };
+                for event in events {
+                    let _ = socket.send(AxMessage::Text(event.into())).await;
+                }
+            }
+        })
+    }))
+    .await;
+    let dir = std::env::temp_dir().join(format!("cpa-ws-pinned-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let cfg = Config::parse(&format!(
+        "auth-dir: {}\ncodex-api-key:\n  - api-key: sk-FAKE\n    base-url: http://{upstream}\n    websockets: true\n    models:\n      - name: gpt-fixture\n",
+        dir.display()
+    ))
+    .unwrap();
+    let credentials = cpa_core::config::credentials::from_config(&cfg);
+    let executors = Executors {
+        claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: cpa_exec::codex::CodexExecutor::new().unwrap(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let proxy = serve(router(Arc::new(crate::testing::runtime(cfg, credentials, executors)))).await;
+    let mut socket = wreq::Client::new()
+        .websocket(format!("ws://{proxy}/v1/responses"))
+        .send()
+        .await
+        .unwrap()
+        .into_websocket()
+        .await
+        .unwrap();
+    let read = async |socket: &mut wreq::ws::WebSocket| {
+        let mut frames = Vec::new();
+        loop {
+            match tokio::time::timeout(Duration::from_secs(10), socket.next())
+                .await
+                .unwrap()
+            {
+                Some(Ok(WsMessage::Text(text))) => {
+                    let done = text.as_str().contains("response.completed");
+                    frames.push(text.as_str().to_owned());
+                    if done {
+                        break;
+                    }
+                }
+                Some(Ok(WsMessage::Close(frame))) => {
+                    let (code, reason) = frame.map_or((1005, String::new()), |f| {
+                        (u16::from(f.code), f.reason.as_str().to_owned())
+                    });
+                    frames.push(format!("close {code} {reason}"));
+                    break;
+                }
+                Some(Ok(_)) => {}
+                Some(Err(_)) | None => {
+                    frames.push("close 1006".into());
+                    break;
+                }
+            }
+        }
+        frames
+    };
+    let input = r#""input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}]"#;
+    socket
+        .send(WsMessage::text(format!(
+            r#"{{"type":"response.create","model":"gpt-fixture",{input}}}"#
+        )))
+        .await
+        .unwrap();
+    let first = read(&mut socket).await;
+    assert_eq!(first.len(), 2, "{first:?}");
+    socket
+        .send(WsMessage::text(format!(
+            r#"{{"type":"response.create","model":"gpt-fixture","previous_response_id":"r1",{input}}}"#
+        )))
+        .await
+        .unwrap();
+    let frames = read(&mut socket).await;
+    let _ = std::fs::remove_dir_all(&dir);
+    frames
+}
+
+/// `replayPinnedAuthFailure`: a pinned continuation's 401 before anything was shown also
+/// lost the session's socket, yet the client is told to replay over HTTP (1012).
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn pinned_continuation_bootstrap_auth_failure_asks_for_replay() {
+    let frames = pinned_continuation_failure(
+        &[],
+        r#"{"type":"error","status":401,"error":{"type":"invalid_request_error","message":"bad token"}}"#,
+    )
+    .await;
+    assert_eq!(frames, ["close 1012 upstream requires HTTP replay"]);
+}
+
+/// The same after the response started: the shown event, then the replay close.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn pinned_continuation_later_quota_failure_asks_for_replay() {
+    const DELTA: &str = r#"{"type":"response.output_text.delta","output_index":0,"delta":"hello"}"#;
+    let frames = pinned_continuation_failure(
+        &[DELTA],
+        r#"{"type":"error","status":429,"error":{"type":"usage_limit_reached","message":"limit","resets_in_seconds":60}}"#,
+    )
+    .await;
+    assert_eq!(frames, [DELTA, "close 1012 upstream requires HTTP replay"]);
+}
