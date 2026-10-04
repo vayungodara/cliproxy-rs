@@ -1245,6 +1245,32 @@ async fn runtime_credential_disable_clears_its_cooldowns() {
     server.abort();
 }
 
+/// Deleting an AI Studio relay credential (no file) answers 404 and never removes a
+/// file in `auth-dir` that shares its ID.
+#[tokio::test]
+async fn runtime_credential_delete_spares_same_named_file() {
+    let f = Fixture::new("runtime-delete");
+    let id = "aistudio-0123456789abcdef";
+    assert!(
+        f.rt.store()
+            .add_runtime(cpa_core::credential::Credential::relay_session(id))
+    );
+    let sentinel = f.dir.join("auth").join(id);
+    std::fs::write(&sentinel, "keep").unwrap();
+    let (base, server) = f.server().await;
+    let r = wreq::Client::new()
+        .delete(format!("{base}/v8/management/credentials?name={id}"))
+        .bearer_auth("fake-management-only")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 404);
+    assert_eq!(r.json::<Value>().await.unwrap()["error"], "auth file not found");
+    assert_eq!(std::fs::read_to_string(&sentinel).unwrap(), "keep");
+    assert!(f.rt.store().get(id).is_some());
+    server.abort();
+}
+
 /// `GET /observability/usage/queue` drains queued records oldest first; a record that
 /// is not JSON comes back as a string. Disabling statistics stops queueing.
 #[tokio::test]

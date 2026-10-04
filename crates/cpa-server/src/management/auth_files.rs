@@ -1020,6 +1020,11 @@ fn delete_one(state: &Management, name: &str) -> Result<String, (StatusCode, Str
         .iter()
         .find(|c| c.id == name)
         .or_else(|| all.iter().find(|c| file_name(c).as_deref() == Some(name)));
+    // A runtime-only credential has no file. Go falls back to `auth-dir/<name>` and
+    // would remove a same-named file there; report the credential as not found instead.
+    if found.is_some_and(|c| runtime_only(c)) {
+        return Err((StatusCode::NOT_FOUND, "auth file not found".into()));
+    }
     let target: PathBuf = found
         .and_then(|c| path_of(c).map(Path::to_path_buf))
         .unwrap_or_else(|| cfg.auth_dir.join(&base));
