@@ -81,6 +81,10 @@ claude
 
 Sign in to as many Claude and Codex accounts as you have, and choose how the proxy rotates between them: `round-robin`, `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition: spend the account whose weekly window resets soonest first). Session affinity keeps each conversation on one account so the provider's prompt cache stays warm, and an account that hits a limit rests while the others take over. [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing, cooldowns, the quota view, per-account proxies, Codex over WebSocket and reaching the proxy from your other machines over Tailscale.
 
+## Terminal UI
+
+`cliproxy -tui` opens a terminal management client for a running server. It connects to `-management-base-url`, else the config's `management.base-url`, else `http://127.0.0.1:<port>`, and asks for the management key. `cliproxy -tui -standalone` starts the proxy in the same process, signs in for you and stops the proxy when you quit; it needs a loopback or wildcard `host` and no `server.tls`.
+
 ## Works with CLIProxyAPI apps
 
 cliproxy-rs serves the same routes and the same v8 Management API as CLIProxyAPI, so the community apps built on CLIProxyAPI should work with it, for example [CPA-Manager-Plus](https://github.com/seakee/CPA-Manager-Plus), [CLIProxyAPI Quota Inspector](https://github.com/AllenReder/CLIProxyAPI-Quota-Inspector), [ZeroLimit](https://github.com/0xtbug/zero-limit), [Quotio](https://github.com/nguyenphutrong/quotio), [VibeProxy](https://github.com/automazeio/vibeproxy) and [CCS](https://github.com/kaitranntt/ccs). We have not tested all of them. Apps that talk to a running server need only its address and management key; apps that start their own bundled CLIProxyAPI need an option to use an existing server instead. If an app does not work with cliproxy-rs, please [open an issue](https://github.com/vayungodara/cliproxy-rs/issues/new/choose).
@@ -103,7 +107,6 @@ These are not in cliproxy-rs yet. They are planned, in no fixed order:
 - Home (cluster) mode: reporting usage, logs and in-flight requests back to Home, Home's KV storage, and syncing plugins managed by Home.
 - Google Antigravity.
 - Image generation and editing through Codex accounts, and importing Vertex service accounts from the dashboard (the command line works).
-- The terminal UI (`-tui`).
 - The `pprof` debug listener.
 - The upstream request and response sections of request log files.
 - The rest of CLIProxyAPI's own test cases. The parity audit checked 1,687 Go routes, settings, flags and test suites: 798 (47%) are fully covered, 697 partly and 192 not yet. [docs/PARITY.md](docs/PARITY.md) explains the numbers.
