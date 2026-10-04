@@ -14,6 +14,12 @@ Where cliproxy-rs has a feature, it aims to behave exactly as CLIProxyAPI does a
 - OAuth sign-in from the Management API: pending callbacks are held in memory with the sign-in session instead of being written to `auth-dir` as `.oauth-<provider>-<state>.oauth` files.
 - Claude: `platform_url` is HTML-escaped on the sign-in result page, credential files are written atomically with mode 0600, and the SSH port-forwarding hint shows the IP address of the outbound interface.
 - Plugins: loading plugins on Windows is not supported, the same as a Go build without cgo.
+- Plugins, size limits where Go reads without one: a plugin frontend auth provider reads a request body of at most 64 MiB, the same limit as the routes, and a larger one is refused with `413` and `{"error":"request body too large"}` even when no key was sent. Plugin store responses (the registry, release metadata, release assets and direct artifacts) stop at 256 MiB, and a declared artifact size can only lower that. A library inside a plugin archive may expand to at most 256 MiB. `host.http.do` buffers at most 64 MiB of a response and then fails as a read error; `host.http.do_stream` is not limited. A quota probe's answer is read up to 64 MiB, like `requests/api-call`.
+- Plugin store: a GitHub `X-Ratelimit-Reset` later than the end of year 9999 is treated as that time, so the cooldown stays printable. Go keeps any value.
+- Plugins, `.env`: the file is read before the plugins that add command-line flags load, so they see its variables. Go reads it after the flag parse.
+- Plugins, frontend auth: the metadata a plugin returns with an accepted request is not kept. In Go only Home mode reads it.
+- Plugins, model routers: the available providers sent to a router list Kimi credentials typed `kimi.com` or `kimi.ai` under those keys, because credential selection here matches the key as written. Go lists them as `kimi` and `kimi-ai` and folds both spellings when it selects.
+- Plugins, `host.http.*`: a URL whose host Go's parser and the WHATWG parser read differently is refused instead of being sent.
 - Logs: structured fields that Go does not define are printed after Go's known fields.
 - Config writes: when the Management API changes one setting, the rest of `config.yaml` stays byte for byte as it was. Go re-encodes the file, which turns YAML 1.1 booleans such as `yes` and `on` into `true`.
 - Watcher: when a config change moves `auth-dir`, cliproxy-rs starts watching the new directory. Go keeps watching the old one until it restarts.
