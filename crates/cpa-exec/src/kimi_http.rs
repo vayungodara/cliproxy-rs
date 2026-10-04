@@ -165,7 +165,7 @@ pub(crate) async fn status_error(upstream: crate::proxy::Upstream) -> ExecError 
 /// Go `io.ReadAll` for a body whose read failure must surface: the first `keep` bytes are
 /// kept and the rest is drained, so a read error anywhere in the body is returned.
 // ponytail: Go keeps the whole body; bytes past `keep` are discarded to bound memory.
-// Provider-neutral; hoist into crate::proxy (owner: Claude thread) if others need it.
+// Provider-neutral; hoist into crate::proxy (owner: Claude) if others need it.
 pub(crate) async fn read_all_strict(
     mut body: futures_util::stream::BoxStream<'static, Result<bytes::Bytes, ExecError>>,
     keep: usize,

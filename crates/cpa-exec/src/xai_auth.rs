@@ -378,7 +378,7 @@ impl XaiAuth {
     }
 
     /// `http.Client.Do` of the discovery GET.
-    // ponytail: adapter until crate::proxy (owner: Claude thread) sends non-POST
+    // ponytail: adapter until crate::proxy (owner: Claude) sends non-POST
     // requests; redirects are not followed here, Go follows up to ten.
     async fn get(&self, url: &str) -> Result<(u16, Bytes), ()> {
         use tokio::io::AsyncReadExt;

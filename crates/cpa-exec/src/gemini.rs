@@ -157,7 +157,7 @@ pub(crate) fn translate(
 /// deeply, as `cpa_translate::translate_request` does for registered pairs: the ported
 /// schema walkers recurse per nesting level like Go's, whose stacks grow.
 // ponytail: duplicate of cpa_translate's private guard until its exported `...WithCompat`
-// entry points guard themselves (owner: translator thread).
+// entry points guard themselves (owner: translators).
 fn deep_stack<T: Send>(body: &[u8], f: impl FnOnce() -> T + Send) -> T {
     const DEEP: usize = 256;
     let (mut depth, mut max, mut in_string, mut escaped) = (0usize, 0usize, false, false);

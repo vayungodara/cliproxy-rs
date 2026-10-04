@@ -235,7 +235,7 @@ mod tests {
         drop(reader);
         assert_eq!(blocked.await.unwrap(), Err(format!("stream {id} is not open")));
 
-        // Closing wakes every pending reader (oracle finding: notify_one left one asleep).
+        // Closing wakes every pending reader; notify_one would leave one asleep.
         let reader = Arc::new(bridge.open());
         let id = reader.id().to_owned();
         let waiters: Vec<_> = (0..2)

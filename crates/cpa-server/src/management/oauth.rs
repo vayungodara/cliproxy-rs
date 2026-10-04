@@ -7,8 +7,8 @@
 //! files in auth-dir; cliproxy-rs keeps the callback with the pending session in
 //! memory, so nothing extra appears in the watched directory.
 //!
-//! ponytail: antigravity, xai and devin logins and Vertex import answer
-//! `provider_not_found` (no executor or auth module for them yet); no plugin logins.
+//! ponytail: the antigravity login and Vertex import answer `provider_not_found` (no
+//! executor or auth module for them yet); no plugin logins.
 
 use std::collections::HashMap;
 use std::path::PathBuf;

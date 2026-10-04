@@ -1003,7 +1003,7 @@ mod tests {
         }
     }
 
-    /// Oracle finding 1: an apply abandoned while `open` blocks must not strand the
+    /// An apply abandoned while `open` blocks must not strand the
     /// plugin in `loading`; it completes and the plugin is active afterwards.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn abandoned_apply_still_completes() {

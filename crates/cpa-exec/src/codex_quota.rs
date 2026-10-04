@@ -448,7 +448,6 @@ impl QuotaSignals {
 }
 
 /// Merges event-derived headers into an attempt's observed header set.
-#[allow(dead_code)] // wired by the WebSocket executor in the next increment
 pub(crate) fn merge(target: &mut HeaderMap, headers: &Headers) {
     for (name, value) in headers {
         if let (Ok(name), Ok(value)) = (

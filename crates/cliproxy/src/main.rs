@@ -859,7 +859,7 @@ mod tests {
             (parsed.timeout, parsed.json, csv_flags(&parsed.include)),
             (5, true, vec!["a".into(), "b".into(), "a".into()])
         );
-        // Go flag rules that plain clap rejects (oracle review).
+        // Go flag rules that plain clap rejects.
         let parsed = sub(&[
             "--json=true",
             "-timeout",
