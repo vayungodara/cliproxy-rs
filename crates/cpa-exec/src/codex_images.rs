@@ -133,7 +133,14 @@ impl CodexExecutor {
         headers.remove(http::header::CONTENT_ENCODING);
         headers.remove(http::header::CONTENT_LENGTH);
         if !(200..300).contains(&status) {
-            let body = crate::proxy::read_all(upstream.body, crate::proxy::MAX_ERROR_BODY, true).await?;
+            // Both direct modes record and return a read error of the error body.
+            let body = match crate::proxy::read_all(upstream.body, crate::proxy::MAX_ERROR_BODY, false).await {
+                Ok(body) => body,
+                Err(error) => {
+                    wire.exec_error(&error);
+                    return Err(error);
+                }
+            };
             wire.chunk(&body);
             return Err(response::status_error(
                 status,

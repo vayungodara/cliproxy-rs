@@ -1155,3 +1155,39 @@ async fn capture_keeps_each_sites_read_error_policy() {
         "{taps:?}"
     );
 }
+
+/// The direct Images endpoints (`executeDirectOpenAIImage` and its stream form) read a
+/// non-2xx body with `io.ReadAll` and, when it breaks, record the read error and return
+/// it in place of the status error.
+#[tokio::test]
+async fn direct_images_return_the_read_error_of_a_broken_error_body() {
+    for stream in [false, true] {
+        let url = broken_upstream(401, "application/json", vec!["{\"error\":"], true).await;
+        let (mut req, tap) = tapped_request(stream, None);
+        let body = Bytes::from_static(br#"{"model":"gpt-image-2","prompt":"a lighthouse"}"#);
+        req.source_format = Format::OpenAI;
+        req.response_format = Format::OpenAI;
+        req.requested_model = "gpt-image-2".into();
+        req.model = "gpt-image-2".into();
+        req.original_body = body.clone();
+        req.body = body;
+        let error = executor()
+            .images(
+                &oauth_credential(&url),
+                req,
+                "/v1/images/generations",
+                &Config::default(),
+            )
+            .await
+            .err()
+            .expect("read error");
+        assert_ne!(error.status, 401, "stream={stream}: {error}");
+        let taps = tap.taps();
+        assert!(matches!(&taps[0], Tap::Request { .. }), "stream={stream}: {taps:?}");
+        assert_eq!(
+            taps[2..],
+            [Tap::Error(String::from_utf8_lossy(&error.body).into_owned())],
+            "stream={stream}: {taps:?}"
+        );
+    }
+}
