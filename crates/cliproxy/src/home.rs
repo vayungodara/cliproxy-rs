@@ -465,6 +465,7 @@ impl Dispatcher {
             end,
             cancel: Some(cancel),
             request_retry,
+            user_api_key: response.user_api_key.trim().to_owned(),
         })
     }
 }
@@ -2687,6 +2688,45 @@ mod tests {
                 ("client-model", "high", "auto", false, false),
                 ("client-model", "high", "priority", false, true),
             ],
+            "{records:?}"
+        );
+        shutdown.cancel();
+        task.await.unwrap();
+    }
+
+    /// Go `setHomeUserAPIKeyOnGinContext`: in Home mode the client key Home
+    /// authenticated is the request's caller. Usage records carry it, and a later pick
+    /// that sends none keeps it for the rest of the request.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn home_user_api_key_is_the_attempt_caller() {
+        let upstream = ContractUpstream::start(vec![("sk-bad", bad_gateway())]).await;
+        let mut first: Value =
+            serde_json::from_str(&accounted_compat("cred-1", &upstream.base).replace("sk-home-fake", "sk-bad"))
+                .unwrap();
+        first["user_api_key"] = " client-key-home ".into();
+        let home = scripted(
+            "port: 0\n",
+            vec![first.to_string(), accounted_compat("cred-2", &upstream.base)],
+        )
+        .await;
+        let (base, _rt, shutdown, task) = contract_node(&home).await;
+        let (status, _, body) = ask_with_headers(
+            &base,
+            "/v1/chat/completions",
+            serde_json::json!({"model": "m", "messages": [{"role": "user", "content": "hi"}]}),
+        )
+        .await;
+        assert_eq!(status, 200, "{body}");
+        assert_eq!(rpops(&home).len(), 2, "the first credential failed over");
+        eventually("two usage records", || usage_records(&home).len() >= 2).await;
+        let records = usage_records(&home);
+        let keys: Vec<(&str, bool)> = records
+            .iter()
+            .map(|r| (r["api_key"].as_str().unwrap(), r["failed"].as_bool().unwrap()))
+            .collect();
+        assert_eq!(
+            keys,
+            [("client-key-home", true), ("client-key-home", false)],
             "{records:?}"
         );
         shutdown.cancel();
