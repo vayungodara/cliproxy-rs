@@ -199,7 +199,11 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
                 continue;
             }
             let config_changed = applied.as_ref().map_or(initial_hash, |a| a.config) != current.config;
-            if since.elapsed() < if config_changed { CONFIG_SETTLE } else { AUTH_SETTLE } {
+            // The first observation always reads the file: an edit made after the
+            // runtime loaded its config but before `start` hashed the file matches
+            // `initial_hash`, yet the runtime has never seen it.
+            let read_config = config_changed || applied.is_none();
+            if since.elapsed() < if read_config { CONFIG_SETTLE } else { AUTH_SETTLE } {
                 continue;
             }
             if let Some(before) = &applied {
@@ -210,7 +214,7 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             }
             let loaded = tokio::task::spawn_blocking({
                 let state = state.clone();
-                move || reload_config(&state, config_changed)
+                move || reload_config(&state, read_config)
             })
             .await;
             if let Some(before) = &applied {
@@ -219,9 +223,13 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             }
             match loaded {
                 Ok(Ok(Some(next_config))) => {
-                    crate::config_diff::log(&previous_config, &next_config);
+                    // The first observation's read of the file the runtime started
+                    // with is quiet; Go does not reload at startup.
+                    if config_changed || next_config.document != previous_config.document {
+                        crate::config_diff::log(&previous_config, &next_config);
+                        tracing::info!("config successfully reloaded, triggering client reload");
+                    }
                     previous_config = Arc::new(next_config);
-                    tracing::info!("config successfully reloaded, triggering client reload");
                 }
                 Ok(Err(error)) if config_changed || applied.is_none() => match error {
                     ReloadError::Missing(e) => tracing::error!(
@@ -425,38 +433,100 @@ mod tests {
         }
     }
 
+    impl Capture {
+        fn install(&self) -> tracing::subscriber::DefaultGuard {
+            let writer = self.clone();
+            let subscriber = tracing_subscriber::fmt()
+                .with_ansi(false)
+                .without_time()
+                .with_writer(move || writer.clone())
+                .finish();
+            tracing::subscriber::set_default(subscriber)
+        }
+
+        fn text(&self) -> String {
+            String::from_utf8(self.0.lock().unwrap().clone()).unwrap()
+        }
+
+        async fn wait_for(&self, needle: &str) {
+            tokio::time::timeout(Duration::from_secs(3), async {
+                loop {
+                    let notified = self.1.notified();
+                    if self.text().contains(needle) {
+                        break;
+                    }
+                    notified.await;
+                }
+            })
+            .await
+            .unwrap_or_else(|_| panic!("{needle:?} was not logged:\n{}", self.text()));
+        }
+    }
+
     #[tokio::test]
     async fn edit_before_first_stable_observation_is_logged_once() {
         let (state, dir) = state();
         let capture = Capture::default();
-        let writer = capture.clone();
-        let subscriber = tracing_subscriber::fmt()
-            .with_ansi(false)
-            .without_time()
-            .with_writer(move || writer.clone())
-            .finish();
-        let _guard = tracing::subscriber::set_default(subscriber);
+        let _guard = capture.install();
         let watcher = start(&state);
         std::fs::write(
             &state.path,
             format!("port: 9001\noauth: {{auth-dir: {}}}\n", dir.display()),
         )
         .unwrap();
+        capture.wait_for("port: 0 -> 9001").await;
+        watcher.abort();
+        let _ = watcher.await;
+        assert_eq!(capture.text().matches("port: 0 -> 9001").count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn edit_between_runtime_load_and_start_is_applied() {
+        let (state, dir) = state();
+        let capture = Capture::default();
+        let _guard = capture.install();
+        // The runtime holds port 0; the file changes before the watcher hashes it.
+        std::fs::write(
+            &state.path,
+            format!("port: 9001\noauth: {{auth-dir: {}}}\n", dir.display()),
+        )
+        .unwrap();
+        let watcher = start(&state);
+        capture.wait_for("config successfully reloaded").await;
+        assert_eq!(state.rt.config().port, 9001);
+        watcher.abort();
+        let _ = watcher.await;
+        let text = capture.text();
+        assert_eq!(text.matches("port: 0 -> 9001").count(), 1);
+        assert_eq!(text.matches("config successfully reloaded").count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[tokio::test]
+    async fn unchanged_config_is_read_quietly_on_first_observation() {
+        let (state, dir) = state();
+        let capture = Capture::default();
+        let _guard = capture.install();
+        let initial = state.rt.config();
+        let watcher = start(&state);
+        // The first reload publishes a new snapshot. An auth file created after that
+        // is logged by a later pass of the loop, so every line of the first pass
+        // precedes its log line.
         tokio::time::timeout(Duration::from_secs(3), async {
-            loop {
-                let notified = capture.1.notified();
-                if String::from_utf8_lossy(&capture.0.lock().unwrap()).contains("port: 0 -> 9001") {
-                    break;
-                }
-                notified.await;
+            while Arc::ptr_eq(&state.rt.config(), &initial) {
+                tokio::time::sleep(TICK).await;
             }
         })
         .await
         .unwrap();
+        std::fs::write(dir.join("a.json"), "{}").unwrap();
+        capture.wait_for("auth file changed (CREATE): a.json").await;
         watcher.abort();
         let _ = watcher.await;
-        let text = String::from_utf8(capture.0.lock().unwrap().clone()).unwrap();
-        assert_eq!(text.matches("port: 0 -> 9001").count(), 1);
+        let text = capture.text();
+        assert!(!text.contains("config successfully reloaded"), "{text}");
+        assert!(!text.contains("config changes detected"), "{text}");
         std::fs::remove_dir_all(dir).unwrap();
     }
 
