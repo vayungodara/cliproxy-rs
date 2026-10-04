@@ -177,6 +177,28 @@ fn track_first_byte(mut upstream: wire::Upstream, usage: &cpa_core::exec::UsageS
     upstream
 }
 
+/// Go's deferred `TrackFailure` (or the scanner's `PublishFailure`) when the client goes
+/// away mid-request: the canceled context fails the pending HTTP send or body read with
+/// `context canceled`, status 499. Dropping a pending future runs none of the executor's
+/// error paths, so this publishes that failure when `op` is dropped before it settles,
+/// ahead of the server's own end-of-attempt record.
+pub(crate) async fn fail_if_canceled<F: std::future::Future>(usage: &cpa_core::exec::UsageSink, op: F) -> F::Output {
+    struct Pending<'a>(Option<&'a cpa_core::exec::UsageSink>);
+    impl Drop for Pending<'_> {
+        fn drop(&mut self) {
+            if let Some(usage) = self.0 {
+                // Go's url.Error for a canceled send also names the method and URL; the
+                // URL is left out, as in every transport error here.
+                usage.publish_failure(499, "context canceled");
+            }
+        }
+    }
+    let mut pending = Pending(Some(usage));
+    let out = op.await;
+    pending.0 = None;
+    out
+}
+
 /// An error Go returns before creating its usage reporter: the attempt publishes no
 /// record (`UsageSink::discard`).
 pub(crate) fn before_reporter<T>(
@@ -444,11 +466,12 @@ impl XaiExecutor {
         let url = self.url(endpoint(&base, "/responses"));
         let capture = capture_request(&req, credential, &url, &headers, &prepared.body);
         req.usage.round_trip_started();
-        let upstream = wire::send(&client, &url, headers, Bytes::from(prepared.body.clone())).await;
+        let send = wire::send(&client, &url, headers, Bytes::from(prepared.body.clone()));
+        let upstream = fail_if_canceled(&req.usage, send).await;
         capture.sent(&upstream);
         let upstream = track_first_byte(upstream?, &req.usage);
         if !(200..300).contains(&upstream.status) {
-            return Err(upstream_error(upstream, &capture).await);
+            return Err(fail_if_canceled(&req.usage, upstream_error(upstream, &capture)).await);
         }
         let headers = upstream.headers.clone();
         let body = if req.stream {
@@ -456,7 +479,7 @@ impl XaiExecutor {
             let writes = prepared.replay_scope.writes.clone();
             ResponseBody::Stream(writes.gate(Pipeline::new(&req, prepared, self.replay.clone(), capture).run(lines)))
         } else {
-            let data = wire::read_all(upstream).await;
+            let data = fail_if_canceled(&req.usage, wire::read_all(upstream)).await;
             capture.read(&data);
             let data = data?;
             let writes = prepared.replay_scope.writes.clone();
@@ -513,12 +536,13 @@ impl XaiExecutor {
         let url = self.url(endpoint(&base, "/responses/compact"));
         let capture = capture_request(req, credential, &url, &headers, &p.body);
         req.usage.round_trip_started();
-        let upstream = wire::send(&client, &url, headers, Bytes::from(p.body.clone())).await;
+        let send = wire::send(&client, &url, headers, Bytes::from(p.body.clone()));
+        let upstream = fail_if_canceled(&req.usage, send).await;
         capture.sent(&upstream);
         let upstream = track_first_byte(upstream?, &req.usage);
         let status = upstream.status;
         let headers = upstream.headers.clone();
-        let data = wire::read_all(upstream).await;
+        let data = fail_if_canceled(&req.usage, wire::read_all(upstream)).await;
         capture.read(&data);
         let data = data?;
         if !(200..300).contains(&status) {
@@ -694,12 +718,13 @@ impl XaiExecutor {
         };
         let capture = capture_request(req, credential, &url, &headers, logged);
         req.usage.round_trip_started();
-        let upstream = crate::proxy::send_request(&route, method, &url, headers, body.map(Bytes::from), None).await;
+        let send = crate::proxy::send_request(&route, method, &url, headers, body.map(Bytes::from), None);
+        let upstream = fail_if_canceled(&req.usage, send).await;
         capture.sent(&upstream);
         let upstream = track_first_byte(upstream?, &req.usage);
         let status = upstream.status;
         let headers = upstream.headers.clone();
-        let data = wire::read_all(upstream).await;
+        let data = fail_if_canceled(&req.usage, wire::read_all(upstream)).await;
         capture.read(&data);
         let data = data?;
         if !(200..300).contains(&status) {
@@ -1019,7 +1044,7 @@ impl Pipeline {
                 if st.done {
                     return None;
                 }
-                match lines.next().await {
+                match fail_if_canceled(&st.usage, lines.next()).await {
                     Some(Ok(line)) => {
                         // AppendAPIResponseChunk per scanned line.
                         st.capture.chunk(&line);
