@@ -315,7 +315,8 @@ async fn read_home(client: &cpa_home::Client, key: &str, baseline: &Profile) -> 
     let Some(raw) = client.kv_get(key).await.map_err(|e| e.to_string())? else {
         return Ok(None);
     };
-    let value: KvValue = serde_json::from_slice(&raw).map_err(|e| e.to_string())?;
+    let value: KvValue = serde_json::from_slice(&raw)
+        .map_err(|e| format!("home kv: decode value: {}", cpa_home::error::redacted_decode_text(&e)))?;
     let profile = Profile {
         user_agent: value.user_agent.trim().to_owned(),
         package_version: value.package_version.trim().to_owned(),

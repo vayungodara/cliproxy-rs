@@ -585,8 +585,12 @@ async fn home_device_pool(
         .await
         .map_err(|e| pool_error(format!("Home KV reread: {e}")))?
         .ok_or_else(|| pool_error("Home KV value missing after set".into()))?;
-    let stored: Vec<String> =
-        serde_json::from_slice(&raw).map_err(|e| pool_error(format!("decode Home KV value: {e}")))?;
+    let stored: Vec<String> = serde_json::from_slice(&raw).map_err(|e| {
+        pool_error(format!(
+            "decode Home KV value: {}",
+            cpa_home::error::redacted_decode_text(&e)
+        ))
+    })?;
     normalize_pool(stored.iter().map(String::as_str))
         .ok_or_else(|| pool_error("Home KV pool has 0 entries, want 1".into()))
 }

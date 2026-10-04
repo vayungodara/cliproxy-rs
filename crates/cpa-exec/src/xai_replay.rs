@@ -163,7 +163,6 @@ async fn home_store(client: &cpa_home::Client, scope: &ReplayScope, items: &[Vec
 
 /// Go `GetXAIReasoningReplayItemsRequired` in Home mode: a hit renews the TTL.
 async fn home_get(client: &cpa_home::Client, scope: &ReplayScope) -> Result<Option<Vec<Vec<u8>>>, String> {
-    use base64::Engine;
     if cache_key(scope).is_none() {
         return Ok(None);
     }
@@ -171,13 +170,7 @@ async fn home_get(client: &cpa_home::Client, scope: &ReplayScope) -> Result<Opti
     let Some(raw) = client.kv_get(&key).await.map_err(|e| e.to_string())? else {
         return Ok(None);
     };
-    let encoded: Option<Vec<String>> = serde_json::from_slice(&raw).map_err(|e| e.to_string())?;
-    let items = encoded
-        .unwrap_or_default()
-        .iter()
-        .map(|item| base64::engine::general_purpose::STANDARD.decode(item))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+    let items = cpa_home::kv::decode_byte_slices(&raw)?;
     if let Err(error) = client.kv_expire(&key, TTL).await {
         tracing::warn!("home kv xai reasoning replay expire failed prefix=cpa:xai:*: {error}");
     }

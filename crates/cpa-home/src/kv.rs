@@ -13,7 +13,7 @@ use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
 
 use crate::client::{Client, SetOptions, current};
-use crate::error::{Error, Result, redacted_decode_error};
+use crate::error::{Error, Result, redacted_decode_error, redacted_decode_text};
 
 /// Go `HashKeyPart`: hex SHA-256, so keys never carry raw identifiers.
 pub fn hash_key_part(value: &str) -> String {
@@ -72,6 +72,23 @@ pub async fn get_json_required<T: DeserializeOwned>(key: &str) -> Result<(bool, 
     };
     let value = serde_json::from_slice(&raw).map_err(|e| redacted_decode_error("home kv: decode value", &e))?;
     Ok((true, Some(value)))
+}
+
+/// Go `json.Unmarshal` into `[][]byte`: a JSON array of base64 strings, `null` read
+/// as empty. The error never carries the value; replay items hold model output.
+pub fn decode_byte_slices(raw: &[u8]) -> std::result::Result<Vec<Vec<u8>>, String> {
+    use base64::Engine;
+    let encoded: Option<Vec<String>> =
+        serde_json::from_slice(raw).map_err(|e| format!("home kv: decode value: {}", redacted_decode_text(&e)))?;
+    encoded
+        .unwrap_or_default()
+        .iter()
+        .map(|item| {
+            base64::engine::general_purpose::STANDARD
+                .decode(item)
+                .map_err(|_| "home kv: decode value: illegal base64 data".to_owned())
+        })
+        .collect()
 }
 
 /// Returns home mode.
@@ -185,6 +202,24 @@ mod tests {
 
     /// The published client is process-global (Go `home.SetCurrent`).
     static CURRENT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+    #[test]
+    fn byte_slice_decode_errors_never_echo_values() {
+        assert_eq!(
+            decode_byte_slices(br#"["aGk=","AA=="]"#).unwrap(),
+            vec![b"hi".to_vec(), vec![0]]
+        );
+        assert!(decode_byte_slices(b"null").unwrap().is_empty());
+        for raw in [
+            &br#"{"secret-item":1}"#[..],
+            br#"["secret-item!"]"#,
+            br#""secret-item""#,
+        ] {
+            let error = decode_byte_slices(raw).unwrap_err();
+            assert!(error.starts_with("home kv: decode value: "), "{error}");
+            assert!(!error.contains("secret"), "{error}");
+        }
+    }
 
     /// Go `TestKVRequiredHelpersReturnNonHomeMode`.
     #[tokio::test]
