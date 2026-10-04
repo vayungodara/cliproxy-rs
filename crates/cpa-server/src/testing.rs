@@ -6,9 +6,10 @@
 //! credential: one that is not local is routed to a dead loopback proxy through the
 //! production rule every executor follows (`Proxy::effective`, where the credential's
 //! own `proxy_url` wins), so it fails with a connection error instead of leaving the
-//! machine. A credential is local when its base URL is loopback, it has a proxy of its
-//! own, or the test marked it [`local`] because the test built its executor against a
-//! mock. Stored credentials never change, so management listings, reconciliation and
+//! machine. A credential is local when its base URL or its own proxy is loopback, or
+//! the test marked it [`local`] because the test built its executor against a mock.
+//! A non-loopback proxy (including `direct`) does not count: it could reach a
+//! provider. Stored credentials never change, so management listings, reconciliation and
 //! features that pick their own proxy (management `api-call`, `latest-version`) behave
 //! as configured.
 // ponytail: the realtime routes dial through the Codex executor's live endpoints
@@ -56,7 +57,7 @@ pub fn guarded(credential: &Arc<Credential>) -> Arc<Credential> {
             .trim()
     };
     let local =
-        credential.attributes.contains_key(LOCAL) || !text("proxy_url").is_empty() || is_loopback(text("base_url"));
+        credential.attributes.contains_key(LOCAL) || is_loopback(text("proxy_url")) || is_loopback(text("base_url"));
     if local {
         return credential.clone();
     }
@@ -107,6 +108,7 @@ mod tests {
             credential(&[("base_url", "https://api.x.ai")], serde_json::json!({})),
             credential(&[("base_url", "http://127.0.0.1.example.com")], serde_json::json!({})),
             credential(&[("proxy_url", "direct")], serde_json::json!({})),
+            credential(&[("proxy_url", "http://127.0.0.1:3128")], serde_json::json!({})),
             Arc::new(local(Credential::clone(&credential(&[], serde_json::json!({}))))),
         ];
         let deny = Proxy::Url(DENY_PROXY.into());
@@ -120,8 +122,9 @@ mod tests {
                 global.clone(),
                 global.clone(),
                 deny.clone(),
+                deny.clone(),
                 deny,
-                Proxy::Direct,
+                Proxy::Url("http://127.0.0.1:3128".into()),
                 global,
             ]
         );
