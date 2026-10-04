@@ -152,8 +152,12 @@ pub fn wrap_words(text: &str, max: usize) -> Vec<String> {
         if !line.is_empty() {
             lines.push(std::mem::take(&mut line));
         }
-        while width(&word) > max {
-            let head = fit_width(&word, max);
+        // A single character wider than the line still takes a line of its own.
+        while width(&word) > max && word.chars().nth(1).is_some() {
+            let mut head = fit_width(&word, max);
+            if head.is_empty() {
+                head = word.chars().next().map(String::from).unwrap_or_default();
+            }
             word = word[head.len()..].to_owned();
             lines.push(head);
         }
@@ -286,6 +290,9 @@ mod tests {
         assert_eq!(truncate_bytes("abcdefghij", 8), "abcde...");
         assert_eq!(wrap_words("Auth Files (1 active)", 16), ["Auth Files (1", "active)"]);
         assert_eq!(wrap_words("abcdefgh ij", 3), ["abc", "def", "gh", "ij"]);
+        // Two-column characters on a one-column line: one per line, no endless loop.
+        assert_eq!(wrap_words("日本", 1), ["日", "本"]);
+        assert_eq!(wrap_words("a 日本語", 3), ["a", "日", "本", "語"]);
         assert_eq!(truncate_width("abcdef", 4, "…"), "abc…");
         assert_eq!(truncate_width("abc", 4, "…"), "abc");
     }
