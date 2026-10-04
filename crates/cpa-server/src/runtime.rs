@@ -342,6 +342,9 @@ impl Runtime {
                 end: Some(grant.end),
                 releases: releases.clone(),
             }),
+            // ponytail: Go's Home dispatch keys its own session aliases on LCP matches
+            // (home_session_alias.go); remote picks here carry no LCP binding.
+            lcp: None,
         };
         Ok((lease, grant.request_retry))
     }
@@ -543,6 +546,9 @@ pub struct Selection {
     pub session_parent: Option<String>,
     /// The session forked from `session_parent` (inherits its binding).
     pub session_fork: bool,
+    /// A request without an explicit session, for the LCP matcher (Go `pickLCP`). Set
+    /// only with session affinity on; it then decides the binding instead of `session`.
+    pub lcp: Option<Arc<crate::lcp::Request>>,
     /// Credential IDs already tried in this request.
     pub exclude: Vec<String>,
     pub retry_round: usize,
@@ -663,6 +669,8 @@ pub struct Lease {
     /// A credential from the remote dispatcher: its lease ends there, not in the local
     /// scheduler.
     remote: Option<crate::remote::RemoteEnd>,
+    /// The LCP binding of the pick: the attempt's canonical session and lineage.
+    pub lcp: Option<crate::lcp::Match>,
 }
 
 impl Lease {
@@ -1034,9 +1042,10 @@ impl CredentialStore {
                 });
             }
             let refs: Vec<(&Credential, &str)> = candidates.iter().map(|(c, p)| (*c, p.as_str())).collect();
-            let picked = scheduler.pick_ranked(&refs, &selection, &policy, ranks, now).unwrap();
-            inner.creds.iter().find(|c| c.id == picked.id).unwrap().clone()
+            let (picked, lcp) = scheduler.pick_session(&refs, &selection, &policy, ranks, now).unwrap();
+            (inner.creds.iter().find(|c| c.id == picked.id).unwrap().clone(), lcp)
         };
+        let (credential, lcp) = credential;
         let execution_model = admit(&credential).unwrap_or_else(|| selection.model.clone());
         Ok(Lease {
             store: self.clone(),
@@ -1047,6 +1056,7 @@ impl CredentialStore {
             policy,
             reported: false,
             remote: None,
+            lcp,
         })
     }
 
@@ -1170,7 +1180,14 @@ impl CredentialStore {
             let mut scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
             let before = persist.then(|| scheduler.records(&lease.credential, now, wall));
             scheduler.record(&lease.credential, model, outcome, &lease.policy, now);
-            scheduler.session_result(&lease.credential, &lease.selection, outcome, &lease.policy, now);
+            scheduler.session_result(
+                &lease.credential,
+                &lease.selection,
+                outcome,
+                &lease.policy,
+                lease.lcp.as_ref(),
+                now,
+            );
             // Go `publishErrorEvent` after MarkResult (and the availability-neutral record).
             if let (Outcome::Failure(error) | Outcome::Neutral(error), Some(queue)) = (outcome, self.error_events.get())
                 && queue.wants_errors()

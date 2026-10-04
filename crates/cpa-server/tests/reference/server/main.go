@@ -398,6 +398,18 @@ type affinityStep struct {
 	Status    int        `json:"status,omitempty"`
 	Message   string     `json:"message,omitempty"`
 	Picked    string     `json:"picked,omitempty"`
+	// LCP cases: a per-step caller key, and what the pick wrote into the metadata.
+	Caller string   `json:"caller,omitempty"`
+	LCP    *lcpMeta `json:"lcp,omitempty"`
+}
+
+type lcpMeta struct {
+	Session    string `json:"session"`
+	Parent     string `json:"parent"`
+	NodeKind   string `json:"node_kind"`
+	Fork       bool   `json:"fork"`
+	Compaction bool   `json:"compaction"`
+	Generation uint64 `json:"generation"`
 }
 
 type affinityCase struct {
@@ -405,6 +417,11 @@ type affinityCase struct {
 	SubagentAffinity bool              `json:"subagent_affinity"`
 	Priorities       map[string]string `json:"priorities,omitempty"`
 	Steps            []affinityStep    `json:"steps"`
+	// LCP cases: selection through the mixed picker (provider "mixed") with a caller
+	// scope from Caller, in this source format.
+	LCP    bool   `json:"lcp,omitempty"`
+	Caller string `json:"caller,omitempty"`
+	Format string `json:"format,omitempty"`
 }
 
 func pick(hs [][]string, payload string, available ...string) affinityStep {
@@ -463,6 +480,116 @@ var affinityInputs = []affinityCase{
 	}},
 }
 
+func lcpPick(payload string, available ...string) affinityStep {
+	return affinityStep{Op: "pick", Payload: payload, Available: available}
+}
+
+// lcpThen picks and reports the outcome on the picked credential with the pick's own
+// options, as the conductor does.
+func lcpThen(op string, status int, payload string, available ...string) affinityStep {
+	return affinityStep{Op: "pick_" + op, Payload: payload, Available: available, Status: status, Message: "boom"}
+}
+
+func chat(turns ...string) string {
+	msgs := make([]string, 0, len(turns))
+	for i, t := range turns {
+		role := "user"
+		if i%2 == 1 {
+			role = "assistant"
+		}
+		if strings.HasPrefix(t, "system:") {
+			role, t = "system", strings.TrimPrefix(t, "system:")
+		}
+		msgs = append(msgs, fmt.Sprintf(`{"role":%q,"content":%q}`, role, t))
+	}
+	return `{"messages":[` + strings.Join(msgs, ",") + `]}`
+}
+
+const (
+	gemFirst     = `{"contents":[{"role":"user","parts":[{"text":"step 1"}]},{"role":"model","parts":[{"text":"ack 1"}]},{"role":"user","parts":[{"text":"step 2"}]},{"role":"model","parts":[{"text":"ack 2"}]},{"role":"user","parts":[{"text":"step 3"}]}]}`
+	gemCompacted = `{"contents":[{"role":"user","parts":[{"text":"<summary>Steps 1 and 2 completed</summary>"}]},{"role":"model","parts":[{"text":"ack 2"}]},{"role":"user","parts":[{"text":"step 3"}]},{"role":"user","parts":[{"text":"step 4"}]}]}`
+	claudeFirst  = `{"system":"Be brief","messages":[{"role":"user","content":[{"type":"text","text":"hello"}]}]}`
+	claudeGrown  = `{"system":"Be brief","messages":[{"role":"user","content":[{"type":"text","text":"hello"}]},{"role":"assistant","content":[{"type":"text","text":"hi"}]},{"role":"user","content":"more"}]}`
+	respFirst    = `{"instructions":"Be brief","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hello"}]}]}`
+	respGrown    = `{"instructions":"Be brief","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hello"}]},{"type":"function_call","call_id":"c1","name":"ls","arguments":"{}"},{"type":"function_call_output","call_id":"c1","output":"a.txt"}]}`
+)
+
+var lcpAffinityInputs = []affinityCase{
+	{Name: "lcp_growth_keeps_binding", Steps: []affinityStep{
+		lcpPick(chat("hello"), "b"), lcpThen("ok", 0, chat("hello", "hi", "more"), "a", "b"), lcpPick(chat("hello", "hi", "more", "sure", "again"), "a", "b"),
+	}},
+	{Name: "lcp_fork_derives_lineage", Steps: []affinityStep{
+		lcpThen("ok", 0, chat("hello", "hi", "more"), "b"), lcpPick(chat("hello", "hi", "other"), "a", "b"), lcpThen("ok", 0, chat("hello", "hi", "other"), "a", "b"), lcpPick(chat("hello", "hi", "other", "x", "y"), "a", "b"),
+	}},
+	{Name: "lcp_failure_removes_exact_sequence", Steps: []affinityStep{
+		lcpThen("ok", 0, chat("hello"), "b"), lcpThen("fail", 500, chat("hello", "hi", "more"), "a", "b"), lcpPick(chat("hello", "hi", "more"), "a", "b"), lcpThen("fail", 500, chat("hello"), "a", "b"), lcpPick(chat("hello"), "a", "b"),
+	}},
+	{Name: "lcp_request_fault_keeps_binding", Steps: []affinityStep{
+		lcpPick(chat("hello"), "b"), lcpThen("fail", 400, chat("hello"), "a", "b"), lcpPick(chat("hello"), "a", "b"),
+	}},
+	{Name: "lcp_unavailable_binding_rebinds", Steps: []affinityStep{
+		lcpPick(chat("hello"), "b"), lcpThen("ok", 0, chat("hello", "hi", "more"), "a"), lcpPick(chat("hello", "hi", "more"), "a", "b"), lcpPick(chat("hello", "hi", "more", "x", "y"), "a", "b"),
+	}},
+	{Name: "lcp_binding_beats_recovered_priority", Priorities: map[string]string{"c": "5"}, Steps: []affinityStep{
+		lcpPick(chat("hello"), "a"), lcpPick(chat("hello", "hi", "more"), "a", "c"), lcpPick(chat("fresh"), "a", "c"),
+	}},
+	{Name: "lcp_caller_isolation", Steps: []affinityStep{
+		lcpPick(chat("hello"), "b"), func() affinityStep { st := lcpPick(chat("hello"), "a", "b"); st.Caller = "client-key-2"; return st }(), lcpPick(chat("hello"), "a", "b"),
+	}},
+	{Name: "lcp_explicit_session_wins", Steps: []affinityStep{
+		{Op: "pick", Headers: s1, Payload: chat("hello"), Available: []string{"b"}}, lcpPick(chat("hello"), "a", "b"), {Op: "pick", Headers: s1, Payload: chat("hello", "hi", "more"), Available: []string{"a", "b"}},
+	}},
+	{Name: "lcp_system_only_falls_back", Steps: []affinityStep{
+		lcpPick(chat("system:rules"), "b"), lcpPick(chat("system:rules"), "a", "b"),
+	}},
+	{Name: "lcp_system_prefix_is_not_evidence", Steps: []affinityStep{
+		lcpPick(chat("system:rules", "hello"), "b"), lcpPick(chat("system:rules", "other"), "a", "b"), lcpPick(chat("system:rules", "hello", "hi", "more"), "a", "b"),
+	}},
+	{Name: "lcp_anonymous_caller_uses_session_cache", Caller: "-", Steps: []affinityStep{
+		lcpPick(chat("hello"), "b"), lcpPick(chat("hello", "hi", "more"), "a", "b"),
+	}},
+	{Name: "lcp_gemini_compaction", Format: "gemini", Steps: []affinityStep{
+		lcpThen("ok", 0, gemFirst, "b"), lcpPick(gemCompacted, "a", "b"), lcpThen("ok", 0, gemCompacted, "a", "b"),
+	}},
+	{Name: "lcp_claude_growth", Format: "claude", Steps: []affinityStep{
+		lcpPick(claudeFirst, "b"), lcpPick(claudeGrown, "a", "b"),
+	}},
+	{Name: "lcp_responses_growth", Format: "openai-response", Steps: []affinityStep{
+		lcpPick(respFirst, "b"), lcpPick(respGrown, "a", "b"),
+	}},
+}
+
+func init() {
+	for _, c := range lcpAffinityInputs {
+		c.LCP = true
+		c.SubagentAffinity = true
+		switch c.Caller {
+		case "":
+			c.Caller = "client-key-1"
+		case "-":
+			c.Caller = ""
+		}
+		if c.Format == "" {
+			c.Format = "openai"
+		}
+		affinityInputs = append(affinityInputs, c)
+	}
+}
+
+func lcpMetadata(md map[string]any) *lcpMeta {
+	session, _ := md[cliproxyexecutor.LCPAffinitySessionIDMetadataKey].(string)
+	if session == "" {
+		return nil
+	}
+	m := &lcpMeta{Session: session}
+	m.Parent, _ = md[cliproxyexecutor.ParentSessionIDMetadataKey].(string)
+	m.NodeKind, _ = md[cliproxyexecutor.NodeKindMetadataKey].(string)
+	m.Fork, _ = md[cliproxyexecutor.IsForkMetadataKey].(bool)
+	m.Compaction, _ = md[cliproxyexecutor.IsCompactionMetadataKey].(bool)
+	m.Generation, _ = md[cliproxyexecutor.LCPAccessGenerationMetadataKey].(uint64)
+	return m
+}
+
 func affinities() []affinityCase {
 	ctx := context.Background()
 	out := make([]affinityCase, len(affinityInputs))
@@ -487,21 +614,43 @@ func affinities() []affinityCase {
 			for _, pair := range st.Headers {
 				headers.Add(pair[0], pair[1])
 			}
+			format, provider := "openai", "claude"
+			metadata := map[string]any{}
+			if c.LCP {
+				format, provider = c.Format, "mixed"
+				caller := c.Caller
+				if st.Caller != "" {
+					caller = st.Caller
+				}
+				if scope := session.CallerScope(caller); scope != "" {
+					metadata[cliproxyexecutor.CallerScopeMetadataKey] = scope
+				}
+			}
 			_, opts := session.Enrich(
 				cliproxyexecutor.Request{Payload: []byte(st.Payload)},
-				cliproxyexecutor.Options{Headers: headers, SourceFormat: sdktranslator.Format("openai"), Metadata: map[string]any{}},
+				cliproxyexecutor.Options{Headers: headers, SourceFormat: sdktranslator.Format(format), OriginalRequest: []byte(st.Payload), Metadata: metadata},
 			)
 			switch st.Op {
-			case "pick":
+			case "pick", "pick_ok", "pick_fail":
 				var candidates []*auth.Auth
 				for _, id := range st.Available {
 					candidates = append(candidates, auths[id])
 				}
-				picked, err := selector.Pick(ctx, "claude", "m", opts, candidates)
+				picked, err := selector.Pick(ctx, provider, "m", opts, candidates)
 				if err != nil {
 					panic(err)
 				}
 				st.Picked = picked.ID
+				if c.LCP {
+					st.LCP = lcpMetadata(opts.Metadata)
+				}
+				if st.Op != "pick" {
+					res := auth.Result{AuthID: picked.ID, Provider: provider, Model: "m", Success: st.Op == "pick_ok", Options: opts}
+					if st.Op == "pick_fail" {
+						res.Error = &auth.Error{HTTPStatus: st.Status, Message: st.Message}
+					}
+					selector.OnResult(res)
+				}
 			default:
 				res := auth.Result{AuthID: st.Auth, Provider: "claude", Model: "m", Success: st.Op == "ok", Options: opts}
 				if st.Op == "fail" {

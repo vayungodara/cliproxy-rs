@@ -543,6 +543,811 @@
           "picked": "b"
         }
       ]
+    },
+    {
+      "name": "lcp_growth_keeps_binding",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick_ok",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 3
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"},{\"role\":\"assistant\",\"content\":\"sure\"},{\"role\":\"user\",\"content\":\"again\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 7
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_fork_derives_lineage",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick_ok",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "b"
+          ],
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"other\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:2a48b4f1f73a68e156eeadd0719f8bc9cefd9a46fdfd0bee575d46c7cef0813e",
+            "parent": "lcp:v1:22b0c40b6abe3e84edcfcdef0b154cf89439e5c3d0625a73f12bd05fdb50b121",
+            "node_kind": "fork",
+            "fork": true,
+            "compaction": false,
+            "generation": 4
+          }
+        },
+        {
+          "op": "pick_ok",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"other\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:2a48b4f1f73a68e156eeadd0719f8bc9cefd9a46fdfd0bee575d46c7cef0813e",
+            "parent": "lcp:v1:22b0c40b6abe3e84edcfcdef0b154cf89439e5c3d0625a73f12bd05fdb50b121",
+            "node_kind": "fork",
+            "fork": true,
+            "compaction": false,
+            "generation": 5
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"other\"},{\"role\":\"assistant\",\"content\":\"x\"},{\"role\":\"user\",\"content\":\"y\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:2a48b4f1f73a68e156eeadd0719f8bc9cefd9a46fdfd0bee575d46c7cef0813e",
+            "parent": "lcp:v1:22b0c40b6abe3e84edcfcdef0b154cf89439e5c3d0625a73f12bd05fdb50b121",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 9
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_failure_removes_exact_sequence",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick_ok",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "b"
+          ],
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick_fail",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "status": 500,
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 4
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 5
+          }
+        },
+        {
+          "op": "pick_fail",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "status": 500,
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 6
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 8
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_request_fault_keeps_binding",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick_fail",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "status": 400,
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 3
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 4
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_unavailable_binding_rebinds",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick_ok",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a"
+          ],
+          "message": "boom",
+          "picked": "a",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 6
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 8
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"},{\"role\":\"assistant\",\"content\":\"x\"},{\"role\":\"user\",\"content\":\"y\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 9
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_binding_beats_recovered_priority",
+      "subagent_affinity": true,
+      "priorities": {
+        "c": "5"
+      },
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "a"
+          ],
+          "picked": "a",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "c"
+          ],
+          "picked": "a",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 3
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"fresh\"}]}",
+          "available": [
+            "a",
+            "c"
+          ],
+          "picked": "c",
+          "lcp": {
+            "session": "lcp:v1:8fd8f5d52fc5178c7b146a7b78e3d220281849fe8898441f240f3e4dbab6433a",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 5
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_caller_isolation",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a",
+          "caller": "client-key-2",
+          "lcp": {
+            "session": "lcp:v1:436d18b4242d3cd48aa1ee8e2fc2aa42f6651f2e8567e61482f4713d559f5385",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 4
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 5
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_explicit_session_wins",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a",
+          "lcp": {
+            "session": "lcp:v1:d9efbfa26128f4b634ce8e25c2f7b9b93127b3f82af6bbd204f83fb51d9a4e67",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick",
+          "headers": [
+            [
+              "X-Session-ID",
+              "s1"
+            ]
+          ],
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_system_only_falls_back",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"system\",\"content\":\"rules\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"system\",\"content\":\"rules\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a"
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_system_prefix_is_not_evidence",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"system\",\"content\":\"rules\"},{\"role\":\"assistant\",\"content\":\"hello\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:300b5b341ab558ef8d7b08611ac02a58eb158dd3486ecc25751cc3a3512c965a",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"system\",\"content\":\"rules\"},{\"role\":\"assistant\",\"content\":\"other\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "a",
+          "lcp": {
+            "session": "lcp:v1:7681d836b89fee3345f2078ef8e3124512f2d38f9b5f6372d656c89fcb844ed1",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 4
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"system\",\"content\":\"rules\"},{\"role\":\"assistant\",\"content\":\"hello\"},{\"role\":\"user\",\"content\":\"hi\"},{\"role\":\"assistant\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:300b5b341ab558ef8d7b08611ac02a58eb158dd3486ecc25751cc3a3512c965a",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 5
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai"
+    },
+    {
+      "name": "lcp_anonymous_caller_uses_session_cache",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b"
+        },
+        {
+          "op": "pick",
+          "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b"
+        }
+      ],
+      "lcp": true,
+      "format": "openai"
+    },
+    {
+      "name": "lcp_gemini_compaction",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick_ok",
+          "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"step 1\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"ack 1\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"step 2\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"ack 2\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"step 3\"}]}]}",
+          "available": [
+            "b"
+          ],
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:f29bcd4d34714928cfc09cbd17a5983faa08c8e9244908ea47fb496478c6127b",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\u003csummary\u003eSteps 1 and 2 completed\u003c/summary\u003e\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"ack 2\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"step 3\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"step 4\"}]}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:2544d27ee843547eb872414847e6dfaa77b389e700ef9ba4ef60979e2f707981",
+            "parent": "lcp:v1:f29bcd4d34714928cfc09cbd17a5983faa08c8e9244908ea47fb496478c6127b",
+            "node_kind": "compaction",
+            "fork": false,
+            "compaction": true,
+            "generation": 4
+          }
+        },
+        {
+          "op": "pick_ok",
+          "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\u003csummary\u003eSteps 1 and 2 completed\u003c/summary\u003e\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"ack 2\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"step 3\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"step 4\"}]}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "message": "boom",
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:2544d27ee843547eb872414847e6dfaa77b389e700ef9ba4ef60979e2f707981",
+            "parent": "lcp:v1:f29bcd4d34714928cfc09cbd17a5983faa08c8e9244908ea47fb496478c6127b",
+            "node_kind": "compaction",
+            "fork": false,
+            "compaction": true,
+            "generation": 5
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "gemini"
+    },
+    {
+      "name": "lcp_claude_growth",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"system\":\"Be brief\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:50eeceaab88ecf005ad303f7a750d586651073bc81263a369de5e61d9314f47e",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"system\":\"Be brief\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"user\",\"content\":\"more\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:50eeceaab88ecf005ad303f7a750d586651073bc81263a369de5e61d9314f47e",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 3
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "claude"
+    },
+    {
+      "name": "lcp_responses_growth",
+      "subagent_affinity": true,
+      "steps": [
+        {
+          "op": "pick",
+          "payload": "{\"instructions\":\"Be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]}]}",
+          "available": [
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:50eeceaab88ecf005ad303f7a750d586651073bc81263a369de5e61d9314f47e",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 2
+          }
+        },
+        {
+          "op": "pick",
+          "payload": "{\"instructions\":\"Be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"ls\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"c1\",\"output\":\"a.txt\"}]}",
+          "available": [
+            "a",
+            "b"
+          ],
+          "picked": "b",
+          "lcp": {
+            "session": "lcp:v1:50eeceaab88ecf005ad303f7a750d586651073bc81263a369de5e61d9314f47e",
+            "parent": "",
+            "node_kind": "",
+            "fork": false,
+            "compaction": false,
+            "generation": 3
+          }
+        }
+      ],
+      "lcp": true,
+      "caller": "client-key-1",
+      "format": "openai-response"
     }
   ],
   "alt": [

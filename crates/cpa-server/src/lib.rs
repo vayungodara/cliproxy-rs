@@ -17,6 +17,7 @@ mod gojson;
 mod home_models;
 mod images;
 pub mod keepalive;
+pub mod lcp;
 pub mod listener;
 pub mod logging;
 pub mod management;

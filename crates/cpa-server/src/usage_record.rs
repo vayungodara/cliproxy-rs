@@ -1230,6 +1230,9 @@ pub struct Client {
     pub session_id: String,
     pub parent_session_id: String,
     pub is_fork: bool,
+    /// Go `NodeKind` and `IsCompaction`: set only by an LCP pick (`fork`, `compaction`).
+    pub node_kind: String,
+    pub is_compaction: bool,
     pub request_id: String,
     /// `METHOD /route/template`.
     pub endpoint: String,
@@ -1431,8 +1434,12 @@ pub fn queued(record: &Record, client: &Client) -> Vec<u8> {
     w.opt_str("trace_id", request_id);
     w.opt_str("session_id", &session);
     w.opt_str("parent_session_id", &parent);
+    w.opt_str("node_kind", client.node_kind.trim());
     if client.is_fork {
         w.bool("is_fork", true);
+    }
+    if client.is_compaction {
+        w.bool("is_compaction", true);
     }
     w.str("reasoning_effort", record.reasoning_effort.trim());
     w.str("service_tier", &service_tier);
@@ -1704,9 +1711,29 @@ pub struct Tracker {
     model: ResponseModel,
     first: Option<std::time::Duration>,
     published: bool,
+    /// The request's client facts with this attempt's LCP session, when it has one.
+    client: Option<Client>,
 }
 
 impl Tracker {
+    /// The attempt's session is its LCP pick's (Go `syncMetadataSessionToContext`), not
+    /// the request's.
+    pub fn lcp_session(&mut self, m: &crate::lcp::Match) {
+        let bound = cpa_common::session::bound_session_identity;
+        let mut client = self.facts.client.clone();
+        client.session_id = bound(&m.session);
+        client.parent_session_id = if m.parent.is_empty() {
+            String::new()
+        } else {
+            bound(&m.parent)
+        };
+        let (node_kind, fork, compaction) = m.node();
+        client.node_kind = node_kind.into();
+        client.is_fork = fork;
+        client.is_compaction = compaction;
+        self.client = Some(client);
+    }
+
     /// Starts the record for one attempt of `credential` on `upstream_model`.
     pub fn start(
         rt: &std::sync::Arc<crate::Runtime>,
@@ -1751,6 +1778,7 @@ impl Tracker {
             model: ResponseModel::default(),
             first: None,
             published: false,
+            client: None,
         }
     }
 
@@ -1868,7 +1896,7 @@ impl Tracker {
         if let Some(effort) = reported.effort {
             record.reasoning_effort = effort;
         }
-        queue.enqueue(queued(&record, &self.facts.client));
+        queue.enqueue(queued(&record, self.client.as_ref().unwrap_or(&self.facts.client)));
         warn_model_substitution(&record, &reported.upstream_model, &self.auth_id);
     }
 }
@@ -2172,6 +2200,8 @@ mod tests {
                 session_id: s("session_id"),
                 parent_session_id: s("parent_session_id"),
                 is_fork: false,
+                node_kind: String::new(),
+                is_compaction: false,
                 request_id: s("request_id"),
                 endpoint: s("endpoint"),
                 api_key: s("client_key"),

@@ -277,3 +277,90 @@ async fn compact_request_fault_stops_fallback() {
     let (status, text) = send(&url, "/v1/responses", &[], body).await;
     assert_eq!(status, 200, "normal traffic is not cooled: {text}");
 }
+
+/// Go `pickLCP` through dispatch: with session affinity, an authenticated request
+/// without an explicit session gets its LCP session as the attempt's canonical session,
+/// in `$CPA-SESSION-ID` custom headers and in the usage record with its lineage.
+#[tokio::test]
+async fn lcp_session_reaches_custom_headers_and_usage_records() {
+    type Sessions = Arc<Mutex<Vec<String>>>;
+    let sessions: Sessions = Arc::default();
+    let upstream = axum::Router::new()
+        .fallback(|State(seen): State<Sessions>, req: Request| async move {
+            let header = req.headers().get("x-session").map(|v| v.to_str().unwrap().to_owned());
+            seen.lock().unwrap().push(header.unwrap_or_default());
+            ([("content-type", "application/json")], CHAT).into_response()
+        })
+        .with_state(sessions.clone());
+    let upstream_url = serve(upstream).await;
+    // A private auth-dir: without one, credential loading reads the real ~/.cli-proxy-api.
+    let auth_dir = std::env::temp_dir().join(format!("cpa-compat-lcp-auths-{}", std::process::id()));
+    std::fs::create_dir_all(&auth_dir).unwrap();
+    let config = Config::parse(&format!(
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\nrouting:\n  session-affinity: true\nobservability:\n  usage:\n    usage-statistics-enabled: true\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: {upstream_url}/v1\n      headers:\n        X-Session: $CPA-SESSION-ID\n      models:\n        - name: up-model\n          alias: fast\n      keys:\n        - api-key: sk-fake-a\n",
+        auth_dir.display()
+    ))
+    .unwrap();
+    let credentials = cpa_core::config::credentials::load(&config);
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
+    rt.usage_queue().configure(true, &rt.config());
+    let url = serve(router(rt.clone())).await;
+    let turns = |texts: &[&str]| {
+        let messages: Vec<serde_json::Value> = texts
+            .iter()
+            .enumerate()
+            .map(|(i, t)| serde_json::json!({"role": if i % 2 == 0 { "user" } else { "assistant" }, "content": t}))
+            .collect();
+        serde_json::json!({"model": "fast", "messages": messages}).to_string()
+    };
+    for body in [
+        turns(&["hello"]),
+        turns(&["hello", "hi", "more"]),
+        turns(&["hello", "hi", "other"]),
+    ] {
+        let (status, _, text) = post(&url, &body).await;
+        assert_eq!(status, 200, "{text}");
+    }
+    let (status, text) = send(
+        &url,
+        "/v1/chat/completions",
+        &[("x-session-id", "explicit-1")],
+        turns(&["hello"]).into_bytes(),
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+
+    let seen = sessions.lock().unwrap().clone();
+    assert_eq!(seen.len(), 4);
+    assert!(seen[0].starts_with("lcp:v1:"), "{seen:?}");
+    assert_eq!(seen[1], seen[0], "a growing conversation keeps its session");
+    assert!(
+        seen[2].starts_with("lcp:v1:") && seen[2] != seen[0],
+        "a fork gets its own: {seen:?}"
+    );
+    assert!(!seen[3].starts_with("lcp:"), "an explicit session wins: {seen:?}");
+
+    let records: Vec<serde_json::Value> = rt
+        .usage_queue()
+        .pop_oldest(10)
+        .iter()
+        .map(|r| serde_json::from_slice(r).unwrap())
+        .collect();
+    assert_eq!(records.len(), 4);
+    let field = |i: usize, key: &str| records[i].get(key).cloned();
+    assert!(field(0, "session_id").is_some());
+    assert_eq!(field(1, "session_id"), field(0, "session_id"));
+    assert_eq!(field(0, "node_kind"), None, "a plain hit carries no node kind");
+    assert_ne!(field(2, "session_id"), field(0, "session_id"));
+    assert_eq!(field(2, "node_kind"), Some("fork".into()));
+    assert_eq!(field(2, "is_fork"), Some(true.into()));
+    assert!(field(2, "parent_session_id").is_some(), "{}", records[2]);
+    assert_eq!(field(2, "is_compaction"), None);
+}
