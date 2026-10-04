@@ -223,9 +223,12 @@ async fn relays_audio_and_data_channel_between_peers() {
     let offer = client.pc.create_offer(None).await.unwrap();
     let client_offer = complete(&mut client, offer).await;
 
-    let (session, relay_offer) = relay.new_session(client_offer.clone(), route()).await.unwrap();
+    let (session, relay_offer) = relay
+        .new_session(client_offer.clone(), route(), Box::new(()))
+        .await
+        .unwrap();
     assert_ne!(relay_offer, client_offer, "the relay offers its own session upstream");
-    let busy = relay.new_session(client_offer, route()).await;
+    let busy = relay.new_session(client_offer, route(), Box::new(())).await;
     assert_eq!(
         busy.err().map(|e| e.message),
         Some("Codex live media relay capacity exhausted".to_owned()),
@@ -293,6 +296,7 @@ async fn relays_audio_and_data_channel_between_peers() {
                 complete(&mut again, offer).await
             },
             route(),
+            Box::new(()),
         )
         .await
         .expect("closing released the session slot");
@@ -305,7 +309,11 @@ async fn relays_audio_and_data_channel_between_peers() {
         proxy_url: "ftp://proxy:21".into(),
         ..route()
     };
-    let refused = relay.new_session("v=0\r\n".into(), invalid).await.err().unwrap();
+    let refused = relay
+        .new_session("v=0\r\n".into(), invalid, Box::new(()))
+        .await
+        .err()
+        .unwrap();
     assert_eq!(
         (refused.status, refused.message.as_str()),
         (
@@ -416,13 +424,24 @@ async fn cancelled_setup_frees_ports_and_slot() {
     let offer = client.pc.create_offer(None).await.unwrap();
     let offer = complete(&mut client, offer).await;
 
-    let first = tokio::time::timeout(Duration::from_millis(300), relay.new_session(offer.clone(), route())).await;
+    let (probe, slot_free) = Probe::new(&limiter);
+    let first = tokio::time::timeout(
+        Duration::from_millis(300),
+        relay.new_session(offer.clone(), route(), Box::new(probe)),
+    )
+    .await;
     assert!(first.is_err(), "setup is still gathering when the request goes away");
+    released_after_close(&slot_free).await;
     // A second attempt fails at once while the slot or a port is still held, and stays
     // pending (gathering) once both are free.
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     loop {
-        match tokio::time::timeout(Duration::from_millis(300), relay.new_session(offer.clone(), route())).await {
+        match tokio::time::timeout(
+            Duration::from_millis(300),
+            relay.new_session(offer.clone(), route(), Box::new(())),
+        )
+        .await
+        {
             Err(_) => break,
             Ok(result) => {
                 let message = result.err().map(|e| e.message).unwrap_or_default();
@@ -436,6 +455,76 @@ async fn cancelled_setup_frees_ports_and_slot() {
     }
     let _ = client.pc.close().await;
     drop(silent);
+}
+
+/// A setup hold that records, when dropped, whether the session's slot was already free.
+/// The relay returns the slot only after both peers closed, so `Some(true)` means the hold
+/// outlived the close.
+struct Probe {
+    limiter: Arc<Limiter>,
+    slot_free: Arc<std::sync::Mutex<Option<bool>>>,
+}
+
+impl Probe {
+    fn new(limiter: &Arc<Limiter>) -> (Self, Arc<std::sync::Mutex<Option<bool>>>) {
+        let slot_free = Arc::default();
+        let probe = Self {
+            limiter: limiter.clone(),
+            slot_free: Arc::clone(&slot_free),
+        };
+        (probe, slot_free)
+    }
+}
+
+impl Drop for Probe {
+    fn drop(&mut self) {
+        let free = self.limiter.acquire().is_some();
+        *self.slot_free.lock().unwrap() = Some(free);
+    }
+}
+
+async fn released_after_close(slot_free: &std::sync::Mutex<Option<bool>>) {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    while slot_free.lock().unwrap().is_none() {
+        assert!(tokio::time::Instant::now() < deadline, "the hold was never released");
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(
+        *slot_free.lock().unwrap(),
+        Some(true),
+        "the hold was released before the session finished closing"
+    );
+}
+
+/// A setup that fails closes its half-built session and returns the error only after
+/// the close finished; the hold is released by then, and not before.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn failed_setup_releases_its_hold_after_the_close() {
+    let config = RelayConfig {
+        enabled: true,
+        max_sessions: 1,
+        ..RelayConfig::default()
+    };
+    let limiter = Arc::new(Limiter::default());
+    limiter.set_limit(config.max_sessions());
+    let relay = Relay {
+        config,
+        limiter: limiter.clone(),
+        bind_ip: Some("127.0.0.1".parse().unwrap()),
+    };
+    let route = Route {
+        proxy_url: String::new(),
+        credential: "c".into(),
+        auth_index: "i".into(),
+    };
+    let (probe, slot_free) = Probe::new(&limiter);
+    let result = relay.new_session("not an offer".into(), route, Box::new(probe)).await;
+    assert!(result.is_err());
+    assert_eq!(
+        *slot_free.lock().unwrap(),
+        Some(true),
+        "released after the close, before the error"
+    );
 }
 
 /// What the test SOCKS5 proxy saw: the targets asked for, and how many tunnels ended.
@@ -507,7 +596,7 @@ async fn proxied_credentials_relay_media_through_the_proxy() {
     let client_channel = client.pc.create_data_channel(LABEL, None).await.unwrap();
     let offer = client.pc.create_offer(None).await.unwrap();
     let client_offer = complete(&mut client, offer).await;
-    let (session, relay_offer) = relay.new_session(client_offer, route).await.unwrap();
+    let (session, relay_offer) = relay.new_session(client_offer, route, Box::new(())).await.unwrap();
     let offered: Vec<&str> = relay_offer.lines().filter(|l| l.starts_with("a=candidate:")).collect();
     assert!(!offered.is_empty());
     for candidate in &offered {
@@ -696,7 +785,7 @@ async fn relays_over_ipv6() {
     let client_channel = client.pc.create_data_channel(LABEL, None).await.unwrap();
     let offer = client.pc.create_offer(None).await.unwrap();
     let client_offer = complete(&mut client, offer).await;
-    let (session, relay_offer) = relay.new_session(client_offer, route).await.unwrap();
+    let (session, relay_offer) = relay.new_session(client_offer, route, Box::new(())).await.unwrap();
     let addresses: Vec<&str> = relay_offer
         .lines()
         .filter_map(|l| l.strip_prefix("a=candidate:"))
@@ -802,10 +891,13 @@ async fn a_silent_stun_server_does_not_fail_the_call() {
     let offer = client.pc.create_offer(None).await.unwrap();
     let client_offer = complete(&mut client, offer).await;
     let started = tokio::time::Instant::now();
-    let (session, relay_offer) = tokio::time::timeout(Duration::from_secs(15), relay.new_session(client_offer, route))
-        .await
-        .expect("setup finished")
-        .expect("setup succeeded");
+    let (session, relay_offer) = tokio::time::timeout(
+        Duration::from_secs(15),
+        relay.new_session(client_offer, route, Box::new(())),
+    )
+    .await
+    .expect("setup finished")
+    .expect("setup succeeded");
     assert!(
         started.elapsed() >= Duration::from_secs(5),
         "waited for the STUN server first"

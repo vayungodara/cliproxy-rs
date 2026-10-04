@@ -289,7 +289,15 @@ pub(super) async fn call(
             credential: media_credential_name(&credential),
             auth_index: cpa_core::config::credentials::auth_index(&credential),
         };
-        let (session, upstream_offer) = match relay.new_session(offer, route).await {
+        // Setup shares the lease: if this request goes away mid-setup, the relay keeps it
+        // until the half-built session finished closing.
+        let shared_lease = Arc::new(std::sync::Mutex::new(held.lease.take()));
+        let created = relay.new_session(offer, route, Box::new(shared_lease.clone())).await;
+        held.lease = shared_lease
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        let (session, upstream_offer) = match created {
             Ok(created) => created,
             Err(e) => return traced(fail(e.status, &e.message)),
         };
@@ -789,7 +797,7 @@ mod relay_tests {
     use axum::extract::State as AxumState;
     use futures_util::future::BoxFuture;
 
-    use super::super::relay::{MediaRelay, MediaSession, NewSession, RelayError, Route};
+    use super::super::relay::{Hold, MediaRelay, MediaSession, NewSession, RelayError, Route};
     use super::*;
 
     #[derive(Default)]
@@ -832,7 +840,7 @@ mod relay_tests {
     }
 
     impl MediaRelay for FakeRelay {
-        fn new_session(&self, offer: String, route: Route) -> BoxFuture<'_, NewSession> {
+        fn new_session(&self, offer: String, route: Route, _: Hold) -> BoxFuture<'_, NewSession> {
             Box::pin(async move {
                 *self.seen.lock().unwrap() = Some((offer, route));
                 match &self.error {

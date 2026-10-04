@@ -17,7 +17,7 @@ use futures_util::future::BoxFuture;
 use tokio::sync::Notify;
 use wreq::ws::message::Message;
 
-use super::relay::{CloseHandler, MediaRelay, MediaSession, NewSession, RelayError, Route};
+use super::relay::{CloseHandler, Hold, MediaRelay, MediaSession, NewSession, RelayError, Route};
 use super::*;
 use crate::remote::{ModelsError, RemoteDispatch, RemoteError, RemoteErrorKind, RemoteGrant, RemoteRequest};
 
@@ -343,11 +343,33 @@ fn finish(pending: &Pending) {
 }
 
 /// A relay that fails setup, or hands out sessions that log their close. With
-/// `delayed`, a close completes only when the test calls [`finish`].
+/// `delayed`, a close completes only when the test calls [`finish`]. With `hang`, setup
+/// never finishes. Like the real relay, a setup that fails or is dropped closes its
+/// half-built session and keeps the hold until that close finished.
 struct FakeRelay {
     fail: bool,
+    hang: bool,
     log: Log,
     delayed: Option<Pending>,
+}
+
+/// A half-built session: dropped while it has the hold, it closes and releases the hold
+/// after the close.
+struct FakeSetup {
+    log: Log,
+    delayed: Option<Pending>,
+    hold: Option<Hold>,
+}
+
+impl Drop for FakeSetup {
+    fn drop(&mut self) {
+        let Some(hold) = self.hold.take() else { return };
+        self.log.lock().unwrap().push("media_closed".into());
+        match &self.delayed {
+            Some(pending) => pending.lock().unwrap().push(Box::new(move || drop(hold))),
+            None => drop(hold),
+        }
+    }
 }
 
 struct FakeSession {
@@ -373,11 +395,29 @@ impl MediaSession for FakeSession {
 }
 
 impl MediaRelay for FakeRelay {
-    fn new_session(&self, _: String, _: Route) -> BoxFuture<'_, NewSession> {
+    fn new_session(&self, _: String, _: Route, hold: Hold) -> BoxFuture<'_, NewSession> {
         Box::pin(async move {
+            let setup = FakeSetup {
+                log: self.log.clone(),
+                delayed: self.delayed.clone(),
+                hold: Some(hold),
+            };
+            if self.hang {
+                std::future::pending::<()>().await;
+            }
             if self.fail {
+                drop(setup);
+                // The error returns once the close finished.
+                if let Some(pending) = &self.delayed {
+                    let (done, closed) = tokio::sync::oneshot::channel::<()>();
+                    pending.lock().unwrap().push(Box::new(move || drop(done)));
+                    let _ = closed.await;
+                }
                 return Err(RelayError::new("media setup failed"));
             }
+            let mut setup = setup;
+            // Started: the hold goes back and nothing closes.
+            drop(setup.hold.take());
             let session = FakeSession {
                 log: self.log.clone(),
                 delayed: self.delayed.clone(),
@@ -395,6 +435,7 @@ async fn media_setup_failure_releases_the_home_selection() {
     let home = FakeHome::with(vec![live_credential()]);
     let relay: Arc<dyn MediaRelay> = Arc::new(FakeRelay {
         fail: true,
+        hang: false,
         log: home.log.clone(),
         delayed: None,
     });
@@ -403,7 +444,7 @@ async fn media_setup_failure_releases_the_home_selection() {
     assert_eq!(response.status().as_u16(), 502);
     assert_eq!(response.text().await.unwrap(), r#"{"error":"media setup failed"}"#);
     assert!(seen.lock().unwrap().is_empty(), "nothing went upstream");
-    assert_eq!(home.log(), ["home-codex-live"]);
+    assert_eq!(home.log(), ["media_closed", "home-codex-live"]);
 }
 
 /// Go's defers: unretained media closes before the selection ends, and a call's media
@@ -414,6 +455,7 @@ async fn media_closes_before_the_home_selection_ends() {
     let relay = || -> Arc<dyn MediaRelay> {
         Arc::new(FakeRelay {
             fail: false,
+            hang: false,
             log: home.log.clone(),
             delayed: None,
         })
@@ -668,6 +710,7 @@ async fn unretained_media_close_completion_gates_the_release() {
     let pending = Pending::default();
     let relay: Arc<dyn MediaRelay> = Arc::new(FakeRelay {
         fail: false,
+        hang: false,
         log: home.log.clone(),
         delayed: Some(pending.clone()),
     });
@@ -746,4 +789,41 @@ async fn a_sideband_pick_ends_after_the_call_media_closed() {
     assert_eq!(home.log(), ["media_closed"], "held until the media finished closing");
     finish(&pending);
     assert_eq!(home.log(), ["media_closed", "pinned-oauth"]);
+}
+
+/// A request that goes away while media setup runs leaves the lease with the setup: it
+/// is released once the half-built session finished closing, not with the request.
+#[tokio::test]
+async fn cancelled_media_setup_releases_after_its_close() {
+    for fail in [false, true] {
+        let home = FakeHome::with(vec![live_credential()]);
+        let pending = Pending::default();
+        let relay: Arc<dyn MediaRelay> = Arc::new(FakeRelay {
+            fail,
+            hang: !fail,
+            log: home.log.clone(),
+            delayed: Some(pending.clone()),
+        });
+        let (proxy, _, seen) = start(home.clone(), Some("/v1/live/call-123"), HOUR, Some(relay)).await;
+        let request = tokio::spawn(async move { post_live(&proxy, "gpt-live-1-codex").await });
+        // Hanging: setup is running. Failing: setup closed and waits for the close.
+        let in_setup = || !fail || home.log() == ["media_closed"];
+        eventually("setup started", || home.requests().len() == 1 && in_setup()).await;
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        request.abort();
+        let _ = request.await;
+        eventually("the cancelled setup closed its session", || {
+            home.log() == ["media_closed"]
+        })
+        .await;
+        tokio::time::sleep(Duration::from_millis(20)).await;
+        assert_eq!(
+            home.log(),
+            ["media_closed"],
+            "fail={fail}: released before the close finished"
+        );
+        finish(&pending);
+        assert_eq!(home.log(), ["media_closed", "home-codex-live"], "fail={fail}");
+        assert!(seen.lock().unwrap().is_empty(), "nothing went upstream");
+    }
 }
