@@ -1283,6 +1283,10 @@ impl CredentialStore {
         // Registrations depend on the credential (prefix, models): invalidate the
         // registry cache like `apply_patch` does.
         inner.epoch += 1;
+        drop(inner);
+        // Go `Manager.Update` clears the cooldowns of an auth it stores disabled (or
+        // with cooling off), so a later re-enable routes to it at once.
+        self.clear_disabled_cooldowns();
         Ok(committed)
     }
 
