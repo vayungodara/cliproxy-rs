@@ -273,6 +273,9 @@ struct Connection {
     /// The turn's selected credential runs full duplex (`codexDuplexStream`); its stream
     /// owns the connection's closure.
     duplex: Arc<AtomicBool>,
+    /// The turn is a native continuation that attempted its pinned credential, so a
+    /// 401/429 makes the client replay over HTTP (1012) rather than close on the loss.
+    replays: Arc<AtomicBool>,
     /// The upgrade request's log: upstream capture for every turn and its middleware ID.
     capture: cpa_core::exec::CaptureSink,
     request_id: Option<String>,
@@ -449,6 +452,7 @@ impl Connection {
             upstream_auth: String::new(),
             steering: false,
             duplex: Arc::default(),
+            replays: Arc::default(),
             capture: Default::default(),
             request_id: None,
             timeline: None,
@@ -479,7 +483,7 @@ impl Connection {
         } else {
             Client::Direct(stream, None)
         };
-        let duplex = self.duplex.clone();
+        let (duplex, replays) = (self.duplex.clone(), self.replays.clone());
         // Fused: a loss ignored during a duplex turn never fires again.
         let mut lost = Box::pin(self.rt.executors.session_closed(&self.session).fuse());
         loop {
@@ -510,7 +514,10 @@ impl Connection {
                     biased;
                     flow = &mut turn => Ok(flow),
                     error = &mut lost => {
-                        if duplex.load(Ordering::Acquire) {
+                        // A pinned continuation's own 401/429 lost the socket: the turn
+                        // sends the replay close (1012) instead.
+                        let replay = replays.load(Ordering::Acquire) && matches!(error.status, 401 | 429);
+                        if duplex.load(Ordering::Acquire) || replay {
                             tokio::select! {
                                 biased;
                                 flow = &mut turn => Ok(flow),
@@ -686,11 +693,13 @@ impl Connection {
             Ok(started) => self.forward(socket, started, &cfg, &mut ctx).await,
             Err(error) => {
                 let failure = Failure::from_dispatch(&error);
-                if let Some(loss) = self.upstream_loss() {
+                // A pinned continuation's credential failure also lost the session's
+                // socket; the client still needs the replay signal, not the loss close.
+                if ctx.suppress(failure.status) {
+                    Forwarded::Suppressed
+                } else if let Some(loss) = self.upstream_loss() {
                     close_for_upstream_loss(socket, &loss).await;
                     Forwarded::End
-                } else if ctx.suppress(failure.status) {
-                    Forwarded::Suppressed
                 } else {
                     close_for_failure(socket, &failure).await;
                     Forwarded::End
@@ -868,14 +877,17 @@ impl Connection {
             preserve_output: ctx.preserve_output,
         }));
         self.duplex.store(false, Ordering::Release);
+        self.replays.store(false, Ordering::Release);
         let on_selected: dispatch::OnSelected = {
             let (selected, rt, pinned) = (selected.clone(), self.rt.clone(), self.pinned.clone());
             let native_request = ctx.native_request;
-            let (duplex, steering) = (self.duplex.clone(), self.steering);
+            let continuation = ctx.native && ctx.requires_current;
+            let (duplex, replays, steering) = (self.duplex.clone(), self.replays.clone(), self.steering);
             Box::new(move |credential: &Credential| {
                 let mut s = selected.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
                 s.last.clone_from(&credential.id);
                 s.pinned_attempted |= !pinned.is_empty() && credential.id == pinned;
+                replays.store(continuation && s.pinned_attempted, Ordering::Release);
                 s.mode = if rt.executors.session_upstream(credential) {
                     Mode::Websocket
                 } else {
@@ -983,13 +995,14 @@ impl Connection {
                     return Forwarded::End;
                 }
                 Some(Err(error)) => {
+                    let failure = Failure::from_exec(&error);
+                    // Replay before the session-loss close, as at the turn's start.
+                    if ctx.suppress(failure.status) {
+                        return Forwarded::Suppressed;
+                    }
                     if let Some(loss) = self.upstream_loss() {
                         close_for_upstream_loss(socket, &loss).await;
                         return Forwarded::End;
-                    }
-                    let failure = Failure::from_exec(&error);
-                    if ctx.suppress(failure.status) {
-                        return Forwarded::Suppressed;
                     }
                     close_for_failure(socket, &failure).await;
                     return Forwarded::End;
