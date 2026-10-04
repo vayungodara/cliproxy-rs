@@ -252,6 +252,11 @@ impl OAuthTab {
                     self.refresh();
                 }
             }
+            "enter" if self.unsupported(self.cursor) => {
+                let message = format!("✗ {}: {}", PROVIDERS[self.cursor].0, t("oauth_unsupported"));
+                self.message = Some((message, s::error()));
+                self.refresh();
+            }
             "enter" => {
                 self.generation += 1;
                 self.state = State::Pending;
@@ -274,6 +279,12 @@ impl OAuthTab {
             self.input.insert(text);
             self.refresh();
         }
+    }
+
+    /// Antigravity sign-in is not ported, so a cliproxy-rs server always answers 404 to
+    /// it; Go servers still offer it.
+    fn unsupported(&self, index: usize) -> bool {
+        PROVIDERS[index].4 == "antigravity" && self.client.as_ref().is_some_and(|c| c.is_cliproxy_rs())
     }
 
     /// Go `startOAuth`: the auth URL with `is_webui=true`, then a best-effort browser.
@@ -431,11 +442,16 @@ impl OAuthTab {
         doc.blank();
         for (i, (name, _, emoji, _, _)) in PROVIDERS.iter().enumerate() {
             let selected = i == self.cursor;
-            let label = format!(" {emoji} {name} ");
-            let style = if selected {
-                s::bold(s::WHITE).bg(s::PRIMARY)
+            let unsupported = self.unsupported(i);
+            let label = if unsupported {
+                format!(" {emoji} {name} ({}) ", t("oauth_unsupported"))
             } else {
-                s::fg(s::TEXT)
+                format!(" {emoji} {name} ")
+            };
+            let style = match (selected, unsupported) {
+                (true, _) => s::bold(s::WHITE).bg(s::PRIMARY),
+                (false, true) => s::fg(s::MUTED),
+                (false, false) => s::fg(s::TEXT),
             };
             doc.line(vec![plain(if selected { "▸ " } else { "  " }), span(label, style)]);
         }

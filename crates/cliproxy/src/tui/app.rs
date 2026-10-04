@@ -305,6 +305,8 @@ impl App {
             self.authenticated = true;
             self.logs_enabled = self.standalone || logs_enabled_from(&cfg);
             self.refresh_tabs();
+            // The OAuth menu depends on the server kind, known from this reply.
+            self.oauth.locale();
             self.initialized = [false; 6];
             self.initialized[DASHBOARD] = true;
             let mut cmds = vec![self.dashboard.fetch()];
