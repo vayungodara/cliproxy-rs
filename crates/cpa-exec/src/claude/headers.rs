@@ -164,8 +164,22 @@ pub(crate) struct Plan<'a> {
     /// by the caller when stabilization is on and the caller is confirmed Claude Code.
     pub device_profile: Option<Profile>,
     /// The key's cached session ID (`CachedSessionIDRequired`), resolved by the caller
-    /// when `session_id` is empty.
+    /// when [`needs_cached_session`] says so.
     pub cached_session_id: &'a str,
+}
+
+/// Go `applyClaudeHeaders`: a caller that is neither fingerprinted as Claude Code nor
+/// confirmed keeps its own headers, and the builder returns before it reads any
+/// identity state.
+fn preserves_caller(cli_fingerprint: bool, confirmed: bool) -> bool {
+    !cli_fingerprint && !confirmed
+}
+
+/// Whether [`build`] reads `cached_session_id`: only past the caller-preserving
+/// return, and only without an explicit session. Go looks the cached ID up there, so
+/// a passthrough request never touches the session cache or Home KV.
+pub(crate) fn needs_cached_session(cli_fingerprint: bool, confirmed: bool, session_id: &str) -> bool {
+    !preserves_caller(cli_fingerprint, confirmed) && session_id.trim().is_empty()
 }
 
 fn new_request_id() -> String {
@@ -183,7 +197,7 @@ pub(crate) fn build(p: &Plan<'_>) -> GoHeader {
         }
     }
     h.set("Content-Type", "application/json");
-    let preserve_caller = !p.cli_fingerprint && !p.confirmed;
+    let preserve_caller = preserves_caller(p.cli_fingerprint, p.confirmed);
     let stabilize = p.settings.header_defaults.stabilize_device_profile;
     let device_profile = p.device_profile.clone();
     let incoming_betas = header_values(p.incoming, "anthropic-beta").join(",").trim().to_owned();
@@ -593,6 +607,16 @@ mod tests {
         assert_eq!(canonical("anthropic-BETA"), "Anthropic-Beta");
         assert_eq!(canonical("bad header"), "bad header");
         assert_eq!(canonical("x_y"), "X_y");
+    }
+
+    #[test]
+    fn passthrough_skips_the_cached_session_like_go() {
+        // Neither fingerprinted nor confirmed: the builder returns before it reads
+        // the cached session, so the caller must not look it up.
+        assert!(!needs_cached_session(false, false, ""));
+        assert!(needs_cached_session(true, false, ""));
+        assert!(needs_cached_session(false, true, " "));
+        assert!(!needs_cached_session(true, true, "explicit-session"));
     }
 
     #[test]
