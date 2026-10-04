@@ -485,7 +485,11 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
                     out,
                     "=== API REQUEST {index} ===\nTimestamp: {}\nUpstream URL: {}\n",
                     timestamp(Local::now()),
-                    if info.url.is_empty() { "<unknown>" } else { info.url }
+                    if info.url.is_empty() {
+                        String::from("<unknown>")
+                    } else {
+                        logged_url(info.url)
+                    }
                 )
                 .unwrap();
                 if !info.method.is_empty() {
@@ -555,7 +559,7 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
             WebsocketRequest(info) => {
                 let mut part = websocket_event("api.websocket.request");
                 if !info.url.is_empty() {
-                    writeln!(part, "Upstream URL: {}", info.url).unwrap();
+                    writeln!(part, "Upstream URL: {}", logged_url(info.url)).unwrap();
                 }
                 upstream_auth(&mut part, &info);
                 part.extend_from_slice(b"Headers:\n");
@@ -1163,7 +1167,7 @@ fn header_name(name: &str) -> String {
         .join("-")
 }
 
-/// Written in place of a cookie header value.
+/// Written in place of a cookie header value or URL userinfo.
 const REDACTED: &str = "<redacted>";
 
 /// Deliberate difference: Go logs Cookie and Set-Cookie values unchanged
@@ -1172,6 +1176,44 @@ const REDACTED: &str = "<redacted>";
 /// replaced, on both the masked and the unmasked header sections.
 fn cookie(name: &str) -> bool {
     name.contains("cookie")
+}
+
+/// Deliberate difference: Go prints upstream URLs unchanged, and a configured
+/// base-url can carry credentials. The logged copy replaces any userinfo and
+/// masks sensitive query values the way the downstream URL is masked; the
+/// request itself still goes to the URL as configured.
+fn logged_url(url: &str) -> String {
+    let mut out = String::new();
+    let mut rest = url;
+    if let Some(i) = url.find("://")
+        && i > 0
+        && url[..i]
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.'))
+    {
+        out.push_str(&url[..i + 3]);
+        rest = &url[i + 3..];
+        // Look for '@' up to the first '/', even past a '?' or '#': a
+        // password with those characters unescaped still counts as userinfo,
+        // and dropping too much is safer than printing a secret.
+        let authority = &rest[..rest.find('/').unwrap_or(rest.len())];
+        if let Some(at) = authority.rfind('@') {
+            out.push_str(REDACTED);
+            out.push('@');
+            rest = &rest[at + 1..];
+        }
+    }
+    let (rest, fragment) = rest.split_at(rest.find('#').unwrap_or(rest.len()));
+    match rest.split_once('?') {
+        Some((base, query)) => {
+            out.push_str(base);
+            out.push('?');
+            out.push_str(&mask_query(query));
+        }
+        None => out.push_str(rest),
+    }
+    out.push_str(fragment);
+    out
 }
 
 fn masked_header(name: &str, value: &[u8]) -> Vec<u8> {
@@ -2431,5 +2473,53 @@ mod tests {
             );
             assert!(content.contains("\nContent-Type: application/json\n"));
         }
+    }
+    #[tokio::test]
+    async fn upstream_url_credentials_are_redacted_in_logs() {
+        use cpa_core::exec::CaptureEvent::*;
+        let content = persisted(true, StatusCode::OK, |log| {
+            let sink = log.capture_sink();
+            sink.record(Request(upstream_request(
+                "https://alice:pw-h1dden@proxy.example/v1/models?alt=sse&key=AIza-h1dden-query-123&access_token=tok-x-h1dden-x-456#frag",
+                &[],
+                b"",
+            )));
+            sink.record(WebsocketRequest(upstream_request(
+                "wss://bob:pw2-h1dden@ws.example/realtime?client_secret=cs-xx-h1dden-xx-789&model=gpt",
+                &[],
+                b"",
+            )));
+        })
+        .await;
+        let content = String::from_utf8(content).unwrap();
+        assert!(!content.contains("h1dden"), "{content}");
+        assert!(!content.contains("alice") && !content.contains("bob:"), "{content}");
+        let line = |prefix: &str| {
+            content
+                .lines()
+                .find(|l| l.starts_with(prefix))
+                .unwrap_or_else(|| panic!("no {prefix} in {content}"))
+                .to_owned()
+        };
+        let http = line("Upstream URL: https://<redacted>@proxy.example/v1/models?alt=sse&key=");
+        assert!(http.contains("&access_token=") && http.ends_with("#frag"), "{http}");
+        let ws = line("Upstream URL: wss://<redacted>@ws.example/realtime?client_secret=");
+        assert!(ws.ends_with("&model=gpt"), "{ws}");
+
+        for url in [
+            "https://host.example/v1/users/a@b.example?alt=sse",
+            "http://127.0.0.1:8080/v1#a@b",
+            "https://host.example/v1?model=gpt",
+        ] {
+            assert_eq!(logged_url(url), url);
+        }
+        assert_eq!(
+            logged_url("https://u:p@host.example"),
+            "https://<redacted>@host.example"
+        );
+        assert_eq!(
+            logged_url("https://user@host.example/x"),
+            "https://<redacted>@host.example/x"
+        );
     }
 }
