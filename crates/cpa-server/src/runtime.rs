@@ -603,6 +603,18 @@ impl Selection {
     }
 }
 
+/// Whether `next` would change nothing about the stored `current` (reconcile keeps
+/// such a credential and its revision).
+fn unchanged(current: &Credential, next: &Credential) -> bool {
+    current.id == next.id
+        && current.source == next.source
+        && current.metadata == next.metadata
+        && current.attributes == next.attributes
+        && current.provider == next.provider
+        && current.disabled == next.disabled
+        && current.label == next.label
+}
+
 /// Admission without a registry: provider match, prefix, config aliases and the
 /// credential's exclusions (attributes first, then file metadata).
 pub fn standalone_admission<'a>(
@@ -1366,16 +1378,7 @@ impl CredentialStore {
         let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
         let mut next = Vec::with_capacity(credentials.len());
         for mut cred in credentials {
-            let same = inner.creds.iter().find(|c| {
-                c.id == cred.id
-                    && c.source == cred.source
-                    && c.metadata == cred.metadata
-                    && c.attributes == cred.attributes
-                    && c.provider == cred.provider
-                    && c.disabled == cred.disabled
-                    && c.label == cred.label
-            });
-            match same {
+            match inner.creds.iter().find(|c| unchanged(c, &cred)) {
                 Some(existing) => next.push(existing.clone()),
                 None => {
                     inner.generation += 1;
@@ -1394,6 +1397,33 @@ impl CredentialStore {
             .collect();
         next.extend(runtime);
         inner.creds = next;
+        inner.epoch += 1;
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .reconcile(&inner.creds);
+        drop(inner);
+        self.clear_disabled_cooldowns();
+        self.persist_cooldowns();
+    }
+
+    /// Inserts or replaces one credential (a plugin's `host.auth.save`) under a single
+    /// write lock, so a concurrent `apply_patch` on another credential is never undone
+    /// the way a snapshot followed by [`Self::reconcile`] could undo it. An unchanged
+    /// credential keeps its revision, as in `reconcile`.
+    pub fn upsert(&self, mut credential: Credential) {
+        let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        let slot = inner.creds.iter().position(|c| c.id == credential.id);
+        if slot.is_some_and(|i| unchanged(&inner.creds[i], &credential)) {
+            return;
+        }
+        inner.generation += 1;
+        credential.revision = inner.generation;
+        let credential = Arc::new(credential);
+        match slot {
+            Some(i) => inner.creds[i] = credential,
+            None => inner.creds.push(credential),
+        }
         inner.epoch += 1;
         self.scheduler
             .lock()
@@ -1887,6 +1917,47 @@ mod tests {
             .filter(|n| n.ends_with(".tmp") && !n.ends_with(".0.tmp"))
             .collect();
         assert!(leftovers.is_empty(), "no temp files left behind: {leftovers:?}");
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// A plugin save running alongside token refreshes of another credential never
+    /// reinstalls a stale copy of it: every refresh finds the revision it left.
+    #[test]
+    fn upsert_never_undoes_a_concurrent_patch() {
+        let dir = std::env::temp_dir().join(format!("cpa-upsert-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("refreshed.json"), r#"{"type":"claude","refresh_token":"r0"}"#).unwrap();
+        std::fs::write(dir.join("saved.json"), r#"{"type":"claude"}"#).unwrap();
+        let mut cfg = cpa_core::config::Config::parse("").unwrap();
+        cfg.auth_dir = dir.clone();
+        let store = Arc::new(CredentialStore::new(cpa_core::config::credentials::from_auth_dir(&cfg)));
+        let saved = (*store.get("saved.json").unwrap()).clone();
+        let saver = {
+            let store = store.clone();
+            std::thread::spawn(move || {
+                for n in 0..500 {
+                    let mut next = saved.clone();
+                    next.metadata.insert("n".into(), n.into());
+                    store.upsert(next);
+                }
+            })
+        };
+        let mut revision = store.get("refreshed.json").unwrap().revision;
+        for n in 1..=500 {
+            let mut patch = MetadataPatch::default();
+            patch.set.insert("refresh_token".into(), format!("r{n}").into());
+            revision = store
+                .apply_patch("refreshed.json", revision, &patch)
+                .unwrap_or_else(|e| panic!("refresh {n} was undone: {e:?}"))
+                .revision;
+        }
+        saver.join().unwrap();
+        let refreshed = store.get("refreshed.json").unwrap();
+        assert_eq!(refreshed.revision, revision);
+        assert_eq!(refreshed.metadata["refresh_token"], "r500");
+        assert_eq!(store.get("saved.json").unwrap().metadata["n"], 499);
+        assert_eq!(store.snapshot().len(), 2);
         std::fs::remove_dir_all(&dir).unwrap();
     }
 
