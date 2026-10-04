@@ -64,21 +64,24 @@ impl QuotaBody {
         const FIELDS: [&str; 5] = ["auth_index", "authIndex", "AuthIndex", "plugin_id", "provider"];
         let mut out = Self::default();
         let fields = match pjson::parse(first_value(body)) {
-            Ok(Node::Object(fields)) => fields,
-            Ok(Node::Null) => return (out, true),
-            _ => return (out, false),
+            Ok(mut node) => match &mut node {
+                Node::Object(fields) => std::mem::take(fields),
+                Node::Null => return (out, true),
+                _ => return (out, false),
+            },
+            Err(_) => return (out, false),
         };
         let mut ok = true;
-        for (key, v) in fields {
+        for (key, mut v) in fields {
             let field = FIELDS
                 .iter()
                 .position(|f| *f == key)
                 .or_else(|| FIELDS.iter().position(|f| f.eq_ignore_ascii_case(&key)));
-            match (field, v) {
-                (Some(i @ 0..=2), Node::String(s)) => out.auth_index[i] = Some(s),
+            match (field, &mut v) {
+                (Some(i @ 0..=2), Node::String(s)) => out.auth_index[i] = Some(std::mem::take(s)),
                 (Some(i @ 0..=2), Node::Null) => out.auth_index[i] = None,
-                (Some(3), Node::String(s)) => out.plugin_id = s,
-                (Some(4), Node::String(s)) => out.provider = s,
+                (Some(3), Node::String(s)) => out.plugin_id = std::mem::take(s),
+                (Some(4), Node::String(s)) => out.provider = std::mem::take(s),
                 (Some(_), Node::Null) | (None, _) => {}
                 (Some(_), _) => ok = false,
             }

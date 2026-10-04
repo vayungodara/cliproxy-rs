@@ -1052,17 +1052,16 @@ pub fn quota_fetch_from_value(raw: &Node) -> Result<QuotaFetchResponse, crate::g
     let mut out = QuotaFetchResponse::decode(raw)?;
     let top: QuotaFetchResponseAlt = crate::gojson::decode_struct(raw)?;
     out.server_time_offset_ms = alt(out.server_time_offset_ms, top.server_time_offset_ms);
-    let obj = |v: &Node, key: &str| v.member(key).cloned();
-    if let (Some(sub), Some(raw_sub)) = (out.subscription.as_mut(), obj(raw, "subscription")) {
-        let a: QuotaSubscriptionAlt = crate::gojson::decode_struct(&raw_sub)?;
+    if let (Some(sub), Some(raw_sub)) = (out.subscription.as_mut(), raw.member("subscription")) {
+        let a: QuotaSubscriptionAlt = crate::gojson::decode_struct(raw_sub)?;
         sub.tier_name = alt(std::mem::take(&mut sub.tier_name), a.tier_name);
         sub.tier_id = alt(std::mem::take(&mut sub.tier_id), a.tier_id);
     }
-    if let Some(Node::Array(groups)) = obj(raw, "groups") {
+    if let Some(Node::Array(groups)) = raw.member("groups") {
         for (group, raw_group) in out.groups.iter_mut().zip(groups.iter()) {
             let a: QuotaGroupAlt = crate::gojson::decode_struct(raw_group)?;
             group.display_name = alt(std::mem::take(&mut group.display_name), a.display_name);
-            if let Some(Node::Array(buckets)) = obj(raw_group, "buckets") {
+            if let Some(Node::Array(buckets)) = raw_group.member("buckets") {
                 for (bucket, raw_bucket) in group.buckets.iter_mut().zip(buckets.iter()) {
                     let a: QuotaBucketAlt = crate::gojson::decode_struct(raw_bucket)?;
                     // A present camelCase pointer wins even when zero.

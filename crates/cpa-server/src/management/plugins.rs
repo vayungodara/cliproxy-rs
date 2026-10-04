@@ -514,12 +514,14 @@ fn config_object(body: &[u8]) -> Res<Vec<(String, Node)>> {
         return invalid("EOF");
     }
     let kind = match pjson::parse(body) {
-        Ok(Node::Object(fields)) => return Ok(fields),
-        Ok(Node::Null) => return invalid("body must be a JSON object"),
-        Ok(Node::Array(_)) => "array",
-        Ok(Node::String(_)) => "string",
-        Ok(Node::Number(_)) => "number",
-        Ok(Node::Bool(_)) => "bool",
+        Ok(mut node) => match &mut node {
+            Node::Object(fields) => return Ok(std::mem::take(fields)),
+            Node::Null => return invalid("body must be a JSON object"),
+            Node::Array(_) => "array",
+            Node::String(_) => "string",
+            Node::Number(_) => "number",
+            Node::Bool(_) => "bool",
+        },
         Err(e) => {
             let message = e.to_string();
             // json.Decoder reports a truncated value as io.ErrUnexpectedEOF.
