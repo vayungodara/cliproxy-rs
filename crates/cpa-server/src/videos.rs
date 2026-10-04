@@ -621,6 +621,7 @@ where
                 *sink.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = c.id.clone();
             })),
             sse: false,
+            disallow_free: false,
         })),
     };
     dispatch::serve(&r.rt, call, move |result| async move {

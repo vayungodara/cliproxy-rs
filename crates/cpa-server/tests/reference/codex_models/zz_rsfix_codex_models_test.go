@@ -107,3 +107,52 @@ func TestRSFixCodexModels(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// A Codex API key without configured models registers the Pro catalog with the
+// gpt-image-* built-ins (WithCodexBuiltins). Records Go's plain /v1/models list.
+const rsfixCodexBuiltinsConfig = `codex-api-key:
+  - api-key: sk-FAKE-codex-builtins
+    base-url: http://127.0.0.1:1
+`
+
+func TestRSFixCodexBuiltins(t *testing.T) {
+	dir := os.Getenv("RSFIX_OUT")
+	if dir == "" {
+		t.Skip("RSFIX_OUT not set")
+	}
+	gin.SetMode(gin.TestMode)
+	cfg, err := config.ParseConfigBytes([]byte(rsfixCodexBuiltinsConfig))
+	if err != nil {
+		t.Fatal(err)
+	}
+	auths, err := synthesizer.NewConfigSynthesizer().Synthesize(&synthesizer.SynthesisContext{
+		Config: cfg, Now: time.Unix(1, 0), IDGenerator: synthesizer.NewStableIDGenerator(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := &Service{cfg: cfg}
+	registry := GlobalModelRegistry()
+	manager := coreauth.NewManager(nil, nil, nil)
+	manager.SetConfig(cfg)
+	for _, auth := range auths {
+		if _, err := manager.Register(t.Context(), auth); err != nil {
+			t.Fatal(err)
+		}
+		service.registerModelsForAuth(t.Context(), auth)
+		defer registry.UnregisterClient(auth.ID)
+	}
+	h := openai.NewOpenAIAPIHandler(handlers.NewBaseAPIHandlers(&cfg.SDKConfig, manager))
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+	h.OpenAIModels(c)
+	out := map[string]string{"config": rsfixCodexBuiltinsConfig, "models": rec.Body.String()}
+	data, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "codex_builtins_go.json"), append(data, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}

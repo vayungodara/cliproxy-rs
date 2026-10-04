@@ -7,9 +7,8 @@
 //! gpt-image models are routed to whichever provider serves them and returned raw.
 // ponytail: Go's Responses image_generation tool path after the three families is
 // unreachable (rejectUnsupportedImagesModel admits only those families) and is not
-// ported. Pre-result stream keep-alives, the non-streaming keep-alive and
-// WithDisallowFreeAuth (Codex free plans on routed models) are not ported either; the
-// first two are off by default and no Rust executor serves routed images yet.
+// ported. Pre-result stream keep-alives and the non-streaming keep-alive are not ported
+// either; both are off by default. Routed calls run with WithDisallowFreeAuth.
 
 use std::sync::Arc;
 
@@ -492,7 +491,9 @@ struct Prepared {
 
 impl Prepared {
     /// `stream` is the upstream call's mode; `sse` whether the client gets events.
-    fn call(&self, model: &str, body: Vec<u8>, stream: bool, sse: bool) -> Call {
+    /// `routed`: a gpt-image model routed to its provider, which Go runs with
+    /// `WithDisallowFreeAuth`.
+    fn call(&self, model: &str, body: Vec<u8>, stream: bool, sse: bool, routed: bool) -> Call {
         Call {
             entry: Format::OpenAI,
             response: Format::OpenAI,
@@ -514,6 +515,7 @@ impl Prepared {
                 pinned: None,
                 on_selected: None,
                 sse,
+                disallow_free: routed,
             })),
         }
     }
@@ -610,7 +612,7 @@ impl Writer for Raw {
 /// is.
 async fn raw(p: Prepared, model: &str, body: Vec<u8>, stream: bool, routed: bool) -> Response {
     let keepalive = respond::keepalive(&p.rt.config());
-    let call = p.call(model, body, stream, stream);
+    let call = p.call(model, body, stream, stream, routed);
     dispatch::serve(&p.rt, call, move |result| async move {
         match result {
             Err(failure) => failed(&failure, stream),
@@ -628,7 +630,7 @@ async fn raw(p: Prepared, model: &str, body: Vec<u8>, stream: bool, routed: bool
 /// `collectImagesWithModel` and `streamImagesWithModel`: one buffered execution whose
 /// result is normalized to the Images API, or emitted as completed events.
 async fn normalized(p: Prepared, model: &str, body: Vec<u8>, format: String, prefix: &str, stream: bool) -> Response {
-    let call = p.call(model, body, false, stream);
+    let call = p.call(model, body, false, stream, false);
     let prefix = prefix.to_owned();
     dispatch::serve(&p.rt, call, move |result| async move {
         let payload = match result {

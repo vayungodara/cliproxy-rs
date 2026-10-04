@@ -10,10 +10,11 @@
 //! credential switch, local acknowledgement or replay here; only upstream owns a
 //! steering submission.
 //!
-//! Go runs a writer and a reader goroutine around shared state. Here one task does both:
-//! each step first forwards what upstream sent, then makes writer progress, then reads the
-//! next client frame. Writer waits (`waitFor`, queued creates) become state the next step
-//! re-checks after every upstream event.
+//! Go runs a writer and a reader goroutine around shared state. Here one task owns the
+//! state and selects fairly between upstream events, client frames and delivery; a
+//! separate writer task owns the socket's writes, so a write blocked in the network never
+//! stops upstream events (Go's writer blocking in `writeCodexWebsocketMessage`). Writer
+//! waits (`waitFor`, queued creates) become state the task re-checks after every step.
 
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
@@ -21,10 +22,10 @@ use std::sync::Arc;
 use bytes::Bytes;
 use cpa_core::credential::Credential;
 use cpa_core::exec::{ExecError, ExecRequest, ExecStream, FailureScope};
-use futures_util::StreamExt;
+use futures_util::{FutureExt, StreamExt};
 use tokio::sync::{OwnedMutexGuard, mpsc};
 
-use super::{Read, Turn, request_frame, transport, ws_error};
+use super::{Read, Replay, Turn, Upstream, request_frame, transport, ws_error};
 use crate::codex_json::{set_raw, set_str};
 use crate::codex_request::{self as request, Call, Settings, View};
 use crate::codex_response as response;
@@ -33,23 +34,33 @@ use crate::codex_response as response;
 const MAX_PENDING: usize = 16;
 /// Responses whose settings are retained for automatic successors and appends.
 const RETAINED_RESPONSES: usize = 16;
+/// Frames accepted for the writer and not yet written. Client frames are read only while
+/// there is room, so a stalled upstream write backpressures the client as Go's does.
+const WRITE_QUEUE: usize = 16;
+/// Local items (events, rejections) waiting for the consumer. Upstream is read only when
+/// none wait, as Go's reader blocks on its unbuffered `out`.
+const OUTBOX: usize = 16;
 
 type Enabled = dyn Fn(&str) -> bool + Send + Sync;
+
+/// The queue of a downstream connection's client frames, in arrival order. A bounded
+/// channel backpressures the client; the connection's own loop reads it between turns.
+pub type ClientFrames = Arc<tokio::sync::Mutex<mpsc::Receiver<Bytes>>>;
 
 /// A downstream connection's later client frames (Go `WebsocketInput`) and the live
 /// account check for its bound credential (Go `WebsocketAuthCheck`).
 pub struct SteeringInput {
-    frames: Arc<tokio::sync::Mutex<mpsc::Receiver<Bytes>>>,
+    frames: ClientFrames,
     enabled: Box<Enabled>,
 }
 
 impl SteeringInput {
-    /// `frames` carries the client's frames in arrival order; a bounded channel
-    /// backpressures the client. `enabled(credential_id)` says whether the bound
-    /// credential may still send.
-    pub fn new(frames: mpsc::Receiver<Bytes>, enabled: impl Fn(&str) -> bool + Send + Sync + 'static) -> Self {
+    /// `frames` is the connection's frame queue, shared with its loop as Go hands both
+    /// the same channel; a duplex turn holds it for the rest of the connection.
+    /// `enabled(credential_id)` says whether the bound credential may still send.
+    pub fn new(frames: ClientFrames, enabled: impl Fn(&str) -> bool + Send + Sync + 'static) -> Self {
         Self {
-            frames: Arc::new(tokio::sync::Mutex::new(frames)),
+            frames,
             enabled: Box::new(enabled),
         }
     }
@@ -63,14 +74,25 @@ pub(super) struct Prepared {
     /// Raw `instructions` of the client payload (Go `originalPayload`); retained
     /// response settings drop it.
     original_instructions: Option<String>,
-    /// Upstream payloads need collaboration names restored (multi-agent v2).
-    restore: bool,
+    /// The multi-agent v2 optimization renamed the `collaboration` namespace.
+    optimized: bool,
+    /// The request already used the upstream names (`multiAgentV2Conflict`).
+    conflict: bool,
     /// Native Codex request: completion output stays as upstream sent it.
     native: bool,
+    /// The request's reasoning replay scope (`replayScope`).
+    replay: Replay,
 }
 
 impl Prepared {
-    pub(super) fn new(body: &str, original: &[u8], restore: bool, native: bool) -> Self {
+    pub(super) fn new(
+        body: &str,
+        original: &[u8],
+        optimized: bool,
+        conflict: bool,
+        native: bool,
+        replay: Replay,
+    ) -> Self {
         let raw = |json: &str| {
             let value = gjson::get(json, "instructions");
             value.exists().then(|| value.json().to_owned())
@@ -78,8 +100,10 @@ impl Prepared {
         Self {
             instructions: raw(body),
             original_instructions: raw(&String::from_utf8_lossy(original)),
-            restore,
+            optimized,
+            conflict,
             native,
+            replay,
         }
     }
 
@@ -136,16 +160,55 @@ pub(super) struct Duplex {
     input_ready: bool,
     first_response: bool,
     response_active: bool,
+    /// Items for the consumer, in order; `out` takes one at a time.
     outbox: VecDeque<Result<Bytes, ExecError>>,
+    out: mpsc::Sender<Result<Bytes, ExecError>>,
+    /// The writer task's queue and handle; the task ends with the first write error.
+    writes: mpsc::Sender<Outgoing>,
+    writer: tokio::task::JoinHandle<Result<(), ExecError>>,
     done: bool,
 }
 
 impl Drop for Duplex {
-    /// The socket ends with the stream; the handler already knows (no notify).
+    /// The socket ends with the stream; the handler already knows (no notify). Closing
+    /// it releases a writer blocked in the network, which then stops (Go joins it).
     fn drop(&mut self) {
         self.turn
             .invalidate(&transport("codex websockets executor: duplex closed"), false);
+        self.writer.abort();
     }
+}
+
+/// One frame for the writer task.
+struct Outgoing {
+    frame: String,
+    /// A create's multi-agent v2 state `(optimized, conflict)`; steers carry none.
+    namespace: Option<(bool, bool)>,
+}
+
+/// The network half of Go's writer goroutine: frames in order. A create updates the
+/// socket's namespace state only when it reaches the writer (`setMultiAgentV2Optimized`),
+/// so a create still queued behind a blocked write cannot change how the running
+/// response's events are restored. Then the live account check (`WebsocketAuthEnabled`)
+/// right before `writeCodexWebsocketMessage`.
+async fn write_loop(
+    conn: Arc<Upstream>,
+    input: Arc<SteeringInput>,
+    credential: String,
+    wire: crate::codex_capture::Wire,
+    mut queue: mpsc::Receiver<Outgoing>,
+) -> Result<(), ExecError> {
+    while let Some(Outgoing { frame, namespace }) = queue.recv().await {
+        if let Some((optimized, conflict)) = namespace {
+            conn.note_multi_agent(optimized, conflict);
+        }
+        if !(input.enabled)(&credential) {
+            return Err(local("websocket credential is no longer enabled"));
+        }
+        wire.ws_frame(&conn.target.url, frame.as_bytes());
+        conn.send(frame).await?;
+    }
+    Ok(())
 }
 
 /// A failure of the bound socket: request-scoped, so the credential is not cooled
@@ -162,6 +225,7 @@ fn local(message: &str) -> ExecError {
 enum Step {
     Upstream(Option<Read>),
     Client(Option<Bytes>),
+    Writer(Result<Result<(), ExecError>, tokio::task::JoinError>),
 }
 
 impl Duplex {
@@ -180,6 +244,16 @@ impl Duplex {
         let initial_model = gjson::get(&String::from_utf8_lossy(&req.original_body), "model")
             .str()
             .to_owned();
+        let (writes, queue) = mpsc::channel(WRITE_QUEUE);
+        let writer = tokio::spawn(write_loop(
+            turn.conn.clone(),
+            input.clone(),
+            view.credential.id.clone(),
+            turn.wire.clone(),
+            queue,
+        ));
+        // Go's `out` is unbuffered; one slot lets the task hand over and keep reading.
+        let (out, chunks) = mpsc::channel(1);
         let duplex = Self {
             turn,
             frames,
@@ -208,35 +282,69 @@ impl Duplex {
             first_response: true,
             response_active: false,
             outbox: VecDeque::new(),
+            out,
+            writes,
+            writer,
             done: false,
         };
-        futures_util::stream::unfold(duplex, |mut d| async move { d.next().await.map(|item| (item, d)) }).boxed()
+        // The task runs whether or not the consumer polls, as Go's goroutines do, and
+        // ends when the consumer drops the stream.
+        tokio::spawn(duplex.run());
+        futures_util::stream::unfold(chunks, |mut chunks| async move {
+            chunks.recv().await.map(|item| (item, chunks))
+        })
+        .boxed()
     }
 
-    async fn next(&mut self) -> Option<Result<Bytes, ExecError>> {
+    async fn run(mut self) {
         loop {
-            if let Some(item) = self.outbox.pop_front() {
-                return Some(item);
+            if self.input_ready && !self.done {
+                self.progress();
             }
-            if self.done {
-                return None;
+            let deliver = !self.outbox.is_empty();
+            if self.done && !deliver {
+                return;
             }
-            if self.input_ready {
-                self.progress().await;
-                if self.done || !self.outbox.is_empty() {
-                    continue;
-                }
-            }
-            let read_client = self.input_ready && self.deferred_steer.is_none();
+            let live = !self.done;
+            let writable = self.writes.capacity() > 0;
+            let read_client =
+                live && self.input_ready && self.deferred_steer.is_none() && writable && self.outbox.len() < OUTBOX;
+            let await_room = live && self.input_ready && !writable && !self.writes.is_closed();
             let step = tokio::select! {
-                biased;
-                read = self.turn.rx.recv() => Step::Upstream(read),
+                permit = self.out.reserve(), if deliver => match permit {
+                    Ok(permit) => {
+                        permit.send(self.outbox.pop_front().expect("an item to deliver"));
+                        continue;
+                    }
+                    Err(_) => return,
+                },
+                () = self.out.closed(), if !deliver => return,
+                read = self.turn.rx.recv(), if live && !deliver => Step::Upstream(read),
                 frame = self.frames.recv(), if read_client => Step::Client(frame),
+                ended = &mut self.writer, if live => Step::Writer(ended),
+                // The writer freed room: re-check progress and client reads.
+                _ = self.writes.reserve(), if await_room => continue,
             };
             match step {
                 Step::Upstream(read) => self.upstream(read),
-                Step::Client(frame) => self.client(frame).await,
+                Step::Client(frame) => self.client(frame),
+                Step::Writer(ended) => self.fail(match ended {
+                    Ok(Err(error)) => error,
+                    Ok(Ok(())) | Err(_) => local("websocket writer stopped"),
+                }),
             }
+        }
+    }
+
+    /// Go's reader reports the writer's failure in place of its own read error (the
+    /// writer's cancel is what ended the read).
+    fn writer_error(&mut self) -> Option<ExecError> {
+        if self.done || !self.writer.is_finished() {
+            return None;
+        }
+        match (&mut self.writer).now_or_never()? {
+            Ok(Err(error)) => Some(error),
+            Ok(Ok(())) | Err(_) => None,
         }
     }
 
@@ -268,35 +376,42 @@ impl Duplex {
 
     /// Writer progress after a state change: a deferred steer once pending creates have
     /// started, then queued creates while steering allows them (`flushPendingCreates`).
-    async fn progress(&mut self) {
+    /// Each step needs room in the write queue (Go's writer is blocked meanwhile).
+    fn progress(&mut self) {
         if let Some(steer) = self.deferred_steer.take() {
-            if !self.pending.is_empty() {
+            if !self.pending.is_empty() || self.writes.capacity() == 0 {
                 self.deferred_steer = Some(steer);
                 return;
             }
-            self.steer(steer).await;
+            self.steer(steer);
         }
-        while !self.done && !self.queued_creates.is_empty() && self.ready_for_create() {
+        while !self.done
+            && !self.queued_creates.is_empty()
+            && self.ready_for_create()
+            && self.writes.capacity() > 0
+            && self.outbox.len() < OUTBOX
+        {
             let payload = self.queued_creates.pop_front().expect("non-empty");
-            self.create(payload).await;
+            self.create(payload);
         }
     }
 
-    async fn write(&mut self, frame: String) {
-        if !self.enabled() {
-            self.fail(local("websocket credential is no longer enabled"));
-            return;
-        }
-        if let Err(error) = self.turn.conn.send(frame).await {
-            self.fail(error);
+    /// Hands a frame to the writer task; callers checked for room.
+    fn write(&mut self, frame: String, namespace: Option<(bool, bool)>) {
+        match self.writes.try_send(Outgoing { frame, namespace }) {
+            Ok(()) => {}
+            // The writer stopped on an error it reports through its handle.
+            Err(mpsc::error::TrySendError::Closed(_)) => {}
+            Err(mpsc::error::TrySendError::Full(_)) => self.fail(local("websocket write queue is full")),
         }
     }
 
     /// One client frame (the writer's input loop).
-    async fn client(&mut self, frame: Option<Bytes>) {
+    fn client(&mut self, frame: Option<Bytes>) {
         let Some(frame) = frame else {
-            // The downstream reader stopped: the connection is gone.
-            self.done = true;
+            // The downstream reader stopped: Go's writer fails with `context.Canceled`,
+            // a connection error that does not cool the credential.
+            self.fail(local("context canceled"));
             return;
         };
         if !self.enabled() {
@@ -321,11 +436,11 @@ impl Duplex {
                     self.deferred_steer = Some(payload);
                     return;
                 }
-                self.steer(payload).await;
+                self.steer(payload);
             }
             "response.create" | "response.append" => {
                 if self.queued_creates.is_empty() && self.ready_for_create() {
-                    self.create(payload).await;
+                    self.create(payload);
                 } else if self.queued_creates.len() >= MAX_PENDING {
                     self.fail(local("too many outstanding response.create requests"));
                 } else {
@@ -338,17 +453,17 @@ impl Duplex {
 
     /// A steer goes upstream exactly as the client sent it: no create translation or
     /// defaults; upstream validates unknown fields and input.
-    async fn steer(&mut self, payload: String) {
+    fn steer(&mut self, payload: String) {
         let parent = gjson::get(&payload, "previous_response_id").str().to_owned();
         if let Some(settings) = self.response_settings.get(&parent).cloned() {
             self.steering_settings.insert(parent.clone(), settings);
         }
         self.unacknowledged.push(parent);
-        self.write(payload).await;
+        self.write(payload, None);
     }
 
     /// `processCreatePayload`.
-    async fn create(&mut self, mut payload: String) {
+    fn create(&mut self, mut payload: String) {
         let append = gjson::get(&payload, "type").str() == "response.append";
         let mut parent = gjson::get(&payload, "previous_response_id").str().trim().to_owned();
         if append && parent.is_empty() && !self.response_id.is_empty() {
@@ -386,26 +501,42 @@ impl Duplex {
             session: self.cpa_session.clone(),
             ..View::new(&self.credential)
         };
-        let shaped = request::shape(&next, &view, &self.settings, Call::Websocket);
-        let (body, restore) = match shaped {
+        let request::Shaped {
+            body,
+            optimized,
+            conflict,
+        } = match request::shape(&next, &view, &self.settings, Call::Websocket) {
             Ok(shaped) => shaped,
             Err(error) => {
                 self.fail(error);
                 return;
             }
         };
+        let (body, replay) = Replay::apply(&self.initial.replay.cache, &next, body);
         // ponytail: Go starts a usage record per response; this stream reports every
         // response's events to the bootstrap attempt's record and keeps its request.
         let (body, _) = request::prompt_cache(&next, body, Some(&self.exec_session), true);
         // Go also fails when the URL differs from the bootstrap's; it cannot here, since
         // both come from the same credential.
-        let prepared = Prepared::new(&body, &next.original_body, restore, request::is_native(&next));
+        let prepared = Prepared::new(
+            &body,
+            &next.original_body,
+            optimized,
+            conflict,
+            request::is_native(&next),
+            replay,
+        );
         if self.pending.len() >= MAX_PENDING {
             self.fail(local("too many outstanding response.create requests"));
             return;
         }
         self.pending.push_back(prepared);
-        self.write(request_frame(body)).await;
+        self.write(request_frame(body), Some((optimized, conflict)));
+    }
+
+    /// `restoreMultiAgent` for an event of `prepared`'s request on this socket.
+    fn restores(&self, prepared: &Prepared) -> bool {
+        self.turn.conn.restores(prepared.optimized, prepared.conflict)
     }
 
     /// `releaseSteeringSettings`.
@@ -420,8 +551,18 @@ impl Duplex {
     fn upstream(&mut self, read: Option<Read>) {
         let text = match read {
             Some(Read::Text(text)) => text,
-            Some(Read::Failed(error)) => return self.fail(error),
-            None => return self.fail(transport("codex websockets executor: session read channel closed")),
+            // Go's duplex wraps the raw read error, not `mapCodexWebsocketReadError`'s 413.
+            Some(Read::Failed(error)) => {
+                let error = self.writer_error().or_else(|| self.turn.loss()).unwrap_or(error);
+                return self.fail(error);
+            }
+            None => {
+                let error = self
+                    .writer_error()
+                    .or_else(|| self.turn.loss())
+                    .unwrap_or_else(|| transport("codex websockets executor: session read channel closed"));
+                return self.fail(error);
+            }
         };
         let payload = text.trim();
         if payload.is_empty() {
@@ -433,6 +574,7 @@ impl Duplex {
             return;
         }
         self.turn.observe(payload);
+        self.turn.wire.ws_response(payload.as_bytes());
         // Steering acknowledgements, pending notices and failures are opaque: IDs, input,
         // sequence numbers and event types reach the client byte for byte.
         if kind.starts_with("response.steer.") {
@@ -455,7 +597,8 @@ impl Duplex {
                 return;
             }
         }
-        let mut restore = self.current.restore;
+        // The request this event belongs to: a rejected pending create, else the running one.
+        let mut rejected = None;
         if !self.first_response && failure {
             let mut failed = gjson::get(payload, "response.id").str().to_owned();
             if failed.is_empty() {
@@ -475,7 +618,7 @@ impl Duplex {
                 return;
             }
             match self.pending.pop_front() {
-                Some(rejected) if !current_failure => restore = rejected.restore,
+                Some(create) if !current_failure => rejected = Some(create),
                 popped => {
                     if let Some(popped) = popped {
                         self.pending.push_front(popped);
@@ -485,11 +628,18 @@ impl Duplex {
                 }
             }
         }
-        let payload = response::restore(payload, restore);
-        // Only the first rejection fails the stream (and can enter bootstrap retry);
-        // later ones are events the client may correct on this socket.
+        let event = rejected.as_ref().unwrap_or(&self.current);
+        let payload = response::restore(payload, self.restores(event));
+        // Every rejection clears its own request's replay; only the first fails the
+        // stream (and can enter bootstrap retry), later ones are events the client may
+        // correct on this socket.
+        let terminal = classify(&payload);
+        if let Some(error) = &terminal {
+            event.replay.clear(&payload, cooling);
+            self.turn.wire.ws_exec_error("upstream_error", error);
+        }
         if self.first_response
-            && let Some(error) = classify(&payload)
+            && let Some(error) = terminal
         {
             self.outbox.push_back(Err(error));
             self.done = true;
@@ -508,6 +658,9 @@ impl Duplex {
             out = response::normalize_completion(out);
             if !self.current.native {
                 out = self.turn.items.patch(out);
+            }
+            if kind != "response.incomplete" {
+                self.current.replay.completed(&out);
             }
         }
         self.outbox

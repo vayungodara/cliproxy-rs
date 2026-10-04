@@ -531,6 +531,40 @@ fn channel(name: &str) -> Vec<Spec> {
     pinned().channel(name).iter().map(Spec::from_static).collect()
 }
 
+/// The Images API models every Codex catalog carries (`codexBuiltinImage*ModelInfo`).
+const CODEX_BUILTIN_IMAGES: [(&str, &str); 5] = [
+    ("gpt-image-1.5", "GPT Image 1.5"),
+    ("gpt-image-2", "GPT Image 2"),
+    ("gpt-image-2.5-flare", "GPT Image 2.5 Flare"),
+    ("gpt-image-2.5-sunburst", "GPT Image 2.5 Sunburst"),
+    ("gpt-image-2.5", "GPT Image 2.5"),
+];
+
+/// Go `GetCodex*Models`: a plan catalog `WithCodexBuiltins` (`upsertModelInfos`), where
+/// the built-ins replace same-ID models (case-insensitive) and come last.
+fn codex_channel(name: &str) -> Vec<Spec> {
+    let builtins = CODEX_BUILTIN_IMAGES.map(|(id, display_name)| Spec {
+        id: id.into(),
+        object: "model".into(),
+        // 2024-01-01.
+        created: 1_704_067_200,
+        owned_by: "openai".into(),
+        kind: "openai".into(),
+        display_name: display_name.into(),
+        version: id.into(),
+        ..Spec::default()
+    });
+    let mut models: Vec<Spec> = channel(name)
+        .into_iter()
+        .filter(|m| {
+            let id = m.id.trim().to_lowercase();
+            !id.is_empty() && !builtins.iter().any(|b| b.id == id)
+        })
+        .collect();
+    models.extend(builtins);
+    models
+}
+
 /// Go `WithXAIBuiltins` (`upsertModelInfos`): the hard-coded image and video models,
 /// appended after the channel's models and replacing any with the same ID.
 fn with_xai_builtins(models: Vec<Spec>) -> Vec<Spec> {
@@ -859,7 +893,7 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
         "claude" => with_config(channel("claude"), "anthropic", "claude", "claude"),
         "codex" if api_key => {
             if configured.is_empty() {
-                let mut models = channel("codex-pro");
+                let mut models = codex_channel("codex-pro");
                 for m in &mut models {
                     m.support_configuration_update = false;
                 }
@@ -875,7 +909,7 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
                 .get("plan_type")
                 .map(|p| p.trim().to_lowercase())
                 .unwrap_or_default();
-            channel(match plan.as_str() {
+            codex_channel(match plan.as_str() {
                 "plus" => "codex-plus",
                 "team" | "business" | "go" => "codex-team",
                 "free" => "codex-free",

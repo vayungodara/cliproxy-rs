@@ -830,7 +830,7 @@
             "codex-tui"
           ],
           "session_id": [
-            "86f4e1de-5d1e-4e71-80ea-2f3be32ac6a0"
+            "abe4fab2-43e0-4fb6-932e-0c7e7182e4ed"
           ],
           "user-agent": [
             "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1229,7 +1229,7 @@
             "codex-tui"
           ],
           "referer": [
-            "http://127.0.0.1:40049/responses"
+            "http://127.0.0.1:39119/responses"
           ],
           "user-agent": [
             "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1307,7 +1307,7 @@
               "codex-tui"
             ],
             "referer": [
-              "http://127.0.0.1:40049/responses"
+              "http://127.0.0.1:39119/responses"
             ],
             "user-agent": [
               "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1368,7 +1368,7 @@
             "codex-tui"
           ],
           "referer": [
-            "http://127.0.0.1:37125/responses"
+            "http://127.0.0.1:36859/responses"
           ],
           "user-agent": [
             "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1428,7 +1428,7 @@
               "codex-tui"
             ],
             "referer": [
-              "http://127.0.0.1:37125/responses"
+              "http://127.0.0.1:36859/responses"
             ],
             "user-agent": [
               "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
@@ -1950,6 +1950,963 @@
           "",
           "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}"
         ]
+      }
+    }
+  ],
+  "images": [
+    {
+      "name": "tool_generation_nonstream_b64",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-5.4",
+      "payload_b64": "eyJtb2RlbCI6ImdwdC01LjQiLCJwcm9tcHQiOiIgIGEgY2F0ICAiLCJzaXplIjoiMTAyNHgxMDI0IiwicXVhbGl0eSI6ImhpZ2giLCJuIjoyLCJvdXRwdXRfY29tcHJlc3Npb24iOjUwLCJwYXJ0aWFsX2ltYWdlcyI6IjIiLCJiYWNrZ3JvdW5kIjoidHJhbnNwYXJlbnQiLCJvdXRwdXRfZm9ybWF0Ijoid2VicCIsIm1vZGVyYXRpb24iOiJsb3ciLCJzdHlsZSI6InZpdmlkIn0=",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_img\"}}\n\ndata: {\"type\":\"response.image_generation_call.partial_image\",\"partial_image_index\":0,\"partial_image_b64\":\"UEFSVElBTA==\",\"output_format\":\"webp\"}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_1\",\"status\":\"completed\",\"result\":\"SU1HMg==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_0\",\"status\":\"completed\",\"result\":\"SU1HMQ==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_img\",\"created_at\":1700000000,\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"total_tokens\":30},\"tool_usage\":{\"image_gen\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "527"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.4-mini\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"generate\",\"model\":\"gpt-5.4\",\"size\":\"1024x1024\",\"quality\":\"high\",\"background\":\"transparent\",\"output_format\":\"webp\",\"moderation\":\"low\",\"output_compression\":50}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a cat\"}]}]}"
+      },
+      "output": {
+        "payload": "{\"created\":1700000000,\"data\":[{\"revised_prompt\":\"a calm cat\",\"b64_json\":\"SU1HMQ==\"},{\"revised_prompt\":\"a calm cat\",\"b64_json\":\"SU1HMg==\"}],\"background\":\"opaque\",\"output_format\":\"webp\",\"quality\":\"high\",\"size\":\"1024x1024\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}"
+      }
+    },
+    {
+      "name": "tool_generation_nonstream_url_completed_output",
+      "config": "{}\n",
+      "attributes": {
+        "api_key": "sk-FAKE"
+      },
+      "metadata": {},
+      "headers": {},
+      "model": "route-model",
+      "payload_b64": "eyJwcm9tcHQiOiJwIiwicmVzcG9uc2VfZm9ybWF0IjoidXJsIn0=",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_0\",\"status\":\"completed\",\"result\":\"SUdOT1JFRA==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"png\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_img\",\"created_at\":1700000000,\"status\":\"completed\",\"output\":[{\"type\":\"message\"},{\"type\":\"image_generation_call\",\"result\":\"SU1HSlBH\",\"output_format\":\"jpeg\"},{\"type\":\"image_generation_call\",\"result\":\"  \"}],\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"total_tokens\":30},\"tool_usage\":{\"image_gen\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer sk-FAKE"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "398"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.4-mini\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"generate\",\"model\":\"route-model\"}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"p\"}]}]}"
+      },
+      "output": {
+        "payload": "{\"created\":1700000000,\"data\":[{\"url\":\"data:image/jpeg;base64,SU1HSlBH\"}],\"output_format\":\"jpeg\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}"
+      }
+    },
+    {
+      "name": "tool_generation_stream",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-5.4",
+      "payload_b64": "eyJwcm9tcHQiOiJhIGNhdCIsInBhcnRpYWxfaW1hZ2VzIjoxLCJyZXNwb25zZV9mb3JtYXQiOiJ1cmwifQ==",
+      "stream": true,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_img\"}}\n\ndata: {\"type\":\"response.image_generation_call.partial_image\",\"partial_image_index\":0,\"partial_image_b64\":\"UEFSVElBTA==\",\"output_format\":\"webp\"}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_1\",\"status\":\"completed\",\"result\":\"SU1HMg==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_0\",\"status\":\"completed\",\"result\":\"SU1HMQ==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_img\",\"created_at\":1700000000,\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"total_tokens\":30},\"tool_usage\":{\"image_gen\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "417"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.4-mini\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"generate\",\"model\":\"gpt-5.4\",\"partial_images\":1}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"a cat\"}]}]}"
+      },
+      "output": {
+        "chunks": [
+          "event: image_generation.partial_image\ndata: {\"type\":\"image_generation.partial_image\",\"partial_image_index\":0,\"url\":\"data:image/webp;base64,UEFSVElBTA==\"}\n\n",
+          "event: image_generation.completed\ndata: {\"type\":\"image_generation.completed\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12},\"url\":\"data:image/webp;base64,SU1HMQ==\"}\n\n",
+          "event: image_generation.completed\ndata: {\"type\":\"image_generation.completed\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12},\"url\":\"data:image/webp;base64,SU1HMg==\"}\n\n"
+        ]
+      }
+    },
+    {
+      "name": "tool_edit_json",
+      "config": "gpt-image-2-base-model: gpt-5.5\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-5.4",
+      "payload_b64": "eyJwcm9tcHQiOiJlZGl0IGl0IiwiaW1hZ2VzIjpbeyJpbWFnZV91cmwiOiJkYXRhOmltYWdlL3BuZztiYXNlNjQsUVVKRCJ9LHsiaW1hZ2VfdXJsIjoiICAifSx7ImZpbGVfaWQiOiJmIn1dLCJtYXNrIjp7ImltYWdlX3VybCI6ImRhdGE6aW1hZ2UvcG5nO2Jhc2U2NCxUVUZUU3c9PSJ9LCJpbnB1dF9maWRlbGl0eSI6ImxvdyIsIm91dHB1dF9jb21wcmVzc2lvbiI6MjAuNX0=",
+      "stream": false,
+      "request_path": "/v1/images/edits",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_img\"}}\n\ndata: {\"type\":\"response.image_generation_call.partial_image\",\"partial_image_index\":0,\"partial_image_b64\":\"UEFSVElBTA==\",\"output_format\":\"webp\"}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_1\",\"status\":\"completed\",\"result\":\"SU1HMg==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_0\",\"status\":\"completed\",\"result\":\"SU1HMQ==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_img\",\"created_at\":1700000000,\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"total_tokens\":30},\"tool_usage\":{\"image_gen\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "568"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.5\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"edit\",\"model\":\"gpt-5.4\",\"input_fidelity\":\"low\",\"output_compression\":20,\"input_image_mask\":{\"image_url\":\"data:image/png;base64,TUFTSw==\"}}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"edit it\"},{\"type\":\"input_image\",\"image_url\":\"data:image/png;base64,QUJD\"}]}]}"
+      },
+      "output": {
+        "payload": "{\"created\":1700000000,\"data\":[{\"revised_prompt\":\"a calm cat\",\"b64_json\":\"SU1HMQ==\"},{\"revised_prompt\":\"a calm cat\",\"b64_json\":\"SU1HMg==\"}],\"background\":\"opaque\",\"output_format\":\"webp\",\"quality\":\"high\",\"size\":\"1024x1024\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}"
+      }
+    },
+    {
+      "name": "tool_edit_multipart_stream",
+      "config": "multimedia:\n  gpt-image-2-base-model: o4-image\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Content-Type": "multipart/form-data; boundary=XBOUNDARYX",
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-5.4",
+      "payload_b64": "LS1YQk9VTkRBUllYDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9InByb21wdCINCg0KICBhZGQgYSBoYXQgIA0KLS1YQk9VTkRBUllYDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9Im1vZGVsIg0KDQpncHQtaW1hZ2UtMS41DQotLVhCT1VOREFSWVgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ic2l6ZSINCg0KMTAyNHgxNTM2DQotLVhCT1VOREFSWVgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iaW5wdXRfZmlkZWxpdHkiDQoNCmhpZ2gNCi0tWEJPVU5EQVJZWA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJvdXRwdXRfY29tcHJlc3Npb24iDQoNCjcwDQotLVhCT1VOREFSWVgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icGFydGlhbF9pbWFnZXMiDQoNCm5vcGUNCi0tWEJPVU5EQVJZWA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJyZXNwb25zZV9mb3JtYXQiDQoNClVSTA0KLS1YQk9VTkRBUllYDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImltYWdlW10iOyBmaWxlbmFtZT0iYS5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQqJUE5HDQoaCgAAAA1JSERSLWZha2UNCi0tWEJPVU5EQVJZWA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZVtdIjsgZmlsZW5hbWU9ImIuYmluIg0KDQqJUE5HDQoaCgAAAA1JSERSLWZha2UNCi0tWEJPVU5EQVJZWA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtYXNrIjsgZmlsZW5hbWU9Im0ucG5nIg0KQ29udGVudC1UeXBlOiBpbWFnZS9wbmcNCg0KTUFTSw0KLS1YQk9VTkRBUllYLS0NCg==",
+      "stream": true,
+      "request_path": "/v1/images/edits",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_img\"}}\n\ndata: {\"type\":\"response.image_generation_call.partial_image\",\"partial_image_index\":0,\"partial_image_b64\":\"UEFSVElBTA==\",\"output_format\":\"webp\"}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_1\",\"status\":\"completed\",\"result\":\"SU1HMg==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_0\",\"status\":\"completed\",\"result\":\"SU1HMQ==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_img\",\"created_at\":1700000000,\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"total_tokens\":30},\"tool_usage\":{\"image_gen\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "713"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.4-mini\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"edit\",\"model\":\"gpt-image-1.5\",\"size\":\"1024x1536\",\"input_fidelity\":\"high\",\"output_compression\":70,\"input_image_mask\":{\"image_url\":\"data:image/png;base64,TUFTSw==\"}}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"add a hat\"},{\"type\":\"input_image\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUi1mYWtl\"},{\"type\":\"input_image\",\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUi1mYWtl\"}]}]}"
+      },
+      "output": {
+        "chunks": [
+          "event: image_edit.partial_image\ndata: {\"type\":\"image_edit.partial_image\",\"partial_image_index\":0,\"url\":\"data:image/webp;base64,UEFSVElBTA==\"}\n\n",
+          "event: image_edit.completed\ndata: {\"type\":\"image_edit.completed\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12},\"url\":\"data:image/webp;base64,SU1HMQ==\"}\n\n",
+          "event: image_edit.completed\ndata: {\"type\":\"image_edit.completed\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12},\"url\":\"data:image/webp;base64,SU1HMg==\"}\n\n"
+        ]
+      }
+    },
+    {
+      "name": "tool_no_image_output",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload_b64": "eyJwcm9tcHQiOiJwIn0=",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_img\",\"created_at\":1700000000,\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"total_tokens\":30},\"tool_usage\":{\"image_gen\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "394"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.4-mini\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"generate\",\"model\":\"gpt-5.4\"}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"p\"}]}]}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": false,
+          "message": "upstream did not return image output",
+          "status": 502
+        }
+      }
+    },
+    {
+      "name": "tool_disconnected_before_completion",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload_b64": "eyJwcm9tcHQiOiJwIn0=",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_0\",\"status\":\"completed\",\"result\":\"SU1H\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"png\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "394"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.4-mini\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"generate\",\"model\":\"gpt-5.4\"}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"p\"}]}]}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": false,
+          "message": "stream error: stream disconnected before completion",
+          "status": 504
+        }
+      }
+    },
+    {
+      "name": "tool_upstream_429",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload_b64": "eyJwcm9tcHQiOiJwIn0=",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 429,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"limit\",\"resets_in_seconds\":60}}",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "394"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.4-mini\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"generate\",\"model\":\"gpt-5.4\"}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"p\"}]}]}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": true,
+          "message": "{\"error\":{\"type\":\"usage_limit_reached\",\"message\":\"limit\",\"resets_in_seconds\":60}}",
+          "retry_after_s": 60,
+          "status": 429
+        }
+      }
+    },
+    {
+      "name": "tool_invalid_json",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {},
+      "model": "gpt-5.4",
+      "payload_b64": "eyJwcm9tcHQiOg==",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_img\"}}\n\ndata: {\"type\":\"response.image_generation_call.partial_image\",\"partial_image_index\":0,\"partial_image_b64\":\"UEFSVElBTA==\",\"output_format\":\"webp\"}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_1\",\"status\":\"completed\",\"result\":\"SU1HMg==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_0\",\"status\":\"completed\",\"result\":\"SU1HMQ==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_img\",\"created_at\":1700000000,\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"total_tokens\":30},\"tool_usage\":{\"image_gen\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}}}\n\n",
+      "output": {
+        "error": {
+          "message": "invalid OpenAI image generation request JSON"
+        }
+      }
+    },
+    {
+      "name": "direct_generation_nonstream",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-image-2",
+      "payload_b64": "eyJtb2RlbCI6ImdwdC1pbWFnZS0yIiwicHJvbXB0IjoiYSBjYXQiLCJzdHJlYW0iOnRydWUsIm4iOjF9",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"created\":1,\"data\":[{\"b64_json\":\"QQ==\"}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}",
+      "upstream": {
+        "method": "POST",
+        "path": "/images/generations",
+        "headers": {
+          "accept": [
+            "application/json"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "46"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"model\":\"gpt-image-2\",\"prompt\":\"a cat\",\"n\":1}"
+      },
+      "output": {
+        "payload": "{\"created\":1,\"data\":[{\"b64_json\":\"QQ==\"}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}"
+      }
+    },
+    {
+      "name": "direct_generation_stream_suffix_model",
+      "config": "{}\n",
+      "attributes": {
+        "api_key": "sk-FAKE"
+      },
+      "metadata": {},
+      "headers": {
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "openai/gpt-image-2.5(high)",
+      "payload_b64": "eyJwcm9tcHQiOiJhIGNhdCJ9",
+      "stream": true,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "event: image_generation.completed\ndata: {\"type\":\"image_generation.completed\",\"b64_json\":\"QQ==\"}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/images/generations",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer sk-FAKE"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "56"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"prompt\":\"a cat\",\"model\":\"gpt-image-2.5\",\"stream\":true}"
+      },
+      "output": {
+        "chunks": [
+          "event: image_generation.completed\ndata: {\"type\":\"image_generation.completed\",\"b64_json\":\"QQ==\"}\n\n"
+        ]
+      }
+    },
+    {
+      "name": "direct_edit_multipart",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Content-Type": "multipart/form-data; boundary=XBOUNDARYX",
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-image-2",
+      "payload_b64": "LS1YQk9VTkRBUllYDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9InByb21wdCINCg0KYWRkIGEgaGF0DQotLVhCT1VOREFSWVgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibW9kZWwiDQoNCmdwdC1pbWFnZS0yDQotLVhCT1VOREFSWVgNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibiINCg0KMg0KLS1YQk9VTkRBUllYDQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9InF1YWxpdHkiDQoNCmhpZ2gNCi0tWEJPVU5EQVJZWA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtYXNrW2ZpbGVfaWRdIg0KDQpmaWxlLW1hc2sNCi0tWEJPVU5EQVJZWA0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJhLnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNColQTkcNChoKAAAADUlIRFItZmFrZQ0KLS1YQk9VTkRBUllYLS0NCg==",
+      "stream": false,
+      "request_path": "/v1/images/edits",
+      "upstream_status": 200,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"created\":2,\"data\":[{\"b64_json\":\"Qg==\"}]}",
+      "upstream": {
+        "method": "POST",
+        "path": "/images/edits",
+        "headers": {
+          "accept": [
+            "application/json"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "176"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"model\":\"gpt-image-2\",\"mask\":{\"file_id\":\"file-mask\"},\"prompt\":\"add a hat\",\"n\":2,\"quality\":\"high\",\"images\":[{\"image_url\":\"data:image/png;base64,iVBORw0KGgoAAAANSUhEUi1mYWtl\"}]}"
+      },
+      "output": {
+        "payload": "{\"created\":2,\"data\":[{\"b64_json\":\"Qg==\"}]}"
+      }
+    },
+    {
+      "name": "direct_edit_json",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "model": "gpt-image-1.5",
+      "payload_b64": "eyJtb2RlbCI6ImdwdC1pbWFnZS0xLjUiLCJwcm9tcHQiOiJlZGl0IiwiaW1hZ2VzIjpbeyJpbWFnZV91cmwiOiJkYXRhOmltYWdlL3BuZztiYXNlNjQsUVVKRCJ9XX0=",
+      "stream": false,
+      "request_path": "/v1/images/edits",
+      "upstream_status": 200,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"created\":3,\"data\":[]}",
+      "upstream": {
+        "method": "POST",
+        "path": "/images/edits",
+        "headers": {
+          "accept": [
+            "application/json"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "95"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ]
+        },
+        "body": "{\"model\":\"gpt-image-1.5\",\"prompt\":\"edit\",\"images\":[{\"image_url\":\"data:image/png;base64,QUJD\"}]}"
+      },
+      "output": {
+        "payload": "{\"created\":3,\"data\":[]}"
+      }
+    },
+    {
+      "name": "tool_generation_uncloaked_client_ua",
+      "config": "codex:\n  disable-codex-cloaking: true\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-5.4",
+      "payload_b64": "eyJwcm9tcHQiOiJwIn0=",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "text/event-stream",
+      "upstream_body": "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_img\"}}\n\ndata: {\"type\":\"response.image_generation_call.partial_image\",\"partial_image_index\":0,\"partial_image_b64\":\"UEFSVElBTA==\",\"output_format\":\"webp\"}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_1\",\"status\":\"completed\",\"result\":\"SU1HMg==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"type\":\"image_generation_call\",\"id\":\"ig_0\",\"status\":\"completed\",\"result\":\"SU1HMQ==\",\"revised_prompt\":\" a calm cat \",\"output_format\":\"webp\",\"size\":\"1024x1024\",\"background\":\"opaque\",\"quality\":\"high\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_img\",\"created_at\":1700000000,\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":10,\"output_tokens\":20,\"total_tokens\":30},\"tool_usage\":{\"image_gen\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}}}\n\n",
+      "upstream": {
+        "method": "POST",
+        "path": "/responses",
+        "headers": {
+          "accept": [
+            "text/event-stream"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "394"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "my_app"
+          ],
+          "user-agent": [
+            "my-image-client/2.0"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"instructions\":\"\",\"stream\":true,\"reasoning\":{\"effort\":\"medium\",\"summary\":\"auto\"},\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"model\":\"gpt-5.4-mini\",\"store\":false,\"tool_choice\":{\"type\":\"image_generation\"},\"tools\":[{\"type\":\"image_generation\",\"action\":\"generate\",\"model\":\"gpt-5.4\"}],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"p\"}]}]}"
+      },
+      "output": {
+        "payload": "{\"created\":1700000000,\"data\":[{\"revised_prompt\":\"a calm cat\",\"b64_json\":\"SU1HMQ==\"},{\"revised_prompt\":\"a calm cat\",\"b64_json\":\"SU1HMg==\"}],\"background\":\"opaque\",\"output_format\":\"webp\",\"quality\":\"high\",\"size\":\"1024x1024\",\"usage\":{\"input_tokens\":5,\"output_tokens\":7,\"total_tokens\":12}}"
+      }
+    },
+    {
+      "name": "direct_generation_uncloaked_drops_client_ua",
+      "config": "codex:\n  disable-codex-cloaking: true\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {
+        "Originator": "my_app",
+        "Session_id": "sess-FAKE",
+        "User-Agent": "my-image-client/2.0",
+        "X-Codex-Turn-Metadata": "{\"turn\":1}"
+      },
+      "model": "gpt-image-2",
+      "payload_b64": "eyJwcm9tcHQiOiJwIn0=",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 200,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"created\":4,\"data\":[]}",
+      "upstream": {
+        "method": "POST",
+        "path": "/images/generations",
+        "headers": {
+          "accept": [
+            "application/json"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "36"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "my_app"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ],
+          "x-codex-turn-metadata": [
+            "{\"turn\":1}"
+          ]
+        },
+        "body": "{\"prompt\":\"p\",\"model\":\"gpt-image-2\"}"
+      },
+      "output": {
+        "payload": "{\"created\":4,\"data\":[]}"
+      }
+    },
+    {
+      "name": "direct_upstream_400",
+      "config": "{}\n",
+      "attributes": {},
+      "metadata": {
+        "access_token": "at-FAKE",
+        "account_id": "acct-FAKE-1",
+        "email": "user@example.invalid",
+        "type": "codex"
+      },
+      "headers": {},
+      "model": "gpt-image-2",
+      "payload_b64": "eyJwcm9tcHQiOiJ4In0=",
+      "stream": false,
+      "request_path": "/v1/images/generations",
+      "upstream_status": 400,
+      "upstream_type": "application/json",
+      "upstream_body": "{\"error\":{\"message\":\"bad size\",\"type\":\"invalid_request_error\"}}",
+      "upstream": {
+        "method": "POST",
+        "path": "/images/generations",
+        "headers": {
+          "accept": [
+            "application/json"
+          ],
+          "accept-encoding": [
+            "gzip"
+          ],
+          "authorization": [
+            "Bearer at-FAKE"
+          ],
+          "chatgpt-account-id": [
+            "acct-FAKE-1"
+          ],
+          "connection": [
+            "Keep-Alive"
+          ],
+          "content-length": [
+            "36"
+          ],
+          "content-type": [
+            "application/json"
+          ],
+          "originator": [
+            "codex-tui"
+          ],
+          "user-agent": [
+            "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+          ]
+        },
+        "body": "{\"prompt\":\"x\",\"model\":\"gpt-image-2\"}"
+      },
+      "output": {
+        "error": {
+          "credential_scoped": false,
+          "message": "{\"error\":{\"message\":\"bad size\",\"type\":\"invalid_request_error\"}}",
+          "status": 400
+        }
       }
     }
   ],

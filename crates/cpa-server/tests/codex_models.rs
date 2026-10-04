@@ -98,3 +98,23 @@ async fn catalog_matches_go_for_config_models() {
         }
     }
 }
+
+/// A Codex API key without configured models serves the Pro catalog plus the gpt-image-*
+/// built-ins (Go `WithCodexBuiltins`), as Go's `/v1/models` lists them
+/// (tests/reference/codex_models `TestRSFixCodexBuiltins`). Compared as a set: list order
+/// is the registry's concern.
+#[tokio::test]
+async fn codex_builtins_match_go_models_list() {
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/codex_builtins_go.json")).unwrap();
+    let (status, _, body) = get("/v1/models", fixture["config"].as_str().unwrap()).await;
+    assert_eq!(status, 200);
+    let want: Value = serde_json::from_str(fixture["models"].as_str().unwrap()).unwrap();
+    let sorted = |list: &Value| {
+        let mut entries = list["data"].as_array().unwrap().clone();
+        entries.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+        entries
+    };
+    let (got, want) = (sorted(&body), sorted(&want));
+    assert!(want.iter().any(|m| m["id"] == "gpt-image-2"), "Go lists the built-ins");
+    assert_eq!(got, want);
+}

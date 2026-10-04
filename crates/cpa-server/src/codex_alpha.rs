@@ -90,6 +90,9 @@ async fn alpha_search(
         Err(_) => return error(400, "Failed to read search request"),
     };
     let (id, model) = routing(&body);
+    let capture = crate::request_logging::current()
+        .map(|log| log.capture_sink())
+        .unwrap_or_default();
     let (cfg, policy) = rt.request_snapshot();
     // The credential policy narrows selection; disallowed Codex credentials are excluded.
     let exclude = rt
@@ -180,7 +183,7 @@ async fn alpha_search(
     let result = rt
         .executors
         .codex
-        .alpha_search(&lease.credential, &body, &headers, &execution_model, &cfg)
+        .alpha_search(&lease.credential, &body, &headers, &execution_model, &cfg, &capture)
         .await;
     // Dropping the lease reports `Cancelled`: Go's Alpha Search never marks a result.
     drop(lease);

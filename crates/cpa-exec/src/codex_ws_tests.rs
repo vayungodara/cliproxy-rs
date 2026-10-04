@@ -321,8 +321,9 @@ async fn bootstrap_overload_fails_over_without_disconnect_notice() {
     );
 }
 
-/// An upstream close with 1009 reaches the turn as a request-scoped 413 carrying the
-/// upstream reason, and the session learns its socket is gone.
+/// An upstream close with 1009 reaches the turn as Go's fixed request-scoped 413
+/// (`mapCodexWebsocketReadError`), while the session's loss keeps the upstream reason
+/// (gorilla's close error, which the downstream handler turns into close 1009).
 #[tokio::test]
 async fn close_1009_is_a_request_scoped_413_and_notifies() {
     let (_up, url) = upstream(vec![Act::SendClose(vec![CREATED], 1009)]).await;
@@ -336,13 +337,18 @@ async fn close_1009_is_a_request_scoped_413_and_notifies() {
     let error = events.last().unwrap().as_ref().expect_err("turn ends with the close");
     assert_eq!((error.status, error.scope), (413, FailureScope::Request));
     assert_eq!(
-        gjson::get(&String::from_utf8_lossy(&error.body), "error.message").str(),
-        "bye"
+        String::from_utf8_lossy(&error.body),
+        r#"{"error":{"message":"upstream websocket message too big","type":"invalid_request_error","code":"message_too_big"}}"#
     );
     let notified = tokio::time::timeout(Duration::from_secs(2), closed)
         .await
         .expect("session notified");
     assert_eq!(notified.status, 413);
+    assert_eq!(
+        gjson::get(&String::from_utf8_lossy(&notified.body), "error.message").str(),
+        "bye"
+    );
+    assert_eq!(executor.session_loss("conn-1").map(|e| e.body), Some(notified.body));
 }
 
 /// Go keeps one read deadline per application message: pings answered while waiting do
@@ -533,3 +539,254 @@ async fn compressed_upstream_events_read_like_plain_ones() {
     assert_eq!(compressed.len(), 2, "{compressed:?}");
     assert_eq!(compressed, plain);
 }
+
+/// A close 1009 that arrives while the turn's channel is full cannot be queued; the turn
+/// still ends with Go's 413 from the session's recorded loss, not a generic channel error.
+#[tokio::test]
+async fn close_1009_on_a_full_turn_channel_keeps_the_413() {
+    const DELTA: &str = r#"{"type":"response.output_text.delta","output_index":0,"delta":"x"}"#;
+    let mut events = vec![CREATED];
+    events.extend(std::iter::repeat_n(DELTA, TURN_BUFFER - 1));
+    let (_up, url) = upstream(vec![Act::SendClose(events, 1009)]).await;
+    let executor = CodexExecutor::new().unwrap();
+    let closed = executor.session_closed("conn-1");
+    let response = executor
+        .execute_in_session(&credential(&url), request(BODY), &Config::default(), &session(false))
+        .await
+        .unwrap();
+    // Nothing reads the turn until the reader has filled the channel and seen the close.
+    tokio::time::timeout(Duration::from_secs(5), closed)
+        .await
+        .expect("session notified");
+    let events = collect(response).await;
+    assert_eq!(events.len(), TURN_BUFFER + 1, "every queued event, then the error");
+    let error = events.last().unwrap().as_ref().expect_err("turn ends with the close");
+    assert_eq!(error.status, 413);
+    assert_eq!(
+        gjson::get(&String::from_utf8_lossy(&error.body), "error.message").str(),
+        "upstream websocket message too big"
+    );
+}
+
+/// Go's duplex writes upstream from its own goroutine: a steer stuck in the network (the
+/// upstream stopped reading) must not hold back the upstream's next event.
+#[tokio::test]
+async fn duplex_delivers_upstream_events_while_a_write_is_blocked() {
+    const DELTA: &str = r#"{"type":"response.output_text.delta","output_index":0,"delta":"x"}"#;
+    let app = axum::Router::new().fallback(|ws: WebSocketUpgrade| async move {
+        ws.on_upgrade(|mut socket| async move {
+            // The bootstrap create, then no more reads for the socket's life.
+            let _ = socket.recv().await;
+            let _ = socket.send(AxMessage::Text(CREATED.into())).await;
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            let _ = socket.send(AxMessage::Text(DELTA.into())).await;
+            tokio::time::sleep(Duration::from_secs(30)).await;
+        })
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let executor = CodexExecutor::new().unwrap();
+    let (frames, input) = tokio::sync::mpsc::channel(4);
+    let input = Arc::new(tokio::sync::Mutex::new(input));
+    executor.attach_steering("conn-1", SteeringInput::new(input, |_| true));
+    let cfg = Config::parse("codex:\n  response-steering: true\n").unwrap();
+    let response = executor
+        .execute_in_session(&credential(&url), request(BODY), &cfg, &session(false))
+        .await
+        .unwrap();
+    let ResponseBody::Stream(mut stream) = response.body else {
+        panic!("websocket turns stream");
+    };
+    let created = stream.next().await.unwrap().unwrap();
+    assert_eq!(
+        gjson::get(&String::from_utf8_lossy(&created), "type").str(),
+        "response.created"
+    );
+    // Far larger than loopback socket buffers: the write cannot finish while upstream
+    // does not read.
+    let steer = format!(
+        r#"{{"type":"response.steer","previous_response_id":"r1","input":"{}"}}"#,
+        "x".repeat(32 << 20)
+    );
+    frames.send(Bytes::from(steer)).await.unwrap();
+    let next = tokio::time::timeout(Duration::from_secs(5), stream.next())
+        .await
+        .expect("the delta arrives while the steer is still being written");
+    assert_eq!(String::from_utf8_lossy(&next.unwrap().unwrap()), DELTA);
+}
+
+/// A request whose capture goes to `tap`.
+fn tapped(body: &str, tap: &Arc<crate::codex_testkit::Wiretap>) -> ExecRequest {
+    let mut req = request(body);
+    req.usage = cpa_core::exec::UsageSink::default().with_capture(cpa_core::exec::CaptureSink::new(tap.clone()));
+    req
+}
+
+/// Upstream capture of a WebSocket turn (`codex_websockets_stream.go`): the request
+/// frame with the dial's URL and headers before dialing, the handshake after a new dial
+/// only, then every upstream message as received.
+#[tokio::test]
+async fn capture_records_websocket_turns_as_go_does() {
+    use crate::codex_testkit::{Tap, Wiretap};
+    let (_up, url) = upstream(vec![
+        Act::Send(vec![CREATED, COMPLETED]),
+        Act::Send(vec![CREATED, COMPLETED]),
+    ])
+    .await;
+    let executor = CodexExecutor::new().unwrap();
+    let cred = credential(&url);
+    let ws_url = format!("{}/responses", url.replacen("http://", "ws://", 1));
+    for continuation in [false, true] {
+        let tap = Arc::new(Wiretap::default());
+        let response = executor
+            .execute_in_session(&cred, tapped(BODY, &tap), &Config::default(), &session(continuation))
+            .await
+            .unwrap();
+        collect(response).await;
+        let taps = tap.taps();
+        let Tap::WsRequest {
+            url,
+            headers,
+            body,
+            account,
+        } = &taps[0]
+        else {
+            panic!("{taps:?}");
+        };
+        assert_eq!(url, &ws_url);
+        assert_eq!(gjson::get(body, "type").str(), "response.create", "the frame as sent");
+        assert!(
+            headers.contains(&("Authorization".into(), "Bearer sk-FAKE".into())),
+            "{headers:?}"
+        );
+        assert_eq!(
+            account,
+            &["codex", &cred.id, &cred.label, "api_key", "sk-FAKE"].map(str::to_owned)
+        );
+        let mut want = vec![];
+        if !continuation {
+            want.push(Tap::WsHandshake(101));
+        }
+        want.extend([Tap::WsResponse(CREATED.into()), Tap::WsResponse(COMPLETED.into())]);
+        assert_eq!(taps[1..], want[..], "continuation={continuation}");
+    }
+}
+
+/// A refused upgrade is recorded as an HTTP attempt (`RecordAPIWebsocketUpgradeRejection`):
+/// a GET to the HTTP form of the URL with Connection and Upgrade, the status and the body.
+#[tokio::test]
+async fn capture_records_a_refused_upgrade_as_an_http_attempt() {
+    use crate::codex_testkit::{Tap, Wiretap};
+    const BODY_401: &str = r#"{"error":{"message":"bad key","type":"invalid_request_error"}}"#;
+    let (up, url) = upstream(vec![]).await;
+    *up.reject.lock().unwrap() = Some((401, BODY_401));
+    let tap = Arc::new(Wiretap::default());
+    let _ = CodexExecutor::new()
+        .unwrap()
+        .execute_in_session(
+            &credential(&url),
+            tapped(BODY, &tap),
+            &Config::default(),
+            &session(false),
+        )
+        .await
+        .err()
+        .expect("401 handshake");
+    let taps = tap.taps();
+    assert!(matches!(&taps[0], Tap::WsRequest { .. }), "{taps:?}");
+    let Tap::Request {
+        url: upgrade,
+        method,
+        headers,
+        body,
+        ..
+    } = &taps[1]
+    else {
+        panic!("{taps:?}");
+    };
+    assert_eq!(
+        (upgrade.as_str(), method.as_str(), body.as_str()),
+        (format!("{url}/responses").as_str(), "GET", "")
+    );
+    for pair in [("Connection", "Upgrade"), ("Upgrade", "websocket")] {
+        assert!(headers.contains(&(pair.0.into(), pair.1.into())), "{headers:?}");
+    }
+    assert!(matches!(&taps[2], Tap::Metadata(401, _)), "{taps:?}");
+    assert_eq!(
+        taps[3..],
+        [Tap::Chunk(BODY_401.into())],
+        "no dial error after a rejection"
+    );
+}
+
+/// A dial that never reaches an HTTP response is `api.websocket.error` stage `dial`.
+#[tokio::test]
+async fn capture_records_a_dial_failure() {
+    use crate::codex_testkit::{Tap, Wiretap};
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    drop(listener);
+    let tap = Arc::new(Wiretap::default());
+    let error = CodexExecutor::new()
+        .unwrap()
+        .execute_in_session(
+            &credential(&url),
+            tapped(BODY, &tap),
+            &Config::default(),
+            &session(false),
+        )
+        .await
+        .err()
+        .expect("nothing listens");
+    let taps = tap.taps();
+    assert!(matches!(&taps[0], Tap::WsRequest { .. }), "{taps:?}");
+    assert_eq!(
+        taps[1..],
+        [Tap::WsError(
+            "dial".into(),
+            String::from_utf8_lossy(&error.body).into_owned()
+        )]
+    );
+}
+
+/// An upstream `error` event is recorded as received, then as stage `upstream_error`
+/// with the turn's error.
+#[tokio::test]
+async fn capture_records_an_upstream_error_event() {
+    use crate::codex_testkit::{Tap, Wiretap};
+    const ERROR: &str =
+        r#"{"type":"error","status":400,"error":{"type":"invalid_request_error","message":"bad input"}}"#;
+    let (_up, url) = upstream(vec![Act::Send(vec![ERROR])]).await;
+    let tap = Arc::new(Wiretap::default());
+    let response = CodexExecutor::new()
+        .unwrap()
+        .execute_in_session(
+            &credential(&url),
+            tapped(BODY, &tap),
+            &Config::default(),
+            &session(false),
+        )
+        .await
+        .unwrap();
+    let error = collect(response)
+        .await
+        .pop()
+        .expect("the turn ends")
+        .expect_err("with the upstream error");
+    let taps = tap.taps();
+    assert_eq!(
+        taps[2..],
+        [
+            Tap::WsResponse(ERROR.into()),
+            Tap::WsError(
+                "upstream_error".into(),
+                String::from_utf8_lossy(&error.body).into_owned()
+            ),
+        ]
+    );
+}
+
+#[path = "codex_duplex_tests.rs"]
+mod duplex;

@@ -673,6 +673,8 @@ pub(crate) struct Processor {
     usage: cpa_core::exec::UsageSink,
     /// Grok Build clients get keepalive events as SSE comments (`grokbuild`).
     grok_keepalive: bool,
+    /// The attempt's wire capture: every scanned line and each stream failure.
+    wire: crate::codex_capture::Wire,
 }
 
 impl Processor {
@@ -688,7 +690,20 @@ impl Processor {
             replay: None,
             usage: Default::default(),
             grok_keepalive: false,
+            wire: Default::default(),
         }
+    }
+
+    /// Records every scanned line and each stream failure (Go `AppendAPIResponseChunk`
+    /// and `RecordAPIResponseError` in the stream loops).
+    pub fn capturing(mut self, wire: crate::codex_capture::Wire) -> Self {
+        self.wire = wire;
+        self
+    }
+
+    /// `RecordAPIResponseError` for a failure the stream reports.
+    fn record(&self, error: &ExecError) {
+        self.wire.exec_error(error);
     }
 
     /// `grokbuild.TransformKeepaliveSSELine` for a Grok Build client (`User-Agent` with
@@ -699,6 +714,9 @@ impl Processor {
     }
 
     /// Reports each upstream payload to the attempt's usage record.
+    // ponytail: Go also publishes `response.tool_usage.image_gen` as a second record under
+    // the request's image_generation tool model (`publishCodexImageToolUsage`, default
+    // gpt-image-2); `UsageSink` has no per-model record yet (a Server contract change).
     pub fn reporting(mut self, usage: cpa_core::exec::UsageSink) -> Self {
         self.usage = usage;
         self
@@ -736,13 +754,25 @@ impl Processor {
     /// One framed SSE event in. Go scans lines: `data:` payloads are trimmed and
     /// re-prefixed with `data: `, other lines pass through, CR is dropped.
     pub fn event(&mut self, event: &[u8]) -> Step {
-        let text = String::from_utf8_lossy(event);
+        let step = self.event_step(event);
+        if let Step::Fail { error, .. } = &step {
+            self.record(error);
+        }
+        step
+    }
+
+    fn event_step(&mut self, event: &[u8]) -> Step {
         let mut lines = Vec::new();
         let mut terminal = false;
         // Go writes each keepalive comment as its own SSE frame.
         let mut after_comment = false;
         self.last_bufferable = true;
-        for line in text.split('\n').map(|l| l.strip_suffix('\r').unwrap_or(l)) {
+        for raw in event.split(|b| *b == b'\n') {
+            let raw = raw.strip_suffix(b"\r").unwrap_or(raw);
+            // Go records each scanned line before reading it, and none after a terminal.
+            self.wire.chunk(raw);
+            let line = String::from_utf8_lossy(raw);
+            let line = line.as_ref();
             if line.is_empty() {
                 continue;
             }
@@ -919,21 +949,36 @@ pub(crate) fn processed(upstream: ExecStream, processor: Processor, emitted: usi
                 },
                 Some(Err(error)) => {
                     st.done = true;
+                    // Go records the scan error, then how the stream ended.
+                    st.processor.record(&error);
+                    st.processor.record(&ended(st.emitted));
                     Err(error)
                 }
                 None => {
                     st.done = true;
+                    let end = ended(st.emitted);
+                    st.processor.record(&end);
                     // Go ends silently when nothing at all was emitted.
                     if st.emitted == 0 {
                         return None;
                     }
-                    Err(request_scoped(408, INCOMPLETE_MESSAGE))
+                    Err(end)
                 }
             };
             Some((item, st))
         },
     )
     .boxed()
+}
+
+/// How a stream that ended without a terminal event is reported: Go's 502 "upstream
+/// stream closed before first payload" when nothing was emitted, else the 408.
+fn ended(emitted: usize) -> ExecError {
+    if emitted == 0 {
+        request_scoped(502, "upstream stream closed before first payload")
+    } else {
+        request_scoped(408, INCOMPLETE_MESSAGE)
+    }
 }
 
 /// Result of holding back the frames that precede generation.
@@ -960,12 +1005,20 @@ pub(crate) async fn bootstrap(
         let timed_out = || timeout.is_some_and(|t| started.elapsed() >= t);
         let event = match upstream.next().await {
             Some(Ok(event)) => event,
-            Some(Err(error)) => return Bootstrap::Reject(error),
+            Some(Err(error)) => {
+                processor.record(&error);
+                return Bootstrap::Reject(error);
+            }
             None if held.is_empty() => {
                 // "upstream stream closed before first payload": an empty stream.
+                processor.record(&ended(0));
                 return Bootstrap::Stream(futures_util::stream::empty().boxed());
             }
-            None => return Bootstrap::Reject(request_scoped(408, INCOMPLETE_MESSAGE)),
+            None => {
+                let error = request_scoped(408, INCOMPLETE_MESSAGE);
+                processor.record(&error);
+                return Bootstrap::Reject(error);
+            }
         };
         let lines = String::from_utf8_lossy(&event)
             .split('\n')

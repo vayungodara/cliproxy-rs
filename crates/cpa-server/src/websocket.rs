@@ -18,8 +18,10 @@
 //! Response steering (`codex.response-steering`): a turn served by a Codex credential in
 //! WebSocket mode runs full duplex. The executor keeps the upstream socket for the rest of
 //! the connection and, after the first `response.created`, takes the client's later frames
-//! (`response.steer`, more creates) from a bounded channel this task fills while it
-//! forwards. That turn ends only with the connection.
+//! (`response.steer`, more creates) from the connection's frame queue. That turn ends only
+//! with the connection. With steering configured, one reader task fills that queue for
+//! the whole connection (`readResponsesWebsocketInput`): this task takes requests from it
+//! between turns, and a client that goes away cancels the turn in flight.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -40,8 +42,9 @@ use cpa_core::credential::Credential;
 use cpa_core::exec::{Caller, ExecError, ExecSession, ExecStream, Operation};
 use cpa_core::format::Format;
 use cpa_exec::codex::{CodexExecutor, SteeringInput};
-use futures_util::{FutureExt, StreamExt};
-use tokio::sync::mpsc;
+use futures_util::stream::{SplitSink, SplitStream};
+use futures_util::{FutureExt, SinkExt, StreamExt};
+use tokio::sync::{mpsc, watch};
 
 use crate::registry::provider_key;
 use crate::runtime::Runtime;
@@ -76,6 +79,63 @@ const MAX_MESSAGE: usize = crate::MAX_REQUEST_BYTES;
 const TERMINAL_WRITE: Duration = Duration::from_secs(1);
 /// `readResponsesWebsocketInput`'s queue: steering frames backpressure the client.
 const STEERING_QUEUE: usize = 16;
+
+/// The connection's write half (reads go through [`Client`]) and its request-log
+/// timeline (Go `websocketTimelineLog`).
+struct Sink {
+    inner: SplitSink<WebSocket, Message>,
+    timeline: Option<crate::request_logging::WebsocketLog>,
+    /// Go's `wsTerminateErr`: why the connection ended, the final `websocket.disconnect`.
+    terminated: Option<String>,
+}
+
+/// gorilla's text for the error after this side closed the connection.
+const CLOSE_SENT: &str = "websocket: close sent";
+
+impl Sink {
+    /// Go `websocketTimelineLog.Append`: one `formatWebsocketTimelineEvent` part.
+    fn event(&self, kind: &str, payload: &[u8]) {
+        let Some(timeline) = &self.timeline else {
+            return;
+        };
+        let payload = payload.trim_ascii();
+        if payload.is_empty() {
+            return;
+        }
+        let mut part = format!(
+            "Timestamp: {}\nEvent: websocket.{kind}\n",
+            crate::request_logging::timestamp(chrono::Local::now())
+        )
+        .into_bytes();
+        part.extend_from_slice(payload);
+        part.push(b'\n');
+        // Go only warns when a timeline part cannot be written.
+        let _ = timeline.append_part(&part);
+    }
+
+    fn terminate(&mut self, reason: &str) {
+        self.terminated = Some(reason.to_owned());
+    }
+
+    /// The connection's end: the deferred `appendWebsocketTimelineDisconnect`, the socket
+    /// closed at once (a pending close reply gets `TERMINAL_WRITE`, gorilla's bounded
+    /// control write), and only then the timeline's delivery, which can wait on disk or
+    /// Home forwarding (Go closes TCP before its deferred log write).
+    async fn finish(mut self, client: Client) {
+        if let Some(reason) = self.terminated.take() {
+            self.event("disconnect", reason.as_bytes());
+        }
+        let Self {
+            mut inner, timeline, ..
+        } = self;
+        let _ = tokio::time::timeout(TERMINAL_WRITE, inner.flush()).await;
+        drop(inner);
+        drop(client);
+        if let Some(timeline) = timeline {
+            timeline.close().await;
+        }
+    }
+}
 
 /// gorilla `returnError` for a request that is not a websocket handshake: plain status
 /// text and the supported version.
@@ -113,6 +173,13 @@ async fn upgrade(
     // Go `request_path` metadata: gin FullPath of the upgrade route.
     connection.request_path = matched.as_str().to_owned();
     connection.peer = dispatch::peer(peer);
+    // The upgrade request's log: Go writes the WebSocket timeline and every turn's
+    // upstream capture into the gin context of the upgrade.
+    if let Some(log) = crate::request_logging::current() {
+        connection.capture = log.capture_sink();
+        connection.request_id = Some(log.request_id()).filter(|id| !id.is_empty());
+        connection.timeline = log.detach_websocket();
+    }
     let mut response = ws
         .max_message_size(MAX_MESSAGE)
         .max_frame_size(MAX_MESSAGE)
@@ -201,11 +268,128 @@ struct Connection {
     passthrough_model: String,
     mode: Mode,
     upstream_auth: String,
-    /// Client frames for a duplex turn, when response steering is configured.
-    steering: Option<mpsc::Sender<Bytes>>,
+    /// Response steering is configured: the client's frames go through the shared queue.
+    steering: bool,
     /// The turn's selected credential runs full duplex (`codexDuplexStream`); its stream
     /// owns the connection's closure.
     duplex: Arc<AtomicBool>,
+    /// The upgrade request's log: upstream capture for every turn and its middleware ID.
+    capture: cpa_core::exec::CaptureSink,
+    request_id: Option<String>,
+    /// The upgrade request's WebSocket timeline, detached before the 101 (None when
+    /// request logging is off).
+    timeline: Option<crate::request_logging::WebsocketLog>,
+}
+
+/// The downstream reader.
+enum Client {
+    /// No steering: the connection task reads between turns only (Go's
+    /// `conn.ReadMessage` loop), so a turn does not notice the client leaving. The
+    /// second field is gorilla's text for how the read ended.
+    Direct(SplitStream<WebSocket>, Option<String>),
+    /// Steering configured: a reader task fills the queue the duplex shares
+    /// (`readResponsesWebsocketInput`). It holds `alive`'s sender, so its exit (the client
+    /// went away) is Go's request cancellation.
+    Queued {
+        frames: cpa_exec::codex::ClientFrames,
+        alive: watch::Receiver<()>,
+        reader: tokio::task::AbortHandle,
+    },
+}
+
+impl Client {
+    fn queued(stream: SplitStream<WebSocket>, tx: mpsc::Sender<Bytes>, frames: cpa_exec::codex::ClientFrames) -> Self {
+        let (alive_tx, alive) = watch::channel(());
+        let reader = tokio::spawn(read_input(stream, tx, alive_tx)).abort_handle();
+        Self::Queued { frames, alive, reader }
+    }
+
+    /// The next text or binary frame; `None` once the client is gone.
+    async fn next(&mut self) -> Option<Bytes> {
+        match self {
+            Self::Direct(stream, ended) => loop {
+                let message = stream.next().await;
+                // gorilla's `ReadMessage` error: the peer's close frame, else an
+                // abnormal closure.
+                let close = |code, reason: &str| Some(gorilla_close(code, reason));
+                match message {
+                    Some(Ok(Message::Text(text))) => return Some(Bytes::from(text)),
+                    Some(Ok(Message::Binary(bytes))) => return Some(bytes),
+                    // The close ends the read at once, as gorilla's does; the reply is sent
+                    // within `TERMINAL_WRITE` when the connection ends.
+                    Some(Ok(Message::Close(Some(frame)))) => {
+                        *ended = close(frame.code, frame.reason.as_str());
+                        return None;
+                    }
+                    Some(Ok(Message::Close(None))) => {
+                        *ended = close(1005, "");
+                        return None;
+                    }
+                    Some(Ok(_)) => continue,
+                    Some(Err(_)) | None => {
+                        if ended.is_none() {
+                            *ended = close(1006, "unexpected EOF");
+                        }
+                        return None;
+                    }
+                }
+            },
+            // A frame queued before the client left would start a turn that the
+            // cancellation ends at once; skip it.
+            Self::Queued { frames, alive, .. } => tokio::select! {
+                biased;
+                () = gone(alive) => None,
+                frame = async { frames.lock().await.recv().await } => frame,
+            },
+        }
+    }
+
+    /// Why the direct read ended (Go's `wsTerminateErr`); a steering queue that closed
+    /// ends the connection without one.
+    fn close_text(&self) -> Option<String> {
+        match self {
+            Self::Direct(_, ended) => ended.clone(),
+            Self::Queued { .. } => None,
+        }
+    }
+
+    /// Resolves once the client went away; never without the reader task.
+    async fn gone(&mut self) {
+        match self {
+            Self::Direct(..) => std::future::pending().await,
+            Self::Queued { alive, .. } => gone(alive).await,
+        }
+    }
+
+    fn stop(&self) {
+        if let Self::Queued { reader, .. } = self {
+            reader.abort();
+        }
+    }
+}
+
+async fn gone(alive: &mut watch::Receiver<()>) {
+    // Nothing is ever sent: `changed` fails once the reader dropped the sender.
+    while alive.changed().await.is_ok() {}
+}
+
+/// `readResponsesWebsocketInput`: the only downstream reader with steering configured.
+/// The bounded queue backpressures the client instead of retaining unlimited input.
+async fn read_input(mut stream: SplitStream<WebSocket>, frames: mpsc::Sender<Bytes>, _alive: watch::Sender<()>) {
+    while let Some(Ok(message)) = stream.next().await {
+        let frame = match message {
+            Message::Text(text) => Bytes::from(text),
+            Message::Binary(bytes) => bytes,
+            // gorilla's `ReadMessage` returns the close error at once: the client is gone,
+            // even while its close reply cannot be flushed (the connection task sends it
+            // within `TERMINAL_WRITE`).
+            Message::Close(_) => return,
+            _ => continue,
+        };
+        if frames.send(frame).await.is_err() {
+            return;
+        }
+    }
 }
 
 /// A turn's stream once its first event arrived.
@@ -263,15 +447,25 @@ impl Connection {
             passthrough_model: String::new(),
             mode: Mode::Unknown,
             upstream_auth: String::new(),
-            steering: None,
+            steering: false,
             duplex: Arc::default(),
+            capture: Default::default(),
+            request_id: None,
+            timeline: None,
         }
     }
 
-    async fn run(mut self, mut socket: WebSocket) {
+    async fn run(mut self, socket: WebSocket) {
         let _tools = Retained::new(self.tool_key.clone());
-        if CodexExecutor::response_steering_configured(&self.rt.config()) {
+        let (inner, stream) = socket.split();
+        let mut sink = Sink {
+            inner,
+            timeline: self.timeline.take(),
+            terminated: None,
+        };
+        let mut client = if CodexExecutor::response_steering_configured(&self.rt.config()) {
             let (tx, rx) = mpsc::channel(STEERING_QUEUE);
+            let frames = Arc::new(tokio::sync::Mutex::new(rx));
             let store = self.rt.store().clone();
             // `WithWebsocketAuthCheck`. ponytail: Go falls back to the execution session's
             // snapshot of a credential removed since; a missing credential counts as enabled.
@@ -279,57 +473,77 @@ impl Connection {
             self.rt
                 .executors
                 .codex
-                .attach_steering(&self.session, SteeringInput::new(rx, enabled));
-            self.steering = Some(tx);
-        }
+                .attach_steering(&self.session, SteeringInput::new(frames.clone(), enabled));
+            self.steering = true;
+            Client::queued(stream, tx, frames)
+        } else {
+            Client::Direct(stream, None)
+        };
         let duplex = self.duplex.clone();
         // Fused: a loss ignored during a duplex turn never fires again.
         let mut lost = Box::pin(self.rt.executors.session_closed(&self.session).fuse());
         loop {
-            let message = tokio::select! {
-                message = socket.recv() => message,
+            let frame = tokio::select! {
+                frame = client.next() => frame,
                 error = &mut lost => {
-                    close_for_upstream_loss(&mut socket, &error).await;
+                    close_for_upstream_loss(&mut sink, &error).await;
                     break;
                 }
             };
-            let payload = match message {
-                Some(Ok(Message::Text(text))) => text.as_str().to_owned(),
-                Some(Ok(Message::Binary(bytes))) => String::from_utf8_lossy(&bytes).into_owned(),
-                Some(Ok(_)) => continue,
-                Some(Err(_)) | None => break,
+            let Some(frame) = frame else {
+                // Go's read error ends the connection; with steering the queue just closes.
+                if let Some(reason) = client.close_text() {
+                    sink.terminate(&reason);
+                }
+                break;
             };
+            sink.event("request", &frame);
+            let payload = String::from_utf8_lossy(&frame).into_owned();
             // The turn wins ties so frames already received reach the client before a
             // simultaneous upstream-loss signal closes the connection. A duplex turn owns
-            // closure: it drains acknowledgements and pending events in order first.
+            // closure: it drains acknowledgements and pending events in order first. A
+            // client that went away cancels the turn (Go's reader cancels the request).
             let flow = {
-                let turn = self.turn(&mut socket, payload);
+                let turn = self.turn(&mut sink, payload);
                 tokio::pin!(turn);
                 tokio::select! {
                     biased;
                     flow = &mut turn => Ok(flow),
                     error = &mut lost => {
                         if duplex.load(Ordering::Acquire) {
-                            Ok(turn.await)
+                            tokio::select! {
+                                biased;
+                                flow = &mut turn => Ok(flow),
+                                () = client.gone() => Err(None),
+                            }
                         } else {
-                            Err(error)
+                            Err(Some(error))
                         }
                     }
+                    () = client.gone() => Err(None),
                 }
             };
             match flow {
                 Ok(Flow::Next) => {}
                 Ok(Flow::End) => break,
-                Err(error) => {
-                    close_for_upstream_loss(&mut socket, &error).await;
+                Err(Some(error)) => {
+                    close_for_upstream_loss(&mut sink, &error).await;
+                    break;
+                }
+                // The client left mid-turn: Go's forward returns the cancelled context.
+                Err(None) => {
+                    sink.terminate("context canceled");
                     break;
                 }
             }
         }
+        // The reader holds the other half: stop it so the socket closes now.
+        client.stop();
         self.rt.executors.close_session(&self.session);
+        sink.finish(client).await;
     }
 
-    async fn turn(&mut self, socket: &mut WebSocket, payload: String) -> Flow {
+    async fn turn(&mut self, socket: &mut Sink, payload: String) -> Flow {
         let cfg = self.rt.config();
         let explicit_model = field(&payload, "model");
         let mut request_model = explicit_model.clone();
@@ -356,6 +570,7 @@ impl Connection {
         if self.mode == Mode::Websocket && !native && requires_current {
             // A continuation of upstream state cannot move to another transport.
             close_with_code(socket, CLOSE_SERVICE_RESTART, "upstream requires HTTP replay").await;
+            socket.terminate(&replay_text());
             return Flow::End;
         }
         if !explicit_model.is_empty() && !use_upstream_ws {
@@ -471,7 +686,10 @@ impl Connection {
             Ok(started) => self.forward(socket, started, &cfg, &mut ctx).await,
             Err(error) => {
                 let failure = Failure::from_dispatch(&error);
-                if ctx.suppress(failure.status) {
+                if let Some(loss) = self.upstream_loss() {
+                    close_for_upstream_loss(socket, &loss).await;
+                    Forwarded::End
+                } else if ctx.suppress(failure.status) {
                     Forwarded::Suppressed
                 } else {
                     close_for_failure(socket, &failure).await;
@@ -483,6 +701,7 @@ impl Connection {
             Forwarded::Completed { output, id, pending } => (output, id, pending),
             Forwarded::Suppressed => {
                 close_with_code(socket, CLOSE_SERVICE_RESTART, "upstream requires HTTP replay").await;
+                socket.terminate(&replay_text());
                 return Flow::End;
             }
             Forwarded::End => return Flow::End,
@@ -536,6 +755,16 @@ impl Connection {
             key
         };
         (providers, key)
+    }
+
+    /// Go's disconnect notifier closes the client as soon as the session's upstream socket
+    /// is lost, ahead of the turn's own error (whose 1009 body is a fixed message rather
+    /// than the upstream's close reason). A duplex stream owns its closure instead.
+    fn upstream_loss(&self) -> Option<ExecError> {
+        if self.duplex.load(Ordering::Acquire) {
+            return None;
+        }
+        self.rt.executors.codex.session_loss(&self.session)
     }
 
     /// `responsesWebsocketAuthAvailableForModel`: enabled and not cooling for the model.
@@ -642,7 +871,7 @@ impl Connection {
         let on_selected: dispatch::OnSelected = {
             let (selected, rt, pinned) = (selected.clone(), self.rt.clone(), self.pinned.clone());
             let native_request = ctx.native_request;
-            let (duplex, steering) = (self.duplex.clone(), self.steering.is_some());
+            let (duplex, steering) = (self.duplex.clone(), self.steering);
             Box::new(move |credential: &Credential| {
                 let mut s = selected.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
                 s.last.clone_from(&credential.id);
@@ -688,7 +917,9 @@ impl Connection {
             turn: Some(turn),
             media: None,
         };
-        let result = dispatch::run_with_bootstrap_retries(&self.rt, call, &dispatch::Trace::default()).await;
+        // The upgrade's log captures every turn's upstream traffic under its request ID.
+        let trace = dispatch::Trace::with_request_id(self.request_id.clone()).with_capture(self.capture.clone());
+        let result = dispatch::run_with_bootstrap_retries(&self.rt, call, &trace).await;
         {
             let s = selected.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             ctx.last_attempted.clone_from(&s.last);
@@ -706,7 +937,7 @@ impl Connection {
     }
 
     /// `forwardResponsesWebsocket`.
-    async fn forward(&self, socket: &mut WebSocket, started: Started, cfg: &Config, ctx: &mut TurnCtx) -> Forwarded {
+    async fn forward(&self, socket: &mut Sink, started: Started, cfg: &Config, ctx: &mut TurnCtx) -> Forwarded {
         let Started { first, stream } = started;
         // `stream` completes its lease as it ends (dispatch).
         let mut stream = futures_util::stream::iter(first.map(Ok)).chain(stream).boxed();
@@ -714,62 +945,30 @@ impl Connection {
         let mut deadline = keepalive.map(|k| tokio::time::Instant::now() + k);
         let mut turn = Turn::default();
         let (mut completed, mut completed_output, mut completed_id) = (false, String::from("[]"), String::new());
-        // A duplex stream reads the client's later frames and owns the connection's end.
+        // A duplex stream takes the client's later frames from the shared queue and owns
+        // the connection's end.
         let duplex = self.duplex.load(Ordering::Acquire);
-        let mut input = self.steering.clone().filter(|_| duplex);
-        let mut slot: Option<mpsc::OwnedPermit<Bytes>> = None;
         let mut response_started = false;
         loop {
-            enum Event {
-                Item(Option<Result<Bytes, ExecError>>),
-                Ping,
-                Slot(Option<mpsc::OwnedPermit<Bytes>>),
-                Client(Option<Result<Message, axum::Error>>),
-            }
-            // Client frames are read only into a free queue slot (backpressure).
-            let event = tokio::select! {
+            let item = tokio::select! {
                 biased;
-                item = stream.next() => Event::Item(item),
-                _ = sleep_until(deadline) => Event::Ping,
-                reserved = reserve(input.clone()), if input.is_some() && slot.is_none() => Event::Slot(reserved),
-                message = socket.recv(), if slot.is_some() => Event::Client(message),
-            };
-            let item = match event {
-                Event::Item(item) => item,
-                Event::Ping => {
-                    if socket.send(Message::Ping(Bytes::new())).await.is_err() {
+                item = stream.next() => item,
+                () = sleep_until(deadline) => {
+                    if let Err(error) = socket.inner.send(Message::Ping(Bytes::new())).await {
+                        socket.terminate(&error.to_string());
                         return Forwarded::End;
                     }
                     deadline = keepalive.map(|k| tokio::time::Instant::now() + k);
-                    continue;
-                }
-                Event::Slot(Some(reserved)) => {
-                    slot = Some(reserved);
-                    continue;
-                }
-                // The executor released the queue: no more client frames are taken.
-                Event::Slot(None) => {
-                    input = None;
-                    continue;
-                }
-                Event::Client(message) => {
-                    let frame = match message {
-                        Some(Ok(Message::Text(text))) => Bytes::from(text),
-                        Some(Ok(Message::Binary(bytes))) => bytes,
-                        Some(Ok(_)) => continue,
-                        // The client went away; dropping the stream releases the socket.
-                        Some(Err(_)) | None => return Forwarded::End,
-                    };
-                    if let Some(slot) = slot.take() {
-                        slot.send(frame);
-                    }
                     continue;
                 }
             };
             let chunk = match item {
                 // A duplex stream ends with its socket, not with a response: close the
                 // connection without an error.
-                None if duplex => return Forwarded::End,
+                None if duplex => {
+                    socket.terminate(CLOSE_SENT);
+                    return Forwarded::End;
+                }
                 None if completed => {
                     return Forwarded::Completed {
                         output: completed_output,
@@ -778,11 +977,16 @@ impl Connection {
                     };
                 }
                 // `stream closed before response.completed`: 408, closed silently.
+                // Closed without an error event or a timeline reason.
                 None => {
-                    close_for_failure(socket, &Failure::local(408, "stream closed before response.completed")).await;
+                    socket.terminate(CLOSE_SENT);
                     return Forwarded::End;
                 }
                 Some(Err(error)) => {
+                    if let Some(loss) = self.upstream_loss() {
+                        close_for_upstream_loss(socket, &loss).await;
+                        return Forwarded::End;
+                    }
                     let failure = Failure::from_exec(&error);
                     if ctx.suppress(failure.status) {
                         return Forwarded::Suppressed;
@@ -860,11 +1064,6 @@ fn resolve_auto(rt: &Runtime, registry: &crate::registry::Registry, model: &str)
     format!("{first}{}", &model[base.len()..])
 }
 
-/// A free slot in the steering queue; `None` once the executor dropped its end.
-async fn reserve(input: Option<mpsc::Sender<Bytes>>) -> Option<mpsc::OwnedPermit<Bytes>> {
-    input?.reserve_owned().await.ok()
-}
-
 async fn sleep_until(deadline: Option<tokio::time::Instant>) {
     match deadline {
         Some(deadline) => tokio::time::sleep_until(deadline).await,
@@ -900,17 +1099,26 @@ fn lite_request(payload: &str, headers: &HeaderMap) -> bool {
         || (value.kind() == gjson::Kind::String && value.str().trim().eq_ignore_ascii_case("true"))
 }
 
-async fn send_text(socket: &mut WebSocket, payload: String) -> bool {
-    socket.send(Message::Text(payload.into())).await.is_ok()
+/// `writeResponsesWebsocketPayload`: the frame joins the timeline, then goes out.
+async fn send_text(socket: &mut Sink, payload: String) -> bool {
+    socket.event("response", payload.as_bytes());
+    match socket.inner.send(Message::Text(payload.into())).await {
+        Ok(()) => true,
+        Err(error) => {
+            // ponytail: the write error's text is axum's, not net's.
+            socket.terminate(&error.to_string());
+            false
+        }
+    }
 }
 
-async fn close_with_code(socket: &mut WebSocket, code: u16, reason: &str) {
+async fn close_with_code(socket: &mut Sink, code: u16, reason: &str) {
     let reason = requests::truncate_reason(reason, CLOSE_REASON_MAX);
     let close = Message::Close(Some(CloseFrame {
         code,
         reason: reason.into(),
     }));
-    let _ = tokio::time::timeout(TERMINAL_WRITE, socket.send(close)).await;
+    let _ = tokio::time::timeout(TERMINAL_WRITE, socket.inner.send(close)).await;
 }
 
 /// `websocketClosePayloadForUpstreamError`: replay and message-too-big failures map to
@@ -920,7 +1128,14 @@ fn close_code(failure: &Failure) -> Option<(u16, String)> {
         return Some((CLOSE_SERVICE_RESTART, "upstream requires HTTP replay".into()));
     }
     if failure.status == 413 && gjson::get(&failure.text, "error.code").str() == "message_too_big" {
-        let reason = gjson::get(&failure.text, "error.message").str().trim().to_owned();
+        // An upstream close keeps gorilla's `CloseError.Text` verbatim; a mapped 413's
+        // message is trimmed.
+        let raw = gjson::get(&failure.text, "close_reason");
+        let reason = if raw.kind() == gjson::Kind::String {
+            raw.str().to_owned()
+        } else {
+            gjson::get(&failure.text, "error.message").str().trim().to_owned()
+        };
         let reason = if reason.is_empty() {
             "message too big".into()
         } else {
@@ -940,24 +1155,69 @@ fn exposed(failure: &Failure) -> bool {
 
 /// `closeForUpstreamError` then `writeResponsesWebsocketTerminalError`: a close code,
 /// the error event and a TCP close, or a bare TCP close. The socket is dropped by the
-/// caller right after.
-async fn close_for_failure(socket: &mut WebSocket, failure: &Failure) {
+/// caller right after. The timeline gets the exposed event, or the hidden reason as a
+/// disconnect, and the connection ends with gorilla's "close sent".
+async fn close_for_failure(socket: &mut Sink, failure: &Failure) {
     if let Some((code, reason)) = close_code(failure) {
         close_with_code(socket, code, &reason).await;
-        return;
-    }
-    if exposed(failure) {
+    } else if exposed(failure) {
         let payload = failure
             .payload
             .clone()
             .unwrap_or_else(|| error_payload(failure.status, &failure.text));
-        let _ = tokio::time::timeout(TERMINAL_WRITE, socket.send(Message::Text(payload.into()))).await;
+        socket.event("response", payload.as_bytes());
+        let _ = tokio::time::timeout(TERMINAL_WRITE, socket.inner.send(Message::Text(payload.into()))).await;
+    } else {
+        // Keeps the upstream reason although the client only sees the connection close.
+        socket.event("disconnect", failure.text.as_bytes());
     }
+    socket.terminate(CLOSE_SENT);
 }
 
-/// `closeForUpstreamDisconnect`: the session's upstream socket was lost.
-async fn close_for_upstream_loss(socket: &mut WebSocket, error: &ExecError) {
-    close_for_failure(socket, &Failure::from_exec(error)).await;
+/// `closeForUpstreamDisconnect`: the session's upstream socket was lost. Go's notifier
+/// writes nothing to the timeline.
+// ponytail: Go's final disconnect is whatever its blocked read returns once the notifier
+// closed the socket; this logs gorilla's "close sent".
+async fn close_for_upstream_loss(socket: &mut Sink, error: &ExecError) {
+    let failure = Failure::from_exec(error);
+    if let Some((code, reason)) = close_code(&failure) {
+        close_with_code(socket, code, &reason).await;
+    } else if exposed(&failure) {
+        let payload = error_payload(failure.status, &failure.text);
+        let _ = tokio::time::timeout(TERMINAL_WRITE, socket.inner.send(Message::Text(payload.into()))).await;
+    }
+    socket.terminate(CLOSE_SENT);
+}
+
+/// Go's `UpstreamWebsocketReplayRequiredError` text, the reason a replay close ends the
+/// connection.
+fn replay_text() -> String {
+    String::from_utf8_lossy(&ExecError::replay_required().body).into_owned()
+}
+
+/// gorilla `CloseError.Error()`.
+fn gorilla_close(code: u16, reason: &str) -> String {
+    let name = match code {
+        1000 => " (normal)",
+        1001 => " (going away)",
+        1002 => " (protocol error)",
+        1003 => " (unsupported data)",
+        1005 => " (no status)",
+        1006 => " (abnormal closure)",
+        1007 => " (invalid payload data)",
+        1008 => " (policy violation)",
+        1009 => " (message too big)",
+        1010 => " (mandatory extension missing)",
+        1011 => " (internal server error)",
+        1015 => " (TLS handshake error)",
+        _ => "",
+    };
+    let mut text = format!("websocket: close {code}{name}");
+    if !reason.is_empty() {
+        text.push_str(": ");
+        text.push_str(reason);
+    }
+    text
 }
 
 #[cfg(test)]

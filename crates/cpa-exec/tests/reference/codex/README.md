@@ -13,6 +13,10 @@
 - `alpha_search`: verbatim copies of the unexported `sanitizeCodexAlphaSearchBody` and
   `rewriteCodexAlphaSearchModel`, so the fixture records `encoding/json` behaviour.
 - `quota`: `ParseCodexQuotaEventHeaders` and `QuotaState.ObserveResponseHeadersForProvider`.
+- `images`: the Images API path (`executeOpenAIImage`, `executeOpenAIImageStream`, source
+  format `openai-image`, `request_path` metadata, client headers in a gin context) for direct
+  gpt-image-* models and the Responses tool path, with base64 payloads so multipart bytes
+  survive JSON.
 
 All tokens are fake. Generate with a temporary module whose import path is inside the
 reference module's internal-package boundary; the reference checkout stays unchanged:

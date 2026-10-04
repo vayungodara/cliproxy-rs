@@ -1139,7 +1139,7 @@ impl Record {
 fn trim(bytes: &[u8]) -> &[u8] {
     cpa_core::config::go_trim_space(bytes)
 }
-fn timestamp(at: DateTime<Local>) -> String {
+pub(crate) fn timestamp(at: DateTime<Local>) -> String {
     let text = at.to_rfc3339_opts(SecondsFormat::Nanos, true);
     let zone = &text[29..];
     let fraction = text[20..29].trim_end_matches('0');

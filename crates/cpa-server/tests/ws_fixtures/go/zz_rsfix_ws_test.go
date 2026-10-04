@@ -324,10 +324,13 @@ type rsfixWSCred struct {
 	ID     string            `json:"id"`
 	Attrs  map[string]string `json:"attributes"`
 	Models []string          `json:"models"`
+	// Metadata makes an OAuth credential (an auth file's fields, such as access_token).
+	Metadata map[string]any `json:"metadata,omitempty"`
 }
 
 // One scripted upstream answer. WebSocket turns send Events as frames and then apply
-// Then ("" keeps the socket, "close" sends close 1000, "close1009", "drop" closes TCP).
+// Then ("" keeps the socket, "close" sends close 1000, "close1009" (reason "too big"),
+// "close1009_spaced" (reason " oversized "), "drop" closes TCP).
 // Closes wait 300ms so the proxy forwards the events first: Go's disconnect notifier
 // otherwise races the turn and may close the client before those frames are written.
 // HTTP requests answer Status/Body, or Events as SSE when Status is 0.
@@ -437,6 +440,9 @@ func (u *rsfixWSUpstream) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			case "close1009":
 				_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseMessageTooBig, "too big"), time.Now().Add(time.Second))
 				return
+			case "close1009_spaced":
+				_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseMessageTooBig, " oversized "), time.Now().Add(time.Second))
+				return
 			case "drop":
 				return
 			}
@@ -495,6 +501,9 @@ func rsfixWSScenarios() []rsfixWSScenario {
 	spawnCall := `{"type":"response.output_item.done","output_index":0,"item":{"type":"function_call","id":"fc_s","call_id":"call_s","namespace":"collaboration-optimize","name":"spawn_agent","arguments":"{\"message\":\"go\"}"}}`
 	steerCfg := cfg + "codex:\n  response-steering: true\n"
 	steerOAuthOnlyCfg := cfg + "oauth:\n  providers:\n    codex:\n      response-steering: true\n"
+	steerOffCfg := cfg + "codex:\n  response-steering: false\n"
+	// An OAuth account on the Pro plan catalog's first model.
+	oauthWS := rsfixWSCred{ID: "codex-oauth.json", Attrs: map[string]string{"websockets": "true"}, Models: []string{"gpt-6-astra"}, Metadata: map[string]any{"access_token": "fake-oauth-token"}}
 	steerCreate := `{"type":"response.create","model":"gpt-fixture","input":[]}`
 	steerCreateInstr := func(instructions string) string {
 		return `{"type":"response.create","model":"gpt-fixture","instructions":"` + instructions + `","input":[]}`
@@ -585,6 +594,14 @@ func rsfixWSScenarios() []rsfixWSScenario {
 			Steps: []rsfixWSStep{
 				{Send: `{"type":"response.create","model":"gpt-fixture","input":[` + user("hi") + `]}`, Read: "close",
 					Upstream: []rsfixWSReply{{Events: []string{created("r1")}, Then: "close1009"}}},
+			},
+		},
+		{
+			// gorilla's close text reaches the client verbatim (only a mapped 413 is trimmed).
+			Name: "ws_upstream_message_too_big_spaced_reason", Config: cfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: `{"type":"response.create","model":"gpt-fixture","input":[` + user("hi") + `]}`, Read: "close",
+					Upstream: []rsfixWSReply{{Events: []string{created("r1")}, Then: "close1009_spaced"}}},
 			},
 		},
 		{
@@ -689,6 +706,59 @@ func rsfixWSScenarios() []rsfixWSScenario {
 			Steps: []rsfixWSStep{
 				{Send: steerCreate, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}, Then: "close"}}},
 				{Read: "close"},
+			},
+		},
+		// TestResponsesWebsocketClosesOnIdleCodexDisconnect's other configurations.
+		{
+			Name: "steer_idle_upstream_close_legacy_disabled", Config: steerOffCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}, Then: "close"}}},
+				{Read: "close"},
+			},
+		},
+		{
+			Name: "steer_idle_upstream_close_v8_api_key", Config: steerOAuthOnlyCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}, Then: "close"}}},
+				{Read: "close"},
+			},
+		},
+		{
+			Name: "steer_idle_upstream_close_v8_oauth", Config: steerOAuthOnlyCfg, Creds: []rsfixWSCred{oauthWS},
+			Steps: []rsfixWSStep{
+				{Send: `{"type":"response.create","model":"gpt-6-astra","input":[]}`, Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}, Then: "close"}}},
+				{Read: "close"},
+			},
+		},
+		// TestResponsesSteeringErrorRecoveryIntegration/disabled_error_remains_terminal.
+		{
+			Name: "steer_disabled_error_terminal", Config: steerOffCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreateInstr("INITIAL"), Read: "until:response.completed", Upstream: []rsfixWSReply{{Events: []string{created("first"), completed("first")}}}},
+				{Send: steerCreateInstr("REJECTED"), Read: "close", Upstream: []rsfixWSReply{{Events: []string{rejection}}}},
+			},
+		},
+		// TestResponsesSteerInFlightWebSocket: a steer during generation reaches upstream.
+		{
+			Name: "steer_in_flight", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("r1")}}}},
+				{Send: `{"type":"response.steer","previous_response_id":"r1","input":"Focus on networking"}`, Read: "until:response.completed",
+					Upstream: []rsfixWSReply{{Events: []string{accepted("s1"), completed("r1")}}}},
+			},
+		},
+		// TestResponsesSteeringFullDuplexIntegration/disconnect_pending: upstream drops the
+		// socket while the steer waits for tool input.
+		{
+			Name: "steer_disconnect_pending", Config: steerCfg, Creds: []rsfixWSCred{ws},
+			Steps: []rsfixWSStep{
+				{Send: steerCreate, Read: "until:response.created", Upstream: []rsfixWSReply{{Events: []string{created("r1")}}}},
+				{Send: steer1, Read: "none", Upstream: []rsfixWSReply{{}}},
+				{Send: steer2, Read: "close", Upstream: []rsfixWSReply{{Events: []string{
+					accepted("s1"), accepted("s2"),
+					`{"type":"response.completed","response":{"id":"r1","output":[{"type":"function_call","call_id":"call1","name":"lookup","arguments":"{}"}]}}`,
+					`{"type":"response.steer.pending","steer":{"id":"s1","previous_response_id":"r1"},"reason":"waiting_for_required_input","required_input":[{"type":"function_call_output","call_id":"call1","name":"lookup"}]}`},
+					Then: "drop"}}},
 			},
 		},
 		// Executor duplex behaviour (internal/runtime/executor/codex_websockets_duplex*_test.go)
@@ -821,7 +891,7 @@ func rsfixRunWSScenario(t *testing.T, sc *rsfixWSScenario) {
 		for k, v := range cred.Attrs {
 			attrs[k] = v
 		}
-		if _, err := manager.Register(context.Background(), &coreauth.Auth{ID: cred.ID, Provider: "codex", Status: coreauth.StatusActive, Attributes: attrs}); err != nil {
+		if _, err := manager.Register(context.Background(), &coreauth.Auth{ID: cred.ID, Provider: "codex", Status: coreauth.StatusActive, Attributes: attrs, Metadata: cred.Metadata}); err != nil {
 			t.Fatal(err)
 		}
 		var models []*registry.ModelInfo

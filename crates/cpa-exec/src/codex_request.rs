@@ -61,6 +61,8 @@ pub(crate) struct Settings {
     pub key_models: Vec<serde_json::Value>,
     /// `response-steering`: full-duplex WebSocket turns (codex_websockets_duplex.go).
     pub response_steering: bool,
+    /// `multimedia.gpt-image-2-base-model`, trimmed: the Images API's tool-call model.
+    pub image_base_model: String,
 }
 
 /// `codex.response-steering` in its v8 home; the legacy key is already moved there.
@@ -147,6 +149,7 @@ impl Settings {
             client: cpa_common::codex_client::Settings::from_config(cfg),
             key_models: Vec::new(),
             response_steering: response_steering(cfg),
+            image_base_model: text(&["multimedia", "gpt-image-2-base-model"]),
         }
     }
 }
@@ -403,16 +406,20 @@ fn apply_payload(
     String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
-/// Applies the Codex body rules for `call`. Also returns whether the multi-agent v2
-/// optimization renamed the `collaboration` namespace, so upstream payloads need
-/// `cpa_common::codex_client::restore_response`.
+/// A request body after the Codex rules ([`shape`]).
+pub(crate) struct Shaped {
+    pub body: String,
+    /// The multi-agent v2 optimization renamed the `collaboration` namespace, so upstream
+    /// payloads need `cpa_common::codex_client::restore_response`.
+    pub optimized: bool,
+    /// `HasCodexMultiAgentV2NamespaceConflict` before the optimization: the client already
+    /// uses the optimized name, so nothing may be restored.
+    pub conflict: bool,
+}
+
+/// Applies the Codex body rules for `call`.
 // ponytail: the Claude-source reasoning replay cache is not applied here yet.
-pub(crate) fn shape(
-    req: &ExecRequest,
-    view: &View<'_>,
-    settings: &Settings,
-    call: Call,
-) -> Result<(String, bool), ExecError> {
+pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, call: Call) -> Result<Shaped, ExecError> {
     let model = base_model(&req.model);
     let model = model.as_str();
     let is_compat = settings.is_compat(req);
@@ -487,7 +494,8 @@ pub(crate) fn shape(
         normalize_parallel_tool_calls(body, &req.headers)
     };
     let body = normalize_tool_schemas(body);
-    let (body, restore) = crate::codex_client::optimize_for_auth(
+    let conflict = cpa_common::codex_client::has_namespace_conflict(body.as_bytes());
+    let (body, optimized) = crate::codex_client::optimize_for_auth(
         &req.headers,
         body.as_bytes(),
         &settings.client,
@@ -495,7 +503,11 @@ pub(crate) fn shape(
         crate::codex_client::tools_prepared(&req.request_path),
     );
     let body = String::from_utf8(body).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
-    Ok((body, restore))
+    Ok(Shaped {
+        body,
+        optimized,
+        conflict,
+    })
 }
 
 fn ensure_image_tool(body: String, model: &str, view: &View<'_>, headers: &HeaderMap) -> String {
@@ -924,7 +936,7 @@ pub(crate) fn provider_session_uuid(kind: &str, id: &str) -> Option<String> {
 
 /// `ProviderSessionUUID`: the long-lived execution session (the downstream WebSocket
 /// connection) when there is one, else the derived session identity.
-fn session_uuid(req: &ExecRequest, ws_session: Option<&str>) -> Option<String> {
+pub(crate) fn session_uuid(req: &ExecRequest, ws_session: Option<&str>) -> Option<String> {
     let execution = ws_session
         .or(req.execution_session.as_deref())
         .filter(|id| !id.trim().is_empty());
@@ -1047,6 +1059,36 @@ pub(crate) fn http_headers(
     cache_id: Option<&str>,
     stream: bool,
 ) -> HeaderMap {
+    let mut h = source_headers(view, settings, client, cache_id, stream);
+    routing_hint(&mut h, view, client, body, model);
+    model_header_overrides(&mut h, model);
+    h
+}
+
+/// Images API upstream headers: `applyCodexHeaders` (or `applyCodexDirectImageHeaders`,
+/// whose caller drops the client's User-Agent) and `applyModelHeaderOverrides`, without
+/// the routing hint.
+pub(crate) fn image_headers(
+    view: &View<'_>,
+    settings: &Settings,
+    client: &HeaderMap,
+    model: &str,
+    cache_id: Option<&str>,
+    stream: bool,
+) -> HeaderMap {
+    let mut h = source_headers(view, settings, client, cache_id, stream);
+    model_header_overrides(&mut h, model);
+    h
+}
+
+/// `cacheHelper`'s `Session-Id`, then `applyCodexHeadersFromSources`.
+fn source_headers(
+    view: &View<'_>,
+    settings: &Settings,
+    client: &HeaderMap,
+    cache_id: Option<&str>,
+    stream: bool,
+) -> HeaderMap {
     let mut h = HeaderMap::new();
     if let Some(id) = cache_id {
         set(&mut h, "session-id", id);
@@ -1081,8 +1123,6 @@ pub(crate) fn http_headers(
     );
     set(&mut h, "connection", "Keep-Alive");
     apply_identity(&mut h, view, settings, client);
-    routing_hint(&mut h, view, client, body, model);
-    model_header_overrides(&mut h, model);
     h
 }
 
