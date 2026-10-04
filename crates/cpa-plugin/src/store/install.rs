@@ -15,6 +15,10 @@ use super::registry::{
 use super::version::normalize_version;
 use super::zip::{Archive, ReadError};
 
+/// The largest library an archive may expand to. Go inflates up to the size the
+/// archive declares, whatever it is.
+pub const MAX_LIBRARY_BYTES: u64 = 256 << 20;
+
 /// Go `ErrLoadedPluginLocked`'s text.
 pub const LOADED_PLUGIN_LOCKED: &str = "loaded plugin library cannot be overwritten while the server is running";
 
@@ -407,6 +411,12 @@ fn read_target_library(archive: &Archive<'_>, id: &str, version: &str, goos: &st
         target = Some(entry);
     }
     let entry = target.ok_or_else(|| format!("zip does not contain {target_name}"))?;
+    // Reading stops one byte past the declared size, so bounding it bounds inflation.
+    if entry.size() > MAX_LIBRARY_BYTES {
+        return Err(format!(
+            "{target_name} exceeds maximum allowed size of {MAX_LIBRARY_BYTES} bytes"
+        ));
+    }
     let data = archive.read(entry).map_err(|e| match e {
         ReadError::Open(e) => format!("open {target_name}: {e}"),
         ReadError::Read(e) => format!("read {target_name}: {e}"),
@@ -600,5 +610,28 @@ mod tests {
         assert!(clean_zip_name("/b.so").is_err());
         assert!(clean_zip_name("a\\b.so").is_err());
         assert_eq!(versioned_file_name("p", "v1.2", "darwin"), "p-v1.2.dylib");
+    }
+
+    /// A library declaring more than the ceiling is refused before it is inflated; at
+    /// the ceiling's side of the check it is read as usual.
+    #[test]
+    fn library_size_is_bounded() {
+        let mut data = crate::testing::stored_zip(&[("p.so", b"lib", 0o755)]);
+        assert_eq!(
+            read_target_library(&Archive::new(&data).unwrap(), "p", "1.0.0", "linux")
+                .unwrap()
+                .0,
+            b"lib"
+        );
+        // The central directory's uncompressed size: EOCD offset field, then +24.
+        let eocd = data.len() - 22;
+        let central = u32::from_le_bytes(data[eocd + 16..eocd + 20].try_into().unwrap()) as usize;
+        let declared = (MAX_LIBRARY_BYTES + 1) as u32;
+        data[central + 24..central + 28].copy_from_slice(&declared.to_le_bytes());
+        let err = read_target_library(&Archive::new(&data).unwrap(), "p", "1.0.0", "linux").unwrap_err();
+        assert_eq!(
+            err,
+            format!("p.so exceeds maximum allowed size of {MAX_LIBRARY_BYTES} bytes")
+        );
     }
 }
