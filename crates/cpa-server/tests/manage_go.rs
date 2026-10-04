@@ -537,8 +537,12 @@ mod routes {
             let path = dir.join("config.yaml");
             let write = |yaml: &str| std::fs::write(&path, yaml.replace("$HASH", &hash)).unwrap();
             write(scenario["yaml"].as_str().unwrap());
+            // The fixtures set no auth-dir; never fall back to the real ~/.cli-proxy-api.
+            let auth = dir.join("auth");
+            let mut cfg = Config::load(&path).unwrap();
+            cfg.auth_dir = auth.clone();
             let rt = Arc::new(cpa_server::testing::runtime(
-                Config::load(&path).unwrap(),
+                cfg,
                 vec![],
                 Executors {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
@@ -554,6 +558,7 @@ mod routes {
                 Options {
                     local_password: scenario["local_password"].as_str().unwrap_or_default().into(),
                     management_password: Some(scenario["env"].as_str().unwrap_or_default().into()),
+                    auth_dir: Some(auth),
                     ..Options::default()
                 },
             );
@@ -738,8 +743,12 @@ mod config_writes {
             std::fs::create_dir_all(&dir).unwrap();
             let path = dir.join("config.yaml");
             std::fs::write(&path, scenario["yaml"].as_str().unwrap().replace("$HASH", &hash)).unwrap();
+            // The fixtures set no auth-dir; never fall back to the real ~/.cli-proxy-api.
+            let auth = dir.join("auth");
+            let mut cfg = Config::load(&path).unwrap();
+            cfg.auth_dir = auth.clone();
             let rt = Arc::new(cpa_server::testing::runtime(
-                Config::load(&path).unwrap(),
+                cfg,
                 vec![],
                 Executors {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
@@ -751,6 +760,7 @@ mod config_writes {
             ));
             let options = Options {
                 management_password: Some(String::new()),
+                auth_dir: Some(auth),
                 ..Options::default()
             };
             let (base, server) = super::access::serve(Management::with_options(rt, path.clone(), options)).await;
@@ -1051,6 +1061,11 @@ mod creds {
                     assert_eq!(body, raw, "{at}");
                     let want = step["resp_headers"].as_object().unwrap();
                     for (h, v) in want {
+                        // Go types `.log` from the host's MIME database; the fixture
+                        // host (Linux) maps it to text/x-log, macOS has no entry.
+                        if h == "Content-Type" && v == "text/x-log; charset=utf-8" && !cfg!(target_os = "linux") {
+                            continue;
+                        }
                         assert_eq!(headers.get(h).map(String::as_str), v.as_str(), "{at}: header {h}");
                     }
                 } else {

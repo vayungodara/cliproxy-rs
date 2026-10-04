@@ -68,7 +68,7 @@ async fn proxy() -> (String, Arc<Seen>) {
         "access:\n  api-keys: [client-key]\napi-keys:\n  gemini:\n    - base-url: {up}/\n      headers:\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n      keys:\n        - api-key: AIza-fake-upstream\n  interactions:\n    - base-url: {up}\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-interactions\n"
     ))
     .unwrap();
-    let credentials = cpa_core::config::credentials::load(&config);
+    let credentials = cpa_core::config::credentials::from_config(&config);
     let executors = Executors {
         claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
         codex: Default::default(),
@@ -198,7 +198,7 @@ async fn vertex_api_key_routes_alias() {
         "access:\n  api-keys: [client-key]\napi-keys:\n  vertex:\n    - base-url: {up}/api\n      models:\n        - name: gemini-2.5-flash\n          alias: vflash\n      keys:\n        - api-key: vk-fake\n"
     ))
     .unwrap();
-    let credentials = cpa_core::config::credentials::load(&config);
+    let credentials = cpa_core::config::credentials::from_config(&config);
     let executors = Executors {
         claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
         codex: Default::default(),
@@ -276,7 +276,7 @@ async fn usage_records_match_go() {
                     .replace("UPSTREAM", up.trim_start_matches("http://"))
             );
             let config = Config::parse(&config).unwrap();
-            let credentials = cpa_core::config::credentials::load(&config);
+            let credentials = cpa_core::config::credentials::from_config(&config);
             let executors = Executors {
                 claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                 codex: Default::default(),
