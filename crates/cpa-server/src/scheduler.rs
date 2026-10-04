@@ -343,7 +343,7 @@ impl From<&cpa_core::config::RoutingConfig> for Policy {
 }
 
 pub fn normalize(raw: RawRouting<'_>) -> Policy {
-    let ttl = go_duration(raw.session_affinity_ttl.trim())
+    let ttl = cpa_core::config::parse_duration(raw.session_affinity_ttl.trim())
         .filter(|d| *d > 0)
         .map(|n| Duration::from_nanos(n as u64).max(Duration::from_secs(1)))
         .unwrap_or(Duration::from_secs(3600));
@@ -365,78 +365,6 @@ pub fn normalize(raw: RawRouting<'_>) -> Policy {
         save_cooldown_status: raw.save_cooldown_status,
         transient_error_cooldown_seconds: raw.transient_error_cooldown_seconds,
         ..Policy::default()
-    }
-}
-
-/// Go time.ParseDuration grammar: signed, compound decimal quantities, ns/us/µs/μs/
-/// ms/s/m/h units, bare zero, nanosecond truncation and signed int64 overflow checks.
-fn go_duration(mut text: &str) -> Option<i64> {
-    let negative = text.starts_with('-');
-    if text.starts_with(['-', '+']) {
-        text = &text[1..];
-    }
-    if text == "0" {
-        return Some(0);
-    }
-    if text.is_empty() {
-        return None;
-    }
-    let mut total = 0u128;
-    while !text.is_empty() {
-        let n = text.bytes().take_while(u8::is_ascii_digit).count();
-        let whole = if n == 0 { 0 } else { text[..n].parse::<u128>().ok()? };
-        text = &text[n..];
-        let mut fraction = 0u128;
-        let mut scale = 1.0;
-        let mut digits = 0;
-        if text.starts_with('.') {
-            text = &text[1..];
-            digits = text.bytes().take_while(u8::is_ascii_digit).count();
-            // time.leadingFraction consumes but ignores digits after signed overflow.
-            let mut overflow = false;
-            for digit in text.bytes().take(digits) {
-                if overflow || fraction > (i64::MAX as u128) / 10 {
-                    overflow = true;
-                    continue;
-                }
-                let next = fraction * 10 + u128::from(digit - b'0');
-                if next > 1u128 << 63 {
-                    overflow = true;
-                    continue;
-                }
-                fraction = next;
-                scale *= 10.0;
-            }
-            text = &text[digits..];
-        }
-        if n == 0 && digits == 0 {
-            return None;
-        }
-        let end = text
-            .find(|c: char| c.is_ascii_digit() || c == '.')
-            .unwrap_or(text.len());
-        let unit = match &text[..end] {
-            "ns" => 1u128,
-            "us" | "µs" | "μs" => 1000,
-            "ms" => 1_000_000,
-            "s" => 1_000_000_000,
-            "m" => 60_000_000_000,
-            "h" => 3_600_000_000_000,
-            _ => return None,
-        };
-        // Preserve Go's floating-point operation order, including rounding near a
-        // nanosecond boundary (e.g. 0.3333333333333333333h is exactly 20m).
-        let fractional_nanos = (fraction as f64 * (unit as f64 / scale)) as u128;
-        total = total.checked_add(whole.checked_mul(unit)?.checked_add(fractional_nanos)?)?;
-        text = &text[end..];
-    }
-    if negative {
-        if total > 1u128 << 63 {
-            return None;
-        }
-        Some((-(total as i128)) as i64)
-    } else {
-        i64::try_from(total).ok()
     }
 }
 
@@ -1476,7 +1404,7 @@ mod tests {
             ("9223372036854775807ns", i64::MAX),
             ("0.9ns", 0),
         ] {
-            assert_eq!(go_duration(raw), Some(expected), "{raw}");
+            assert_eq!(cpa_core::config::parse_duration(raw), Some(expected), "{raw}");
         }
         for raw in [
             "1d",
@@ -1488,7 +1416,7 @@ mod tests {
             "9223372036854775808ns",
             "-9223372036854775809ns",
         ] {
-            assert_eq!(go_duration(raw), None, "{raw}");
+            assert_eq!(cpa_core::config::parse_duration(raw), None, "{raw}");
         }
     }
 

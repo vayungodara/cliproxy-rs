@@ -325,41 +325,7 @@ pub(crate) fn preferred_interval(credential: &Credential) -> Option<chrono::Dura
 
 /// Go `time.ParseDuration`, in seconds.
 pub(crate) fn parse_go_duration(s: &str) -> Option<f64> {
-    let mut rest = s;
-    let negative = rest.starts_with('-');
-    rest = rest.strip_prefix(['-', '+']).unwrap_or(rest);
-    if rest == "0" {
-        return Some(0.0);
-    }
-    if rest.is_empty() {
-        return None;
-    }
-    let mut total = 0.0;
-    while !rest.is_empty() {
-        let digits = rest
-            .find(|c: char| !c.is_ascii_digit() && c != '.')
-            .unwrap_or(rest.len());
-        let number = &rest[..digits];
-        if number.is_empty() || number == "." || number.matches('.').count() > 1 {
-            return None;
-        }
-        rest = &rest[digits..];
-        let unit_len = rest
-            .find(|c: char| c.is_ascii_digit() || c == '.')
-            .unwrap_or(rest.len());
-        let scale = match &rest[..unit_len] {
-            "ns" => 1e-9,
-            "us" | "\u{b5}s" | "\u{3bc}s" => 1e-6,
-            "ms" => 1e-3,
-            "s" => 1.0,
-            "m" => 60.0,
-            "h" => 3600.0,
-            _ => return None,
-        };
-        rest = &rest[unit_len..];
-        total += number.parse::<f64>().ok()? * scale;
-    }
-    Some(if negative { -total } else { total })
+    cpa_core::config::parse_duration(s).map(|nanos| nanos as f64 / 1e9)
 }
 
 /// `parseDurationString`: a Go duration, else plain seconds; non-positive is absent.

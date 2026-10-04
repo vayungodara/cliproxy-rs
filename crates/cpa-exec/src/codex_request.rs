@@ -152,6 +152,7 @@ impl Settings {
 }
 
 /// `StreamBootstrapTimeoutDuration`: Go durations, bare seconds, or off words.
+/// Anything else is Go's default of 0, meaning no timeout.
 fn go_duration(raw: &str) -> Option<Duration> {
     let raw = raw.trim();
     if raw.is_empty()
@@ -162,33 +163,14 @@ fn go_duration(raw: &str) -> Option<Duration> {
     {
         return None;
     }
-    if let Ok(secs) = raw.parse::<u64>() {
-        return Some(Duration::from_secs(secs));
+    if let Some(nanos) = cpa_core::config::parse_duration(raw).filter(|n| *n >= 0) {
+        return Some(Duration::from_nanos(nanos as u64));
     }
-    let mut total = 0f64;
-    let mut rest = raw;
-    while !rest.is_empty() {
-        let num_len = rest
-            .find(|c: char| !(c.is_ascii_digit() || c == '.'))
-            .unwrap_or(rest.len());
-        let value: f64 = rest[..num_len].parse().ok()?;
-        rest = &rest[num_len..];
-        let unit_len = rest
-            .find(|c: char| c.is_ascii_digit() || c == '.')
-            .unwrap_or(rest.len());
-        let scale = match &rest[..unit_len] {
-            "ns" => 1e-9,
-            "us" | "µs" => 1e-6,
-            "ms" => 1e-3,
-            "s" => 1.0,
-            "m" => 60.0,
-            "h" => 3600.0,
-            _ => return None,
-        };
-        total += value * scale;
-        rest = &rest[unit_len..];
-    }
-    Duration::try_from_secs_f64(total).ok()
+    // strconv.Atoi, capped where seconds still fit a time.Duration.
+    raw.parse::<i64>()
+        .ok()
+        .filter(|secs| (0..=i64::MAX / 1_000_000_000).contains(secs))
+        .map(|secs| Duration::from_secs(secs as u64))
 }
 
 /// The credential fields the Codex executor reads (`codexCreds`, `codexAuthUsesAPIKey`).
@@ -1278,6 +1260,10 @@ mod tests {
         assert_eq!(go_duration("45"), Some(Duration::from_secs(45)));
         assert_eq!(go_duration("off"), None);
         assert_eq!(go_duration("soon"), None);
+        assert_eq!(go_duration("+2s"), Some(Duration::from_secs(2)));
+        assert_eq!(go_duration("3\u{3bc}s"), Some(Duration::from_micros(3)));
+        assert_eq!(go_duration("-1s"), None);
+        assert_eq!(go_duration("+15"), Some(Duration::from_secs(15)));
     }
 
     #[test]

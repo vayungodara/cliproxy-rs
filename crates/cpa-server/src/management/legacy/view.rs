@@ -175,105 +175,9 @@ pub(super) fn yaml_string(v: &Yaml) -> String {
 fn duration_nanos(v: &Yaml) -> Value {
     match v {
         Yaml::Number(n) => n.as_i64().map_or(Value::from(0), Value::from),
-        Yaml::String(s) => Value::from(go_duration(s).unwrap_or(0)),
+        Yaml::String(s) => Value::from(cpa_core::config::parse_duration(s).unwrap_or(0)),
         _ => Value::from(0),
     }
-}
-
-/// Go `time.ParseDuration`, integer arithmetic included.
-fn go_duration(s: &str) -> Option<i64> {
-    const MAX: u64 = 1 << 63;
-    let (neg, mut s) = match s.as_bytes().first() {
-        Some(b'-') => (true, &s[1..]),
-        Some(b'+') => (false, &s[1..]),
-        _ => (false, s),
-    };
-    if s == "0" {
-        return Some(0);
-    }
-    if s.is_empty() {
-        return None;
-    }
-    let mut d: u64 = 0;
-    while !s.is_empty() {
-        let b = s.as_bytes();
-        if !(b[0] == b'.' || b[0].is_ascii_digit()) {
-            return None;
-        }
-        // leadingInt
-        let digits = b.iter().take_while(|c| c.is_ascii_digit()).count();
-        let mut v: u64 = 0;
-        for &c in &b[..digits] {
-            if v > MAX / 10 {
-                return None;
-            }
-            v = v * 10 + u64::from(c - b'0');
-            if v > MAX {
-                return None;
-            }
-        }
-        s = &s[digits..];
-        let pre = digits > 0;
-        // leadingFraction
-        let (mut f, mut scale, mut post) = (0u64, 1f64, false);
-        if let Some(rest) = s.strip_prefix('.') {
-            let fd = rest.bytes().take_while(u8::is_ascii_digit).count();
-            let mut overflow = false;
-            for c in rest[..fd].bytes() {
-                if overflow {
-                    continue;
-                }
-                if f > (MAX - 1) / 10 {
-                    overflow = true;
-                    continue;
-                }
-                let y = f * 10 + u64::from(c - b'0');
-                if y > MAX {
-                    overflow = true;
-                    continue;
-                }
-                f = y;
-                scale *= 10.0;
-            }
-            post = fd > 0;
-            s = &rest[fd..];
-        }
-        if !pre && !post {
-            return None;
-        }
-        let unit_len = s.find(|c: char| c == '.' || c.is_ascii_digit()).unwrap_or(s.len());
-        if unit_len == 0 {
-            return None;
-        }
-        let unit: u64 = match &s[..unit_len] {
-            "ns" => 1,
-            "us" | "\u{b5}s" | "\u{3bc}s" => 1_000,
-            "ms" => 1_000_000,
-            "s" => 1_000_000_000,
-            "m" => 60_000_000_000,
-            "h" => 3_600_000_000_000,
-            _ => return None,
-        };
-        s = &s[unit_len..];
-        if v > MAX / unit {
-            return None;
-        }
-        v *= unit;
-        if f > 0 {
-            v += (f as f64 * (unit as f64 / scale)) as u64;
-            if v > MAX {
-                return None;
-            }
-        }
-        d += v;
-        if d > MAX {
-            return None;
-        }
-    }
-    if neg {
-        return Some((d as i64).wrapping_neg());
-    }
-    i64::try_from(d).ok()
 }
 
 /// A YAML value as Go's `json.Marshal` prints an `any` decoded by yaml.v3: map keys
@@ -642,9 +546,9 @@ mod tests {
             ("0", 0),
             ("1.5h", 5_400_000_000_000),
         ] {
-            assert_eq!(go_duration(s), Some(want), "{s}");
+            assert_eq!(cpa_core::config::parse_duration(s), Some(want), "{s}");
         }
-        assert_eq!(go_duration("5x"), None);
+        assert_eq!(cpa_core::config::parse_duration("5x"), None);
     }
 
     #[test]
