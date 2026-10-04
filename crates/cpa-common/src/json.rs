@@ -859,36 +859,33 @@ pub fn unescape(json: &[u8]) -> Vec<u8> {
 
 /// Returns `(next, value_end, escaped, ok)` for a string whose opening quote is at
 /// `i - 1`; the raw value is `json[i - 1..value_end]`.
-fn parse_string(json: &[u8], mut i: usize) -> (usize, usize, bool, bool) {
+fn parse_string(json: &[u8], i: usize) -> (usize, usize, bool, bool) {
+    // memchr jumps over the string body; prompts make these strings hundreds of KB.
+    let Some(k) = memchr::memchr2(b'"', b'\\', &json[i.min(json.len())..]) else {
+        return (json.len().max(i), json.len(), false, false);
+    };
+    let mut i = i + k;
+    if json[i] == b'"' {
+        return (i + 1, i + 1, false, true);
+    }
+    i += 1;
+    match closing_quote(json, i, 1) {
+        Some(q) => (q + 1, q + 1, true, true),
+        None => (json.len(), json.len(), false, false),
+    }
+}
+
+/// The first `"` at or after `i` not escaped by a backslash (counted back to `floor`).
+fn closing_quote(json: &[u8], mut i: usize, floor: usize) -> Option<usize> {
     while i < json.len() {
-        if json[i] > b'\\' {
+        i += memchr::memchr(b'"', &json[i..])?;
+        if json[i - 1] == b'\\' && backslashes_before(json, i, floor).is_multiple_of(2) {
             i += 1;
             continue;
         }
-        if json[i] == b'"' {
-            return (i + 1, i + 1, false, true);
-        }
-        if json[i] == b'\\' {
-            i += 1;
-            while i < json.len() {
-                if json[i] > b'\\' {
-                    i += 1;
-                    continue;
-                }
-                if json[i] == b'"' {
-                    if json[i - 1] == b'\\' && backslashes_before(json, i, 1).is_multiple_of(2) {
-                        i += 1;
-                        continue;
-                    }
-                    return (i + 1, i + 1, true, true);
-                }
-                i += 1;
-            }
-            break;
-        }
-        i += 1;
+        return Some(i);
     }
-    (i, json.len(), false, false)
+    None
 }
 
 fn parse_number(json: &[u8], mut i: usize) -> (usize, usize) {
@@ -935,18 +932,7 @@ fn parse_squash(json: &[u8], i: usize) -> (usize, usize) {
         }
         if c == 2 {
             i += 1;
-            let s2 = i;
-            while i < json.len() {
-                if json[i] != b'"' {
-                    i += 1;
-                    continue;
-                }
-                if json[i - 1] == b'\\' && backslashes_before(json, i, s2).is_multiple_of(2) {
-                    i += 1;
-                    continue;
-                }
-                break;
-            }
+            i = closing_quote(json, i, i).unwrap_or(json.len());
         } else {
             depth += i32::from(c) - 2;
             if depth == 0 {
@@ -3045,6 +3031,39 @@ mod tests {
         );
         assert!(GoValue::parse_f64(b"[1e400]").is_none());
         assert_eq!(quote("<&>\u{1}\u{8}"), br#""\u003c\u0026\u003e\u0001\b""#);
+    }
+
+    // The string scans jump to the next quote and count the backslashes before it: an
+    // odd run escapes the quote, an even run is escaped backslashes and ends the string.
+    #[test]
+    fn lookups_skip_strings_with_backslash_runs() {
+        let tricky = [
+            "",
+            "\\",
+            "\\\\",
+            "\"",
+            "\\\"",
+            "a\\\\\"}{][",
+            "x".repeat(70_000).as_str(),
+        ]
+        .map(String::from);
+        for (i, a) in tricky.iter().enumerate() {
+            for b in &tricky[i..] {
+                let doc = serde_json::json!({
+                    "skip": {"s": a, "nested": [a, {"t": b}]},
+                    "plain": a,
+                    "want": b,
+                })
+                .to_string();
+                let got = get(doc.as_bytes(), "want");
+                assert_eq!(got.str(), b.as_str(), "{doc:.200}");
+                assert_eq!(get(doc.as_bytes(), "skip.nested.1.t").str(), b.as_str());
+                assert!(!get(doc.as_bytes(), "missing").exists());
+                // Unterminated documents end the scan without a match.
+                let cut = &doc.as_bytes()[..doc.len() - b.len().min(3) - 3];
+                assert!(!get(cut, "absent").exists());
+            }
+        }
     }
 }
 

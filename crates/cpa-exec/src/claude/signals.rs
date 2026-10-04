@@ -2,6 +2,8 @@
 //! (helps/claude_diagnostics.go): quota probes, title helpers, subagents, 1h cache
 //! pools, prompt turns and billing continuity tags.
 
+use std::borrow::Cow;
+
 use http::HeaderMap;
 
 use super::detect::{header, header_values};
@@ -117,13 +119,25 @@ pub(crate) fn subagent(headers: &HeaderMap, body: &str) -> bool {
     }
 }
 
-/// Visits every cache_control-capable block path in tools → system → messages order.
-pub(crate) fn blocks(body: &str) -> Vec<String> {
+/// Every cache_control-capable block in tools → system → messages order
+/// (`forEachClaudeCacheControlBlock`): its path and its raw JSON. One pass over `body`,
+/// like Go's ForEach; looking each path up again would rescan the body per block.
+pub(crate) fn blocks(body: &str) -> Vec<(String, Cow<'_, str>)> {
+    // The items borrow from `body`; `rawjson::offset` recovers that borrow.
+    let raw = |item: &gjson::Value<'_>| match rawjson::offset(body, item) {
+        Some(start) => Cow::Borrowed(&body[start..start + item.json().len()]),
+        None => Cow::Owned(item.json().to_owned()),
+    };
     let mut out = Vec::new();
-    for (section, prefix) in [("tools", "tools"), ("system", "system")] {
+    for section in ["tools", "system"] {
         let v = rawjson::get(body, section);
         if v.kind() == gjson::Kind::Array {
-            out.extend((0..v.array().len()).map(|i| format!("{prefix}.{i}")));
+            out.extend(
+                v.array()
+                    .iter()
+                    .enumerate()
+                    .map(|(i, item)| (format!("{section}.{i}"), raw(item))),
+            );
         }
     }
     let messages = rawjson::get(body, "messages");
@@ -131,7 +145,13 @@ pub(crate) fn blocks(body: &str) -> Vec<String> {
         for (m, message) in messages.array().iter().enumerate() {
             let content = message.get("content");
             if content.kind() == gjson::Kind::Array {
-                out.extend((0..content.array().len()).map(|i| format!("messages.{m}.content.{i}")));
+                out.extend(
+                    content
+                        .array()
+                        .iter()
+                        .enumerate()
+                        .map(|(i, item)| (format!("messages.{m}.content.{i}"), raw(item))),
+                );
             }
         }
     }
@@ -142,9 +162,9 @@ pub(crate) fn blocks(body: &str) -> Vec<String> {
 pub(crate) fn has_1h_ttl(body: &str) -> bool {
     !body.is_empty()
         && gjson::valid(body)
-        && blocks(body).iter().any(|path| {
-            let cc = gjson::get(body, &format!("{path}.cache_control")).json().to_owned();
-            gjson::parse(&cc).kind() == gjson::Kind::Object && gjson::get(&cc, "ttl").str() == "1h"
+        && blocks(body).iter().any(|(_, block)| {
+            let cc = gjson::get(block, "cache_control");
+            cc.kind() == gjson::Kind::Object && cc.get("ttl").str() == "1h"
         })
 }
 
