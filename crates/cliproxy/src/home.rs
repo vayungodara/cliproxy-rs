@@ -797,8 +797,11 @@ async fn run_lifetimes(
                                 rt.usage_queue().configure(true, &cfg);
                                 rt.publish_config(cfg);
                                 if !published.swap(true, std::sync::atomic::Ordering::SeqCst) {
-                                    dispatcher.install(client.clone(), registry.clone());
+                                    // The KV client goes first: an attempt that
+                                    // receives a Home credential must also see
+                                    // Home KV for its identities and caches.
                                     cpa_home::set_current(Some(client.clone()));
+                                    dispatcher.install(client.clone(), registry.clone());
                                     app_log.bind(&client);
                                     helpers.push(tokio::spawn(cpa_home::inflight::run_publisher(
                                         client.clone(),
