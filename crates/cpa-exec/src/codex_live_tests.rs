@@ -302,3 +302,36 @@ fn redact_sdp_hides_ice_credentials_in_every_wrapping() {
     ));
     assert_eq!(&*redact_sdp(b"a=ice-pwd:\r\n"), b"a=ice-pwd:\r\n");
 }
+
+#[test]
+fn redact_sdp_follows_json_escapes_to_the_end_of_the_credential() {
+    // An escaped character is part of the credential; the escaped line end is not.
+    let json = br#"{"sdp":"a=ice-pwd:\u0073ecret\"x\\y\r\na=ice-ufrag:u\u0066rag\u000d\u000Aa=mid:0"}"#;
+    assert_eq!(
+        &*redact_sdp(json),
+        br#"{"sdp":"a=ice-pwd:[REDACTED]\r\na=ice-ufrag:[REDACTED]\u000d\u000Aa=mid:0"}"#
+    );
+    // A trailing lone backslash or a cut-off escape ends with the body.
+    assert_eq!(&*redact_sdp(br"a=ice-pwd:ab\"), b"a=ice-pwd:[REDACTED]");
+    assert_eq!(&*redact_sdp(br"a=ice-pwd:ab\u00"), b"a=ice-pwd:[REDACTED]");
+}
+
+#[test]
+fn redact_sdp_scans_many_markers_in_one_pass() {
+    let markers = 100_000;
+    let body = "a=ice-pwd:secret\r\na=ice-ufrag:frag\r\n".repeat(markers / 2);
+    let started = std::time::Instant::now();
+    let redacted = redact_sdp(body.as_bytes());
+    // A rescan per marker would take minutes here.
+    assert!(
+        started.elapsed() < std::time::Duration::from_secs(5),
+        "{:?}",
+        started.elapsed()
+    );
+    assert_eq!(
+        &*redacted,
+        "a=ice-pwd:[REDACTED]\r\na=ice-ufrag:[REDACTED]\r\n"
+            .repeat(markers / 2)
+            .as_bytes()
+    );
+}

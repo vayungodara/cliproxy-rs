@@ -252,45 +252,54 @@ pub fn response_sdp(body: &[u8], content_type: &str) -> Result<String, String> {
 /// field or a JSON string. Go logs these bodies unchanged.
 pub fn redact_sdp(body: &[u8]) -> std::borrow::Cow<'_, [u8]> {
     const NEEDLES: [&[u8]; 2] = [b"a=ice-ufrag:", b"a=ice-pwd:"];
-    let find = |from: usize| {
-        NEEDLES
-            .iter()
-            .filter_map(|n| {
-                body[from..]
-                    .windows(n.len())
-                    .position(|w| w == *n)
-                    .map(|i| from + i + n.len())
-            })
-            .min()
-    };
-    let Some(mut value) = find(0) else {
-        return body.into();
-    };
-    let mut out = Vec::with_capacity(body.len());
-    let mut copied = 0;
-    loop {
-        // The value ends at the line end, or in a JSON string at its closing quote or
-        // an escape (`\r\n`); an escaped `/` belongs to the value.
-        let mut end = value;
-        while end < body.len()
-            && !matches!(body[end], b'\r' | b'\n' | b'"')
-            && !(body[end] == b'\\' && body.get(end + 1) != Some(&b'/'))
-        {
-            end += if body[end] == b'\\' { 2 } else { 1 };
-        }
-        let end = end.min(body.len());
-        out.extend_from_slice(&body[copied..value]);
+    let mut out: Option<Vec<u8>> = None;
+    let (mut copied, mut at) = (0, 0);
+    while at < body.len() {
+        let Some(needle) = NEEDLES.iter().find(|n| body[at..].starts_with(n)) else {
+            at += 1;
+            continue;
+        };
+        let value = at + needle.len();
+        let end = credential_end(body, value);
         if end > value {
+            let out = out.get_or_insert_with(|| Vec::with_capacity(body.len()));
+            out.extend_from_slice(&body[copied..value]);
             out.extend_from_slice(b"[REDACTED]");
+            copied = end;
         }
-        copied = end;
-        match find(end) {
-            Some(next) => value = next,
-            None => break,
+        at = end;
+    }
+    match out {
+        None => body.into(),
+        Some(mut out) => {
+            out.extend_from_slice(&body[copied..]);
+            out.into()
         }
     }
-    out.extend_from_slice(&body[copied..]);
-    out.into()
+}
+
+/// Where an ICE credential starting at `at` ends: at the line end, or in a JSON string at
+/// its closing quote or an escaped line end (`\r`, `\n`, `\u000d`, `\u000a`). Other JSON
+/// escapes, such as `\/` or `\u0073`, are part of the value.
+fn credential_end(body: &[u8], mut at: usize) -> usize {
+    while let Some(&byte) = body.get(at) {
+        match byte {
+            b'\r' | b'\n' | b'"' => break,
+            b'\\' => {
+                let escape = &body[at + 1..];
+                let line_end = matches!(escape.first(), Some(b'r' | b'n'))
+                    || escape
+                        .get(..5)
+                        .is_some_and(|u| u.eq_ignore_ascii_case(b"u000d") || u.eq_ignore_ascii_case(b"u000a"));
+                if line_end {
+                    break;
+                }
+                at += if escape.first() == Some(&b'u') { 6 } else { 2 };
+            }
+            _ => at += 1,
+        }
+    }
+    at.min(body.len())
 }
 
 /// `modelFromJSON`: `session.model`, else `model`, trimmed; empty when Go's decode into
