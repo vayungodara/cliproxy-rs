@@ -976,6 +976,26 @@ fn request_frame_sets_store_and_keeps_prompt_cache_key() {
     assert!(gj::get(&frame, "store").bool());
 }
 
+/// Without a capture observer the turn's capture keeps no copy of the request frame.
+#[test]
+fn disabled_capture_keeps_no_frame() {
+    struct Ignore;
+    impl cpa_core::exec::CaptureObserver for Ignore {
+        fn record(&self, _: cpa_core::exec::CaptureEvent<'_>) {}
+    }
+    let turn = serde_json::json!({"payload": r#"{"model":"grok-4.3","input":"hi"}"#});
+    let c = credential("xai-1", &serde_json::json!({"api_key": "sk-fake"}), "127.0.0.1:1");
+    let frame = br#"{"type":"response.create","input":"hi"}"#;
+    let headers = HeaderMap::new();
+    let req = request(&turn, "s1", cpa_core::exec::UsageSink::default());
+    let disabled = WsCapture::new(&req, &c, "ws://127.0.0.1:1/v1/responses", &headers, frame);
+    assert!(disabled.frame.is_empty() && disabled.url.is_empty());
+    let capture = cpa_core::exec::CaptureSink::new(Arc::new(Ignore));
+    let req = request(&turn, "s1", cpa_core::exec::UsageSink::default().with_capture(capture));
+    let enabled = WsCapture::new(&req, &c, "ws://127.0.0.1:1/v1/responses", &headers, frame);
+    assert_eq!(enabled.frame, frame);
+}
+
 /// TestXAIWebsockets_PingHandlerDoesNotBlockOnWriteMu: an upstream ping is answered while
 /// the socket's writer is held (Go holds `writeMu`; here the pooled socket's sink lock),
 /// because the reader sends the pong.
