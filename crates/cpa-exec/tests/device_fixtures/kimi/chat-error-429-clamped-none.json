@@ -91,6 +91,11 @@
     "err_body": "{\"error\":{\"message\":\"rate limited\",\"type\":\"rate_limit_error\"}}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:38683",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:38683/coding/v1/chat/completions\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: application/json\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\nX-Msh-Device-Id: dev-fixture-1\nX-Msh-Device-Model: linux amd64\nX-Msh-Device-Name: e2b.local\nX-Msh-Platform: CLIProxyAPI\nX-Msh-Version: 0.1.0\n\nBody:\n{\"model\":\"kimi-for-coding\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"thinking\":{\"type\":\"enabled\",\"effort\":\"low\"}}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 429\nHeaders:\nContent-Length: 62\nContent-Type: application/json\nRetry-After: 7\n\nBody:\n{\"error\":{\"message\":\"rate limited\",\"type\":\"rate_limit_error\"}}\n"
+    },
     "usage": [
       {
         "cached_tokens": 0,

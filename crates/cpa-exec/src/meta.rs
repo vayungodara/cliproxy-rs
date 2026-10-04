@@ -202,13 +202,34 @@ impl MetaExecutor {
         let body = Bytes::from(prepared.body);
         // Go: TrackHTTPClient for Execute; ExecuteStream uses TrackHTTPClientRoundTripOnly,
         // so its first body byte only records the first-packet fallback.
+        use crate::kimi_http::{account_info, capture_chunk, capture_error, capture_metadata, capture_request};
+        let capture = req.capture();
+        let request_headers = headers(&enriched, &req, &token);
+        // recordMetaRequest: the enriched credential's account info.
+        let (auth_type, auth_value) = account_info(&enriched);
+        capture_request(
+            capture,
+            &enriched,
+            &url,
+            &request_headers,
+            &body,
+            PROVIDER,
+            (auth_type, &auth_value),
+        );
         req.usage.round_trip_started();
-        let mut upstream = send(&client, &url, headers(&enriched, &req, &token), body.clone(), None).await?;
+        let mut upstream = send(&client, &url, request_headers, body.clone(), None)
+            .await
+            .inspect_err(|e| capture_error(capture, e))?;
+        capture_metadata(capture, upstream.status, &upstream.headers);
         upstream.body = crate::kimi_http::track_first_byte(upstream.body, &req.usage, req.stream);
         if !(200..300).contains(&upstream.status) {
             let headers = upstream.headers.clone();
             // Go returns a failed error-body read as is, never classified by status.
-            let error_body = read_all_strict(upstream.body, MAX_ERROR_BODY).await?;
+            let error_body = read_all_strict(upstream.body, MAX_ERROR_BODY)
+                .await
+                .inspect_err(|e| capture_error(capture, e))?;
+            // ponytail: the MAX_ERROR_BODY prefix (proxy.rs ceiling); Go logs the whole body.
+            capture_chunk(capture, &error_body);
             // Go observes the response model on every non-stream body, errors included.
             if !req.stream {
                 report_model(&req.usage, Format::Codex, &error_body);
@@ -223,16 +244,21 @@ impl MetaExecutor {
             // Go publishes stream usage only through its buffer (no EnsurePublished).
             req.usage.usage_required();
             // Go observes `data:` lines: their response model, and usage once completed.
-            let (tapped, usage) = defer_usage(lines(upstream.body, LINE_LIMIT), &req.usage, UsageRule::MetaResponses);
+            let lines = crate::kimi_http::capture_lines(lines(upstream.body, LINE_LIMIT), capture);
+            let (tapped, usage) = defer_usage(lines, &req.usage, UsageRule::MetaResponses);
             ResponseBody::Stream(stream_events(
                 tapped,
                 (prepared.response.stream)(&ctx),
                 responses_client,
                 prepared.apply_patch,
                 usage,
+                capture.clone(),
             ))
         } else {
-            let data = read_all(upstream.body, usize::MAX, false).await?;
+            let data = read_all(upstream.body, usize::MAX, false)
+                .await
+                .inspect_err(|e| capture_error(capture, e))?;
+            capture_chunk(capture, &data);
             report_model(&req.usage, Format::Codex, &data);
             let source = std::cell::RefCell::new(Vec::new());
             let mut apply_patch = prepared.apply_patch;
@@ -611,12 +637,14 @@ fn stream_events(
     responses_client: bool,
     bridge: apply_patch_responses::State,
     usage: DeferredUsage,
+    capture: cpa_core::exec::CaptureSink,
 ) -> ExecStream {
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
         bridge: apply_patch_responses::State,
         usage: DeferredUsage,
+        capture: cpa_core::exec::CaptureSink,
         items: OutputItems,
         ready: VecDeque<Result<Bytes, ExecError>>,
         done: bool,
@@ -685,6 +713,7 @@ fn stream_events(
                 return self.emit(line.to_vec());
             };
             if let Some(error) = stream_event_error(event) {
+                crate::kimi_http::capture_error(&self.capture, &error);
                 return self.fail(error);
             }
             let kind = gj::get(event, "type").bytes().into_owned();
@@ -731,6 +760,7 @@ fn stream_events(
             translator,
             bridge,
             usage,
+            capture,
             items: OutputItems::default(),
             ready: VecDeque::new(),
             done: false,

@@ -68,6 +68,9 @@
     "err_body": "meta executor: mint API key failed: meta auth: mint key failed (HTTP 401): {\"error\":\"invalid dca\"}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:37567"
+    },
     "credential_scoped": false,
     "metadata_after": {
       "base_url": "http://127.0.0.1:41011/v1",

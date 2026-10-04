@@ -380,6 +380,14 @@ impl GoHeaders {
         self.exact_target = true;
     }
 
+    /// The headers as Go's `http.Header` holds them before sending (`Header.Clone()`, what
+    /// request logging records): set names canonical, raw names as written, values in
+    /// order. The transport's own lines (Host from the URL, the default User-Agent,
+    /// Content-Length, Accept-Encoding) are not included.
+    pub fn pairs(&self) -> &[(String, String)] {
+        &self.headers
+    }
+
     pub fn get(&self, name: &str) -> Option<&str> {
         let name = canonical_header(name);
         self.headers.iter().find(|(n, _)| *n == name).map(|(_, v)| v.as_str())

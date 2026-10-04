@@ -25,6 +25,11 @@
     ]
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:42759",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:42759/coding/v1/responses\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: text/event-stream\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\nX-Msh-Device-Id: dev-fixture-1\nX-Msh-Device-Model: linux amd64\nX-Msh-Device-Name: e2b.local\nX-Msh-Platform: CLIProxyAPI\nX-Msh-Version: 0.1.0\n\nBody:\n{\"model\":\"k3\",\"stream\":true,\"input\":\"hi\"}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 476\nContent-Type: text/event-stream\n\nBody:\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"r\",\"model\":\"k3-a\",\"usage\":{\"input_tokens\":2,\"output_tokens\":1,\"total_tokens\":3}}}\n\ndata: {\"type\":\"response.done\",\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":4,\"total_tokens\":0}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}}\n\n{\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"usage\":{\"input_tokens\":50,\"output_tokens\":50,\"total_tokens\":100}}}\n"
+    },
     "usage": [
       {
         "cached_tokens": 0,

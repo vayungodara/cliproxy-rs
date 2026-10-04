@@ -87,11 +87,16 @@ fn meta_credential(fx: &Value, origin: &str, url: &str) -> Credential {
                 .collect()
         })
         .unwrap_or_default();
+    // cpa-core's config loader labels config API keys `<provider>-apikey`.
+    if c.attributes.get("source").is_some_and(|s| s.starts_with("config:")) {
+        c.label = format!("{PROVIDER}-apikey");
+    }
     c
 }
 
 struct Run {
     usage: std::sync::Arc<crate::kimi_fixture::UsageLog>,
+    capture: std::sync::Arc<crate::kimi_fixture::CaptureLog>,
     fx: Value,
     origin: String,
     url: String,
@@ -111,8 +116,9 @@ async fn run(name: &str) -> Run {
     let (mut body, mut chunks, mut error) = (None, Vec::new(), None);
     let cfg = Config::parse(fx["request"]["config"].as_str().unwrap_or_default()).unwrap();
     let usage = std::sync::Arc::new(crate::kimi_fixture::UsageLog::default());
+    let capture = std::sync::Arc::new(crate::kimi_fixture::CaptureLog::default());
     let mut req = request(&fx, "");
-    req.usage = usage.sink();
+    req.usage = usage.sink().with_capture(capture.sink());
     match exec.execute(&credential, req, &cfg).await {
         Err(e) => error = Some(e),
         Ok(response) => match response.body {
@@ -129,6 +135,7 @@ async fn run(name: &str) -> Run {
     }
     Run {
         usage,
+        capture,
         captured: mock.captured(),
         url: mock.url,
         fx,
@@ -315,6 +322,7 @@ async fn prepare_remints_and_matches_go_refresh() {
     let patch = exec.prepare(&credential, &cfg()).await.unwrap();
     let r = Run {
         usage: Default::default(),
+        capture: Default::default(),
         captured: mock.captured(),
         url: mock.url,
         fx,
@@ -937,13 +945,20 @@ async fn apply_patch_failures_end_meta_streams_like_go() {
         let upstream =
             futures_util::stream::iter(lines.into_iter().map(|l| Ok(Bytes::from_static(l.as_bytes())))).boxed();
         let inactive = cpa_translate::apply_patch_responses::State::new(Format::OpenAIResponse, b"{}", b"{}");
-        let out: Vec<String> = stream_events(upstream, translator, false, inactive, Default::default())
-            .map(|item| match item {
-                Ok(b) => String::from_utf8(b.to_vec()).unwrap(),
-                Err(e) => format!("ERR {} {}", e.status, String::from_utf8_lossy(&e.body)),
-            })
-            .collect()
-            .await;
+        let out: Vec<String> = stream_events(
+            upstream,
+            translator,
+            false,
+            inactive,
+            Default::default(),
+            Default::default(),
+        )
+        .map(|item| match item {
+            Ok(b) => String::from_utf8(b.to_vec()).unwrap(),
+            Err(e) => format!("ERR {} {}", e.status, String::from_utf8_lossy(&e.body)),
+        })
+        .collect()
+        .await;
         let log = log.lock().unwrap().clone();
         (out, log)
     }
@@ -994,5 +1009,17 @@ async fn usage_reports_match_go_records() {
         let r = run(name).await;
         let failure = r.error.as_ref().map(crate::kimi_fixture::go_failure);
         crate::kimi_fixture::assert_usage_like_go(name, &r.fx, &r.usage, failure.as_ref());
+    }
+}
+
+#[tokio::test]
+async fn request_capture_matches_go() {
+    // meta_executor_execute.go's recordMetaRequest site with its response metadata,
+    // chunks and errors, rendered as Go's request log and compared with Go's text.
+    let names = crate::kimi_fixture::captured_fixtures("meta");
+    assert!(names.len() >= 30, "{names:?}");
+    for name in names.iter().filter(|n| n.as_str() != "refresh-direct") {
+        let r = run(name).await;
+        crate::kimi_fixture::assert_capture_like_go(name, &r.fx, &r.capture, &r.url, &["Host"]);
     }
 }

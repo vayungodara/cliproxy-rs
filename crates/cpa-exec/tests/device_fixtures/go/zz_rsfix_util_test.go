@@ -15,6 +15,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -23,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/usage"
 )
 
@@ -294,4 +296,54 @@ func rsfixTakeUsage() []map[string]any {
 	}
 	rsfixUsage.records = nil
 	return out
+}
+
+// rsfixCapture returns ctx with a gin context (its request carrying headers) and a
+// function returning Go's request-log text for the calls made with it: API_REQUEST and
+// API_RESPONSE as the helps logging functions build them in memory (the executor's
+// config must have RequestLog on), timestamps masked. origin is the capture server.
+func rsfixCapture(ctx context.Context, headers http.Header, origin string) (context.Context, func() map[string]any) {
+	gin.SetMode(gin.TestMode)
+	ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ginCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	for k, vs := range headers {
+		for _, v := range vs {
+			ginCtx.Request.Header.Add(k, v)
+		}
+	}
+	return context.WithValue(ctx, "gin", ginCtx), func() map[string]any { return rsfixCaptureOf(ginCtx, origin) }
+}
+
+// rsfixCaptureOf reads the request-log text recorded on ginCtx.
+func rsfixCaptureOf(ginCtx *gin.Context, origin string) map[string]any {
+	out := map[string]any{"origin": origin}
+	for key, name := range map[string]string{"API_REQUEST": "request", "API_RESPONSE": "response"} {
+		if v, ok := ginCtx.Get(key); ok {
+			if b, ok := v.([]byte); ok {
+				lines := strings.Split(string(b), "\n")
+				for i, line := range lines {
+					if strings.HasPrefix(line, "Timestamp: ") {
+						lines[i] = "Timestamp: <time>"
+					}
+				}
+				out[name] = strings.Join(lines, "\n")
+			}
+		}
+	}
+	return out
+}
+
+// rsfixLabel is the Auth.Label the watcher's synthesizers give a credential: the email
+// or provider type for auth files, <provider>-apikey for config API keys.
+func rsfixLabel(provider string, meta map[string]any, attrs map[string]string) string {
+	if strings.HasPrefix(attrs["source"], "config:") {
+		return provider + "-apikey"
+	}
+	if email, _ := meta["email"].(string); email != "" {
+		return email
+	}
+	if kind, _ := meta["type"].(string); kind != "" {
+		return kind
+	}
+	return provider
 }

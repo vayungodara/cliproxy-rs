@@ -338,21 +338,55 @@ fn thinking(body: &[u8], req: &ExecRequest, to: &str) -> Result<Vec<u8>, ExecErr
 const CHAT_LINE_LIMIT: usize = 1_048_576;
 const RESPONSES_LINE_LIMIT: usize = 52_428_800;
 
+/// One upstream send (kimi_executor.go's four `RecordAPIRequest` sites): the capture of
+/// the request, its response metadata and a rejected response's body, then the send.
 async fn post(
     client: &wreq::Client,
+    credential: &Credential,
+    req: &ExecRequest,
     url: &str,
     headers: GoHeaders,
     body: Vec<u8>,
-    usage: &cpa_core::exec::UsageSink,
 ) -> Result<Upstream, ExecError> {
+    use crate::kimi_http::{account_info, capture_chunk, capture_error, capture_metadata, capture_request};
+    let capture = req.capture();
+    let (auth_type, auth_value) = account_info(credential);
+    capture_request(
+        capture,
+        credential,
+        url,
+        &headers,
+        &body,
+        "kimi",
+        (auth_type, &auth_value),
+    );
     // Go's TrackHTTPClient: the TTFT runs from the request to the first body byte.
-    usage.round_trip_started();
-    let mut upstream = send(client, url, headers, body, None).await?;
-    upstream.body = crate::kimi_http::track_first_byte(upstream.body, usage, false);
+    req.usage.round_trip_started();
+    let mut upstream = send(client, url, headers, body, None)
+        .await
+        .inspect_err(|e| capture_error(capture, e))?;
+    capture_metadata(capture, upstream.status, &upstream.headers);
+    upstream.body = crate::kimi_http::track_first_byte(upstream.body, &req.usage, false);
     if !(200..300).contains(&upstream.status) {
-        return Err(status_error(upstream).await);
+        let error = status_error(upstream).await;
+        // ponytail: the error body is the MAX_ERROR_BODY prefix (proxy.rs ceiling); Go
+        // logs the whole body.
+        capture_chunk(capture, &error.body);
+        return Err(error);
     }
     Ok(upstream)
+}
+
+/// Go's non-stream `io.ReadAll` with its capture: a read error, else the whole body.
+async fn read_body(
+    body: futures_util::stream::BoxStream<'static, Result<Bytes, ExecError>>,
+    capture: &cpa_core::exec::CaptureSink,
+) -> Result<Bytes, ExecError> {
+    let data = read_all(body, usize::MAX, false)
+        .await
+        .inspect_err(|e| crate::kimi_http::capture_error(capture, e))?;
+    crate::kimi_http::capture_chunk(capture, &data);
+    Ok(data)
 }
 
 /// Chat Completions path (Execute / ExecuteStream for non-Claude, non-Responses clients).
@@ -407,10 +441,11 @@ async fn execute_chat(
     }
     let upstream = post(
         client,
+        credential,
+        &req,
         &chat_url(credential),
         headers(credential, &req, req.stream),
         body.clone(),
-        &req.usage,
     )
     .await?;
     let translated = Bytes::from(body);
@@ -421,7 +456,7 @@ async fn execute_chat(
     };
     let body = if req.stream {
         let (tapped, usage) = defer_usage(
-            lines(upstream.body, CHAT_LINE_LIMIT),
+            crate::kimi_http::capture_lines(lines(upstream.body, CHAT_LINE_LIMIT), req.capture()),
             &req.usage,
             UsageRule::OpenAIStream,
         );
@@ -432,7 +467,7 @@ async fn execute_chat(
             usage,
         ))
     } else {
-        let data = read_all(upstream.body, usize::MAX, false).await?;
+        let data = read_body(upstream.body, req.capture()).await?;
         // Go observes the response model now and publishes the usage once translated.
         report_model(&req.usage, Format::OpenAI, &data);
         // A translator error or empty output is Go's apply_patch 502.
@@ -732,10 +767,11 @@ async fn execute_responses(
     req.usage.usage_required();
     let upstream = post(
         client,
+        credential,
+        &req,
         &responses_url(credential),
         headers(credential, &req, req.stream),
         body.clone(),
-        &req.usage,
     )
     .await?;
     let translated = Bytes::from(body);
@@ -749,7 +785,7 @@ async fn execute_responses(
     let out = if req.stream {
         // Usage comes from the upstream lines; the bridge sits between them and the client.
         let (tapped, usage) = defer_usage(
-            lines(upstream.body, RESPONSES_LINE_LIMIT),
+            crate::kimi_http::capture_lines(lines(upstream.body, RESPONSES_LINE_LIMIT), req.capture()),
             &req.usage,
             UsageRule::KimiResponses,
         );
@@ -769,7 +805,7 @@ async fn execute_responses(
             None => ResponseBody::Stream(responses_frames(bridged, usage)),
         }
     } else {
-        let data = read_all(upstream.body, usize::MAX, false).await?;
+        let data = read_body(upstream.body, req.capture()).await?;
         report_model(&req.usage, Format::Codex, &data);
         let out = match bridge.bridge.transform_non_stream(&data) {
             Ok(out) if !(out.is_empty() && apply_patch_requested(original_request)) => out,

@@ -23,6 +23,11 @@
     ]
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:36909",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:36909/v1/responses\nHTTP Method: POST\nAuth: provider=meta, auth_id=meta-fixture.json, label=meta, type=oauth\n\nHeaders:\nAccept: text/event-stream\nAuthorization: Bearer meta...ture\nCache-Control: no-cache\nContent-Type: application/json\nUser-Agent: muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)\nX-Client-Id: tbh:tui\n\nBody:\n{\"model\":\"muse-spark-1.3\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\"}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 200\nContent-Type: text/event-stream\n\nBody:\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"r\",\"model\":\"m1\"}}\n\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"model\":\"m2\",\"output\":[],\"usage\":{\"input_tokens\":7,\"output_tokens\":0}}}\n"
+    },
     "usage": [
       {
         "cached_tokens": 0,

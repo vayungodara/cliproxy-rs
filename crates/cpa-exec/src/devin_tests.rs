@@ -478,10 +478,12 @@ async fn check_executor_fixture(name: &str) {
     let runs = fx["request"]["repeat"].as_u64().unwrap_or(1);
     let (mut down, mut retry_after) = (None, None);
     let mut usage = std::sync::Arc::new(crate::kimi_fixture::UsageLog::default());
+    let mut capture = std::sync::Arc::new(crate::kimi_fixture::CaptureLog::default());
     for _ in 0..runs {
         usage = std::sync::Arc::new(crate::kimi_fixture::UsageLog::default());
+        capture = std::sync::Arc::new(crate::kimi_fixture::CaptureLog::default());
         let mut req = request(&fx, "");
-        req.usage = usage.sink();
+        req.usage = usage.sink().with_capture(capture.sink());
         bind_session(&mut req);
         let result = exec.execute(&cred, req, &cfg).await;
         retry_after = result.as_ref().err().and_then(|e| e.retry_after);
@@ -489,6 +491,29 @@ async fn check_executor_fixture(name: &str) {
     }
     let down = down.unwrap();
     crate::kimi_fixture::assert_usage_like_go(name, &fx, &usage, down.failure.as_ref());
+    // devin_executor.go's two RecordAPIRequest sites (with Go's request and response log
+    // bodies) rendered as Go's request log.
+    crate::kimi_fixture::assert_capture_like_go(name, &fx, &capture, &mock.url, &["Sentry-Trace"]);
+    // The stream's raw chunks: Go passes the header line, then each interactions event
+    // with one trailing newline (the formatted log trims both).
+    let chunks = capture.chunks();
+    if let Some(at) = chunks
+        .iter()
+        .position(|c| c == b"=== INTERMEDIATE INTERACTIONS STREAM ===\n")
+    {
+        for event in chunks[at + 1..].iter().filter(|c| c.starts_with(b"{")) {
+            assert!(
+                event.ends_with(b"}\n"),
+                "{name}: event chunk {:?}",
+                String::from_utf8_lossy(event)
+            );
+        }
+    } else {
+        assert!(
+            !fx["request"]["stream"].as_bool().unwrap_or(false) || chunks.len() <= 1,
+            "{name}: stream chunks {chunks:?}"
+        );
+    }
     // Upstream requests.
     let go: Vec<Captured> = fx["upstream"]
         .as_array()

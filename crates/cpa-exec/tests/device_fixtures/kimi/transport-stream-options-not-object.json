@@ -1,4 +1,9 @@
 {
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:35927"
+    }
+  },
   "name": "transport-stream-options-not-object",
   "credential": {
     "access_token": "kimi-access-fixture",

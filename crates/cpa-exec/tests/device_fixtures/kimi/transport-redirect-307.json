@@ -1,4 +1,11 @@
 {
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:38127",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:38127/coding/v1/chat/completions\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: application/json\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\nX-Msh-Device-Id: dev-fixture-1\nX-Msh-Device-Model: linux amd64\nX-Msh-Device-Name: e2b.local\nX-Msh-Platform: CLIProxyAPI\nX-Msh-Version: 0.1.0\n\nBody:\n{\"model\":\"k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 156\nContent-Type: application/json\n\nBody:\n{\"id\":\"c9\",\"object\":\"chat.completion\",\"created\":9,\"model\":\"k2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n"
+    }
+  },
   "name": "transport-redirect-307",
   "credential": {
     "access_token": "kimi-access-fixture",

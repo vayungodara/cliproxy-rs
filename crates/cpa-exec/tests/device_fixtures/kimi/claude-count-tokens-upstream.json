@@ -75,6 +75,11 @@
     "body": "{\"input_tokens\":9}"
   },
   "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:34653",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:34653/coding/v1/messages/count_tokens?beta=true\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: application/json\nAccept-Encoding: gzip, deflate, br, zstd\nAnthropic-Beta: token-counting-2024-11-01\nAnthropic-Version: 2023-06-01\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\n\nBody:\n{\"model\":\"kimi-for-coding\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 18\nContent-Type: application/json\n\nBody:\n{\"input_tokens\":9}\n"
+    },
     "usage": null
   }
 }

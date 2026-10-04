@@ -1,4 +1,11 @@
 {
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:40917",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:40917/coding/v1/chat/completions\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: application/json\nAccept-Encoding: gzip\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\nX-Msh-Device-Id: dev-fixture-1\nX-Msh-Device-Model: linux amd64\nX-Msh-Device-Name: e2b.local\nX-Msh-Platform: CLIProxyAPI\nX-Msh-Version: 0.1.0\n\nBody:\n{\"model\":\"k2\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Encoding: gzip\nContent-Length: 141\nContent-Type: application/json\n\nBody:\n\u001f\ufffd\b\u0000\u0000\u0000\u0000\u0000\u0000\ufffd\u0014\ufffd\ufffd\n\ufffd@\f\u0005\ufffd\ufffd\ufffd\u0017\u0011oͯ\ufffdH܍6\ufffdMJ\ufffd\ufffdP\ufffd\ufffde\ufffd\ufffd0\ufffd\tm \ufffd\t\u0005\ufffd\ufffdJ\ufffdA3\ufffd\ufffd\ufffd\ufffd\ufffd\ufffdꆂz\b\ufffd4\ufffdT\ufffdy\ufffd\u0015\ufffd\ufffd6\ufffd\ufffdZ%@\ufffd\u0013jM~\ufffdk\ufffd\u0026\u0011\ufffd\u0011Љ\ufffdW\u0001\ufffd#4\ufffd-G\ufffd\ufffdbc\ufffd\u000bz\ufffd[Mc~\u001e\ufffd\ufffd\u0006B\ufffd\ufffd\ufffd\ufffd\ufffd\u000f\u0000\u0000\ufffd\ufffd\ufffd\"\u001aɜ\u0000\u0000\u0000\n"
+    }
+  },
   "name": "transport-explicit-gzip-not-decoded",
   "credential": {
     "access_token": "kimi-access-fixture",
