@@ -1279,7 +1279,18 @@ impl Record {
         }
         write!(out, "=== RESPONSE ===\nStatus: {}\n", self.status)?;
         headers(out, &self.response_headers, false)?;
-        if let Some(spool) = &self.response_spool {
+        if let Some(spool) = &self.response_spool
+            && self.redact_sdp
+        {
+            // A live call's response is at most `live::MAX_BODY`; redacting it whole
+            // also covers a marker split across written chunks.
+            let body = std::fs::read(&spool.path)?;
+            let body = cpa_exec::codex_live::redact_sdp(&body);
+            if !(body.starts_with(b"\n") || body.starts_with(b"\r\n")) {
+                out.write_all(b"\n")?;
+            }
+            out.write_all(&body)?;
+        } else if let Some(spool) = &self.response_spool {
             let mut input = File::open(&spool.path)?;
             let mut first = [0; 2];
             let n = input.read(&mut first)?;

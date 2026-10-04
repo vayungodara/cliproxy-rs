@@ -338,3 +338,43 @@ async fn sdp_ice_credentials_stay_out_of_spooled_sections() {
     }
     let _ = std::fs::remove_dir_all(dir);
 }
+
+/// A live response the request log streams to its spool (an event-stream content type)
+/// is redacted too when the log is written.
+#[tokio::test]
+async fn sdp_ice_credentials_stay_out_of_a_spooled_downstream_response() {
+    const ANSWER: &str = "v=0\r\na=ice-ufrag:streamufrag\r\na=ice-pwd:streampwd\r\n";
+    let dir = scratch();
+    let upstream_url = serve(axum::Router::new().fallback(|_offer: axum::body::Bytes| async move {
+        let mut response = (StatusCode::CREATED, ANSWER).into_response();
+        let h = response.headers_mut();
+        h.insert(header::CONTENT_TYPE, HeaderValue::from_static("text/event-stream"));
+        h.insert(header::LOCATION, HeaderValue::from_static("/v1/live/call-123"));
+        response
+    }))
+    .await;
+    let proxy = start(&dir, &upstream_url).await;
+    let response = wreq::Client::new()
+        .post(format!("{proxy}/v1/live"))
+        .header("content-type", "application/sdp")
+        .body("v=0\r\n")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status().as_u16(), 201);
+    assert_eq!(
+        response.text().await.unwrap(),
+        ANSWER,
+        "the client gets the answer unchanged"
+    );
+    let log = log_with(&dir, "/calls").await;
+    for secret in ["streamufrag", "streampwd"] {
+        assert!(!log.contains(secret), "{secret} in {log}");
+    }
+    let downstream = section(&log, "RESPONSE");
+    assert!(
+        downstream.contains("a=ice-ufrag:[REDACTED]\r\na=ice-pwd:[REDACTED]"),
+        "{downstream}"
+    );
+    let _ = std::fs::remove_dir_all(dir);
+}
