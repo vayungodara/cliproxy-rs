@@ -1199,6 +1199,52 @@ async fn latest_version_follows_go_for_each_release_answer() {
     release_server.abort();
 }
 
+/// AI Studio relay credentials: disabling one through the status or fields endpoint
+/// clears its cooldowns (Go `Manager.Update`), so re-enabling routes to it at once.
+#[tokio::test]
+async fn runtime_credential_disable_clears_its_cooldowns() {
+    use cpa_core::credential::Credential;
+    use cpa_core::exec::{ExecError, FailureScope};
+    use cpa_server::runtime::{Outcome, Selection};
+    let f = Fixture::new("runtime-cooldown");
+    let id = "aistudio-0123456789abcdef";
+    assert!(f.rt.store().add_runtime(Credential::relay_session(id)));
+    let selection = || Selection {
+        provider: "aistudio".into(),
+        ..Selection::default()
+    };
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    for endpoint in ["status", "fields"] {
+        let lease = f.rt.store().select(selection()).unwrap();
+        assert_eq!(lease.credential.id, id);
+        let mut quota = ExecError::local(429, FailureScope::Credential, "rate limited");
+        quota.retry_after = Some(std::time::Duration::from_secs(600));
+        lease.complete(Outcome::Failure(quota));
+        assert!(!f.rt.store().cooldowns(id).is_empty(), "{endpoint}: cooling");
+        assert!(f.rt.store().select(selection()).is_none(), "{endpoint}: blocked");
+        for disabled in [true, false] {
+            let r = client
+                .patch(format!("{base}/v8/management/credentials/{endpoint}"))
+                .bearer_auth("fake-management-only")
+                .json(&json!({"name": id, "disabled": disabled}))
+                .send()
+                .await
+                .unwrap();
+            assert_eq!(r.status(), 200, "{endpoint} disabled={disabled}");
+            assert_eq!(f.rt.store().get(id).unwrap().disabled, disabled);
+            assert!(f.rt.store().cooldowns(id).is_empty(), "{endpoint} disabled={disabled}");
+        }
+        let lease = f.rt.store().select(selection());
+        assert_eq!(
+            lease.map(|l| l.credential.id.clone()).as_deref(),
+            Some(id),
+            "{endpoint}"
+        );
+    }
+    server.abort();
+}
+
 /// `GET /observability/usage/queue` drains queued records oldest first; a record that
 /// is not JSON comes back as a string. Disabling statistics stops queueing.
 #[tokio::test]
