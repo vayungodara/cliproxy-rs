@@ -1971,7 +1971,8 @@ mod tests {
 
     /// Go `prepareHomeRequestAuth` with the Home KV identity caches: a dispatched OAuth
     /// credential without a device pool gets the pool Home KV holds for Home's auth
-    /// index (never a local random one), and an API key's session ID comes from Home KV.
+    /// index (never a local random one), and a cloaked API key's session ID comes from
+    /// Home KV (an API key keeping the caller's own headers never reads it).
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn dispatched_credentials_take_their_identity_from_home_kv() {
         type Seen = Arc<Mutex<Vec<(axum::http::HeaderMap, Value)>>>;
@@ -2008,11 +2009,14 @@ mod tests {
             r#"{{"model":"claude-up","auth_index":"idx-oauth","auth":{{"id":"cred-oauth","provider":"claude","attributes":{{"base_url":"{upstream}"}},"metadata":{{"type":"claude","access_token":"sk-ant-oat01-FAKE","account_uuid":"8f14e45f-ceea-467f-a8a1-0c3b9e1f3a77","email":"fake@example.invalid"}}}}}}"#
         );
         let api_key = format!(
-            r#"{{"model":"claude-up","auth_index":"idx-key","auth":{{"id":"cred-key","provider":"claude","attributes":{{"api_key":"sk-fake-key","base_url":"{upstream}"}}}}}}"#
+            r#"{{"model":"claude-up","auth_index":"idx-key","auth":{{"id":"cred-key","provider":"claude","attributes":{{"api_key":"sk-fake-key","base_url":"{upstream}","cloak_mode":"always"}}}}}}"#
         );
+        let plain = api_key
+            .replace("sk-fake-key", "sk-fake-plain")
+            .replace(r#","cloak_mode":"always""#, "");
         let home = scripted_with_kv(
             "port: 0\n",
-            vec![oauth, api_key],
+            vec![oauth, api_key, plain],
             [(pool_key.clone(), format!(r#"["{device}"]"#))].into_iter().collect(),
         )
         .await;
@@ -2035,7 +2039,8 @@ mod tests {
 
         let (status, body) = ask(&base, "claude-x").await;
         assert_eq!(status, 200, "{body}");
-        // Go `CachedSessionIDRequired` for a new key: GET, SETNX for an hour, GET.
+        // Go `CachedSessionIDRequired` twice: the cloaked body's fake user ID misses
+        // (GET, SETNX for an hour, GET), then the headers hit and renew (GET, EXPIRE).
         let session_key = format!("cpa:claude:session-id:{}", cpa_home::kv::hash_key_part("sk-fake-key"));
         let calls: Vec<Vec<String>> = home
             .commands()
@@ -2055,8 +2060,18 @@ mod tests {
                 want(&["get", &session_key]),
                 want(&["SET", &session_key, "<uuid>", "EX", "3600", "NX"]),
                 want(&["get", &session_key]),
+                want(&["get", &session_key]),
+                want(&["expire", &session_key, "3600"]),
             ]
         );
+
+        // Go `applyClaudeHeaders` returns before the cached session for a caller that
+        // keeps its own headers: no Home KV lookup at all.
+        let (status, body) = ask(&base, "claude-x").await;
+        assert_eq!(status, 200, "{body}");
+        assert_eq!(rpops(&home).len(), 3);
+        let plain_key = format!("cpa:claude:session-id:{}", cpa_home::kv::hash_key_part("sk-fake-plain"));
+        assert!(!home.commands().iter().any(|c| c.get(1) == Some(&plain_key)));
         shutdown.cancel();
         task.await.unwrap();
     }

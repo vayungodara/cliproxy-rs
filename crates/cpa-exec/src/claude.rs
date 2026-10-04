@@ -1437,9 +1437,9 @@ impl<'a> Ctx<'a> {
         } else {
             None
         };
-        // Go `applyClaudeHeaders`, after the device profile: without a session, the
-        // key's cached session ID.
-        let cached_session_id = if session_id.trim().is_empty() {
+        // Go `applyClaudeHeaders`, after the device profile and the passthrough
+        // return: without a session, the key's cached session ID.
+        let cached_session_id = if headers::needs_cached_session(self.cli_profile || cloak, confirmed, session_id) {
             session::cached_session_id_required(&self.api_key)
                 .await
                 .map_err(|e| ExecError::local(500, FailureScope::Transport, e))?
