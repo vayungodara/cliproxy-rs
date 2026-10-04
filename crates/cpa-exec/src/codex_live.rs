@@ -251,7 +251,15 @@ pub fn response_sdp(body: &[u8], content_type: &str) -> Result<String, String> {
 /// and `a=ice-pwd:` value becomes `[REDACTED]`, whether the SDP is raw, a multipart
 /// field or a JSON string. Go logs these bodies unchanged.
 pub fn redact_sdp(body: &[u8]) -> std::borrow::Cow<'_, [u8]> {
-    const NEEDLES: [&[u8]; 2] = [b"a=ice-ufrag:", b"a=ice-pwd:"];
+    // In a JSON string the `=` may be escaped as `\u003d`.
+    const NEEDLES: [&[u8]; 6] = [
+        b"a=ice-ufrag:",
+        b"a=ice-pwd:",
+        b"a\\u003dice-ufrag:",
+        b"a\\u003dice-pwd:",
+        b"a\\u003Dice-ufrag:",
+        b"a\\u003Dice-pwd:",
+    ];
     let mut out: Option<Vec<u8>> = None;
     let (mut copied, mut at) = (0, 0);
     while at < body.len() {

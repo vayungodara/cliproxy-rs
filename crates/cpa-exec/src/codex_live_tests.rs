@@ -335,3 +335,12 @@ fn redact_sdp_scans_many_markers_in_one_pass() {
             .as_bytes()
     );
 }
+
+#[test]
+fn redact_sdp_recognises_an_escaped_equals_sign() {
+    let json = br#"{"sdp":"a\u003dice-pwd:secret\r\na\u003Dice-ufrag:frag\r\na\u003dmid:0","note":"a\u003dice"}"#;
+    assert_eq!(
+        &*redact_sdp(json),
+        br#"{"sdp":"a\u003dice-pwd:[REDACTED]\r\na\u003Dice-ufrag:[REDACTED]\r\na\u003dmid:0","note":"a\u003dice"}"#
+    );
+}
