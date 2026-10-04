@@ -333,13 +333,37 @@ fn argv_enables_bool_flag(args: &[String], name: &str) -> bool {
         if value.is_none()
             && !flag.is_empty()
             && !BOOL_FLAGS.contains(&flag)
-            && args.get(i + 1).is_some_and(|n| n != "--")
+            && args
+                .get(i + 1)
+                .is_some_and(|n| n != "--" && (builtin_flag(flag) || !is_discover_flag(n)))
         {
             i += 1;
         }
         i += 1;
     }
     enabled
+}
+
+/// Whether the binary itself defines `name` (plugin flags are only known once the
+/// plugins have loaded).
+fn builtin_flag(name: &str) -> bool {
+    static NAMES: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| {
+        Args::command()
+            .get_arguments()
+            .filter_map(|a| a.get_long().map(str::to_owned))
+            .collect()
+    });
+    NAMES.iter().any(|n| n == name)
+}
+
+/// `-discover` or `-discover-json`, with one or two dashes and an optional value.
+fn is_discover_flag(arg: &str) -> bool {
+    let Some(bare) = arg.strip_prefix('-') else {
+        return false;
+    };
+    let bare = bare.strip_prefix('-').unwrap_or(bare);
+    let flag = bare.split_once('=').map_or(bare, |(f, _)| f);
+    matches!(flag, "discover" | "discover-json")
 }
 
 /// Go's `appendCSV` flag function: each occurrence is split and appended.
@@ -902,6 +926,41 @@ mod tests {
             );
             assert_eq!(argv_enables_bool_flag(&args, "discover"), case["discover"], "{args:?}");
         }
+    }
+
+    /// A flag the binary does not define may be a boolean plugin flag, so a discover
+    /// flag after it still selects discover mode, before any plugin loads. Built-in
+    /// flags that take a value keep consuming it as Go does.
+    #[test]
+    fn a_plugin_flag_before_discover_keeps_discover_mode() {
+        let argv = |a: &[&str]| a.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        assert!(argv_enables_bool_flag(
+            &argv(&["-plugin-verbose", "-discover"]),
+            "discover"
+        ));
+        assert!(argv_enables_bool_flag(
+            &argv(&["--plugin-verbose", "--discover-json"]),
+            "discover-json"
+        ));
+        assert!(argv_enables_bool_flag(
+            &argv(&["-plugin-verbose", "-discover=true"]),
+            "discover"
+        ));
+        // A plugin flag still takes an ordinary value.
+        assert!(argv_enables_bool_flag(
+            &argv(&["-plugin-mode", "fast", "-discover"]),
+            "discover"
+        ));
+        assert!(!argv_enables_bool_flag(
+            &argv(&["-plugin-mode", "x", "fast", "-discover"]),
+            "discover"
+        ));
+        // A built-in value flag consumes the next token, as in Go.
+        assert!(!argv_enables_bool_flag(&argv(&["-config", "-discover"]), "discover"));
+        assert!(!argv_enables_bool_flag(
+            &argv(&["-password", "--discover-json"]),
+            "discover-json"
+        ));
     }
 
     #[test]
