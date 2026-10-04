@@ -705,13 +705,22 @@ struct WsCapture {
 impl WsCapture {
     fn new(req: &ExecRequest, credential: &Credential, url: &str, headers: &HeaderMap, frame: &[u8]) -> Self {
         let sink = req.capture().clone();
+        if !sink.enabled() {
+            // Nothing reads the fields without an observer: keep no copy of the frame.
+            return Self {
+                sink,
+                url: String::new(),
+                headers: Vec::new(),
+                frame: Vec::new(),
+                auth_id: String::new(),
+                auth_label: String::new(),
+                auth_type: "",
+                auth_value: String::new(),
+            };
+        }
         let (auth_type, auth_value) = crate::openai_compat_http::account_info(credential);
         Self {
-            headers: if sink.enabled() {
-                crate::openai_compat_http::header_pairs(headers)
-            } else {
-                Vec::new()
-            },
+            headers: crate::openai_compat_http::header_pairs(headers),
             sink,
             url: url.to_owned(),
             frame: frame.to_vec(),
