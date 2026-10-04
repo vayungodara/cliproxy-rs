@@ -211,16 +211,18 @@ pub(crate) fn before_reporter<T>(
     result
 }
 
-/// `recordXAIRequest`: every xAI HTTP request is logged as a POST with the request's
-/// own headers.
+/// `recordXAIRequest` with the request's own headers. Go logs every xAI request as a POST;
+/// this logs the method actually sent, so a video poll shows as a GET
+/// (docs/DIFFERENCES-FROM-GO.md).
 fn capture_request(
     req: &ExecRequest,
     credential: &Credential,
+    method: &str,
     url: &str,
     headers: &GoHeaders,
     body: &[u8],
 ) -> wire::Capture {
-    wire::Capture::request(req, credential, PROVIDER, url, "POST", headers.pairs(), body)
+    wire::Capture::request(req, credential, PROVIDER, url, method, headers.pairs(), body)
 }
 
 /// The terminal events whose usage Go's HTTP paths observe (`ParseCodexUsage` on
@@ -464,7 +466,7 @@ impl XaiExecutor {
         let headers = chat_headers(credential, &token, true, &prepared.session_id, &req);
         let client = self.clients.for_credential(credential, cfg);
         let url = self.url(endpoint(&base, "/responses"));
-        let capture = capture_request(&req, credential, &url, &headers, &prepared.body);
+        let capture = capture_request(&req, credential, "POST", &url, &headers, &prepared.body);
         req.usage.round_trip_started();
         let send = wire::send(&client, &url, headers, Bytes::from(prepared.body.clone()));
         let upstream = fail_if_canceled(&req.usage, send).await;
@@ -534,7 +536,7 @@ impl XaiExecutor {
         let headers = plain_headers(credential, &token, false, &p.session_id, req);
         let client = self.clients.for_credential(credential, cfg);
         let url = self.url(endpoint(&base, "/responses/compact"));
-        let capture = capture_request(req, credential, &url, &headers, &p.body);
+        let capture = capture_request(req, credential, "POST", &url, &headers, &p.body);
         req.usage.round_trip_started();
         let send = wire::send(&client, &url, headers, Bytes::from(p.body.clone()));
         let upstream = fail_if_canceled(&req.usage, send).await;
@@ -716,7 +718,7 @@ impl XaiExecutor {
                 order: None,
             })
         };
-        let capture = capture_request(req, credential, &url, &headers, logged);
+        let capture = capture_request(req, credential, method.as_str(), &url, &headers, logged);
         req.usage.round_trip_started();
         let send = crate::proxy::send_request(&route, method, &url, headers, body.map(Bytes::from), None);
         let upstream = fail_if_canceled(&req.usage, send).await;
