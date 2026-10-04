@@ -247,10 +247,15 @@ impl Parser<'_> {
         }
     }
 
+    /// Go's scanner: a wrong byte names the literal and the byte it expected.
     fn literal(&mut self, word: &[u8], node: Node) -> Result<Node, DecodeError> {
         for &expected in word {
             if self.s.get(self.i) != Some(&expected) {
-                return Err(self.err("in literal"));
+                return Err(self.err(&format!(
+                    "in literal {} (expecting {})",
+                    String::from_utf8_lossy(word),
+                    describe(expected)
+                )));
             }
             self.i += 1;
         }
@@ -395,6 +400,24 @@ impl Parser<'_> {
 
 /// `json.Unmarshal`'s syntax pass and value tree.
 pub fn parse(raw: &[u8]) -> Result<Node, DecodeError> {
+    parse_value(raw, true)
+}
+
+/// `json.NewDecoder(r).Decode` over a complete reader: the first value only, with
+/// anything after it left unread; a truncated value is `unexpected EOF` and input
+/// without any value `EOF`.
+pub fn parse_first(raw: &[u8]) -> Result<Node, DecodeError> {
+    if raw.iter().all(|c| matches!(c, b' ' | b'\t' | b'\n' | b'\r')) {
+        return Err(DecodeError("EOF".into()));
+    }
+    parse_value(raw, false).map_err(|e| match e.0.as_str() {
+        "unexpected end of JSON input" => DecodeError("unexpected EOF".into()),
+        _ => e,
+    })
+}
+
+/// The value tree; `whole` rejects anything but whitespace after the value.
+fn parse_value(raw: &[u8], whole: bool) -> Result<Node, DecodeError> {
     let mut p = Parser { s: raw, i: 0 };
     let mut stack: Vec<Frame> = Vec::new();
     // Each iteration either opens a container, or produces a value and attaches it.
@@ -448,7 +471,7 @@ pub fn parse(raw: &[u8]) -> Result<Node, DecodeError> {
         match stack.last_mut() {
             None => {
                 p.ws();
-                if p.i < p.s.len() {
+                if whole && p.i < p.s.len() {
                     return Err(p.err("after top-level value"));
                 }
                 return Ok(done);

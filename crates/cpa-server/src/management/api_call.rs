@@ -132,7 +132,7 @@ fn decode(body: &[u8]) -> Option<Request> {
 }
 
 /// Go `tokenValueFromMetadata` then the `api_key` / `session_token` attributes.
-fn token_for(c: &Credential) -> String {
+pub(super) fn token_for(c: &Credential) -> String {
     let meta = |key: &str| {
         c.metadata
             .get(key)
@@ -173,7 +173,11 @@ fn token_for(c: &Credential) -> String {
 /// the first buildable of the credential's own proxy, its API-key config entry's proxy
 /// and the global proxy, else a direct connection. Environment proxies are never
 /// used; `None` only if not even a direct client can be built.
-fn client_for(state: &Management, credential: Option<&Credential>, request_proxy: &str) -> Option<wreq::Client> {
+pub(super) fn client_for(
+    state: &Management,
+    credential: Option<&Credential>,
+    request_proxy: &str,
+) -> Option<wreq::Client> {
     let direct = || state.clients.try_get(&Proxy::Direct);
     let build = |raw: &str| match Proxy::parse(raw) {
         p @ (Proxy::Url(_) | Proxy::Direct) => state.clients.try_get(&p),

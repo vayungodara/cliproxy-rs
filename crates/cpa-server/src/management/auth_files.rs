@@ -167,7 +167,7 @@ fn observation(s: &cpa_exec::codex_quota::Snapshot) -> Value {
     json!({"observed_at": local(s.observed_at), "signals": s.signals})
 }
 
-fn file_name(c: &Credential) -> Option<String> {
+pub(super) fn file_name(c: &Credential) -> Option<String> {
     match &c.source {
         Source::File(p) => p.file_name().map(|n| n.to_string_lossy().into_owned()),
         Source::Config { .. } | Source::Runtime => None,
@@ -212,7 +212,7 @@ fn runtime_times(state: &Management, c: &Credential) -> (SystemTime, SystemTime)
     (entry.created, entry.updated)
 }
 
-fn path_of(c: &Credential) -> Option<&Path> {
+pub(super) fn path_of(c: &Credential) -> Option<&Path> {
     match &c.source {
         Source::File(p) => Some(p),
         Source::Config { .. } | Source::Runtime => None,
@@ -265,7 +265,7 @@ fn jwt_claims(token: &str) -> Option<Value> {
 }
 
 /// Go `parseTimeValue`.
-fn parse_time(v: &Value) -> Option<SystemTime> {
+pub(super) fn parse_time(v: &Value) -> Option<SystemTime> {
     let unix = |n: i64| -> SystemTime {
         // normaliseUnix: millisecond values are scaled down.
         let secs = if n > 1_000_000_000_000 { n / 1000 } else { n };
@@ -406,7 +406,7 @@ fn go_bool(v: Option<&Value>) -> Option<bool> {
 }
 
 /// Go's `StatusMessage` for a credential the management API disabled.
-fn status_message(state: &Management, c: &Credential) -> &'static str {
+pub(super) fn status_message(state: &Management, c: &Credential) -> &'static str {
     let noted = state.disabled_via_api.lock().unwrap_or_else(PoisonError::into_inner);
     if c.disabled && noted.contains(&c.id) {
         "disabled via management API"

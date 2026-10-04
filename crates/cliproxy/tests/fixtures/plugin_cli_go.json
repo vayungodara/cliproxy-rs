@@ -1,0 +1,1887 @@
+{
+  "cases": [
+    {
+      "name": "int and false bool trigger",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"ExitCode\":4,\"Stderr\":\"ZXJyLWEK\",\"Stdout\":\"b3V0LWEK\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-count",
+        "7",
+        "-mine=false"
+      ],
+      "result": {
+        "exit": 4,
+        "stdout": [
+          "out-a"
+        ],
+        "stderr": [
+          "err-a"
+        ],
+        "request": {
+          "Args": [
+            "-config",
+            "CONFIG",
+            "-count",
+            "7",
+            "-mine=false"
+          ],
+          "ConfigPath": "CONFIG",
+          "Flags": {
+            "antigravity-login": {
+              "Name": "antigravity-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "claude-login": {
+              "Name": "claude-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-device-login": {
+              "Name": "codex-device-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-login": {
+              "Name": "codex-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "config": {
+              "Name": "config",
+              "Set": false,
+              "Type": "",
+              "Value": "CONFIG"
+            },
+            "count": {
+              "Name": "count",
+              "Set": true,
+              "Type": "int",
+              "Value": "7"
+            },
+            "devin-login": {
+              "Name": "devin-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover": {
+              "Name": "discover",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-exclude": {
+              "Name": "discover-exclude",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-include": {
+              "Name": "discover-include",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-json": {
+              "Name": "discover-json",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-service-type": {
+              "Name": "discover-service-type",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-timeout": {
+              "Name": "discover-timeout",
+              "Set": false,
+              "Type": "",
+              "Value": "3"
+            },
+            "home-disable-cluster-discovery": {
+              "Name": "home-disable-cluster-discovery",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "home-jwt": {
+              "Name": "home-jwt",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "kimi-ai-login": {
+              "Name": "kimi-ai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "kimi-login": {
+              "Name": "kimi-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "local-model": {
+              "Name": "local-model",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "management-base-url": {
+              "Name": "management-base-url",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "meta-login": {
+              "Name": "meta-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "false"
+            },
+            "name": {
+              "Name": "name",
+              "Set": false,
+              "Type": "string",
+              "Value": "x"
+            },
+            "no-browser": {
+              "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "oauth-callback-port": {
+              "Name": "oauth-callback-port",
+              "Set": false,
+              "Type": "",
+              "Value": "0"
+            },
+            "password": {
+              "Name": "password",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "ratio": {
+              "Name": "ratio",
+              "Set": false,
+              "Type": "float64",
+              "Value": "0.25"
+            },
+            "standalone": {
+              "Name": "standalone",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "tui": {
+              "Name": "tui",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "vertex-import": {
+              "Name": "vertex-import",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "vertex-import-prefix": {
+              "Name": "vertex-import-prefix",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "wait": {
+              "Name": "wait",
+              "Set": false,
+              "Type": "duration",
+              "Value": "0s"
+            },
+            "xai-login": {
+              "Name": "xai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            }
+          },
+          "Host": {
+            "AuthDir": "AUTHDIR",
+            "ExcludedModels": null,
+            "ForceModelPrefix": false,
+            "OAuthModelAlias": null,
+            "ProxyURL": ""
+          },
+          "Plugin": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "Program": "PROGRAM",
+          "TriggeredFlags": {
+            "count": {
+              "Name": "count",
+              "Set": true,
+              "Type": "int",
+              "Value": "7"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "false"
+            }
+          }
+        },
+        "files": {}
+      }
+    },
+    {
+      "name": "every kind, double dash, last value wins",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"ExitCode\":0,\"Stderr\":\"\",\"Stdout\":\"ZG9uZQ==\"}}",
+      "args": [
+        "--config=CONFIG",
+        "--count=1",
+        "-count",
+        "-3",
+        "-ratio",
+        "1e3",
+        "-wait=90s",
+        "--name",
+        "-tui",
+        "-mine"
+      ],
+      "result": {
+        "exit": 0,
+        "stdout": [
+          "done"
+        ],
+        "stderr": [],
+        "request": {
+          "Args": [
+            "--config=CONFIG",
+            "--count=1",
+            "-count",
+            "-3",
+            "-ratio",
+            "1e3",
+            "-wait=90s",
+            "--name",
+            "-tui",
+            "-mine"
+          ],
+          "ConfigPath": "CONFIG",
+          "Flags": {
+            "antigravity-login": {
+              "Name": "antigravity-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "claude-login": {
+              "Name": "claude-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-device-login": {
+              "Name": "codex-device-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-login": {
+              "Name": "codex-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "config": {
+              "Name": "config",
+              "Set": false,
+              "Type": "",
+              "Value": "CONFIG"
+            },
+            "count": {
+              "Name": "count",
+              "Set": true,
+              "Type": "int",
+              "Value": "-3"
+            },
+            "devin-login": {
+              "Name": "devin-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover": {
+              "Name": "discover",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-exclude": {
+              "Name": "discover-exclude",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-include": {
+              "Name": "discover-include",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-json": {
+              "Name": "discover-json",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-service-type": {
+              "Name": "discover-service-type",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-timeout": {
+              "Name": "discover-timeout",
+              "Set": false,
+              "Type": "",
+              "Value": "3"
+            },
+            "home-disable-cluster-discovery": {
+              "Name": "home-disable-cluster-discovery",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "home-jwt": {
+              "Name": "home-jwt",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "kimi-ai-login": {
+              "Name": "kimi-ai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "kimi-login": {
+              "Name": "kimi-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "local-model": {
+              "Name": "local-model",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "management-base-url": {
+              "Name": "management-base-url",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "meta-login": {
+              "Name": "meta-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            },
+            "name": {
+              "Name": "name",
+              "Set": true,
+              "Type": "string",
+              "Value": "-tui"
+            },
+            "no-browser": {
+              "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "oauth-callback-port": {
+              "Name": "oauth-callback-port",
+              "Set": false,
+              "Type": "",
+              "Value": "0"
+            },
+            "password": {
+              "Name": "password",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "ratio": {
+              "Name": "ratio",
+              "Set": true,
+              "Type": "float64",
+              "Value": "1000"
+            },
+            "standalone": {
+              "Name": "standalone",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "tui": {
+              "Name": "tui",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "vertex-import": {
+              "Name": "vertex-import",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "vertex-import-prefix": {
+              "Name": "vertex-import-prefix",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "wait": {
+              "Name": "wait",
+              "Set": true,
+              "Type": "duration",
+              "Value": "1m30s"
+            },
+            "xai-login": {
+              "Name": "xai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            }
+          },
+          "Host": {
+            "AuthDir": "AUTHDIR",
+            "ExcludedModels": null,
+            "ForceModelPrefix": false,
+            "OAuthModelAlias": null,
+            "ProxyURL": ""
+          },
+          "Plugin": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "Program": "PROGRAM",
+          "TriggeredFlags": {
+            "count": {
+              "Name": "count",
+              "Set": true,
+              "Type": "int",
+              "Value": "-3"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            },
+            "name": {
+              "Name": "name",
+              "Set": true,
+              "Type": "string",
+              "Value": "-tui"
+            },
+            "ratio": {
+              "Name": "ratio",
+              "Set": true,
+              "Type": "float64",
+              "Value": "1000"
+            },
+            "wait": {
+              "Name": "wait",
+              "Set": true,
+              "Type": "duration",
+              "Value": "1m30s"
+            }
+          }
+        },
+        "files": {}
+      }
+    },
+    {
+      "name": "flags after an operand are ignored",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"ExitCode\":4,\"Stderr\":\"ZXJyLWEK\",\"Stdout\":\"b3V0LWEK\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-mine",
+        "operand",
+        "-count",
+        "x"
+      ],
+      "result": {
+        "exit": 4,
+        "stdout": [
+          "out-a"
+        ],
+        "stderr": [
+          "err-a"
+        ],
+        "request": {
+          "Args": [
+            "-config",
+            "CONFIG",
+            "-mine",
+            "operand",
+            "-count",
+            "x"
+          ],
+          "ConfigPath": "CONFIG",
+          "Flags": {
+            "antigravity-login": {
+              "Name": "antigravity-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "claude-login": {
+              "Name": "claude-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-device-login": {
+              "Name": "codex-device-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-login": {
+              "Name": "codex-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "config": {
+              "Name": "config",
+              "Set": false,
+              "Type": "",
+              "Value": "CONFIG"
+            },
+            "count": {
+              "Name": "count",
+              "Set": false,
+              "Type": "int",
+              "Value": "2"
+            },
+            "devin-login": {
+              "Name": "devin-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover": {
+              "Name": "discover",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-exclude": {
+              "Name": "discover-exclude",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-include": {
+              "Name": "discover-include",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-json": {
+              "Name": "discover-json",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-service-type": {
+              "Name": "discover-service-type",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-timeout": {
+              "Name": "discover-timeout",
+              "Set": false,
+              "Type": "",
+              "Value": "3"
+            },
+            "home-disable-cluster-discovery": {
+              "Name": "home-disable-cluster-discovery",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "home-jwt": {
+              "Name": "home-jwt",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "kimi-ai-login": {
+              "Name": "kimi-ai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "kimi-login": {
+              "Name": "kimi-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "local-model": {
+              "Name": "local-model",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "management-base-url": {
+              "Name": "management-base-url",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "meta-login": {
+              "Name": "meta-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            },
+            "name": {
+              "Name": "name",
+              "Set": false,
+              "Type": "string",
+              "Value": "x"
+            },
+            "no-browser": {
+              "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "oauth-callback-port": {
+              "Name": "oauth-callback-port",
+              "Set": false,
+              "Type": "",
+              "Value": "0"
+            },
+            "password": {
+              "Name": "password",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "ratio": {
+              "Name": "ratio",
+              "Set": false,
+              "Type": "float64",
+              "Value": "0.25"
+            },
+            "standalone": {
+              "Name": "standalone",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "tui": {
+              "Name": "tui",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "vertex-import": {
+              "Name": "vertex-import",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "vertex-import-prefix": {
+              "Name": "vertex-import-prefix",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "wait": {
+              "Name": "wait",
+              "Set": false,
+              "Type": "duration",
+              "Value": "0s"
+            },
+            "xai-login": {
+              "Name": "xai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            }
+          },
+          "Host": {
+            "AuthDir": "AUTHDIR",
+            "ExcludedModels": null,
+            "ForceModelPrefix": false,
+            "OAuthModelAlias": null,
+            "ProxyURL": ""
+          },
+          "Plugin": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "Program": "PROGRAM",
+          "TriggeredFlags": {
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            }
+          }
+        },
+        "files": {}
+      }
+    },
+    {
+      "name": "invalid int",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"ExitCode\":4,\"Stderr\":\"ZXJyLWEK\",\"Stdout\":\"b3V0LWEK\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-count",
+        "x"
+      ],
+      "result": {
+        "exit": 2,
+        "stdout": [],
+        "stderr": [
+          "invalid value \"x\" for flag -count: invalid int value \"x\""
+        ],
+        "request": null,
+        "files": {}
+      }
+    },
+    {
+      "name": "invalid bool",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"ExitCode\":4,\"Stderr\":\"ZXJyLWEK\",\"Stdout\":\"b3V0LWEK\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-mine=maybe"
+      ],
+      "result": {
+        "exit": 2,
+        "stdout": [],
+        "stderr": [
+          "invalid boolean value \"maybe\" for -mine: invalid bool value \"maybe\""
+        ],
+        "request": null,
+        "files": {}
+      }
+    },
+    {
+      "name": "invalid duration",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"ExitCode\":4,\"Stderr\":\"ZXJyLWEK\",\"Stdout\":\"b3V0LWEK\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-wait",
+        "5"
+      ],
+      "result": {
+        "exit": 2,
+        "stdout": [],
+        "stderr": [
+          "invalid value \"5\" for flag -wait: invalid duration value \"5\""
+        ],
+        "request": null,
+        "files": {}
+      }
+    },
+    {
+      "name": "missing argument",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"ExitCode\":4,\"Stderr\":\"ZXJyLWEK\",\"Stdout\":\"b3V0LWEK\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-count"
+      ],
+      "result": {
+        "exit": 2,
+        "stdout": [],
+        "stderr": [
+          "flag needs an argument: -count"
+        ],
+        "request": null,
+        "files": {}
+      }
+    },
+    {
+      "name": "plugin disabled",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: false\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"ExitCode\":4,\"Stderr\":\"ZXJyLWEK\",\"Stdout\":\"b3V0LWEK\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-mine"
+      ],
+      "result": {
+        "exit": 2,
+        "stdout": [],
+        "stderr": [
+          "flag provided but not defined: -mine"
+        ],
+        "request": null,
+        "files": {}
+      }
+    },
+    {
+      "name": "execute fails",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":false,\"error\":{\"code\":\"x\",\"message\":\"boom\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-mine"
+      ],
+      "result": {
+        "exit": 1,
+        "stdout": [],
+        "stderr": [],
+        "request": {
+          "Args": [
+            "-config",
+            "CONFIG",
+            "-mine"
+          ],
+          "ConfigPath": "CONFIG",
+          "Flags": {
+            "antigravity-login": {
+              "Name": "antigravity-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "claude-login": {
+              "Name": "claude-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-device-login": {
+              "Name": "codex-device-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-login": {
+              "Name": "codex-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "config": {
+              "Name": "config",
+              "Set": false,
+              "Type": "",
+              "Value": "CONFIG"
+            },
+            "count": {
+              "Name": "count",
+              "Set": false,
+              "Type": "int",
+              "Value": "2"
+            },
+            "devin-login": {
+              "Name": "devin-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover": {
+              "Name": "discover",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-exclude": {
+              "Name": "discover-exclude",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-include": {
+              "Name": "discover-include",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-json": {
+              "Name": "discover-json",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-service-type": {
+              "Name": "discover-service-type",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-timeout": {
+              "Name": "discover-timeout",
+              "Set": false,
+              "Type": "",
+              "Value": "3"
+            },
+            "home-disable-cluster-discovery": {
+              "Name": "home-disable-cluster-discovery",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "home-jwt": {
+              "Name": "home-jwt",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "kimi-ai-login": {
+              "Name": "kimi-ai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "kimi-login": {
+              "Name": "kimi-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "local-model": {
+              "Name": "local-model",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "management-base-url": {
+              "Name": "management-base-url",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "meta-login": {
+              "Name": "meta-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            },
+            "name": {
+              "Name": "name",
+              "Set": false,
+              "Type": "string",
+              "Value": "x"
+            },
+            "no-browser": {
+              "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "oauth-callback-port": {
+              "Name": "oauth-callback-port",
+              "Set": false,
+              "Type": "",
+              "Value": "0"
+            },
+            "password": {
+              "Name": "password",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "ratio": {
+              "Name": "ratio",
+              "Set": false,
+              "Type": "float64",
+              "Value": "0.25"
+            },
+            "standalone": {
+              "Name": "standalone",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "tui": {
+              "Name": "tui",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "vertex-import": {
+              "Name": "vertex-import",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "vertex-import-prefix": {
+              "Name": "vertex-import-prefix",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "wait": {
+              "Name": "wait",
+              "Set": false,
+              "Type": "duration",
+              "Value": "0s"
+            },
+            "xai-login": {
+              "Name": "xai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            }
+          },
+          "Host": {
+            "AuthDir": "AUTHDIR",
+            "ExcludedModels": null,
+            "ForceModelPrefix": false,
+            "OAuthModelAlias": null,
+            "ProxyURL": ""
+          },
+          "Plugin": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "Program": "PROGRAM",
+          "TriggeredFlags": {
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            }
+          }
+        },
+        "files": {}
+      }
+    },
+    {
+      "name": "auths saved",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"Auths\":[{\"FileName\":\"rec-1.json\",\"Label\":\"L\",\"Metadata\":{\"base-url\":\"https://b.example\",\"email\":\"a@example.invalid\"},\"Provider\":\"Rec\",\"StorageJSON\":\"eyJ0b2tlbiI6InQiLCJleHBpcmVkIjoiMjAzMC0wMS0wMVQwMDowMDowMFoiLCJwcmlvcml0eSI6IjMifQ==\"},{\"Disabled\":true,\"FileName\":\"gone.json\",\"Provider\":\"rec\",\"StorageJSON\":\"eyJrIjoxfQ==\"},{\"FileName\":\"kept.json\",\"Provider\":\"rec\",\"StorageJSON\":\"eyJrIjoyfQ==\"}],\"ExitCode\":0,\"Stderr\":\"\",\"Stdout\":\"bG9nZ2VkIGlu\"}}",
+      "auths": {
+        "kept.json": "{\"k\": 2, \"type\": \"rec\", \"disabled\": false}"
+      },
+      "args": [
+        "-config",
+        "CONFIG",
+        "-mine"
+      ],
+      "result": {
+        "exit": 0,
+        "stdout": [
+          "logged in",
+          "Authentication saved to AUTHDIR/rec-1.json",
+          "Authentication saved to AUTHDIR/kept.json"
+        ],
+        "stderr": [],
+        "request": {
+          "Args": [
+            "-config",
+            "CONFIG",
+            "-mine"
+          ],
+          "ConfigPath": "CONFIG",
+          "Flags": {
+            "antigravity-login": {
+              "Name": "antigravity-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "claude-login": {
+              "Name": "claude-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-device-login": {
+              "Name": "codex-device-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-login": {
+              "Name": "codex-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "config": {
+              "Name": "config",
+              "Set": false,
+              "Type": "",
+              "Value": "CONFIG"
+            },
+            "count": {
+              "Name": "count",
+              "Set": false,
+              "Type": "int",
+              "Value": "2"
+            },
+            "devin-login": {
+              "Name": "devin-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover": {
+              "Name": "discover",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-exclude": {
+              "Name": "discover-exclude",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-include": {
+              "Name": "discover-include",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-json": {
+              "Name": "discover-json",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-service-type": {
+              "Name": "discover-service-type",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-timeout": {
+              "Name": "discover-timeout",
+              "Set": false,
+              "Type": "",
+              "Value": "3"
+            },
+            "home-disable-cluster-discovery": {
+              "Name": "home-disable-cluster-discovery",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "home-jwt": {
+              "Name": "home-jwt",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "kimi-ai-login": {
+              "Name": "kimi-ai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "kimi-login": {
+              "Name": "kimi-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "local-model": {
+              "Name": "local-model",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "management-base-url": {
+              "Name": "management-base-url",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "meta-login": {
+              "Name": "meta-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            },
+            "name": {
+              "Name": "name",
+              "Set": false,
+              "Type": "string",
+              "Value": "x"
+            },
+            "no-browser": {
+              "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "oauth-callback-port": {
+              "Name": "oauth-callback-port",
+              "Set": false,
+              "Type": "",
+              "Value": "0"
+            },
+            "password": {
+              "Name": "password",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "ratio": {
+              "Name": "ratio",
+              "Set": false,
+              "Type": "float64",
+              "Value": "0.25"
+            },
+            "standalone": {
+              "Name": "standalone",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "tui": {
+              "Name": "tui",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "vertex-import": {
+              "Name": "vertex-import",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "vertex-import-prefix": {
+              "Name": "vertex-import-prefix",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "wait": {
+              "Name": "wait",
+              "Set": false,
+              "Type": "duration",
+              "Value": "0s"
+            },
+            "xai-login": {
+              "Name": "xai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            }
+          },
+          "Host": {
+            "AuthDir": "AUTHDIR",
+            "ExcludedModels": null,
+            "ForceModelPrefix": false,
+            "OAuthModelAlias": null,
+            "ProxyURL": ""
+          },
+          "Plugin": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "Program": "PROGRAM",
+          "TriggeredFlags": {
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            }
+          }
+        },
+        "files": {
+          "kept.json": "600 {\"k\": 2, \"type\": \"rec\", \"disabled\": false}",
+          "rec-1.json": "600 {\"base_url\":\"https://b.example\",\"disabled\":false,\"email\":\"a@example.invalid\",\"expired\":\"2030-01-01T00:00:00Z\",\"priority\":\"3\",\"token\":\"t\",\"type\":\"rec\"}"
+        }
+      }
+    },
+    {
+      "name": "auths ignored on failure",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"Auths\":[{\"FileName\":\"rec-1.json\",\"Label\":\"L\",\"Metadata\":{\"base-url\":\"https://b.example\",\"email\":\"a@example.invalid\"},\"Provider\":\"Rec\",\"StorageJSON\":\"eyJ0b2tlbiI6InQiLCJleHBpcmVkIjoiMjAzMC0wMS0wMVQwMDowMDowMFoiLCJwcmlvcml0eSI6IjMifQ==\"}],\"ExitCode\":5,\"Stderr\":\"bm9wZQo=\",\"Stdout\":\"\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-mine"
+      ],
+      "result": {
+        "exit": 5,
+        "stdout": [],
+        "stderr": [
+          "nope"
+        ],
+        "request": {
+          "Args": [
+            "-config",
+            "CONFIG",
+            "-mine"
+          ],
+          "ConfigPath": "CONFIG",
+          "Flags": {
+            "antigravity-login": {
+              "Name": "antigravity-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "claude-login": {
+              "Name": "claude-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-device-login": {
+              "Name": "codex-device-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-login": {
+              "Name": "codex-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "config": {
+              "Name": "config",
+              "Set": false,
+              "Type": "",
+              "Value": "CONFIG"
+            },
+            "count": {
+              "Name": "count",
+              "Set": false,
+              "Type": "int",
+              "Value": "2"
+            },
+            "devin-login": {
+              "Name": "devin-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover": {
+              "Name": "discover",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-exclude": {
+              "Name": "discover-exclude",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-include": {
+              "Name": "discover-include",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-json": {
+              "Name": "discover-json",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-service-type": {
+              "Name": "discover-service-type",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-timeout": {
+              "Name": "discover-timeout",
+              "Set": false,
+              "Type": "",
+              "Value": "3"
+            },
+            "home-disable-cluster-discovery": {
+              "Name": "home-disable-cluster-discovery",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "home-jwt": {
+              "Name": "home-jwt",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "kimi-ai-login": {
+              "Name": "kimi-ai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "kimi-login": {
+              "Name": "kimi-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "local-model": {
+              "Name": "local-model",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "management-base-url": {
+              "Name": "management-base-url",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "meta-login": {
+              "Name": "meta-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            },
+            "name": {
+              "Name": "name",
+              "Set": false,
+              "Type": "string",
+              "Value": "x"
+            },
+            "no-browser": {
+              "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "oauth-callback-port": {
+              "Name": "oauth-callback-port",
+              "Set": false,
+              "Type": "",
+              "Value": "0"
+            },
+            "password": {
+              "Name": "password",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "ratio": {
+              "Name": "ratio",
+              "Set": false,
+              "Type": "float64",
+              "Value": "0.25"
+            },
+            "standalone": {
+              "Name": "standalone",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "tui": {
+              "Name": "tui",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "vertex-import": {
+              "Name": "vertex-import",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "vertex-import-prefix": {
+              "Name": "vertex-import-prefix",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "wait": {
+              "Name": "wait",
+              "Set": false,
+              "Type": "duration",
+              "Value": "0s"
+            },
+            "xai-login": {
+              "Name": "xai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            }
+          },
+          "Host": {
+            "AuthDir": "AUTHDIR",
+            "ExcludedModels": null,
+            "ForceModelPrefix": false,
+            "OAuthModelAlias": null,
+            "ProxyURL": ""
+          },
+          "Plugin": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "Program": "PROGRAM",
+          "TriggeredFlags": {
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            }
+          }
+        },
+        "files": {}
+      }
+    },
+    {
+      "name": "invalid auth",
+      "config": "config-version: 8\nport: 0\nauth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    rec:\n      enabled: true\n      record: RECDIR\n      label: a\n      caps: command_line_plugin\n",
+      "register": "{\"ok\":true,\"result\":{\"Flags\":[{\"Name\":\"mine\",\"Type\":\"bool\",\"Usage\":\"run mine\"},{\"DefaultValue\":\"2\",\"Name\":\"count\",\"Type\":\"int\",\"Usage\":\"how many\"},{\"DefaultValue\":\"0.25\",\"Name\":\"ratio\",\"Type\":\"float64\",\"Usage\":\"a ratio\"},{\"Name\":\"wait\",\"Type\":\"duration\",\"Usage\":\"how long\"},{\"DefaultValue\":\"x\",\"Name\":\"name\",\"Type\":\"string\",\"Usage\":\"a name\"},{\"Name\":\"config\",\"Type\":\"string\",\"Usage\":\"clashes with a built-in flag\"},{\"Name\":\"bad name\",\"Type\":\"bool\",\"Usage\":\"invalid\"},{\"Name\":\"odd\",\"Type\":\"uint\",\"Usage\":\"unsupported type\"},{\"DefaultValue\":\"nope\",\"Name\":\"late\",\"Type\":\"int\",\"Usage\":\"invalid default\"}]}}",
+      "execute": "{\"ok\":true,\"result\":{\"Auths\":[{\"Provider\":\" \"}],\"ExitCode\":0,\"Stderr\":\"\",\"Stdout\":\"cGFydGlhbA==\"}}",
+      "args": [
+        "-config",
+        "CONFIG",
+        "-mine"
+      ],
+      "result": {
+        "exit": 1,
+        "stdout": [
+          "partial"
+        ],
+        "stderr": [
+          "pluginhost: command-line auth 1 is invalid"
+        ],
+        "request": {
+          "Args": [
+            "-config",
+            "CONFIG",
+            "-mine"
+          ],
+          "ConfigPath": "CONFIG",
+          "Flags": {
+            "antigravity-login": {
+              "Name": "antigravity-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "claude-login": {
+              "Name": "claude-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-device-login": {
+              "Name": "codex-device-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "codex-login": {
+              "Name": "codex-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "config": {
+              "Name": "config",
+              "Set": false,
+              "Type": "",
+              "Value": "CONFIG"
+            },
+            "count": {
+              "Name": "count",
+              "Set": false,
+              "Type": "int",
+              "Value": "2"
+            },
+            "devin-login": {
+              "Name": "devin-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover": {
+              "Name": "discover",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-exclude": {
+              "Name": "discover-exclude",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-include": {
+              "Name": "discover-include",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-json": {
+              "Name": "discover-json",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "discover-service-type": {
+              "Name": "discover-service-type",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "discover-timeout": {
+              "Name": "discover-timeout",
+              "Set": false,
+              "Type": "",
+              "Value": "3"
+            },
+            "home-disable-cluster-discovery": {
+              "Name": "home-disable-cluster-discovery",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "home-jwt": {
+              "Name": "home-jwt",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "kimi-ai-login": {
+              "Name": "kimi-ai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "kimi-login": {
+              "Name": "kimi-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "local-model": {
+              "Name": "local-model",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "management-base-url": {
+              "Name": "management-base-url",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "meta-login": {
+              "Name": "meta-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            },
+            "name": {
+              "Name": "name",
+              "Set": false,
+              "Type": "string",
+              "Value": "x"
+            },
+            "no-browser": {
+              "Name": "no-browser",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "oauth-callback-port": {
+              "Name": "oauth-callback-port",
+              "Set": false,
+              "Type": "",
+              "Value": "0"
+            },
+            "password": {
+              "Name": "password",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "ratio": {
+              "Name": "ratio",
+              "Set": false,
+              "Type": "float64",
+              "Value": "0.25"
+            },
+            "standalone": {
+              "Name": "standalone",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "tui": {
+              "Name": "tui",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            },
+            "vertex-import": {
+              "Name": "vertex-import",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "vertex-import-prefix": {
+              "Name": "vertex-import-prefix",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
+            "wait": {
+              "Name": "wait",
+              "Set": false,
+              "Type": "duration",
+              "Value": "0s"
+            },
+            "xai-login": {
+              "Name": "xai-login",
+              "Set": false,
+              "Type": "",
+              "Value": "false"
+            }
+          },
+          "Host": {
+            "AuthDir": "AUTHDIR",
+            "ExcludedModels": null,
+            "ForceModelPrefix": false,
+            "OAuthModelAlias": null,
+            "ProxyURL": ""
+          },
+          "Plugin": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "Program": "PROGRAM",
+          "TriggeredFlags": {
+            "mine": {
+              "Name": "mine",
+              "Set": true,
+              "Type": "bool",
+              "Value": "true"
+            }
+          }
+        },
+        "files": {}
+      }
+    }
+  ]
+}

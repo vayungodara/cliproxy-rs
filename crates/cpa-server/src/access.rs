@@ -9,25 +9,31 @@
 use std::sync::Arc;
 
 use axum::extract::{Request, State};
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::HeaderMap;
 use axum::middleware::Next;
 use axum::response::Response;
 use cpa_core::exec::Caller;
 
 use crate::runtime::Runtime;
 
-pub async fn require_client_key(State(rt): State<Arc<Runtime>>, mut req: Request, next: Next) -> Response {
-    let config = rt.config();
-    let caller = match authenticate(&config.api_keys, req.headers(), req.uri().query().unwrap_or_default()) {
-        Ok(caller) => caller,
-        // gin `AbortWithStatusJSON(401, gin.H{"error": msg})`.
-        Err(message) => {
-            let body = crate::gojson::Obj::new().str("error", message).finish();
-            return crate::respond::gin_json(StatusCode::UNAUTHORIZED.as_u16(), body);
+/// Go `AuthMiddleware`: client keys, then plugin frontend auth providers.
+pub async fn require_client_key(State(rt): State<Arc<Runtime>>, req: Request, next: Next) -> Response {
+    let (mut req, access) = crate::plugins::authenticate(&rt, req).await;
+    let caller = match access {
+        Ok(crate::plugins::Access::Open) => Caller {
+            principal: String::new(),
+            source: "",
+        },
+        Ok(crate::plugins::Access::Granted { caller, .. }) => caller,
+        // gin `AbortWithStatusJSON(status, gin.H{"error": msg})`.
+        Err(denied) => {
+            let body = crate::gojson::Obj::new().str("error", denied.message).finish();
+            return crate::respond::gin_json(denied.status, body);
         }
     };
     req.extensions_mut().insert(caller);
-    next.run(req).await
+    let query = req.uri().query().unwrap_or_default().to_owned();
+    crate::plugins::execution::with_query(&query, next.run(req)).await
 }
 
 pub(crate) fn authenticate(keys: &[String], headers: &HeaderMap, query: &str) -> Result<Caller, &'static str> {

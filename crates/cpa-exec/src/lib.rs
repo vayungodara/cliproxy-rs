@@ -83,12 +83,16 @@ pub mod xai_auth;
 mod xai_replay;
 mod xai_request;
 mod xai_response;
-mod xai_url;
+pub mod xai_url;
 mod xai_ws;
 
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
 use cpa_core::exec::{ExecError, ExecRequest, ExecResponse, ExecSession, FailureScope};
+
+/// Go `helps.EnsureResponsesUsageDetails`, for paths outside the executors (plugin
+/// executors' Responses payloads and stream chunks).
+pub use openai_compat_payload::ensure_responses_usage_details;
 
 /// What a credential needs before or around use. See the module docs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

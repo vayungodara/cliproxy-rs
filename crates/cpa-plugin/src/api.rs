@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use bytes::Bytes;
 
 use crate::go_struct;
-use crate::gojson::{GoJson, GoTime, Header, Metadata, Node, NonNilBytes, RawJson, StringMap};
+use crate::gojson::{GoJson, GoTime, Header, Metadata, Node, NonNil, NonNilBytes, RawJson, StringMap};
 
 go_struct! {
     pub struct ConfigField("pluginapi.ConfigField") {
@@ -26,7 +26,15 @@ go_struct! {
         "Author" => author: String,
         "GitHubRepository" => github_repository: String,
         "Logo" => logo: String,
-        "ConfigFields" => config_fields: Vec<ConfigField>,
+        // A plugin's empty list stays `[]` (Go decodes it into a non-nil slice).
+        "ConfigFields" => config_fields: Option<NonNil<Vec<ConfigField>>>,
+    }
+}
+
+impl PluginMetadata {
+    /// The declared configuration fields (none for nil or empty).
+    pub fn config_field_list(&self) -> &[ConfigField] {
+        self.config_fields.as_ref().map_or(&[], |fields| &fields.0)
     }
 }
 

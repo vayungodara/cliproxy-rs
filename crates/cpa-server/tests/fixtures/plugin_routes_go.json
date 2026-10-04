@@ -1,10 +1,82 @@
 {
   "steps": [
     {
+      "op": "upstream",
+      "args": {
+        "/badgroup": {
+          "Status": 200,
+          "Body": "{\"subscription\":{\"plan\":\"pro\"},\"groups\":[{\"buckets\":[{\"remainingFraction\":\"0.5\"}]}]}",
+          "Location": ""
+        },
+        "/case": {
+          "Status": 200,
+          "Body": "{\"subscription\":{\"plan\":\"paid\"},\"Subscription\":null}",
+          "Location": ""
+        },
+        "/empty": {
+          "Status": 200,
+          "Body": "{\"groups\":[],\"subscription\":{\"plan\":\" \"}}",
+          "Location": ""
+        },
+        "/mapped": {
+          "Status": 200,
+          "Body": "{\"account\":{\"plan\":\"team\",\"tier\":\"Gold\",\"tier_id\":7},\"usage\":{\"label\":\"Usage\",\"items\":[{\"w\":\"5h\",\"left\":3,\"max\":4,\"resets\":\"soon\"},{\"w\":\"day\",\"remaining_fraction\":\"0.1\",\"description\":\"d\"},{\"w\":\"bad\",\"left\":1,\"max\":0}]},\"fixed\":{\"frac\":\"0.75\",\"window\":\"monthly\",\"reset\":\"later\",\"left\":2,\"max\":8,\"zero\":0}}",
+          "Location": ""
+        },
+        "/notjson": {
+          "Status": 200,
+          "Body": "{not json",
+          "Location": ""
+        },
+        "/quota": {
+          "Status": 200,
+          "Body": "{\"subscription\":{\"plan\":\"pro\",\"tier_name\":\"T\"},\"serverTimeOffsetMs\":0,\"summary\":[{\"key\":\"k1\",\"label\":\"Spend\",\"value\":1.5,\"unit\":\" USD \",\"format\":\"currency\",\"currency\":\" usd \"},{\"key\":\"k2\",\"label\":\"Old\",\"value\":2,\"format\":\"currency\",\"currency\":\"DEM\"},{\"key\":\"k3\",\"label\":\"Bad\",\"value\":3,\"format\":\"currency\",\"currency\":\"XYZ\"},{\"key\":\"k4\",\"label\":\"N\",\"value\":4,\"format\":\"number\"},{\"key\":\"k5\",\"label\":\"S\",\"value\":\"5\"},{\"key\":\" \",\"label\":\"x\",\"value\":1},{\"key\":\"k6\",\"label\":\"P\",\"value\":6,\"format\":\"percent\"}],\"groups\":[{\"display_name\":\"G1\",\"buckets\":[{\"window\":\"5h\",\"remainingFraction\":0.5},{\"window\":\"d\",\"remaining_fraction\":0.25,\"reset_time\":\"r\"},{\"window\":\"none\"},{\"window\":\"zero\",\"remainingFraction\":0}]},{\"displayName\":\"G2\",\"buckets\":[{\"remainingFraction\":null}]},{\"displayName\":\"G3\"}]}",
+          "Location": ""
+        },
+        "/redirect": {
+          "Status": 302,
+          "Body": "",
+          "Location": "/quota?from=redirect"
+        },
+        "/status500": {
+          "Status": 500,
+          "Body": "upstream exploded",
+          "Location": ""
+        },
+        "/summary": {
+          "Status": 200,
+          "Body": "{\"Summary\":[{\"key\":\"a\",\"label\":\"A\",\"value\":1}],\"summary\":[{\"key\":\"b\",\"label\":\"B\",\"value\":2}],\"groups\":[]}",
+          "Location": ""
+        }
+      },
+      "result": null
+    },
+    {
       "op": "auths",
       "args": {
         "claude.json": "{\"type\":\"claude\",\"email\":\"a@example.invalid\",\"access_token\":\"fake-access\",\"refresh_token\":\"fake-refresh\"}",
-        "codex.json": "{\"type\":\"codex\",\"email\":\"b@example.invalid\",\"access_token\":\"fake-codex\"}"
+        "codex.json": "{\"type\":\"codex\",\"email\":\"b@example.invalid\",\"access_token\":\"fake-codex\"}",
+        "probe-badgroup.json": "{\"type\":\"codex\",\"email\":\"p13@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/badgroup\"}}",
+        "probe-badheader.json": "{\"type\":\"codex\",\"email\":\"p18@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/quota\",\"header\":{\"Content-Length\":\"1\\r\\nX-Test: injected\"}}}",
+        "probe-badname.json": "{\"type\":\"codex\",\"email\":\"p19@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/quota\",\"header\":{\"bad name\":\"1\"}}}",
+        "probe-badurl.json": "{\"type\":\"codex\",\"email\":\"p10@example.invalid\",\"quota_probe\":{\"url\":\"http://[::1\"}}",
+        "probe-case.json": "{\"type\":\"codex\",\"email\":\"p21@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/case\"}}",
+        "probe-empty.json": "{\"type\":\"codex\",\"email\":\"p6@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/empty\"}}",
+        "probe-ftp.json": "{\"type\":\"codex\",\"email\":\"p16@example.invalid\",\"quota_probe\":{\"url\":\"ftp://127.0.0.1:1/quota\"}}",
+        "probe-headers.json": "{\"type\":\"codex\",\"email\":\"p17@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"method\":\"ſ\",\"header\":{\"Host\":\"other.example\",\"Content-Length\":\"5\",\"Transfer-Encoding\":\"chunked\",\"Trailer\":\"X-T\",\"x-a\":\"1\"}}}",
+        "probe-map.json": "{\"type\":\"codex\",\"email\":\"p2@example.invalid\",\"access_token\":\"t2\",\"quota_probe\":{\"url\":\"UPSTREAM/mapped\",\"headers\":{\"X-H\":\"h\"},\"mapping\":{\"plan\":\"account.plan\",\"tier_name\":\"\",\"tierName\":\"account.tier\",\"tier_id\":\"missing.path\",\"tierId\":\"account.tier_id\",\"groups\":[{\"display_name\":\"usage.label\",\"buckets_path\":\"usage.items\",\"window_key\":\"w\",\"remaining_amount_key\":\"left\",\"total_amount_key\":\"max\",\"reset_time_key\":\"resets\"},{\"displayName\":\"Literal name\",\"buckets\":[{\"remaining_fraction\":\"fixed.frac\",\"window\":\"fixed.window\",\"description\":\"just text\",\"reset_time\":\"fixed.reset\"},{\"remaining_amount\":\"fixed.left\",\"total_amount\":\"fixed.zero\"},{\"remaining_amount\":\"fixed.left\",\"total_amount\":\"fixed.max\",\"window\":\"weekly\"}]},{\"display_name\":\"nothing\",\"buckets_path\":\"usage.none\"}]}}}",
+        "probe-mapfail.json": "{\"type\":\"codex\",\"email\":\"p3@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/mapped\",\"mapping\":{\"plan\":\"no.such\",\"groups\":[{\"buckets_path\":\"usage.none\"}]}}}",
+        "probe-nohost.json": "{\"type\":\"codex\",\"email\":\"p15@example.invalid\",\"quota_probe\":{\"url\":\"http:///127.0.0.1:1/quota\"}}",
+        "probe-notjson.json": "{\"type\":\"codex\",\"email\":\"p5@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/notjson\"}}",
+        "probe-notoken.json": "{\"type\":\"codex\",\"email\":\"p9@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"header\":{\"A\":\"$TOKEN$\"}}}",
+        "probe-nourl.json": "{\"type\":\"codex\",\"email\":\"p11@example.invalid\",\"quota_probe\":{\"method\":\"GET\",\"url\":5}}",
+        "probe-ok.json": "{\"type\":\"codex\",\"email\":\"p1@example.invalid\",\"access_token\":\"tok-1\",\"quota_probe\":{\"url\":\"UPSTREAM/quota?t=$TOKEN$\",\"method\":\" post \",\"data\":\"{\\\"k\\\":\\\"$TOKEN$\\\"}\",\"header\":{\"Authorization\":\"Bearer $TOKEN$\",\"x-other\":\"1\",\"x-num\":2}}}",
+        "probe-redirect.json": "{\"type\":\"codex\",\"email\":\"p7@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/redirect\"}}",
+        "probe-refused.json": "{\"type\":\"codex\",\"email\":\"p8@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/x\"}}",
+        "probe-sharp.json": "{\"type\":\"codex\",\"email\":\"p20@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"method\":\"ß\"}}",
+        "probe-status.json": "{\"type\":\"codex\",\"email\":\"p4@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/status500\"}}",
+        "probe-string.json": "{\"type\":\"codex\",\"email\":\"p12@example.invalid\",\"quota_probe\":\"UPSTREAM/quota\"}",
+        "probe-summary.json": "{\"type\":\"codex\",\"email\":\"p14@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/summary\"}}"
       },
       "result": null
     },
@@ -21,7 +93,7 @@
     },
     {
       "op": "config",
-      "args": "config-version: 8\nauth-dir: AUTHDIR\nmanagement:\n  secret-key: $HASH\nplugins:\n  enabled: true\n  dir: PLUGINDIR/./sub/..\n  configs:\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: management_api,quota_provider,auth_provider\n      nested:\n        list: [1, two]\n        flag: yes\n    recorder-b:\n      enabled: true\n      record: RECORDDIR\n      label: b\n      caps: management_api\n    recorder-d:\n      enabled: false\n      store:\n        version: 1_bad\n        release-tag: 1.0.0\n    ghost:\n      enabled: true\n",
+      "args": "config-version: 8\nserver:\n  port: 18317\nauth-dir: AUTHDIR\nmanagement:\n  secret-key: $HASH\nplugins:\n  enabled: true\n  dir: PLUGINDIR/./sub/..\n  store-sources:\n    - https://third.example/registry.json\n  store-auth:\n    - match: https://third.example/\n      type: bearer\n      token-env: CPA_STORE_ROUTES_TOKEN\n  configs:\n    recorder-a:\n      enabled: true\n      priority: 5\n      record: RECORDDIR\n      label: a\n      caps: management_api,quota_provider,auth_provider\n      nested:\n        list: [1, two]\n        flag: yes\n    recorder-b:\n      enabled: true\n      record: RECORDDIR\n      label: b\n      caps: management_api\n    recorder-d:\n      enabled: false\n      store:\n        version: 1_bad\n        release-tag: 1.0.0\n    ghost:\n      enabled: true\n",
       "result": null
     },
     {
@@ -211,7 +283,17 @@
           }
         },
         "dir": "PLUGINDIR",
-        "enabled": true
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
       }
     },
     {
@@ -436,7 +518,17 @@
           }
         },
         "dir": "PLUGINDIR",
-        "enabled": true
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
       }
     },
     {
@@ -542,7 +634,17 @@
           }
         },
         "dir": "PLUGINDIR",
-        "enabled": true
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
       }
     },
     {
@@ -624,7 +726,17 @@
           }
         },
         "dir": "PLUGINDIR",
-        "enabled": true
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
       }
     },
     {
@@ -736,7 +848,17 @@
           }
         },
         "dir": "PLUGINDIR",
-        "enabled": true
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
       }
     },
     {
@@ -1919,6 +2041,1163 @@
     {
       "op": "http",
       "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-ok.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\",\"tierName\":\"T\"},\"summary\":[{\"key\":\"k1\",\"label\":\"Spend\",\"value\":1.5,\"unit\":\"USD\",\"format\":\"currency\",\"currency\":\"USD\"},{\"key\":\"k2\",\"label\":\"Old\",\"value\":2,\"format\":\"currency\",\"currency\":\"DEM\"},{\"key\":\"k3\",\"label\":\"Bad\",\"value\":3},{\"key\":\"k4\",\"label\":\"N\",\"value\":4,\"format\":\"number\"},{\"key\":\"k6\",\"label\":\"P\",\"value\":6}],\"groups\":[{\"displayName\":\"G1\",\"buckets\":[{\"window\":\"5h\",\"remainingFraction\":0.5},{\"window\":\"d\",\"remainingFraction\":0.25,\"resetTime\":\"r\"},{\"window\":\"zero\",\"remainingFraction\":0}]}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-map.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"team\",\"tierName\":\"Gold\"},\"groups\":[{\"displayName\":\"Usage\",\"buckets\":[{\"window\":\"5h\",\"remainingFraction\":0.75,\"resetTime\":\"soon\"},{\"window\":\"day\",\"remainingFraction\":0.1,\"description\":\"d\"}]},{\"displayName\":\"Literal name\",\"buckets\":[{\"window\":\"monthly\",\"remainingFraction\":0.75,\"resetTime\":\"later\",\"description\":\"just text\"},{\"window\":\"weekly\",\"remainingFraction\":0.25}]}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-mapfail.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: probe response mapping failed: response mapping did not match any valid quota fields in upstream response\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-status.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: probe returned status 500: upstream exploded\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-notjson.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: upstream probe response is not valid JSON\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-empty.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: upstream probe response does not match normalized quota shape or declared mapping\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-redirect.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\",\"tierName\":\"T\"},\"summary\":[{\"key\":\"k1\",\"label\":\"Spend\",\"value\":1.5,\"unit\":\"USD\",\"format\":\"currency\",\"currency\":\"USD\"},{\"key\":\"k2\",\"label\":\"Old\",\"value\":2,\"format\":\"currency\",\"currency\":\"DEM\"},{\"key\":\"k3\",\"label\":\"Bad\",\"value\":3},{\"key\":\"k4\",\"label\":\"N\",\"value\":4,\"format\":\"number\"},{\"key\":\"k6\",\"label\":\"P\",\"value\":6}],\"groups\":[{\"displayName\":\"G1\",\"buckets\":[{\"window\":\"5h\",\"remainingFraction\":0.5},{\"window\":\"d\",\"remainingFraction\":0.25,\"resetTime\":\"r\"},{\"window\":\"zero\",\"remainingFraction\":0}]}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-refused.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: probe request failed: Get \\\"http://127.0.0.1:1/x\\\": dial tcp 127.0.0.1:1: connect: connection refused\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-notoken.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: probe authentication token not found for credential\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-badurl.json)\"}"
+      },
+      "result": {
+        "status": 501,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"no quota provider available for credential\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-nourl.json)\"}"
+      },
+      "result": {
+        "status": 501,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"no quota provider available for credential\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-string.json)\"}"
+      },
+      "result": {
+        "status": 501,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"no quota provider available for credential\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-badgroup.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: upstream probe response does not match normalized quota shape or declared mapping\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-summary.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"summary\":[{\"key\":\"b\",\"label\":\"B\",\"value\":2}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-nohost.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: probe request failed: Get \\\"http:///127.0.0.1:1/quota\\\": http: no Host in request URL\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-ftp.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: probe request failed: Get \\\"ftp://127.0.0.1:1/quota\\\": unsupported protocol scheme \\\"ftp\\\"\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-headers.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"pro\",\"tierName\":\"T\"},\"summary\":[{\"key\":\"k1\",\"label\":\"Spend\",\"value\":1.5,\"unit\":\"USD\",\"format\":\"currency\",\"currency\":\"USD\"},{\"key\":\"k2\",\"label\":\"Old\",\"value\":2,\"format\":\"currency\",\"currency\":\"DEM\"},{\"key\":\"k3\",\"label\":\"Bad\",\"value\":3},{\"key\":\"k4\",\"label\":\"N\",\"value\":4,\"format\":\"number\"},{\"key\":\"k6\",\"label\":\"P\",\"value\":6}],\"groups\":[{\"displayName\":\"G1\",\"buckets\":[{\"window\":\"5h\",\"remainingFraction\":0.5},{\"window\":\"d\",\"remainingFraction\":0.25,\"resetTime\":\"r\"},{\"window\":\"zero\",\"remainingFraction\":0}]}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-badheader.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: probe request failed: Get \\\"http://127.0.0.1:1/quota\\\": net/http: invalid header field value for \\\"Content-Length\\\"\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-badname.json)\"}"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"quota probe failed: probe request failed: Get \\\"http://127.0.0.1:1/quota\\\": net/http: invalid header field name \\\"bad name\\\"\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-sharp.json)\"}"
+      },
+      "result": {
+        "status": 501,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"no quota provider available for credential\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/quota/fetch",
+        "body": "{\"auth_index\":\"AUTHINDEX(probe-case.json)\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"subscription\":{\"plan\":\"paid\"}}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "upstream_requests",
+      "result": [
+        {
+          "body": "{\"k\":\"tok-1\"}",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Authorization": [
+              "Bearer tok-1"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-Other": [
+              "1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "POST",
+          "uri": "/quota?t=tok-1"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-H": [
+              "h"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/mapped"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/mapped"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/status500"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/notjson"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/empty"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/redirect"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "Referer": [
+              "UPSTREAM/redirect"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/quota?from=redirect"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/badgroup"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/summary"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ],
+            "X-A": [
+              "1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "S",
+          "uri": "/quota"
+        },
+        {
+          "body": "",
+          "header": {
+            "Accept-Encoding": [
+              "gzip"
+            ],
+            "User-Agent": [
+              "Go-http-client/1.1"
+            ]
+          },
+          "host": "UPSTREAMHOST",
+          "method": "GET",
+          "uri": "/case"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Metadata\":{\"k\":\"v\",\"n\":2},\"Provider\":\"a\",\"State\":\"st-1\",\"URL\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url?foo=1\u0026foo=2\u0026bar=3"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"state\":\"st-1\",\"status\":\"ok\",\"url\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"bar\":\"3\",\"foo\":[\"1\",\"2\"]},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"failed to generate authorization url\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Metadata\":{\"k\":\"v\",\"n\":2},\"Provider\":\"a\",\"State\":\"st-2\",\"URL\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/oauth/auth-url?provider=A\u0026x=1"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"state\":\"st-2\",\"status\":\"ok\",\"url\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v8/management/oauth/callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"x\":\"1\"},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Metadata\":{\"k\":\"v\",\"n\":2},\"Provider\":\"a\",\"State\":\"bad state!\",\"URL\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid oauth state\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Metadata\":{\"k\":\"v\",\"n\":2},\"Provider\":\"a\",\"State\":\"  \",\"URL\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid oauth state\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"x\",\"message\":\"cannot start\"},\"ok\":false}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url"
+      },
+      "result": {
+        "status": 500,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"failed to generate authorization url\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/zzz-auth-url"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/oauth/auth-url?provider=zzz"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"provider_not_found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/oauth/auth-url?provider=a_b"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"provider_not_found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/a-auth-url"
+      },
+      "result": {
+        "status": 500,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"failed to generate authorization url\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url",
+        "no_key": true
+      },
+      "result": {
+        "status": 401,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"missing management key\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/oauth-callback",
+        "body": "{\"provider\":\"b\",\"state\":\"st-1\",\"code\":\"c1\"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"provider does not match state\",\"status\":\"error\"}",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/oauth-callback",
+        "body": "{\"provider\":\"A_B\",\"state\":\"st-1\",\"code\":\"c1\"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"unsupported provider\",\"status\":\"error\"}",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/oauth-callback",
+        "body": "{\"provider\":\"A\",\"state\":\"st-1\",\"code\":\" c1 \",\"error\":\"\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/oauth-callback?state=st-2\u0026error=denied"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "auth_files",
+      "result": {
+        ".oauth-a-st-1.oauth": "600 {\"code\":\"c1\",\"state\":\"st-1\",\"error\":\"\"}",
+        ".oauth-a-st-2.oauth": "600 {\"code\":\"\",\"state\":\"st-2\",\"error\":\"denied\"}",
+        "claude.json": "600 {\"type\":\"claude\",\"email\":\"a@example.invalid\",\"access_token\":\"fake-access\",\"refresh_token\":\"fake-refresh\"}",
+        "codex.json": "600 {\"type\":\"codex\",\"email\":\"b@example.invalid\",\"access_token\":\"fake-codex\"}",
+        "probe-badgroup.json": "600 {\"type\":\"codex\",\"email\":\"p13@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/badgroup\"}}",
+        "probe-badheader.json": "600 {\"type\":\"codex\",\"email\":\"p18@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/quota\",\"header\":{\"Content-Length\":\"1\\r\\nX-Test: injected\"}}}",
+        "probe-badname.json": "600 {\"type\":\"codex\",\"email\":\"p19@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/quota\",\"header\":{\"bad name\":\"1\"}}}",
+        "probe-badurl.json": "600 {\"type\":\"codex\",\"email\":\"p10@example.invalid\",\"quota_probe\":{\"url\":\"http://[::1\"}}",
+        "probe-case.json": "600 {\"type\":\"codex\",\"email\":\"p21@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/case\"}}",
+        "probe-empty.json": "600 {\"type\":\"codex\",\"email\":\"p6@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/empty\"}}",
+        "probe-ftp.json": "600 {\"type\":\"codex\",\"email\":\"p16@example.invalid\",\"quota_probe\":{\"url\":\"ftp://127.0.0.1:1/quota\"}}",
+        "probe-headers.json": "600 {\"type\":\"codex\",\"email\":\"p17@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"method\":\"ſ\",\"header\":{\"Host\":\"other.example\",\"Content-Length\":\"5\",\"Transfer-Encoding\":\"chunked\",\"Trailer\":\"X-T\",\"x-a\":\"1\"}}}",
+        "probe-map.json": "600 {\"type\":\"codex\",\"email\":\"p2@example.invalid\",\"access_token\":\"t2\",\"quota_probe\":{\"url\":\"UPSTREAM/mapped\",\"headers\":{\"X-H\":\"h\"},\"mapping\":{\"plan\":\"account.plan\",\"tier_name\":\"\",\"tierName\":\"account.tier\",\"tier_id\":\"missing.path\",\"tierId\":\"account.tier_id\",\"groups\":[{\"display_name\":\"usage.label\",\"buckets_path\":\"usage.items\",\"window_key\":\"w\",\"remaining_amount_key\":\"left\",\"total_amount_key\":\"max\",\"reset_time_key\":\"resets\"},{\"displayName\":\"Literal name\",\"buckets\":[{\"remaining_fraction\":\"fixed.frac\",\"window\":\"fixed.window\",\"description\":\"just text\",\"reset_time\":\"fixed.reset\"},{\"remaining_amount\":\"fixed.left\",\"total_amount\":\"fixed.zero\"},{\"remaining_amount\":\"fixed.left\",\"total_amount\":\"fixed.max\",\"window\":\"weekly\"}]},{\"display_name\":\"nothing\",\"buckets_path\":\"usage.none\"}]}}}",
+        "probe-mapfail.json": "600 {\"type\":\"codex\",\"email\":\"p3@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/mapped\",\"mapping\":{\"plan\":\"no.such\",\"groups\":[{\"buckets_path\":\"usage.none\"}]}}}",
+        "probe-nohost.json": "600 {\"type\":\"codex\",\"email\":\"p15@example.invalid\",\"quota_probe\":{\"url\":\"http:///127.0.0.1:1/quota\"}}",
+        "probe-notjson.json": "600 {\"type\":\"codex\",\"email\":\"p5@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/notjson\"}}",
+        "probe-notoken.json": "600 {\"type\":\"codex\",\"email\":\"p9@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"header\":{\"A\":\"$TOKEN$\"}}}",
+        "probe-nourl.json": "600 {\"type\":\"codex\",\"email\":\"p11@example.invalid\",\"quota_probe\":{\"method\":\"GET\",\"url\":5}}",
+        "probe-ok.json": "600 {\"type\":\"codex\",\"email\":\"p1@example.invalid\",\"access_token\":\"tok-1\",\"quota_probe\":{\"url\":\"UPSTREAM/quota?t=$TOKEN$\",\"method\":\" post \",\"data\":\"{\\\"k\\\":\\\"$TOKEN$\\\"}\",\"header\":{\"Authorization\":\"Bearer $TOKEN$\",\"x-other\":\"1\",\"x-num\":2}}}",
+        "probe-redirect.json": "600 {\"type\":\"codex\",\"email\":\"p7@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/redirect\"}}",
+        "probe-refused.json": "600 {\"type\":\"codex\",\"email\":\"p8@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/x\"}}",
+        "probe-sharp.json": "600 {\"type\":\"codex\",\"email\":\"p20@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"method\":\"ß\"}}",
+        "probe-status.json": "600 {\"type\":\"codex\",\"email\":\"p4@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/status500\"}}",
+        "probe-string.json": "600 {\"type\":\"codex\",\"email\":\"p12@example.invalid\",\"quota_probe\":\"UPSTREAM/quota\"}",
+        "probe-summary.json": "600 {\"type\":\"codex\",\"email\":\"p14@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/summary\"}}"
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Status\":\"pending\"}}",
+        "label": "a",
+        "method": "auth.login.poll"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/get-auth-status?state=st-1"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"wait\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Status\":\"later\"}}",
+        "label": "a",
+        "method": "auth.login.poll"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/oauth/status?state=st-1"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"wait\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "auth.login.poll",
+          "request": "{\"Provider\":\"a\",\"State\":\"st-1\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"k\":\"v\",\"n\":2},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.poll",
+          "request": "{\"Provider\":\"a\",\"State\":\"st-1\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"k\":\"v\",\"n\":2},\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Message\":\" denied \\u003cx\\u003e \",\"Status\":\"error\"}}",
+        "label": "a",
+        "method": "auth.login.poll"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/get-auth-status?state=st-1"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"denied \\u003cx\\u003e\",\"status\":\"error\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/get-auth-status?state=st-1"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"denied \\u003cx\\u003e\",\"status\":\"error\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/oauth-callback",
+        "body": "{\"state\":\"st-1\",\"code\":\"again\"}"
+      },
+      "result": {
+        "status": 409,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"denied \\u003cx\\u003e\",\"status\":\"error\"}",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Auths\":[{\"FileName\":\"a-user.json\",\"Label\":\"user\",\"Metadata\":{\"email\":\"u@example.invalid\"},\"Provider\":\"A\",\"StorageJSON\":\"eyJhY2Nlc3NfdG9rZW4iOiJ0IiwiZXhwaXJlZCI6IjIwMzAtMDEtMDFUMDA6MDA6MDBaIn0=\"},{\"Disabled\":true,\"FileName\":\"a-two.json\",\"Provider\":\"a\",\"StorageJSON\":\"eyJrIjoxfQ==\"}],\"Status\":\"success\"}}",
+        "label": "a",
+        "method": "auth.login.poll"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/get-auth-status?state=st-2"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "auth_files",
+      "result": {
+        ".oauth-a-st-1.oauth": "600 {\"code\":\"c1\",\"state\":\"st-1\",\"error\":\"\"}",
+        ".oauth-a-st-2.oauth": "600 {\"code\":\"\",\"state\":\"st-2\",\"error\":\"denied\"}",
+        "a-two.json": "600 {\"disabled\":true,\"k\":1,\"type\":\"a\"}",
+        "a-user.json": "600 {\"access_token\":\"t\",\"disabled\":false,\"email\":\"u@example.invalid\",\"expired\":\"2030-01-01T00:00:00Z\",\"type\":\"a\"}",
+        "claude.json": "600 {\"type\":\"claude\",\"email\":\"a@example.invalid\",\"access_token\":\"fake-access\",\"refresh_token\":\"fake-refresh\"}",
+        "codex.json": "600 {\"type\":\"codex\",\"email\":\"b@example.invalid\",\"access_token\":\"fake-codex\"}",
+        "probe-badgroup.json": "600 {\"type\":\"codex\",\"email\":\"p13@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/badgroup\"}}",
+        "probe-badheader.json": "600 {\"type\":\"codex\",\"email\":\"p18@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/quota\",\"header\":{\"Content-Length\":\"1\\r\\nX-Test: injected\"}}}",
+        "probe-badname.json": "600 {\"type\":\"codex\",\"email\":\"p19@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/quota\",\"header\":{\"bad name\":\"1\"}}}",
+        "probe-badurl.json": "600 {\"type\":\"codex\",\"email\":\"p10@example.invalid\",\"quota_probe\":{\"url\":\"http://[::1\"}}",
+        "probe-case.json": "600 {\"type\":\"codex\",\"email\":\"p21@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/case\"}}",
+        "probe-empty.json": "600 {\"type\":\"codex\",\"email\":\"p6@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/empty\"}}",
+        "probe-ftp.json": "600 {\"type\":\"codex\",\"email\":\"p16@example.invalid\",\"quota_probe\":{\"url\":\"ftp://127.0.0.1:1/quota\"}}",
+        "probe-headers.json": "600 {\"type\":\"codex\",\"email\":\"p17@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"method\":\"ſ\",\"header\":{\"Host\":\"other.example\",\"Content-Length\":\"5\",\"Transfer-Encoding\":\"chunked\",\"Trailer\":\"X-T\",\"x-a\":\"1\"}}}",
+        "probe-map.json": "600 {\"type\":\"codex\",\"email\":\"p2@example.invalid\",\"access_token\":\"t2\",\"quota_probe\":{\"url\":\"UPSTREAM/mapped\",\"headers\":{\"X-H\":\"h\"},\"mapping\":{\"plan\":\"account.plan\",\"tier_name\":\"\",\"tierName\":\"account.tier\",\"tier_id\":\"missing.path\",\"tierId\":\"account.tier_id\",\"groups\":[{\"display_name\":\"usage.label\",\"buckets_path\":\"usage.items\",\"window_key\":\"w\",\"remaining_amount_key\":\"left\",\"total_amount_key\":\"max\",\"reset_time_key\":\"resets\"},{\"displayName\":\"Literal name\",\"buckets\":[{\"remaining_fraction\":\"fixed.frac\",\"window\":\"fixed.window\",\"description\":\"just text\",\"reset_time\":\"fixed.reset\"},{\"remaining_amount\":\"fixed.left\",\"total_amount\":\"fixed.zero\"},{\"remaining_amount\":\"fixed.left\",\"total_amount\":\"fixed.max\",\"window\":\"weekly\"}]},{\"display_name\":\"nothing\",\"buckets_path\":\"usage.none\"}]}}}",
+        "probe-mapfail.json": "600 {\"type\":\"codex\",\"email\":\"p3@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/mapped\",\"mapping\":{\"plan\":\"no.such\",\"groups\":[{\"buckets_path\":\"usage.none\"}]}}}",
+        "probe-nohost.json": "600 {\"type\":\"codex\",\"email\":\"p15@example.invalid\",\"quota_probe\":{\"url\":\"http:///127.0.0.1:1/quota\"}}",
+        "probe-notjson.json": "600 {\"type\":\"codex\",\"email\":\"p5@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/notjson\"}}",
+        "probe-notoken.json": "600 {\"type\":\"codex\",\"email\":\"p9@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"header\":{\"A\":\"$TOKEN$\"}}}",
+        "probe-nourl.json": "600 {\"type\":\"codex\",\"email\":\"p11@example.invalid\",\"quota_probe\":{\"method\":\"GET\",\"url\":5}}",
+        "probe-ok.json": "600 {\"type\":\"codex\",\"email\":\"p1@example.invalid\",\"access_token\":\"tok-1\",\"quota_probe\":{\"url\":\"UPSTREAM/quota?t=$TOKEN$\",\"method\":\" post \",\"data\":\"{\\\"k\\\":\\\"$TOKEN$\\\"}\",\"header\":{\"Authorization\":\"Bearer $TOKEN$\",\"x-other\":\"1\",\"x-num\":2}}}",
+        "probe-redirect.json": "600 {\"type\":\"codex\",\"email\":\"p7@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/redirect\"}}",
+        "probe-refused.json": "600 {\"type\":\"codex\",\"email\":\"p8@example.invalid\",\"quota_probe\":{\"url\":\"http://127.0.0.1:1/x\"}}",
+        "probe-sharp.json": "600 {\"type\":\"codex\",\"email\":\"p20@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/quota\",\"method\":\"ß\"}}",
+        "probe-status.json": "600 {\"type\":\"codex\",\"email\":\"p4@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/status500\"}}",
+        "probe-string.json": "600 {\"type\":\"codex\",\"email\":\"p12@example.invalid\",\"quota_probe\":\"UPSTREAM/quota\"}",
+        "probe-summary.json": "600 {\"type\":\"codex\",\"email\":\"p14@example.invalid\",\"quota_probe\":{\"url\":\"UPSTREAM/summary\"}}"
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/get-auth-status?state=st-2"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Metadata\":{\"k\":\"v\",\"n\":2},\"Provider\":\"a\",\"State\":\"st-3\",\"URL\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"state\":\"st-3\",\"status\":\"ok\",\"url\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Auth\":{\"Provider\":\" \"},\"Status\":\"success\"}}",
+        "label": "a",
+        "method": "auth.login.poll"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/get-auth-status?state=st-3"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"Authentication failed\",\"status\":\"error\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Metadata\":{\"k\":\"v\",\"n\":2},\"Provider\":\"a\",\"State\":\"st-4\",\"URL\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"state\":\"st-4\",\"status\":\"ok\",\"url\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"error\":{\"code\":\"x\",\"message\":\"poll broke\"},\"ok\":false}",
+        "label": "a",
+        "method": "auth.login.poll"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/get-auth-status?state=st-4"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"poll broke\",\"status\":\"error\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "respond",
+      "args": {
+        "envelope": "{\"ok\":true,\"result\":{\"Metadata\":{\"k\":\"v\",\"n\":2},\"Provider\":\"a\",\"State\":\"st-5\",\"URL\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}}",
+        "label": "a",
+        "method": "auth.login.start"
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/a-auth-url"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"state\":\"st-5\",\"status\":\"ok\",\"url\":\"https://login.example/a?x=1\\u0026y=\\u003c2\\u003e\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v0/management/oauth-session?state=st-5"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"cancelled\":true,\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/get-auth-status?state=st-5"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"unknown or expired state\",\"status\":\"error\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "records",
+      "result": [
+        {
+          "label": "a",
+          "method": "auth.login.poll",
+          "request": "{\"Provider\":\"a\",\"State\":\"st-1\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"k\":\"v\",\"n\":2},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.poll",
+          "request": "{\"Provider\":\"a\",\"State\":\"st-2\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"k\":\"v\",\"n\":2},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.poll",
+          "request": "{\"Provider\":\"a\",\"State\":\"st-3\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"k\":\"v\",\"n\":2},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.poll",
+          "request": "{\"Provider\":\"a\",\"State\":\"st-4\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"k\":\"v\",\"n\":2},\"host_callback_id\":\"#\"}"
+        },
+        {
+          "label": "a",
+          "method": "auth.login.start",
+          "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:18317/v0/management/oauth-callback\",\"Host\":{\"AuthDir\":\"AUTHDIR\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"#\"}"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
         "method": "DELETE",
         "path": "/v0/management/plugins/recorder-c"
       },
@@ -1967,7 +3246,17 @@
           }
         },
         "dir": "PLUGINDIR",
-        "enabled": true
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
       }
     },
     {
@@ -2018,7 +3307,17 @@
           }
         },
         "dir": "PLUGINDIR",
-        "enabled": true
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
       }
     },
     {
@@ -2071,6 +3370,1358 @@
         "content_type": "",
         "body": "",
         "version_headers": true
+      }
+    },
+    {
+      "op": "store_routes",
+      "args": {
+        "https://api.github.com/repos/o/recorder-a/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.1.0\",\"assets\":[]}"
+        },
+        "https://dl.example/store-rec.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "store-rec-v1.0.0.so",
+              "plugin": "recorder"
+            },
+            {
+              "name": "README.md",
+              "data": "hi"
+            }
+          ]
+        },
+        "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json": {
+          "status": 200,
+          "body": "{\"schema_version\":2,\"plugins\":[{\"id\":\"store-rec\",\"name\":\"Store \u003cRec\u003e\",\"description\":\"Records \u0026 replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"license\":\"MIT\",\"homepage\":\"https://h.example\",\"tags\":[\"x\",\"\u003cy\u003e\"],\"install\":{\"type\":\"direct\",\"artifacts\":[{\"goos\":\"linux\",\"goarch\":\"amd64\",\"url\":\"https://dl.example/store-rec.zip\",\"sha256\":\"ZIPSHA(https://dl.example/store-rec.zip)\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\",\"url\":\"https://dl.example/mac.zip\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]}},{\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/o/gh-rec\",\"logo\":\"https://l.example/x.png\"},{\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"0.9\",\"repository\":\"https://github.com/o/recorder-a\"},{\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/o/gh-limited\"}]}"
+        },
+        "https://third.example/registry.json": {
+          "status": 200,
+          "body": "{\"schema_version\":1,\"plugins\":[{\"id\":\"store-rec\",\"name\":\"Third\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/third/store-rec\",\"auth_required\":true},{\"id\":\"third-only\",\"name\":\"T\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/third/only\"}]}"
+        }
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/store"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"sources\":[{\"id\":\"official\",\"name\":\"Official\",\"url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\"},{\"id\":\"source-b241a7e78399\",\"name\":\"third.example\",\"url\":\"https://third.example/registry.json\"}],\"plugins\":[{\"store_id\":\"official/store-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"store-rec\",\"name\":\"Store \\u0026lt;Rec\\u0026gt;\",\"description\":\"Records \\u0026amp; replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"repository\":\"\",\"install_type\":\"direct\",\"auth_required\":false,\"auth_configured\":false,\"platforms\":[{\"goos\":\"linux\",\"goarch\":\"amd64\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\"}],\"homepage\":\"https://h.example\",\"license\":\"MIT\",\"tags\":[\"x\",\"\\u0026lt;y\\u0026gt;\"],\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"official/gh-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/o/gh-rec\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"logo\":\"https://l.example/x.png\",\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"official/recorder-a\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"1.1.0\",\"repository\":\"https://github.com/o/recorder-a\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":true,\"installed_version\":\"1.0.0\",\"install_source_status\":\"assumed\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"update_available\":true},{\"store_id\":\"official/gh-limited\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/o/gh-limited\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"source-b241a7e78399/store-rec\",\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"id\":\"store-rec\",\"name\":\"Third\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/third/store-rec\",\"install_type\":\"github-release\",\"auth_required\":true,\"auth_configured\":true,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"source-b241a7e78399/third-only\",\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"id\":\"third-only\",\"name\":\"T\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/third/only\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":true,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/vnd.github+json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://api.github.com/repos/o/recorder-a/releases/latest"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugin-store"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"sources\":[{\"id\":\"official\",\"name\":\"Official\",\"url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\"},{\"id\":\"source-b241a7e78399\",\"name\":\"third.example\",\"url\":\"https://third.example/registry.json\"}],\"plugins\":[{\"store_id\":\"official/store-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"store-rec\",\"name\":\"Store \\u0026lt;Rec\\u0026gt;\",\"description\":\"Records \\u0026amp; replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"repository\":\"\",\"install_type\":\"direct\",\"auth_required\":false,\"auth_configured\":false,\"platforms\":[{\"goos\":\"linux\",\"goarch\":\"amd64\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\"}],\"homepage\":\"https://h.example\",\"license\":\"MIT\",\"tags\":[\"x\",\"\\u0026lt;y\\u0026gt;\"],\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"official/gh-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/o/gh-rec\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"logo\":\"https://l.example/x.png\",\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"official/recorder-a\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"1.1.0\",\"repository\":\"https://github.com/o/recorder-a\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":true,\"installed_version\":\"1.0.0\",\"install_source_status\":\"assumed\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"update_available\":true},{\"store_id\":\"official/gh-limited\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/o/gh-limited\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"source-b241a7e78399/store-rec\",\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"id\":\"store-rec\",\"name\":\"Third\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/third/store-rec\",\"install_type\":\"github-release\",\"auth_required\":true,\"auth_configured\":true,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"source-b241a7e78399/third-only\",\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"id\":\"third-only\",\"name\":\"T\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/third/only\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":true,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/store-rec/install"
+      },
+      "result": {
+        "status": 409,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_store_source_required\",\"message\":\"multiple plugin store sources contain this plugin id; specify source\",\"sources\":[{\"id\":\"official\",\"name\":\"Official\",\"url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\"},{\"id\":\"source-b241a7e78399\",\"name\":\"third.example\",\"url\":\"https://third.example/registry.json\"}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/store-rec/install?source=nope"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_store_source_not_found\",\"message\":\"plugin store source not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/nothere/install?source=official"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_not_found\",\"message\":\"plugin not found in registry source\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/nothere/install"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_not_found\",\"message\":\"plugin not found in registry\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/bad!id/install"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_plugin_id\",\"message\":\"invalid plugin id\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/store-rec/install?source=official\u0026version=1.0.0",
+        "body": "{\"version\":\"2.0\"}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_request\",\"message\":\"version query \\\"1.0.0\\\" does not match request body version \\\"2.0\\\"\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/store-rec/install?source=official",
+        "body": "{\"version\":1}"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"invalid_request\",\"message\":\"decode install request: json: cannot unmarshal number into Go struct field pluginInstallRequest.version of type string\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/store-rec/install?source=official\u0026version=v9",
+        "body": " "
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_manifest_invalid\",\"message\":\"direct plugin version \\\"9\\\" not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/store-rec/install?source=official",
+        "body": "{\"version\":\"v1.0.0\"}"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"installed\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"store-rec\",\"version\":\"1.0.0\",\"install_type\":\"direct\",\"path\":\"PLUGINDIR/linux/amd64/store-rec-v1.0.0.so\",\"plugins_enabled\":true,\"restart_required\":false}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/octet-stream"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://dl.example/store-rec.zip"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "new-one": {
+            "p": 1e+300,
+            "priority": -2
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "enabled": true,
+            "extra": "x",
+            "label": "a",
+            "priority": 7,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          },
+          "store-rec": {
+            "enabled": true,
+            "store": {
+              "author": "a",
+              "description": "Records \u0026 replays",
+              "homepage": "https://h.example",
+              "id": "store-rec",
+              "install": {
+                "artifacts": [
+                  {
+                    "goarch": "amd64",
+                    "goos": "linux",
+                    "sha256": "ZIPSHA(https://dl.example/store-rec.zip)",
+                    "url": "https://dl.example/store-rec.zip"
+                  },
+                  {
+                    "goarch": "arm64",
+                    "goos": "darwin",
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "url": "https://dl.example/mac.zip"
+                  }
+                ],
+                "type": "direct"
+              },
+              "license": "MIT",
+              "name": "Store \u003cRec\u003e",
+              "schema-version": 2,
+              "source-id": "official",
+              "source-name": "Official",
+              "source-url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json",
+              "tags": [
+                "x",
+                "\u003cy\u003e"
+              ],
+              "version": "1.0.0"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"plugins\":[{\"id\":\"new-one\",\"path\":\"\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-a\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"supports_oauth\":true,\"oauth_provider\":\"a\",\"supports_quota\":true,\"quota_provider\":\"a\",\"logo\":\"\",\"config_fields\":[],\"menus\":[{\"path\":\"/v0/resource/plugins/recorder-a/page\",\"menu\":\"Recorder a\",\"description\":\"\\u0026lt;b\\u0026gt;a\\u0026lt;/b\\u0026gt;\"},{\"path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"menu\":\"Legacy a\",\"description\":\"legacy menu\"}],\"metadata\":{\"name\":\"a\",\"version\":\"1.0.0\",\"author\":\"cliproxy-rs tests\",\"github_repository\":\"https://example.invalid/recorder\",\"logo\":\"\",\"config_fields\":[]}},{\"id\":\"recorder-b\",\"path\":\"PLUGINDIR/recorder-b.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"recorder-d\",\"path\":\"PLUGINDIR/recorder-d-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null},{\"id\":\"store-rec\",\"path\":\"PLUGINDIR/linux/amd64/store-rec-v1.0.0.so\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"supports_oauth\":false,\"oauth_provider\":\"\",\"supports_quota\":false,\"logo\":\"\",\"config_fields\":[],\"menus\":[],\"metadata\":null}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/plugin-store/store-rec/install?source=source-b241a7e78399"
+      },
+      "result": {
+        "status": 409,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_store_source_conflict\",\"installed_source_id\":\"official\",\"message\":\"installed plugin belongs to a different store source; uninstall it before switching sources\",\"requested_source_id\":\"source-b241a7e78399\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/store"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"sources\":[{\"id\":\"official\",\"name\":\"Official\",\"url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\"},{\"id\":\"source-b241a7e78399\",\"name\":\"third.example\",\"url\":\"https://third.example/registry.json\"}],\"plugins\":[{\"store_id\":\"official/store-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"store-rec\",\"name\":\"Store \\u0026lt;Rec\\u0026gt;\",\"description\":\"Records \\u0026amp; replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"repository\":\"\",\"install_type\":\"direct\",\"auth_required\":false,\"auth_configured\":false,\"platforms\":[{\"goos\":\"linux\",\"goarch\":\"amd64\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\"}],\"homepage\":\"https://h.example\",\"license\":\"MIT\",\"tags\":[\"x\",\"\\u0026lt;y\\u0026gt;\"],\"installed\":true,\"installed_version\":\"1.0.0\",\"installed_source_id\":\"official\",\"install_source_status\":\"matched\",\"path\":\"PLUGINDIR/linux/amd64/store-rec-v1.0.0.so\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"official/gh-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/o/gh-rec\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"logo\":\"https://l.example/x.png\",\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"official/recorder-a\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"1.1.0\",\"repository\":\"https://github.com/o/recorder-a\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":true,\"installed_version\":\"1.0.0\",\"install_source_status\":\"assumed\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"update_available\":true},{\"store_id\":\"official/gh-limited\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/o/gh-limited\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"source-b241a7e78399/store-rec\",\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"id\":\"store-rec\",\"name\":\"Third\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/third/store-rec\",\"install_type\":\"github-release\",\"auth_required\":true,\"auth_configured\":true,\"installed\":true,\"installed_version\":\"1.0.0\",\"installed_source_id\":\"official\",\"install_source_status\":\"different\",\"path\":\"PLUGINDIR/linux/amd64/store-rec-v1.0.0.so\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"source-b241a7e78399/third-only\",\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"id\":\"third-only\",\"name\":\"T\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/third/only\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":true,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "store_routes",
+      "args": {
+        "https://api.github.com/repos/o/gh-rec/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.3.0\",\"assets\":[]}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/tags/1.2.0": {
+          "status": 404,
+          "body": "{\"message\":\"Not Found\"}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/tags/v1.2.0": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.2.0\",\"assets\":[{\"name\":\"gh-rec_1.2.0_linux_amd64.zip\",\"browser_download_url\":\"https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip\"},{\"name\":\"checksums.txt\",\"browser_download_url\":\"https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt\"}]}"
+        },
+        "https://api.github.com/repos/o/recorder-a/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.1.0\",\"assets\":[]}"
+        },
+        "https://dl.example/store-rec.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "store-rec-v1.0.0.so",
+              "plugin": "recorder"
+            },
+            {
+              "name": "README.md",
+              "data": "hi"
+            }
+          ]
+        },
+        "https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt": {
+          "status": 200,
+          "body": "ZIPSHA(https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip)  gh-rec_1.2.0_linux_amd64.zip\n"
+        },
+        "https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "gh-rec.so",
+              "plugin": "recorder"
+            }
+          ]
+        },
+        "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json": {
+          "status": 200,
+          "body": "{\"schema_version\":2,\"plugins\":[{\"id\":\"store-rec\",\"name\":\"Store \u003cRec\u003e\",\"description\":\"Records \u0026 replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"license\":\"MIT\",\"homepage\":\"https://h.example\",\"tags\":[\"x\",\"\u003cy\u003e\"],\"install\":{\"type\":\"direct\",\"artifacts\":[{\"goos\":\"linux\",\"goarch\":\"amd64\",\"url\":\"https://dl.example/store-rec.zip\",\"sha256\":\"ZIPSHA(https://dl.example/store-rec.zip)\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\",\"url\":\"https://dl.example/mac.zip\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]}},{\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/o/gh-rec\",\"logo\":\"https://l.example/x.png\"},{\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"0.9\",\"repository\":\"https://github.com/o/recorder-a\"},{\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/o/gh-limited\"}]}"
+        },
+        "https://third.example/registry.json": {
+          "status": 200,
+          "body": "{\"schema_version\":1,\"plugins\":[{\"id\":\"store-rec\",\"name\":\"Third\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/third/store-rec\",\"auth_required\":true},{\"id\":\"third-only\",\"name\":\"T\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/third/only\"}]}"
+        }
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v0/management/plugin-store/gh-rec/install?source=official\u0026version=1.2.0"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"installed\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-rec\",\"version\":\"1.2.0\",\"install_type\":\"github-release\",\"path\":\"PLUGINDIR/linux/amd64/gh-rec-v1.2.0.so\",\"plugins_enabled\":true,\"restart_required\":false}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/vnd.github+json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://api.github.com/repos/o/gh-rec/releases/tags/1.2.0"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/vnd.github+json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://api.github.com/repos/o/gh-rec/releases/tags/v1.2.0"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/octet-stream"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/octet-stream"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "gh-rec": {
+            "enabled": true,
+            "store": {
+              "author": "a",
+              "description": "d",
+              "id": "gh-rec",
+              "install": {
+                "type": "github-release"
+              },
+              "logo": "https://l.example/x.png",
+              "name": "GH",
+              "release-tag": "v1.2.0",
+              "repository": "https://github.com/o/gh-rec",
+              "source-id": "official",
+              "source-name": "Official",
+              "source-url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json",
+              "version": "1.2.0"
+            }
+          },
+          "new-one": {
+            "p": 1e+300,
+            "priority": -2
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "enabled": true,
+            "extra": "x",
+            "label": "a",
+            "priority": 7,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b",
+            "record": "RECORDDIR"
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          },
+          "store-rec": {
+            "enabled": true,
+            "store": {
+              "author": "a",
+              "description": "Records \u0026 replays",
+              "homepage": "https://h.example",
+              "id": "store-rec",
+              "install": {
+                "artifacts": [
+                  {
+                    "goarch": "amd64",
+                    "goos": "linux",
+                    "sha256": "ZIPSHA(https://dl.example/store-rec.zip)",
+                    "url": "https://dl.example/store-rec.zip"
+                  },
+                  {
+                    "goarch": "arm64",
+                    "goos": "darwin",
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "url": "https://dl.example/mac.zip"
+                  }
+                ],
+                "type": "direct"
+              },
+              "license": "MIT",
+              "name": "Store \u003cRec\u003e",
+              "schema-version": 2,
+              "source-id": "official",
+              "source-name": "Official",
+              "source-url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json",
+              "tags": [
+                "x",
+                "\u003cy\u003e"
+              ],
+              "version": "1.0.0"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/store"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"sources\":[{\"id\":\"official\",\"name\":\"Official\",\"url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\"},{\"id\":\"source-b241a7e78399\",\"name\":\"third.example\",\"url\":\"https://third.example/registry.json\"}],\"plugins\":[{\"store_id\":\"official/store-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"store-rec\",\"name\":\"Store \\u0026lt;Rec\\u0026gt;\",\"description\":\"Records \\u0026amp; replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"repository\":\"\",\"install_type\":\"direct\",\"auth_required\":false,\"auth_configured\":false,\"platforms\":[{\"goos\":\"linux\",\"goarch\":\"amd64\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\"}],\"homepage\":\"https://h.example\",\"license\":\"MIT\",\"tags\":[\"x\",\"\\u0026lt;y\\u0026gt;\"],\"installed\":true,\"installed_version\":\"1.0.0\",\"installed_source_id\":\"official\",\"install_source_status\":\"matched\",\"path\":\"PLUGINDIR/linux/amd64/store-rec-v1.0.0.so\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"official/gh-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"version\":\"1.3.0\",\"repository\":\"https://github.com/o/gh-rec\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"logo\":\"https://l.example/x.png\",\"installed\":true,\"installed_version\":\"1.2.0\",\"installed_source_id\":\"official\",\"install_source_status\":\"matched\",\"path\":\"PLUGINDIR/linux/amd64/gh-rec-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"update_available\":true},{\"store_id\":\"official/recorder-a\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"1.1.0\",\"repository\":\"https://github.com/o/recorder-a\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":true,\"installed_version\":\"1.0.0\",\"install_source_status\":\"assumed\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"update_available\":true},{\"store_id\":\"official/gh-limited\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/o/gh-limited\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"source-b241a7e78399/store-rec\",\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"id\":\"store-rec\",\"name\":\"Third\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/third/store-rec\",\"install_type\":\"github-release\",\"auth_required\":true,\"auth_configured\":true,\"installed\":true,\"installed_version\":\"1.0.0\",\"installed_source_id\":\"official\",\"install_source_status\":\"different\",\"path\":\"PLUGINDIR/linux/amd64/store-rec-v1.0.0.so\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"source-b241a7e78399/third-only\",\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"id\":\"third-only\",\"name\":\"T\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/third/only\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":true,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/vnd.github+json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://api.github.com/repos/o/gh-rec/releases/latest"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "store_routes",
+      "args": {
+        "https://api.github.com/repos/o/gh-limited/releases/latest": {
+          "status": 403,
+          "headers": {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": "4102444800"
+          },
+          "body": "{\"message\":\"API rate limit exceeded\"}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.3.0\",\"assets\":[]}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/tags/1.2.0": {
+          "status": 404,
+          "body": "{\"message\":\"Not Found\"}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/tags/v1.2.0": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.2.0\",\"assets\":[{\"name\":\"gh-rec_1.2.0_linux_amd64.zip\",\"browser_download_url\":\"https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip\"},{\"name\":\"checksums.txt\",\"browser_download_url\":\"https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt\"}]}"
+        },
+        "https://api.github.com/repos/o/recorder-a/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.1.0\",\"assets\":[]}"
+        },
+        "https://dl.example/store-rec.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "store-rec-v1.0.0.so",
+              "plugin": "recorder"
+            },
+            {
+              "name": "README.md",
+              "data": "hi"
+            }
+          ]
+        },
+        "https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt": {
+          "status": 200,
+          "body": "ZIPSHA(https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip)  gh-rec_1.2.0_linux_amd64.zip\n"
+        },
+        "https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "gh-rec.so",
+              "plugin": "recorder"
+            }
+          ]
+        },
+        "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json": {
+          "status": 200,
+          "body": "{\"schema_version\":2,\"plugins\":[{\"id\":\"store-rec\",\"name\":\"Store \u003cRec\u003e\",\"description\":\"Records \u0026 replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"license\":\"MIT\",\"homepage\":\"https://h.example\",\"tags\":[\"x\",\"\u003cy\u003e\"],\"install\":{\"type\":\"direct\",\"artifacts\":[{\"goos\":\"linux\",\"goarch\":\"amd64\",\"url\":\"https://dl.example/store-rec.zip\",\"sha256\":\"ZIPSHA(https://dl.example/store-rec.zip)\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\",\"url\":\"https://dl.example/mac.zip\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]}},{\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/o/gh-rec\",\"logo\":\"https://l.example/x.png\"},{\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"0.9\",\"repository\":\"https://github.com/o/recorder-a\"},{\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/o/gh-limited\"}]}"
+        },
+        "https://third.example/registry.json": {
+          "status": 200,
+          "body": "{\"schema_version\":1,\"plugins\":[{\"id\":\"store-rec\",\"name\":\"Third\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/third/store-rec\",\"auth_required\":true},{\"id\":\"third-only\",\"name\":\"T\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/third/only\"}]}"
+        }
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/gh-limited/install?source=official"
+      },
+      "result": {
+        "status": 429,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_store_rate_limited\",\"message\":\"GitHub API rate limited; retry after 2100-01-01T00:00:00Z\",\"retry_after\":N,\"retry_at\":\"2100-01-01T00:00:00Z\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/gh-limited/install?source=official"
+      },
+      "result": {
+        "status": 429,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_store_rate_limited\",\"message\":\"GitHub API rate limited; retry after 2100-01-01T00:00:00Z\",\"retry_after\":N,\"retry_at\":\"2100-01-01T00:00:00Z\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/vnd.github+json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://api.github.com/repos/o/gh-limited/releases/latest"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "store_routes",
+      "args": {
+        "https://api.github.com/repos/o/gh-limited/releases/latest": {
+          "status": 403,
+          "headers": {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": "4102444800"
+          },
+          "body": "{\"message\":\"API rate limit exceeded\"}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.3.0\",\"assets\":[]}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/tags/1.2.0": {
+          "status": 404,
+          "body": "{\"message\":\"Not Found\"}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/tags/v1.2.0": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.2.0\",\"assets\":[{\"name\":\"gh-rec_1.2.0_linux_amd64.zip\",\"browser_download_url\":\"https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip\"},{\"name\":\"checksums.txt\",\"browser_download_url\":\"https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt\"}]}"
+        },
+        "https://api.github.com/repos/o/recorder-a/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.1.0\",\"assets\":[]}"
+        },
+        "https://dl.example/store-rec.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "store-rec-v1.0.0.so",
+              "plugin": "recorder"
+            },
+            {
+              "name": "README.md",
+              "data": "hi"
+            }
+          ]
+        },
+        "https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt": {
+          "status": 200,
+          "body": "ZIPSHA(https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip)  gh-rec_1.2.0_linux_amd64.zip\n"
+        },
+        "https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "gh-rec.so",
+              "plugin": "recorder"
+            }
+          ]
+        },
+        "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json": {
+          "status": 200,
+          "body": "{\"schema_version\":2,\"plugins\":[{\"id\":\"store-rec\",\"name\":\"Store \u003cRec\u003e\",\"description\":\"Records \u0026 replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"license\":\"MIT\",\"homepage\":\"https://h.example\",\"tags\":[\"x\",\"\u003cy\u003e\"],\"install\":{\"type\":\"direct\",\"artifacts\":[{\"goos\":\"linux\",\"goarch\":\"amd64\",\"url\":\"https://dl.example/store-rec.zip\",\"sha256\":\"ZIPSHA(https://dl.example/store-rec.zip)\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\",\"url\":\"https://dl.example/mac.zip\",\"sha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}]}},{\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/o/gh-rec\",\"logo\":\"https://l.example/x.png\"},{\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"0.9\",\"repository\":\"https://github.com/o/recorder-a\"},{\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"repository\":\"https://github.com/o/gh-limited\"}]}"
+        },
+        "https://third.example/registry.json": {
+          "status": 500,
+          "body": "down"
+        }
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/store"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"plugins_enabled\":true,\"plugins_dir\":\"PLUGINDIR\",\"sources\":[{\"id\":\"official\",\"name\":\"Official\",\"url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\"},{\"id\":\"source-b241a7e78399\",\"name\":\"third.example\",\"url\":\"https://third.example/registry.json\"}],\"source_errors\":[{\"source_id\":\"source-b241a7e78399\",\"source_name\":\"third.example\",\"source_url\":\"https://third.example/registry.json\",\"message\":\"unexpected status 500\"}],\"plugins\":[{\"store_id\":\"official/store-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"store-rec\",\"name\":\"Store \\u0026lt;Rec\\u0026gt;\",\"description\":\"Records \\u0026amp; replays\",\"author\":\"a\",\"version\":\"1.0.0\",\"repository\":\"\",\"install_type\":\"direct\",\"auth_required\":false,\"auth_configured\":false,\"platforms\":[{\"goos\":\"linux\",\"goarch\":\"amd64\"},{\"goos\":\"darwin\",\"goarch\":\"arm64\"}],\"homepage\":\"https://h.example\",\"license\":\"MIT\",\"tags\":[\"x\",\"\\u0026lt;y\\u0026gt;\"],\"installed\":true,\"installed_version\":\"1.0.0\",\"installed_source_id\":\"official\",\"install_source_status\":\"matched\",\"path\":\"PLUGINDIR/linux/amd64/store-rec-v1.0.0.so\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"update_available\":false},{\"store_id\":\"official/gh-rec\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-rec\",\"name\":\"GH\",\"description\":\"d\",\"author\":\"a\",\"version\":\"1.3.0\",\"repository\":\"https://github.com/o/gh-rec\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"logo\":\"https://l.example/x.png\",\"installed\":true,\"installed_version\":\"1.2.0\",\"installed_source_id\":\"official\",\"install_source_status\":\"matched\",\"path\":\"PLUGINDIR/linux/amd64/gh-rec-v1.2.0.so\",\"configured\":true,\"registered\":false,\"enabled\":true,\"effective_enabled\":false,\"update_available\":true},{\"store_id\":\"official/recorder-a\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"recorder-a\",\"name\":\"A\",\"description\":\"d\",\"author\":\"a\",\"version\":\"1.1.0\",\"repository\":\"https://github.com/o/recorder-a\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":true,\"installed_version\":\"1.0.0\",\"install_source_status\":\"assumed\",\"path\":\"PLUGINDIR/recorder-a.so\",\"configured\":true,\"registered\":true,\"enabled\":true,\"effective_enabled\":true,\"update_available\":true},{\"store_id\":\"official/gh-limited\",\"source_id\":\"official\",\"source_name\":\"Official\",\"source_url\":\"https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json\",\"id\":\"gh-limited\",\"name\":\"L\",\"description\":\"d\",\"author\":\"a\",\"version\":\"\",\"repository\":\"https://github.com/o/gh-limited\",\"install_type\":\"github-release\",\"auth_required\":false,\"auth_configured\":false,\"installed\":false,\"installed_version\":\"\",\"path\":\"\",\"configured\":false,\"registered\":false,\"enabled\":false,\"effective_enabled\":false,\"update_available\":false}]}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_routes",
+      "args": {
+        "https://api.github.com/repos/o/gh-limited/releases/latest": {
+          "status": 403,
+          "headers": {
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": "4102444800"
+          },
+          "body": "{\"message\":\"API rate limit exceeded\"}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.3.0\",\"assets\":[]}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/tags/1.2.0": {
+          "status": 404,
+          "body": "{\"message\":\"Not Found\"}"
+        },
+        "https://api.github.com/repos/o/gh-rec/releases/tags/v1.2.0": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.2.0\",\"assets\":[{\"name\":\"gh-rec_1.2.0_linux_amd64.zip\",\"browser_download_url\":\"https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip\"},{\"name\":\"checksums.txt\",\"browser_download_url\":\"https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt\"}]}"
+        },
+        "https://api.github.com/repos/o/recorder-a/releases/latest": {
+          "status": 200,
+          "body": "{\"tag_name\":\"v1.1.0\",\"assets\":[]}"
+        },
+        "https://dl.example/store-rec.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "store-rec-v1.0.0.so",
+              "plugin": "recorder"
+            },
+            {
+              "name": "README.md",
+              "data": "hi"
+            }
+          ]
+        },
+        "https://github.com/o/gh-rec/releases/download/v1.2.0/checksums.txt": {
+          "status": 200,
+          "body": "ZIPSHA(https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip)  gh-rec_1.2.0_linux_amd64.zip\n"
+        },
+        "https://github.com/o/gh-rec/releases/download/v1.2.0/gh-rec_1.2.0_linux_amd64.zip": {
+          "status": 200,
+          "zip": [
+            {
+              "name": "gh-rec.so",
+              "plugin": "recorder"
+            }
+          ]
+        },
+        "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json": {
+          "status": 404
+        },
+        "https://third.example/registry.json": {
+          "status": 500,
+          "body": "down"
+        }
+      },
+      "result": null
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v0/management/plugin-store"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_store_registry_failed\",\"message\":\"unexpected status 404: \"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store/store-rec/install"
+      },
+      "result": {
+        "status": 502,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_store_registry_failed\",\"message\":\"unexpected status 404: \"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "store_requests",
+      "result": [
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        },
+        {
+          "headers": {
+            "Accept": [
+              "application/json"
+            ],
+            "Authorization": [
+              "Bearer store-token"
+            ],
+            "User-Agent": [
+              "CLIProxyAPI"
+            ]
+          },
+          "url": "https://third.example/registry.json"
+        }
+      ]
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "DELETE",
+        "path": "/v8/management/plugins/store"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"plugin_not_found\",\"message\":\"plugin not found\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/store/quota"
+      },
+      "result": {
+        "status": 400,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"error\":\"auth_index is required\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "POST",
+        "path": "/v8/management/plugins/store"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "GET",
+        "path": "/v8/management/plugins/store/store-rec/install"
+      },
+      "result": {
+        "status": 404,
+        "content_type": "",
+        "body": "",
+        "version_headers": false
+      }
+    },
+    {
+      "op": "http",
+      "args": {
+        "method": "PATCH",
+        "path": "/v0/management/plugins/recorder-b/config",
+        "body": "{\"label\":\"b2\"} trailing"
+      },
+      "result": {
+        "status": 200,
+        "content_type": "application/json; charset=utf-8",
+        "body": "{\"status\":\"ok\"}",
+        "version_headers": true
+      }
+    },
+    {
+      "op": "settle",
+      "result": null
+    },
+    {
+      "op": "plugins",
+      "result": {
+        "configs": {
+          "gh-rec": {
+            "enabled": true,
+            "store": {
+              "author": "a",
+              "description": "d",
+              "id": "gh-rec",
+              "install": {
+                "type": "github-release"
+              },
+              "logo": "https://l.example/x.png",
+              "name": "GH",
+              "release-tag": "v1.2.0",
+              "repository": "https://github.com/o/gh-rec",
+              "source-id": "official",
+              "source-name": "Official",
+              "source-url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json",
+              "version": "1.2.0"
+            }
+          },
+          "new-one": {
+            "p": 1e+300,
+            "priority": -2
+          },
+          "recorder-a": {
+            "caps": "management_api,quota_provider,auth_provider",
+            "enabled": true,
+            "extra": "x",
+            "label": "a",
+            "priority": 7,
+            "record": "RECORDDIR"
+          },
+          "recorder-b": {
+            "caps": "management_api",
+            "enabled": false,
+            "label": "b2",
+            "record": "RECORDDIR"
+          },
+          "recorder-d": {
+            "enabled": false,
+            "store": {
+              "release-tag": "1.0.0",
+              "version": "1_bad"
+            }
+          },
+          "store-rec": {
+            "enabled": true,
+            "store": {
+              "author": "a",
+              "description": "Records \u0026 replays",
+              "homepage": "https://h.example",
+              "id": "store-rec",
+              "install": {
+                "artifacts": [
+                  {
+                    "goarch": "amd64",
+                    "goos": "linux",
+                    "sha256": "ZIPSHA(https://dl.example/store-rec.zip)",
+                    "url": "https://dl.example/store-rec.zip"
+                  },
+                  {
+                    "goarch": "arm64",
+                    "goos": "darwin",
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "url": "https://dl.example/mac.zip"
+                  }
+                ],
+                "type": "direct"
+              },
+              "license": "MIT",
+              "name": "Store \u003cRec\u003e",
+              "schema-version": 2,
+              "source-id": "official",
+              "source-name": "Official",
+              "source-url": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI-Plugins-Store/main/registry.json",
+              "tags": [
+                "x",
+                "\u003cy\u003e"
+              ],
+              "version": "1.0.0"
+            }
+          }
+        },
+        "dir": "PLUGINDIR",
+        "enabled": true,
+        "store-auth": [
+          {
+            "match": "https://third.example/",
+            "token-env": "CPA_STORE_ROUTES_TOKEN",
+            "type": "bearer"
+          }
+        ],
+        "store-sources": [
+          "https://third.example/registry.json"
+        ]
       }
     }
   ]

@@ -50,6 +50,16 @@ impl Cache {
         }
     }
 
+    /// The credentials bound to live keys that satisfy `matches`, without refreshing
+    /// (Go `Get` over each candidate key, for `LookupAffinity`).
+    pub fn bound(&self, now: Instant, matches: impl Fn(&Key) -> bool) -> Vec<String> {
+        self.entries
+            .keys()
+            .filter(|key| matches(key))
+            .filter_map(|key| self.live(key, now).map(|(_, group)| group.auth.clone()))
+            .collect()
+    }
+
     /// Go `GetAndRefresh`: the bound credential, extending its group.
     pub fn get_and_refresh(&mut self, key: &Key, now: Instant, ttl: Duration) -> Option<String> {
         let id = *self.entries.get(key)?;

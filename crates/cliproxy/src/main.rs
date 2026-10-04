@@ -1,6 +1,7 @@
 mod discovery;
 mod dotenv;
 mod home;
+mod plugin_cli;
 
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -9,7 +10,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Context;
-use clap::{ArgAction, CommandFactory, Parser};
+use clap::{ArgAction, CommandFactory, FromArgMatches, Parser};
 use cpa_core::config::Config;
 use cpa_exec::Executors;
 use cpa_exec::claude::{ClaudeExecutor, DEFAULT_BASE_URL};
@@ -146,8 +147,13 @@ struct DiscoverArgs {
 /// which token is a value (a non-boolean flag takes the next token even when it starts
 /// with `-`), booleans accept `=value`, a repeated scalar keeps its last value, and
 /// parsing stops at the first operand or `--`; Go ignores everything after that.
-/// Unknown or malformed flags are passed on for clap to report.
-fn go_flags(cmd: &clap::Command, args: impl IntoIterator<Item = String>) -> Vec<String> {
+/// Unknown or malformed flags are passed on for clap to report. Plugin flags are set
+/// on `plugins` as they are parsed; a value they reject is Go's parse error.
+fn go_flags(
+    cmd: &clap::Command,
+    args: impl IntoIterator<Item = String>,
+    plugins: &dyn plugin_cli::PluginFlags,
+) -> Result<Vec<String>, String> {
     let mut args = args.into_iter();
     let mut out: Vec<String> = args.next().into_iter().collect();
     let args: Vec<String> = args.collect();
@@ -167,6 +173,37 @@ fn go_flags(cmd: &clap::Command, args: impl IntoIterator<Item = String>) -> Vec<
             Some((n, v)) => (n, Some(v)),
             None => (bare, None),
         };
+        // Go's FlagSet holds the plugin flags beside the built-in ones (names never
+        // clash: registration skips taken names).
+        if let Some(is_bool) = plugins
+            .lookup(name)
+            .filter(|_| !name.is_empty() && !name.starts_with(['-', '=']))
+        {
+            let quote = cpa_common::gostr::quote;
+            if is_bool {
+                match value {
+                    None => plugins
+                        .set(name, "true")
+                        .map_err(|e| format!("invalid boolean flag {name}: {e}"))?,
+                    Some(v) => plugins
+                        .set(name, v)
+                        .map_err(|e| format!("invalid boolean value {} for -{name}: {e}", quote(v)))?,
+                }
+                continue;
+            }
+            let value = match value {
+                Some(v) => v.to_owned(),
+                None if i < args.len() => {
+                    i += 1;
+                    args[i - 1].clone()
+                }
+                None => return Err(format!("flag needs an argument: -{name}")),
+            };
+            plugins
+                .set(name, &value)
+                .map_err(|e| format!("invalid value {} for flag -{name}: {e}", quote(&value)))?;
+            continue;
+        }
         let known = cmd.get_arguments().find(|a| a.get_long() == Some(name));
         let Some(flag) = known.filter(|_| !name.is_empty() && !name.starts_with(['-', '='])) else {
             tail = Some(if matches!(name, "h" | "help") {
@@ -208,7 +245,7 @@ fn go_flags(cmd: &clap::Command, args: impl IntoIterator<Item = String>) -> Vec<
     out.extend(scalars.into_iter().map(|(n, v)| format!("--{n}={v}")));
     out.extend(appended);
     out.extend(tail);
-    out
+    Ok(out)
 }
 
 fn upsert<T>(list: &mut Vec<(String, T)>, name: &str, value: T) {
@@ -444,11 +481,20 @@ fn listen(domain: Domain, addr: SocketAddr, dual_stack: bool) -> io::Result<std:
     Ok(socket.into())
 }
 
+/// Go `flag.ExitOnError` after a parse error: the message, the usage, exit 2.
+fn flag_error(cmd: &mut clap::Command, message: &str) -> ! {
+    eprintln!("{message}");
+    eprint!("{}", cmd.render_help());
+    std::process::exit(2);
+}
+
 fn main() -> anyhow::Result<()> {
     cpa_server::logging::init();
     let raw: Vec<String> = std::env::args().collect();
     if raw.get(1).map(String::as_str) == Some("discover") {
-        let args = DiscoverArgs::parse_from(go_flags(&DiscoverArgs::command(), raw.into_iter().skip(1)));
+        let flags = go_flags(&DiscoverArgs::command(), raw.into_iter().skip(1), &())
+            .unwrap_or_else(|e| flag_error(&mut DiscoverArgs::command(), &e));
+        let args = DiscoverArgs::parse_from(flags);
         if !args.json {
             eprintln!("{}", banner());
         }
@@ -459,7 +505,33 @@ fn main() -> anyhow::Result<()> {
     if !argv_enables_bool_flag(&raw[1..], "discover-json") {
         println!("{}", banner());
     }
-    let args = Args::parse_from(go_flags(&Args::command(), raw));
+    // Go `isDiscoverMode`: discovery neither loads plugins nor reads .env.
+    let discover_mode =
+        argv_enables_bool_flag(&raw[1..], "discover-json") || argv_enables_bool_flag(&raw[1..], "discover");
+    // Before the runtime starts: setting variables is only sound single-threaded.
+    // ponytail: Go reads .env after the flag parse, so plugins loaded for their flags do
+    // not see it; here it is read before they load (they do).
+    if !discover_mode {
+        dotenv::load_from_working_dir();
+    }
+    let runtime = runtime()?;
+    // Go: plugins from the bootstrap config register their flags before the parse.
+    let builtin_cmd = Args::command();
+    let plugins = (!discover_mode).then(|| {
+        let builtin = |name: &str| builtin_cmd.get_arguments().any(|a| a.get_long() == Some(name));
+        runtime.block_on(plugin_cli::bootstrap(&raw[1..], &builtin))
+    });
+    let mut cmd = match &plugins {
+        Some((_, flags)) => plugin_cli::with_flags(Args::command(), flags),
+        None => Args::command(),
+    };
+    let flags = match &plugins {
+        Some((host, _)) => go_flags(&cmd, raw, host),
+        None => go_flags(&cmd, raw, &()),
+    }
+    .unwrap_or_else(|e| flag_error(&mut cmd, &e));
+    let matches = cmd.clone().get_matches_from(flags);
+    let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
     if args.discover || args.discover_json {
         let cli = (csv_flags(&args.discover_include), csv_flags(&args.discover_exclude));
         let opts = discover_options(
@@ -469,14 +541,14 @@ fn main() -> anyhow::Result<()> {
             &args.config,
             cli,
         );
-        std::process::exit(runtime()?.block_on(discovery::cli::discover(&opts)));
+        std::process::exit(runtime.block_on(discovery::cli::discover(&opts)));
     }
-    // Before the runtime starts: setting variables is only sound single-threaded.
-    dotenv::load_from_working_dir();
-    runtime()?.block_on(run(args))
+    let builtin = plugin_cli::builtin_values(&cmd, &matches);
+    let host = plugins.map(|(host, _)| host).unwrap_or_default();
+    runtime.block_on(run(args, host, builtin))
 }
 
-async fn run(args: Args) -> anyhow::Result<()> {
+async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String)>) -> anyhow::Result<()> {
     let wd = std::env::current_dir()?;
     let home_jwt = [
         args.home_jwt.clone(),
@@ -534,6 +606,17 @@ async fn run(args: Args) -> anyhow::Result<()> {
     cpa_server::logging::configure(&config);
     tracing::info!("{}", banner());
     let before = store.as_ref().map(|store| auth_files(&store.auth_dir));
+    // Go: the loaded config reaches the plugins, and a plugin flag hands the run to the
+    // plugins that own it.
+    if let Some(code) = plugin_cli::execute(&plugins, &config, &config_path, &builtin).await {
+        if let (Some(store), Some(before)) = (&store, &before) {
+            persist_login(store, before).await;
+        }
+        if code != 0 {
+            std::process::exit(code);
+        }
+        return Ok(());
+    }
     let ran = command(&args, &config).await;
     if !matches!(ran, Ok(false)) {
         if let (Some(store), Some(before)) = (&store, &before) {
@@ -552,7 +635,16 @@ async fn run(args: Args) -> anyhow::Result<()> {
         eprintln!("TUI error: the terminal UI is not available in this build yet");
         return Ok(());
     }
-    serve(config, config_path, args.password, args.local_model, store, home_config).await
+    serve(
+        config,
+        config_path,
+        args.password,
+        args.local_model,
+        store,
+        home_config,
+        plugins,
+    )
+    .await
 }
 
 /// The top-level `*.json` files of the auth directory.
@@ -669,6 +761,7 @@ async fn serve(
     local_model: bool,
     store: Option<cpa_store::Store>,
     home_config: Option<cpa_home::HomeConfig>,
+    plugins: cpa_plugin::Host,
 ) -> anyhow::Result<()> {
     if config.api_keys.is_empty() && home_config.is_none() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
@@ -693,7 +786,7 @@ async fn serve(
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(Runtime::new(config, credentials, executors));
+    let rt = Arc::new(Runtime::new(config, credentials, executors).with_plugin_host(plugins));
     rt.set_local_model(local_model);
     if let Some(cooldown) = store.as_ref().and_then(|store| store.cooldown.clone()) {
         rt.set_cooldown_backend(cooldown);
@@ -817,7 +910,9 @@ mod tests {
             go_flags(
                 &Args::command(),
                 std::iter::once("cliproxy").chain(a.iter().copied()).map(String::from),
+                &(),
             )
+            .unwrap()
         };
         let args = Args::try_parse_from(argv(&[
             "-discover",
@@ -856,10 +951,14 @@ mod tests {
         assert_eq!(csv_flags(&args.discover_include), ["eth0", "en0", "wl*"]);
         assert_eq!(args.management_base_url, "https://x");
         let sub = |a: &[&str]| {
-            DiscoverArgs::try_parse_from(go_flags(
-                &DiscoverArgs::command(),
-                std::iter::once("discover").chain(a.iter().copied()).map(String::from),
-            ))
+            DiscoverArgs::try_parse_from(
+                go_flags(
+                    &DiscoverArgs::command(),
+                    std::iter::once("discover").chain(a.iter().copied()).map(String::from),
+                    &(),
+                )
+                .unwrap(),
+            )
         };
         let parsed = sub(&[
             "-timeout", "5", "-json", "-include", "a,b", "-include", "a", "-config", "x.yaml",

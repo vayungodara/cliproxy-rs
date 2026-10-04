@@ -95,6 +95,91 @@ const hostCalls = `{"calls":[
  {"method":"host.log","request":"not an object"}
 ]}`
 
+// host.http.* against the raw upstream; UPSTREAM is its host:port.
+const hostHTTPCalls = `{"calls":[
+ {"method":"host.http.do","request":{"method":"POST","url":"http://UPSTREAM/echo?q=1","headers":{"X-B":["1","2"],"x-lower":["l"],"Host":["ignored.invalid"]},"body":"aGk="}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo"}},
+ {"method":"host.http.do","request":{"method":"PUT","url":"http://UPSTREAM/echo","wire_profile":{"disable_auto_compression":true}}},
+ {"method":"host.http.do","request":{"wire_profile":{"http1_only":true},"request":{"method":"PATCH","url":"http://UPSTREAM/echo","headers":{"Accept-Encoding":["identity"]},"body":"e30="}}},
+ {"method":"host.http.do","request":{"method":"POST","url":"http://UPSTREAM/echo","headers":{"X-B":["1"],"Zeta":["z"]},"body":"aGk=","wire_profile":{"header_profile":["zeta","Host","content-length","Nope"]}}},
+ {"method":"host.http.do","request":{"method":"GET","url":"http://UPSTREAM/status"}},
+ {"method":"host.http.do","request":{"method":"BAD METHOD","url":"http://UPSTREAM/echo"}},
+ {"method":"host.http.do_stream","request":{"url":"http://UPSTREAM/stream"}},
+ {"method":"host.http.stream_read","request":{"stream_id":"1"}},
+ {"method":"host.http.stream_read","request":{"stream_id":"1"}},
+ {"method":"host.http.stream_read","request":{"stream_id":"1"}},
+ {"method":"host.http.stream_read","request":{"stream_id":"1"}},
+ {"method":"host.http.stream_read","request":{"stream_id":"1"}},
+ {"method":"host.http.stream_read","request":{}},
+ {"method":"host.http.do_stream","request":{"url":"http://UPSTREAM/stream"}},
+ {"method":"host.http.stream_close","request":{"stream_id":"2"}},
+ {"method":"host.http.stream_read","request":{"stream_id":"2"}},
+ {"method":"host.http.operation_open","request":{}},
+ {"method":"host.http.cancel","request":{"operation_id":"10"}},
+ {"method":"host.http.do","request":{"operation_id":"10","url":"http://UPSTREAM/echo"}},
+ {"method":"host.http.operation_open","request":{}},
+ {"method":"host.http.do","request":{"operation_id":"11","url":"http://UPSTREAM/echo"}},
+ {"method":"host.http.do","request":{"operation_id":"11","url":"http://UPSTREAM/echo"}},
+ {"method":"host.http.cancel","request":{}},
+ {"method":"host.http.do","request":{"host_callback_id":"999","url":"http://UPSTREAM/echo"}},
+ {"method":"host.http.operation_open","request":{"host_callback_id":"999"}},
+ {"method":"host.http.do","request":{"url":"/relative"}},
+ {"method":"host.http.do","request":{"url":"http:///nohost"}},
+ {"method":"host.http.do","request":{"url":"ftp://UPSTREAM/x"}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/%zz"}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo","headers":{"Bad Name":["x"]}}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo","headers":{"X-Bad":["a\r\nb"]}}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/truncated"}},
+ {"method":"host.http.do","request":{"method":"POST","url":"http://u:secret@UPSTREAM/hangup"}},
+ {"method":"host.http.do","request":{"url":"http://127.0.0.1:1/refused"}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/http10"}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/trailer"}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo","wire_profile":{"header_profile":["connection","host"]}}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo","body":"aGk"}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo","body":"a=Gk="}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo","body":"aGk=\nx"}},
+ {"method":"host.http.stream_read","request":{"stream_id":" "}},
+ {"method":"host.http.stream_close","request":{"stream_id":7}},
+ {"method":"host.http.do_stream","request":{"url":"http://UPSTREAM/truncated"}},
+ {"method":"host.http.stream_read","request":{"stream_id":"3"}},
+ {"method":"host.http.stream_read","request":{"stream_id":"3"}},
+ {"method":"host.http.do","request":{"url":"//u:secret@example.invalid/p"}},
+ {"method":"host.http.do","request":{"method":"PUT","url":"http://UPSTREAM/redirect"}}
+]}`
+
+// host.http.* with an unusable proxy-url: a wire-profile request is refused, the
+// ordinary client falls back to the default transport.
+const hostHTTPProxyCalls = `{"calls":[
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo","wire_profile":{"http1_only":true}}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/echo","wire_profile":{"disable_auto_compression":true}}},
+ {"method":"host.http.do","request":{"url":"http://UPSTREAM/status"}}
+]}`
+
+const proxyConfig = `requests:
+  proxy-url: ftp://user:pw@proxy.invalid:1
+plugins:
+  enabled: true
+  dir: PLUGINDIR
+  configs:
+    recorder-a:
+      enabled: true
+      record: RECORDDIR
+      label: a
+      caps: management_api
+`
+
+// proxyScenarios runs host.http.* under proxyConfig.
+func proxyScenarios(r *runner) {
+	r.clear()
+	r.files(map[string]string{"recorder-a.so": "recorder"})
+	r.apply(proxyConfig)
+	r.registerManagement()
+	r.serve("management", httpArgs{Method: "POST", Target: "/v0/management/rec/a/calls", Body: hostHTTPProxyCalls})
+	r.records()
+	r.shutdown()
+	r.records()
+}
+
 func scenarios(r *runner) {
 	r.files(map[string]string{
 		"simple.so":            "simple",
@@ -114,6 +199,7 @@ func scenarios(r *runner) {
 	r.records()
 	r.serve("management", httpArgs{Method: "GET", Target: "/v0/management/rec/a?x=1&x=2&y=%3C", Headers: map[string][]string{"X-Test": {"1", "2"}}})
 	r.serve("management", httpArgs{Method: "POST", Target: "/v0/management/rec/a/calls", Body: hostCalls})
+	r.serve("management", httpArgs{Method: "POST", Target: "/v0/management/rec/a/calls", Body: hostHTTPCalls})
 	r.serve("management", httpArgs{Method: "GET", Target: "/v0/management/rec/b"})
 	r.serve("management", httpArgs{Method: "POST", Target: "/v0/management/rec/b/calls", Body: `{}`})
 	r.serve("management", httpArgs{Method: "GET", Target: "/v0/management/rec/a/calls"})

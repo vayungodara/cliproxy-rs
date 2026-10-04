@@ -492,6 +492,27 @@
     {
       "op": "management",
       "args": {
+        "method": "POST",
+        "target": "/v0/management/rec/a/calls",
+        "body": "{\"calls\":[\n {\"method\":\"host.http.do\",\"request\":{\"method\":\"POST\",\"url\":\"http://UPSTREAM/echo?q=1\",\"headers\":{\"X-B\":[\"1\",\"2\"],\"x-lower\":[\"l\"],\"Host\":[\"ignored.invalid\"]},\"body\":\"aGk=\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\"}},\n {\"method\":\"host.http.do\",\"request\":{\"method\":\"PUT\",\"url\":\"http://UPSTREAM/echo\",\"wire_profile\":{\"disable_auto_compression\":true}}},\n {\"method\":\"host.http.do\",\"request\":{\"wire_profile\":{\"http1_only\":true},\"request\":{\"method\":\"PATCH\",\"url\":\"http://UPSTREAM/echo\",\"headers\":{\"Accept-Encoding\":[\"identity\"]},\"body\":\"e30=\"}}},\n {\"method\":\"host.http.do\",\"request\":{\"method\":\"POST\",\"url\":\"http://UPSTREAM/echo\",\"headers\":{\"X-B\":[\"1\"],\"Zeta\":[\"z\"]},\"body\":\"aGk=\",\"wire_profile\":{\"header_profile\":[\"zeta\",\"Host\",\"content-length\",\"Nope\"]}}},\n {\"method\":\"host.http.do\",\"request\":{\"method\":\"GET\",\"url\":\"http://UPSTREAM/status\"}},\n {\"method\":\"host.http.do\",\"request\":{\"method\":\"BAD METHOD\",\"url\":\"http://UPSTREAM/echo\"}},\n {\"method\":\"host.http.do_stream\",\"request\":{\"url\":\"http://UPSTREAM/stream\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\"1\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\"1\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\"1\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\"1\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\"1\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{}},\n {\"method\":\"host.http.do_stream\",\"request\":{\"url\":\"http://UPSTREAM/stream\"}},\n {\"method\":\"host.http.stream_close\",\"request\":{\"stream_id\":\"2\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\"2\"}},\n {\"method\":\"host.http.operation_open\",\"request\":{}},\n {\"method\":\"host.http.cancel\",\"request\":{\"operation_id\":\"10\"}},\n {\"method\":\"host.http.do\",\"request\":{\"operation_id\":\"10\",\"url\":\"http://UPSTREAM/echo\"}},\n {\"method\":\"host.http.operation_open\",\"request\":{}},\n {\"method\":\"host.http.do\",\"request\":{\"operation_id\":\"11\",\"url\":\"http://UPSTREAM/echo\"}},\n {\"method\":\"host.http.do\",\"request\":{\"operation_id\":\"11\",\"url\":\"http://UPSTREAM/echo\"}},\n {\"method\":\"host.http.cancel\",\"request\":{}},\n {\"method\":\"host.http.do\",\"request\":{\"host_callback_id\":\"999\",\"url\":\"http://UPSTREAM/echo\"}},\n {\"method\":\"host.http.operation_open\",\"request\":{\"host_callback_id\":\"999\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"/relative\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http:///nohost\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"ftp://UPSTREAM/x\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/%zz\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\",\"headers\":{\"Bad Name\":[\"x\"]}}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\",\"headers\":{\"X-Bad\":[\"a\\r\\nb\"]}}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/truncated\"}},\n {\"method\":\"host.http.do\",\"request\":{\"method\":\"POST\",\"url\":\"http://u:secret@UPSTREAM/hangup\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://127.0.0.1:1/refused\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/http10\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/trailer\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\",\"wire_profile\":{\"header_profile\":[\"connection\",\"host\"]}}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\",\"body\":\"aGk\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\",\"body\":\"a=Gk=\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\",\"body\":\"aGk=\\nx\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\" \"}},\n {\"method\":\"host.http.stream_close\",\"request\":{\"stream_id\":7}},\n {\"method\":\"host.http.do_stream\",\"request\":{\"url\":\"http://UPSTREAM/truncated\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\"3\"}},\n {\"method\":\"host.http.stream_read\",\"request\":{\"stream_id\":\"3\"}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"//u:secret@example.invalid/p\"}},\n {\"method\":\"host.http.do\",\"request\":{\"method\":\"PUT\",\"url\":\"http://UPSTREAM/redirect\"}}\n]}"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"POST\",\"path\":\"/v0/management/rec/a/calls\",\"query\":null,\"results\":[\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"147\\\"],\\\"Content-Type\\\":[\\\"text/plain\\\"],\\\"X-Multi\\\":[\\\"a\\\",\\\"b\\\"]},\\\"Body\\\":\\\"UE9TVCAvZWNobz9xPTEgSFRUUC8xLjENCkhvc3Q6IFVQU1RSRUFNDQpVc2VyLUFnZW50OiBHby1odHRwLWNsaWVudC8xLjENCkNvbnRlbnQtTGVuZ3RoOiAyDQpYLUI6IDENClgtQjogMg0KeC1sb3dlcjogbA0KQWNjZXB0LUVuY29kaW5nOiBnemlwDQoNCmhp\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"93\\\"],\\\"Content-Type\\\":[\\\"text/plain\\\"],\\\"X-Multi\\\":[\\\"a\\\",\\\"b\\\"]},\\\"Body\\\":\\\"R0VUIC9lY2hvIEhUVFAvMS4xDQpIb3N0OiBVUFNUUkVBTQ0KVXNlci1BZ2VudDogR28taHR0cC1jbGllbnQvMS4xDQpBY2NlcHQtRW5jb2Rpbmc6IGd6aXANCg0K\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"108\\\"],\\\"Content-Type\\\":[\\\"text/plain\\\"],\\\"X-Multi\\\":[\\\"a\\\",\\\"b\\\"]},\\\"Body\\\":\\\"UFVUIC9lY2hvIEhUVFAvMS4xDQpIb3N0OiBVUFNUUkVBTQ0KVXNlci1BZ2VudDogR28taHR0cC1jbGllbnQvMS4xDQpDb250ZW50LUxlbmd0aDogMA0KQ29ubmVjdGlvbjogY2xvc2UNCg0K\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"139\\\"],\\\"Content-Type\\\":[\\\"text/plain\\\"],\\\"X-Multi\\\":[\\\"a\\\",\\\"b\\\"]},\\\"Body\\\":\\\"UEFUQ0ggL2VjaG8gSFRUUC8xLjENCkhvc3Q6IFVQU1RSRUFNDQpVc2VyLUFnZW50OiBHby1odHRwLWNsaWVudC8xLjENCkNvbnRlbnQtTGVuZ3RoOiAyDQpBY2NlcHQtRW5jb2Rpbmc6IGlkZW50aXR5DQpDb25uZWN0aW9uOiBjbG9zZQ0KDQp7fQ==\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"151\\\"],\\\"Content-Type\\\":[\\\"text/plain\\\"],\\\"X-Multi\\\":[\\\"a\\\",\\\"b\\\"]},\\\"Body\\\":\\\"UE9TVCAvZWNobyBIVFRQLzEuMQ0KemV0YTogeg0KSG9zdDogVVBTVFJFQU0NCmNvbnRlbnQtbGVuZ3RoOiAyDQpVc2VyLUFnZW50OiBHby1odHRwLWNsaWVudC8xLjENClgtQjogMQ0KQWNjZXB0LUVuY29kaW5nOiBnemlwDQpDb25uZWN0aW9uOiBjbG9zZQ0KDQpoaQ==\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":404,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"0\\\"]},\\\"Body\\\":\\\"\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"create host http request: net/http: invalid method \\\\\\\"BAD METHOD\\\\\\\"\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"status_code\\\":200,\\\"headers\\\":{\\\"Content-Type\\\":[\\\"text/event-stream\\\"]},\\\"stream_id\\\":\\\"1\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"payload\\\":\\\"b25l\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"payload\\\":\\\"dHdv\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"payload\\\":\\\"dGhyZWU=\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"done\\\":true}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"http stream 1 is not open\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"http stream id is required\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"status_code\\\":200,\\\"headers\\\":{\\\"Content-Type\\\":[\\\"text/event-stream\\\"]},\\\"stream_id\\\":\\\"2\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"http stream 2 is not open\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"operation_id\\\":\\\"10\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"host http operation \\\\\\\"10\\\\\\\" is not open\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"operation_id\\\":\\\"11\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"93\\\"],\\\"Content-Type\\\":[\\\"text/plain\\\"],\\\"X-Multi\\\":[\\\"a\\\",\\\"b\\\"]},\\\"Body\\\":\\\"R0VUIC9lY2hvIEhUVFAvMS4xDQpIb3N0OiBVUFNUUkVBTQ0KVXNlci1BZ2VudDogR28taHR0cC1jbGllbnQvMS4xDQpBY2NlcHQtRW5jb2Rpbmc6IGd6aXANCg0K\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"host http operation \\\\\\\"11\\\\\\\" is not open\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"host http operation id is required\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"host callback ID is not open\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"host callback ID is not open\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Get \\\\\\\"/relative\\\\\\\": unsupported protocol scheme \\\\\\\"\\\\\\\"\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Get \\\\\\\"http:///nohost\\\\\\\": http: no Host in request URL\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Get \\\\\\\"ftp://UPSTREAM/x\\\\\\\": unsupported protocol scheme \\\\\\\"ftp\\\\\\\"\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"create host http request: parse \\\\\\\"http://UPSTREAM/%zz\\\\\\\": invalid URL escape \\\\\\\"%zz\\\\\\\"\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Get \\\\\\\"http://UPSTREAM/echo\\\\\\\": net/http: invalid header field name \\\\\\\"Bad Name\\\\\\\"\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Get \\\\\\\"http://UPSTREAM/echo\\\\\\\": net/http: invalid header field value for \\\\\\\"X-Bad\\\\\\\"\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"read host http response: unexpected EOF\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Post \\\\\\\"http://u:***@UPSTREAM/hangup\\\\\\\": EOF\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Get \\\\\\\"http://127.0.0.1:1/refused\\\\\\\": dial tcp 127.0.0.1:1: connect: connection refused\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":{\\\"Connection\\\":[\\\"close\\\"],\\\"Content-Length\\\":[\\\"2\\\"],\\\"Trailer\\\":[\\\"X-T\\\"]},\\\"Body\\\":\\\"b2s=\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":null,\\\"Body\\\":\\\"b2s=\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":200,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"112\\\"],\\\"Content-Type\\\":[\\\"text/plain\\\"],\\\"X-Multi\\\":[\\\"a\\\",\\\"b\\\"]},\\\"Body\\\":\\\"R0VUIC9lY2hvIEhUVFAvMS4xDQpjb25uZWN0aW9uOiBjbG9zZQ0KaG9zdDogVVBTVFJFQU0NClVzZXItQWdlbnQ6IEdvLWh0dHAtY2xpZW50LzEuMQ0KQWNjZXB0LUVuY29kaW5nOiBnemlwDQoNCg==\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"decode host http request: illegal base64 data at input byte 0\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"decode host http request: illegal base64 data at input byte 1\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"decode host http request: illegal base64 data at input byte 5\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"http stream   is not open\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"decode host http stream close request: json: cannot unmarshal number into Go struct field rpcHostHTTPStreamCloseRequest.stream_id of type string\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"status_code\\\":200,\\\"headers\\\":{\\\"Content-Length\\\":[\\\"10\\\"]},\\\"stream_id\\\":\\\"3\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"payload\\\":\\\"YWJj\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"error\\\":\\\"unexpected EOF\\\",\\\"done\\\":true}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Get \\\\\\\"//u:***@example.invalid/p\\\\\\\": unsupported protocol scheme \\\\\\\"\\\\\\\"\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"execute host http request: Put \\\\\\\"http://127.0.0.1:1/after\\\\\\\": dial tcp 127.0.0.1:1: connect: connection refused\\\"}}\"]}"
+      }
+    },
+    {
+      "op": "management",
+      "args": {
         "method": "GET",
         "target": "/v0/management/rec/b"
       },
@@ -647,17 +668,21 @@
           },
           {
             "method": "management.handle",
-            "request": "{\"Method\":\"GET\",\"Path\":\"/v0/resource/plugins/recorder-a/page\",\"Headers\":null,\"Query\":{\"q\":[\"1\"]},\"Body\":null,\"host_callback_id\":\"4\"}"
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/a/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"eyJjYWxscyI6WwogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7Im1ldGhvZCI6IlBPU1QiLCJ1cmwiOiJodHRwOi8vVVBTVFJFQU0vZWNobz9xPTEiLCJoZWFkZXJzIjp7IlgtQiI6WyIxIiwiMiJdLCJ4LWxvd2VyIjpbImwiXSwiSG9zdCI6WyJpZ25vcmVkLmludmFsaWQiXX0sImJvZHkiOiJhR2s9In19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7Im1ldGhvZCI6IlBVVCIsInVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIiwid2lyZV9wcm9maWxlIjp7ImRpc2FibGVfYXV0b19jb21wcmVzc2lvbiI6dHJ1ZX19fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJ3aXJlX3Byb2ZpbGUiOnsiaHR0cDFfb25seSI6dHJ1ZX0sInJlcXVlc3QiOnsibWV0aG9kIjoiUEFUQ0giLCJ1cmwiOiJodHRwOi8vVVBTVFJFQU0vZWNobyIsImhlYWRlcnMiOnsiQWNjZXB0LUVuY29kaW5nIjpbImlkZW50aXR5Il19LCJib2R5IjoiZTMwPSJ9fX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kbyIsInJlcXVlc3QiOnsibWV0aG9kIjoiUE9TVCIsInVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIiwiaGVhZGVycyI6eyJYLUIiOlsiMSJdLCJaZXRhIjpbInoiXX0sImJvZHkiOiJhR2s9Iiwid2lyZV9wcm9maWxlIjp7ImhlYWRlcl9wcm9maWxlIjpbInpldGEiLCJIb3N0IiwiY29udGVudC1sZW5ndGgiLCJOb3BlIl19fX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kbyIsInJlcXVlc3QiOnsibWV0aG9kIjoiR0VUIiwidXJsIjoiaHR0cDovL1VQU1RSRUFNL3N0YXR1cyJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJtZXRob2QiOiJCQUQgTUVUSE9EIiwidXJsIjoiaHR0cDovL1VQU1RSRUFNL2VjaG8ifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kb19zdHJlYW0iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS9zdHJlYW0ifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5zdHJlYW1fcmVhZCIsInJlcXVlc3QiOnsic3RyZWFtX2lkIjoiMSJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLnN0cmVhbV9yZWFkIiwicmVxdWVzdCI6eyJzdHJlYW1faWQiOiIxIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuc3RyZWFtX3JlYWQiLCJyZXF1ZXN0Ijp7InN0cmVhbV9pZCI6IjEifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5zdHJlYW1fcmVhZCIsInJlcXVlc3QiOnsic3RyZWFtX2lkIjoiMSJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLnN0cmVhbV9yZWFkIiwicmVxdWVzdCI6eyJzdHJlYW1faWQiOiIxIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuc3RyZWFtX3JlYWQiLCJyZXF1ZXN0Ijp7fX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kb19zdHJlYW0iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS9zdHJlYW0ifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5zdHJlYW1fY2xvc2UiLCJyZXF1ZXN0Ijp7InN0cmVhbV9pZCI6IjIifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5zdHJlYW1fcmVhZCIsInJlcXVlc3QiOnsic3RyZWFtX2lkIjoiMiJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLm9wZXJhdGlvbl9vcGVuIiwicmVxdWVzdCI6e319LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuY2FuY2VsIiwicmVxdWVzdCI6eyJvcGVyYXRpb25faWQiOiIxMCJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJvcGVyYXRpb25faWQiOiIxMCIsInVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAub3BlcmF0aW9uX29wZW4iLCJyZXF1ZXN0Ijp7fX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kbyIsInJlcXVlc3QiOnsib3BlcmF0aW9uX2lkIjoiMTEiLCJ1cmwiOiJodHRwOi8vVVBTVFJFQU0vZWNobyJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJvcGVyYXRpb25faWQiOiIxMSIsInVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuY2FuY2VsIiwicmVxdWVzdCI6e319LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7Imhvc3RfY2FsbGJhY2tfaWQiOiI5OTkiLCJ1cmwiOiJodHRwOi8vVVBTVFJFQU0vZWNobyJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLm9wZXJhdGlvbl9vcGVuIiwicmVxdWVzdCI6eyJob3N0X2NhbGxiYWNrX2lkIjoiOTk5In19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Ii9yZWxhdGl2ZSJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJ1cmwiOiJodHRwOi8vL25vaG9zdCJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJ1cmwiOiJmdHA6Ly9VUFNUUkVBTS94In19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS8lenoifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kbyIsInJlcXVlc3QiOnsidXJsIjoiaHR0cDovL1VQU1RSRUFNL2VjaG8iLCJoZWFkZXJzIjp7IkJhZCBOYW1lIjpbIngiXX19fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJ1cmwiOiJodHRwOi8vVVBTVFJFQU0vZWNobyIsImhlYWRlcnMiOnsiWC1CYWQiOlsiYVxyXG5iIl19fX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kbyIsInJlcXVlc3QiOnsidXJsIjoiaHR0cDovL1VQU1RSRUFNL3RydW5jYXRlZCJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJtZXRob2QiOiJQT1NUIiwidXJsIjoiaHR0cDovL3U6c2VjcmV0QFVQU1RSRUFNL2hhbmd1cCJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJ1cmwiOiJodHRwOi8vMTI3LjAuMC4xOjEvcmVmdXNlZCJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLmRvIiwicmVxdWVzdCI6eyJ1cmwiOiJodHRwOi8vVVBTVFJFQU0vaHR0cDEwIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS90cmFpbGVyIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIiwid2lyZV9wcm9maWxlIjp7ImhlYWRlcl9wcm9maWxlIjpbImNvbm5lY3Rpb24iLCJob3N0Il19fX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kbyIsInJlcXVlc3QiOnsidXJsIjoiaHR0cDovL1VQU1RSRUFNL2VjaG8iLCJib2R5IjoiYUdrIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIiwiYm9keSI6ImE9R2s9In19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIiwiYm9keSI6ImFHaz1cbngifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5zdHJlYW1fcmVhZCIsInJlcXVlc3QiOnsic3RyZWFtX2lkIjoiICJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLnN0cmVhbV9jbG9zZSIsInJlcXVlc3QiOnsic3RyZWFtX2lkIjo3fX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kb19zdHJlYW0iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS90cnVuY2F0ZWQifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5zdHJlYW1fcmVhZCIsInJlcXVlc3QiOnsic3RyZWFtX2lkIjoiMyJ9fSwKIHsibWV0aG9kIjoiaG9zdC5odHRwLnN0cmVhbV9yZWFkIiwicmVxdWVzdCI6eyJzdHJlYW1faWQiOiIzIn19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Ii8vdTpzZWNyZXRAZXhhbXBsZS5pbnZhbGlkL3AifX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kbyIsInJlcXVlc3QiOnsibWV0aG9kIjoiUFVUIiwidXJsIjoiaHR0cDovL1VQU1RSRUFNL3JlZGlyZWN0In19Cl19\",\"host_callback_id\":\"3\"}"
           },
           {
             "method": "management.handle",
-            "request": "{\"Method\":\"GET\",\"Path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"Headers\":null,\"Query\":null,\"Body\":null,\"host_callback_id\":\"5\"}"
+            "request": "{\"Method\":\"GET\",\"Path\":\"/v0/resource/plugins/recorder-a/page\",\"Headers\":null,\"Query\":{\"q\":[\"1\"]},\"Body\":null,\"host_callback_id\":\"5\"}"
+          },
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"GET\",\"Path\":\"/v0/resource/plugins/recorder-a/rec/a/menu\",\"Headers\":null,\"Query\":null,\"Body\":null,\"host_callback_id\":\"6\"}"
           }
         ],
         "b": [
           {
             "method": "management.handle",
-            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/b/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"e30=\",\"host_callback_id\":\"3\"}"
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/b/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"e30=\",\"host_callback_id\":\"4\"}"
           }
         ]
       }
@@ -1625,21 +1650,21 @@
         "a": [
           {
             "method": "request.intercept_before",
-            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-Drop\":[\"d\"],\"X-Keep\":[\"k\"]},\"Body\":\"e30=\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"7\"}"
-          },
-          {
-            "method": "request.intercept_after",
-            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-Drop\":[\"d\"],\"X-Keep\":[\"k\"]},\"Body\":\"e30=\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"9\"}"
+            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-Drop\":[\"d\"],\"X-Keep\":[\"k\"]},\"Body\":\"e30=\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"8\"}"
           },
           {
             "method": "request.intercept_after",
             "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-Drop\":[\"d\"],\"X-Keep\":[\"k\"]},\"Body\":\"e30=\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"10\"}"
+          },
+          {
+            "method": "request.intercept_after",
+            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-Drop\":[\"d\"],\"X-Keep\":[\"k\"]},\"Body\":\"e30=\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"11\"}"
           }
         ],
         "b": [
           {
             "method": "request.intercept_before",
-            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-A\":[\"1\"],\"X-Keep\":[\"k\"],\"X-Lower\":[\"l\"]},\"Body\":\"eyJhIjoxfQ==\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"8\"}"
+            "request": "{\"RequestID\":\"r1\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"ToFormat\":\"claude\",\"Model\":\"m\",\"RequestedModel\":\"m-req\",\"Stream\":true,\"Headers\":{\"X-A\":[\"1\"],\"X-Keep\":[\"k\"],\"X-Lower\":[\"l\"]},\"Body\":\"eyJhIjoxfQ==\",\"Metadata\":{\"n\":1,\"s\":\"x\"},\"host_callback_id\":\"9\"}"
           }
         ]
       }
@@ -1792,29 +1817,29 @@
         "a": [
           {
             "method": "response.intercept_after",
-            "request": "{\"RequestID\":\"r2\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"Content-Type\":[\"application/json\"]},\"OriginalRequest\":\"b3JpZw==\",\"RequestBody\":\"cmVx\",\"Body\":\"cmVzcA==\",\"StatusCode\":200,\"Metadata\":null,\"host_callback_id\":\"11\"}"
+            "request": "{\"RequestID\":\"r2\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"Content-Type\":[\"application/json\"]},\"OriginalRequest\":\"b3JpZw==\",\"RequestBody\":\"cmVx\",\"Body\":\"cmVzcA==\",\"StatusCode\":200,\"Metadata\":null,\"host_callback_id\":\"12\"}"
           },
           {
             "method": "response.intercept_stream_chunk",
-            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"X-Gone\":[\"g\"],\"X-Stay\":[\"s\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bms=\",\"HistoryChunks\":null,\"ChunkIndex\":2,\"Metadata\":null,\"host_callback_id\":\"13\"}"
+            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"X-Gone\":[\"g\"],\"X-Stay\":[\"s\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bms=\",\"HistoryChunks\":null,\"ChunkIndex\":2,\"Metadata\":null,\"host_callback_id\":\"14\"}"
           },
           {
             "method": "response.intercept_stream_chunk",
-            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"\",\"Model\":\"\",\"RequestedModel\":\"\",\"RequestHeaders\":null,\"ResponseHeaders\":{\"X-Init\":[\"i\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":null,\"HistoryChunks\":null,\"ChunkIndex\":-1,\"Metadata\":null,\"host_callback_id\":\"15\"}"
+            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"\",\"Model\":\"\",\"RequestedModel\":\"\",\"RequestHeaders\":null,\"ResponseHeaders\":{\"X-Init\":[\"i\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":null,\"HistoryChunks\":null,\"ChunkIndex\":-1,\"Metadata\":null,\"host_callback_id\":\"16\"}"
           }
         ],
         "b": [
           {
             "method": "response.intercept_after",
-            "request": "{\"RequestID\":\"r2\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"Content-Type\":[\"application/json\"],\"X-R\":[\"a\"]},\"OriginalRequest\":\"b3JpZw==\",\"RequestBody\":\"cmVx\",\"Body\":\"cmVzcC1h\",\"StatusCode\":200,\"Metadata\":null,\"host_callback_id\":\"12\"}"
+            "request": "{\"RequestID\":\"r2\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"Content-Type\":[\"application/json\"],\"X-R\":[\"a\"]},\"OriginalRequest\":\"b3JpZw==\",\"RequestBody\":\"cmVx\",\"Body\":\"cmVzcC1h\",\"StatusCode\":200,\"Metadata\":null,\"host_callback_id\":\"13\"}"
           },
           {
             "method": "response.intercept_stream_chunk",
-            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"X-Stay\":[\"s\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bmstYQ==\",\"HistoryChunks\":null,\"ChunkIndex\":2,\"Metadata\":null,\"host_callback_id\":\"14\"}"
+            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"RequestHeaders\":{\"A\":[\"1\"]},\"ResponseHeaders\":{\"X-Stay\":[\"s\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bmstYQ==\",\"HistoryChunks\":null,\"ChunkIndex\":2,\"Metadata\":null,\"host_callback_id\":\"15\"}"
           },
           {
             "method": "response.intercept_stream_chunk",
-            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"\",\"Model\":\"\",\"RequestedModel\":\"\",\"RequestHeaders\":null,\"ResponseHeaders\":{\"X-Init\":[\"i\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bmstYQ==\",\"HistoryChunks\":null,\"ChunkIndex\":-1,\"Metadata\":null,\"host_callback_id\":\"16\"}"
+            "request": "{\"RequestID\":\"r3\",\"SourceFormat\":\"\",\"Model\":\"\",\"RequestedModel\":\"\",\"RequestHeaders\":null,\"ResponseHeaders\":{\"X-Init\":[\"i\"]},\"OriginalRequest\":null,\"RequestBody\":null,\"Body\":\"Y2h1bmstYQ==\",\"HistoryChunks\":null,\"ChunkIndex\":-1,\"Metadata\":null,\"host_callback_id\":\"17\"}"
           }
         ]
       }
@@ -1872,17 +1897,17 @@
         "a": [
           {
             "method": "request.complete",
-            "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"18\"}"
+            "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"19\"}"
           },
           {
             "method": "websocket.response_event",
-            "request": "{\"RequestID\":\"r5\",\"TraceID\":\"t\",\"SourceFormat\":\"openai-response\",\"Model\":\"\",\"RequestedModel\":\"\",\"Provider\":\"\",\"AuthID\":\"\",\"AuthLabel\":\"\",\"AuthType\":\"\",\"EventType\":\"\",\"Payload\":\"eyJ0eXBlIjoicmVzcG9uc2UuZG9uZSJ9\",\"Metadata\":null,\"host_callback_id\":\"19\"}"
+            "request": "{\"RequestID\":\"r5\",\"TraceID\":\"t\",\"SourceFormat\":\"openai-response\",\"Model\":\"\",\"RequestedModel\":\"\",\"Provider\":\"\",\"AuthID\":\"\",\"AuthLabel\":\"\",\"AuthType\":\"\",\"EventType\":\"\",\"Payload\":\"eyJ0eXBlIjoicmVzcG9uc2UuZG9uZSJ9\",\"Metadata\":null,\"host_callback_id\":\"20\"}"
           }
         ],
         "b": [
           {
             "method": "request.complete",
-            "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"17\"}"
+            "request": "{\"RequestID\":\"r4\",\"TraceID\":\"\",\"SourceFormat\":\"openai\",\"Model\":\"m\",\"RequestedModel\":\"\",\"Stream\":false,\"Outcome\":\"failed\",\"StatusCode\":502,\"Error\":\"upstream\",\"StartedAt\":\"2026-10-03T01:02:03.5Z\",\"CompletedAt\":\"2026-10-03T01:02:04Z\",\"Metadata\":{\"k\":[1,2]},\"host_callback_id\":\"18\"}"
           }
         ]
       }
@@ -2141,17 +2166,17 @@
         "a": [
           {
             "method": "model.route",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"20\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"21\"}"
           },
           {
             "method": "model.route",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"22\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-a\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"23\"}"
           }
         ],
         "c": [
           {
             "method": "model.route",
-            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"21\"}"
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"openai\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":{\"H\":[\"1\"]},\"Query\":{\"q\":[\"1\"]},\"Body\":\"e30=\",\"Metadata\":{\"x\":true},\"AvailableProviders\":null,\"host_callback_id\":\"22\"}"
           },
           {
             "method": "executor.identifier",
@@ -2159,7 +2184,7 @@
           },
           {
             "method": "model.route",
-            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"23\"}"
+            "request": "{\"Plugin\":{\"Name\":\"c\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"PluginID\":\"recorder-c\",\"SourceFormat\":\"gemini-cli-unknown\",\"RequestedModel\":\"m\",\"Stream\":false,\"Headers\":null,\"Query\":null,\"Body\":null,\"Metadata\":null,\"AvailableProviders\":null,\"host_callback_id\":\"24\"}"
           },
           {
             "method": "executor.identifier",
@@ -2432,11 +2457,11 @@
         "a": [
           {
             "method": "thinking.apply",
-            "request": "{\"Provider\":\"a\",\"Model\":{\"ID\":\"m-think\",\"Object\":\"model\",\"Created\":0,\"OwnedBy\":\"tests\",\"Type\":\"recorder\",\"DisplayName\":\"\",\"Name\":\"\",\"Version\":\"\",\"Description\":\"\",\"InputTokenLimit\":0,\"OutputTokenLimit\":0,\"SupportedGenerationMethods\":null,\"ContextLength\":0,\"MaxCompletionTokens\":0,\"SupportedParameters\":null,\"SupportedInputModalities\":null,\"SupportedOutputModalities\":null,\"Thinking\":null,\"UserDefined\":false},\"Config\":{\"Mode\":\"budget\",\"Budget\":1024,\"Level\":\"high\"},\"Body\":\"eyJ4IjoxfQ==\",\"host_callback_id\":\"24\"}"
+            "request": "{\"Provider\":\"a\",\"Model\":{\"ID\":\"m-think\",\"Object\":\"model\",\"Created\":0,\"OwnedBy\":\"tests\",\"Type\":\"recorder\",\"DisplayName\":\"\",\"Name\":\"\",\"Version\":\"\",\"Description\":\"\",\"InputTokenLimit\":0,\"OutputTokenLimit\":0,\"SupportedGenerationMethods\":null,\"ContextLength\":0,\"MaxCompletionTokens\":0,\"SupportedParameters\":null,\"SupportedInputModalities\":null,\"SupportedOutputModalities\":null,\"Thinking\":null,\"UserDefined\":false},\"Config\":{\"Mode\":\"budget\",\"Budget\":1024,\"Level\":\"high\"},\"Body\":\"eyJ4IjoxfQ==\",\"host_callback_id\":\"25\"}"
           },
           {
             "method": "thinking.apply",
-            "request": "{\"Provider\":\"a\",\"Model\":{\"ID\":\"m\",\"Object\":\"model\",\"Created\":0,\"OwnedBy\":\"tests\",\"Type\":\"recorder\",\"DisplayName\":\"\",\"Name\":\"\",\"Version\":\"\",\"Description\":\"\",\"InputTokenLimit\":0,\"OutputTokenLimit\":0,\"SupportedGenerationMethods\":null,\"ContextLength\":0,\"MaxCompletionTokens\":0,\"SupportedParameters\":null,\"SupportedInputModalities\":null,\"SupportedOutputModalities\":null,\"Thinking\":null,\"UserDefined\":false},\"Config\":{\"Mode\":\"budget\",\"Budget\":0,\"Level\":\"\"},\"Body\":\"eyJ4IjoyfQ==\",\"host_callback_id\":\"25\"}"
+            "request": "{\"Provider\":\"a\",\"Model\":{\"ID\":\"m\",\"Object\":\"model\",\"Created\":0,\"OwnedBy\":\"tests\",\"Type\":\"recorder\",\"DisplayName\":\"\",\"Name\":\"\",\"Version\":\"\",\"Description\":\"\",\"InputTokenLimit\":0,\"OutputTokenLimit\":0,\"SupportedGenerationMethods\":null,\"ContextLength\":0,\"MaxCompletionTokens\":0,\"SupportedParameters\":null,\"SupportedInputModalities\":null,\"SupportedOutputModalities\":null,\"Thinking\":null,\"UserDefined\":false},\"Config\":{\"Mode\":\"budget\",\"Budget\":0,\"Level\":\"\"},\"Body\":\"eyJ4IjoyfQ==\",\"host_callback_id\":\"26\"}"
           }
         ]
       }
@@ -2977,11 +3002,11 @@
           },
           {
             "method": "auth.login.start",
-            "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:8317\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"m\":\"v\"},\"host_callback_id\":\"26\"}"
+            "request": "{\"Provider\":\"a\",\"BaseURL\":\"http://127.0.0.1:8317\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":{\"m\":\"v\"},\"host_callback_id\":\"27\"}"
           },
           {
             "method": "auth.login.poll",
-            "request": "{\"Provider\":\"a\",\"State\":\"s1\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"27\"}"
+            "request": "{\"Provider\":\"a\",\"State\":\"s1\",\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"Metadata\":null,\"host_callback_id\":\"28\"}"
           }
         ],
         "c": [
@@ -2995,11 +3020,11 @@
           },
           {
             "method": "auth.refresh",
-            "request": "{\"AuthID\":\"c1\",\"AuthProvider\":\"rec-c\",\"StorageJSON\":\"eyJwcmlvcml0eSI6MywidG9rZW4iOiJ0IiwidHlwZSI6InJlYy1jIn0=\",\"Metadata\":{\"priority\":3,\"type\":\"rec-c\"},\"Attributes\":{\"file_priority\":\"true\",\"path\":\"/auth/c1.json\",\"priority\":\"9\",\"source\":\"/auth/c1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"28\"}"
+            "request": "{\"AuthID\":\"c1\",\"AuthProvider\":\"rec-c\",\"StorageJSON\":\"eyJwcmlvcml0eSI6MywidG9rZW4iOiJ0IiwidHlwZSI6InJlYy1jIn0=\",\"Metadata\":{\"priority\":3,\"type\":\"rec-c\"},\"Attributes\":{\"file_priority\":\"true\",\"path\":\"/auth/c1.json\",\"priority\":\"9\",\"source\":\"/auth/c1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"29\"}"
           },
           {
             "method": "auth.refresh",
-            "request": "{\"AuthID\":\"c1\",\"AuthProvider\":\"rec-c\",\"StorageJSON\":\"eyJ0eXBlIjoicmVjLWMifQ==\",\"Metadata\":{\"type\":\"rec-c\"},\"Attributes\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"29\"}"
+            "request": "{\"AuthID\":\"c1\",\"AuthProvider\":\"rec-c\",\"StorageJSON\":\"eyJ0eXBlIjoicmVjLWMifQ==\",\"Metadata\":{\"type\":\"rec-c\"},\"Attributes\":null,\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"30\"}"
           }
         ],
         "d": [
@@ -3302,15 +3327,15 @@
           },
           {
             "method": "quota.fetch",
-            "request": "{\"auth_index\":\"3\",\"auth_id\":\"x\",\"provider\":\"codex\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"30\"}"
+            "request": "{\"auth_index\":\"3\",\"auth_id\":\"x\",\"provider\":\"codex\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"31\"}"
           },
           {
             "method": "quota.fetch",
-            "request": "{\"auth_index\":\"3\",\"auth_id\":\"\",\"provider\":\"recorder-a\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"31\"}"
+            "request": "{\"auth_index\":\"3\",\"auth_id\":\"\",\"provider\":\"recorder-a\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"32\"}"
           },
           {
             "method": "quota.reset",
-            "request": "{\"auth_index\":\"1\",\"auth_id\":\"\",\"provider\":\"\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"33\"}"
+            "request": "{\"auth_index\":\"1\",\"auth_id\":\"\",\"provider\":\"\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"34\"}"
           }
         ],
         "b": [
@@ -3328,7 +3353,7 @@
           },
           {
             "method": "quota.reset",
-            "request": "{\"auth_index\":\"1\",\"auth_id\":\"\",\"provider\":\"b\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"32\"}"
+            "request": "{\"auth_index\":\"1\",\"auth_id\":\"\",\"provider\":\"b\",\"host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"33\"}"
           }
         ]
       }
@@ -3497,7 +3522,7 @@
           },
           {
             "method": "model.for_auth",
-            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"AuthID\":\"auth-1\",\"AuthProvider\":\"a\",\"StorageJSON\":\"eyJlbWFpbCI6ImUiLCJ0eXBlIjoiYSJ9\",\"Metadata\":{\"email\":\"e\",\"type\":\"a\"},\"Attributes\":{\"path\":\"/auth/auth-1.json\",\"source\":\"/auth/auth-1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"34\"}"
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"AuthID\":\"auth-1\",\"AuthProvider\":\"a\",\"StorageJSON\":\"eyJlbWFpbCI6ImUiLCJ0eXBlIjoiYSJ9\",\"Metadata\":{\"email\":\"e\",\"type\":\"a\"},\"Attributes\":{\"path\":\"/auth/auth-1.json\",\"source\":\"/auth/auth-1.json\",\"source_backend\":\"file\"},\"Host\":{\"AuthDir\":\"RECORDDIR/auths\",\"ProxyURL\":\"\",\"ForceModelPrefix\":false,\"OAuthModelAlias\":null,\"ExcludedModels\":null},\"host_callback_id\":\"35\"}"
           }
         ],
         "b": [
@@ -3664,6 +3689,587 @@
           }
         ],
         "d": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ]
+      }
+    },
+    {
+      "op": "clear",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "files",
+      "args": {
+        "recorder-a.so": "recorder"
+      },
+      "result": null
+    },
+    {
+      "op": "apply",
+      "args": "requests:\n  proxy-url: ftp://user:pw@proxy.invalid:1\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    recorder-a:\n      enabled: true\n      record: RECORDDIR\n      label: a\n      caps: management_api\n",
+      "result": [
+        {
+          "id": "recorder-a",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        }
+      ]
+    },
+    {
+      "op": "register_management",
+      "args": null,
+      "result": [
+        {
+          "id": "recorder-a",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "\u003cb\u003ea\u003c/b\u003e",
+              "menu": "Recorder a",
+              "path": "/v0/resource/plugins/recorder-a/page"
+            },
+            {
+              "description": "legacy menu",
+              "menu": "Legacy a",
+              "path": "/v0/resource/plugins/recorder-a/rec/a/menu"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "POST",
+        "target": "/v0/management/rec/a/calls",
+        "body": "{\"calls\":[\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\",\"wire_profile\":{\"http1_only\":true}}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/echo\",\"wire_profile\":{\"disable_auto_compression\":true}}},\n {\"method\":\"host.http.do\",\"request\":{\"url\":\"http://UPSTREAM/status\"}}\n]}"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"POST\",\"path\":\"/v0/management/rec/a/calls\",\"query\":null,\"results\":[\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"pluginhost: parse proxy ftp://redacted@proxy.invalid:1: unsupported proxy scheme: ftp\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"pluginhost: parse proxy ftp://redacted@proxy.invalid:1: unsupported proxy scheme: ftp\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"StatusCode\\\":404,\\\"Headers\\\":{\\\"Content-Length\\\":[\\\"0\\\"]},\\\"Body\\\":\\\"\\\"}}\"]}"
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "config_yaml": "enabled: true\nrecord: RECORDDIR\nlabel: a\ncaps: management_api\npriority: 0\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          },
+          {
+            "method": "management.register",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
+          },
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/a/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"eyJjYWxscyI6WwogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS9lY2hvIiwid2lyZV9wcm9maWxlIjp7Imh0dHAxX29ubHkiOnRydWV9fX0sCiB7Im1ldGhvZCI6Imhvc3QuaHR0cC5kbyIsInJlcXVlc3QiOnsidXJsIjoiaHR0cDovL1VQU1RSRUFNL2VjaG8iLCJ3aXJlX3Byb2ZpbGUiOnsiZGlzYWJsZV9hdXRvX2NvbXByZXNzaW9uIjp0cnVlfX19LAogeyJtZXRob2QiOiJob3N0Lmh0dHAuZG8iLCJyZXF1ZXN0Ijp7InVybCI6Imh0dHA6Ly9VUFNUUkVBTS9zdGF0dXMifX0KXX0=\",\"host_callback_id\":\"36\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "shutdown",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "method": "\u003cshutdown\u003e",
+            "request": ""
+          }
+        ]
+      }
+    },
+    {
+      "op": "clear",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "files",
+      "args": {
+        "host-callback-auth-files.so": "host-callback-auth-files",
+        "recorder-a.so": "recorder"
+      },
+      "result": null
+    },
+    {
+      "op": "auth_files",
+      "args": {
+        "B.json": "{\"type\":\"other\",\"disabled\":true,\"priority\":2.9}",
+        "a.json": "{\"type\":\"demo\",\"email\":\" a@example.com \",\"project_id\":\"p1\",\"priority\":\"3\",\"note\":\" n \",\"base_url\":\"https://b.example\",\"websockets\":\"true\",\"access_token\":\"tok\"}",
+        "bad.json": "not json",
+        "c.txt": "{}",
+        "empty.json": " "
+      },
+      "result": null
+    },
+    {
+      "op": "apply",
+      "args": "auth-dir: AUTHDIR\nplugins:\n  enabled: true\n  dir: PLUGINDIR\n  configs:\n    recorder-a:\n      enabled: true\n      record: RECORDDIR\n      label: a\n      caps: management_api\n    host-callback-auth-files:\n      enabled: true\n",
+      "result": [
+        {
+          "id": "host-callback-auth-files",
+          "priority": 0,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "host-callback-auth-files",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        },
+        {
+          "id": "recorder-a",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": []
+        }
+      ]
+    },
+    {
+      "op": "register_management",
+      "args": null,
+      "result": [
+        {
+          "id": "host-callback-auth-files",
+          "priority": 0,
+          "metadata": {
+            "Author": "router-for-me",
+            "ConfigFields": [],
+            "GitHubRepository": "https://github.com/router-for-me/CLIProxyAPI",
+            "Logo": "https://raw.githubusercontent.com/router-for-me/CLIProxyAPI/main/docs/logo.png",
+            "Name": "host-callback-auth-files",
+            "Version": "0.1.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "Lists auth files and demonstrates host.auth list/get/runtime/save callbacks.",
+              "menu": "Host Auth Files",
+              "path": "/v0/resource/plugins/host-callback-auth-files/status"
+            }
+          ]
+        },
+        {
+          "id": "recorder-a",
+          "priority": 0,
+          "metadata": {
+            "Author": "cliproxy-rs tests",
+            "ConfigFields": null,
+            "GitHubRepository": "https://example.invalid/recorder",
+            "Logo": "",
+            "Name": "a",
+            "Version": "1.0.0"
+          },
+          "supports_oauth": false,
+          "oauth_provider": "",
+          "supports_quota": false,
+          "quota_provider": "",
+          "menus": [
+            {
+              "description": "\u003cb\u003ea\u003c/b\u003e",
+              "menu": "Recorder a",
+              "path": "/v0/resource/plugins/recorder-a/page"
+            },
+            {
+              "description": "legacy menu",
+              "menu": "Legacy a",
+              "path": "/v0/resource/plugins/recorder-a/rec/a/menu"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "POST",
+        "target": "/v0/management/rec/a/calls",
+        "body": "{\"calls\":[\n {\"method\":\"host.auth.list\",\"request\":{}},\n {\"method\":\"host.auth.list\",\"request\":[]},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\" \"}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\"idx\"}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":7}},\n {\"method\":\"host.auth.get_runtime\",\"request\":{\"auth_index\":\"idx\"}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"../x.json\",\"json\":{}}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"a\\\\b.json\",\"json\":{}}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"x.txt\",\"json\":{}}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\" \",\"json\":{}}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"x.json\"}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"x.json\",\"json\":[1]}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"x.json\",\"json\":{\"type\":\"demo\",\"weight\":1.5}}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"x.json\",\"json\":{\"type\":\"demo\",\"weight\":2000000}}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\" Saved.JSON \",\"json\":{\"type\":\"demo\",\"email\":\" s@example.com \",\"disabled\":\"true\",\"priority\":\"7\",\"base-url\":\"https://legacy\"}}},\n {\"method\":\"host.auth.list\",\"request\":null},\n {\"method\":\"host.affinity.lookup\",\"request\":{\"provider\":\" \",\"model\":\"m\",\"session_id\":\"s\"}},\n {\"method\":\"host.affinity.lookup\",\"request\":{\"provider\":\"p\",\"model\":\"\",\"session_id\":\"s\"}},\n {\"method\":\"host.affinity.lookup\",\"request\":{\"provider\":\"p\",\"model\":\"m\"}},\n {\"method\":\"host.affinity.lookup\",\"request\":{\"provider\":\"p\",\"model\":\"m\",\"session_id\":\"s\"}}\n]}"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"POST\",\"path\":\"/v0/management/rec/a/calls\",\"query\":null,\"results\":[\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"files\\\":[{\\\"name\\\":\\\"a.json\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"status\\\":\\\"active\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/a.json\\\",\\\"size\\\":159,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"email\\\":\\\"a@example.com\\\",\\\"project_id\\\":\\\"p1\\\",\\\"priority\\\":3,\\\"note\\\":\\\"n\\\",\\\"base_url\\\":\\\"https://b.example\\\",\\\"websockets\\\":true},{\\\"name\\\":\\\"B.json\\\",\\\"type\\\":\\\"other\\\",\\\"provider\\\":\\\"other\\\",\\\"status\\\":\\\"disabled\\\",\\\"disabled\\\":true,\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/B.json\\\",\\\"size\\\":47,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"priority\\\":2},{\\\"name\\\":\\\"bad.json\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/bad.json\\\",\\\"size\\\":8,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\"},{\\\"name\\\":\\\"empty.json\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/empty.json\\\",\\\"size\\\":1,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\"}]}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"decode host auth list request: json: cannot unmarshal array into Go value of type map[string]interface {}\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"auth_index is required\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"core auth manager unavailable\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"decode host auth get request: json: cannot unmarshal number into Go struct field rpcHostAuthGetRequest.auth_index of type string\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"core auth manager unavailable\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"invalid auth file name\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"invalid auth file name\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"auth file name must end with .json\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"invalid auth file name\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"json is required\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"invalid auth json: json: cannot unmarshal array into Go value of type map[string]interface {}\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"invalid auth weight: invalid metadata weight: weight must be an integer\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"invalid auth weight: invalid metadata weight: weight must not exceed 1000000\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"name\\\":\\\"Saved.JSON\\\",\\\"path\\\":\\\"AUTHDIR/Saved.JSON\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"files\\\":[{\\\"name\\\":\\\"a.json\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"status\\\":\\\"active\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/a.json\\\",\\\"size\\\":159,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"email\\\":\\\"a@example.com\\\",\\\"project_id\\\":\\\"p1\\\",\\\"priority\\\":3,\\\"note\\\":\\\"n\\\",\\\"base_url\\\":\\\"https://b.example\\\",\\\"websockets\\\":true},{\\\"name\\\":\\\"B.json\\\",\\\"type\\\":\\\"other\\\",\\\"provider\\\":\\\"other\\\",\\\"status\\\":\\\"disabled\\\",\\\"disabled\\\":true,\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/B.json\\\",\\\"size\\\":47,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"priority\\\":2},{\\\"name\\\":\\\"bad.json\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/bad.json\\\",\\\"size\\\":8,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\"},{\\\"name\\\":\\\"empty.json\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/empty.json\\\",\\\"size\\\":1,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\"},{\\\"name\\\":\\\"Saved.JSON\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"status\\\":\\\"disabled\\\",\\\"disabled\\\":true,\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/Saved.JSON\\\",\\\"size\\\":102,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"email\\\":\\\"s@example.com\\\",\\\"priority\\\":7}]}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"provider is required\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"model is required\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"session_id is required\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"status\\\":\\\"unsupported\\\",\\\"observed_at\\\":\\\"TIME\\\"}}\"]}"
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/host-callback-auth-files/status?op=list"
+      },
+      "result": {
+        "handled": true,
+        "status": 200,
+        "headers": {
+          "Content-Type": [
+            "text/html; charset=utf-8"
+          ]
+        },
+        "body": "\u003c!doctype html\u003e\u003chtml\u003e\u003chead\u003e\u003cmeta charset=\"utf-8\"\u003e\u003ctitle\u003eHost Auth Files\u003c/title\u003e\u003cstyle\u003ebody{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;margin:2rem;line-height:1.45;color:#1f2933}code,pre{background:#f3f4f6;border-radius:6px}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}dl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem}dt{font-weight:600}dd{margin:0}.error{color:#b42318}\u003c/style\u003e\u003c/head\u003e\u003cbody\u003e\u003cmain\u003e\u003ch1\u003eHost Auth Files\u003c/h1\u003e\u003cdl\u003e\u003cdt\u003eop\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003elist\u003c/code\u003e\u003c/dd\u003e\u003c/dl\u003e\u003ch2\u003eResult\u003c/h2\u003e\u003cpre\u003e{\n  \u0026#34;files\u0026#34;: [\n    {\n      \u0026#34;name\u0026#34;: \u0026#34;a.json\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;active\u0026#34;,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/a.json\u0026#34;,\n      \u0026#34;size\u0026#34;: 159,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;email\u0026#34;: \u0026#34;a@example.com\u0026#34;,\n      \u0026#34;project_id\u0026#34;: \u0026#34;p1\u0026#34;,\n      \u0026#34;priority\u0026#34;: 3,\n      \u0026#34;note\u0026#34;: \u0026#34;n\u0026#34;,\n      \u0026#34;base_url\u0026#34;: \u0026#34;https://b.example\u0026#34;,\n      \u0026#34;websockets\u0026#34;: true\n    },\n    {\n      \u0026#34;name\u0026#34;: \u0026#34;B.json\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;other\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;other\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;disabled\u0026#34;,\n      \u0026#34;disabled\u0026#34;: true,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/B.json\u0026#34;,\n      \u0026#34;size\u0026#34;: 47,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;priority\u0026#34;: 2\n    },\n    {\n      \u0026#34;name\u0026#34;: \u0026#34;bad.json\u0026#34;,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/bad.json\u0026#34;,\n      \u0026#34;size\u0026#34;: 8,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;\n    },\n    {\n      \u0026#34;name\u0026#34;: \u0026#34;empty.json\u0026#34;,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/empty.json\u0026#34;,\n      \u0026#34;size\u0026#34;: 1,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;\n    },\n    {\n      \u0026#34;name\u0026#34;: \u0026#34;Saved.JSON\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;disabled\u0026#34;,\n      \u0026#34;disabled\u0026#34;: true,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/Saved.JSON\u0026#34;,\n      \u0026#34;size\u0026#34;: 102,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;email\u0026#34;: \u0026#34;s@example.com\u0026#34;,\n      \u0026#34;priority\u0026#34;: 7\n    }\n  ]\n}\u003c/pre\u003e\u003ch2\u003eUsage\u003c/h2\u003e\u003cul\u003e\u003cli\u003e\u003ccode\u003e?op=list\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=get\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=runtime\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=save\u0026amp;name=example.json\u0026amp;json=...\u003c/code\u003e\u003c/li\u003e\u003c/ul\u003e\u003c/main\u003e\u003c/body\u003e\u003c/html\u003e"
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/host-callback-auth-files/status?op=get\u0026auth_index=idx-a"
+      },
+      "result": {
+        "handled": true,
+        "status": 200,
+        "headers": {
+          "Content-Type": [
+            "text/html; charset=utf-8"
+          ]
+        },
+        "body": "\u003c!doctype html\u003e\u003chtml\u003e\u003chead\u003e\u003cmeta charset=\"utf-8\"\u003e\u003ctitle\u003eHost Auth Files\u003c/title\u003e\u003cstyle\u003ebody{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;margin:2rem;line-height:1.45;color:#1f2933}code,pre{background:#f3f4f6;border-radius:6px}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}dl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem}dt{font-weight:600}dd{margin:0}.error{color:#b42318}\u003c/style\u003e\u003c/head\u003e\u003cbody\u003e\u003cmain\u003e\u003ch1\u003eHost Auth Files\u003c/h1\u003e\u003cdl\u003e\u003cdt\u003eop\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003eget\u003c/code\u003e\u003c/dd\u003e\u003cdt\u003eauth_index\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003eidx-a\u003c/code\u003e\u003c/dd\u003e\u003c/dl\u003e\u003ch2\u003eError\u003c/h2\u003e\u003cpre class=\"error\"\u003ehost_call_failed: core auth manager unavailable\u003c/pre\u003e\u003ch2\u003eUsage\u003c/h2\u003e\u003cul\u003e\u003cli\u003e\u003ccode\u003e?op=list\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=get\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=runtime\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=save\u0026amp;name=example.json\u0026amp;json=...\u003c/code\u003e\u003c/li\u003e\u003c/ul\u003e\u003c/main\u003e\u003c/body\u003e\u003c/html\u003e"
+      }
+    },
+    {
+      "op": "auth_manager",
+      "args": [
+        {
+          "id": "a.json",
+          "index": "idx-a",
+          "provider": "demo",
+          "file_name": "a.json",
+          "label": "a@example.com",
+          "status": "active",
+          "attributes": {
+            "note": " attr note ",
+            "path": "AUTHDIR/a.json",
+            "priority": "9",
+            "source": "AUTHDIR/a.json",
+            "websockets": "false"
+          },
+          "metadata": {
+            "access_token": "tok",
+            "email": " a@example.com ",
+            "project_id": "p1",
+            "type": "demo"
+          },
+          "account_type": "oauth",
+          "account": "a@example.com"
+        },
+        {
+          "id": "rt-1",
+          "index": "idx-rt",
+          "provider": " demo ",
+          "label": "runtime",
+          "status": "error",
+          "status_message": "boom",
+          "unavailable": true,
+          "attributes": {
+            "api_key": "k",
+            "base_url": " https://attr ",
+            "email": "attr@example.com",
+            "project_id": " ap ",
+            "runtime_only": "true"
+          },
+          "metadata": {
+            "priority": " 4 ",
+            "websockets": "yes"
+          },
+          "account_type": "api_key",
+          "account": "k"
+        },
+        {
+          "id": "gone.json",
+          "index": "idx-gone",
+          "provider": "demo",
+          "file_name": "gone.json",
+          "status": "disabled",
+          "disabled": true,
+          "attributes": {
+            "path": "AUTHDIR/gone.json"
+          }
+        },
+        {
+          "id": "moved.json",
+          "index": "idx-moved",
+          "provider": "demo",
+          "status": "active",
+          "attributes": {
+            "path": "AUTHDIR/moved.json"
+          }
+        },
+        {
+          "id": "B.json",
+          "index": "idx-b",
+          "provider": "other",
+          "file_name": "B.json",
+          "status": "active",
+          "attributes": {
+            "path": "AUTHDIR/B.json"
+          },
+          "metadata": {
+            "note": " meta note ",
+            "priority": 2.9,
+            "type": "other"
+          }
+        },
+        {
+          "id": "bad.json",
+          "index": "idx-bad",
+          "provider": "demo",
+          "file_name": "bad.json",
+          "status": "active",
+          "attributes": {
+            "path": "AUTHDIR/bad.json"
+          }
+        },
+        {
+          "id": "empty.json",
+          "index": "idx-empty",
+          "provider": "demo",
+          "file_name": "empty.json",
+          "status": "active",
+          "attributes": {
+            "path": "AUTHDIR/empty.json"
+          }
+        },
+        {
+          "id": "rt-off",
+          "index": "idx-rt-off",
+          "provider": "demo",
+          "status": "active",
+          "disabled": true,
+          "attributes": {
+            "runtime_only": "TRUE"
+          }
+        }
+      ],
+      "result": null
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "POST",
+        "target": "/v0/management/rec/a/calls",
+        "body": "{\"calls\":[\n {\"method\":\"host.auth.list\",\"request\":{}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\"idx-a\"}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\"idx-rt\"}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\"idx-moved\"}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\"idx-bad\"}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\"idx-empty\"}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\"nope\"}},\n {\"method\":\"host.auth.get_runtime\",\"request\":{\"auth_index\":\"idx-rt\"}},\n {\"method\":\"host.auth.get_runtime\",\"request\":{\"auth_index\":\"idx-gone\"}},\n {\"method\":\"host.auth.get_runtime\",\"request\":{\"auth_index\":\" idx-b \"}},\n {\"method\":\"host.affinity.lookup\",\"request\":{\"provider\":\"demo\",\"model\":\"m\",\"session_id\":\"s\"}}\n]}"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"POST\",\"path\":\"/v0/management/rec/a/calls\",\"query\":null,\"results\":[\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"files\\\":[{\\\"id\\\":\\\"a.json\\\",\\\"auth_index\\\":\\\"idx-a\\\",\\\"name\\\":\\\"a.json\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"label\\\":\\\"a@example.com\\\",\\\"status\\\":\\\"active\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/a.json\\\",\\\"size\\\":159,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"email\\\":\\\"a@example.com\\\",\\\"project_id\\\":\\\"p1\\\",\\\"account_type\\\":\\\"oauth\\\",\\\"account\\\":\\\"a@example.com\\\",\\\"priority\\\":9,\\\"note\\\":\\\"attr note\\\",\\\"recent_requests\\\":[{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0}]},{\\\"id\\\":\\\"B.json\\\",\\\"auth_index\\\":\\\"idx-b\\\",\\\"name\\\":\\\"B.json\\\",\\\"type\\\":\\\"other\\\",\\\"provider\\\":\\\"other\\\",\\\"status\\\":\\\"active\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/B.json\\\",\\\"size\\\":47,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"priority\\\":2,\\\"note\\\":\\\"meta note\\\",\\\"recent_requests\\\":[{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0}]},{\\\"id\\\":\\\"bad.json\\\",\\\"auth_index\\\":\\\"idx-bad\\\",\\\"name\\\":\\\"bad.json\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"status\\\":\\\"active\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/bad.json\\\",\\\"size\\\":8,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"recent_requests\\\":[{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0}]},{\\\"id\\\":\\\"empty.json\\\",\\\"auth_index\\\":\\\"idx-empty\\\",\\\"name\\\":\\\"empty.json\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"status\\\":\\\"active\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/empty.json\\\",\\\"size\\\":1,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"recent_requests\\\":[{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0}]},{\\\"id\\\":\\\"moved.json\\\",\\\"auth_index\\\":\\\"idx-moved\\\",\\\"name\\\":\\\"moved.json\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"status\\\":\\\"active\\\",\\\"source\\\":\\\"memory\\\",\\\"path\\\":\\\"AUTHDIR/moved.json\\\",\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"recent_requests\\\":[{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0}]},{\\\"id\\\":\\\"rt-1\\\",\\\"auth_index\\\":\\\"idx-rt\\\",\\\"name\\\":\\\"rt-1\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"label\\\":\\\"runtime\\\",\\\"status\\\":\\\"error\\\",\\\"status_message\\\":\\\"boom\\\",\\\"unavailable\\\":true,\\\"runtime_only\\\":true,\\\"source\\\":\\\"memory\\\",\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"email\\\":\\\"attr@example.com\\\",\\\"project_id\\\":\\\"ap\\\",\\\"account_type\\\":\\\"api_key\\\",\\\"account\\\":\\\"k\\\",\\\"priority\\\":4,\\\"base_url\\\":\\\"https://attr\\\",\\\"recent_requests\\\":[{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0}]}]}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"auth_index\\\":\\\"idx-a\\\",\\\"name\\\":\\\"a.json\\\",\\\"path\\\":\\\"AUTHDIR/a.json\\\",\\\"json\\\":{\\\"type\\\":\\\"demo\\\",\\\"email\\\":\\\" a@example.com \\\",\\\"project_id\\\":\\\"p1\\\",\\\"priority\\\":\\\"3\\\",\\\"note\\\":\\\" n \\\",\\\"base_url\\\":\\\"https://b.example\\\",\\\"websockets\\\":\\\"true\\\",\\\"access_token\\\":\\\"tok\\\"}}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"auth file path not found for auth_index idx-rt\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"auth file not found for auth_index idx-moved\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"invalid auth file for auth_index idx-bad: invalid character 'o' in literal null (expecting 'u')\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"auth file is empty for auth_index idx-empty\\\"}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"auth not found for auth_index nope\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"auth\\\":{\\\"id\\\":\\\"rt-1\\\",\\\"auth_index\\\":\\\"idx-rt\\\",\\\"name\\\":\\\"rt-1\\\",\\\"type\\\":\\\"demo\\\",\\\"provider\\\":\\\"demo\\\",\\\"label\\\":\\\"runtime\\\",\\\"status\\\":\\\"error\\\",\\\"status_message\\\":\\\"boom\\\",\\\"unavailable\\\":true,\\\"runtime_only\\\":true,\\\"source\\\":\\\"memory\\\",\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"email\\\":\\\"attr@example.com\\\",\\\"project_id\\\":\\\"ap\\\",\\\"account_type\\\":\\\"api_key\\\",\\\"account\\\":\\\"k\\\",\\\"priority\\\":4,\\\"base_url\\\":\\\"https://attr\\\",\\\"recent_requests\\\":[{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0}]}}}\",\"0 {\\\"ok\\\":false,\\\"error\\\":{\\\"code\\\":\\\"host_call_failed\\\",\\\"message\\\":\\\"auth runtime info not found for auth_index idx-gone\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"auth\\\":{\\\"id\\\":\\\"B.json\\\",\\\"auth_index\\\":\\\"idx-b\\\",\\\"name\\\":\\\"B.json\\\",\\\"type\\\":\\\"other\\\",\\\"provider\\\":\\\"other\\\",\\\"status\\\":\\\"active\\\",\\\"source\\\":\\\"file\\\",\\\"path\\\":\\\"AUTHDIR/B.json\\\",\\\"size\\\":47,\\\"modtime\\\":\\\"TIME\\\",\\\"updated_at\\\":\\\"TIME\\\",\\\"created_at\\\":\\\"TIME\\\",\\\"last_refresh\\\":\\\"TIME\\\",\\\"next_retry_after\\\":\\\"TIME\\\",\\\"priority\\\":2,\\\"note\\\":\\\"meta note\\\",\\\"recent_requests\\\":[{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0},{\\\"time\\\":\\\"BUCKET\\\",\\\"success\\\":0,\\\"failed\\\":0}]}}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"status\\\":\\\"unsupported\\\",\\\"observed_at\\\":\\\"TIME\\\"}}\"]}"
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/host-callback-auth-files/status?op=list"
+      },
+      "result": {
+        "handled": true,
+        "status": 200,
+        "headers": {
+          "Content-Type": [
+            "text/html; charset=utf-8"
+          ]
+        },
+        "body": "\u003c!doctype html\u003e\u003chtml\u003e\u003chead\u003e\u003cmeta charset=\"utf-8\"\u003e\u003ctitle\u003eHost Auth Files\u003c/title\u003e\u003cstyle\u003ebody{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;margin:2rem;line-height:1.45;color:#1f2933}code,pre{background:#f3f4f6;border-radius:6px}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}dl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem}dt{font-weight:600}dd{margin:0}.error{color:#b42318}\u003c/style\u003e\u003c/head\u003e\u003cbody\u003e\u003cmain\u003e\u003ch1\u003eHost Auth Files\u003c/h1\u003e\u003cdl\u003e\u003cdt\u003eop\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003elist\u003c/code\u003e\u003c/dd\u003e\u003c/dl\u003e\u003ch2\u003eResult\u003c/h2\u003e\u003cpre\u003e{\n  \u0026#34;files\u0026#34;: [\n    {\n      \u0026#34;id\u0026#34;: \u0026#34;a.json\u0026#34;,\n      \u0026#34;auth_index\u0026#34;: \u0026#34;idx-a\u0026#34;,\n      \u0026#34;name\u0026#34;: \u0026#34;a.json\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;label\u0026#34;: \u0026#34;a@example.com\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;active\u0026#34;,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/a.json\u0026#34;,\n      \u0026#34;size\u0026#34;: 159,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;email\u0026#34;: \u0026#34;a@example.com\u0026#34;,\n      \u0026#34;project_id\u0026#34;: \u0026#34;p1\u0026#34;,\n      \u0026#34;account_type\u0026#34;: \u0026#34;oauth\u0026#34;,\n      \u0026#34;account\u0026#34;: \u0026#34;a@example.com\u0026#34;,\n      \u0026#34;priority\u0026#34;: 9,\n      \u0026#34;note\u0026#34;: \u0026#34;attr note\u0026#34;,\n      \u0026#34;recent_requests\u0026#34;: [\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        }\n      ]\n    },\n    {\n      \u0026#34;id\u0026#34;: \u0026#34;B.json\u0026#34;,\n      \u0026#34;auth_index\u0026#34;: \u0026#34;idx-b\u0026#34;,\n      \u0026#34;name\u0026#34;: \u0026#34;B.json\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;other\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;other\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;active\u0026#34;,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/B.json\u0026#34;,\n      \u0026#34;size\u0026#34;: 47,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;priority\u0026#34;: 2,\n      \u0026#34;note\u0026#34;: \u0026#34;meta note\u0026#34;,\n      \u0026#34;recent_requests\u0026#34;: [\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        }\n      ]\n    },\n    {\n      \u0026#34;id\u0026#34;: \u0026#34;bad.json\u0026#34;,\n      \u0026#34;auth_index\u0026#34;: \u0026#34;idx-bad\u0026#34;,\n      \u0026#34;name\u0026#34;: \u0026#34;bad.json\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;active\u0026#34;,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/bad.json\u0026#34;,\n      \u0026#34;size\u0026#34;: 8,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;recent_requests\u0026#34;: [\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        }\n      ]\n    },\n    {\n      \u0026#34;id\u0026#34;: \u0026#34;empty.json\u0026#34;,\n      \u0026#34;auth_index\u0026#34;: \u0026#34;idx-empty\u0026#34;,\n      \u0026#34;name\u0026#34;: \u0026#34;empty.json\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;active\u0026#34;,\n      \u0026#34;source\u0026#34;: \u0026#34;file\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/empty.json\u0026#34;,\n      \u0026#34;size\u0026#34;: 1,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;recent_requests\u0026#34;: [\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        }\n      ]\n    },\n    {\n      \u0026#34;id\u0026#34;: \u0026#34;moved.json\u0026#34;,\n      \u0026#34;auth_index\u0026#34;: \u0026#34;idx-moved\u0026#34;,\n      \u0026#34;name\u0026#34;: \u0026#34;moved.json\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;active\u0026#34;,\n      \u0026#34;source\u0026#34;: \u0026#34;memory\u0026#34;,\n      \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/moved.json\u0026#34;,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;recent_requests\u0026#34;: [\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        }\n      ]\n    },\n    {\n      \u0026#34;id\u0026#34;: \u0026#34;rt-1\u0026#34;,\n      \u0026#34;auth_index\u0026#34;: \u0026#34;idx-rt\u0026#34;,\n      \u0026#34;name\u0026#34;: \u0026#34;rt-1\u0026#34;,\n      \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;provider\u0026#34;: \u0026#34;demo\u0026#34;,\n      \u0026#34;label\u0026#34;: \u0026#34;runtime\u0026#34;,\n      \u0026#34;status\u0026#34;: \u0026#34;error\u0026#34;,\n      \u0026#34;status_message\u0026#34;: \u0026#34;boom\u0026#34;,\n      \u0026#34;unavailable\u0026#34;: true,\n      \u0026#34;runtime_only\u0026#34;: true,\n      \u0026#34;source\u0026#34;: \u0026#34;memory\u0026#34;,\n      \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n      \u0026#34;email\u0026#34;: \u0026#34;attr@example.com\u0026#34;,\n      \u0026#34;project_id\u0026#34;: \u0026#34;ap\u0026#34;,\n      \u0026#34;account_type\u0026#34;: \u0026#34;api_key\u0026#34;,\n      \u0026#34;account\u0026#34;: \u0026#34;k\u0026#34;,\n      \u0026#34;priority\u0026#34;: 4,\n      \u0026#34;base_url\u0026#34;: \u0026#34;https://attr\u0026#34;,\n      \u0026#34;recent_requests\u0026#34;: [\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        },\n        {\n          \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n          \u0026#34;success\u0026#34;: 0,\n          \u0026#34;failed\u0026#34;: 0\n        }\n      ]\n    }\n  ]\n}\u003c/pre\u003e\u003ch2\u003eUsage\u003c/h2\u003e\u003cul\u003e\u003cli\u003e\u003ccode\u003e?op=list\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=get\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=runtime\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=save\u0026amp;name=example.json\u0026amp;json=...\u003c/code\u003e\u003c/li\u003e\u003c/ul\u003e\u003c/main\u003e\u003c/body\u003e\u003c/html\u003e"
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/host-callback-auth-files/status?op=get\u0026auth_index=idx-a"
+      },
+      "result": {
+        "handled": true,
+        "status": 200,
+        "headers": {
+          "Content-Type": [
+            "text/html; charset=utf-8"
+          ]
+        },
+        "body": "\u003c!doctype html\u003e\u003chtml\u003e\u003chead\u003e\u003cmeta charset=\"utf-8\"\u003e\u003ctitle\u003eHost Auth Files\u003c/title\u003e\u003cstyle\u003ebody{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;margin:2rem;line-height:1.45;color:#1f2933}code,pre{background:#f3f4f6;border-radius:6px}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}dl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem}dt{font-weight:600}dd{margin:0}.error{color:#b42318}\u003c/style\u003e\u003c/head\u003e\u003cbody\u003e\u003cmain\u003e\u003ch1\u003eHost Auth Files\u003c/h1\u003e\u003cdl\u003e\u003cdt\u003eop\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003eget\u003c/code\u003e\u003c/dd\u003e\u003cdt\u003eauth_index\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003eidx-a\u003c/code\u003e\u003c/dd\u003e\u003c/dl\u003e\u003ch2\u003eResult\u003c/h2\u003e\u003cpre\u003e{\n  \u0026#34;auth_index\u0026#34;: \u0026#34;idx-a\u0026#34;,\n  \u0026#34;name\u0026#34;: \u0026#34;a.json\u0026#34;,\n  \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/a.json\u0026#34;,\n  \u0026#34;json\u0026#34;: {\n    \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n    \u0026#34;email\u0026#34;: \u0026#34; a@example.com \u0026#34;,\n    \u0026#34;project_id\u0026#34;: \u0026#34;p1\u0026#34;,\n    \u0026#34;priority\u0026#34;: \u0026#34;3\u0026#34;,\n    \u0026#34;note\u0026#34;: \u0026#34; n \u0026#34;,\n    \u0026#34;base_url\u0026#34;: \u0026#34;https://b.example\u0026#34;,\n    \u0026#34;websockets\u0026#34;: \u0026#34;true\u0026#34;,\n    \u0026#34;access_token\u0026#34;: \u0026#34;tok\u0026#34;\n  }\n}\u003c/pre\u003e\u003ch2\u003eUsage\u003c/h2\u003e\u003cul\u003e\u003cli\u003e\u003ccode\u003e?op=list\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=get\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=runtime\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=save\u0026amp;name=example.json\u0026amp;json=...\u003c/code\u003e\u003c/li\u003e\u003c/ul\u003e\u003c/main\u003e\u003c/body\u003e\u003c/html\u003e"
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/host-callback-auth-files/status?op=runtime\u0026auth_index=idx-rt"
+      },
+      "result": {
+        "handled": true,
+        "status": 200,
+        "headers": {
+          "Content-Type": [
+            "text/html; charset=utf-8"
+          ]
+        },
+        "body": "\u003c!doctype html\u003e\u003chtml\u003e\u003chead\u003e\u003cmeta charset=\"utf-8\"\u003e\u003ctitle\u003eHost Auth Files\u003c/title\u003e\u003cstyle\u003ebody{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;margin:2rem;line-height:1.45;color:#1f2933}code,pre{background:#f3f4f6;border-radius:6px}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}dl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem}dt{font-weight:600}dd{margin:0}.error{color:#b42318}\u003c/style\u003e\u003c/head\u003e\u003cbody\u003e\u003cmain\u003e\u003ch1\u003eHost Auth Files\u003c/h1\u003e\u003cdl\u003e\u003cdt\u003eop\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003eruntime\u003c/code\u003e\u003c/dd\u003e\u003cdt\u003eauth_index\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003eidx-rt\u003c/code\u003e\u003c/dd\u003e\u003c/dl\u003e\u003ch2\u003eResult\u003c/h2\u003e\u003cpre\u003e{\n  \u0026#34;auth\u0026#34;: {\n    \u0026#34;id\u0026#34;: \u0026#34;rt-1\u0026#34;,\n    \u0026#34;auth_index\u0026#34;: \u0026#34;idx-rt\u0026#34;,\n    \u0026#34;name\u0026#34;: \u0026#34;rt-1\u0026#34;,\n    \u0026#34;type\u0026#34;: \u0026#34;demo\u0026#34;,\n    \u0026#34;provider\u0026#34;: \u0026#34;demo\u0026#34;,\n    \u0026#34;label\u0026#34;: \u0026#34;runtime\u0026#34;,\n    \u0026#34;status\u0026#34;: \u0026#34;error\u0026#34;,\n    \u0026#34;status_message\u0026#34;: \u0026#34;boom\u0026#34;,\n    \u0026#34;unavailable\u0026#34;: true,\n    \u0026#34;runtime_only\u0026#34;: true,\n    \u0026#34;source\u0026#34;: \u0026#34;memory\u0026#34;,\n    \u0026#34;modtime\u0026#34;: \u0026#34;TIME\u0026#34;,\n    \u0026#34;updated_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n    \u0026#34;created_at\u0026#34;: \u0026#34;TIME\u0026#34;,\n    \u0026#34;last_refresh\u0026#34;: \u0026#34;TIME\u0026#34;,\n    \u0026#34;next_retry_after\u0026#34;: \u0026#34;TIME\u0026#34;,\n    \u0026#34;email\u0026#34;: \u0026#34;attr@example.com\u0026#34;,\n    \u0026#34;project_id\u0026#34;: \u0026#34;ap\u0026#34;,\n    \u0026#34;account_type\u0026#34;: \u0026#34;api_key\u0026#34;,\n    \u0026#34;account\u0026#34;: \u0026#34;k\u0026#34;,\n    \u0026#34;priority\u0026#34;: 4,\n    \u0026#34;base_url\u0026#34;: \u0026#34;https://attr\u0026#34;,\n    \u0026#34;recent_requests\u0026#34;: [\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      },\n      {\n        \u0026#34;time\u0026#34;: \u0026#34;BUCKET\u0026#34;,\n        \u0026#34;success\u0026#34;: 0,\n        \u0026#34;failed\u0026#34;: 0\n      }\n    ]\n  }\n}\u003c/pre\u003e\u003ch2\u003eUsage\u003c/h2\u003e\u003cul\u003e\u003cli\u003e\u003ccode\u003e?op=list\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=get\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=runtime\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=save\u0026amp;name=example.json\u0026amp;json=...\u003c/code\u003e\u003c/li\u003e\u003c/ul\u003e\u003c/main\u003e\u003c/body\u003e\u003c/html\u003e"
+      }
+    },
+    {
+      "op": "management",
+      "args": {
+        "method": "POST",
+        "target": "/v0/management/rec/a/calls",
+        "body": "{\"calls\":[\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"new.json\",\"json\":{\"type\":\"demo\",\"email\":\"n@example.com\"}}},\n {\"method\":\"host.auth.save\",\"request\":{\"name\":\"a.json\",\"json\":{\"type\":\"demo\",\"email\":\"changed@example.com\"}}},\n {\"method\":\"host.auth.get\",\"request\":{\"auth_index\":\"idx-a\"}}\n]}"
+      },
+      "result": {
+        "handled": true,
+        "status": 201,
+        "headers": {
+          "Content-Type": [
+            "application/json"
+          ],
+          "X-Recorder": [
+            "a"
+          ]
+        },
+        "body": "{\"label\":\"a \\u003c\\u0026\\u003e\",\"method\":\"POST\",\"path\":\"/v0/management/rec/a/calls\",\"query\":null,\"results\":[\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"name\\\":\\\"new.json\\\",\\\"path\\\":\\\"AUTHDIR/new.json\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"name\\\":\\\"a.json\\\",\\\"path\\\":\\\"AUTHDIR/a.json\\\"}}\",\"0 {\\\"ok\\\":true,\\\"result\\\":{\\\"auth_index\\\":\\\"idx-a\\\",\\\"name\\\":\\\"a.json\\\",\\\"path\\\":\\\"AUTHDIR/a.json\\\",\\\"json\\\":{\\\"email\\\":\\\"changed@example.com\\\",\\\"type\\\":\\\"demo\\\"}}}\"]}"
+      }
+    },
+    {
+      "op": "resource",
+      "args": {
+        "method": "GET",
+        "target": "/v0/resource/plugins/host-callback-auth-files/status?op=save\u0026name=page.json\u0026json=%7B%22type%22%3A%22demo%22%7D"
+      },
+      "result": {
+        "handled": true,
+        "status": 200,
+        "headers": {
+          "Content-Type": [
+            "text/html; charset=utf-8"
+          ]
+        },
+        "body": "\u003c!doctype html\u003e\u003chtml\u003e\u003chead\u003e\u003cmeta charset=\"utf-8\"\u003e\u003ctitle\u003eHost Auth Files\u003c/title\u003e\u003cstyle\u003ebody{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;margin:2rem;line-height:1.45;color:#1f2933}code,pre{background:#f3f4f6;border-radius:6px}code{padding:.1rem .3rem}pre{padding:1rem;overflow:auto;white-space:pre-wrap}dl{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem}dt{font-weight:600}dd{margin:0}.error{color:#b42318}\u003c/style\u003e\u003c/head\u003e\u003cbody\u003e\u003cmain\u003e\u003ch1\u003eHost Auth Files\u003c/h1\u003e\u003cdl\u003e\u003cdt\u003eop\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003esave\u003c/code\u003e\u003c/dd\u003e\u003cdt\u003ename\u003c/dt\u003e\u003cdd\u003e\u003ccode\u003epage.json\u003c/code\u003e\u003c/dd\u003e\u003c/dl\u003e\u003ch2\u003eResult\u003c/h2\u003e\u003cpre\u003e{\n  \u0026#34;name\u0026#34;: \u0026#34;page.json\u0026#34;,\n  \u0026#34;path\u0026#34;: \u0026#34;AUTHDIR/page.json\u0026#34;\n}\u003c/pre\u003e\u003ch2\u003eUsage\u003c/h2\u003e\u003cul\u003e\u003cli\u003e\u003ccode\u003e?op=list\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=get\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=runtime\u0026amp;auth_index=\u0026lt;AUTH_INDEX\u0026gt;\u003c/code\u003e\u003c/li\u003e\u003cli\u003e\u003ccode\u003e?op=save\u0026amp;name=example.json\u0026amp;json=...\u003c/code\u003e\u003c/li\u003e\u003c/ul\u003e\u003c/main\u003e\u003c/body\u003e\u003c/html\u003e"
+      }
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
+          {
+            "config_yaml": "enabled: true\nrecord: RECORDDIR\nlabel: a\ncaps: management_api\npriority: 0\n",
+            "method": "plugin.register",
+            "request": "{\"config_yaml\":\"\u003cconfig_yaml\u003e\",\"schema_version\":6}"
+          },
+          {
+            "method": "management.register",
+            "request": "{\"Plugin\":{\"Name\":\"a\",\"Version\":\"1.0.0\",\"Author\":\"cliproxy-rs tests\",\"GitHubRepository\":\"https://example.invalid/recorder\",\"Logo\":\"\",\"ConfigFields\":null},\"BasePath\":\"/v0/management\",\"ResourceBasePath\":\"/v0/resource/plugins/recorder-a\"}"
+          },
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/a/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"eyJjYWxscyI6WwogeyJtZXRob2QiOiJob3N0LmF1dGgubGlzdCIsInJlcXVlc3QiOnt9fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLmxpc3QiLCJyZXF1ZXN0IjpbXX0sCiB7Im1ldGhvZCI6Imhvc3QuYXV0aC5nZXQiLCJyZXF1ZXN0Ijp7ImF1dGhfaW5kZXgiOiIgIn19LAogeyJtZXRob2QiOiJob3N0LmF1dGguZ2V0IiwicmVxdWVzdCI6eyJhdXRoX2luZGV4IjoiaWR4In19LAogeyJtZXRob2QiOiJob3N0LmF1dGguZ2V0IiwicmVxdWVzdCI6eyJhdXRoX2luZGV4Ijo3fX0sCiB7Im1ldGhvZCI6Imhvc3QuYXV0aC5nZXRfcnVudGltZSIsInJlcXVlc3QiOnsiYXV0aF9pbmRleCI6ImlkeCJ9fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLnNhdmUiLCJyZXF1ZXN0Ijp7Im5hbWUiOiIuLi94Lmpzb24iLCJqc29uIjp7fX19LAogeyJtZXRob2QiOiJob3N0LmF1dGguc2F2ZSIsInJlcXVlc3QiOnsibmFtZSI6ImFcXGIuanNvbiIsImpzb24iOnt9fX0sCiB7Im1ldGhvZCI6Imhvc3QuYXV0aC5zYXZlIiwicmVxdWVzdCI6eyJuYW1lIjoieC50eHQiLCJqc29uIjp7fX19LAogeyJtZXRob2QiOiJob3N0LmF1dGguc2F2ZSIsInJlcXVlc3QiOnsibmFtZSI6IiAiLCJqc29uIjp7fX19LAogeyJtZXRob2QiOiJob3N0LmF1dGguc2F2ZSIsInJlcXVlc3QiOnsibmFtZSI6InguanNvbiJ9fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLnNhdmUiLCJyZXF1ZXN0Ijp7Im5hbWUiOiJ4Lmpzb24iLCJqc29uIjpbMV19fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLnNhdmUiLCJyZXF1ZXN0Ijp7Im5hbWUiOiJ4Lmpzb24iLCJqc29uIjp7InR5cGUiOiJkZW1vIiwid2VpZ2h0IjoxLjV9fX0sCiB7Im1ldGhvZCI6Imhvc3QuYXV0aC5zYXZlIiwicmVxdWVzdCI6eyJuYW1lIjoieC5qc29uIiwianNvbiI6eyJ0eXBlIjoiZGVtbyIsIndlaWdodCI6MjAwMDAwMH19fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLnNhdmUiLCJyZXF1ZXN0Ijp7Im5hbWUiOiIgU2F2ZWQuSlNPTiAiLCJqc29uIjp7InR5cGUiOiJkZW1vIiwiZW1haWwiOiIgc0BleGFtcGxlLmNvbSAiLCJkaXNhYmxlZCI6InRydWUiLCJwcmlvcml0eSI6IjciLCJiYXNlLXVybCI6Imh0dHBzOi8vbGVnYWN5In19fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLmxpc3QiLCJyZXF1ZXN0IjpudWxsfSwKIHsibWV0aG9kIjoiaG9zdC5hZmZpbml0eS5sb29rdXAiLCJyZXF1ZXN0Ijp7InByb3ZpZGVyIjoiICIsIm1vZGVsIjoibSIsInNlc3Npb25faWQiOiJzIn19LAogeyJtZXRob2QiOiJob3N0LmFmZmluaXR5Lmxvb2t1cCIsInJlcXVlc3QiOnsicHJvdmlkZXIiOiJwIiwibW9kZWwiOiIiLCJzZXNzaW9uX2lkIjoicyJ9fSwKIHsibWV0aG9kIjoiaG9zdC5hZmZpbml0eS5sb29rdXAiLCJyZXF1ZXN0Ijp7InByb3ZpZGVyIjoicCIsIm1vZGVsIjoibSJ9fSwKIHsibWV0aG9kIjoiaG9zdC5hZmZpbml0eS5sb29rdXAiLCJyZXF1ZXN0Ijp7InByb3ZpZGVyIjoicCIsIm1vZGVsIjoibSIsInNlc3Npb25faWQiOiJzIn19Cl19\",\"host_callback_id\":\"37\"}"
+          },
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/a/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"eyJjYWxscyI6WwogeyJtZXRob2QiOiJob3N0LmF1dGgubGlzdCIsInJlcXVlc3QiOnt9fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLmdldCIsInJlcXVlc3QiOnsiYXV0aF9pbmRleCI6ImlkeC1hIn19LAogeyJtZXRob2QiOiJob3N0LmF1dGguZ2V0IiwicmVxdWVzdCI6eyJhdXRoX2luZGV4IjoiaWR4LXJ0In19LAogeyJtZXRob2QiOiJob3N0LmF1dGguZ2V0IiwicmVxdWVzdCI6eyJhdXRoX2luZGV4IjoiaWR4LW1vdmVkIn19LAogeyJtZXRob2QiOiJob3N0LmF1dGguZ2V0IiwicmVxdWVzdCI6eyJhdXRoX2luZGV4IjoiaWR4LWJhZCJ9fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLmdldCIsInJlcXVlc3QiOnsiYXV0aF9pbmRleCI6ImlkeC1lbXB0eSJ9fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLmdldCIsInJlcXVlc3QiOnsiYXV0aF9pbmRleCI6Im5vcGUifX0sCiB7Im1ldGhvZCI6Imhvc3QuYXV0aC5nZXRfcnVudGltZSIsInJlcXVlc3QiOnsiYXV0aF9pbmRleCI6ImlkeC1ydCJ9fSwKIHsibWV0aG9kIjoiaG9zdC5hdXRoLmdldF9ydW50aW1lIiwicmVxdWVzdCI6eyJhdXRoX2luZGV4IjoiaWR4LWdvbmUifX0sCiB7Im1ldGhvZCI6Imhvc3QuYXV0aC5nZXRfcnVudGltZSIsInJlcXVlc3QiOnsiYXV0aF9pbmRleCI6IiBpZHgtYiAifX0sCiB7Im1ldGhvZCI6Imhvc3QuYWZmaW5pdHkubG9va3VwIiwicmVxdWVzdCI6eyJwcm92aWRlciI6ImRlbW8iLCJtb2RlbCI6Im0iLCJzZXNzaW9uX2lkIjoicyJ9fQpdfQ==\",\"host_callback_id\":\"40\"}"
+          },
+          {
+            "method": "management.handle",
+            "request": "{\"Method\":\"POST\",\"Path\":\"/v0/management/rec/a/calls\",\"Headers\":null,\"Query\":null,\"Body\":\"eyJjYWxscyI6WwogeyJtZXRob2QiOiJob3N0LmF1dGguc2F2ZSIsInJlcXVlc3QiOnsibmFtZSI6Im5ldy5qc29uIiwianNvbiI6eyJ0eXBlIjoiZGVtbyIsImVtYWlsIjoibkBleGFtcGxlLmNvbSJ9fX0sCiB7Im1ldGhvZCI6Imhvc3QuYXV0aC5zYXZlIiwicmVxdWVzdCI6eyJuYW1lIjoiYS5qc29uIiwianNvbiI6eyJ0eXBlIjoiZGVtbyIsImVtYWlsIjoiY2hhbmdlZEBleGFtcGxlLmNvbSJ9fX0sCiB7Im1ldGhvZCI6Imhvc3QuYXV0aC5nZXQiLCJyZXF1ZXN0Ijp7ImF1dGhfaW5kZXgiOiJpZHgtYSJ9fQpdfQ==\",\"host_callback_id\":\"44\"}"
+          }
+        ]
+      }
+    },
+    {
+      "op": "auth_manager",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "shutdown",
+      "args": null,
+      "result": null
+    },
+    {
+      "op": "records",
+      "args": null,
+      "result": {
+        "a": [
           {
             "method": "\u003cshutdown\u003e",
             "request": ""

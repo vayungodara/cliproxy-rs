@@ -5,8 +5,11 @@
 //! - [`gojson`] and [`api`]: Go `encoding/json` and the pluginapi schemas.
 //! - [`native`]: `dlopen` loading, the plugin call and host callback trampolines.
 //! - [`host`]: discovery, load/register/reconfigure/hot reload/unload, priority snapshot.
-//! - [`callbacks`] and [`streams`]: `host.*` callbacks and plugin-fed streams.
+//! - [`callbacks`] and [`streams`]: `host.*` callbacks and plugin-fed streams;
+//!   [`hostauth`]: `host.auth.*` and `host.affinity.lookup` over the server's
+//!   [`hostauth::AuthManager`].
 //! - [`management`]: plugin-declared management and resource routes.
+//! - [`store`]: the plugin store (registries, verified installs, store auth).
 
 pub mod abi;
 pub mod api;
@@ -18,6 +21,9 @@ pub mod config;
 pub mod executor;
 pub mod gojson;
 pub mod host;
+pub mod hostauth;
+mod hosthttp;
+pub use hosthttp::{go_preflight, go_read_error_text, go_url_error, go_url_error_text};
 pub mod interceptors;
 pub mod management;
 pub mod models;
@@ -27,6 +33,7 @@ pub mod platform;
 pub mod quota;
 pub mod routing;
 pub mod rpc;
+pub mod store;
 pub mod streams;
 #[cfg(feature = "test-support")]
 pub mod testing;

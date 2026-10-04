@@ -122,6 +122,14 @@ impl Runtime {
         self.local_model.load(std::sync::atomic::Ordering::Relaxed)
     }
 
+    /// Serves with `host`, a plugin host that already runs (Go hands the host that
+    /// registered plugin command-line flags to the service; additive API). Call before
+    /// [`crate::plugins::start`].
+    pub fn with_plugin_host(mut self, host: cpa_plugin::Host) -> Self {
+        self.plugins = crate::plugins::PluginRuntime::with_host(host);
+        self
+    }
+
     /// The plugin host (additive API). [`crate::plugins::start`] syncs it with the
     /// config.
     pub fn plugins(&self) -> &cpa_plugin::Host {
@@ -1486,6 +1494,15 @@ impl CredentialStore {
     }
 
     /// Active cooldowns of one credential.
+    /// Credentials bound to live session-affinity keys that `matches`, without
+    /// refreshing them (the plugin host's `host.affinity.lookup`).
+    pub(crate) fn affinity_bound(&self, matches: impl Fn(&crate::affinity::Key) -> bool) -> Vec<String> {
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .affinity_bound(Instant::now(), matches)
+    }
+
     pub fn cooldowns(&self, id: &str) -> Vec<crate::scheduler::CooldownState> {
         self.scheduler
             .lock()

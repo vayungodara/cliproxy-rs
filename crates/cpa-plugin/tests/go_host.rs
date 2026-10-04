@@ -8,6 +8,8 @@
 // Native plugins load only on Unix (the host's `native` module).
 #![cfg(unix)]
 
+#[path = "go_host/auth.rs"]
+mod auth;
 #[path = "go_host/calls.rs"]
 mod calls;
 mod support;
@@ -26,6 +28,9 @@ struct Runner {
     built: PathBuf,
     plugin_dir: PathBuf,
     record_dir: PathBuf,
+    auth_dir: PathBuf,
+    /// host:port of the raw upstream (`cpa_plugin::testing::raw_upstream`).
+    upstream: String,
     host: Host,
 }
 
@@ -33,6 +38,7 @@ impl Runner {
     fn placeholders(&self, text: &str) -> String {
         text.replace("PLUGINDIR", &self.plugin_dir.to_string_lossy())
             .replace("RECORDDIR", &self.record_dir.to_string_lossy())
+            .replace("AUTHDIR", &self.auth_dir.to_string_lossy())
     }
 
     fn registered(&self) -> Value {
@@ -83,10 +89,11 @@ impl Runner {
                 Value::Object(out)
             }
             "register_management" => {
+                // Go's empty variadic list marshals as null.
                 let reserved: HashSet<String> = args
                     .as_array()
-                    .unwrap()
-                    .iter()
+                    .into_iter()
+                    .flatten()
                     .map(|v| v.as_str().unwrap().to_owned())
                     .collect();
                 self.host.register_management_routes(&reserved).await;
@@ -115,7 +122,12 @@ impl Runner {
                     path: path.into(),
                     headers,
                     query: q,
-                    body: Bytes::from(args.get("body").and_then(Value::as_str).unwrap_or_default().to_owned()),
+                    body: Bytes::from(
+                        args.get("body")
+                            .and_then(Value::as_str)
+                            .unwrap_or_default()
+                            .replace("UPSTREAM", &self.upstream),
+                    ),
                     scope: Default::default(),
                 };
                 let reply = if op == "management" {
@@ -137,7 +149,11 @@ impl Runner {
                             "handled": true,
                             "status": reply.status,
                             "headers": headers,
-                            "body": String::from_utf8_lossy(&reply.body),
+                            "body": auth::normalize_times(
+                                &String::from_utf8_lossy(&reply.body)
+                                    .replace(&self.upstream, "UPSTREAM")
+                                    .replace(&*self.auth_dir.to_string_lossy(), "AUTHDIR")
+                            ),
                         })
                     }
                 }
@@ -171,6 +187,22 @@ impl Runner {
                 Value::Null
             }
             "call" => calls::call(&self.host, args).await,
+            "auth_files" => {
+                for (name, content) in args.as_object().unwrap() {
+                    std::fs::write(self.auth_dir.join(name), content.as_str().unwrap()).unwrap();
+                }
+                // The generator also makes a directory with a .json name.
+                std::fs::create_dir_all(self.auth_dir.join("dir.json")).unwrap();
+                Value::Null
+            }
+            "auth_manager" => {
+                let manager = args.as_array().map(|specs| {
+                    Arc::new(auth::GoldenManager::from_specs(specs, &self.auth_dir))
+                        as Arc<dyn cpa_plugin::hostauth::AuthManager>
+                });
+                self.host.set_auth_manager(manager);
+                Value::Null
+            }
             other => panic!("unknown step {other}"),
         }
     }
@@ -195,7 +227,26 @@ impl Runner {
                 let request = entry["request"]
                     .as_str()
                     .unwrap()
-                    .replace(&*self.record_dir.to_string_lossy(), "RECORDDIR");
+                    .replace(&*self.record_dir.to_string_lossy(), "RECORDDIR")
+                    .replace(&self.upstream, "UPSTREAM");
+                // A management body carrying the upstream address is base64 in the record.
+                let request = match serde_json::from_str::<Value>(&request)
+                    .ok()
+                    .and_then(|v| v.get("Body").and_then(Value::as_str).map(str::to_owned))
+                {
+                    Some(b64) => {
+                        use base64::Engine as _;
+                        let engine = base64::engine::general_purpose::STANDARD;
+                        match engine.decode(&b64) {
+                            Ok(body) if String::from_utf8_lossy(&body).contains(&self.upstream) => {
+                                let normalized = String::from_utf8_lossy(&body).replace(&self.upstream, "UPSTREAM");
+                                request.replacen(&b64, &engine.encode(normalized), 1)
+                            }
+                            _ => request,
+                        }
+                    }
+                    None => request,
+                };
                 entry.insert("request".into(), request.clone().into());
                 if let Ok(Value::Object(req)) = serde_json::from_str::<Value>(&request)
                     && let Some(raw) = req.get("config_yaml")
@@ -209,6 +260,7 @@ impl Runner {
                         "config_yaml".into(),
                         yaml.replace(&*self.record_dir.to_string_lossy(), "RECORDDIR")
                             .replace(&*self.plugin_dir.to_string_lossy(), "PLUGINDIR")
+                            .replace(&*self.auth_dir.to_string_lossy(), "AUTHDIR")
                             .into(),
                     );
                     let encoded = serde_json::to_string(raw).unwrap();
@@ -260,6 +312,26 @@ fn first_diff(go: &Value, rust: &Value, path: &str) -> String {
             let i = a.iter().zip(b).position(|(v, w)| !same(v, w)).unwrap_or(0);
             first_diff(&a[i], &b[i], &format!("{path}[{i}]"))
         }
+        // Long strings: the neighbourhood of the first differing character.
+        (Value::String(a), Value::String(b)) if a.len() > 300 || b.len() > 300 => {
+            let at = a
+                .bytes()
+                .zip(b.bytes())
+                .position(|(x, y)| x != y)
+                .unwrap_or(a.len().min(b.len()));
+            let window = |s: &str| {
+                let mut start = at.saturating_sub(120).min(s.len());
+                while !s.is_char_boundary(start) {
+                    start -= 1;
+                }
+                let mut end = (at + 120).min(s.len());
+                while !s.is_char_boundary(end) {
+                    end += 1;
+                }
+                format!("…{:?}…", &s[start..end])
+            };
+            format!("{path} (byte {at}):\n    go:   {}\n    rust: {}", window(a), window(b))
+        }
         _ => format!("{path}:\n    go:   {go}\n    rust: {rust}"),
     }
 }
@@ -299,10 +371,13 @@ async fn rust_host_matches_go_host() {
         built: built.to_path_buf(),
         plugin_dir: scratch.join("plugins"),
         record_dir: scratch.join("records"),
+        auth_dir: scratch.join("auths"),
+        upstream: cpa_plugin::testing::raw_upstream().await,
         host: Host::new(),
     };
     std::fs::create_dir_all(&runner.plugin_dir).unwrap();
     std::fs::create_dir_all(&runner.record_dir).unwrap();
+    std::fs::create_dir_all(&runner.auth_dir).unwrap();
     let mut failures = Vec::new();
     for (i, step) in fixture["steps"].as_array().unwrap().iter().enumerate() {
         let op = step["op"].as_str().unwrap();

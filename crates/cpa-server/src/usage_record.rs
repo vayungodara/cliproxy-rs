@@ -1714,6 +1714,10 @@ pub struct Tracker {
     /// The request's client facts under this attempt's session, when it has its own:
     /// Home's canonical session for a dispatched credential, else its LCP pick's.
     client: Option<Client>,
+    /// Go `requestedAt`, for usage plugins.
+    requested_at: chrono::DateTime<chrono::FixedOffset>,
+    /// Go `baseURL`: the credential's `base_url` attribute, else its metadata's.
+    base_url: String,
 }
 
 impl Tracker {
@@ -1743,8 +1747,17 @@ impl Tracker {
         upstream_model: &str,
     ) -> Self {
         let (provider, executor_type) = executor_identity(credential);
+        let now = chrono::Local::now();
+        let base_url = credential
+            .attributes
+            .get("base_url")
+            .map(|v| v.trim())
+            .filter(|v| !v.is_empty())
+            .or_else(|| credential.str("base_url").map(str::trim))
+            .unwrap_or_default()
+            .to_owned();
         let record = Record {
-            timestamp: go_timestamp(&chrono::Local::now()),
+            timestamp: go_timestamp(&now),
             execution_id: uuid::Uuid::new_v4().to_string(),
             executor_type: executor_type.to_owned(),
             model: cpa_common::thinking::parse_suffix(upstream_model).model_name,
@@ -1784,6 +1797,8 @@ impl Tracker {
             first: None,
             published: false,
             client: home_client,
+            requested_at: now.fixed_offset(),
+            base_url,
         }
     }
 
@@ -1846,7 +1861,9 @@ impl Tracker {
             return;
         }
         let queue = self.queue.usage_queue();
-        if !queue.accepts() {
+        // Go publishes every record to all usage plugins; the queue is one of them.
+        let plugins = self.queue.plugins().has_usage_plugins();
+        if !queue.accepts() && !plugins {
             return;
         }
         let reported = std::mem::take(&mut *self.observer.lock());
@@ -1854,14 +1871,14 @@ impl Tracker {
             return;
         }
         let mut record = std::mem::take(&mut self.record);
+        let (latency, ttft);
         if let Some(outcome) = reported.outcome {
             record.failed = outcome.failed;
             record.fail_status = outcome.status;
             record.fail_body = outcome.body;
             record.detail = outcome.detail;
             record.response_model = outcome.model;
-            record.latency_ms = outcome.latency.as_millis() as i64;
-            record.ttft_ms = outcome.ttft.as_millis() as i64;
+            (latency, ttft) = (outcome.latency, outcome.ttft);
         } else {
             let usage = if reported.seen {
                 reported.usage()
@@ -1891,18 +1908,93 @@ impl Tracker {
             } else {
                 self.model.get().to_owned()
             };
-            record.latency_ms = self.started.elapsed().as_millis() as i64;
-            record.ttft_ms = if reported.ttft.tracked {
-                reported.ttft.get().as_millis() as i64
+            latency = self.started.elapsed();
+            ttft = if reported.ttft.tracked {
+                reported.ttft.get()
             } else {
-                self.first.map_or(0, |d| d.as_millis() as i64)
+                self.first.unwrap_or_default()
             };
         }
+        record.latency_ms = latency.as_millis() as i64;
+        record.ttft_ms = ttft.as_millis() as i64;
         if let Some(effort) = reported.effort {
             record.reasoning_effort = effort;
         }
-        queue.enqueue(queued(&record, self.client.as_ref().unwrap_or(&self.facts.client)));
+        if plugins {
+            self.queue
+                .plugins()
+                .publish_usage(self.plugin_record(&record, latency, ttft));
+        }
+        if queue.accepts() {
+            queue.enqueue(queued(&record, self.client.as_ref().unwrap_or(&self.facts.client)));
+        }
         warn_model_substitution(&record, &reported.upstream_model, &self.auth_id);
+    }
+}
+
+impl Tracker {
+    /// Go `usageAdapter.HandleUsage`'s record.
+    fn plugin_record(
+        &self,
+        record: &Record,
+        latency: std::time::Duration,
+        ttft: std::time::Duration,
+    ) -> cpa_plugin::api::UsageRecord {
+        let client = self.client.as_ref().unwrap_or(&self.facts.client);
+        // Go `NewUsageReporter`: the client request's session; a parent that is not a
+        // hierarchy parent is dropped. The adapter then applies its own rule.
+        let parent = if client.session_id.is_empty() || client.session_id == client.parent_session_id {
+            String::new()
+        } else {
+            client.parent_session_id.clone()
+        };
+        let (session_id, parent_session_id) = cpa_plugin::transform::usage_session_ids(
+            &client.session_id,
+            &parent,
+            &client.session_id,
+            &client.parent_session_id,
+        );
+        let nanos = |d: std::time::Duration| i64::try_from(d.as_nanos()).unwrap_or(i64::MAX);
+        cpa_plugin::api::UsageRecord {
+            request_id: record.execution_id.clone(),
+            trace_id: client.request_id.trim().to_owned(),
+            provider: record.provider.clone(),
+            base_url: self.base_url.clone(),
+            executor_type: record.executor_type.clone(),
+            model: record.model.clone(),
+            alias: record.alias.clone(),
+            api_key: client.api_key.clone(),
+            session_id,
+            parent_session_id,
+            auth_id: self.auth_id.clone(),
+            auth_index: record.auth_index.clone(),
+            auth_type: record.auth_type.clone(),
+            source: record.source.clone(),
+            reasoning_effort: record.reasoning_effort.clone(),
+            service_tier: record.service_tier.clone(),
+            response_service_tier: record.detail.response_service_tier.clone(),
+            response_model: record.response_model.clone(),
+            generate: record.generate,
+            stream: record.stream,
+            requested_at: cpa_plugin::gojson::GoTime(Some(self.requested_at)),
+            latency_ns: nanos(latency),
+            ttft_ns: nanos(ttft),
+            failed: record.failed,
+            failure: cpa_plugin::api::UsageFailure {
+                status_code: record.fail_status,
+                body: record.fail_body.clone(),
+            },
+            detail: cpa_plugin::api::UsageDetail {
+                input_tokens: record.detail.input,
+                output_tokens: record.detail.output,
+                reasoning_tokens: record.detail.reasoning,
+                cached_tokens: record.detail.cached,
+                cache_read_tokens: record.detail.cache_read,
+                cache_creation_tokens: record.detail.cache_creation,
+                total_tokens: record.detail.total,
+            },
+            response_headers: record.response_headers.iter().cloned().collect(),
+        }
     }
 }
 

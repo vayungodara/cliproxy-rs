@@ -18,10 +18,13 @@ libc.workspace = true
 serde_json.workspace = true
 serde_yaml_ng.workspace = true
 tokio.workspace = true
+tokio-util = { version = "0.7", features = ["io"] }
 tracing.workspace = true
 wreq.workspace = true
+async-compression = { version = "0.4", features = ["tokio", "gzip"] }
 base64 = "0.22"
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+flate2 = "1"
 sha2 = "0.10"
 url = "2"
 

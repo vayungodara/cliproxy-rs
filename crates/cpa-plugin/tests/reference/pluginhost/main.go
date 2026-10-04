@@ -10,6 +10,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -17,6 +18,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -35,6 +37,8 @@ type runner struct {
 	built     string
 	pluginDir string
 	recordDir string
+	authDir   string
+	upstream  string // host:port of the raw upstream (upstream.go)
 	host      *pluginhost.Host
 	steps     []step
 }
@@ -51,12 +55,17 @@ func main() {
 		built:     os.Args[1],
 		pluginDir: filepath.Join(work, "plugins"),
 		recordDir: filepath.Join(work, "records"),
+		authDir:   filepath.Join(work, "auths"),
+		upstream:  startUpstream(),
 		host:      pluginhost.New(),
 	}
 	check(os.MkdirAll(r.pluginDir, 0o755))
 	check(os.MkdirAll(r.recordDir, 0o755))
+	check(os.MkdirAll(r.authDir, 0o755))
 	scenarios(r)
 	capabilityScenarios(r)
+	proxyScenarios(r)
+	authScenarios(r)
 	out, err := json.MarshalIndent(map[string]any{"steps": r.steps}, "", "  ")
 	check(err)
 	check(os.WriteFile(os.Args[2], append(out, '\n'), 0o644))
@@ -85,7 +94,7 @@ func (r *runner) files(files map[string]string) {
 }
 
 func (r *runner) apply(yaml string) {
-	text := strings.NewReplacer("PLUGINDIR", r.pluginDir, "RECORDDIR", r.recordDir).Replace(yaml)
+	text := strings.NewReplacer("PLUGINDIR", r.pluginDir, "RECORDDIR", r.recordDir, "AUTHDIR", r.authDir).Replace(yaml)
 	cfg, err := config.ParseConfigBytes([]byte(text))
 	check(err)
 	// cmd/server/main.go resolves auth-dir before anything sees the config.
@@ -157,7 +166,7 @@ type httpResult struct {
 }
 
 func (r *runner) serve(op string, args httpArgs) {
-	req := httptest.NewRequest(args.Method, args.Target, strings.NewReader(args.Body))
+	req := httptest.NewRequest(args.Method, args.Target, strings.NewReader(strings.ReplaceAll(args.Body, "UPSTREAM", r.upstream)))
 	for k, vs := range args.Headers {
 		for _, v := range vs {
 			req.Header.Add(k, v)
@@ -176,7 +185,7 @@ func (r *runner) serve(op string, args httpArgs) {
 		body, _ := io.ReadAll(resp.Body)
 		res.Status = resp.StatusCode
 		res.Headers = resp.Header
-		res.Body = string(body)
+		res.Body = normalizeTimes(strings.NewReplacer(r.upstream, "UPSTREAM", r.authDir, "AUTHDIR").Replace(string(body)))
 	}
 	r.add(op, args, res)
 }
@@ -223,7 +232,14 @@ func (r *runner) records() {
 // the run's directories replaced by placeholders; the Rust test compares it as YAML
 // (yaml.v3 and the Rust emitter format differently) and the rest byte for byte.
 func (r *runner) normalize(line map[string]string) {
-	line["request"] = strings.ReplaceAll(line["request"], r.recordDir, "RECORDDIR")
+	line["request"] = strings.ReplaceAll(strings.ReplaceAll(line["request"], r.recordDir, "RECORDDIR"), r.upstream, "UPSTREAM")
+	// A management body carrying the upstream address is base64 in the record.
+	var withBody struct{ Body []byte }
+	if json.Unmarshal([]byte(line["request"]), &withBody) == nil && bytes.Contains(withBody.Body, []byte(r.upstream)) {
+		old := base64.StdEncoding.EncodeToString(withBody.Body)
+		normalized := base64.StdEncoding.EncodeToString(bytes.ReplaceAll(withBody.Body, []byte(r.upstream), []byte("UPSTREAM")))
+		line["request"] = strings.Replace(line["request"], old, normalized, 1)
+	}
 	var req map[string]json.RawMessage
 	if json.Unmarshal([]byte(line["request"]), &req) != nil {
 		return
@@ -234,9 +250,20 @@ func (r *runner) normalize(line map[string]string) {
 	}
 	var yamlBytes []byte
 	check(json.Unmarshal(raw, &yamlBytes))
-	text := strings.NewReplacer(r.recordDir, "RECORDDIR", r.pluginDir, "PLUGINDIR").Replace(string(yamlBytes))
+	text := strings.NewReplacer(r.recordDir, "RECORDDIR", r.pluginDir, "PLUGINDIR", r.authDir, "AUTHDIR").Replace(string(yamlBytes))
 	line["config_yaml"] = text
 	line["request"] = strings.Replace(line["request"], string(raw), `"<config_yaml>"`, 1)
 }
 
 var _ = http.MethodGet
+
+var (
+	timestampPattern = regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})`)
+	bucketPattern    = regexp.MustCompile(`\d{2}:\d{2}-\d{2}:\d{2}`)
+)
+
+// normalizeTimes writes wall-clock timestamps as TIME and recent-request bucket labels
+// as BUCKET, which differ between runs.
+func normalizeTimes(s string) string {
+	return bucketPattern.ReplaceAllString(timestampPattern.ReplaceAllString(s, "TIME"), "BUCKET")
+}

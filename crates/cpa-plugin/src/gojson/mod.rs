@@ -29,7 +29,7 @@ use chrono::{DateTime, Datelike, FixedOffset, Timelike};
 use serde_json::Value;
 
 mod node;
-pub use node::{Node, parse};
+pub use node::{Node, parse, parse_first};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodeError(pub String);
@@ -46,6 +46,11 @@ impl std::error::Error for DecodeError {}
 pub trait GoJson: Sized + Default {
     /// Go type name, for error messages.
     const GO_TYPE: &'static str;
+    /// The Go type as decode errors spell it; containers name their element type
+    /// (`[]string`, `map[string]interface {}`).
+    fn go_type() -> String {
+        Self::GO_TYPE.to_owned()
+    }
     /// Appends `json.Marshal` output.
     fn encode(&self, out: &mut Vec<u8>);
     /// `json.Unmarshal` into a zero value.
@@ -92,6 +97,11 @@ pub fn from_slice<T: GoJson>(raw: &[u8]) -> Result<T, DecodeError> {
     T::decode(&parse(raw)?)
 }
 
+/// `json.NewDecoder(bytes.NewReader(raw)).Decode`: the first value; see [`parse_first`].
+pub fn from_slice_first<T: GoJson>(raw: &[u8]) -> Result<T, DecodeError> {
+    T::decode(&parse_first(raw)?)
+}
+
 fn kind(v: &Node) -> &'static str {
     match v {
         Node::Null => "null",
@@ -103,20 +113,37 @@ fn kind(v: &Node) -> &'static str {
     }
 }
 
+/// A value of the wrong JSON kind for `go_type`. Go names a number without its
+/// literal here; [`number_error`] is the numeric-range case that includes it.
 pub fn type_error(v: &Node, go_type: &str) -> DecodeError {
     let what = match v {
-        Node::Number(n) => format!("number {n}"),
-        other => kind(other).to_owned(),
+        Node::Number(_) => "number",
+        other => kind(other),
     };
     DecodeError(format!("json: cannot unmarshal {what} into Go value of type {go_type}"))
 }
 
-/// Adds the struct field to a decode error, like Go's `UnmarshalTypeError`.
+/// A number that does not fit the numeric `go_type` (Go `"number " + literal`).
+pub fn number_error(literal: &str, go_type: &str) -> DecodeError {
+    DecodeError(format!(
+        "json: cannot unmarshal number {literal} into Go value of type {go_type}"
+    ))
+}
+
+/// Adds the struct field to a decode error, like Go's `UnmarshalTypeError`: the
+/// innermost struct's name and the field path from the outermost struct (array
+/// indexes and map keys are not part of it).
 pub fn in_field(err: DecodeError, strukt: &str, field: &str) -> DecodeError {
-    match err.0.split_once(" into Go value of type ") {
-        Some((head, ty)) => DecodeError(format!("{head} into Go struct field {strukt}.{field} of type {ty}")),
-        None => err,
+    if let Some((head, ty)) = err.0.split_once(" into Go value of type ") {
+        return DecodeError(format!("{head} into Go struct field {strukt}.{field} of type {ty}"));
     }
+    // A field of a nested struct: this field goes in front of its path.
+    if let Some((head, rest)) = err.0.split_once(" into Go struct field ")
+        && let Some((inner, path)) = rest.split_once('.')
+    {
+        return DecodeError(format!("{head} into Go struct field {inner}.{field}.{path}"));
+    }
+    err
 }
 
 /// Writes one JSON object field by field.
@@ -193,7 +220,7 @@ pub fn decode_struct_into<T: GoStruct>(out: &mut T, v: &Node) -> Result<(), Deco
             }
             first_err.map_or(Ok(()), Err)
         }
-        other => Err(type_error(other, T::GO_TYPE)),
+        other => Err(type_error(other, &T::go_type())),
     }
 }
 
@@ -318,7 +345,7 @@ macro_rules! go_int {
             /// out-of-range values are errors.
             fn decode_value(v: &Node) -> Result<Self, DecodeError> {
                 match v {
-                    Node::Number(n) => n.parse::<$t>().map_err(|_| type_error(v, Self::GO_TYPE)),
+                    Node::Number(n) => n.parse::<$t>().map_err(|_| number_error(n, Self::GO_TYPE)),
                     other => Err(type_error(other, Self::GO_TYPE)),
                 }
             }
@@ -329,6 +356,8 @@ macro_rules! go_int {
     };
 }
 
+// Go `int` has the platform's pointer width, like `isize`.
+go_int!(isize, "int");
 go_int!(i64, "int64");
 go_int!(i32, "int32");
 go_int!(u32, "uint32");
@@ -355,21 +384,80 @@ impl GoJson for f64 {
     }
 }
 
-/// `encoding/base64.StdEncoding` as `encoding/json` uses it: padding required, CR and
-/// LF skipped, non-zero trailing bits accepted.
+/// `encoding/base64.StdEncoding.Decode` as `encoding/json` uses it: padding required,
+/// CR and LF skipped anywhere, non-zero trailing bits accepted. The error is Go's
+/// `CorruptInputError`, naming the same input offset (`decodeQuantum`).
 fn decode_base64(s: &str) -> Result<Bytes, DecodeError> {
-    use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
-    const LENIENT: GeneralPurpose = GeneralPurpose::new(
-        &base64::alphabet::STANDARD,
-        GeneralPurposeConfig::new()
-            .with_decode_allow_trailing_bits(true)
-            .with_decode_padding_mode(DecodePaddingMode::RequireCanonical),
-    );
-    let cleaned: Vec<u8> = s.bytes().filter(|c| *c != b'\r' && *c != b'\n').collect();
-    LENIENT
-        .decode(&cleaned)
-        .map(Bytes::from)
-        .map_err(|e| DecodeError(format!("illegal base64 data: {e}")))
+    let src = s.as_bytes();
+    let corrupt = |at: usize| DecodeError(format!("illegal base64 data at input byte {at}"));
+    let value = |c: u8| match c {
+        b'A'..=b'Z' => Some(c - b'A'),
+        b'a'..=b'z' => Some(c - b'a' + 26),
+        b'0'..=b'9' => Some(c - b'0' + 52),
+        b'+' => Some(62),
+        b'/' => Some(63),
+        _ => None,
+    };
+    let newline = |c: u8| c == b'\n' || c == b'\r';
+    let mut out = Vec::with_capacity(src.len() / 4 * 3);
+    let mut si = 0;
+    while si < src.len() {
+        let mut quantum = [0u8; 4];
+        let mut len = 4;
+        let mut trailing = None;
+        let mut j = 0;
+        while j < 4 {
+            if si == src.len() {
+                if j == 0 {
+                    return Ok(out.into());
+                }
+                return Err(corrupt(si - j));
+            }
+            let c = src[si];
+            si += 1;
+            if let Some(v) = value(c) {
+                quantum[j] = v;
+                j += 1;
+                continue;
+            }
+            if newline(c) {
+                continue;
+            }
+            if c != b'=' || j < 2 {
+                return Err(corrupt(si - 1));
+            }
+            if j == 2 {
+                // "==" is expected; the first `=` is consumed.
+                while si < src.len() && newline(src[si]) {
+                    si += 1;
+                }
+                if si == src.len() {
+                    return Err(corrupt(src.len()));
+                }
+                if src[si] != b'=' {
+                    return Err(corrupt(si - 1));
+                }
+                si += 1;
+            }
+            while si < src.len() && newline(src[si]) {
+                si += 1;
+            }
+            if si < src.len() {
+                trailing = Some(si);
+            }
+            len = j;
+            break;
+        }
+        let v = (u32::from(quantum[0]) << 18)
+            | (u32::from(quantum[1]) << 12)
+            | (u32::from(quantum[2]) << 6)
+            | u32::from(quantum[3]);
+        out.extend_from_slice(&[(v >> 16) as u8, (v >> 8) as u8, v as u8][..len - 1]);
+        if let Some(at) = trailing {
+            return Err(corrupt(at));
+        }
+    }
+    Ok(out.into())
 }
 
 /// `[]byte`: a base64 string, or a JSON array of byte values (a `null` element is 0).
@@ -380,7 +468,7 @@ fn decode_byte_slice(v: &Node) -> Result<Bytes, DecodeError> {
             .iter()
             .map(|item| match item {
                 Node::Null => Ok(0),
-                Node::Number(n) => n.parse::<u8>().map_err(|_| type_error(item, "uint8")),
+                Node::Number(n) => n.parse::<u8>().map_err(|_| number_error(n, "uint8")),
                 other => Err(type_error(other, "uint8")),
             })
             .collect::<Result<Vec<u8>, _>>()
@@ -490,6 +578,9 @@ pub fn encode_any(v: &Value, out: &mut Vec<u8>) {
 impl<T: GoJson> GoJson for Vec<T> {
     const GO_TYPE: &'static str = "slice";
     const NULL_CLEARS: bool = true;
+    fn go_type() -> String {
+        format!("[]{}", T::go_type())
+    }
     fn encode(&self, out: &mut Vec<u8>) {
         if self.is_empty() {
             out.extend_from_slice(b"null");
@@ -516,7 +607,7 @@ impl<T: GoJson> GoJson for Vec<T> {
                 self.truncate(items.len());
                 first_err.map_or(Ok(()), Err)
             }
-            other => Err(type_error(other, Self::GO_TYPE)),
+            other => Err(type_error(other, &Self::go_type())),
         }
     }
     fn is_empty(&self) -> bool {
@@ -539,6 +630,9 @@ fn encode_items<T: GoJson>(items: &[T], out: &mut Vec<u8>) {
 impl<T: GoJson> GoJson for Option<T> {
     const GO_TYPE: &'static str = T::GO_TYPE;
     const NULL_CLEARS: bool = true;
+    fn go_type() -> String {
+        T::go_type()
+    }
     fn encode(&self, out: &mut Vec<u8>) {
         match self {
             None => out.extend_from_slice(b"null"),
@@ -561,6 +655,9 @@ impl<T: GoJson> GoJson for Option<T> {
 impl<T: GoJson> GoJson for BTreeMap<String, T> {
     const GO_TYPE: &'static str = "map";
     const NULL_CLEARS: bool = true;
+    fn go_type() -> String {
+        format!("map[string]{}", T::go_type())
+    }
     fn encode(&self, out: &mut Vec<u8>) {
         if self.is_empty() {
             out.extend_from_slice(b"null");
@@ -588,7 +685,7 @@ impl<T: GoJson> GoJson for BTreeMap<String, T> {
                 }
                 first_err.map_or(Ok(()), Err)
             }
-            other => Err(type_error(other, Self::GO_TYPE)),
+            other => Err(type_error(other, &Self::go_type())),
         }
     }
     fn is_empty(&self) -> bool {
@@ -616,6 +713,9 @@ pub struct NonNil<T>(pub T);
 impl<T: GoJson> GoJson for NonNil<Vec<T>> {
     const GO_TYPE: &'static str = "slice";
     const NULL_CLEARS: bool = true;
+    fn go_type() -> String {
+        Vec::<T>::go_type()
+    }
     fn encode(&self, out: &mut Vec<u8>) {
         encode_items(&self.0, out);
     }
@@ -630,6 +730,9 @@ impl<T: GoJson> GoJson for NonNil<Vec<T>> {
 impl<T: GoJson> GoJson for NonNil<BTreeMap<String, T>> {
     const GO_TYPE: &'static str = "map";
     const NULL_CLEARS: bool = true;
+    fn go_type() -> String {
+        BTreeMap::<String, T>::go_type()
+    }
     fn encode(&self, out: &mut Vec<u8>) {
         encode_map(&self.0, out);
     }

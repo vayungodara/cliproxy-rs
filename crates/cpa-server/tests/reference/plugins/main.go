@@ -10,16 +10,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/api"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/pluginhost"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/pluginstore"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	sdkaccess "github.com/router-for-me/CLIProxyAPI/v8/sdk/access"
 	coreauth "github.com/router-for-me/CLIProxyAPI/v8/sdk/cliproxy/auth"
@@ -36,8 +40,12 @@ type step struct {
 type runner struct {
 	built, pluginDir, recordDir, authDir, configPath string
 	server                                           *api.Server
+	store                                            *storeDoer
 	steps                                            []step
 	indexes                                          map[string]string // auth file name -> auth_index
+	upstream                                         string            // the probe server's base URL
+	upstreamMu                                       sync.Mutex
+	upstreamSeen                                     []map[string]any
 }
 
 func check(err error) {
@@ -47,7 +55,7 @@ func check(err error) {
 }
 
 func (r *runner) placeholders(s string) string {
-	pairs := []string{"PLUGINDIR", r.pluginDir, "RECORDDIR", r.recordDir, "AUTHDIR", r.authDir}
+	pairs := []string{"PLUGINDIR", r.pluginDir, "RECORDDIR", r.recordDir, "AUTHDIR", r.authDir, "UPSTREAM", r.upstream}
 	for name, index := range r.indexes {
 		pairs = append(pairs, "AUTHINDEX("+name+")", index)
 	}
@@ -56,6 +64,10 @@ func (r *runner) placeholders(s string) string {
 
 func (r *runner) normalize(s string) string {
 	pairs := []string{r.pluginDir, "PLUGINDIR", r.recordDir, "RECORDDIR", r.authDir, "AUTHDIR"}
+	if r.upstream != "" {
+		pairs = append(pairs, r.upstream, "UPSTREAM", strings.TrimPrefix(r.upstream, "http://"), "UPSTREAMHOST")
+	}
+	pairs = append(pairs, r.zipDigests()...)
 	for name, index := range r.indexes {
 		pairs = append(pairs, index, "AUTHINDEX("+name+")")
 	}
@@ -92,7 +104,7 @@ func (r *runner) records() {
 		check(os.Remove(path))
 		for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
 			var rec map[string]string
-			if json.Unmarshal([]byte(line), &rec) != nil || !strings.HasPrefix(rec["method"], "quota.") {
+			if json.Unmarshal([]byte(line), &rec) != nil || !(strings.HasPrefix(rec["method"], "quota.") || strings.HasPrefix(rec["method"], "auth.login.")) {
 				continue
 			}
 			request := callbackID.ReplaceAllString(r.normalize(rec["request"]), `"host_callback_id":"#"`)
@@ -100,6 +112,38 @@ func (r *runner) records() {
 		}
 	}
 	r.steps = append(r.steps, step{Op: "records", Result: out})
+}
+
+// upstreamRequests returns and clears what the probe server received.
+func (r *runner) upstreamRequests() {
+	r.upstreamMu.Lock()
+	seen := r.upstreamSeen
+	r.upstreamSeen = nil
+	r.upstreamMu.Unlock()
+	if seen == nil {
+		seen = []map[string]any{}
+	}
+	raw, err := json.Marshal(seen)
+	check(err)
+	var out any
+	check(json.Unmarshal([]byte(r.normalize(string(raw))), &out))
+	r.steps = append(r.steps, step{Op: "upstream_requests", Result: out})
+}
+
+// authFiles records every file in the auth directory with its mode and content.
+func (r *runner) authFiles() {
+	entries, err := os.ReadDir(r.authDir)
+	check(err)
+	out := map[string]string{}
+	for _, entry := range entries {
+		path := filepath.Join(r.authDir, entry.Name())
+		info, errInfo := os.Stat(path)
+		check(errInfo)
+		data, errRead := os.ReadFile(path)
+		check(errRead)
+		out[entry.Name()] = fmt.Sprintf("%o %s", info.Mode().Perm(), r.normalize(string(data)))
+	}
+	r.steps = append(r.steps, step{Op: "auth_files", Result: out})
 }
 
 func (r *runner) files(files map[string]string) {
@@ -136,7 +180,7 @@ func (r *runner) http(args httpArgs) {
 	r.steps = append(r.steps, step{Op: "http", Args: args, Result: httpResult{
 		Status:      rec.Code,
 		ContentType: rec.Header().Get("Content-Type"),
-		Body:        r.normalize(rec.Body.String()),
+		Body:        stableBody(r.normalize(rec.Body.String())),
 		Version:     rec.Header().Get("X-CPA-VERSION") != "",
 	}})
 }
@@ -179,8 +223,31 @@ func main() {
 	check(os.MkdirAll(r.pluginDir, 0o755))
 	check(os.MkdirAll(r.recordDir, 0o755))
 	check(os.MkdirAll(r.authDir, 0o700))
+	// The quota probe's upstream: fixed answers by path, every request recorded.
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		body, _ := io.ReadAll(req.Body)
+		header := req.Header.Clone()
+		header.Del("Content-Length")
+		r.upstreamMu.Lock()
+		r.upstreamSeen = append(r.upstreamSeen, map[string]any{"method": req.Method, "uri": req.RequestURI, "host": req.Host, "header": header, "body": string(body)})
+		r.upstreamMu.Unlock()
+		route, ok := upstreamRoutes[req.URL.Path]
+		w.Header()["Date"] = nil
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		if route.Location != "" {
+			w.Header().Set("Location", route.Location)
+		}
+		w.WriteHeader(route.Status)
+		_, _ = io.WriteString(w, route.Body)
+	}))
+	defer upstream.Close()
+	r.upstream = upstream.URL
+	r.steps = append(r.steps, step{Op: "upstream", Args: upstreamRoutes})
 	for name, body := range authFiles {
-		check(os.WriteFile(filepath.Join(r.authDir, name), []byte(body), 0o600))
+		check(os.WriteFile(filepath.Join(r.authDir, name), []byte(r.placeholders(body)), 0o600))
 	}
 	r.steps = append(r.steps, step{Op: "auths", Args: authFiles})
 	r.files(map[string]string{
@@ -217,6 +284,10 @@ func main() {
 			server.RefreshPluginManagementRoutes()
 		}))
 	r.server = server
+	// The plugin store's HTTP client and rate limiter, as Go's own store tests set them.
+	r.store = &storeDoer{built: r.built, routes: map[string]storeRoute{}}
+	server.ManagementHandler().SetPluginStoreTestHooks(r.store, &pluginstore.GitHubRateLimiter{})
+	check(os.Setenv("CPA_STORE_ROUTES_TOKEN", "store-token"))
 	server.RefreshPluginManagementRoutes()
 	scenarios(r)
 	host.ShutdownAll()

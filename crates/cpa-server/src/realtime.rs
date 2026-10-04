@@ -134,9 +134,6 @@ impl Principal {
     }
 }
 
-/// Go's config access provider name (`sdkaccess.DefaultAccessProviderName`).
-const ACCESS_PROVIDER: &str = "config-inline";
-
 async fn authenticate(
     State((rt, live, mode)): State<(Arc<Runtime>, Arc<Live>, Mode)>,
     mut req: Request,
@@ -169,20 +166,31 @@ async fn authenticate(
             secret: Some(grant),
         }
     } else {
-        let config = rt.config();
-        match crate::access::authenticate(&config.api_keys, req.headers(), req.uri().query().unwrap_or_default()) {
-            // No keys configured: Go registers no provider and sets nothing.
-            Ok(caller) if caller.principal.is_empty() => Principal::default(),
-            Ok(caller) => Principal {
+        let (authenticated, access) = crate::plugins::authenticate(&rt, req).await;
+        req = authenticated;
+        match access {
+            // No provider registered: Go sets nothing.
+            Ok(crate::plugins::Access::Open) => Principal::default(),
+            Ok(crate::plugins::Access::Granted { caller, provider }) => Principal {
                 key: caller.principal,
-                provider: ACCESS_PROVIDER.into(),
+                provider,
                 secret: None,
             },
-            Err(message) if matches!(mode, Mode::Ordinary) => {
-                let body = crate::gojson::Obj::new().str("error", message).finish();
-                return crate::respond::gin_json(401, body);
+            Err(denied) if matches!(mode, Mode::Ordinary) => {
+                let body = crate::gojson::Obj::new().str("error", denied.message).finish();
+                return crate::respond::gin_json(denied.status, body);
             }
-            Err(message) => return realtime_error(401, message, "authentication_error", "invalid_api_key"),
+            Err(denied) if denied.status >= 500 => {
+                return realtime_error(
+                    denied.status,
+                    denied.message,
+                    "server_error",
+                    "authentication_service_error",
+                );
+            }
+            Err(denied) => {
+                return realtime_error(denied.status, denied.message, "authentication_error", "invalid_api_key");
+            }
         }
     };
     req.extensions_mut().insert(principal);

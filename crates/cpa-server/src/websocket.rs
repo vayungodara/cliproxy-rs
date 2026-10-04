@@ -156,6 +156,7 @@ async fn upgrade(
     Extension(caller): Extension<Caller>,
     peer: dispatch::Peer,
     matched: axum::extract::MatchedPath,
+    uri: axum::http::Uri,
     headers: HeaderMap,
     ws: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
 ) -> Response {
@@ -172,6 +173,7 @@ async fn upgrade(
     let mut connection = Connection::new(rt, caller, headers);
     // Go `request_path` metadata: gin FullPath of the upgrade route.
     connection.request_path = matched.as_str().to_owned();
+    connection.query = uri.query().unwrap_or_default().to_owned();
     connection.peer = dispatch::peer(peer);
     // The upgrade request's log: Go writes the WebSocket timeline and every turn's
     // upstream capture into the gin context of the upgrade.
@@ -250,6 +252,8 @@ struct Connection {
     headers: HeaderMap,
     /// Go `request_path` metadata for payload rules.
     request_path: String,
+    /// The upgrade request's raw query (Go reads it from the retained gin context).
+    query: String,
     /// The downstream peer (usage records).
     peer: Option<std::net::SocketAddr>,
     /// Execution session id (`passthroughSessionID`).
@@ -440,6 +444,7 @@ impl Connection {
             caller,
             headers,
             request_path: String::new(),
+            query: String::new(),
             peer: None,
             session: uuid::Uuid::new_v4().to_string(),
             last_request: String::new(),
@@ -938,7 +943,11 @@ impl Connection {
         };
         // The upgrade's log captures every turn's upstream traffic under its request ID.
         let trace = dispatch::Trace::with_request_id(self.request_id.clone()).with_capture(self.capture.clone());
-        let result = dispatch::run_with_bootstrap_retries(&self.rt, call, &trace).await;
+        let result = crate::plugins::execution::with_query(
+            &self.query,
+            dispatch::run_with_bootstrap_retries(&self.rt, call, &trace),
+        )
+        .await;
         {
             let s = selected.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
             ctx.last_attempted.clone_from(&s.last);

@@ -1,8 +1,8 @@
 //! Plugin quota routes (internal/api/handlers/management/plugin_quota.go): the v0
 //! `quota/providers`, `quota/fetch` and `quota/reset`, and per-plugin quota under
 //! `plugins/{id}/quota` (v0 and v8).
-//! ponytail: the declarative `quota_probe` fallback of `quota/fetch` is not ported yet;
-//! a credential without a plugin quota provider answers 501 as when it has no probe.
+//! Without a plugin quota provider, `quota/fetch` falls back to the credential's
+//! declarative `quota_probe` (management/quota_probe.rs).
 
 use std::sync::Arc;
 
@@ -268,13 +268,22 @@ pub(crate) async fn fetch(State(state): State<Arc<Management>>, body: Bytes) -> 
         host.fetch_quota_by_plugin(plugin_id, req, view.as_ref(), &scope).await
     };
     match result {
-        Ok(Some(resp)) => go_json(StatusCode::OK, cpa_plugin::gojson::to_vec(&resp)),
-        Err(e) => fail(StatusCode::BAD_GATEWAY, &format!("failed to fetch quota: {e}")),
-        Ok(None) => fail(
-            StatusCode::NOT_IMPLEMENTED,
-            "no quota provider available for credential",
-        ),
+        Ok(Some(resp)) => return go_json(StatusCode::OK, cpa_plugin::gojson::to_vec(&resp)),
+        Err(e) => return fail(StatusCode::BAD_GATEWAY, &format!("failed to fetch quota: {e}")),
+        Ok(None) => {}
     }
+    // Go: the declarative quota probe, when the metadata declares one.
+    if let Some(probe) = auth.metadata.get("quota_probe").and_then(Value::as_object) {
+        match super::quota_probe::execute(&state, &auth, probe).await {
+            Some(Ok(resp)) => return go_json(StatusCode::OK, cpa_plugin::gojson::to_vec(&resp)),
+            Some(Err(e)) => return fail(StatusCode::BAD_GATEWAY, &format!("quota probe failed: {e}")),
+            None => {}
+        }
+    }
+    fail(
+        StatusCode::NOT_IMPLEMENTED,
+        "no quota provider available for credential",
+    )
 }
 
 /// `POST /v0/management/quota/reset` (Go `ResetCredentialQuota`).
