@@ -21,8 +21,10 @@ pub mod aistudio;
 pub mod claude;
 pub mod claude_login;
 pub mod codex;
+mod codex_capture;
 pub mod codex_catalog_updater;
 mod codex_client;
+mod codex_images;
 mod codex_json;
 pub mod codex_live;
 pub mod codex_oauth;
@@ -169,6 +171,7 @@ impl Executors {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         match credential.provider.as_str() {
+            "codex" => self.codex.images(credential, req, request_path, cfg).await,
             p if openai_compat::handles(p) => self.openai.compat.images(credential, req, request_path, cfg).await,
             xai::PROVIDER => self.openai.xai.images(credential, req, request_path, cfg).await,
             other => Err(no_executor(other)),

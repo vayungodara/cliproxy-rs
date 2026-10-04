@@ -3,7 +3,7 @@
 //! request and upstream reply; the upstream request and the client-visible output must match.
 
 use super::*;
-use crate::codex_testkit::{Captured, GO, Mock, Reply};
+use crate::codex_testkit::{Captured, GO, Mock, Reply, Tap, Wiretap};
 use cpa_core::exec::Caller;
 use serde_json::Value;
 use std::path::Path;
@@ -622,7 +622,14 @@ async fn alpha_search_reads_at_most_32_mib_whatever_the_status() {
     let cred = oauth_credential(&mock.url);
     for (status, expected) in [(200, ALPHA_SEARCH_MAX_RESPONSE), (500, error_body.len())] {
         let response = executor
-            .alpha_search(&cred, b"{}", &HeaderMap::new(), "", &Config::default())
+            .alpha_search(
+                &cred,
+                b"{}",
+                &HeaderMap::new(),
+                "",
+                &Config::default(),
+                &Default::default(),
+            )
             .await
             .unwrap();
         assert_eq!(response.status, status);
@@ -712,4 +719,439 @@ async fn usage_records_see_upstream_payloads() {
         };
         assert_eq!(reports[1..], expected[..], "{name}: upstream payloads");
     }
+}
+
+/// The Images API cases (`GO["images"]`): Go's `CodexExecutor` ran each with source
+/// format `openai-image`, the route in `request_path` metadata and the client headers in
+/// the gin context, as the images handler calls it.
+#[tokio::test]
+async fn images_match_go_on_every_fixture_case() {
+    use base64::Engine;
+    let executor = executor();
+    for case in GO["images"].as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        let mock = Mock::start().await;
+        let path = case["upstream"]["path"].as_str().unwrap_or("/responses");
+        mock.script(path, vec![reply(case)]);
+        let credential = credential(case, &mock.url);
+        let config_text = case["config"].as_str().filter(|s| !s.trim().is_empty()).unwrap_or("{}");
+        let cfg = Config::parse(config_text).unwrap();
+        let mut headers = HeaderMap::new();
+        for (k, v) in case["headers"].as_object().into_iter().flatten() {
+            headers.insert(
+                http::HeaderName::try_from(k.as_str()).unwrap(),
+                v.as_str().unwrap().parse().unwrap(),
+            );
+        }
+        let body = Bytes::from(
+            base64::engine::general_purpose::STANDARD
+                .decode(case["payload_b64"].as_str().unwrap())
+                .unwrap(),
+        );
+        let request_path = case["request_path"].as_str().unwrap();
+        let model = case["model"].as_str().unwrap();
+        let req = ExecRequest {
+            operation: Operation::Generate,
+            source_format: Format::OpenAI,
+            response_format: Format::OpenAI,
+            requested_model: model.into(),
+            model: model.into(),
+            original_body: body.clone(),
+            body,
+            stream: case["stream"].as_bool().unwrap_or(false),
+            alt: None,
+            session: None,
+            headers,
+            execution_session: None,
+            derived_session: None,
+            resolved_model: None,
+            usage: Default::default(),
+            request_path: request_path.into(),
+            caller: Caller {
+                principal: "client-key-FAKE".into(),
+                source: "authorization",
+            },
+        };
+        let result = executor.images(&credential, req, request_path, &cfg).await;
+        let captured = mock.take();
+        match case.get("upstream").filter(|u| !u.is_null()) {
+            None => assert!(captured.is_empty(), "{name}: no upstream request"),
+            Some(go) => {
+                assert_eq!(captured.len(), 1, "{name}: one upstream request");
+                let mut go = go.clone();
+                if name == "direct_edit_multipart" {
+                    // Go ranges over its form map: field order varies per run.
+                    let go_body: Value = serde_json::from_str(go["body"].as_str().unwrap()).unwrap();
+                    let rust_body: Value = serde_json::from_slice(&captured[0].body).unwrap();
+                    assert_eq!(rust_body, go_body, "{name}: upstream body fields");
+                    go["body"] = Value::String(String::from_utf8_lossy(&captured[0].body).into_owned());
+                }
+                assert_same_upstream(name, &captured[0], &go);
+            }
+        }
+        let output = &case["output"];
+        if let Some(go_error) = output.get("error") {
+            let error = result.err().unwrap_or_else(|| panic!("{name}: expected error"));
+            match go_error.get("status") {
+                Some(_) => assert_same_error(name, &error, go_error),
+                // A plain Go error: the handler answers 500.
+                None => {
+                    assert_eq!(error.status, 500, "{name}: status");
+                    assert_eq!(
+                        String::from_utf8_lossy(&error.body),
+                        go_error["message"].as_str().unwrap(),
+                        "{name}: message"
+                    );
+                }
+            }
+            continue;
+        }
+        let response = result.unwrap_or_else(|e| panic!("{name}: {e}"));
+        match response.body {
+            ResponseBody::Buffered(body) => {
+                assert_eq!(
+                    String::from_utf8_lossy(&body),
+                    output["payload"]
+                        .as_str()
+                        .unwrap_or_else(|| panic!("{name}: Go streamed")),
+                    "{name}: payload"
+                );
+            }
+            ResponseBody::Stream(mut stream) => {
+                let mut items = Vec::new();
+                while let Some(item) = stream.next().await {
+                    items.push(item);
+                }
+                let joined: String = items
+                    .iter()
+                    .filter_map(|i| i.as_ref().ok())
+                    .map(|b| String::from_utf8_lossy(b).into_owned())
+                    .collect();
+                let go_joined: String = output["chunks"]
+                    .as_array()
+                    .unwrap_or_else(|| panic!("{name}: Go answered without a stream"))
+                    .iter()
+                    .map(|c| c.as_str().unwrap())
+                    .collect();
+                assert_eq!(joined, go_joined, "{name}: stream bytes");
+                match (items.last(), output.get("stream_error")) {
+                    (Some(Err(error)), Some(go)) => assert_same_error(name, error, go),
+                    (_, Some(_)) => panic!("{name}: expected a terminal stream error"),
+                    (Some(Err(error)), None) => panic!("{name}: unexpected stream error {error}"),
+                    _ => {}
+                }
+            }
+        }
+    }
+}
+
+/// Go `Auth.AccountInfo` for the fixture credentials.
+fn go_account(credential: &Credential) -> [String; 5] {
+    let (kind, value) = match credential.attributes.get("api_key") {
+        Some(key) => ("api_key", key.clone()),
+        None => ("oauth", credential.str("email").unwrap_or_default().to_owned()),
+    };
+    [
+        "codex".into(),
+        credential.id.clone(),
+        credential.label.clone(),
+        kind.into(),
+        value,
+    ]
+}
+
+/// Upstream capture (M4-0250) at Go's Codex HTTP sites (`codex_executor_execute.go:93,264`,
+/// `codex_executor_stream.go:101`). Go records the request header map and body as sent,
+/// the response status, the error body or, on success, the whole body (Execute, compact)
+/// or each scanned line (streams), and every stream failure it reports. So for each case
+/// of Go's executor fixture: the recorded request is what the upstream received (less
+/// the transport's own headers), the chunks are the upstream body, and the recorded
+/// stream error is Go's.
+#[tokio::test]
+async fn capture_records_each_attempt_as_go_does() {
+    let executor = executor();
+    for case in GO["executor"].as_array().unwrap() {
+        let name = case["name"].as_str().unwrap();
+        let mock = Mock::start().await;
+        let path = if case["alt"] == "responses/compact" {
+            "/responses/compact"
+        } else {
+            "/responses"
+        };
+        if let Some(redirect) = case["redirect"].as_u64() {
+            let moved = format!("/moved{path}");
+            mock.script(
+                path,
+                vec![Reply {
+                    status: redirect as u16,
+                    headers: vec![("location".into(), moved.clone())],
+                    body: String::new(),
+                }],
+            );
+            mock.script(&moved, vec![reply(case)]);
+        } else {
+            mock.script(path, vec![reply(case)]);
+        }
+        let credential = credential(case, &mock.url);
+        let cfg = Config::parse(case["config"].as_str().filter(|s| !s.trim().is_empty()).unwrap_or("{}")).unwrap();
+        let tap = Arc::new(Wiretap::default());
+        let mut req = request(case);
+        req.usage = cpa_core::exec::UsageSink::default().with_capture(cpa_core::exec::CaptureSink::new(tap.clone()));
+        let ws_session = case["exec_metadata"]["execution_session_id"].as_str();
+        let result = if ws_session.is_some() {
+            let settings = Settings::from(&cfg);
+            executor
+                .stream_with_session(&View::new(&credential), &settings, req, ws_session)
+                .await
+        } else {
+            executor.execute(&credential, req, &cfg).await
+        };
+        if let Ok(ExecResponse {
+            body: ResponseBody::Stream(mut stream),
+            ..
+        }) = result
+        {
+            while stream.next().await.is_some() {}
+        }
+        let taps = tap.taps();
+        let sent = &mock.take()[0];
+        // The request: Go's header map is what went out, less what the transport adds.
+        let Tap::Request {
+            url,
+            method,
+            headers,
+            body,
+            account,
+        } = &taps[0]
+        else {
+            panic!("{name}: first event {:?}", taps[0]);
+        };
+        assert_eq!(
+            (url.as_str(), method.as_str()),
+            (format!("{}{path}", mock.url).as_str(), "POST"),
+            "{name}"
+        );
+        assert_eq!(body.as_bytes(), sent.body.as_ref(), "{name}: request body");
+        assert_eq!(*account, go_account(&credential), "{name}: account");
+        let mut recorded: Vec<(String, String)> = headers.iter().map(|(k, v)| (k.to_lowercase(), v.clone())).collect();
+        recorded.sort();
+        let mut wire: Vec<(String, String)> = sent
+            .headers
+            .iter()
+            .filter(|(k, _)| !matches!(k.as_str(), "host" | "content-length" | "accept-encoding"))
+            .map(|(k, v)| (k.to_string(), v.to_str().unwrap().to_owned()))
+            .collect();
+        wire.sort();
+        assert_eq!(recorded, wire, "{name}: request headers");
+        assert!(
+            headers.iter().all(|(k, _)| *k == crate::proxy::canonical_header(k)),
+            "{name}: Go header spelling {headers:?}"
+        );
+        let status = case["upstream_status"].as_u64().unwrap() as u16;
+        assert!(
+            matches!(&taps[1], Tap::Metadata(s, _) if *s == status),
+            "{name}: {:?}",
+            taps[1]
+        );
+        let upstream = case["upstream_body"].as_str().unwrap();
+        let rest = &taps[2..];
+        let chunks: Vec<&str> = rest
+            .iter()
+            .filter_map(|t| match t {
+                Tap::Chunk(c) if !c.trim().is_empty() => Some(c.as_str()),
+                _ => None,
+            })
+            .collect();
+        let errors: Vec<&str> = rest
+            .iter()
+            .filter_map(|t| match t {
+                Tap::Error(e) => Some(e.as_str()),
+                _ => None,
+            })
+            .collect();
+        if !(200..300).contains(&status) || case["stream"] == false {
+            // The error body, or Execute's and compact's whole body, recorded once.
+            assert_eq!(chunks, [upstream], "{name}: whole body");
+            assert!(
+                errors.is_empty(),
+                "{name}: Execute records no parse failure: {errors:?}"
+            );
+            continue;
+        }
+        // Streams record every scanned line up to where Go stops reading.
+        let lines: Vec<&str> = upstream.split('\n').filter(|l| !l.trim().is_empty()).collect();
+        assert!(!chunks.is_empty(), "{name}: stream lines");
+        assert_eq!(chunks, lines[..chunks.len()], "{name}: stream lines");
+        match case["output"].get("stream_error") {
+            Some(go) => assert_eq!(errors, [go["message"].as_str().unwrap()], "{name}: stream error"),
+            None if case["output"].get("error").is_some() => {
+                assert_eq!(errors.len(), 1, "{name}: the bootstrap failure: {errors:?}")
+            }
+            None => {
+                assert_eq!(chunks.len(), lines.len(), "{name}: every line");
+                assert!(errors.is_empty(), "{name}: {errors:?}");
+            }
+        }
+    }
+}
+
+/// Go's transport failure path: the request, then `RecordAPIResponseError`.
+#[tokio::test]
+async fn capture_records_a_transport_failure() {
+    let tap = Arc::new(Wiretap::default());
+    let mut req = plain_request(true, None);
+    req.usage = cpa_core::exec::UsageSink::default().with_capture(cpa_core::exec::CaptureSink::new(tap.clone()));
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    drop(listener);
+    let error = executor()
+        .execute(&oauth_credential(&url), req, &Config::default())
+        .await
+        .err()
+        .expect("nothing listens");
+    let taps = tap.taps();
+    assert!(matches!(&taps[0], Tap::Request { .. }), "{taps:?}");
+    assert_eq!(
+        taps[1..],
+        [Tap::Error(String::from_utf8_lossy(&error.body).into_owned())]
+    );
+}
+
+/// A loopback upstream answering every request with `status`, `content_type` and these
+/// body pieces, the last one an error when `reset` (the connection breaks mid-body).
+async fn broken_upstream(status: u16, content_type: &'static str, pieces: Vec<&'static str>, reset: bool) -> String {
+    use axum::response::IntoResponse;
+    let app = axum::Router::new().fallback(move || {
+        let pieces = pieces.clone();
+        async move {
+            let items: Vec<Result<Bytes, std::io::Error>> = pieces
+                .into_iter()
+                .map(|p| Ok(Bytes::from_static(p.as_bytes())))
+                .collect();
+            // The reset comes after the bytes were flushed, as a peer dying mid-body.
+            let reset = futures_util::stream::iter(reset.then_some(())).then(|()| async {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                Err::<Bytes, _>(std::io::Error::other("mock reset mid-body"))
+            });
+            (
+                axum::http::StatusCode::from_u16(status).unwrap(),
+                [("content-type", content_type)],
+                axum::body::Body::from_stream(futures_util::stream::iter(items).chain(reset)),
+            )
+                .into_response()
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await });
+    url
+}
+
+fn tapped_request(stream: bool, alt: Option<&str>) -> (ExecRequest, Arc<Wiretap>) {
+    let tap = Arc::new(Wiretap::default());
+    let mut req = plain_request(stream, alt);
+    req.usage = cpa_core::exec::UsageSink::default().with_capture(cpa_core::exec::CaptureSink::new(tap.clone()));
+    (req, tap)
+}
+
+/// Go's stream loop records each line as it scans it and returns at the terminal event,
+/// so a line after `response.completed` in the same SSE event is never recorded.
+#[tokio::test]
+async fn capture_stops_at_the_terminal_line() {
+    const COMPLETED: &str = r#"data: {"type":"response.completed","response":{"id":"r","output":[]}}"#;
+    let url = broken_upstream(
+        200,
+        "text/event-stream",
+        vec![
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\n",
+            "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"r\",\"output\":[]}}\nid: after-terminal\n\n",
+        ],
+        false,
+    )
+    .await;
+    let (req, tap) = tapped_request(true, None);
+    let response = executor()
+        .execute(&oauth_credential(&url), req, &Config::default())
+        .await
+        .unwrap();
+    let ResponseBody::Stream(mut stream) = response.body else {
+        panic!("a stream");
+    };
+    while stream.next().await.is_some() {}
+    let chunks: Vec<String> = tap
+        .taps()
+        .into_iter()
+        .filter_map(|t| match t {
+            Tap::Chunk(c) if !c.is_empty() => Some(c),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(chunks.last().map(String::as_str), Some(COMPLETED), "{chunks:?}");
+    assert!(!chunks.iter().any(|c| c.contains("after-terminal")), "{chunks:?}");
+}
+
+/// Body read failures follow each Go call site: Execute (`data, errRead := io.ReadAll`)
+/// records every byte that arrived, the unfinished tail included, then the error; Alpha
+/// Search records the partial body, then the error; the stream path's error response
+/// records only the read error and returns it.
+#[tokio::test]
+async fn capture_keeps_each_sites_read_error_policy() {
+    // Execute: the whole partial body, then the error.
+    let url = broken_upstream(
+        200,
+        "text/event-stream",
+        vec!["data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"resp"],
+        true,
+    )
+    .await;
+    let (req, tap) = tapped_request(false, None);
+    let result = executor()
+        .execute(&oauth_credential(&url), req, &Config::default())
+        .await;
+    let taps = tap.taps();
+    assert!(taps.len() > 2, "{taps:?} {:?}", result.err());
+    assert_eq!(
+        taps[2],
+        Tap::Chunk(
+            "data: {\"type\":\"response.created\",\"response\":{\"id\":\"r\"}}\n\ndata: {\"type\":\"resp".into()
+        ),
+        "{taps:?}"
+    );
+    assert!(matches!(&taps[3], Tap::Error(_)), "{taps:?}");
+    assert_eq!(taps.len(), 4, "{taps:?}");
+
+    // Alpha Search: the prefix, then the error.
+    let url = broken_upstream(200, "application/json", vec!["{\"results\":["], true).await;
+    let tap = Arc::new(Wiretap::default());
+    let mut cred = oauth_credential(&url);
+    cred.attributes.insert("api_key".into(), "sk-FAKE".into());
+    let _ = executor()
+        .alpha_search(
+            &cred,
+            b"{}",
+            &HeaderMap::new(),
+            "",
+            &Config::default(),
+            &cpa_core::exec::CaptureSink::new(tap.clone()),
+        )
+        .await;
+    let taps = tap.taps();
+    assert_eq!(taps[2], Tap::Chunk("{\"results\":[".into()), "{taps:?}");
+    assert!(matches!(&taps[3], Tap::Error(_)), "{taps:?}");
+
+    // Stream: an error body that breaks is the read error, not a status error.
+    let url = broken_upstream(401, "application/json", vec!["{\"error\":"], true).await;
+    let (req, tap) = tapped_request(true, None);
+    let error = executor()
+        .execute(&oauth_credential(&url), req, &Config::default())
+        .await
+        .err()
+        .expect("read error");
+    assert_ne!(error.status, 401, "{error}");
+    let taps = tap.taps();
+    assert_eq!(
+        taps[2..],
+        [Tap::Error(String::from_utf8_lossy(&error.body).into_owned())],
+        "{taps:?}"
+    );
 }

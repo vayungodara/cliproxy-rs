@@ -125,6 +125,10 @@ async fn upstream_socket(up: Arc<Upstream>, mut socket: AxSocket) {
                 let _ = socket.send(close(1009, "too big")).await;
                 return;
             }
+            "close1009_spaced" => {
+                let _ = socket.send(close(1009, " oversized ")).await;
+                return;
+            }
             "drop" => return,
             _ => {}
         }
@@ -138,13 +142,51 @@ async fn serve(app: axum::Router) -> String {
     format!("127.0.0.1:{}", addr.port())
 }
 
-/// Go's credentials as `codex-api-key` config entries, loaded the way the server loads
-/// them (`cpa_core::config::credentials::load`).
+/// Go's API-key credentials (those without `metadata`).
+fn api_keys(scenario: &Value) -> Vec<&Value> {
+    scenario["credentials"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["metadata"].is_null())
+        .collect()
+}
+
+/// Go's OAuth credentials (`metadata` holds the auth file's fields) as Codex auth files:
+/// the Pro plan catalog serves their models, as Go registers them.
+fn oauth_credentials(scenario: &Value, upstream: &str) -> Vec<cpa_core::credential::Credential> {
+    let creds = scenario["credentials"].as_array().unwrap();
+    creds
+        .iter()
+        .filter(|c| !c["metadata"].is_null())
+        .map(|cred| {
+            let id = cred["id"].as_str().unwrap();
+            let mut metadata = cred["metadata"].as_object().unwrap().clone();
+            metadata.insert("type".into(), "codex".into());
+            let path = std::path::PathBuf::from(format!("/fake/{id}"));
+            let mut credential =
+                cpa_core::credential::Credential::from_file(std::path::Path::new("/fake"), &path, metadata).unwrap();
+            credential
+                .attributes
+                .insert("base_url".into(), format!("http://{upstream}"));
+            for (k, v) in cred["attributes"].as_object().unwrap() {
+                credential.attributes.insert(k.clone(), v.as_str().unwrap().to_owned());
+            }
+            credential
+        })
+        .collect()
+}
+
+/// Go's API-key credentials as `codex-api-key` config entries, loaded the way the server
+/// loads them (`cpa_core::config::credentials::load`).
 fn config(scenario: &Value, upstream: &str) -> Config {
     // The scenario's own Go config (top-level keys), then its credentials.
     let mut yaml = scenario["config"].as_str().unwrap_or_default().to_owned();
-    yaml.push_str("codex-api-key:\n");
-    for cred in scenario["credentials"].as_array().unwrap() {
+    let keys = api_keys(scenario);
+    if !keys.is_empty() {
+        yaml.push_str("codex-api-key:\n");
+    }
+    for cred in keys {
         let attrs = &cred["attributes"];
         yaml.push_str(&format!(
             "  - api-key: {}\n    base-url: http://{upstream}\n",
@@ -231,10 +273,10 @@ async fn run(name: &str) {
     }
     let upstream = serve(axum::Router::new().fallback(upstream_handler).with_state(up.clone())).await;
     let cfg = config(scenario, &upstream);
-    let credentials = cpa_core::config::credentials::from_config(&cfg);
-    assert_eq!(credentials.len(), scenario["credentials"].as_array().unwrap().len());
+    let mut credentials = cpa_core::config::credentials::from_config(&cfg);
+    assert_eq!(credentials.len(), api_keys(scenario).len());
     // Synthesis carries each key's name-only `models` entries, as Go's registry reads them.
-    for (credential, go) in credentials.iter().zip(scenario["credentials"].as_array().unwrap()) {
+    for (credential, go) in credentials.iter().zip(api_keys(scenario)) {
         let models: Vec<Value> = go["models"]
             .as_array()
             .unwrap()
@@ -243,6 +285,7 @@ async fn run(name: &str) {
             .collect();
         assert_eq!(credential.metadata["models"], Value::Array(models));
     }
+    credentials.extend(oauth_credentials(scenario, &upstream));
     let executors = Executors {
         claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
         codex: cpa_exec::codex::CodexExecutor::new().unwrap(),
@@ -424,6 +467,12 @@ async fn upstream_1009_reaches_the_client_as_1009() {
     run("ws_upstream_message_too_big").await;
 }
 
+/// gorilla's close text reaches the client verbatim; only a mapped 413 is trimmed.
+#[tokio::test]
+async fn upstream_1009_reason_reaches_the_client_verbatim() {
+    run("ws_upstream_message_too_big_spaced_reason").await;
+}
+
 #[tokio::test]
 async fn stream_ending_before_completion_closes_silently() {
     run("http_stream_ends_early").await;
@@ -557,6 +606,42 @@ async fn steer_is_rejected_when_steering_is_off() {
     run("steer_rejected_when_disabled").await;
 }
 
+/// Go `TestResponsesWebsocketClosesOnIdleCodexDisconnect/legacy_disabled_api_key`.
+#[tokio::test]
+async fn steering_off_idle_upstream_close_closes_the_client() {
+    run("steer_idle_upstream_close_legacy_disabled").await;
+}
+
+/// `.../v8_enabled_api_key`: OAuth-only steering leaves the API key in normal mode.
+#[tokio::test]
+async fn steering_oauth_only_idle_upstream_close_closes_an_api_key_client() {
+    run("steer_idle_upstream_close_v8_api_key").await;
+}
+
+/// `.../v8_enabled_oauth`: OAuth-only steering runs the OAuth account full duplex.
+#[tokio::test]
+async fn steering_oauth_only_idle_upstream_close_closes_an_oauth_client() {
+    run("steer_idle_upstream_close_v8_oauth").await;
+}
+
+/// Go `TestResponsesSteeringErrorRecoveryIntegration/disabled_error_remains_terminal`.
+#[tokio::test]
+async fn steering_off_later_error_stays_terminal() {
+    run("steer_disabled_error_terminal").await;
+}
+
+/// Go `TestResponsesSteerInFlightWebSocket`.
+#[tokio::test]
+async fn steering_in_flight_steer_reaches_upstream() {
+    run("steer_in_flight").await;
+}
+
+/// Go `TestResponsesSteeringFullDuplexIntegration/disconnect_pending`.
+#[tokio::test]
+async fn steering_upstream_drop_while_pending_closes_the_client() {
+    run("steer_disconnect_pending").await;
+}
+
 #[test]
 fn every_go_scenario_has_a_test() {
     let names: Vec<&str> = FIXTURE.iter().map(|s| s["name"].as_str().unwrap()).collect();
@@ -572,6 +657,7 @@ fn every_go_scenario_has_a_test() {
             "ws_continuation_needs_replay",
             "ws_upstream_closes_between_turns",
             "ws_upstream_message_too_big",
+            "ws_upstream_message_too_big_spaced_reason",
             "http_stream_ends_early",
             "ws_multi_agent_v2",
             "http_multi_agent_v2",
@@ -584,6 +670,12 @@ fn every_go_scenario_has_a_test() {
             "steer_later_error_then_upstream_close",
             "steer_oauth_only_skips_api_key",
             "steer_idle_upstream_close",
+            "steer_idle_upstream_close_legacy_disabled",
+            "steer_idle_upstream_close_v8_api_key",
+            "steer_idle_upstream_close_v8_oauth",
+            "steer_disabled_error_terminal",
+            "steer_in_flight",
+            "steer_disconnect_pending",
             "steer_append_inherits",
             "steer_queued_create_then_steer",
             "steer_active_failure_keeps_queued_create",

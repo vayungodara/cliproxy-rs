@@ -60,7 +60,7 @@ fn cache_key(model: &str, session: &str) -> Option<String> {
 
 impl Cache {
     /// `GetCodexReasoningReplayItemsRequired`: the entry, with its TTL refreshed.
-    fn get(&self, model: &str, session: &str) -> Option<Vec<Vec<u8>>> {
+    pub(crate) fn get(&self, model: &str, session: &str) -> Option<Vec<Vec<u8>>> {
         let key = cache_key(model, session)?;
         let mut entries = self.entries.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let entry = entries.get_mut(&key)?;
@@ -73,7 +73,7 @@ impl Cache {
     }
 
     /// `AppendCodexReasoningReplayItemsBestEffort`: one normalized turn appended.
-    fn append(&self, model: &str, session: &str, items: &[Vec<u8>]) -> bool {
+    pub(crate) fn append(&self, model: &str, session: &str, items: &[Vec<u8>]) -> bool {
         let Some(key) = cache_key(model, session) else {
             return false;
         };

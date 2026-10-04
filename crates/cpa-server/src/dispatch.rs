@@ -71,6 +71,9 @@ pub struct Media {
     /// (`waitImagesStreamExecution`) instead of the non-stream keep-alive. A failure that
     /// renders after that commit is replaced by the response's [`SseError`] event.
     pub sse: bool,
+    /// `WithDisallowFreeAuth` (routed images): Codex credentials on the free plan are
+    /// never selected (Go `isFreeCodexAuth`), in any round.
+    pub disallow_free: bool,
 }
 
 /// The `event: error` frame a route attaches to an error response (as a response
@@ -780,7 +783,7 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
     });
     // `WithPinnedAuthID`: every other credential is excluded in every round.
     // A remote dispatcher receives the pinned ID itself.
-    let pinned_exclusion: Vec<String> = match call.pinned() {
+    let mut pinned_exclusion: Vec<String> = match call.pinned() {
         Some(pinned) if !pinned.is_empty() && rt.remote_dispatch().is_none() => rt
             .store()
             .snapshot()
@@ -790,6 +793,20 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
             .collect(),
         _ => Vec::new(),
     };
+    // `WithDisallowFreeAuth`: free-plan Codex credentials are ineligible in every round.
+    // ponytail: Home mode selects remotely and does not see this flag.
+    if call.media.as_ref().is_some_and(|m| m.disallow_free) {
+        for credential in rt.store().snapshot() {
+            let free = credential.provider.trim().eq_ignore_ascii_case("codex")
+                && credential
+                    .attributes
+                    .get("plan_type")
+                    .is_some_and(|plan| plan.trim().eq_ignore_ascii_case("free"));
+            if free && !pinned_exclusion.contains(&credential.id) {
+                pinned_exclusion.push(credential.id.clone());
+            }
+        }
+    }
     let mut selection = Selection {
         providers: providers.clone(),
         model: call.selection_model.clone().unwrap_or_else(|| model.clone()),

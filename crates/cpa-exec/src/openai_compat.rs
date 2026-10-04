@@ -424,7 +424,7 @@ impl OpenAICompatExecutor {
 }
 
 /// `prepareOpenAICompatImagesPayload`.
-fn prepare_images_payload(
+pub(crate) fn prepare_images_payload(
     body: &[u8],
     model: &str,
     content_type: &str,

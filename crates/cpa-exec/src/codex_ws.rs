@@ -79,6 +79,9 @@ pub(crate) struct Upstream {
     sink: tokio::sync::Mutex<SplitSink<WebSocket, Message>>,
     link: Mutex<Link>,
     pub(crate) reader: Mutex<Option<tokio::task::AbortHandle>>,
+    /// The last request that touched the `collaboration` namespace on this socket renamed
+    /// it (`multiAgentV2OptimizedConn`): later continuations restore upstream names too.
+    multi_agent: std::sync::atomic::AtomicBool,
 }
 
 impl Upstream {
@@ -89,7 +92,21 @@ impl Upstream {
             sink: tokio::sync::Mutex::new(sink),
             link: Mutex::default(),
             reader: Mutex::default(),
+            multi_agent: Default::default(),
         })
+    }
+
+    /// `!conflict && (optimized || isMultiAgentV2Optimized(conn))`.
+    fn restores(&self, optimized: bool, conflict: bool) -> bool {
+        !conflict && (optimized || self.multi_agent.load(std::sync::atomic::Ordering::Acquire))
+    }
+
+    /// `setMultiAgentV2Optimized` after a request that optimized or conflicted.
+    fn note_multi_agent(&self, optimized: bool, conflict: bool) {
+        if optimized || conflict {
+            self.multi_agent
+                .store(optimized && !conflict, std::sync::atomic::Ordering::Release);
+        }
     }
 
     pub(crate) fn activate(&self) -> mpsc::Receiver<Read> {
@@ -97,7 +114,7 @@ impl Upstream {
         let mut link = self.link.lock().expect("link");
         match &link.lost {
             Some(error) => {
-                let _ = tx.try_send(Read::Failed(error.clone()));
+                let _ = tx.try_send(Read::Failed(turn_error(error)));
             }
             None => link.active = Some(tx),
         }
@@ -117,9 +134,9 @@ impl Upstream {
                 .lock()
                 .expect("link")
                 .lost
-                .clone()
+                .as_ref()
                 .filter(|e| e.status == 413)
-                .unwrap_or_else(|| transport("codex websockets executor: write failed"))
+                .map_or_else(|| transport("codex websockets executor: write failed"), turn_error)
         })
     }
 
@@ -237,6 +254,12 @@ impl Pool {
         }
     }
 
+    /// The error that lost the session's upstream socket, if it was lost.
+    pub fn loss(&self, id: &str) -> Option<ExecError> {
+        let session = self.sessions.lock().expect("sessions").get(id).cloned()?;
+        session.closed.borrow().clone()
+    }
+
     /// Resolves with the error that lost the session's upstream socket.
     pub fn closed(&self, id: &str) -> impl std::future::Future<Output = ExecError> + Send + 'static {
         let mut rx = self.session(id).closed.subscribe();
@@ -262,18 +285,45 @@ fn transport(message: &str) -> ExecError {
     ExecError::local(502, FailureScope::Transport, message)
 }
 
-/// Close 1009 from upstream: the client must shrink the request. Go's reader notifies
-/// the downstream handler with the raw close error, so the client sees close 1009 with
-/// the upstream's reason ("message too big" when empty); the request-scoped 413 keeps the
-/// same reason (`mapCodexWebsocketReadError`).
-fn message_too_big(reason: &str) -> ExecError {
-    let reason = if reason.is_empty() { "message too big" } else { reason };
+/// The session's loss on an upstream close 1009: Go's reader notifies the downstream
+/// handler with gorilla's raw close error, so the client sees close 1009 with the
+/// upstream's reason ("message too big" when empty).
+/// `close_reason` keeps gorilla's `CloseError.Text` verbatim for the handler, which only
+/// trims the message of a mapped 413.
+fn closed_too_big(reason: &str) -> ExecError {
+    let message = if reason.is_empty() { "message too big" } else { reason };
     ExecError::local(
         413,
         FailureScope::Request,
-        serde_json::json!({"error": {"message": reason, "type": "invalid_request_error", "code": "message_too_big"}})
-            .to_string(),
+        serde_json::json!({
+            "error": {"message": message, "type": "invalid_request_error", "code": "message_too_big"},
+            "close_reason": reason,
+        })
+        .to_string(),
     )
+}
+
+/// `mapCodexWebsocketReadError` / `mapCodexWebsocketWriteError`: what a turn reports
+/// after the upstream closed with 1009, a fixed request-scoped 413.
+fn message_too_big() -> ExecError {
+    ExecError::local(
+        413,
+        FailureScope::Request,
+        r#"{"error":{"message":"upstream websocket message too big","type":"invalid_request_error","code":"message_too_big"}}"#,
+    )
+}
+
+/// The error a turn reads from the session's loss: the mapped 413 for a 1009 close (only
+/// [`closed_too_big`] makes a 413 loss), the loss itself otherwise.
+/// The reader's error for a binary message (Go's `unexpected_binary` stage).
+const UNEXPECTED_BINARY: &str = "codex websockets executor: unexpected binary message";
+
+fn turn_error(lost: &ExecError) -> ExecError {
+    if lost.status == 413 {
+        message_too_big()
+    } else {
+        lost.clone()
+    }
 }
 
 /// `buildCodexResponsesWebsocketURL`.
@@ -313,8 +363,9 @@ fn request_frame(body: String) -> String {
     set_str(&body, "type", "response.create")
 }
 
-/// `parseCodexWebsocketErrorWithCooling`: an `error` frame that carries an HTTP status.
-pub(crate) fn ws_error(payload: &str, model_level_cooling: bool) -> Option<ExecError> {
+/// `buildCodexWebsocketErrorPayload` for an `error` frame with a positive status: the
+/// status and the body Go classifies (and clears the reasoning replay with).
+fn ws_error_body(payload: &str) -> Option<(u16, String)> {
     if gjson::get(payload, "type").str().trim() != "error" {
         return None;
     }
@@ -343,6 +394,47 @@ pub(crate) fn ws_error(payload: &str, model_level_cooling: bool) -> Option<ExecE
         out = set_str(&out, "error.type", "server_error");
         out = set_str(&out, "error.message", response::go_status_text(status));
     }
+    Some((status, out))
+}
+
+/// A request's reasoning replay (Claude clients only): the executor's cache and the
+/// request's scope.
+#[derive(Clone, Default)]
+pub(super) struct Replay {
+    cache: Arc<crate::codex_replay::Cache>,
+    scope: crate::codex_replay::Scope,
+}
+
+impl Replay {
+    /// `applyCodexReasoningReplayCacheRequired`: cached turns inserted into `body`.
+    fn apply(cache: &Arc<crate::codex_replay::Cache>, req: &ExecRequest, body: String) -> (String, Self) {
+        let (body, scope) = crate::codex_replay::apply(cache, req, body);
+        let replay = Self {
+            cache: cache.clone(),
+            scope,
+        };
+        (body, replay)
+    }
+
+    /// `clearCodexReasoningReplayOnWebsocketError` or `...OnInvalidSignature` for a
+    /// rejection event: an invalid thinking signature drops the cached reasoning.
+    fn clear(&self, payload: &str, cooling: bool) {
+        if let Some((status, body)) = ws_error_body(payload) {
+            crate::codex_replay::clear_on_invalid_signature(&self.cache, &self.scope, status, body.as_bytes());
+        } else if let Some((error, body)) = response::terminal_failure(payload, cooling) {
+            crate::codex_replay::clear_on_invalid_signature(&self.cache, &self.scope, error.status, body.as_bytes());
+        }
+    }
+
+    /// `cacheCodexReasoningReplayFromCompleted`.
+    fn completed(&self, payload: &str) {
+        crate::codex_replay::cache_completed(&self.cache, &self.scope, payload.as_bytes());
+    }
+}
+
+/// `parseCodexWebsocketErrorWithCooling`: an `error` frame that carries an HTTP status.
+pub(crate) fn ws_error(payload: &str, model_level_cooling: bool) -> Option<ExecError> {
+    let (status, out) = ws_error_body(payload)?;
     let mut headers = HeaderMap::new();
     let raw_headers = gjson::get(payload, "headers");
     if raw_headers.kind() == Kind::Object {
@@ -419,6 +511,12 @@ struct Turn {
     usage: cpa_core::exec::UsageSink,
     /// The upstream model, for per-model quota snapshots.
     model: String,
+    replay: Replay,
+    /// The attempt's wire capture (Go's `api.websocket.*` timeline events).
+    wire: crate::codex_capture::Wire,
+    /// Inside the bootstrap window, where Go records an empty incomplete as a
+    /// WebSocket error rather than a response error.
+    bootstrapping: bool,
 }
 
 impl Drop for Turn {
@@ -429,6 +527,16 @@ impl Drop for Turn {
 
 impl Turn {
     async fn frame(&mut self) -> Frame {
+        let frame = self.read().await;
+        if let Frame::Failed { error, read: true, .. } = &frame {
+            let binary = error.body.as_ref() == UNEXPECTED_BINARY.as_bytes();
+            self.wire
+                .ws_exec_error(if binary { "unexpected_binary" } else { "read" }, error);
+        }
+        frame
+    }
+
+    async fn read(&mut self) -> Frame {
         let text = match self.rx.recv().await {
             Some(Read::Text(text)) => text,
             Some(Read::Failed(error)) => {
@@ -439,9 +547,14 @@ impl Turn {
                     status_frame: false,
                 };
             }
+            // A full channel can drop the reader's terminal error; the session still
+            // recorded the loss (Go's reader waits to deliver it).
             None => {
                 return Frame::Failed {
-                    error: transport("codex websockets executor: session read channel closed"),
+                    error: self.loss().map_or_else(
+                        || transport("codex websockets executor: session read channel closed"),
+                        |l| turn_error(&l),
+                    ),
                     overload: false,
                     read: true,
                     status_frame: false,
@@ -453,10 +566,13 @@ impl Turn {
             return Frame::Skip;
         }
         self.observe(payload);
+        self.wire.ws_response(payload.as_bytes());
         let raw_len = payload.len();
         let payload = response::restore(payload, self.restore);
         let payload = payload.as_ref();
         if let Some(error) = ws_error(payload, self.cooling) {
+            self.replay.clear(payload, self.cooling);
+            self.wire.ws_exec_error("upstream_error", &error);
             return Frame::Failed {
                 error,
                 overload: false,
@@ -465,6 +581,8 @@ impl Turn {
             };
         }
         if let Some((error, body)) = response::terminal_failure(payload, self.cooling) {
+            self.replay.clear(payload, self.cooling);
+            self.wire.ws_exec_error("upstream_error", &error);
             return Frame::Failed {
                 error,
                 overload: response::is_overload(&body),
@@ -478,8 +596,14 @@ impl Turn {
             self.saw_delta = true;
         }
         if response::empty_incomplete(payload, self.items.len(), self.saw_delta) {
+            let error = response::request_scoped(502, response::EMPTY_INCOMPLETE_MESSAGE);
+            if self.bootstrapping {
+                self.wire.ws_exec_error("upstream_error", &error);
+            } else {
+                self.wire.exec_error(&error);
+            }
             return Frame::Failed {
-                error: response::request_scoped(502, response::EMPTY_INCOMPLETE_MESSAGE),
+                error,
                 overload: false,
                 read: false,
                 status_frame: false,
@@ -498,6 +622,9 @@ impl Turn {
             out = response::normalize_completion(out);
             if !self.native {
                 out = self.items.patch(out);
+            }
+            if kind != "response.incomplete" {
+                self.replay.completed(&out);
             }
         }
         Frame::Event {
@@ -523,6 +650,12 @@ impl Turn {
 
     fn invalidate(&self, error: &ExecError, notify: bool) {
         self.session.invalidate(&self.conn, error, notify);
+    }
+
+    /// The raw error that lost the session's socket, as the reader recorded it (the
+    /// duplex wraps gorilla's close error unmapped).
+    fn loss(&self) -> Option<ExecError> {
+        self.session.closed.borrow().clone()
     }
 }
 
@@ -551,6 +684,7 @@ fn rest(turn: Turn) -> ExecStream {
 /// Bootstrap buffering over WebSocket messages (codex_websockets_stream.go): every
 /// message read counts toward the 48-frame window, held frames are bounded by 1 MiB.
 async fn bootstrap(mut turn: Turn, timeout: Option<Duration>, started: Instant) -> Result<ExecStream, ExecError> {
+    turn.bootstrapping = true;
     let mut held: Vec<Result<Bytes, ExecError>> = Vec::new();
     let (mut frames, mut bytes) = (0usize, 0usize);
     loop {
@@ -605,12 +739,15 @@ async fn bootstrap(mut turn: Turn, timeout: Option<Duration>, started: Instant) 
             }
         }
     }
+    turn.bootstrapping = false;
     Ok(futures_util::stream::iter(held).chain(rest(turn)).boxed())
 }
 
 impl CodexExecutor {
     /// Opens (or reuses) the session's socket for `target`. Returns the handshake
     /// headers when a new socket was dialed (`ensureUpstreamConn`).
+    /// `wire` records a refused upgrade and a dial failure (the first dial of a turn;
+    /// Go's retry records only `dial_retry`).
     async fn ensure(
         &self,
         session: &Arc<Session>,
@@ -618,6 +755,7 @@ impl CodexExecutor {
         headers: &HeaderMap,
         model: &str,
         model_level_cooling: bool,
+        wire: Option<&crate::codex_capture::Wire>,
     ) -> Result<(Arc<Upstream>, Option<HeaderMap>), ExecError> {
         if let Some(current) = session.current() {
             if current.target == *target {
@@ -631,14 +769,9 @@ impl CodexExecutor {
             drop(slot);
             current.shutdown();
         }
-        let (socket, handshake) = self.dial(target, headers, model, model_level_cooling).await?;
+        let (socket, handshake) = self.dial(target, headers, model, model_level_cooling, wire).await?;
         let (sink, stream) = socket.split();
-        let conn = Arc::new(Upstream {
-            target: target.clone(),
-            sink: tokio::sync::Mutex::new(sink),
-            link: Mutex::default(),
-            reader: Mutex::default(),
-        });
+        let conn = Upstream::new(target.clone(), sink);
         // Publish before the reader runs, so a reader that fails at once still finds its
         // socket current and invalidates it; holding the handle slot keeps a concurrent
         // shutdown from missing the abort handle.
@@ -653,13 +786,14 @@ impl CodexExecutor {
     async fn dial(
         &self,
         target: &Target,
-        headers: &HeaderMap,
+        request: &HeaderMap,
         model: &str,
         model_level_cooling: bool,
+        wire: Option<&crate::codex_capture::Wire>,
     ) -> Result<(WebSocket, HeaderMap), ExecError> {
         // `newProxyAwareWebsocketDialer`: Go's standard dialer, environment proxies
         // included when none is configured, with `EnableCompression`.
-        let mut headers = headers.clone();
+        let mut headers = request.clone();
         let key = offer_compression(&mut headers);
         let builder = self
             .transport
@@ -667,6 +801,7 @@ impl CodexExecutor {
             .websocket(&target.url)
             .headers(headers)
             .accept_key(key.clone());
+        let mut rejected = false;
         let attempt = async {
             let mut res = builder
                 .send()
@@ -685,6 +820,10 @@ impl CodexExecutor {
                     }
                 }
                 self.quota_observe(&target.credential, model, &handshake);
+                rejected = true;
+                if let Some(wire) = wire {
+                    wire.upgrade_rejection(&target.url, request, status, &handshake, &body);
+                }
                 if status == 426 {
                     // Go returns a plain statusErr for 426 on downstream WebSockets.
                     let text = String::from_utf8_lossy(&body).into_owned();
@@ -702,9 +841,16 @@ impl CodexExecutor {
             })?;
             Ok((socket, handshake))
         };
-        tokio::time::timeout(HANDSHAKE_TIMEOUT, attempt)
+        let dialed = tokio::time::timeout(HANDSHAKE_TIMEOUT, attempt)
             .await
-            .unwrap_or_else(|_| Err(transport("codex websockets executor: handshake timed out")))
+            .unwrap_or_else(|_| Err(transport("codex websockets executor: handshake timed out")));
+        // A refused upgrade was recorded as an HTTP attempt; anything else is a dial error.
+        if let (Err(error), Some(wire)) = (&dialed, wire)
+            && !rejected
+        {
+            wire.ws_exec_error("dial", error);
+        }
+        dialed
     }
 
     fn quota_observe(&self, credential: &str, model: &str, headers: &HeaderMap) {
@@ -721,7 +867,12 @@ impl CodexExecutor {
         exec_session: &ExecSession,
     ) -> Result<ExecResponse, ExecError> {
         let model = request::base_model(&req.model).to_owned();
-        let (body, restore) = request::shape(&req, view, settings, Call::Websocket)?;
+        let request::Shaped {
+            body,
+            optimized,
+            conflict,
+        } = request::shape(&req, view, settings, Call::Websocket)?;
+        let (body, replay) = Replay::apply(&self.replay, &req, body);
         crate::codex::report_request(&req, cpa_core::format::Format::Codex, &body);
         let (body, cache) = request::prompt_cache(&req, body, Some(&exec_session.id), true);
         let native = request::is_native(&req);
@@ -737,21 +888,39 @@ impl CodexExecutor {
             .response_steering
             .then(|| session.steering())
             .flatten()
-            .map(|input| (input, duplex::Prepared::new(&body, &req.original_body, restore, native)));
+            .map(|input| {
+                let initial =
+                    duplex::Prepared::new(&body, &req.original_body, optimized, conflict, native, replay.clone());
+                (input, initial)
+            });
         let guard = session.turn.clone().lock_owned().await;
+        let frame = request_frame(body);
+        let wire = crate::codex_capture::Wire::new(req.capture(), view.credential);
+        wire.ws_request(&target.url, &headers, frame.as_bytes());
         let (mut conn, mut handshake) = if exec_session.continuation {
             match session.current().filter(|c| c.target == target) {
                 Some(conn) => (conn, None),
                 None => return Err(ExecError::replay_required()),
             }
         } else {
-            self.ensure(&session, &target, &headers, &model, settings.model_level_cooling)
-                .await?
+            self.ensure(
+                &session,
+                &target,
+                &headers,
+                &model,
+                settings.model_level_cooling,
+                Some(&wire),
+            )
+            .await?
         };
-        let frame = request_frame(body);
+        if let Some(handshake) = &handshake {
+            wire.ws_handshake(101, handshake);
+        }
         let started = Instant::now();
         let mut rx = conn.activate();
+        let mut restore = conn.restores(optimized, conflict);
         if let Err(error) = conn.send(frame.clone()).await {
+            wire.ws_exec_error("send", &error);
             // `shouldRetryCodexWebsocketSend`: request-scoped failures (413) never retry.
             let retry = error.scope != FailureScope::Request;
             if exec_session.continuation {
@@ -763,17 +932,31 @@ impl CodexExecutor {
                 return Err(error);
             }
             // Retry once on a fresh socket: upstream may have closed it between turns.
-            let (fresh, fresh_handshake) = self
-                .ensure(&session, &target, &headers, &model, settings.model_level_cooling)
-                .await?;
+            let (fresh, fresh_handshake) = match self
+                .ensure(&session, &target, &headers, &model, settings.model_level_cooling, None)
+                .await
+            {
+                Ok(fresh) => fresh,
+                Err(error) => {
+                    wire.ws_exec_error("dial_retry", &error);
+                    return Err(error);
+                }
+            };
             rx = fresh.activate();
+            restore = fresh.restores(optimized, conflict);
+            wire.ws_request(&target.url, &headers, frame.as_bytes());
+            if let Some(handshake) = &fresh_handshake {
+                wire.ws_handshake(101, handshake);
+            }
             if let Err(error) = fresh.send(frame).await {
+                wire.ws_exec_error("send_retry", &error);
                 session.invalidate(&fresh, &error, true);
                 return Err(error);
             }
             conn = fresh;
             handshake = fresh_handshake;
         }
+        conn.note_multi_agent(optimized, conflict);
         let observed = handshake.clone().unwrap_or_default();
         if !observed.is_empty() {
             self.quota_observe(&view.credential.id, &model, &observed);
@@ -793,6 +976,9 @@ impl CodexExecutor {
             restore,
             usage: req.usage.clone(),
             model: model.clone(),
+            replay,
+            wire,
+            bootstrapping: false,
         };
         if let Some((input, initial)) = steering {
             // The socket now belongs to this connection; bootstrap buffering does not apply.
@@ -837,10 +1023,10 @@ pub(crate) async fn read_loop(
             };
             match message {
                 Message::Text(text) => break text.as_str().to_owned(),
-                Message::Binary(_) => break 'read transport("codex websockets executor: unexpected binary message"),
+                Message::Binary(_) => break 'read transport(UNEXPECTED_BINARY),
                 Message::Close(frame) => {
                     if let Some(frame) = frame.filter(|f| u16::from(f.code) == 1009) {
-                        break 'read message_too_big(frame.reason.as_str());
+                        break 'read closed_too_big(frame.reason.as_str());
                     }
                     break 'read transport("codex websockets executor: upstream closed the connection");
                 }
@@ -858,12 +1044,14 @@ pub(crate) async fn read_loop(
         link.lost = Some(error.clone());
         link.active.clone()
     };
-    if let Some(tx) = active {
-        let _ = tx.try_send(Read::Failed(error.clone()));
-    }
+    // The session records the loss before the turn reads its error, so a handler that
+    // sees the turn fail also finds the loss (Go's notifier closes the client first).
     match session.upgrade() {
         Some(session) => session.invalidate(&conn, &error, true),
         None => conn.deactivate(),
+    }
+    if let Some(tx) = active {
+        let _ = tx.try_send(Read::Failed(turn_error(&error)));
     }
 }
 
@@ -930,7 +1118,7 @@ fn token_list_contains(headers: &HeaderMap, name: http::HeaderName, value: &str)
 pub(crate) mod deflate;
 #[path = "codex_duplex.rs"]
 mod duplex;
-pub use duplex::SteeringInput;
+pub use duplex::{ClientFrames, SteeringInput};
 
 #[cfg(test)]
 #[path = "codex_ws_tests.rs"]

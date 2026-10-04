@@ -79,13 +79,13 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "cf0d4b4b-1bb6-5f00-b1f6-8bcb98d3378e",
+          "conversation_id": "a193695e-7f77-5736-96b9-d34d5d3c4ce2",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "T8ZzdPkR2KJYuzuAIQvR+A==",
+          "sec-websocket-key": "BY+cf34j9W5M18WdClerlA==",
           "sec-websocket-version": "13",
-          "session_id": "cf0d4b4b-1bb6-5f00-b1f6-8bcb98d3378e",
+          "session_id": "a193695e-7f77-5736-96b9-d34d5d3c4ce2",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)",
           "x-codex-turn-state": "ts-1"
@@ -93,11 +93,11 @@
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"cf0d4b4b-1bb6-5f00-b1f6-8bcb98d3378e\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a193695e-7f77-5736-96b9-d34d5d3c4ce2\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"more\"}]}],\"model\":\"gpt-fixture\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"cf0d4b4b-1bb6-5f00-b1f6-8bcb98d3378e\"}"
+        "body": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"more\"}]}],\"model\":\"gpt-fixture\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a193695e-7f77-5736-96b9-d34d5d3c4ce2\"}"
       }
     ]
   },
@@ -203,10 +203,10 @@
           "content-length": "353",
           "content-type": "application/json",
           "originator": "codex-tui",
-          "session-id": "2541b5bc-e126-5523-9337-b94c303ace03",
+          "session-id": "a148cf34-9210-5a8e-b67d-c351e536684b",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         },
-        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"2541b5bc-e126-5523-9337-b94c303ace03\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a148cf34-9210-5a8e-b67d-c351e536684b\"}"
       },
       {
         "kind": "http",
@@ -218,10 +218,10 @@
           "content-length": "546",
           "content-type": "application/json",
           "originator": "codex-tui",
-          "session-id": "2541b5bc-e126-5523-9337-b94c303ace03",
+          "session-id": "a148cf34-9210-5a8e-b67d-c351e536684b",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         },
-        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"call a tool\"}]}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"2541b5bc-e126-5523-9337-b94c303ace03\"}"
+        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"call a tool\"}]}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a148cf34-9210-5a8e-b67d-c351e536684b\"}"
       },
       {
         "kind": "http",
@@ -233,10 +233,10 @@
           "content-length": "707",
           "content-type": "application/json",
           "originator": "codex-tui",
-          "session-id": "2541b5bc-e126-5523-9337-b94c303ace03",
+          "session-id": "a148cf34-9210-5a8e-b67d-c351e536684b",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         },
-        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"call a tool\"}]},{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"42\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"2541b5bc-e126-5523-9337-b94c303ace03\"}"
+        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"id\":\"msg_hello\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"call a tool\"}]},{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"42\"}],\"model\":\"gpt-fixture\",\"instructions\":\"be brief\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a148cf34-9210-5a8e-b67d-c351e536684b\"}"
       }
     ]
   },
@@ -318,10 +318,10 @@
           "content-length": "345",
           "content-type": "application/json",
           "originator": "codex-tui",
-          "session-id": "d8036873-590e-5d67-bd85-2d7f81be2626",
+          "session-id": "ce49fcf4-8f7f-5f66-b73a-478f248c55d2",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         },
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"ok\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"d8036873-590e-5d67-bd85-2d7f81be2626\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"ok\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"ce49fcf4-8f7f-5f66-b73a-478f248c55d2\"}"
       }
     ]
   },
@@ -345,10 +345,10 @@
         "read": "completed",
         "frames": [
           {
-            "text": "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_prewarm_2ddcd40a-02dc-4730-bcc8-5a066afaedf2\",\"object\":\"response\",\"created_at\":1791031331,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gpt-fixture\"}}"
+            "text": "{\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_prewarm_328f53c7-09a0-4bb4-a878-840f21e66f2d\",\"object\":\"response\",\"created_at\":1791039640,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gpt-fixture\"}}"
           },
           {
-            "text": "{\"type\":\"response.completed\",\"sequence_number\":1,\"response\":{\"id\":\"resp_prewarm_2ddcd40a-02dc-4730-bcc8-5a066afaedf2\",\"object\":\"response\",\"created_at\":1791031331,\"status\":\"completed\",\"background\":false,\"error\":null,\"output\":[],\"usage\":{\"input_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":0},\"model\":\"gpt-fixture\"}}"
+            "text": "{\"type\":\"response.completed\",\"sequence_number\":1,\"response\":{\"id\":\"resp_prewarm_328f53c7-09a0-4bb4-a878-840f21e66f2d\",\"object\":\"response\",\"created_at\":1791039640,\"status\":\"completed\",\"background\":false,\"error\":null,\"output\":[],\"usage\":{\"input_tokens\":0,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":0,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":0},\"model\":\"gpt-fixture\"}}"
           }
         ]
       },
@@ -388,10 +388,10 @@
           "content-length": "431",
           "content-type": "application/json",
           "originator": "codex-tui",
-          "session-id": "42fa8a0d-6b09-56c0-8df6-3323e1965165",
+          "session-id": "dcadc53e-5b1e-5b09-bd60-190e508d5bc7",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         },
-        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"setup\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"42fa8a0d-6b09-56c0-8df6-3323e1965165\"}"
+        "body": "{\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"setup\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"go\"}]}],\"model\":\"gpt-fixture\",\"instructions\":\"warm\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"dcadc53e-5b1e-5b09-bd60-190e508d5bc7\"}"
       }
     ]
   },
@@ -438,20 +438,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "5074a92c-a7a6-5935-a3c7-0181a20f61fd",
+          "conversation_id": "c299d27b-70b6-51a6-9d9c-2927c20b9433",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "V7lao1m+v5EMhvmlUh44UA==",
+          "sec-websocket-key": "185upAF5jppLFbZZz2MOwQ==",
           "sec-websocket-version": "13",
-          "session_id": "5074a92c-a7a6-5935-a3c7-0181a20f61fd",
+          "session_id": "c299d27b-70b6-51a6-9d9c-2927c20b9433",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"huge\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"5074a92c-a7a6-5935-a3c7-0181a20f61fd\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"huge\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"c299d27b-70b6-51a6-9d9c-2927c20b9433\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -495,20 +495,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "bd109243-bb7a-5efe-97e8-3682faf3b42d",
+          "conversation_id": "ec68afdf-05c4-5fda-b799-f275a45ba763",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "Jq8FvpzctBUAl7Q8RogNkw==",
+          "sec-websocket-key": "N6yI/8VNxYFOuY9pz87k8w==",
           "sec-websocket-version": "13",
-          "session_id": "bd109243-bb7a-5efe-97e8-3682faf3b42d",
+          "session_id": "ec68afdf-05c4-5fda-b799-f275a45ba763",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"bd109243-bb7a-5efe-97e8-3682faf3b42d\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"ec68afdf-05c4-5fda-b799-f275a45ba763\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -578,20 +578,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "b3f423a9-04da-5902-a057-3e2b204db44a",
+          "conversation_id": "6c71a8cd-de89-5811-bbc3-085934b5d9ad",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "vmC+lXCX1ATR2obiTchWcw==",
+          "sec-websocket-key": "8br1hVvfONtdy5jkedO1pg==",
           "sec-websocket-version": "13",
-          "session_id": "b3f423a9-04da-5902-a057-3e2b204db44a",
+          "session_id": "6c71a8cd-de89-5811-bbc3-085934b5d9ad",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b3f423a9-04da-5902-a057-3e2b204db44a\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"6c71a8cd-de89-5811-bbc3-085934b5d9ad\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -652,20 +652,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "50769346-a1d0-5b94-8d5d-958ff8633cf3",
+          "conversation_id": "fcf38aca-ded0-524a-a6c6-c60003045187",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "aDoo3i9Ro9akfYYgbosVWw==",
+          "sec-websocket-key": "Xuq85my05OHG/7uoBBGQJQ==",
           "sec-websocket-version": "13",
-          "session_id": "50769346-a1d0-5b94-8d5d-958ff8633cf3",
+          "session_id": "fcf38aca-ded0-524a-a6c6-c60003045187",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"50769346-a1d0-5b94-8d5d-958ff8633cf3\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"fcf38aca-ded0-524a-a6c6-c60003045187\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -713,20 +713,81 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "16b394ca-f1ae-5289-a1b8-4760cb829859",
+          "conversation_id": "d90d0da5-6f5c-5770-b87f-3ecf973101af",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "CUcpnadEL4KDLjCF7DpTcA==",
+          "sec-websocket-key": "Y4UWqcYAfjJHIoyF5YDviw==",
           "sec-websocket-version": "13",
-          "session_id": "16b394ca-f1ae-5289-a1b8-4760cb829859",
+          "session_id": "d90d0da5-6f5c-5770-b87f-3ecf973101af",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"16b394ca-f1ae-5289-a1b8-4760cb829859\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"d90d0da5-6f5c-5770-b87f-3ecf973101af\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "ws_upstream_message_too_big_spaced_reason",
+    "config": "host: \"\"\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+        "read": "close",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+            ],
+            "then": "close1009_spaced"
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "close": 1009,
+            "reason": " oversized "
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "e0bbbcff-978b-5055-9474-9bf3159e21be",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "L1EaiRAExBKNvq6HflDyug==",
+          "sec-websocket-version": "13",
+          "session_id": "e0bbbcff-978b-5055-9474-9bf3159e21be",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"e0bbbcff-978b-5055-9474-9bf3159e21be\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -781,10 +842,10 @@
           "content-length": "345",
           "content-type": "application/json",
           "originator": "codex-tui",
-          "session-id": "a66bda1e-e506-5037-b256-ac2f27f564c0",
+          "session-id": "72b3023d-f223-55db-a7d9-4ede5befdb0b",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         },
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a66bda1e-e506-5037-b256-ac2f27f564c0\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"72b3023d-f223-55db-a7d9-4ede5befdb0b\"}"
       }
     ]
   },
@@ -840,20 +901,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "1f53d452-2d42-5220-9834-8c3e4521249c",
+          "conversation_id": "530bd9b2-2004-5040-871b-c29617205f97",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "qMIrEZo9ZH1cqO2eU/MICg==",
+          "sec-websocket-key": "N/esY1zywM66j20OmjTPtQ==",
           "sec-websocket-version": "13",
-          "session_id": "1f53d452-2d42-5220-9834-8c3e4521249c",
+          "session_id": "530bd9b2-2004-5040-871b-c29617205f97",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"delegate\"}]}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Available model overrides (optional; inherited parent model is preferred):\\n- `gpt-fixture`: gpt-fixture. Reasoning efforts: low, medium (default), high, xhigh.\\nSpawns an agent.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}}}}]},{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"prompt_cache_key\":\"1f53d452-2d42-5220-9834-8c3e4521249c\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"delegate\"}]}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Available model overrides (optional; inherited parent model is preferred):\\n- `gpt-fixture`: gpt-fixture. Reasoning efforts: low, medium (default), high, xhigh.\\nSpawns an agent.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}}}}]},{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"prompt_cache_key\":\"530bd9b2-2004-5040-871b-c29617205f97\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -913,10 +974,10 @@
           "content-length": "854",
           "content-type": "application/json",
           "originator": "codex-tui",
-          "session-id": "e5a097d7-a53b-52c5-9168-db3c6c01b629",
+          "session-id": "1255c663-686f-5a87-9e99-3e5666d11072",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         },
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"delegate\"}]}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Available model overrides (optional; inherited parent model is preferred):\\n- `gpt-fixture`: gpt-fixture. Reasoning efforts: low, medium (default), high, xhigh.\\nSpawns an agent.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}}}}]},{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"prompt_cache_key\":\"e5a097d7-a53b-52c5-9168-db3c6c01b629\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Tool output from codex_app__create_thread:\\nthread ok\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"delegate\"}]}],\"tools\":[{\"type\":\"namespace\",\"name\":\"collaboration-optimize\",\"tools\":[{\"type\":\"function\",\"name\":\"spawn_agent\",\"description\":\"Available model overrides (optional; inherited parent model is preferred):\\n- `gpt-fixture`: gpt-fixture. Reasoning efforts: low, medium (default), high, xhigh.\\nSpawns an agent.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"message\":{\"type\":\"string\"}}}}]},{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"prompt_cache_key\":\"1255c663-686f-5a87-9e99-3e5666d11072\"}"
       }
     ]
   },
@@ -1003,20 +1064,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "699ace33-bee4-555c-96e4-0240051234e6",
+          "conversation_id": "53f04c56-372b-5917-ad9a-39d662db396b",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "fb1bqP1wYT9MaLWY2E+xRQ==",
+          "sec-websocket-key": "NhNuJt9xSQIew7ZNDbeNiQ==",
           "sec-websocket-version": "13",
-          "session_id": "699ace33-bee4-555c-96e4-0240051234e6",
+          "session_id": "53f04c56-372b-5917-ad9a-39d662db396b",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"699ace33-bee4-555c-96e4-0240051234e6\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"53f04c56-372b-5917-ad9a-39d662db396b\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
@@ -1127,20 +1188,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "672eaba0-789b-5782-8157-1cdf98516855",
+          "conversation_id": "d7f05e4e-c514-54f2-9b5f-1e66c171a8fa",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "ZP+IHFtNolX3npJwAXlEhw==",
+          "sec-websocket-key": "Q/cHUX0JXQLoy33kF3/YUw==",
           "sec-websocket-version": "13",
-          "session_id": "672eaba0-789b-5782-8157-1cdf98516855",
+          "session_id": "d7f05e4e-c514-54f2-9b5f-1e66c171a8fa",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"672eaba0-789b-5782-8157-1cdf98516855\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"d7f05e4e-c514-54f2-9b5f-1e66c171a8fa\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
@@ -1152,7 +1213,7 @@
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"call1\",\"output\":\"found\"}],\"model\":\"gpt-fixture\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"672eaba0-789b-5782-8157-1cdf98516855\"}"
+        "body": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"call1\",\"output\":\"found\"}],\"model\":\"gpt-fixture\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"d7f05e4e-c514-54f2-9b5f-1e66c171a8fa\"}"
       }
     ]
   },
@@ -1228,20 +1289,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "41d6cdb4-df97-58d2-bfde-689e43bbaa64",
+          "conversation_id": "ef56bf3e-1a2c-5991-bca5-8caeb2baa5c5",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "Fo2NOB2HIeGGiM5zHevG2g==",
+          "sec-websocket-key": "CyYmtABX48q9q+Up8ueEXA==",
           "sec-websocket-version": "13",
-          "session_id": "41d6cdb4-df97-58d2-bfde-689e43bbaa64",
+          "session_id": "ef56bf3e-1a2c-5991-bca5-8caeb2baa5c5",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"41d6cdb4-df97-58d2-bfde-689e43bbaa64\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"ef56bf3e-1a2c-5991-bca5-8caeb2baa5c5\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
@@ -1357,20 +1418,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "b9b845ed-0d58-5809-93a9-ffd48c276393",
+          "conversation_id": "b6fea210-ca6d-53ca-b1ce-abb19cd6c449",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "FLZBqlzDAYYh9vTzVfJApg==",
+          "sec-websocket-key": "63yLZHv3M4x6F3wUTQHnIQ==",
           "sec-websocket-version": "13",
-          "session_id": "b9b845ed-0d58-5809-93a9-ffd48c276393",
+          "session_id": "b6fea210-ca6d-53ca-b1ce-abb19cd6c449",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b9b845ed-0d58-5809-93a9-ffd48c276393\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b6fea210-ca6d-53ca-b1ce-abb19cd6c449\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
@@ -1378,7 +1439,7 @@
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b9b845ed-0d58-5809-93a9-ffd48c276393\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b6fea210-ca6d-53ca-b1ce-abb19cd6c449\"}"
       }
     ]
   },
@@ -1465,28 +1526,28 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "bf3c5611-862a-5261-bf38-9e9bdc98acd2",
+          "conversation_id": "ae8a3714-d8ea-5db4-960a-dacdc1876c64",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "tuK+EIdRhE0SKpB8QK0HpA==",
+          "sec-websocket-key": "es9EGq5jBAPs8FzPgRRfMw==",
           "sec-websocket-version": "13",
-          "session_id": "bf3c5611-862a-5261-bf38-9e9bdc98acd2",
+          "session_id": "ae8a3714-d8ea-5db4-960a-dacdc1876c64",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"bf3c5611-862a-5261-bf38-9e9bdc98acd2\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"ae8a3714-d8ea-5db4-960a-dacdc1876c64\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"REJECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"bf3c5611-862a-5261-bf38-9e9bdc98acd2\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"REJECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"ae8a3714-d8ea-5db4-960a-dacdc1876c64\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"CORRECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"bf3c5611-862a-5261-bf38-9e9bdc98acd2\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"CORRECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"ae8a3714-d8ea-5db4-960a-dacdc1876c64\"}"
       }
     ]
   },
@@ -1533,20 +1594,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "5d788209-6f15-536a-82dd-2a6f5490c23e",
+          "conversation_id": "c0ea1f7a-762f-53a8-a8de-8a94d7f09820",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "H7NURbPQS/j+xdoXLj1nHg==",
+          "sec-websocket-key": "Rcyj05VVRBQg78R2iTitCg==",
           "sec-websocket-version": "13",
-          "session_id": "5d788209-6f15-536a-82dd-2a6f5490c23e",
+          "session_id": "c0ea1f7a-762f-53a8-a8de-8a94d7f09820",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"5d788209-6f15-536a-82dd-2a6f5490c23e\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"c0ea1f7a-762f-53a8-a8de-8a94d7f09820\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -1614,24 +1675,24 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "3e2822fd-348b-5014-88f4-0db496d12e4b",
+          "conversation_id": "b583a8d3-a89a-5d5b-bfb3-77693d492289",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "C/IIk+CnwKRu5xwEPyI/wA==",
+          "sec-websocket-key": "l3aeHmAPxm1gvh9K2Qivyg==",
           "sec-websocket-version": "13",
-          "session_id": "3e2822fd-348b-5014-88f4-0db496d12e4b",
+          "session_id": "b583a8d3-a89a-5d5b-bfb3-77693d492289",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"3e2822fd-348b-5014-88f4-0db496d12e4b\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b583a8d3-a89a-5d5b-bfb3-77693d492289\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"REJECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"3e2822fd-348b-5014-88f4-0db496d12e4b\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"REJECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b583a8d3-a89a-5d5b-bfb3-77693d492289\"}"
       }
     ]
   },
@@ -1698,24 +1759,24 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "233896fb-79c4-5b8d-89a8-fd9020b5af62",
+          "conversation_id": "415d5503-6cca-52e0-942e-3e49d02e1d81",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "ZdzY+f9z6bbThZkhhrHHdQ==",
+          "sec-websocket-key": "p5RKsVvSeqnn/Tn6t7rfjw==",
           "sec-websocket-version": "13",
-          "session_id": "233896fb-79c4-5b8d-89a8-fd9020b5af62",
+          "session_id": "415d5503-6cca-52e0-942e-3e49d02e1d81",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"233896fb-79c4-5b8d-89a8-fd9020b5af62\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"415d5503-6cca-52e0-942e-3e49d02e1d81\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"REJECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"233896fb-79c4-5b8d-89a8-fd9020b5af62\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"REJECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"415d5503-6cca-52e0-942e-3e49d02e1d81\"}"
       }
     ]
   },
@@ -1772,20 +1833,502 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "40b15582-fb83-528c-b186-c7d011fd61ff",
+          "conversation_id": "6960610a-80b3-5802-9b15-3f8716dd4326",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "MBbrc8BVWxieT7nmXHFDnQ==",
+          "sec-websocket-key": "PJVDlb3EOR7Ae+/AHVlfnw==",
           "sec-websocket-version": "13",
-          "session_id": "40b15582-fb83-528c-b186-c7d011fd61ff",
+          "session_id": "6960610a-80b3-5802-9b15-3f8716dd4326",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"40b15582-fb83-528c-b186-c7d011fd61ff\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"6960610a-80b3-5802-9b15-3f8716dd4326\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "steer_idle_upstream_close_legacy_disabled",
+    "config": "host: \"\"\ncodex:\n  response-steering: false\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[]}",
+        "read": "until:response.completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"first\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"first\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ],
+            "then": "close"
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"first\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"first\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "read": "close",
+        "frames": [
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "f8f3991f-3824-5ca1-9b1c-c56aa70c95f2",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "MeFLXi7KRTPkFJdplXNzsQ==",
+          "sec-websocket-version": "13",
+          "session_id": "f8f3991f-3824-5ca1-9b1c-c56aa70c95f2",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"f8f3991f-3824-5ca1-9b1c-c56aa70c95f2\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "steer_idle_upstream_close_v8_api_key",
+    "config": "host: \"\"\noauth:\n  providers:\n    codex:\n      response-steering: true\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[]}",
+        "read": "until:response.completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"first\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"first\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ],
+            "then": "close"
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"first\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"first\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "read": "close",
+        "frames": [
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "863b84d0-923a-5d8b-82b2-1d10bef61679",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "cUtoZdfwaWHx8tD95ETUNg==",
+          "sec-websocket-version": "13",
+          "session_id": "863b84d0-923a-5d8b-82b2-1d10bef61679",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"863b84d0-923a-5d8b-82b2-1d10bef61679\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "steer_idle_upstream_close_v8_oauth",
+    "config": "host: \"\"\noauth:\n  providers:\n    codex:\n      response-steering: true\n",
+    "credentials": [
+      {
+        "id": "codex-oauth.json",
+        "attributes": {
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-6-astra"
+        ],
+        "metadata": {
+          "access_token": "fake-oauth-token"
+        }
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-6-astra\",\"input\":[]}",
+        "read": "until:response.completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"first\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"first\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ],
+            "then": "close"
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"first\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"first\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "read": "close",
+        "frames": [
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer fake-oauth-token",
+          "connection": "Upgrade",
+          "conversation_id": "95ae0ff5-ad0d-5e38-8b3c-0b4352568cd8",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "s6Zyq3OxlqbMGAqOTFJdHQ==",
+          "sec-websocket-version": "13",
+          "session_id": "95ae0ff5-ad0d-5e38-8b3c-0b4352568cd8",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)",
+          "x-codex-routing-hint": "model=gpt-6-astra"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-6-astra\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"95ae0ff5-ad0d-5e38-8b3c-0b4352568cd8\",\"type\":\"response.create\"}"
+      }
+    ]
+  },
+  {
+    "name": "steer_disabled_error_terminal",
+    "config": "host: \"\"\ncodex:\n  response-steering: false\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[]}",
+        "read": "until:response.completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"first\",\"status\":\"in_progress\",\"output\":[]}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"first\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"first\",\"status\":\"in_progress\",\"output\":[]}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"first\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"REJECTED\",\"input\":[]}",
+        "read": "close",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"error\",\"status\":400,\"event_id\":\"rejected-create\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Correct the request\"}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"error\",\"status\":400,\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Correct the request\"}}"
+          },
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "e378ca18-579b-5419-8dda-ef106917f7d2",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "j18BFag2qeXftEn+4HzD1A==",
+          "sec-websocket-version": "13",
+          "session_id": "e378ca18-579b-5419-8dda-ef106917f7d2",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"INITIAL\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"e378ca18-579b-5419-8dda-ef106917f7d2\",\"type\":\"response.create\"}"
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"instructions\":\"REJECTED\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"e378ca18-579b-5419-8dda-ef106917f7d2\"}"
+      }
+    ]
+  },
+  {
+    "name": "steer_in_flight",
+    "config": "host: \"\"\ncodex:\n  response-steering: true\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[]}",
+        "read": "until:response.created",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.steer\",\"previous_response_id\":\"r1\",\"input\":\"Focus on networking\"}",
+        "read": "until:response.completed",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.steer.accepted\",\"steer\":{\"id\":\"s1\",\"previous_response_id\":\"r1\"}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5}}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.steer.accepted\",\"steer\":{\"id\":\"s1\",\"previous_response_id\":\"r1\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}}"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "a0ef858c-3ba4-5341-80f8-41f5d480d487",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "kOqjdQUej04RXI7Hdy9SGg==",
+          "sec-websocket-version": "13",
+          "session_id": "a0ef858c-3ba4-5341-80f8-41f5d480d487",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a0ef858c-3ba4-5341-80f8-41f5d480d487\",\"type\":\"response.create\"}"
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"type\":\"response.steer\",\"previous_response_id\":\"r1\",\"input\":\"Focus on networking\"}"
+      }
+    ]
+  },
+  {
+    "name": "steer_disconnect_pending",
+    "config": "host: \"\"\ncodex:\n  response-steering: true\n",
+    "credentials": [
+      {
+        "id": "codex-ws.json",
+        "attributes": {
+          "api_key": "sk-fake-ws",
+          "websockets": "true"
+        },
+        "models": [
+          "gpt-fixture"
+        ]
+      }
+    ],
+    "steps": [
+      {
+        "send": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[]}",
+        "read": "until:response.created",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+            ]
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.created\",\"response\":{\"id\":\"r1\",\"status\":\"in_progress\",\"output\":[]}}"
+          }
+        ]
+      },
+      {
+        "send": "{\"type\":\"response.steer\",\"previous_response_id\":\"r1\",\"input\":\"one\"}",
+        "read": "none",
+        "upstream": [
+          {}
+        ],
+        "frames": []
+      },
+      {
+        "send": "{\"type\":\"response.steer\",\"previous_response_id\":\"r1\",\"input\":\"two\"}",
+        "read": "close",
+        "upstream": [
+          {
+            "events": [
+              "{\"type\":\"response.steer.accepted\",\"steer\":{\"id\":\"s1\",\"previous_response_id\":\"r1\"}}",
+              "{\"type\":\"response.steer.accepted\",\"steer\":{\"id\":\"s2\",\"previous_response_id\":\"r1\"}}",
+              "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"output\":[{\"type\":\"function_call\",\"call_id\":\"call1\",\"name\":\"lookup\",\"arguments\":\"{}\"}]}}",
+              "{\"type\":\"response.steer.pending\",\"steer\":{\"id\":\"s1\",\"previous_response_id\":\"r1\"},\"reason\":\"waiting_for_required_input\",\"required_input\":[{\"type\":\"function_call_output\",\"call_id\":\"call1\",\"name\":\"lookup\"}]}"
+            ],
+            "then": "drop"
+          }
+        ],
+        "frames": [
+          {
+            "text": "{\"type\":\"response.steer.accepted\",\"steer\":{\"id\":\"s1\",\"previous_response_id\":\"r1\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.steer.accepted\",\"steer\":{\"id\":\"s2\",\"previous_response_id\":\"r1\"}}"
+          },
+          {
+            "text": "{\"type\":\"response.completed\",\"response\":{\"id\":\"r1\",\"output\":[{\"type\":\"function_call\",\"call_id\":\"call1\",\"name\":\"lookup\",\"arguments\":\"{}\"}]}}"
+          },
+          {
+            "text": "{\"type\":\"response.steer.pending\",\"steer\":{\"id\":\"s1\",\"previous_response_id\":\"r1\"},\"reason\":\"waiting_for_required_input\",\"required_input\":[{\"type\":\"function_call_output\",\"call_id\":\"call1\",\"name\":\"lookup\"}]}"
+          },
+          {
+            "close": 1006,
+            "reason": "unexpected EOF"
+          }
+        ]
+      }
+    ],
+    "upstream": [
+      {
+        "kind": "ws_dial",
+        "headers": {
+          "authorization": "Bearer sk-fake-ws",
+          "connection": "Upgrade",
+          "conversation_id": "7ac5ee35-656b-5ee4-a02c-91f92d214157",
+          "openai-beta": "responses_websockets=2026-02-06",
+          "originator": "codex-tui",
+          "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+          "sec-websocket-key": "LOTHnWLy3eeS6fv/rSDBGQ==",
+          "sec-websocket-version": "13",
+          "session_id": "7ac5ee35-656b-5ee4-a02c-91f92d214157",
+          "upgrade": "websocket",
+          "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
+        }
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"7ac5ee35-656b-5ee4-a02c-91f92d214157\",\"type\":\"response.create\"}"
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"type\":\"response.steer\",\"previous_response_id\":\"r1\",\"input\":\"one\"}"
+      },
+      {
+        "kind": "ws_frame",
+        "body": "{\"type\":\"response.steer\",\"previous_response_id\":\"r1\",\"input\":\"two\"}"
       }
     ]
   },
@@ -1852,24 +2395,24 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "9c00b29a-51da-59c3-8046-5f3ca6d23731",
+          "conversation_id": "a71785e7-d523-5128-8330-3d79e3860e3b",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "1n0+48CA51lMV3GyJdaJ2A==",
+          "sec-websocket-key": "CdLXfzpCor0fmCB+H2xdew==",
           "sec-websocket-version": "13",
-          "session_id": "9c00b29a-51da-59c3-8046-5f3ca6d23731",
+          "session_id": "a71785e7-d523-5128-8330-3d79e3860e3b",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"Initial system instructions\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"9c00b29a-51da-59c3-8046-5f3ca6d23731\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"instructions\":\"Initial system instructions\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a71785e7-d523-5128-8330-3d79e3860e3b\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"input\":[{\"role\":\"user\",\"content\":\"turn 2\"}],\"previous_response_id\":\"r1\",\"model\":\"gpt-fixture\",\"instructions\":\"Initial system instructions\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"9c00b29a-51da-59c3-8046-5f3ca6d23731\"}"
+        "body": "{\"type\":\"response.create\",\"input\":[{\"role\":\"user\",\"content\":\"turn 2\"}],\"previous_response_id\":\"r1\",\"model\":\"gpt-fixture\",\"instructions\":\"Initial system instructions\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a71785e7-d523-5128-8330-3d79e3860e3b\"}"
       }
     ]
   },
@@ -1981,20 +2524,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "deeead0e-7018-514c-853f-7e722d2d72af",
+          "conversation_id": "a52d4e79-4b01-5212-8cfb-4fb9f4179995",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "3VeJ3kHJsPNtbed0YrSV5g==",
+          "sec-websocket-key": "gMrXMcSRxSoLiXGQfL75sA==",
           "sec-websocket-version": "13",
-          "session_id": "deeead0e-7018-514c-853f-7e722d2d72af",
+          "session_id": "a52d4e79-4b01-5212-8cfb-4fb9f4179995",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"deeead0e-7018-514c-853f-7e722d2d72af\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a52d4e79-4b01-5212-8cfb-4fb9f4179995\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
@@ -2006,7 +2549,7 @@
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"previous_response_id\":\"auto-1\",\"input\":[{\"role\":\"user\",\"content\":\"queued next\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"deeead0e-7018-514c-853f-7e722d2d72af\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"previous_response_id\":\"auto-1\",\"input\":[{\"role\":\"user\",\"content\":\"queued next\"}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a52d4e79-4b01-5212-8cfb-4fb9f4179995\"}"
       }
     ]
   },
@@ -2073,24 +2616,24 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "67193a52-67a1-5d5e-a7d0-587006060554",
+          "conversation_id": "02e62446-3e0e-5e58-a0f0-2942ba9b33a5",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "FMrjWMoWy3CEtj5Js1PbTA==",
+          "sec-websocket-key": "XgIboDIPy/eLr+mdctADYw==",
           "sec-websocket-version": "13",
-          "session_id": "67193a52-67a1-5d5e-a7d0-587006060554",
+          "session_id": "02e62446-3e0e-5e58-a0f0-2942ba9b33a5",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"67193a52-67a1-5d5e-a7d0-587006060554\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"02e62446-3e0e-5e58-a0f0-2942ba9b33a5\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"67193a52-67a1-5d5e-a7d0-587006060554\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"02e62446-3e0e-5e58-a0f0-2942ba9b33a5\"}"
       }
     ]
   },
@@ -2153,24 +2696,24 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "09ac6d72-6483-5393-81dd-b8f7c0361ab9",
+          "conversation_id": "75673efe-f03e-52d9-8127-8f22469a85c8",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "W4JYr85QXbCP+t2df03ibA==",
+          "sec-websocket-key": "8hoTj2Bl4lgEjNii3SfxZA==",
           "sec-websocket-version": "13",
-          "session_id": "09ac6d72-6483-5393-81dd-b8f7c0361ab9",
+          "session_id": "75673efe-f03e-52d9-8127-8f22469a85c8",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"09ac6d72-6483-5393-81dd-b8f7c0361ab9\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"75673efe-f03e-52d9-8127-8f22469a85c8\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"09ac6d72-6483-5393-81dd-b8f7c0361ab9\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"75673efe-f03e-52d9-8127-8f22469a85c8\"}"
       }
     ]
   },
@@ -2237,24 +2780,24 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "66a3606c-29cc-5bae-b9bc-05de29e1f8f3",
+          "conversation_id": "886a3186-c2c6-5c57-83f4-cadc3a2559a1",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "sgsVJwfNbsalIGMkKvbp5A==",
+          "sec-websocket-key": "ax64rWGUCmB7t0FW+7d+/A==",
           "sec-websocket-version": "13",
-          "session_id": "66a3606c-29cc-5bae-b9bc-05de29e1f8f3",
+          "session_id": "886a3186-c2c6-5c57-83f4-cadc3a2559a1",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"66a3606c-29cc-5bae-b9bc-05de29e1f8f3\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"886a3186-c2c6-5c57-83f4-cadc3a2559a1\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"66a3606c-29cc-5bae-b9bc-05de29e1f8f3\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"886a3186-c2c6-5c57-83f4-cadc3a2559a1\"}"
       }
     ]
   },
@@ -2317,24 +2860,24 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "6c358fc7-4d25-5ebb-a27c-2512c3c263d2",
+          "conversation_id": "b6cf4717-06e7-5155-8f76-e2075cf4eea5",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "JDEtEOzK0esOZjbusmYnXQ==",
+          "sec-websocket-key": "5P8TZeov0tz6ZjmDlCM7ow==",
           "sec-websocket-version": "13",
-          "session_id": "6c358fc7-4d25-5ebb-a27c-2512c3c263d2",
+          "session_id": "b6cf4717-06e7-5155-8f76-e2075cf4eea5",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"6c358fc7-4d25-5ebb-a27c-2512c3c263d2\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b6cf4717-06e7-5155-8f76-e2075cf4eea5\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"6c358fc7-4d25-5ebb-a27c-2512c3c263d2\"}"
+        "body": "{\"type\":\"response.create\",\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b6cf4717-06e7-5155-8f76-e2075cf4eea5\"}"
       }
     ]
   },
@@ -2430,20 +2973,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "b40d4103-a93a-549a-9cc0-ec74f446fd84",
+          "conversation_id": "423c12ed-2186-56a0-85d9-8abe3f12e52b",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "nzvtZZ8A6SMW6Cdn/JjREw==",
+          "sec-websocket-key": "JrJ1hIOMPQzRuKCNXNdIdA==",
           "sec-websocket-version": "13",
-          "session_id": "b40d4103-a93a-549a-9cc0-ec74f446fd84",
+          "session_id": "423c12ed-2186-56a0-85d9-8abe3f12e52b",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b40d4103-a93a-549a-9cc0-ec74f446fd84\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"423c12ed-2186-56a0-85d9-8abe3f12e52b\",\"type\":\"response.create\"}"
       },
       {
         "kind": "ws_frame",
@@ -2451,7 +2994,7 @@
       },
       {
         "kind": "ws_frame",
-        "body": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"call1\",\"output\":\"found\"}],\"model\":\"gpt-fixture\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"b40d4103-a93a-549a-9cc0-ec74f446fd84\"}"
+        "body": "{\"type\":\"response.create\",\"previous_response_id\":\"r1\",\"input\":[{\"type\":\"function_call_output\",\"call_id\":\"call1\",\"output\":\"found\"}],\"model\":\"gpt-fixture\",\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"423c12ed-2186-56a0-85d9-8abe3f12e52b\"}"
       }
     ]
   },
@@ -2508,20 +3051,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "2492fd8b-0b48-5427-bda3-bac1e10e4455",
+          "conversation_id": "a08199c9-6d63-5bc1-9cb8-4883d084e044",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "I9OfOco8OwvHb2oEaOuxZw==",
+          "sec-websocket-key": "vNkIZTQEhJN3K1ay9Vi9HQ==",
           "sec-websocket-version": "13",
-          "session_id": "2492fd8b-0b48-5427-bda3-bac1e10e4455",
+          "session_id": "a08199c9-6d63-5bc1-9cb8-4883d084e044",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"2492fd8b-0b48-5427-bda3-bac1e10e4455\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"a08199c9-6d63-5bc1-9cb8-4883d084e044\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -2579,20 +3122,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "5b719e37-c02a-5c30-aeb4-00c787dca5e4",
+          "conversation_id": "8c7ccd67-5929-58f8-8b43-77d73a3a80df",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "ETOauSiap55kUjo8AsKlZQ==",
+          "sec-websocket-key": "DYsmu48X3AWI8/KMWrMm9Q==",
           "sec-websocket-version": "13",
-          "session_id": "5b719e37-c02a-5c30-aeb4-00c787dca5e4",
+          "session_id": "8c7ccd67-5929-58f8-8b43-77d73a3a80df",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"5b719e37-c02a-5c30-aeb4-00c787dca5e4\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"8c7ccd67-5929-58f8-8b43-77d73a3a80df\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -2657,20 +3200,20 @@
         "headers": {
           "authorization": "Bearer sk-fake-ws",
           "connection": "Upgrade",
-          "conversation_id": "f908e5b0-cd51-5ab9-8f44-9676388db4c1",
+          "conversation_id": "9acd0f21-e76c-5add-ba40-cd687dd43b46",
           "openai-beta": "responses_websockets=2026-02-06",
           "originator": "codex-tui",
           "sec-websocket-extensions": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
-          "sec-websocket-key": "Ol+VwVyZ1LJyF2dCo9znUQ==",
+          "sec-websocket-key": "6jsaqLNAtMoFgG/j4HOTIA==",
           "sec-websocket-version": "13",
-          "session_id": "f908e5b0-cd51-5ab9-8f44-9676388db4c1",
+          "session_id": "9acd0f21-e76c-5add-ba40-cd687dd43b46",
           "upgrade": "websocket",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         }
       },
       {
         "kind": "ws_frame",
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"f908e5b0-cd51-5ab9-8f44-9676388db4c1\",\"type\":\"response.create\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"9acd0f21-e76c-5add-ba40-cd687dd43b46\",\"type\":\"response.create\"}"
       }
     ]
   },
@@ -2720,10 +3263,10 @@
           "content-length": "345",
           "content-type": "application/json",
           "originator": "codex-tui",
-          "session-id": "37f7c866-b568-5eea-a1b9-6f784fc64e47",
+          "session-id": "61bb25f7-bf5f-5f63-9d44-f692d83745a6",
           "user-agent": "codex-tui/0.154.0 (Mac OS 26.5.2; arm64) iTerm.app/3.6.11 (codex-tui; 0.154.0)"
         },
-        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"37f7c866-b568-5eea-a1b9-6f784fc64e47\"}"
+        "body": "{\"model\":\"gpt-fixture\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"stream\":true,\"store\":false,\"parallel_tool_calls\":true,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"tools\":[{\"type\":\"image_generation\",\"output_format\":\"png\"}],\"prompt_cache_key\":\"61bb25f7-bf5f-5f63-9d44-f692d83745a6\"}"
       }
     ]
   }

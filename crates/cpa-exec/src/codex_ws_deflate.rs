@@ -136,6 +136,8 @@ fn inflate(payload: &[u8], limit: usize) -> io::Result<Vec<u8>> {
 struct Header {
     fin: bool,
     rsv1: bool,
+    /// RSV2 or RSV3: never valid here; gorilla rejects the frame.
+    rsv23: bool,
     opcode: u8,
     masked: bool,
     /// Header length, extended length and mask key included.
@@ -164,6 +166,7 @@ fn header(buf: &[u8]) -> Option<Header> {
     (buf.len() >= len).then_some(Header {
         fin: b0 & 0x80 != 0,
         rsv1: b0 & 0x40 != 0,
+        rsv23: b0 & 0x30 != 0,
         opcode: b0 & 0x0f,
         masked,
         len,
@@ -206,6 +209,8 @@ pub(crate) struct Inflate<S> {
     /// The compressed message being assembled: its opcode and payload so far.
     message: Option<(u8, Vec<u8>)>,
     eof: bool,
+    /// A decoding failure, reported once the frames before it are delivered.
+    failed: Option<io::Error>,
 }
 
 impl<S> Inflate<S> {
@@ -218,6 +223,7 @@ impl<S> Inflate<S> {
             ready: BytesMut::new(),
             message: None,
             eof: false,
+            failed: None,
         }
     }
 
@@ -231,8 +237,9 @@ impl<S> Inflate<S> {
                 return Ok(());
             }
             let mut frame = self.raw.split_to(h.len + h.payload);
-            if h.masked {
-                // Servers never mask; tungstenite rejects it as gorilla does.
+            if h.masked || h.rsv23 {
+                // Servers never mask and never set RSV2/RSV3: the frame goes on as it is,
+                // so tungstenite rejects it as gorilla does (inflating would hide it).
                 self.ready.extend_from_slice(&frame);
                 continue;
             }
@@ -287,6 +294,11 @@ impl<S: AsyncRead + Unpin> AsyncRead for Inflate<S> {
                 this.ready.advance(n);
                 return Poll::Ready(Ok(()));
             }
+            // Messages decoded before a bad one reach the reader first, as gorilla
+            // returns them before its error.
+            if let Some(error) = this.failed.take() {
+                return Poll::Ready(Err(error));
+            }
             if this.eof {
                 // A partial frame at EOF goes on as it is; tungstenite reports it.
                 if !this.raw.is_empty() {
@@ -304,7 +316,12 @@ impl<S: AsyncRead + Unpin> AsyncRead for Inflate<S> {
                 continue;
             }
             this.raw.extend_from_slice(read.filled());
-            this.process()?;
+            if let Err(error) = this.process() {
+                this.failed = Some(error);
+                // Nothing after the failure is read again.
+                this.raw.clear();
+                this.eof = true;
+            }
         }
     }
 }

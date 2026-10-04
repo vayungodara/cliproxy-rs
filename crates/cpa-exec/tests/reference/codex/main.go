@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	codexauth "github.com/router-for-me/CLIProxyAPI/v8/internal/auth/codex"
 	internalcache "github.com/router-for-me/CLIProxyAPI/v8/internal/cache"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
@@ -865,6 +866,216 @@ func runReplay(sc *replayScenario) {
 	}
 }
 
+// ---------------------------------------------------------------- images
+
+// imageCase runs the Images API path (source format openai-image, request_path
+// metadata) of CodexExecutor. Payload is base64 so multipart bytes survive JSON.
+type imageCase struct {
+	Name           string            `json:"name"`
+	Config         string            `json:"config"`
+	Attributes     map[string]string `json:"attributes"`
+	Metadata       map[string]any    `json:"metadata"`
+	Headers        map[string]string `json:"headers"`
+	Model          string            `json:"model"`
+	PayloadB64     string            `json:"payload_b64"`
+	Stream         bool              `json:"stream"`
+	RequestPath    string            `json:"request_path"`
+	UpstreamStatus int               `json:"upstream_status"`
+	UpstreamType   string            `json:"upstream_type"`
+	UpstreamBody   string            `json:"upstream_body"`
+	// Filled by the generator.
+	Upstream *captured `json:"upstream,omitempty"`
+	Output   any       `json:"output"`
+}
+
+func multipartBody(boundary string, parts []string) string {
+	var b strings.Builder
+	for _, p := range parts {
+		b.WriteString("--" + boundary + "\r\n" + p + "\r\n")
+	}
+	b.WriteString("--" + boundary + "--\r\n")
+	return b.String()
+}
+
+func imageCases() []imageCase {
+	oauthMeta := map[string]any{"type": "codex", "access_token": "at-FAKE", "account_id": "acct-FAKE-1", "email": "user@example.invalid"}
+	clientHeaders := map[string]string{"User-Agent": "my-image-client/2.0", "Originator": "my_app", "Session_id": "sess-FAKE", "X-Codex-Turn-Metadata": `{"turn":1}`}
+	b64 := func(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
+	png := "\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR-fake"
+	call := func(index int, result, format string) string {
+		return fmt.Sprintf(`data: {"type":"response.output_item.done","output_index":%d,"item":{"type":"image_generation_call","id":"ig_%d","status":"completed","result":%q,"revised_prompt":" a calm cat ","output_format":%q,"size":"1024x1024","background":"opaque","quality":"high"}}`+"\n\n", index, index, result, format)
+	}
+	completed := func(output string) string {
+		return `data: {"type":"response.completed","response":{"id":"resp_img","created_at":1700000000,"status":"completed","output":` + output + `,"usage":{"input_tokens":10,"output_tokens":20,"total_tokens":30},"tool_usage":{"image_gen":{"input_tokens":5,"output_tokens":7,"total_tokens":12}}}}` + "\n\n"
+	}
+	toolSSE := "data: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_img\"}}\n\n" +
+		"data: {\"type\":\"response.image_generation_call.partial_image\",\"partial_image_index\":0,\"partial_image_b64\":\"UEFSVElBTA==\",\"output_format\":\"webp\"}\n\n" +
+		call(1, "SU1HMg==", "webp") + call(0, "SU1HMQ==", "webp") + completed("[]")
+	editBoundary := "XBOUNDARYX"
+	editMultipart := multipartBody(editBoundary, []string{
+		"Content-Disposition: form-data; name=\"prompt\"\r\n\r\n  add a hat  ",
+		"Content-Disposition: form-data; name=\"model\"\r\n\r\ngpt-image-1.5",
+		"Content-Disposition: form-data; name=\"size\"\r\n\r\n1024x1536",
+		"Content-Disposition: form-data; name=\"input_fidelity\"\r\n\r\nhigh",
+		"Content-Disposition: form-data; name=\"output_compression\"\r\n\r\n70",
+		"Content-Disposition: form-data; name=\"partial_images\"\r\n\r\nnope",
+		"Content-Disposition: form-data; name=\"response_format\"\r\n\r\nURL",
+		"Content-Disposition: form-data; name=\"image[]\"; filename=\"a.png\"\r\nContent-Type: image/png\r\n\r\n" + png,
+		"Content-Disposition: form-data; name=\"image[]\"; filename=\"b.bin\"\r\n\r\n" + png,
+		"Content-Disposition: form-data; name=\"mask\"; filename=\"m.png\"\r\nContent-Type: image/png\r\n\r\nMASK",
+	})
+	directEditMultipart := multipartBody(editBoundary, []string{
+		"Content-Disposition: form-data; name=\"prompt\"\r\n\r\nadd a hat",
+		"Content-Disposition: form-data; name=\"model\"\r\n\r\ngpt-image-2",
+		"Content-Disposition: form-data; name=\"n\"\r\n\r\n2",
+		"Content-Disposition: form-data; name=\"quality\"\r\n\r\nhigh",
+		"Content-Disposition: form-data; name=\"mask[file_id]\"\r\n\r\nfile-mask",
+		"Content-Disposition: form-data; name=\"image\"; filename=\"a.png\"\r\nContent-Type: image/png\r\n\r\n" + png,
+	})
+	multipartHeaders := func(h map[string]string) map[string]string {
+		out := map[string]string{"Content-Type": "multipart/form-data; boundary=" + editBoundary}
+		for k, v := range h {
+			out[k] = v
+		}
+		return out
+	}
+	generation := `{"model":"gpt-5.4","prompt":"  a cat  ","size":"1024x1024","quality":"high","n":2,"output_compression":50,"partial_images":"2","background":"transparent","output_format":"webp","moderation":"low","style":"vivid"}`
+	return []imageCase{
+		{Name: "tool_generation_nonstream_b64", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: clientHeaders,
+			Model: "gpt-5.4", PayloadB64: b64(generation), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: toolSSE},
+		{Name: "tool_generation_nonstream_url_completed_output", Attributes: map[string]string{"api_key": "sk-FAKE"}, Metadata: map[string]any{}, Headers: map[string]string{},
+			Model: "route-model", PayloadB64: b64(`{"prompt":"p","response_format":"url"}`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "text/event-stream",
+			UpstreamBody: call(0, "SUdOT1JFRA==", "png") + completed(`[{"type":"message"},{"type":"image_generation_call","result":"SU1HSlBH","output_format":"jpeg"},{"type":"image_generation_call","result":"  "}]`)},
+		{Name: "tool_generation_stream", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: clientHeaders,
+			Model: "gpt-5.4", PayloadB64: b64(`{"prompt":"a cat","partial_images":1,"response_format":"url"}`), Stream: true, RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: toolSSE},
+		{Name: "tool_edit_json", Config: "gpt-image-2-base-model: gpt-5.5\n", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: clientHeaders,
+			Model: "gpt-5.4", PayloadB64: b64(`{"prompt":"edit it","images":[{"image_url":"data:image/png;base64,QUJD"},{"image_url":"  "},{"file_id":"f"}],"mask":{"image_url":"data:image/png;base64,TUFTSw=="},"input_fidelity":"low","output_compression":20.5}`),
+			RequestPath: "/v1/images/edits", UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: toolSSE},
+		{Name: "tool_edit_multipart_stream", Config: "multimedia:\n  gpt-image-2-base-model: o4-image\n", Attributes: map[string]string{}, Metadata: oauthMeta,
+			Headers: multipartHeaders(clientHeaders), Model: "gpt-5.4", PayloadB64: b64(editMultipart), Stream: true,
+			RequestPath: "/v1/images/edits", UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: toolSSE},
+		{Name: "tool_no_image_output", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: map[string]string{},
+			Model: "gpt-5.4", PayloadB64: b64(`{"prompt":"p"}`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: completed("[]")},
+		{Name: "tool_disconnected_before_completion", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: map[string]string{},
+			Model: "gpt-5.4", PayloadB64: b64(`{"prompt":"p"}`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: call(0, "SU1H", "png")},
+		{Name: "tool_upstream_429", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: map[string]string{},
+			Model: "gpt-5.4", PayloadB64: b64(`{"prompt":"p"}`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 429, UpstreamType: "application/json", UpstreamBody: `{"error":{"type":"usage_limit_reached","message":"limit","resets_in_seconds":60}}`},
+		{Name: "tool_invalid_json", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: map[string]string{},
+			Model: "gpt-5.4", PayloadB64: b64(`{"prompt":`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: toolSSE},
+		{Name: "direct_generation_nonstream", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: clientHeaders,
+			Model: "gpt-image-2", PayloadB64: b64(`{"model":"gpt-image-2","prompt":"a cat","stream":true,"n":1}`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "application/json", UpstreamBody: `{"created":1,"data":[{"b64_json":"QQ=="}],"usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}`},
+		{Name: "direct_generation_stream_suffix_model", Attributes: map[string]string{"api_key": "sk-FAKE"}, Metadata: map[string]any{}, Headers: clientHeaders,
+			Model: "openai/gpt-image-2.5(high)", PayloadB64: b64(`{"prompt":"a cat"}`), Stream: true, RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: "event: image_generation.completed\ndata: {\"type\":\"image_generation.completed\",\"b64_json\":\"QQ==\"}\n\n"},
+		{Name: "direct_edit_multipart", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: multipartHeaders(clientHeaders),
+			Model: "gpt-image-2", PayloadB64: b64(directEditMultipart), RequestPath: "/v1/images/edits",
+			UpstreamStatus: 200, UpstreamType: "application/json", UpstreamBody: `{"created":2,"data":[{"b64_json":"Qg=="}]}`},
+		{Name: "direct_edit_json", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: map[string]string{"Content-Type": "application/json"},
+			Model: "gpt-image-1.5", PayloadB64: b64(`{"model":"gpt-image-1.5","prompt":"edit","images":[{"image_url":"data:image/png;base64,QUJD"}]}`), RequestPath: "/v1/images/edits",
+			UpstreamStatus: 200, UpstreamType: "application/json", UpstreamBody: `{"created":3,"data":[]}`},
+		// Without cloaking the client's User-Agent shows: the tool path forwards it, the
+		// direct path drops it (Cloudflare 1010 blocks).
+		{Name: "tool_generation_uncloaked_client_ua", Config: "codex:\n  disable-codex-cloaking: true\n", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: clientHeaders,
+			Model: "gpt-5.4", PayloadB64: b64(`{"prompt":"p"}`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "text/event-stream", UpstreamBody: toolSSE},
+		{Name: "direct_generation_uncloaked_drops_client_ua", Config: "codex:\n  disable-codex-cloaking: true\n", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: clientHeaders,
+			Model: "gpt-image-2", PayloadB64: b64(`{"prompt":"p"}`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 200, UpstreamType: "application/json", UpstreamBody: `{"created":4,"data":[]}`},
+		{Name: "direct_upstream_400", Attributes: map[string]string{}, Metadata: oauthMeta, Headers: map[string]string{},
+			Model: "gpt-image-2", PayloadB64: b64(`{"prompt":"x"}`), RequestPath: "/v1/images/generations",
+			UpstreamStatus: 400, UpstreamType: "application/json", UpstreamBody: `{"error":{"message":"bad size","type":"invalid_request_error"}}`},
+	}
+}
+
+func runImage(c *imageCase) {
+	var got captured
+	var mu sync.Mutex
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hop := capture(r)
+		mu.Lock()
+		got = hop
+		mu.Unlock()
+		w.Header().Set("Content-Type", c.UpstreamType)
+		w.Header().Set("X-Codex-Primary-Used-Percent", "42")
+		w.WriteHeader(c.UpstreamStatus)
+		_, _ = w.Write([]byte(c.UpstreamBody))
+	}))
+	defer server.Close()
+	if strings.TrimSpace(c.Config) == "" {
+		c.Config = "{}\n"
+	}
+	cfg, err := config.ParseConfigBytes([]byte(c.Config))
+	if err != nil {
+		panic(err)
+	}
+	attrs := map[string]string{"base_url": server.URL}
+	for k, v := range c.Attributes {
+		attrs[k] = v
+	}
+	auth := &cliproxyauth.Auth{ID: "codex-fixture.json", Provider: "codex", Attributes: attrs, Metadata: c.Metadata}
+	headers := http.Header{}
+	for k, v := range c.Headers {
+		headers.Set(k, v)
+	}
+	payload, err := base64.StdEncoding.DecodeString(c.PayloadB64)
+	if err != nil {
+		panic(err)
+	}
+	meta := map[string]any{cliproxyexecutor.RequestPathMetadataKey: c.RequestPath}
+	opts := cliproxyexecutor.Options{
+		Stream: c.Stream, Headers: headers, OriginalRequest: payload,
+		SourceFormat: sdktranslator.FromString("openai-image"), Metadata: meta,
+	}
+	req := cliproxyexecutor.Request{Model: c.Model, Payload: payload, Metadata: meta}
+	exec := executor.NewCodexExecutor(cfg)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	// The direct path reads client headers from the gin context, as in production.
+	ginCtx, _ := gin.CreateTestContext(httptest.NewRecorder())
+	ginCtx.Request = httptest.NewRequest(http.MethodPost, c.RequestPath, nil)
+	ginCtx.Request.Header = headers.Clone()
+	ctx = context.WithValue(ctx, "gin", ginCtx)
+	result := map[string]any{}
+	if c.Stream {
+		res, errStream := exec.ExecuteStream(ctx, auth, req, opts)
+		if errStream != nil {
+			result["error"] = describe(errStream)
+		} else {
+			chunks := []string{}
+			for chunk := range res.Chunks {
+				if chunk.Err != nil {
+					result["stream_error"] = describe(chunk.Err)
+					break
+				}
+				chunks = append(chunks, string(chunk.Payload))
+			}
+			result["chunks"] = chunks
+		}
+	} else {
+		res, errExec := exec.Execute(ctx, auth, req, opts)
+		if errExec != nil {
+			result["error"] = describe(errExec)
+		} else {
+			result["payload"] = string(res.Payload)
+		}
+	}
+	mu.Lock()
+	if got.Method != "" {
+		g := got
+		c.Upstream = &g
+	}
+	mu.Unlock()
+	c.Output = result
+}
+
 func main() {
 	if len(os.Args) != 2 {
 		fmt.Fprintln(os.Stderr, "usage: generate <output.json>")
@@ -879,8 +1090,12 @@ func main() {
 	for i := range replays {
 		runReplay(&replays[i])
 	}
+	images := imageCases()
+	for i := range images {
+		runImage(&images[i])
+	}
 	out := map[string]any{"sjson": sjsonCases(), "oauth": oauthCases(), "executor": cases,
-		"alpha_search": alphaCases(), "quota": quotaCases(), "replay": replays}
+		"alpha_search": alphaCases(), "quota": quotaCases(), "replay": replays, "images": images}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)

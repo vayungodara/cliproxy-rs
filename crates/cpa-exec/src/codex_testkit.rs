@@ -92,3 +92,69 @@ impl Mock {
         std::mem::take(&mut self.requests.lock().unwrap())
     }
 }
+
+/// One recorded capture event, owned.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum Tap {
+    Request {
+        url: String,
+        method: String,
+        headers: Vec<(String, String)>,
+        body: String,
+        account: [String; 5],
+    },
+    Metadata(u16, Vec<(String, String)>),
+    Chunk(String),
+    Error(String),
+    WsRequest {
+        url: String,
+        headers: Vec<(String, String)>,
+        body: String,
+        account: [String; 5],
+    },
+    WsHandshake(u16),
+    WsResponse(String),
+    WsError(String, String),
+}
+
+/// A capture observer that keeps every event (the request log's view of the attempt).
+#[derive(Default)]
+pub(crate) struct Wiretap(pub std::sync::Mutex<Vec<Tap>>);
+
+impl Wiretap {
+    pub fn taps(&self) -> Vec<Tap> {
+        self.0.lock().unwrap().clone()
+    }
+}
+
+impl cpa_core::exec::CaptureObserver for Wiretap {
+    fn record(&self, event: cpa_core::exec::CaptureEvent<'_>) {
+        use cpa_core::exec::CaptureEvent::*;
+        let text = |b: &[u8]| String::from_utf8_lossy(b).into_owned();
+        let account = |i: &cpa_core::exec::UpstreamRequest<'_>| {
+            [i.provider, i.auth_id, i.auth_label, i.auth_type, i.auth_value].map(str::to_owned)
+        };
+        let tap = match event {
+            Request(i) => Tap::Request {
+                url: i.url.into(),
+                method: i.method.into(),
+                headers: i.headers.to_vec(),
+                body: text(i.body),
+                account: account(&i),
+            },
+            ResponseMetadata(status, headers) => Tap::Metadata(status, headers.to_vec()),
+            ResponseChunk(bytes) => Tap::Chunk(text(bytes)),
+            ResponseError(error) => Tap::Error(error.into()),
+            WebsocketRequest(i) => Tap::WsRequest {
+                url: i.url.into(),
+                headers: i.headers.to_vec(),
+                body: text(i.body),
+                account: account(&i),
+            },
+            WebsocketHandshake(status, _) => Tap::WsHandshake(status),
+            WebsocketResponse(bytes) => Tap::WsResponse(text(bytes)),
+            WebsocketError { stage, error } => Tap::WsError(stage.into(), error.into()),
+        };
+        self.0.lock().unwrap().push(tap);
+    }
+}

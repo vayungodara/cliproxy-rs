@@ -111,6 +111,29 @@
       "read_error": true
     },
     {
+      "name": "rsv2_on_compressed",
+      "bytes": "e107f248cdc9c90700",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "name": "rsv3_on_compressed_continuation",
+      "bytes": "4103f248cd9004c9c90700",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [],
+      "read_error": true
+    },
+    {
+      "name": "valid_then_corrupt",
+      "bytes": "c107f248cdc9c90700c103ffffff",
+      "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
+      "messages": [
+        "Hello"
+      ],
+      "read_error": true
+    },
+    {
       "name": "big_json",
       "bytes": "c146ecd0bd0980401044e1566462b902ae19f16702e17497db3950c4de0d2c43a3c74bbf0b3a9dc8a80cb73d98acc99b06f1505a5834a2c7db8cd936af8c58a7c2ee9fcf1ae07e00",
       "offer": "permessage-deflate; server_no_context_takeover; client_no_context_takeover",

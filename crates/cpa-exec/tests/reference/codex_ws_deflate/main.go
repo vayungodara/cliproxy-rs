@@ -178,6 +178,9 @@ func main() {
 		{"masked_server_frame", "81 85 00 00 00 00 48 65 6c 6c 6f"},
 		{"data_inside_compressed_message", "41 03 f2 48 cd 81 05 48 65 6c 6c 6f"},
 		{"corrupt_deflate", "c1 03 ff ff ff"},
+		{"rsv2_on_compressed", "e1 07 f2 48 cd c9 c9 07 00"},
+		{"rsv3_on_compressed_continuation", "41 03 f2 48 cd 90 04 c9 c9 07 00"},
+		{"valid_then_corrupt", "c1 07 f2 48 cd c9 c9 07 00 c1 03 ff ff ff"},
 		{"big_json", hex.EncodeToString(compressed(big))},
 	} {
 		raw := mustHex(c.hex)
