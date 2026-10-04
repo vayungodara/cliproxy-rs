@@ -350,6 +350,118 @@ pub(super) fn config(doc: &Yaml) -> Value {
     cfg
 }
 
+/// Reload comparisons need zero values and nil/empty slices, not JSON omitempty.
+pub(crate) fn config_for_diff(doc: &Yaml, snapshot: bool) -> Value {
+    fn retain_empty(shape: &mut Shape) {
+        shape.omit = false;
+        for field in &mut shape.fields {
+            retain_empty(field);
+        }
+        if let Some(elem) = &mut shape.elem {
+            retain_empty(elem);
+        }
+    }
+    let mut shape = shape().clone();
+    retain_empty(&mut shape);
+    let legacy = flatten(doc);
+    let mut cfg = object(&shape, Some(&legacy), Some(&DEFAULTS), false);
+    // DeepEqual compares interface values before JSON presentation: 1 != 1.0.
+    for section in ["default", "default-raw", "override", "override-raw", "filter"] {
+        let raw = legacy
+            .get("payload")
+            .and_then(|p| p.get(section))
+            .and_then(Yaml::as_sequence);
+        let typed = cfg["payload"][section].as_array_mut();
+        if let (Some(raw), Some(typed)) = (raw, typed) {
+            for (raw, typed) in raw.iter().zip(typed) {
+                if section != "filter"
+                    && let Some(params) = raw.get("params")
+                {
+                    typed["params"] = serde_json::to_value(params).unwrap_or(Value::Null);
+                }
+                let raw_models = raw.get("models").and_then(Yaml::as_sequence);
+                let typed_models = typed["models"].as_array_mut();
+                if let (Some(raw_models), Some(typed_models)) = (raw_models, typed_models) {
+                    for (raw_model, typed_model) in raw_models.iter().zip(typed_models) {
+                        for field in ["match", "not-match"] {
+                            if let Some(value) = raw_model.get(field) {
+                                typed_model[field] = serde_json::to_value(value).unwrap_or(Value::Null);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    super::keys::normalize_config(&mut cfg);
+    load_normalize(&mut cfg);
+    if snapshot {
+        // Go yaml.Marshal/Unmarshal: nil collections become empty unless omitted;
+        // empty omitempty collections disappear. Integral floats emit as integers.
+        fn collections(shape: &Shape, value: &mut Value) {
+            if matches!(shape.kind.as_str(), "slice" | "map") {
+                if shape.omit && empty(shape, value) {
+                    *value = Value::Null;
+                    return;
+                }
+                if value.is_null() {
+                    *value = if shape.kind == "slice" {
+                        Value::Array(Vec::new())
+                    } else {
+                        Value::Object(Map::new())
+                    };
+                }
+            }
+            for field in &shape.fields {
+                if let Some(v) = value.get_mut(&field.json) {
+                    collections(field, v);
+                }
+            }
+            if let Some(elem) = &shape.elem {
+                match value {
+                    Value::Array(items) => {
+                        for item in items {
+                            collections(elem, item);
+                        }
+                    }
+                    Value::Object(items) => {
+                        for item in items.values_mut() {
+                            collections(elem, item);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        fn numbers(value: &mut Value) {
+            match value {
+                Value::Number(n) if n.is_f64() => {
+                    if let Some(f) = n.as_f64()
+                        && f.fract() == 0.0
+                        && f.abs() < 1e6
+                    {
+                        *value = Value::from(f as i64);
+                    }
+                }
+                Value::Array(items) => {
+                    for item in items {
+                        numbers(item);
+                    }
+                }
+                Value::Object(items) => {
+                    for item in items.values_mut() {
+                        numbers(item);
+                    }
+                }
+                _ => {}
+            }
+        }
+        collections(self::shape(), &mut cfg);
+        numbers(&mut cfg["payload"]);
+    }
+    cfg
+}
+
 /// The scalar clamps and defaults of Go `LoadConfig` after decoding.
 fn load_normalize(cfg: &mut Value) {
     let Some(c) = cfg.as_object_mut() else { return };

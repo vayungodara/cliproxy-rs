@@ -153,6 +153,17 @@ fn log_auth_changes(before: &Snapshot, after: &Snapshot) {
 }
 
 pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
+    // Go stores its own serialized config snapshot, independently of management
+    // mutations of the published runtime config before their disk event arrives.
+    let (mut previous_config, initial_hash) = {
+        let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
+        (
+            state.rt.config(),
+            std::fs::read(&state.path)
+                .ok()
+                .map(|data| <Hash>::from(Sha256::digest(data))),
+        )
+    };
     let state = Arc::downgrade(state);
     tokio::spawn(async move {
         let mut cache = HashCache::default();
@@ -187,7 +198,7 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             if applied.as_ref() == Some(&current) {
                 continue;
             }
-            let config_changed = applied.as_ref().is_none_or(|a| a.config != current.config);
+            let config_changed = applied.as_ref().map_or(initial_hash, |a| a.config) != current.config;
             if since.elapsed() < if config_changed { CONFIG_SETTLE } else { AUTH_SETTLE } {
                 continue;
             }
@@ -199,15 +210,17 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             }
             let loaded = tokio::task::spawn_blocking({
                 let state = state.clone();
-                move || reload(&state)
+                move || reload_config(&state, config_changed)
             })
             .await;
             if let Some(before) = &applied {
-                let accepted = matches!(loaded, Ok(Ok(())));
+                let accepted = matches!(loaded, Ok(Ok(Some(_))));
                 persist_changes(&state, before, &current, config_changed && accepted);
             }
             match loaded {
-                Ok(Ok(())) if config_changed && applied.is_some() => {
+                Ok(Ok(Some(next_config))) => {
+                    crate::config_diff::log(&previous_config, &next_config);
+                    previous_config = Arc::new(next_config);
                     tracing::info!("config successfully reloaded, triggering client reload");
                 }
                 Ok(Err(error)) if config_changed || applied.is_none() => match error {
@@ -318,14 +331,21 @@ impl std::error::Error for ReloadError {}
 /// directory is reconciled against it anyway: Go handles auth events independently
 /// of the config file.
 pub fn reload(state: &Management) -> Result<(), ReloadError> {
+    reload_config(state, true).map(|_| ())
+}
+
+/// Return the config actually accepted under the disk lock, not a later runtime
+/// snapshot possibly replaced by management. None is an auth-only/empty reload.
+fn reload_config(state: &Management, read_config: bool) -> Result<Option<Config>, ReloadError> {
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
-    let (mut config, config_error) = match std::fs::metadata(&state.path) {
-        Err(error) => ((*state.rt.config()).clone(), Some(ReloadError::Missing(error))),
+    let (mut config, config_error, accepted) = match read_config.then(|| std::fs::metadata(&state.path)) {
+        None => ((*state.rt.config()).clone(), None, false),
+        Some(Err(error)) => ((*state.rt.config()).clone(), Some(ReloadError::Missing(error)), false),
         // Go ignores an empty config write.
-        Ok(meta) if meta.len() == 0 => ((*state.rt.config()).clone(), None),
-        Ok(_) => match Config::load(&state.path) {
-            Ok(config) => (config, None),
-            Err(error) => ((*state.rt.config()).clone(), Some(ReloadError::Invalid(error))),
+        Some(Ok(meta)) if meta.len() == 0 => ((*state.rt.config()).clone(), None, false),
+        Some(Ok(_)) => match Config::load(&state.path) {
+            Ok(config) => (config, None, true),
+            Err(error) => ((*state.rt.config()).clone(), Some(ReloadError::Invalid(error)), false),
         },
     };
     state.lock_auth_dir(&mut config);
@@ -344,16 +364,101 @@ pub fn reload(state: &Management) -> Result<(), ReloadError> {
             files.push(Credential::clone(&existing));
         }
     }
+    let result = accepted.then(|| config.clone());
     state.publish(config, Some(files));
     match config_error {
         Some(error) => Err(error),
-        None => Ok(()),
+        None => Ok(result),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn state() -> (Arc<Management>, PathBuf) {
+        let dir = std::env::temp_dir().join(format!("cpa-watch-outcome-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.yaml");
+        std::fs::write(&path, format!("oauth: {{auth-dir: {}}}\n", dir.display())).unwrap();
+        let rt = Arc::new(crate::testing::runtime(
+            Config::load(&path).unwrap(),
+            Vec::new(),
+            cpa_exec::Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:9").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        ));
+        (Management::new(rt, path), dir)
+    }
+
+    #[tokio::test]
+    async fn accepted_config_is_captured_and_skipped_reloads_do_not_advance_it() {
+        let (state, dir) = state();
+        let config = |port| format!("port: {port}\noauth: {{auth-dir: {}}}\n", dir.display());
+        std::fs::write(&state.path, config(9001)).unwrap();
+        let accepted = reload_config(&state, true).unwrap().unwrap();
+        state.rt.publish_config(Config::parse(&config(9002)).unwrap());
+        assert_eq!(accepted.port, 9001); // Not the later management publication.
+        std::fs::write(&state.path, "").unwrap();
+        assert!(reload_config(&state, true).unwrap().is_none());
+        assert_eq!(state.rt.config().port, 9002);
+        std::fs::write(&state.path, config(9003)).unwrap();
+        assert!(reload_config(&state, false).unwrap().is_none()); // Auth-only event.
+        assert_eq!(state.rt.config().port, 9002);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[derive(Clone, Default)]
+    struct Capture(Arc<std::sync::Mutex<Vec<u8>>>, Arc<tokio::sync::Notify>);
+    impl std::io::Write for Capture {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            self.1.notify_one();
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn edit_before_first_stable_observation_is_logged_once() {
+        let (state, dir) = state();
+        let capture = Capture::default();
+        let writer = capture.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_ansi(false)
+            .without_time()
+            .with_writer(move || writer.clone())
+            .finish();
+        let _guard = tracing::subscriber::set_default(subscriber);
+        let watcher = start(&state);
+        std::fs::write(
+            &state.path,
+            format!("port: 9001\noauth: {{auth-dir: {}}}\n", dir.display()),
+        )
+        .unwrap();
+        tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                let notified = capture.1.notified();
+                if String::from_utf8_lossy(&capture.0.lock().unwrap()).contains("port: 0 -> 9001") {
+                    break;
+                }
+                notified.await;
+            }
+        })
+        .await
+        .unwrap();
+        watcher.abort();
+        let _ = watcher.await;
+        let text = String::from_utf8(capture.0.lock().unwrap().clone()).unwrap();
+        assert_eq!(text.matches("port: 0 -> 9001").count(), 1);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn hash_cache_rereads_only_changed_or_racy_files() {

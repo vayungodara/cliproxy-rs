@@ -20,7 +20,7 @@ use super::{Management, json_error};
 mod decode;
 mod keys;
 mod lists;
-mod view;
+pub(crate) mod view;
 
 /// Serializes v0 read-modify-write handlers, as Go's handler mutex does.
 static WRITES: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());

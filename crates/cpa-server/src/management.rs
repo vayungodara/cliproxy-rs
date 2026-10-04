@@ -22,7 +22,7 @@ use crate::scheduler::{ErrorRule, Policy};
 mod access;
 mod api_call;
 mod auth_files;
-mod legacy;
+pub(crate) mod legacy;
 mod logs;
 mod multipart;
 mod oauth;
