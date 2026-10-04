@@ -308,3 +308,35 @@ fn lookup_drops_expired_groups_without_refreshing() {
     );
     assert_eq!(m.lookup(&session, minutes(30)), None, "lookup never refreshed it");
 }
+
+/// A Gemini turn nested far deeper than any conversation skips the matcher instead of
+/// recursing once per level, on a stack the size of an async worker's (2 MiB).
+#[test]
+fn deeply_nested_turns_skip_the_matcher_without_overflowing() {
+    let deep = |levels: usize| {
+        format!(
+            r#"{{"contents":[{{"role":"user","parts":{}{{"text":"hi"}}{}}}]}}"#,
+            "[".repeat(levels),
+            "]".repeat(levels)
+        )
+    };
+    let object = |levels: usize| {
+        format!(
+            r#"{{"contents":[{{"role":"user","parts":[{{"functionCall":{}1{}}}]}}]}}"#,
+            r#"{"a":"#.repeat(levels),
+            "}".repeat(levels)
+        )
+    };
+    std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            assert!(Request::new("gemini", deep(200_000).as_bytes(), "client-key").is_none());
+            assert!(Request::new("gemini", object(3_000).as_bytes(), "client-key").is_none());
+            // At the ceiling the request is still matched.
+            assert!(Request::new("gemini", deep(MAX_NESTING - 4).as_bytes(), "client-key").is_some());
+            assert!(Request::new("gemini", deep(MAX_NESTING - 3).as_bytes(), "client-key").is_none());
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
