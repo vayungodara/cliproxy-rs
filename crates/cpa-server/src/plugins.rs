@@ -202,11 +202,19 @@ pub(crate) async fn authenticate(rt: &Runtime, req: Request) -> (Request, Result
                 }
             }
             Provider::Plugin(id) => {
-                // Go `readAndRestoreRequestBody`: the whole body, once.
+                // Go `readAndRestoreRequestBody`: the whole body, once. Go reads it
+                // without a bound; here it stops at MAX_REQUEST_BYTES, as the routes do.
                 let bytes = match &read {
                     Some(bytes) => bytes.clone(),
-                    None => match axum::body::to_bytes(std::mem::take(&mut body), usize::MAX).await {
-                        Ok(bytes) => read.insert(bytes).clone(),
+                    None => match read_limited(std::mem::take(&mut body)).await {
+                        Ok(Some(bytes)) => read.insert(bytes).clone(),
+                        Ok(None) => {
+                            outcome = Some(Err(Denied {
+                                status: 413,
+                                message: "request body too large",
+                            }));
+                            break;
+                        }
                         Err(error) => {
                             tracing::error!(
                                 "authentication middleware error: failed to read plugin auth request body: {error}"
@@ -248,6 +256,21 @@ pub(crate) async fn authenticate(rt: &Runtime, req: Request) -> (Request, Result
         message: if invalid { "Invalid API key" } else { MISSING_API_KEY },
     }));
     (Request::from_parts(parts, body), outcome)
+}
+
+/// The whole body, or `None` once it passes [`crate::MAX_REQUEST_BYTES`].
+async fn read_limited(body: Body) -> Result<Option<Bytes>, axum::Error> {
+    use futures_util::StreamExt as _;
+    let mut stream = body.into_data_stream();
+    let mut out = bytes::BytesMut::new();
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        if out.len() + chunk.len() > crate::MAX_REQUEST_BYTES {
+            return Ok(None);
+        }
+        out.extend_from_slice(&chunk);
+    }
+    Ok(Some(out.freeze()))
 }
 
 /// A server request's `http.Header` as Go's handlers see it: canonical names, values in
@@ -457,3 +480,67 @@ const GO_V0_MANAGEMENT_ROUTES: [&str; 144] = [
     "PUT /v0/management/ws-auth",
     "PUT /v0/management/xai-api-key",
 ];
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn outcome(result: &Result<Access, Denied>) -> (u16, &'static str) {
+        match result {
+            Ok(_) => (200, ""),
+            Err(denied) => (denied.status, denied.message),
+        }
+    }
+
+    /// A plugin frontend auth provider reads the body even after the client keys
+    /// rejected the request, so the read stops at MAX_REQUEST_BYTES.
+    #[tokio::test]
+    async fn plugin_auth_reads_a_bounded_body() {
+        let dir = cpa_plugin::testing::scratch(&std::env::temp_dir(), "plugin-auth-body");
+        let cfg = Config::parse(&format!(
+            "config-version: 8\nauth-dir: {}\naccess:\n  api-keys: [client-key]\n",
+            dir.display()
+        ))
+        .unwrap();
+        let rt = crate::testing::runtime(
+            cfg,
+            Vec::new(),
+            cpa_exec::Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        );
+        // A provider for a plugin that is not loaded: it never accepts.
+        rt.plugin_runtime()
+            .register_access(true, vec![("plugin-auth".into(), "p".into())], None);
+        let request = |key: Option<&str>, body: Body| {
+            let mut builder = Request::builder().method("POST").uri("/v1/chat/completions");
+            if let Some(key) = key {
+                builder = builder.header("authorization", format!("Bearer {key}"));
+            }
+            builder.body(body).unwrap()
+        };
+        for key in [None, Some("wrong")] {
+            let big = Body::from(vec![b'x'; crate::MAX_REQUEST_BYTES + 1]);
+            let (_, result) = authenticate(&rt, request(key, big)).await;
+            assert_eq!(outcome(&result), (413, "request body too large"), "{key:?}");
+        }
+        // At the limit the body is read, offered and handed back whole.
+        let (req, result) = authenticate(
+            &rt,
+            request(Some("wrong"), Body::from(vec![b'y'; crate::MAX_REQUEST_BYTES])),
+        )
+        .await;
+        assert_eq!(outcome(&result), (401, "Invalid API key"));
+        let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
+        assert_eq!(body.len(), crate::MAX_REQUEST_BYTES);
+        let (_, result) = authenticate(&rt, request(None, Body::from("{}"))).await;
+        assert_eq!(outcome(&result), (401, MISSING_API_KEY));
+        let (_, result) = authenticate(&rt, request(Some("client-key"), Body::from("{}"))).await;
+        assert_eq!(outcome(&result), (200, ""));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+}
