@@ -106,6 +106,23 @@ fn group_difference(saved: &Value, go: &serde_json::Map<String, Value>) -> Optio
     })
 }
 
+/// Gives a test config its own auth directory (the legacy top-level `auth-dir`, which
+/// both layouts accept) unless it names one, so no test reads Go's default
+/// `~/.cli-proxy-api`. Go's JSON config view omits `auth-dir`, so replies are unchanged.
+fn with_auth_dir(yaml: &str, dir: &std::path::Path) -> String {
+    if yaml.lines().any(|l| l.trim_start().starts_with("auth-dir:")) {
+        return yaml.to_owned();
+    }
+    let auth = dir.join("auth");
+    std::fs::create_dir_all(&auth).unwrap();
+    let mut out = yaml.to_owned();
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    out.push_str(&format!("auth-dir: '{}'\n", auth.display()));
+    out
+}
+
 async fn serve(path: &std::path::Path) -> (String, tokio::task::JoinHandle<()>) {
     // A private auth-dir, so a config without one never reads ~/.cli-proxy-api.
     let auth = path.parent().unwrap().join("auth");
@@ -161,7 +178,8 @@ async fn go_v0_routes_replay_byte_for_byte() {
         let dir = std::env::temp_dir().join(format!("cpa-legacy-{name}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("config.yaml");
-        std::fs::write(&path, scenario["yaml"].as_str().unwrap().replace("$HASH", &hash)).unwrap();
+        let yaml = scenario["yaml"].as_str().unwrap().replace("$HASH", &hash);
+        std::fs::write(&path, with_auth_dir(&yaml, &dir)).unwrap();
         let (base, server) = serve(&path).await;
         let send = |method: &str, path: &str, body: String| {
             let method: wreq::Method = method.parse().unwrap();
@@ -177,9 +195,13 @@ async fn go_v0_routes_replay_byte_for_byte() {
                 "{name}[{i}] {method} {route} {}",
                 step["body"].as_str().unwrap_or_default()
             );
-            let res = send(method, route, step["body"].as_str().unwrap_or_default().to_owned())
-                .await
-                .unwrap();
+            // An accepted config.yaml upload replaces the whole file and is reloaded, so it
+            // keeps the private auth directory too.
+            let mut sent = step["body"].as_str().unwrap_or_default().to_owned();
+            if method == "PUT" && route == "/config.yaml" && step["status"] == 200 && !sent.is_empty() {
+                sent = with_auth_dir(&sent, &dir);
+            }
+            let res = send(method, route, sent).await.unwrap();
             let status = res.status().as_u16();
             let body = res.text().await.unwrap();
             compared += 1;
@@ -188,7 +210,18 @@ async fn go_v0_routes_replay_byte_for_byte() {
                 continue;
             }
             let want = step["raw_response"].as_str().unwrap();
-            if let Some(d) = first_difference(&body, want) {
+            // yaml.v3's own syntax messages ("yaml: line 1: ...") cannot match another
+            // parser; for those only the status and the error code are compared.
+            let go_body: Value = serde_json::from_str(want).unwrap_or_default();
+            if go_body["message"].as_str().is_some_and(|m| m.starts_with("yaml: ")) {
+                let rust_body: Value = serde_json::from_str(&body).unwrap_or_default();
+                if rust_body["error"] != go_body["error"] {
+                    failures.push(format!(
+                        "{at}: error code {} vs Go {}",
+                        rust_body["error"], go_body["error"]
+                    ));
+                }
+            } else if let Some(d) = first_difference(&body, want) {
                 failures.push(format!("{at}: {d}"));
             }
             if let Some(go_cfg) = step["config"].as_str() {
@@ -214,7 +247,7 @@ async fn go_v0_routes_replay_byte_for_byte() {
         server.abort();
         let _ = std::fs::remove_dir_all(&dir);
     }
-    assert!(compared >= 762, "{compared}");
+    assert!(compared >= 816, "{compared}");
     assert!(
         failures.is_empty(),
         "{} of {compared} steps differ:\n{}",
@@ -232,7 +265,7 @@ async fn v0_aliases_match_v8_and_lists_carry_live_auth_indexes() {
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("config.yaml");
     let yaml = "config-version: 8\nmanagement:\n  secret-key: '$HASH'\napi-keys:\n  gemini:\n    - name: g\n      keys: [{api-key: fake-g1}, {api-key: fake-g2}]\n  vertex:\n    - name: v\n      keys: [{api-key: fake-v1}]\n  openai-compatibility:\n    - name: Local\n      base-url: http://127.0.0.1:9/v1\n      keys: [{api-key: fake-o1}]\n";
-    std::fs::write(&path, yaml.replace("$HASH", &hash)).unwrap();
+    std::fs::write(&path, with_auth_dir(&yaml.replace("$HASH", &hash), &dir)).unwrap();
     let (base, server) = serve(&path).await;
     let client = wreq::Client::new();
     let get = |method: &str, path: &str| {
@@ -331,18 +364,14 @@ async fn v0_aliases_match_v8_and_lists_carry_live_auth_indexes() {
 /// unchanged family keeps its v8 groups and their comments.
 #[tokio::test]
 async fn v0_saves_like_go_persist_locked() {
-    use std::os::unix::fs::PermissionsExt;
     let hash = bcrypt::hash("fake-secret", 4).unwrap();
     let dir = std::env::temp_dir().join(format!("cpa-legacy-save-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("config.yaml");
-    std::fs::write(
-        &path,
-        format!(
-            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\napi-keys:\n  claude:\n    # keep this comment\n    - name: c\n      base-url: https://c.example.invalid\n      keys: [{{api-key: fake-1}}, {{api-key: fake-2}}]\n"
-        ),
-    )
-    .unwrap();
+    let yaml = format!(
+        "config-version: 8\nmanagement:\n  secret-key: '{hash}'\napi-keys:\n  claude:\n    # keep this comment\n    - name: c\n      base-url: https://c.example.invalid\n      keys: [{{api-key: fake-1}}, {{api-key: fake-2}}]\n"
+    );
+    std::fs::write(&path, with_auth_dir(&yaml, &dir)).unwrap();
     let (base, server) = serve(&path).await;
     let client = wreq::Client::new();
     let send = |method: &str, route: &str, body: &str| {
@@ -361,9 +390,13 @@ async fn v0_saves_like_go_persist_locked() {
         "{saved}"
     );
 
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o400)).unwrap();
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o500)).unwrap();
-    // Root ignores the modes; there is nothing to check then.
+    // The shared writer rewrites the file in place, so a read-only file fails the save
+    // (on Unix and Windows alike).
+    let writable = std::fs::metadata(&path).unwrap().permissions();
+    let mut read_only = writable.clone();
+    read_only.set_readonly(true);
+    std::fs::set_permissions(&path, read_only).unwrap();
+    // Root ignores the mode; there is nothing to check then.
     if std::fs::OpenOptions::new().append(true).open(&path).is_err() {
         for (method, route, body) in [
             ("PATCH", "/claude-api-key", r#"{"index":0,"value":{}}"#),
@@ -376,8 +409,62 @@ async fn v0_saves_like_go_persist_locked() {
             assert!(text.starts_with(r#"{"error":"failed to save config: "#), "{text}");
         }
     }
-    std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    std::fs::set_permissions(&path, writable).unwrap();
+    server.abort();
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// v0 PUT /config.yaml beyond the replay: the upload is written as sent with comment
+/// lines unindented and a plaintext key hashed on reload (Go `WriteConfig` then
+/// `LoadConfig`); with no management key left, the routes go away as Go's reload
+/// disables them.
+#[tokio::test]
+async fn v0_config_yaml_put_writes_like_go() {
+    let hash = bcrypt::hash("fake-secret", 4).unwrap();
+    let dir = std::env::temp_dir().join(format!("cpa-legacy-yaml-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("config.yaml");
+    let yaml = format!("config-version: 8\nmanagement:\n  secret-key: '{hash}'\n");
+    std::fs::write(&path, with_auth_dir(&yaml, &dir)).unwrap();
+    let (base, server) = serve(&path).await;
+    let client = wreq::Client::new();
+    let put = |body: &str| {
+        client
+            .put(format!("{base}/v0/management/config.yaml"))
+            .bearer_auth("fake-secret")
+            .body(body.to_owned())
+            .send()
+    };
+    let upload = "config-version: 8\nmanagement:\n  secret-key: fake-secret\n    # indented comment\nrouting:\n  strategy: fill-first\n";
+    let res = put(&with_auth_dir(upload, &dir)).await.unwrap();
+    assert_eq!(res.status().as_u16(), 200);
+    assert_eq!(res.text().await.unwrap(), r#"{"changed":["config"],"ok":true}"#);
+    let saved = std::fs::read_to_string(&path).unwrap();
+    assert!(saved.contains("\n# indented comment\n"), "{saved}");
+    assert!(saved.contains("strategy: fill-first"), "{saved}");
+    assert!(!saved.contains("secret-key: fake-secret"), "the key is hashed: {saved}");
+    // The hashed key still authenticates.
+    let res = client
+        .get(format!("{base}/v0/management/routing/strategy"))
+        .bearer_auth("fake-secret")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.text().await.unwrap(), r#"{"strategy":"fill-first"}"#);
+    // A config without a management key is accepted (Go also accepts an empty upload,
+    // which would reload with the default auth directory).
+    let keyless = with_auth_dir("", &dir);
+    let res = put(&keyless).await.unwrap();
+    assert_eq!(res.status().as_u16(), 200);
+    assert_eq!(res.text().await.unwrap(), r#"{"changed":["config"],"ok":true}"#);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), keyless);
+    let res = client
+        .get(format!("{base}/v0/management/debug"))
+        .bearer_auth("fake-secret")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status().as_u16(), 404);
     server.abort();
     let _ = std::fs::remove_dir_all(&dir);
 }

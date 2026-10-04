@@ -417,7 +417,12 @@ pub fn router(state: Arc<Management>) -> Router {
         )
         .route(&format!("{v8}/config/"), config_methods())
         .route(&format!("{v8}/config/{{*path}}"), config_methods())
-        .route(&format!("{v0}/config.yaml"), methods().get(guarded!(s, legacy_yaml)));
+        .route(
+            &format!("{v0}/config.yaml"),
+            methods()
+                .get(guarded!(s, legacy_yaml))
+                .put(guarded!(s, legacy::put_config_yaml)),
+        );
     // v8 and its deprecated v0 spellings share Go's handlers.
     for (base, files, definitions) in [
         (v8, "credentials", "routing/model-definitions"),

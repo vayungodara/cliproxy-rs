@@ -1,0 +1,1027 @@
+{
+ "cases": [
+  {
+   "name": "dashboard-en",
+   "tab": "dashboard",
+   "width": 80,
+   "locale": "en",
+   "input": {
+    "config": {
+     "debug": true,
+     "logging-to-file": false,
+     "proxy-url": "socks5://127.0.0.1:1080",
+     "request-retry": 3,
+     "routing": {
+      "strategy": "fill-first"
+     }
+    },
+    "files": [
+     {
+      "disabled": false,
+      "name": "a.json"
+     },
+     {
+      "disabled": true,
+      "name": "b.json"
+     }
+    ],
+    "keys": [
+     "k1",
+     "k2",
+     "k3"
+    ]
+   },
+   "lines": [
+    "📊 Dashboard",
+    "",
+    " [r] Refresh • [↑↓] Scroll",
+    "",
+    "● Connected  http://127.0.0.1:8317",
+    "",
+    "╭───────────────────────────────────────╮ ╭───────────────────────────────────────╮",
+    "│ 🔑 3                                  │ │ 📄 2                                  │",
+    "│ Mgmt Keys                             │ │ Auth Files (1 active)                 │",
+    "╰───────────────────────────────────────╯ ╰───────────────────────────────────────╯",
+    "",
+    "Current Config",
+    "────────────────────────────────────────────────────────────",
+    "  Debug Mode:              Yes ✓",
+    "  Usage Statistics:        Yes ✓",
+    "  Log to File:             No",
+    "  Retry Count:             3",
+    "  Proxy URL:               socks5://127.0.0.1:1080",
+    "  Routing Strategy:        fill-first"
+   ]
+  },
+  {
+   "name": "dashboard-zh",
+   "tab": "dashboard",
+   "width": 60,
+   "locale": "zh",
+   "input": {
+    "config": {
+     "request-retry": 2.5,
+     "usage-statistics-enabled": false
+    },
+    "files": [],
+    "keys": []
+   },
+   "lines": [
+    "📊 仪表盘",
+    "",
+    " [r] 刷新 • [↑↓] 滚动",
+    "",
+    "● 已连接  http://127.0.0.1:8317",
+    "",
+    "╭─────────────────────────────╮ ╭─────────────────────────────╮",
+    "│ 🔑 0                        │ │ 📄 0                        │",
+    "│ 管理密钥                    │ │ 认证文件 (0 活跃)           │",
+    "╰─────────────────────────────╯ ╰─────────────────────────────╯",
+    "",
+    "当前配置",
+    "────────────────────────────────────────────────────────────",
+    "  启用调试模式:            否",
+    "  启用使用统计:            否",
+    "  启用日志记录到文件:      否",
+    "  重试次数:                2",
+    "  路由策略:                round-robin"
+   ]
+  },
+  {
+   "name": "dashboard-narrow",
+   "tab": "dashboard",
+   "width": 30,
+   "locale": "en",
+   "input": {
+    "config": {
+     "usage-statistics-enabled": "yes"
+    },
+    "files": [
+     {
+      "name": "a.json"
+     }
+    ],
+    "keys": [
+     "k"
+    ]
+   },
+   "lines": [
+    "📊 Dashboard",
+    "",
+    " [r] Refresh • [↑↓] Scroll",
+    "",
+    "● Connected  http://127.0.0.1:8317",
+    "",
+    "╭──────────────────╮ ╭──────────────────╮",
+    "│ 🔑 1             │ │ 📄 1             │",
+    "│ Mgmt Keys        │ │ Auth Files (1    │",
+    "╰──────────────────╯ │ active)          │",
+    "                     ╰──────────────────╯",
+    "",
+    "Current Config",
+    "──────────────────────────────",
+    "  Debug Mode:              No",
+    "  Usage Statistics:        Yes ✓",
+    "  Log to File:             No",
+    "  Retry Count:             0",
+    "  Routing Strategy:        round-robin"
+   ]
+  },
+  {
+   "name": "dashboard-error",
+   "tab": "dashboard",
+   "width": 80,
+   "locale": "en",
+   "input": {
+    "config": {},
+    "error": "HTTP 401: {\"error\":\"invalid management key\"}",
+    "files": [],
+    "keys": []
+   },
+   "lines": [
+    "⚠ Error: HTTP 401: {\"error\":\"invalid management key\"}"
+   ]
+  },
+  {
+   "name": "config-en",
+   "tab": "config",
+   "width": 100,
+   "locale": "en",
+   "input": {
+    "config": {
+     "debug": false,
+     "error-logs-max-files": 10,
+     "force-model-prefix": false,
+     "logging-to-file": true,
+     "logs-max-total-size-mb": 0,
+     "max-retry-interval": 30,
+     "proxy-url": "",
+     "quota-exceeded": {
+      "switch-preview-model": false,
+      "switch-project": true
+     },
+     "request-log": false,
+     "request-retry": 2,
+     "routing": {
+      "strategy": "round-robin"
+     },
+     "usage-statistics-enabled": true,
+     "ws-auth": true
+    },
+    "down": 3
+   },
+   "lines": [
+    "⚙ Configuration",
+    "",
+    "  [↑↓/jk] Navigate • [Enter/Space] Edit • [r] Refresh",
+    "  Bool: Enter to toggle • String/Int: Enter to type, Enter to confirm, Esc to cancel",
+    "",
+    "",
+    "  ── Server",
+    "  Port                              0",
+    "  Host",
+    "  Debug                             ○ OFF",
+    "▸ Proxy URL",
+    "  Request Retry                     2",
+    "  Max Retry Interval (s)            30",
+    "  Force Model Prefix",
+    "",
+    "  ── Logging \u0026 Stats",
+    "  Logging to File                   ● ON",
+    "  Logs Max Total Size (MB)          0",
+    "  Error Logs Max Files              10",
+    "  Usage Stats Enabled               ● ON",
+    "  Request Log                       ○ OFF",
+    "",
+    "  ── Quota Exceeded Handling",
+    "  Switch Project on Quota           ● ON",
+    "  Switch Preview Model              ○ OFF",
+    "",
+    "  ── Routing",
+    "  Routing Strategy                  round-robin",
+    "",
+    "  ── WebSocket",
+    "  WebSocket Auth                    ● ON"
+   ]
+  },
+  {
+   "name": "config-zh-updated",
+   "tab": "config",
+   "width": 90,
+   "locale": "zh",
+   "input": {
+    "config": {
+     "debug": false,
+     "error-logs-max-files": 10,
+     "force-model-prefix": false,
+     "logging-to-file": true,
+     "logs-max-total-size-mb": 0,
+     "max-retry-interval": 30,
+     "proxy-url": "",
+     "quota-exceeded": {
+      "switch-preview-model": false,
+      "switch-project": true
+     },
+     "request-log": false,
+     "request-retry": 2,
+     "routing": {
+      "strategy": "round-robin"
+     },
+     "usage-statistics-enabled": true,
+     "ws-auth": true
+    },
+    "update_ok": true
+   },
+   "lines": [
+    "⚙ 配置",
+    "",
+    "  ✓ 更新成功",
+    "  [↑↓/jk] 导航 • [Enter/Space] 编辑 • [r] 刷新",
+    "  布尔: Enter 切换 • 文本/数字: Enter 输入, Enter 确认, Esc 取消",
+    "",
+    "",
+    "  ── 服务器",
+    "▸ Port                              0",
+    "  Host",
+    "  Debug                             ○ OFF",
+    "  Proxy URL",
+    "  Request Retry                     2",
+    "  Max Retry Interval (s)            30",
+    "  Force Model Prefix",
+    "",
+    "  ── 日志与统计",
+    "  Logging to File                   ● ON",
+    "  Logs Max Total Size (MB)          0",
+    "  Error Logs Max Files              10",
+    "  Usage Stats Enabled               ● ON",
+    "  Request Log                       ○ OFF",
+    "",
+    "  ── 配额超限处理",
+    "  Switch Project on Quota           ● ON",
+    "  Switch Preview Model              ○ OFF",
+    "",
+    "  ── 路由",
+    "  Routing Strategy                  round-robin",
+    "",
+    "  ── WebSocket",
+    "  WebSocket Auth                    ● ON"
+   ]
+  },
+  {
+   "name": "config-update-error",
+   "tab": "config",
+   "width": 90,
+   "locale": "en",
+   "input": {
+    "config": {
+     "debug": false,
+     "error-logs-max-files": 10,
+     "force-model-prefix": false,
+     "logging-to-file": true,
+     "logs-max-total-size-mb": 0,
+     "max-retry-interval": 30,
+     "proxy-url": "",
+     "quota-exceeded": {
+      "switch-preview-model": false,
+      "switch-project": true
+     },
+     "request-log": false,
+     "request-retry": 2,
+     "routing": {
+      "strategy": "round-robin"
+     },
+     "usage-statistics-enabled": true,
+     "ws-auth": true
+    },
+    "down": 6,
+    "update_error": "HTTP 400: {\"error\":\"invalid body\"}"
+   },
+   "lines": [
+    "⚙ Configuration",
+    "",
+    "  ✗ HTTP 400: {\"error\":\"invalid body\"}",
+    "  [↑↓/jk] Navigate • [Enter/Space] Edit • [r] Refresh",
+    "  Bool: Enter to toggle • String/Int: Enter to type, Enter to confirm, Esc to cancel",
+    "",
+    "",
+    "  ── Server",
+    "  Port                              0",
+    "  Host",
+    "  Debug                             ○ OFF",
+    "  Proxy URL",
+    "  Request Retry                     2",
+    "  Max Retry Interval (s)            30",
+    "▸ Force Model Prefix",
+    "",
+    "  ── Logging \u0026 Stats",
+    "  Logging to File                   ● ON",
+    "  Logs Max Total Size (MB)          0",
+    "  Error Logs Max Files              10",
+    "  Usage Stats Enabled               ● ON",
+    "  Request Log                       ○ OFF",
+    "",
+    "  ── Quota Exceeded Handling",
+    "  Switch Project on Quota           ● ON",
+    "  Switch Preview Model              ○ OFF",
+    "",
+    "  ── Routing",
+    "  Routing Strategy                  round-robin",
+    "",
+    "  ── WebSocket",
+    "  WebSocket Auth                    ● ON"
+   ]
+  },
+  {
+   "name": "config-editing",
+   "tab": "config",
+   "width": 90,
+   "locale": "en",
+   "input": {
+    "config": {
+     "debug": false,
+     "error-logs-max-files": 10,
+     "force-model-prefix": false,
+     "logging-to-file": true,
+     "logs-max-total-size-mb": 0,
+     "max-retry-interval": 30,
+     "proxy-url": "",
+     "quota-exceeded": {
+      "switch-preview-model": false,
+      "switch-project": true
+     },
+     "request-log": false,
+     "request-retry": 2,
+     "routing": {
+      "strategy": "round-robin"
+     },
+     "usage-statistics-enabled": true,
+     "ws-auth": true
+    },
+    "down": 4,
+    "edit": "7"
+   },
+   "lines": [
+    "⚙ Configuration",
+    "",
+    "  [↑↓/jk] Navigate • [Enter/Space] Edit • [r] Refresh",
+    "  Bool: Enter to toggle • String/Int: Enter to type, Enter to confirm, Esc to cancel",
+    "",
+    "",
+    "  ── Server",
+    "  Port                              0",
+    "  Host",
+    "  Debug                             ○ OFF",
+    "  Proxy URL",
+    "▸ Request Retry                     \u003e 7",
+    "  Max Retry Interval (s)            30",
+    "  Force Model Prefix",
+    "",
+    "  ── Logging \u0026 Stats",
+    "  Logging to File                   ● ON",
+    "  Logs Max Total Size (MB)          0",
+    "  Error Logs Max Files              10",
+    "  Usage Stats Enabled               ● ON",
+    "  Request Log                       ○ OFF",
+    "",
+    "  ── Quota Exceeded Handling",
+    "  Switch Project on Quota           ● ON",
+    "  Switch Preview Model              ○ OFF",
+    "",
+    "  ── Routing",
+    "  Routing Strategy                  round-robin",
+    "",
+    "  ── WebSocket",
+    "  WebSocket Auth                    ● ON"
+   ]
+  },
+  {
+   "name": "config-empty",
+   "tab": "config",
+   "width": 90,
+   "locale": "en",
+   "input": {
+    "config": null
+   },
+   "lines": [
+    "⚙ Configuration",
+    "",
+    "  [↑↓/jk] Navigate • [Enter/Space] Edit • [r] Refresh",
+    "  Bool: Enter to toggle • String/Int: Enter to type, Enter to confirm, Esc to cancel",
+    "",
+    "",
+    "  ── Server",
+    "▸ Port                              0",
+    "  Host",
+    "  Debug                             ○ OFF",
+    "  Proxy URL",
+    "  Request Retry                     0",
+    "  Max Retry Interval (s)            0",
+    "  Force Model Prefix",
+    "",
+    "  ── Logging \u0026 Stats",
+    "  Logging to File                   ○ OFF",
+    "  Logs Max Total Size (MB)          0",
+    "  Error Logs Max Files              0",
+    "  Usage Stats Enabled               ○ OFF",
+    "  Request Log                       ○ OFF",
+    "",
+    "  ── Quota Exceeded Handling",
+    "  Switch Project on Quota           ○ OFF",
+    "  Switch Preview Model              ○ OFF",
+    "",
+    "  ── Routing",
+    "  Routing Strategy",
+    "",
+    "  ── WebSocket",
+    "  WebSocket Auth                    ○ OFF"
+   ]
+  },
+  {
+   "name": "auth-expanded",
+   "tab": "auth",
+   "width": 100,
+   "locale": "en",
+   "input": {
+    "down": 1,
+    "expand": true,
+    "files": [
+     {
+      "auth_type": "oauth",
+      "channel": "claude",
+      "created_at": "2026-10-01T00:00:00Z",
+      "disabled": false,
+      "email": "user@example.com",
+      "name": "claude-user@example.com.json",
+      "prefix": "team",
+      "priority": 3,
+      "project_id": null,
+      "status": "active"
+     },
+     {
+      "channel": "codex",
+      "disabled": true,
+      "email": "someone.with.a.long.address@example.com",
+      "name": "a-very-long-auth-file-name-over-24.json",
+      "priority": 1.5,
+      "proxy_url": null,
+      "status_message": "token expired",
+      "updated_at": 1700000000
+     }
+    ]
+   },
+   "lines": [
+    "🔑 Auth Files",
+    "",
+    " [↑↓/jk] Navigate • [Enter] Expand • [e] Enable/Disable • [d] Delete • [r] Refresh • [R] Refresh Token",
+    " [1] Edit prefix • [2] Edit proxy_url • [3] Edit priority",
+    "────────────────────────────────────────────────────────────────────────────────────────────────────",
+    "  ● claude-user@example.c... claude       user@example.com             active",
+    "▸ ○ a-very-long-auth-file... codex        someone.with.a.long.addre... disabled",
+    "    ┌─────────────────────────────────────────────",
+    "    │ Name        : a-very-long-auth-file-name-over-24.json",
+    "    │ Channel     : codex",
+    "    │ Email       : someone.with.a.long.address@example.com",
+    "    │ Status Msg  : token expired",
+    "    │ Prefix      : (not set) ✎",
+    "    │ Proxy URL   : (not set) ✎",
+    "    │ Priority    : 1.5 ✎",
+    "    │ Disabled    : true",
+    "    │ Updated     : 1.7e+09",
+    "    └─────────────────────────────────────────────"
+   ]
+  },
+  {
+   "name": "auth-confirm",
+   "tab": "auth",
+   "width": 100,
+   "locale": "zh",
+   "input": {
+    "confirm": true,
+    "files": [
+     {
+      "auth_type": "oauth",
+      "channel": "claude",
+      "created_at": "2026-10-01T00:00:00Z",
+      "disabled": false,
+      "email": "user@example.com",
+      "name": "claude-user@example.com.json",
+      "prefix": "team",
+      "priority": 3,
+      "project_id": null,
+      "status": "active"
+     },
+     {
+      "channel": "codex",
+      "disabled": true,
+      "email": "someone.with.a.long.address@example.com",
+      "name": "a-very-long-auth-file-name-over-24.json",
+      "priority": 1.5,
+      "proxy_url": null,
+      "status_message": "token expired",
+      "updated_at": 1700000000
+     }
+    ]
+   },
+   "lines": [
+    "🔑 认证文件",
+    "",
+    " [↑↓/jk] 导航 • [Enter] 展开 • [e] 启用/停用 • [d] 删除 • [r] 刷新 • [R] 刷新凭证",
+    " [1] 编辑 prefix • [2] 编辑 proxy_url • [3] 编辑 priority",
+    "────────────────────────────────────────────────────────────────────────────────────────────────────",
+    "▸ ● claude-user@example.c... claude       user@example.com             活跃",
+    "    ⚠ 删除 claude-user@example.com.json? [y/n]",
+    "  ○ a-very-long-auth-file... codex        someone.with.a.long.addre... 已停用"
+   ]
+  },
+  {
+   "name": "auth-action",
+   "tab": "auth",
+   "width": 100,
+   "locale": "en",
+   "input": {
+    "action": "Deleted x.json",
+    "files": [
+     {
+      "auth_type": "oauth",
+      "channel": "claude",
+      "created_at": "2026-10-01T00:00:00Z",
+      "disabled": false,
+      "email": "user@example.com",
+      "name": "claude-user@example.com.json",
+      "prefix": "team",
+      "priority": 3,
+      "project_id": null,
+      "status": "active"
+     },
+     {
+      "channel": "codex",
+      "disabled": true,
+      "email": "someone.with.a.long.address@example.com",
+      "name": "a-very-long-auth-file-name-over-24.json",
+      "priority": 1.5,
+      "proxy_url": null,
+      "status_message": "token expired",
+      "updated_at": 1700000000
+     }
+    ]
+   },
+   "lines": [
+    "🔑 Auth Files",
+    "",
+    " [↑↓/jk] Navigate • [Enter] Expand • [e] Enable/Disable • [d] Delete • [r] Refresh • [R] Refresh Token",
+    " [1] Edit prefix • [2] Edit proxy_url • [3] Edit priority",
+    "────────────────────────────────────────────────────────────────────────────────────────────────────",
+    "▸ ● claude-user@example.c... claude       user@example.com             active",
+    "  ○ a-very-long-auth-file... codex        someone.with.a.long.addre... disabled",
+    "",
+    "✓ Deleted x.json"
+   ]
+  },
+  {
+   "name": "auth-edit",
+   "tab": "auth",
+   "width": 100,
+   "locale": "en",
+   "input": {
+    "edit": "1",
+    "expand": true,
+    "files": [
+     {
+      "auth_type": "oauth",
+      "channel": "claude",
+      "created_at": "2026-10-01T00:00:00Z",
+      "disabled": false,
+      "email": "user@example.com",
+      "name": "claude-user@example.com.json",
+      "prefix": "team",
+      "priority": 3,
+      "project_id": null,
+      "status": "active"
+     },
+     {
+      "channel": "codex",
+      "disabled": true,
+      "email": "someone.with.a.long.address@example.com",
+      "name": "a-very-long-auth-file-name-over-24.json",
+      "priority": 1.5,
+      "proxy_url": null,
+      "status_message": "token expired",
+      "updated_at": 1700000000
+     }
+    ]
+   },
+   "lines": [
+    "🔑 Auth Files",
+    "",
+    " [↑↓/jk] Navigate • [Enter] Expand • [e] Enable/Disable • [d] Delete • [r] Refresh • [R] Refresh Token",
+    " [1] Edit prefix • [2] Edit proxy_url • [3] Edit priority",
+    "────────────────────────────────────────────────────────────────────────────────────────────────────",
+    "▸ ● claude-user@example.c... claude       user@example.com             active",
+    "  Prefix: team",
+    "    Enter: Save • Esc: Cancel",
+    "    ┌─────────────────────────────────────────────",
+    "    │ Name        : claude-user@example.com.json",
+    "    │ Channel     : claude",
+    "    │ Email       : user@example.com",
+    "    │ Status      : active",
+    "    │ Auth Type   : oauth",
+    "    │ Prefix      : team ✎",
+    "    │ Proxy URL   : (not set) ✎",
+    "    │ Priority    : 3 ✎",
+    "    │ Disabled    : false",
+    "    │ Created     : 2026-10-01T00:00:00Z",
+    "    └─────────────────────────────────────────────",
+    "  ○ a-very-long-auth-file... codex        someone.with.a.long.addre... disabled"
+   ]
+  },
+  {
+   "name": "auth-empty",
+   "tab": "auth",
+   "width": 60,
+   "locale": "en",
+   "input": {
+    "files": []
+   },
+   "lines": [
+    "🔑 Auth Files",
+    "",
+    " [↑↓/jk] Navigate • [Enter] Expand • [e] Enable/Disable • [d] Delete • [r] Refresh • [R] Refresh Token",
+    " [1] Edit prefix • [2] Edit proxy_url • [3] Edit priority",
+    "────────────────────────────────────────────────────────────",
+    "  No auth files found"
+   ]
+  },
+  {
+   "name": "keys",
+   "tab": "keys",
+   "width": 90,
+   "locale": "en",
+   "input": {
+    "claude-api-key": [
+     {
+      "api-key": "sk-ant-fake-123456789"
+     }
+    ],
+    "confirm": true,
+    "down": 1,
+    "gemini-api-key": [
+     {
+      "api-key": "AIzaFakeFakeFake1234",
+      "base-url": "https://g.example.invalid",
+      "prefix": "team"
+     }
+    ],
+    "keys": [
+     "sk-abcdefghijklmnop",
+     "short"
+    ],
+    "openai-compatibility": [
+     {
+      "base-url": "http://127.0.0.1:11434/v1",
+      "name": "local",
+      "prefix": "ollama"
+     }
+    ],
+    "vertex-api-key": []
+   },
+   "lines": [
+    "🔐 API Keys",
+    "",
+    " [↑↓/jk] Navigate • [a] Add • [e] Edit • [d] Delete • [c] Copy • [r] Refresh",
+    "──────────────────────────────────────────────────────────────────────────────────────────",
+    "  Access API Keys (2)",
+    "─────────────────────",
+    "  1. sk-a***********mnop",
+    "▸ 2. *****",
+    "    ⚠ Delete *****? [y/n]",
+    "",
+    "  Gemini API Keys (1)",
+    "─────────────────────",
+    "  1. AIza************1234 (prefix: team) → https://g.example.invalid",
+    "",
+    "  Claude API Keys (1)",
+    "─────────────────────",
+    "  1. sk-a*************6789",
+    "",
+    "  OpenAI Compatibility (1)",
+    "──────────────────────────",
+    "  1. local (prefix: ollama) → http://127.0.0.1:11434/v1"
+   ]
+  },
+  {
+   "name": "keys-add-zh",
+   "tab": "keys",
+   "width": 90,
+   "locale": "zh",
+   "input": {
+    "add": true,
+    "keys": []
+   },
+   "lines": [
+    "🔐 API 密钥",
+    "",
+    " [↑↓/jk] 导航 • [a] 添加 • [e] 编辑 • [d] 删除 • [c] 复制 • [r] 刷新",
+    "──────────────────────────────────────────────────────────────────────────────────────────",
+    "  Access API Keys (0)",
+    "─────────────────────",
+    "  无 API Key，按 [a] 添加",
+    "",
+    "  New Key:",
+    "    Enter: 添加 • Esc: 取消"
+   ]
+  },
+  {
+   "name": "keys-error",
+   "tab": "keys",
+   "width": 90,
+   "locale": "en",
+   "input": {
+    "error": "HTTP 400: {\"error\":\"invalid body\"}",
+    "keys": [
+     "sk-abcdefghijklmnop"
+    ]
+   },
+   "lines": [
+    "🔐 API Keys",
+    "",
+    " [↑↓/jk] Navigate • [a] Add • [e] Edit • [d] Delete • [c] Copy • [r] Refresh",
+    "──────────────────────────────────────────────────────────────────────────────────────────",
+    "  Access API Keys (1)",
+    "─────────────────────",
+    "▸ 1. sk-a***********mnop",
+    "",
+    "✗ HTTP 400: {\"error\":\"invalid body\"}"
+   ]
+  },
+  {
+   "name": "oauth-idle",
+   "tab": "oauth",
+   "width": 80,
+   "locale": "en",
+   "input": {
+    "down": 2
+   },
+   "lines": [
+    "🔐 OAuth Login",
+    "",
+    "",
+    "  Select a provider and press [Enter] to start OAuth login:",
+    "",
+    "   🟧 Claude (Anthropic)",
+    "   🟩 Codex (OpenAI)",
+    "▸  🟪 Antigravity",
+    "   🟫 Kimi (kimi.com)",
+    "   🟫 Kimi (kimi.ai)",
+    "   ⬛ xAI",
+    "   🔵 Meta",
+    "",
+    "  [↑↓/jk] Navigate • [Enter] Login • [Esc] Clear status"
+   ]
+  },
+  {
+   "name": "oauth-web",
+   "tab": "oauth",
+   "width": 80,
+   "locale": "en",
+   "input": {
+    "start": {
+     "device": false,
+     "expires_in": 0,
+     "provider": "Codex (OpenAI)",
+     "url": "https://auth.example.invalid/oauth/authorize?client_id=fake-client\u0026redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback\u0026state=fake-state-0123456789\u0026code_challenge=abcdefghijklmnopqrstuvwxyz",
+     "user_code": ""
+    }
+   },
+   "lines": [
+    "🔐 OAuth Login",
+    "",
+    "",
+    "  ✦ Codex (OpenAI) OAuth",
+    "",
+    "  Authorization URL:",
+    "  https://auth.example.invalid/oauth/authorize?client_id=fake-client\u0026redirec",
+    "  t_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback\u0026state=fake-state-012",
+    "  3456789\u0026code_challenge=abcdefghijklmnopqrstuvwxyz",
+    "",
+    "  Remote browser mode: Open the URL above in browser, paste the callback URL below after authorization.",
+    "",
+    "  Callback URL:",
+    "  回调 URL: http://localhost:.../auth/callback?code=...\u0026state=.…",
+    "  Enter: Submit • Esc: Cancel",
+    "",
+    "  Waiting for authentication..."
+   ]
+  },
+  {
+   "name": "oauth-device-zh",
+   "tab": "oauth",
+   "width": 80,
+   "locale": "zh",
+   "input": {
+    "start": {
+     "device": true,
+     "expires_in": 900,
+     "provider": "Kimi (kimi.com)",
+     "url": "https://kimi.example.invalid/device",
+     "user_code": "ABCD-1234"
+    }
+   },
+   "lines": [
+    "🔐 OAuth 登录",
+    "",
+    "",
+    "  ✦ Kimi (kimi.com) OAuth",
+    "",
+    "  授权链接:",
+    "  https://kimi.example.invalid/device",
+    "",
+    "  用户码:",
+    "   ABCD-1234",
+    "",
+    "  设备码登录：在浏览器打开上述链接并确认授权，无需粘贴回调 URL。",
+    "  设备码将在 900 秒后过期。",
+    "",
+    "  等待认证中...",
+    "  按 [Esc] 取消"
+   ]
+  },
+  {
+   "name": "oauth-error",
+   "tab": "oauth",
+   "width": 80,
+   "locale": "en",
+   "input": {
+    "poll_error": "OAuth flow timed out",
+    "start": {
+     "device": true,
+     "expires_in": 0,
+     "provider": "xAI",
+     "url": "https://auth.example.invalid/oauth/authorize?client_id=fake-client\u0026redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback\u0026state=fake-state-0123456789\u0026code_challenge=abcdefghijklmnopqrstuvwxyz",
+     "user_code": ""
+    }
+   },
+   "lines": [
+    "🔐 OAuth Login",
+    "",
+    "",
+    "  ✗ OAuth flow timed out",
+    "",
+    "  Select a provider and press [Enter] to start OAuth login:",
+    "",
+    "▸  🟧 Claude (Anthropic)",
+    "   🟩 Codex (OpenAI)",
+    "   🟪 Antigravity",
+    "   🟫 Kimi (kimi.com)",
+    "   🟫 Kimi (kimi.ai)",
+    "   ⬛ xAI",
+    "   🔵 Meta",
+    "",
+    "  [↑↓/jk] Navigate • [Enter] Login • [Esc] Clear status"
+   ]
+  },
+  {
+   "name": "logs-warn",
+   "tab": "logs",
+   "width": 80,
+   "locale": "en",
+   "input": {
+    "filter": "3",
+    "lines": [
+     "2026-10-03 12:00:00 [info ] [main.go:10] started",
+     "2026-10-03 12:00:01 [debug] [x.go:2] noise",
+     "2026-10-03 12:00:02 [warn ] [x.go:3] slow upstream",
+     "2026-10-03 12:00:03 [error] [x.go:4] request failed",
+     "plain line"
+    ]
+   },
+   "lines": [
+    " 📋 Logs  ● AUTO-SCROLL  Filter: WARN+  Lines: 5",
+    "",
+    " [a] Auto-scroll • [c] Clear • [1] All [2] info+ [3] warn+ [4] error • [↑↓] Scroll",
+    "────────────────────────────────────────────────────────────────────────────────",
+    "2026-10-03 12:00:02 [warn ] [x.go:3] slow upstream",
+    "2026-10-03 12:00:03 [error] [x.go:4] request failed"
+   ]
+  },
+  {
+   "name": "logs-paused-zh",
+   "tab": "logs",
+   "width": 80,
+   "locale": "zh",
+   "input": {
+    "lines": [
+     "2026-10-03 12:00:00 [info ] [main.go:10] started",
+     "2026-10-03 12:00:01 [debug] [x.go:2] noise",
+     "2026-10-03 12:00:02 [warn ] [x.go:3] slow upstream",
+     "2026-10-03 12:00:03 [error] [x.go:4] request failed",
+     "plain line"
+    ],
+    "pause": true
+   },
+   "lines": [
+    " 📋 日志  ○ 已暂停  过滤: ALL  行数: 5",
+    "",
+    " [a] 自动滚动 • [c] 清除 • [1] 全部 [2] info+ [3] warn+ [4] error • [↑↓] 滚动",
+    "────────────────────────────────────────────────────────────────────────────────",
+    "2026-10-03 12:00:00 [info ] [main.go:10] started",
+    "2026-10-03 12:00:01 [debug] [x.go:2] noise",
+    "2026-10-03 12:00:02 [warn ] [x.go:3] slow upstream",
+    "2026-10-03 12:00:03 [error] [x.go:4] request failed",
+    "plain line"
+   ]
+  },
+  {
+   "name": "logs-empty",
+   "tab": "logs",
+   "width": 60,
+   "locale": "en",
+   "input": {
+    "lines": []
+   },
+   "lines": [
+    " 📋 Logs  ● AUTO-SCROLL  Filter: ALL  Lines: 0",
+    "",
+    " [a] Auto-scroll • [c] Clear • [1] All [2] info+ [3] warn+ [4] error • [↑↓] Scroll",
+    "────────────────────────────────────────────────────────────",
+    "  Waiting for log output..."
+   ]
+  },
+  {
+   "name": "gate-error",
+   "tab": "gate",
+   "width": 80,
+   "locale": "en",
+   "input": {
+    "error": "Connection failed: HTTP 401: {\"error\":\"invalid management key\"}",
+    "password": ""
+   },
+   "lines": [
+    "🔐 Connect Management API",
+    "",
+    " Enter management password and press Enter to connect",
+    "",
+    "Connection failed: HTTP 401: {\"error\":\"invalid management key\"}",
+    "",
+    "  Password:",
+    " Enter: connect • q/Ctrl+C: quit • L: lang"
+   ]
+  },
+  {
+   "name": "gate-zh",
+   "tab": "gate",
+   "width": 80,
+   "locale": "zh",
+   "input": {
+    "password": "secret"
+   },
+   "lines": [
+    "🔐 连接管理 API",
+    "",
+    " 请输入管理密码并按 Enter 连接",
+    "",
+    "  密码: ******",
+    " Enter: 连接 • q/Ctrl+C: 退出 • L: 语言"
+   ]
+  },
+  {
+   "name": "bars-wide",
+   "tab": "bars",
+   "width": 100,
+   "locale": "en",
+   "input": {
+    "active": 1
+   },
+   "lines": [
+    "   Dashboard    Config    Auth Files    API Keys    OAuth    Logs",
+    "  CLIProxyAPI Management TUI                       Tab/Shift+Tab: switch • L: lang • q/Ctrl+C: quit"
+   ]
+  },
+  {
+   "name": "bars-narrow",
+   "tab": "bars",
+   "width": 40,
+   "locale": "en",
+   "input": {
+    "active": 5
+   },
+   "lines": [
+    "   Dashboard    Config    Auth Files    \n API Keys    OAuth    Logs",
+    "  CLIProxyAPI Management TUITab/Shift+T"
+   ]
+  },
+  {
+   "name": "bars-no-logs-zh",
+   "tab": "bars",
+   "width": 120,
+   "locale": "zh",
+   "input": {
+    "active": 4,
+    "logs": false
+   },
+   "lines": [
+    "   仪表盘    配置    认证文件    API 密钥    OAuth",
+    "  CLIProxyAPI 管理终端                                                   Tab/Shift+Tab: 切换 • L: 语言 • q/Ctrl+C: 退出"
+   ]
+  }
+ ]
+}

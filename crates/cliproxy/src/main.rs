@@ -2,6 +2,7 @@ mod discovery;
 mod dotenv;
 mod home;
 mod plugin_cli;
+mod tui;
 
 use std::io;
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
@@ -632,7 +633,26 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
         tracing::info!("Local model mode: using embedded model catalogs, remote model updates disabled");
     }
     if args.tui {
-        eprintln!("TUI error: the terminal UI is not available in this build yet");
+        if args.standalone {
+            standalone_tui(
+                config,
+                config_path,
+                args.password,
+                args.local_model,
+                store,
+                home_config,
+                plugins,
+            )
+            .await;
+        } else {
+            // Go: a pure management client; the server runs elsewhere.
+            let base = resolve_management_base_url(&args.management_base_url, &config);
+            let password = args.password;
+            let run = tokio::task::spawn_blocking(move || tui::run(&base, &password, None, io::stdout())).await;
+            if let Err(e) = run.map_err(io::Error::other).and_then(|r| r) {
+                eprintln!("TUI error: {e}");
+            }
+        }
         return Ok(());
     }
     serve(
@@ -643,8 +663,144 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
         store,
         home_config,
         plugins,
+        shutdown_signal(),
     )
     .await
+}
+
+/// Go `resolveManagementBaseURL`: the flag, then `remote-management.base-url`, then
+/// the local server's port (8317 when unset).
+fn resolve_management_base_url(flag: &str, config: &Config) -> String {
+    let configured = config
+        .document
+        .get("management")
+        .and_then(|m| m.get("base-url"))
+        .and_then(serde_yaml_ng::Value::as_str)
+        .unwrap_or_default();
+    management_base_url(flag, configured, i64::from(config.port))
+}
+
+fn management_base_url(flag: &str, configured: &str, port: i64) -> String {
+    for url in [flag, configured] {
+        if !url.trim().is_empty() {
+            return url.trim().to_owned();
+        }
+    }
+    format!("http://127.0.0.1:{}", if port > 0 { port } else { 8317 })
+}
+
+/// Go's standalone TUI points stdout and stderr at /dev/null while it runs and draws on
+/// the original stdout; dropping this restores both.
+#[cfg(unix)]
+struct QuietStdio {
+    out: libc::c_int,
+    err: libc::c_int,
+}
+
+#[cfg(unix)]
+impl QuietStdio {
+    /// Silences fds 1 and 2; returns the guard and a handle on the original stdout.
+    fn start() -> io::Result<(Self, std::fs::File)> {
+        use std::os::fd::{AsRawFd, FromRawFd};
+        io::Write::flush(&mut io::stdout())?;
+        let null = std::fs::OpenOptions::new().write(true).open("/dev/null")?;
+        // SAFETY: plain fd duplication; each new fd is owned by the guard or the File.
+        unsafe {
+            let (out, err, tty) = (libc::dup(1), libc::dup(2), libc::dup(1));
+            if out < 0 || err < 0 || tty < 0 {
+                return Err(io::Error::last_os_error());
+            }
+            libc::dup2(null.as_raw_fd(), 1);
+            libc::dup2(null.as_raw_fd(), 2);
+            Ok((QuietStdio { out, err }, std::fs::File::from_raw_fd(tty)))
+        }
+    }
+}
+
+#[cfg(unix)]
+impl Drop for QuietStdio {
+    fn drop(&mut self) {
+        // SAFETY: restores the fds saved in `start` and closes the saved copies.
+        unsafe {
+            libc::dup2(self.out, 1);
+            libc::dup2(self.err, 2);
+            libc::close(self.out);
+            libc::close(self.err);
+        }
+    }
+}
+
+/// ponytail: Windows keeps the console handles. Go swaps only its `os.Stdout`
+/// variable there too; the log lines already go to the hook, so only a stray direct
+/// print could reach the screen.
+#[cfg(not(unix))]
+struct QuietStdio;
+
+#[cfg(not(unix))]
+impl QuietStdio {
+    fn start() -> io::Result<(Self, io::Stdout)> {
+        Ok((QuietStdio, io::stdout()))
+    }
+}
+
+/// Go's `-tui -standalone`: the server runs in this process with a local management
+/// password (`tui-<pid>-<nanos>` unless -password is set), its log lines feed the logs
+/// tab, and it stops after the TUI quits.
+async fn standalone_tui(
+    config: Config,
+    config_path: PathBuf,
+    password: String,
+    local_model: bool,
+    store: Option<cpa_store::Store>,
+    home_config: Option<cpa_home::HomeConfig>,
+    plugins: cpa_plugin::Host,
+) {
+    let hook = cpa_server::logging::capture(2000);
+    let (quiet, out): (Option<QuietStdio>, Box<dyn io::Write + Send>) = match QuietStdio::start() {
+        Ok((guard, tty)) => (Some(guard), Box::new(tty)),
+        Err(_) => (None, Box::new(io::stdout())),
+    };
+    let password = if password.is_empty() {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos());
+        format!("tui-{}-{nanos}", std::process::id())
+    } else {
+        password
+    };
+    let base = format!("http://127.0.0.1:{}", config.port);
+    let (stop, stopped) = tokio::sync::oneshot::channel::<()>();
+    let shutdown = async {
+        let _ = stopped.await;
+    };
+    let server = tokio::spawn(serve(
+        config,
+        config_path,
+        password.clone(),
+        local_model,
+        store,
+        home_config,
+        plugins,
+        shutdown,
+    ));
+    let ready = tui::wait_ready(&base, &password).await;
+    let result = if ready {
+        let run = tokio::task::spawn_blocking(move || tui::run(&base, &password, Some(hook), out)).await;
+        run.map_err(io::Error::other).and_then(|r| r)
+    } else {
+        Ok(())
+    };
+    drop(quiet);
+    cpa_server::logging::release();
+    if !ready {
+        eprintln!("TUI error: embedded server is not ready");
+    } else if let Err(e) = result {
+        eprintln!("TUI error: {e}");
+    }
+    let _ = stop.send(());
+    if let Ok(Err(e)) = server.await {
+        tracing::error!("{e:#}");
+    }
 }
 
 /// The top-level `*.json` files of the auth directory.
@@ -754,6 +910,7 @@ async fn command(args: &Args, config: &Config) -> anyhow::Result<bool> {
     Ok(false)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn serve(
     config: Config,
     config_path: PathBuf,
@@ -762,6 +919,7 @@ async fn serve(
     store: Option<cpa_store::Store>,
     home_config: Option<cpa_home::HomeConfig>,
     plugins: cpa_plugin::Host,
+    shutdown: impl std::future::Future<Output = ()>,
 ) -> anyhow::Result<()> {
     if config.api_keys.is_empty() && home_config.is_none() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
@@ -864,7 +1022,7 @@ async fn serve(
     let mut home_failed = false;
     let served = tokio::select! {
         r = &mut server => r.map_err(anyhow::Error::from),
-        _ = shutdown_signal() => Ok(()),
+        _ = shutdown => Ok(()),
         _ = home_stopped => {
             home_failed = true;
             Err(anyhow::anyhow!("home subscriber stopped; shutting down"))
@@ -888,6 +1046,25 @@ async fn serve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Expected values: Go resolveManagementBaseURL (tests/fixtures/discovery_main_go.json).
+    #[test]
+    fn management_base_url_follows_go() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/discovery_main_go.json")).unwrap();
+        let cases = fixture["management_base_url"].as_array().unwrap();
+        assert!(cases.len() >= 6);
+        for case in cases {
+            let got = management_base_url(
+                case["flag"].as_str().unwrap(),
+                case["remote"].as_str().unwrap(),
+                case["port"].as_i64().unwrap(),
+            );
+            assert_eq!(got, case["out"].as_str().unwrap(), "{case}");
+        }
+        let config = Config::parse("config-version: 8\nmanagement:\n  base-url: ' http://y '\n").unwrap();
+        assert_eq!(resolve_management_base_url("", &config), "http://y");
+    }
 
     #[test]
     fn argv_prescan_matches_go() {
