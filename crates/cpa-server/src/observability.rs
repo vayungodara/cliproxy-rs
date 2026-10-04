@@ -199,12 +199,16 @@ impl HttpBody for AccessBody {
 }
 
 /// Go util.HideAPIKey operates on bytes, not Unicode code points.
+///
+/// Deliberate difference: Go returns keys of one or two bytes unchanged, which
+/// writes a short client key to the log verbatim. Those become `...` here.
 pub(crate) fn hide_key(value: &[u8]) -> Vec<u8> {
     let keep = match value.len() {
         9.. => 4,
         5.. => 2,
         3.. => 1,
-        _ => return value.to_owned(),
+        0 => return Vec::new(),
+        _ => return b"...".to_vec(),
     };
     [&value[..keep], b"...", &value[value.len() - keep..]].concat()
 }
@@ -473,7 +477,9 @@ mod tests {
         let fixture: serde_json::Value =
             serde_json::from_str(include_str!("../tests/fixtures/observe_go.json")).unwrap();
         for case in fixture["query"].as_array().unwrap() {
-            assert_eq!(mask_query(case["in"].as_str().unwrap()), case["out"]);
+            // Deliberate difference: Go leaves the two-byte key `ab` in the clear.
+            let want = case["out"].as_str().unwrap().replacen("key=ab&", "key=...&", 1);
+            assert_eq!(mask_query(case["in"].as_str().unwrap()), want);
         }
         for case in fixture["lines"].as_array().unwrap() {
             assert_eq!(
