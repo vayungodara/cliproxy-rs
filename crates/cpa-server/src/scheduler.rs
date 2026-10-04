@@ -569,6 +569,9 @@ pub(crate) struct Scheduler {
     pub(crate) cooldowns: HashMap<(String, String), Cooldown>,
     /// Session affinity bindings (Go `SessionAffinitySelector.cache`).
     affinity: crate::affinity::Cache,
+    /// Bindings of requests without an explicit session (Go
+    /// `SessionAffinitySelector.matcher`).
+    lcp: crate::lcp::Matcher,
     /// `soonest-reset` probes by credential, reserved when the probe request is picked
     /// (under the scheduler lock, so concurrent picks never probe twice). See [`probed`].
     probes: HashMap<String, Probes>,
@@ -657,6 +660,11 @@ impl Scheduler {
             self.rotations.clear();
             self.cursors.clear();
             self.affinity.clear();
+            // Go builds a new selector, and with it a new matcher on the new TTL.
+            self.lcp = crate::lcp::Matcher::new(crate::lcp::Limits {
+                ttl: next.session_affinity_ttl,
+                ..Default::default()
+            });
             self.probes.clear();
         }
     }
@@ -718,6 +726,7 @@ impl Scheduler {
     }
 
     /// [`Self::pick`] with each credential's usage windows, for `soonest-reset`.
+    #[cfg(test)]
     pub fn pick_ranked<'a>(
         &mut self,
         candidates: &[(&'a Credential, &str)],
@@ -726,9 +735,48 @@ impl Scheduler {
         ranks: &Ranks<'_>,
         now: Instant,
     ) -> Option<&'a Credential> {
+        self.pick_session(candidates, selection, policy, ranks, now)
+            .map(|(c, _)| c)
+    }
+
+    /// [`Self::pick_ranked`], with the LCP binding of a request without an explicit
+    /// session (Go `pickLCP`): its session identity, lineage and access generation.
+    pub fn pick_session<'a>(
+        &mut self,
+        candidates: &[(&'a Credential, &str)],
+        selection: &Selection,
+        policy: &Policy,
+        ranks: &Ranks<'_>,
+        now: Instant,
+    ) -> Option<(&'a Credential, Option<crate::lcp::Match>)> {
         if candidates.is_empty() {
             return None;
         }
+        if let Some(request) = selection.lcp.as_deref().filter(|_| policy.session_affinity) {
+            let namespace = request.namespace(&selection.model);
+            // A known trajectory stays on its credential while that one is available.
+            if let Some(found) = self.lcp.find(&namespace, request.prepared(), now)
+                && let Some((c, _)) = candidates.iter().find(|(c, _)| c.id == found.auth)
+            {
+                return Some((c, Some(found)));
+            }
+            let picked = self.pick_unbound(candidates, selection, policy, ranks, now)?;
+            let bound = self.lcp.bind(&namespace, request.prepared(), &picked.id, now);
+            return Some((picked, bound));
+        }
+        self.pick_legacy(candidates, selection, policy, ranks, now)
+            .map(|c| (c, None))
+    }
+
+    /// Go `SessionAffinitySelector.Pick` after the LCP step.
+    fn pick_legacy<'a>(
+        &mut self,
+        candidates: &[(&'a Credential, &str)],
+        selection: &Selection,
+        policy: &Policy,
+        ranks: &Ranks<'_>,
+        now: Instant,
+    ) -> Option<&'a Credential> {
         let ttl = policy.session_affinity_ttl;
         let Some(keys) = policy.session_affinity.then(|| session_keys(selection)).flatten() else {
             return self.pick_unbound(candidates, selection, policy, ranks, now);
@@ -762,12 +810,17 @@ impl Scheduler {
     /// Go `SessionAffinitySelector.OnResult`: success refreshes the session's bindings to
     /// this credential, a credential-attributed failure releases them. Request-scoped
     /// and transport failures leave them alone.
+    ///
+    /// A request without an explicit session refreshes its LCP sequence on success; a
+    /// credential failure removes that exact sequence unless a newer request refreshed
+    /// it after `lcp`'s generation. Such a request never touches the session cache.
     pub fn session_result(
         &mut self,
         c: &Credential,
         selection: &Selection,
         outcome: &Outcome,
         policy: &Policy,
+        lcp: Option<&crate::lcp::Match>,
         now: Instant,
     ) {
         if !policy.session_affinity {
@@ -778,6 +831,19 @@ impl Scheduler {
             Outcome::Failure(error) if policy.error_action(c, error).cooldown => false,
             _ => return,
         };
+        if let Some(request) = selection.lcp.as_deref() {
+            let namespace = request.namespace(&selection.model);
+            if success {
+                self.lcp.touch(&namespace, request.prepared(), &c.id, now);
+            } else {
+                let generation = lcp.map_or(0, |m| m.access);
+                self.lcp
+                    .remove(&namespace, &request.prepared().fingerprints, &c.id, generation, now);
+            }
+            if lcp.is_some() {
+                return;
+            }
+        }
         let Some(keys) = session_keys(selection) else {
             return;
         };
@@ -1110,6 +1176,7 @@ impl Scheduler {
             .collect();
         self.cooldowns.retain(|(cid, _), _| cid != id);
         self.affinity.invalidate(id);
+        self.lcp.invalidate(id);
         self.probes.remove(id);
         models.sort();
         models
@@ -1245,6 +1312,7 @@ impl Scheduler {
         self.cooldowns
             .retain(|(id, _), _| credentials.iter().any(|c| c.id == *id));
         self.affinity.retain(|id| credentials.iter().any(|c| c.id == id));
+        self.lcp.retain(|id| credentials.iter().any(|c| c.id == id));
         self.probes.retain(|id, _| credentials.iter().any(|c| c.id == *id));
     }
 }
@@ -1652,9 +1720,10 @@ mod tests {
     fn session_affinity_matches_go_selector() {
         let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
         let cases = fixture["affinity"].as_array().unwrap();
-        assert_eq!(cases.len(), 11);
+        assert_eq!(cases.len(), 25);
         for case in cases {
             let name = case["name"].as_str().unwrap();
+            let lcp_case = case["lcp"].as_bool().unwrap_or_default();
             let creds: Vec<Credential> = ["a", "b", "c"]
                 .iter()
                 .map(|id| {
@@ -1682,40 +1751,76 @@ mod tests {
                     );
                 }
                 let payload = step["payload"].as_str().unwrap_or_default().as_bytes();
-                let session = crate::session::resolve(cpa_core::format::Format::OpenAI, &headers, payload, None, "");
+                let format = cpa_core::format::Format::parse(case["format"].as_str().unwrap_or("openai")).unwrap();
+                let caller = match step["caller"].as_str() {
+                    Some(c) => c,
+                    None => case["caller"].as_str().unwrap_or_default(),
+                };
+                let caller = if lcp_case { caller } else { "" };
+                let session = crate::session::resolve(format, &headers, payload, None, caller);
+                // dispatch::run's LCP step.
+                let lcp = (lcp_case && !session.explicit)
+                    .then(|| crate::lcp::Request::new(format.as_str(), payload, caller))
+                    .flatten()
+                    .map(std::sync::Arc::new);
                 let sel = Selection {
                     session: session.id,
                     session_parent: session.parent,
                     session_fork: session.fork,
+                    lcp,
                     ..selection("m")
                 };
                 let find = |id: &str| creds.iter().find(|c| c.id == id).unwrap();
+                let outcome = |op: &str| {
+                    if op.ends_with("ok") {
+                        Outcome::Success
+                    } else {
+                        let status = step["status"].as_u64().unwrap() as u16;
+                        let scope = if status >= 500 {
+                            FailureScope::Credential
+                        } else {
+                            FailureScope::Request
+                        };
+                        let mut e = ExecError::local(status, scope, step["message"].as_str().unwrap());
+                        e.headers.insert("content-type", "text/plain".parse().unwrap());
+                        Outcome::Failure(e)
+                    }
+                };
                 match step["op"].as_str().unwrap() {
-                    "pick" => {
+                    op @ ("pick" | "pick_ok" | "pick_fail") => {
                         let available: Vec<&Credential> = step["available"]
                             .as_array()
                             .unwrap()
                             .iter()
                             .map(|id| find(id.as_str().unwrap()))
                             .collect();
-                        let picked = s.pick(&tag(&available), &sel, &policy, now).unwrap();
+                        let (picked, bound) = s
+                            .pick_session(&tag(&available), &sel, &policy, &|_| Windows::default(), now)
+                            .unwrap();
                         assert_eq!(picked.id, step["picked"].as_str().unwrap(), "{name} step {i}");
+                        // The metadata Go's pickLCP wrote, as the attempt reports it.
+                        let got = bound.as_ref().map(|m| {
+                            let (node_kind, fork, compaction) = m.node();
+                            serde_json::json!({
+                                "session": m.session, "parent": m.parent, "node_kind": node_kind,
+                                "fork": fork, "compaction": compaction, "generation": m.access,
+                            })
+                        });
+                        assert_eq!(got.as_ref(), step.get("lcp"), "{name} step {i} lcp");
+                        if op != "pick" {
+                            let picked = picked.clone();
+                            s.session_result(&picked, &sel, &outcome(op), &policy, bound.as_ref(), now);
+                        }
                     }
                     op => {
-                        let outcome = if op == "ok" {
-                            Outcome::Success
-                        } else {
-                            let status = step["status"].as_u64().unwrap() as u16;
-                            let scope = if status >= 500 {
-                                FailureScope::Credential
-                            } else {
-                                FailureScope::Request
-                            };
-                            let mut e = ExecError::local(status, scope, step["message"].as_str().unwrap());
-                            e.headers.insert("content-type", "text/plain".parse().unwrap());
-                            Outcome::Failure(e)
-                        };
-                        s.session_result(find(step["auth"].as_str().unwrap()), &sel, &outcome, &policy, now);
+                        s.session_result(
+                            find(step["auth"].as_str().unwrap()),
+                            &sel,
+                            &outcome(op),
+                            &policy,
+                            None,
+                            now,
+                        );
                     }
                 }
             }

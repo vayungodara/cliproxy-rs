@@ -850,6 +850,11 @@ pub async fn run(rt: &Arc<Runtime>, call: Call, trace: &Trace) -> Result<Done, R
         };
         return run_remote(context, remote, selection).await;
     }
+    // Go `pickLCP`: with session affinity, an authenticated request without an explicit
+    // session binds by its conversation prefix.
+    if policy.session_affinity && !session.explicit {
+        selection.lcp = crate::lcp::Request::new(call.entry.as_str(), &call.body, &call.caller.principal).map(Arc::new);
+    }
     // Go `preferredExecutionAttemptError`: the latest failure that reached upstream wins
     // over later selection failures.
     let mut upstream: Option<Fault> = None;
@@ -1632,9 +1637,18 @@ async fn attempt(
             upstream,
             target.keep_model,
         );
+        // Go `syncMetadataSessionToContext`: an LCP pick's session is the attempt's
+        // canonical session, for `$CPA-SESSION-ID` and the usage record.
+        let lcp = lease.lcp.clone();
+        if let Some(m) = &lcp {
+            req.session = Some(cpa_common::session::bound_session_identity(&m.session));
+        }
         let start = |credential: &cpa_core::credential::Credential, req: &mut ExecRequest| {
             usage.map(|facts| {
-                let tracker = crate::usage_record::Tracker::start(rt, facts, credential, upstream);
+                let mut tracker = crate::usage_record::Tracker::start(rt, facts, credential, upstream);
+                if let Some(m) = &lcp {
+                    tracker.lcp_session(m);
+                }
                 req.usage = tracker.sink().with_capture(req.capture().clone());
                 tracker
             })
@@ -1773,6 +1787,8 @@ fn usage_client(
         session_id: session.id.clone().unwrap_or_default(),
         parent_session_id: session.parent.clone().unwrap_or_default(),
         is_fork: session.fork,
+        node_kind: String::new(),
+        is_compaction: false,
         request_id: trace.request_id(),
         // Session turns arrive on the WebSocket upgrade (a GET).
         endpoint: format!(

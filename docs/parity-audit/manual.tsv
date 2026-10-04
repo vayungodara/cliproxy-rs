@@ -604,7 +604,7 @@ M4-0464	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/test
 M4-0465	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	server	Not ported by name.
 M4-0466	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	server	Not ported by name.
 M4-0467	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	server	Not ported by name.
-M4-0468	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	server	Not ported by name.
+M4-0468	partial	crates/cpa-server/src/scheduler.rs session_affinity_matches_go_selector (14 LCP cases from Go SessionAffinitySelector: growth, fork lineage, compaction, failure removal, request faults, caller isolation, explicit session wins, system-only and anonymous fallbacks); lcp_tests.rs replays the matcher calls of selector_lcp_test.go; openai_compat_routes.rs lcp_session_reaches_custom_headers_and_usage_records	server	LookupAffinity (plugin affinity callbacks) and Home dispatch session aliases do not consult the matcher; the explicit-session cases are not ported by name.
 M4-0469	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	server	Not ported by name.
 M4-0470	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	server	Not ported by name.
 M4-0471	partial	crates/cpa-server/src/scheduler.rs tests; crates/cpa-server/tests/scheduler_attempts.rs; server_go.json	server	Not ported by name.
@@ -639,8 +639,8 @@ M4-0499	partial	crates/cpa-server/src/session.rs identity_matches_go, affinity.r
 M4-0500	partial	crates/cpa-server/src/session.rs identity_matches_go, affinity.rs; server_go.json session and affinity	server	Not ported by name.
 M4-0501	partial	crates/cpa-server/src/session.rs identity_matches_go, affinity.rs; server_go.json session and affinity	server	Not ported by name.
 M4-0502	partial	crates/cpa-server/src/session.rs identity_matches_go, affinity.rs; server_go.json session and affinity	server	Not ported by name.
-M4-0503	partial	crates/cpa-server/src/session.rs identity_matches_go, affinity.rs; server_go.json session and affinity	server	Not ported by name.
-M4-0504	partial	crates/cpa-server/src/session.rs identity_matches_go, affinity.rs; server_go.json session and affinity	server	Not ported by name.
+M4-0503	covered	crates/cpa-server/src/lcp_tests.rs lookup_reports_every_credential_of_a_session, lookup_drops_expired_groups_without_refreshing (both Go cases through the public API)		
+M4-0504	covered	crates/cpa-server/src/lcp_tests.rs canonical_turns_and_fingerprints_match_go, matcher_replays_go_call_by_call (every call of the Go tests, recorded by tests/reference/lcp), limits_default_and_cover_max_turns, tool_parts_sort_by_value_then_digest		TestMerklePrefixMatcherConcurrentAccess is not replayed: its goroutines race; the Rust matcher sits behind the scheduler lock.
 M4-0505	partial	crates/cpa-server/src/runtime.rs, registry.rs	server	Not ported by name.
 M4-0506	partial	crates/cpa-server/src/runtime.rs, registry.rs	server	Not ported by name.
 M4-0507	partial	crates/cpa-exec/src/proxy.rs; proxy_go.json	claude	Not ported by name.

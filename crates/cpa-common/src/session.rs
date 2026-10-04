@@ -11,9 +11,10 @@
 //! executors read Go's `ExtractSessionID` from there. A value `derived:<id>` carries
 //! Go's `derived_session_id` metadata `<id>`.
 //!
-//! ponytail: Go's Merkle LCP matcher (session/lcp.go) runs between explicit identity
-//! and these fallbacks when the caller is authenticated. It is not ported; requests
-//! without an explicit session use the derived and hash fallbacks instead.
+//! With session affinity on, a request from an authenticated caller without an
+//! explicit session is bound by its conversation prefix first (Go's Merkle LCP
+//! matcher, ported in cpa-server's `lcp` module); these fallbacks apply when that
+//! matcher has nothing to work with.
 
 use std::collections::BTreeMap;
 
@@ -997,8 +998,8 @@ fn finalize(mut info: SessionInfo) -> Option<SessionInfo> {
 /// executor context (`ensureCanonicalSessionMetadata` then `syncMetadataSessionToContext`):
 /// `BoundSessionIdentity(CanonicalSessionID)`, which falls through the whole
 /// `ExtractSessionID` chain, including the `derived:` and first-messages `msg:` fallbacks.
-/// `session` is `ExecRequest::session`. Empty when Go's chain finds nothing.
-// ponytail: Go's LCP-affinity metadata (session/lcp.go) is not ported, so it never wins here.
+/// `session` is `ExecRequest::session`, which carries the LCP session when session
+/// affinity bound the attempt by conversation prefix. Empty when Go's chain finds nothing.
 pub fn cpa_session_id(session: Option<&str>) -> Option<String> {
     session
         .map(str::trim)

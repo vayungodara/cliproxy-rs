@@ -11,7 +11,9 @@ in-process by `main.go`. It runs real Go code only and opens no sockets:
   whole seconds until each model's `NextRetryAfter`.
 - `session`: `session.ExtractSessionInfo`, `session.Enrich` and `auth.ExtractSessionID`.
 - `affinity`: scripted `SessionAffinitySelector` runs (`Enrich`, `Pick` over fill-first,
-  `OnResult`).
+  `OnResult`). The `lcp_*` cases pick through the mixed-provider picker with a caller
+  scope, so requests without an explicit session reach the Merkle LCP matcher, and
+  record the LCP metadata each pick writes.
 - `cooldown_files`: the `.cds` files `FileCooldownStateStore` writes after a
   `MarkResult` sequence, timestamps masked as `<time>`.
 - `alt`: `handlers.BaseAPIHandler.GetAlt` on raw query strings.

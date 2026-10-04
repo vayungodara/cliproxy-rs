@@ -16,6 +16,10 @@ pub struct Session {
     pub fork: bool,
     /// Go `derived_session_id` (see `ExecRequest::derived_session`).
     pub derived: Option<String>,
+    /// A client header, body field or execution session named the session (Go
+    /// `extractExplicitSessionIDs`). Without one, session affinity asks the LCP matcher
+    /// first (`crate::lcp`).
+    pub explicit: bool,
 }
 
 /// Resolves the session of a request in `format` from its client headers and body.
@@ -28,8 +32,8 @@ pub fn resolve(format: Format, headers: &HeaderMap, body: &[u8], execution: Opti
         derived: derived.as_deref(),
     };
     let (mut primary, mut parent, fork) = identity::explicit_session_ids(headers, body, &meta);
-    if primary.is_empty() {
-        // ponytail: Go consults its Merkle LCP matcher here for authenticated callers.
+    let explicit = !primary.is_empty();
+    if !explicit {
         (primary, parent) = identity::session_ids(headers, body, &meta);
     }
     let some = |s: String| (!s.is_empty()).then(|| identity::bound_session_identity(&s));
@@ -38,6 +42,7 @@ pub fn resolve(format: Format, headers: &HeaderMap, body: &[u8], execution: Opti
         parent: some(parent),
         fork,
         derived,
+        explicit,
     }
 }
 
