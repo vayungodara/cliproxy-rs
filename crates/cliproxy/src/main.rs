@@ -366,6 +366,37 @@ fn is_discover_flag(arg: &str) -> bool {
     matches!(flag, "discover" | "discover-json")
 }
 
+/// In discover mode no plugin loads, so the parse accepts exactly the flags the
+/// pre-scan read as boolean plugin flags (an undefined flag right before
+/// `-discover` or `-discover-json`) and ignores them.
+struct PrescanBools(Vec<String>);
+
+impl PrescanBools {
+    fn from_args(args: &[String]) -> Self {
+        let names = args
+            .iter()
+            .zip(args.iter().skip(1))
+            .take_while(|(arg, _)| *arg != "--")
+            .filter(|(_, next)| is_discover_flag(next))
+            .filter_map(|(arg, _)| {
+                let bare = arg.strip_prefix('-')?;
+                let bare = bare.strip_prefix('-').unwrap_or(bare);
+                (!bare.is_empty() && !bare.contains('=') && !builtin_flag(bare)).then(|| bare.to_owned())
+            })
+            .collect();
+        Self(names)
+    }
+}
+
+impl plugin_cli::PluginFlags for PrescanBools {
+    fn lookup(&self, name: &str) -> Option<bool> {
+        self.0.iter().any(|n| n == name).then_some(true)
+    }
+    fn set(&self, _: &str, _: &str) -> Result<(), String> {
+        Ok(())
+    }
+}
+
 /// Go's `appendCSV` flag function: each occurrence is split and appended.
 fn csv_flags(values: &[String]) -> Vec<String> {
     values
@@ -551,7 +582,10 @@ fn main() -> anyhow::Result<()> {
     };
     let flags = match &plugins {
         Some((host, _)) => go_flags(&cmd, raw, host),
-        None => go_flags(&cmd, raw, &()),
+        None => {
+            let prescanned = PrescanBools::from_args(&raw[1..]);
+            go_flags(&cmd, raw, &prescanned)
+        }
     }
     .unwrap_or_else(|e| flag_error(&mut cmd, &e));
     let matches = cmd.clone().get_matches_from(flags);
@@ -961,6 +995,28 @@ mod tests {
             &argv(&["-password", "--discover-json"]),
             "discover-json"
         ));
+    }
+
+    /// `-plugin-verbose -discover` selects discover mode, and the parse that follows
+    /// (without plugins) accepts that flag; another undefined flag still fails.
+    #[test]
+    fn a_plugin_flag_before_discover_parses_in_discover_mode() {
+        let parse = |a: &[&str]| {
+            let raw: Vec<String> = std::iter::once("cliproxy")
+                .chain(a.iter().copied())
+                .map(str::to_owned)
+                .collect();
+            assert!(argv_enables_bool_flag(&raw[1..], "discover"), "{a:?}");
+            let flags = go_flags(&Args::command(), raw.clone(), &PrescanBools::from_args(&raw[1..]))?;
+            Args::try_parse_from(flags).map_err(|e| e.to_string())
+        };
+        assert!(parse(&["-plugin-verbose", "-discover"]).unwrap().discover);
+        assert!(
+            parse(&["--plugin-verbose", "--discover", "-discover-timeout", "5"])
+                .unwrap()
+                .discover
+        );
+        assert!(parse(&["-plugin-mode", "fast", "-discover"]).is_err());
     }
 
     #[test]
