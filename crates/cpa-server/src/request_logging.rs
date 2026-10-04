@@ -199,10 +199,10 @@ async fn capture(State(state): State<CaptureState>, mut request: Request, next: 
             metadata_ready: false,
             websocket_done: false,
             timeline: None,
-            api_timeline: Vec::new(),
-            api_request: Vec::new(),
+            api_timeline: Section::new("api-websocket-timeline"),
+            api_request: Section::new("api-request"),
             deferred_api_request: Vec::new(),
-            api_response: Vec::new(),
+            api_response: Section::new("api-response"),
             api_timestamp: None,
             api_errors: Vec::new(),
             upstream: UpstreamCapture::default(),
@@ -350,20 +350,20 @@ impl RequestLog {
 
     pub fn api_request(&self, bytes: &[u8]) {
         if let Some(record) = self.0.lock().unwrap_or_else(PoisonError::into_inner).as_mut() {
-            record.api_request.extend_from_slice(bytes);
+            record.api_request.append(&record.state.dir, bytes);
         }
     }
 
     pub fn api_response(&self, bytes: &[u8], timestamp: DateTime<Local>) {
         if let Some(record) = self.0.lock().unwrap_or_else(PoisonError::into_inner).as_mut() {
-            record.api_response.extend_from_slice(bytes);
+            record.api_response.append(&record.state.dir, bytes);
             record.api_timestamp.get_or_insert(timestamp);
         }
     }
 
     pub fn api_websocket_timeline(&self, bytes: &[u8]) {
         if let Some(record) = self.0.lock().unwrap_or_else(PoisonError::into_inner).as_mut() {
-            record.api_timeline.extend_from_slice(bytes);
+            record.api_timeline.append(&record.state.dir, bytes);
         }
     }
 
@@ -476,13 +476,9 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
                     capture.deferred_bytes += length;
                     (capture.deferred_requests, length)
                 };
-                let out = if enabled {
-                    &mut record.api_request
-                } else {
-                    &mut record.deferred_api_request
-                };
+                let mut head = Vec::new();
                 write!(
-                    out,
+                    head,
                     "=== API REQUEST {index} ===\nTimestamp: {}\nUpstream URL: {}\n",
                     timestamp(Local::now()),
                     if info.url.is_empty() {
@@ -493,42 +489,56 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
                 )
                 .unwrap();
                 if !info.method.is_empty() {
-                    writeln!(out, "HTTP Method: {}", info.method).unwrap();
+                    writeln!(head, "HTTP Method: {}", info.method).unwrap();
                 }
-                upstream_auth(out, &info);
-                out.extend_from_slice(b"\nHeaders:\n");
-                upstream_headers(out, info.headers);
-                out.extend_from_slice(b"\nBody:\n");
-                if info.body.is_empty() {
-                    out.extend_from_slice(b"<empty>");
+                upstream_auth(&mut head, &info);
+                head.extend_from_slice(b"\nHeaders:\n");
+                upstream_headers(&mut head, info.headers);
+                head.extend_from_slice(b"\nBody:\n");
+                let body: &[u8] = if info.body.is_empty() {
+                    b"<empty>"
                 } else {
-                    out.extend_from_slice(&info.body[..limit]);
-                    if limit < info.body.len() {
-                        write!(out, "\n[API REQUEST BODY TRUNCATED: captured first {limit} bytes]").unwrap();
+                    &info.body[..limit]
+                };
+                let mut tail = Vec::new();
+                if limit < info.body.len() {
+                    write!(tail, "\n[API REQUEST BODY TRUNCATED: captured first {limit} bytes]").unwrap();
+                }
+                tail.extend_from_slice(b"\n\n");
+                // The body goes straight to the section, so a large one is not
+                // copied into a second buffer first.
+                for part in [&head[..], body, &tail[..]] {
+                    if enabled {
+                        record.api_request.append(&record.state.dir, part);
+                    } else {
+                        record.deferred_api_request.extend_from_slice(part);
                     }
                 }
-                out.extend_from_slice(b"\n\n");
             }
             _ if !enabled => {}
             ResponseMetadata(status, headers) => {
                 upstream_intro(record);
+                let mut part = Vec::new();
                 if status > 0 && !record.upstream.status {
-                    writeln!(record.api_response, "Status: {status}").unwrap();
+                    writeln!(part, "Status: {status}").unwrap();
                     record.upstream.status = true;
                 }
                 if !record.upstream.headers {
-                    record.api_response.extend_from_slice(b"Headers:\n");
-                    upstream_headers(&mut record.api_response, headers);
-                    record.api_response.push(b'\n');
+                    part.extend_from_slice(b"Headers:\n");
+                    upstream_headers(&mut part, headers);
+                    part.push(b'\n');
                     record.upstream.headers = true;
                 }
+                record.api_response.append(&record.state.dir, &part);
             }
             ResponseError(error) => {
                 upstream_intro(record);
+                let mut part = Vec::new();
                 if record.upstream.error {
-                    record.api_response.push(b'\n');
+                    part.push(b'\n');
                 }
-                writeln!(record.api_response, "Error: {error}").unwrap();
+                writeln!(part, "Error: {error}").unwrap();
+                record.api_response.append(&record.state.dir, &part);
                 record.upstream.error = true;
             }
             ResponseChunk(chunk) => {
@@ -537,22 +547,24 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
                     return;
                 }
                 upstream_intro(record);
+                let dir = &record.state.dir;
                 if !record.upstream.headers {
-                    record.api_response.extend_from_slice(b"Headers:\n<none>\n\n");
+                    record.api_response.append(dir, b"Headers:\n<none>\n\n");
                     record.upstream.headers = true;
                 }
                 if !record.upstream.body {
-                    record.api_response.extend_from_slice(b"Body:\n");
+                    record.api_response.append(dir, b"Body:\n");
                 } else {
-                    record
-                        .api_response
-                        .extend_from_slice(if record.upstream.event && chunk.starts_with(b"data:") {
+                    record.api_response.append(
+                        dir,
+                        if record.upstream.event && chunk.starts_with(b"data:") {
                             b"\n"
                         } else {
                             b"\n\n"
-                        });
+                        },
+                    );
                 }
-                record.api_response.extend_from_slice(chunk);
+                record.api_response.append(dir, chunk);
                 record.upstream.body = true;
                 record.upstream.event = chunk.starts_with(b"event:");
             }
@@ -566,7 +578,7 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
                 upstream_headers(&mut part, info.headers);
                 part.extend_from_slice(b"\nBody:\n");
                 part.extend_from_slice(if info.body.is_empty() { b"<empty>" } else { info.body });
-                upstream_timeline(&mut record.api_timeline, &part);
+                upstream_timeline(&mut record.api_timeline, &record.state.dir, &part);
             }
             WebsocketHandshake(status, headers) => {
                 let mut part = websocket_event("api.websocket.handshake");
@@ -575,7 +587,7 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
                 }
                 part.extend_from_slice(b"Headers:\n");
                 upstream_headers(&mut part, headers);
-                upstream_timeline(&mut record.api_timeline, &part);
+                upstream_timeline(&mut record.api_timeline, &record.state.dir, &part);
             }
             WebsocketResponse(payload) => {
                 let payload = trim(payload);
@@ -585,7 +597,7 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
                 record.api_timestamp.get_or_insert_with(Local::now);
                 let mut part = websocket_event("api.websocket.response");
                 part.extend_from_slice(payload);
-                upstream_timeline(&mut record.api_timeline, &part);
+                upstream_timeline(&mut record.api_timeline, &record.state.dir, &part);
             }
             WebsocketError { stage, error } => {
                 record.api_timestamp.get_or_insert_with(Local::now);
@@ -595,7 +607,7 @@ impl cpa_core::exec::CaptureObserver for RequestLog {
                     writeln!(part, "Stage: {stage}").unwrap();
                 }
                 writeln!(part, "Error: {error}").unwrap();
-                upstream_timeline(&mut record.api_timeline, &part);
+                upstream_timeline(&mut record.api_timeline, &record.state.dir, &part);
             }
         }
     }
@@ -609,21 +621,20 @@ fn upstream_intro(record: &mut Record) {
         record.upstream.attempts = 1;
         record
             .api_request
-            .extend_from_slice(b"=== API REQUEST 1 ===\n<missing>\n\n");
+            .append(&record.state.dir, b"=== API REQUEST 1 ===\n<missing>\n\n");
     }
+    let mut part = Vec::new();
     if !record.api_response.is_empty() {
-        let trailing = record.api_response.iter().rev().take_while(|&&c| c == b'\n').count();
-        for _ in trailing..2 {
-            record.api_response.push(b'\n');
-        }
+        part.resize(2usize.saturating_sub(record.api_response.trailing), b'\n');
     }
     write!(
-        record.api_response,
+        part,
         "=== API RESPONSE {} ===\nTimestamp: {}\n\n",
         record.upstream.attempts,
         timestamp(Local::now())
     )
     .unwrap();
+    record.api_response.append(&record.state.dir, &part);
     record.upstream.intro = true;
 }
 
@@ -676,11 +687,11 @@ fn websocket_event(event: &str) -> Vec<u8> {
     format!("Timestamp: {}\nEvent: {event}\n", timestamp(Local::now())).into_bytes()
 }
 
-fn upstream_timeline(out: &mut Vec<u8>, part: &[u8]) {
+fn upstream_timeline(out: &mut Section, dir: &Path, part: &[u8]) {
     if !out.is_empty() {
-        out.extend_from_slice(b"\n\n");
+        out.append(dir, b"\n\n");
     }
-    out.extend_from_slice(trim(part));
+    out.append(dir, trim(part));
 }
 
 /// Connection-owned timeline sink. Explicit `close().await` waits for the durable
@@ -918,6 +929,122 @@ impl Drop for Spool {
     }
 }
 
+/// In-memory bytes an upstream section keeps before it moves to its spool file.
+const SECTION_MEMORY: usize = 64 << 10;
+/// Long enough for every section header that `section` looks for.
+const SECTION_HEAD: usize = 32;
+
+/// An append-only upstream section of the log (API REQUEST, API RESPONSE or
+/// API WEBSOCKET TIMELINE). Go appends these to file-backed sources
+/// (request_logging.go attachRequestLogSources), so a long stream or WebSocket
+/// session does not grow in memory. Here a section stays in memory until it
+/// passes SECTION_MEMORY bytes, then the buffered bytes and everything after
+/// them go to a spool file in the log directory. If the spool cannot be
+/// written, the section keeps the rest in memory, as Go's writeAttemptResponse
+/// falls back to a strings.Builder.
+struct Section {
+    prefix: &'static str,
+    memory: Vec<u8>,
+    spool: Option<Spool>,
+    /// Bytes at the start of the spool file that belong to the section; a
+    /// failed write can leave more after them, which are never read.
+    spilled: u64,
+    spill_failed: bool,
+    /// The first SECTION_HEAD bytes of the section.
+    head: Vec<u8>,
+    /// Newlines at the end of the section.
+    trailing: usize,
+    /// Every byte so far is whitespace (the section trims to nothing).
+    blank: bool,
+}
+
+impl Section {
+    fn new(prefix: &'static str) -> Self {
+        Self {
+            prefix,
+            memory: Vec::new(),
+            spool: None,
+            spilled: 0,
+            spill_failed: false,
+            head: Vec::new(),
+            trailing: 0,
+            blank: true,
+        }
+    }
+
+    /// A section that holds `bytes` in memory, for a buffer that is already
+    /// in memory as a whole.
+    fn from_vec(prefix: &'static str, bytes: Vec<u8>) -> Self {
+        let mut section = Self::new(prefix);
+        section.track(&bytes);
+        section.memory = bytes;
+        section
+    }
+
+    fn is_empty(&self) -> bool {
+        self.spilled == 0 && self.memory.is_empty()
+    }
+
+    fn track(&mut self, bytes: &[u8]) {
+        if bytes.is_empty() {
+            return;
+        }
+        let room = SECTION_HEAD.saturating_sub(self.head.len());
+        self.head.extend_from_slice(&bytes[..room.min(bytes.len())]);
+        let newlines = bytes.iter().rev().take_while(|&&b| b == b'\n').count();
+        self.trailing = if newlines == bytes.len() {
+            self.trailing + newlines
+        } else {
+            newlines
+        };
+        self.blank &= trim(bytes).is_empty();
+    }
+
+    fn append(&mut self, dir: &Path, bytes: &[u8]) {
+        if bytes.is_empty() {
+            return;
+        }
+        self.track(bytes);
+        if !self.spill_failed && self.memory.len() + bytes.len() > SECTION_MEMORY {
+            if self.spill(dir, bytes).is_ok() {
+                return;
+            }
+            self.spill_failed = true;
+        }
+        self.memory.extend_from_slice(bytes);
+    }
+
+    /// Moves the buffered bytes and then `bytes` to the spool file. On error,
+    /// whatever did not reach the file is still in memory or in `bytes`.
+    fn spill(&mut self, dir: &Path, bytes: &[u8]) -> io::Result<()> {
+        if self.spool.is_none() {
+            self.spool = Some(Spool::new(dir, self.prefix)?);
+        }
+        let file = &mut self.spool.as_mut().unwrap().file;
+        file.write_all(&self.memory)?;
+        self.spilled += self.memory.len() as u64;
+        // Appends only reach memory while it stays within SECTION_MEMORY, so
+        // the kept allocation is bounded too.
+        self.memory.clear();
+        file.write_all(bytes)?;
+        self.spilled += bytes.len() as u64;
+        Ok(())
+    }
+
+    fn write_to(&self, out: &mut dyn Write) -> io::Result<()> {
+        if let Some(spool) = self.spool.as_ref().filter(|_| self.spilled > 0) {
+            let copied = io::copy(&mut File::open(&spool.path)?.take(self.spilled), out)?;
+            if copied != self.spilled {
+                return Err(io::Error::new(
+                    io::ErrorKind::UnexpectedEof,
+                    format!("{} spool is shorter than written", self.prefix),
+                ));
+            }
+        }
+        out.write_all(&self.memory)
+    }
+}
+
 struct Record {
     state: CaptureState,
     enabled: bool,
@@ -938,10 +1065,10 @@ struct Record {
     metadata_ready: bool,
     websocket_done: bool,
     timeline: Option<Spool>,
-    api_timeline: Vec<u8>,
-    api_request: Vec<u8>,
+    api_timeline: Section,
+    api_request: Section,
     deferred_api_request: Vec<u8>,
-    api_response: Vec<u8>,
+    api_response: Section,
     api_timestamp: Option<DateTime<Local>>,
     api_errors: Vec<(u16, String)>,
     upstream: UpstreamCapture,
@@ -963,7 +1090,7 @@ impl Record {
             return;
         }
         if forced && self.api_request.is_empty() {
-            self.api_request = std::mem::take(&mut self.deferred_api_request);
+            self.api_request = Section::from_vec("api-request", std::mem::take(&mut self.deferred_api_request));
         }
         if let Some(deferred) = &self.deferred {
             let body = deferred.lock().unwrap_or_else(PoisonError::into_inner).bytes();
@@ -1057,8 +1184,8 @@ impl Record {
         } else {
             "http"
         };
-        let http = !trim(&self.api_request).is_empty() || !trim(&self.api_response).is_empty();
-        let ws = !trim(&self.api_timeline).is_empty();
+        let http = !self.api_request.blank || !self.api_response.blank;
+        let ws = !self.api_timeline.blank;
         let upstream = match (http, ws) {
             (true, true) => "websocket+http",
             (true, false) => "http",
@@ -1253,29 +1380,35 @@ fn headers(out: &mut dyn Write, headers: &HeaderMap, mask: bool) -> io::Result<(
 }
 
 fn spacing(out: &mut dyn Write, bytes: &[u8]) -> io::Result<()> {
-    let trailing = if bytes.is_empty() {
-        1
-    } else {
-        bytes.iter().rev().take_while(|&&b| b == b'\n').count()
-    };
+    pad(
+        out,
+        if bytes.is_empty() {
+            1
+        } else {
+            bytes.iter().rev().take_while(|&&b| b == b'\n').count()
+        },
+    )
+}
+
+fn pad(out: &mut dyn Write, trailing: usize) -> io::Result<()> {
     for _ in trailing..3 {
         out.write_all(b"\n")?;
     }
     Ok(())
 }
 
-fn section(out: &mut dyn Write, name: &str, bytes: &[u8], at: Option<DateTime<Local>>) -> io::Result<()> {
+fn section(out: &mut dyn Write, name: &str, bytes: &Section, at: Option<DateTime<Local>>) -> io::Result<()> {
     if bytes.is_empty() {
         return Ok(());
     }
-    if !bytes.starts_with(format!("=== {name}").as_bytes()) {
+    if !bytes.head.starts_with(format!("=== {name}").as_bytes()) {
         writeln!(out, "=== {name} ===")?;
         if let Some(at) = at {
             writeln!(out, "Timestamp: {}", timestamp(at))?;
         }
     }
-    out.write_all(bytes)?;
-    spacing(out, bytes)
+    bytes.write_to(out)?;
+    pad(out, bytes.trailing)
 }
 
 fn filename(url: &str, id: &str, at: DateTime<Local>, error: bool) -> String {
@@ -1508,6 +1641,12 @@ mod tests {
         lines.join("\n")
     }
 
+    fn contents(section: &Section) -> Vec<u8> {
+        let mut out = Vec::new();
+        section.write_to(&mut out).unwrap();
+        out
+    }
+
     fn logs(dir: &Path) -> Vec<PathBuf> {
         std::fs::read_dir(dir)
             .unwrap()
@@ -1593,20 +1732,20 @@ mod tests {
                         (
                             "request",
                             if kind == "disabled" {
-                                &record.deferred_api_request
+                                record.deferred_api_request.clone()
                             } else {
-                                &record.api_request
+                                contents(&record.api_request)
                             },
                         ),
-                        ("response", &record.api_response),
-                        ("timeline", &record.api_timeline),
+                        ("response", contents(&record.api_response)),
+                        ("timeline", contents(&record.api_timeline)),
                     ] {
                         assert_eq!(
-                            canonical(std::str::from_utf8(bytes).unwrap()).trim_end_matches('\n'),
+                            canonical(std::str::from_utf8(&bytes).unwrap()).trim_end_matches('\n'),
                             case[name].as_str().unwrap().trim_end_matches('\n'),
                             "{kind} {name}"
                         );
-                        assert!(!String::from_utf8_lossy(bytes).contains("never-print-oauth"));
+                        assert!(!String::from_utf8_lossy(&bytes).contains("never-print-oauth"));
                     }
                     "ok"
                 }
@@ -2474,6 +2613,7 @@ mod tests {
             assert!(content.contains("\nContent-Type: application/json\n"));
         }
     }
+
     #[tokio::test]
     async fn upstream_url_credentials_are_redacted_in_logs() {
         use cpa_core::exec::CaptureEvent::*;
@@ -2521,5 +2661,53 @@ mod tests {
             logged_url("https://user@host.example/x"),
             "https://<redacted>@host.example/x"
         );
+    }
+
+    #[tokio::test]
+    async fn large_upstream_sections_stay_bounded_in_memory() {
+        use cpa_core::exec::CaptureEvent::*;
+        let body = vec![b'q'; 20 << 20];
+        let chunk: Vec<u8> = (0..64 << 10).map(|i| b'a' + (i % 26) as u8).collect();
+        const CHUNKS: usize = 640;
+        let events = {
+            let body = body.clone();
+            let chunk = chunk.clone();
+            move |log: &RequestLog| {
+                let sink = log.capture_sink();
+                sink.record(Request(upstream_request("https://fixture.invalid/v1", &[], &body)));
+                sink.record(ResponseMetadata(200, &[]));
+                for _ in 0..CHUNKS {
+                    sink.record(ResponseChunk(&chunk));
+                }
+                let locked = log.0.lock().unwrap();
+                let record = locked.as_ref().unwrap();
+                for section in [&record.api_request, &record.api_response] {
+                    assert!(section.spool.is_some());
+                    assert!(
+                        section.memory.capacity() <= 2 * SECTION_MEMORY,
+                        "{}",
+                        section.memory.capacity()
+                    );
+                }
+            }
+        };
+        let content = persisted(true, StatusCode::OK, events).await;
+        let find = |from: usize, needle: &[u8]| {
+            from + content[from..]
+                .windows(needle.len())
+                .position(|w| w == needle)
+                .unwrap_or_else(|| panic!("missing {}", String::from_utf8_lossy(needle)))
+        };
+        let expect = |at: usize, want: &[u8]| {
+            assert!(content.len() >= at + want.len() && &content[at..at + want.len()] == want);
+        };
+        let request = find(0, b"=== API REQUEST 1 ===\n");
+        let start = find(request, b"\nBody:\n") + b"\nBody:\n".len();
+        expect(start, &[&body[..], b"\n\n\n=== API RESPONSE 1 ===\n"].concat());
+        let response = find(start + body.len(), b"=== API RESPONSE 1 ===\n");
+        let start = find(response, b"\nBody:\n") + b"\nBody:\n".len();
+        let mut stream = vec![chunk.clone(); CHUNKS].join(&b"\n\n"[..]);
+        stream.extend_from_slice(b"\n\n\n=== RESPONSE ===\nStatus: 200\n");
+        expect(start, &stream);
     }
 }
