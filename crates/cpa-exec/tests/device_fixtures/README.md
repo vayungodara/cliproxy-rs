@@ -42,8 +42,9 @@ RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFixResponsesFrames' ./sdk/api/
 cp -r /tmp/rsfix/* <cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/
 ```
 
-The generator pins `buildinfo.Version` to the Rust crate version so `User-Agent` and
-`X-Msh-Version` compare exactly. Values that depend on the machine (Host port, hostname,
+The generator pins `buildinfo.Version` to `0.1.0`, and the fixture loader puts the running
+crate version in its place, so `User-Agent` and `X-Msh-Version` still compare exactly after a
+release bump. Values that depend on the machine (Host port, hostname,
 OS/arch, random device IDs, timestamps, Devin message IDs, Sentry traces and unseeded
 fingerprints) are masked by the tests, which check the Rust
 values against their own rules instead. Nothing here contacts a real provider.

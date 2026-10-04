@@ -48,7 +48,10 @@ impl Captured {
                 .as_array()
                 .unwrap()
                 .iter()
-                .map(|h| (h[0].as_str().unwrap().to_owned(), h[1].as_str().unwrap().to_owned()))
+                .map(|h| {
+                    let (name, value) = (h[0].as_str().unwrap(), h[1].as_str().unwrap());
+                    (name.to_owned(), current_version(name, value))
+                })
                 .collect(),
             body,
         }
@@ -195,6 +198,23 @@ impl Mock {
 
     pub(crate) fn captured(&self) -> Vec<Captured> {
         self.captured.lock().unwrap().clone()
+    }
+}
+
+/// The `buildinfo.Version` the Go generator pinned when recording (go/zz_rsfix_*_test.go).
+const RECORDED_VERSION: &str = "0.1.0";
+
+/// Go sends its build version in `User-Agent: CLIProxyAPI/<version>` and `X-Msh-Version`;
+/// the recordings carry [`RECORDED_VERSION`], so the version of this build replaces it and
+/// a release bump needs no re-recording.
+fn current_version(name: &str, value: &str) -> String {
+    let build = crate::kimi_http::BUILD_VERSION;
+    if name.eq_ignore_ascii_case("x-msh-version") && value == RECORDED_VERSION {
+        return build.to_owned();
+    }
+    match value.strip_prefix("CLIProxyAPI/") {
+        Some(RECORDED_VERSION) if name.eq_ignore_ascii_case("user-agent") => format!("CLIProxyAPI/{build}"),
+        _ => value.to_owned(),
     }
 }
 
