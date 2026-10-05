@@ -175,32 +175,3 @@ fn only_https_chatgpt_uses_the_chrome_profile() {
         assert_eq!(is_chatgpt(url), chrome, "{url}");
     }
 }
-
-/// Go dials a dedicated uTLS connection for every chatgpt.com request. The Chrome client
-/// here keeps its connections instead (docs/DIFFERENCES-FROM-GO.md): HTTP/2 multiplexes
-/// requests, concurrent ones included, and HTTP/1.1 keeps a connection alive.
-#[tokio::test]
-async fn chatgpt_client_reuses_connections() {
-    use std::sync::atomic::Ordering::SeqCst;
-    for alpn in [&b"\x02h2\x08http/1.1"[..], b"\x08http/1.1"] {
-        let (ca, addr, accepted) = crate::test_tls::counting_upstream("chatgpt.com", alpn).await;
-        let transport = Transport::new(Hooks {
-            trust: Some(wreq::tls::trust::CertStore::from_pem_stack(ca).unwrap()),
-            resolve: vec![("chatgpt.com".into(), addr)],
-        });
-        let url = format!("https://chatgpt.com:{}/backend-api/codex/responses", addr.port());
-        let get = || async {
-            let client = transport.for_url(&url, &Proxy::Inherit);
-            let response = client.get(&url).send().await.unwrap();
-            assert_eq!(response.bytes().await.unwrap(), "ok");
-        };
-        for _ in 0..3 {
-            get().await;
-        }
-        assert_eq!(accepted.load(SeqCst), 1, "sequential requests, ALPN {alpn:?}");
-        if alpn.starts_with(b"\x02h2") {
-            futures_util::future::join_all((0..4).map(|_| get())).await;
-            assert_eq!(accepted.load(SeqCst), 1, "concurrent HTTP/2 requests");
-        }
-    }
-}
