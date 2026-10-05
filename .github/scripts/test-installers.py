@@ -21,6 +21,9 @@ import zipfile
 def capture(command, *, timeout=120, **kwargs):
     # Children launched by PowerShell can inherit a pipe and keep communicate()
     # blocked after the shell exits. A file keeps output without waiting for EOF.
+    # No fixture reads stdin. Do not let Windows PowerShell inherit the runner's
+    # still-open input stream while stdout goes to a file.
+    kwargs.setdefault("stdin", subprocess.DEVNULL)
     with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as output:
         try:
             result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT,
@@ -131,7 +134,14 @@ def main():
         original_run = None
 
         def ps(code, check=True, cwd=None):
-            result = capture(["powershell.exe", "-NoProfile", "-Command", code], env=env, cwd=cwd, timeout=30)
+            entered = root / "powershell-entered"
+            entered.unlink(missing_ok=True)
+            prelude = "[IO.File]::WriteAllText('" + str(entered).replace("'", "''") + "','entered'); "
+            try:
+                result = capture(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", prelude + code], env=env, cwd=cwd, timeout=30)
+            except subprocess.TimeoutExpired:
+                print(f"PowerShell helper entered command: {entered.exists()}", file=sys.stderr)
+                raise
             if check:
                 if result.returncode:
                     print(result.stdout, file=sys.stderr)
@@ -142,10 +152,10 @@ def main():
             if windows:
                 if pipe:
                     script = str(repo / "install.ps1").replace("'", "''")
-                    command = ["powershell.exe", "-NoProfile", "-Command", f"$ErrorActionPreference='Stop'; Get-Content -Raw '{script}' | Invoke-Expression"]
+                    command = ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", f"$ErrorActionPreference='Stop'; Get-Content -Raw '{script}' | Invoke-Expression"]
                 else:
                     shell = "pwsh.exe" if "-Service" in args else "powershell.exe"
-                    command = [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(repo / "install.ps1"), *args]
+                    command = [shell, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(repo / "install.ps1"), *args]
             else:
                 command = ["sh", str(repo / "install.sh"), *args]
             result = capture(command, env=env)
@@ -183,6 +193,26 @@ def main():
                          "$acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow'))); "
                          "Set-Acl $env:CLIPROXY_HOME $acl; Write-Output \"Before install: $((Get-Acl $env:CLIPROXY_HOME).Sddl)\""))
             else:
+                # A process can exit between a liveness check and either signal.
+                # An actual signal failure against a live PID must still fail.
+                marker = root / "signal-test.pid"
+                for phase in ("term", "kill"):
+                    for state in ("exited", "alive"):
+                        marker.write_text("4242\n")
+                        result = capture(["sh", "-c", '''
+eval "$(sed '$d' "$1")"
+pidfile=$2; phase=$3; expected=$4; killed=0
+managed_pid() { pid=4242; return 0; }
+pid_running() { [ "$killed" = 0 ] || [ "$expected" = alive ]; }
+sleep() { :; }
+kill() {
+  if [ "$phase" = term ] || [ "$1" = -KILL ]; then killed=1; return 1; fi
+  return 0
+}
+if stop_pidfile; then exit 0; else exit 1; fi
+''', "signal-test", repo / "install.sh", marker, phase, state], env=env)
+                        assert result.returncode == (0 if state == "exited" else 1), result.stdout
+                        assert marker.exists() == (state == "alive")
                 assert "not installed" in install("--check")
                 assert not home.exists() and not bindir.exists()
                 assert not any("/download/" in r for r in requests)
@@ -259,16 +289,17 @@ def main():
                 # still start, stop and verify the managed process with kill -0.
                 shimdir = root / "no-ps"
                 shimdir.mkdir()
-                (shimdir / "ps").write_text("#!/bin/sh\nexit 126\n")
-                (shimdir / "ps").chmod(0o755)
                 original_path = env["PATH"]
                 env["PATH"] = str(shimdir) + os.pathsep + original_path
-                previous_pid = pid()
-                os.utime(bindir / exe, None)
                 try:
-                    install()
-                    health()
-                    assert pid() != previous_pid, "ps refusal must not skip stopping the old server"
+                    for refused in (1, 126, 127):
+                        (shimdir / "ps").write_text(f"#!/bin/sh\nexit {refused}\n")
+                        (shimdir / "ps").chmod(0o755)
+                        previous_pid = pid()
+                        os.utime(bindir / exe, None)
+                        install()
+                        health()
+                        assert pid() != previous_pid, f"ps status {refused} must not skip stopping the old server"
                 finally:
                     env["PATH"] = original_path
             second = root / "second"

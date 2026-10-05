@@ -348,7 +348,7 @@ random_hex() {
 # Stops the server an earlier run started in the background, if it is still running.
 stop_pidfile() {
   if managed_pid && pid_running "$pid"; then
-    kill "$pid" || return 1
+    kill "$pid" || { ! pid_running "$pid" || return 1; }
     i=0
     while pid_running "$pid" && [ "$i" -lt 10 ]; do
       sleep 1
@@ -356,7 +356,7 @@ stop_pidfile() {
     done
     if pid_running "$pid"; then
       printf 'Process %s did not stop after SIGTERM; sending SIGKILL.\n' "$pid" >&2
-      kill -KILL "$pid" || return 1
+      kill -KILL "$pid" || { ! pid_running "$pid" || return 1; }
       i=0
       while pid_running "$pid" && [ "$i" -lt 10 ]; do
         sleep 1
@@ -372,19 +372,15 @@ managed_pid() {
   pid=$(cat "$pidfile" 2>/dev/null) || return 1
   case "$pid" in '' | *[!0-9]*) return 1 ;; esac
   [ "$pid" -gt 0 ] || return 1
-  # Darwin's setuid ps cannot execute under Seatbelt; minimal Linux images may
-  # have no ps. In either case retain the pid-file/kill -0 check.
+  # Seatbelt can refuse Darwin's setuid ps (reported as 1 or 126 by the shell),
+  # and minimal Linux images may lack ps. If inspection fails, retain kill -0.
   field='comm'
   [ "$os" != Darwin ] || field=ucomm
   if command=$(ps -p "$pid" -o "$field=" 2>/dev/null); then
     command=$(printf '%s\n' "$command" | sed 's/^[ ]*//;s/[ ]*$//')
   else
-    status=$?
-    case "$status" in 126 | 127)
-      kill -0 "$pid" 2>/dev/null
-      return $?
-      ;;
-    *) return 1 ;; esac
+    kill -0 "$pid" 2>/dev/null
+    return $?
   fi
   case "$command" in *cliproxy | *cliproxy.prev) return 0 ;; *) return 1 ;; esac
 }
@@ -393,9 +389,6 @@ pid_running() {
   kill -0 "$1" 2>/dev/null || return 1
   if state=$(ps -p "$1" -o stat= 2>/dev/null); then
     case "$state" in '' | *Z*) return 1 ;; esac
-  else
-    status=$?
-    case "$status" in 126 | 127) return 0 ;; *) return 1 ;; esac
   fi
   return 0
 }
