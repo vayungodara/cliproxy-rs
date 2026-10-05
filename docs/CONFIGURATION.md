@@ -56,6 +56,7 @@ observability:
 | Setting | What it does |
 |---|---|
 | `auth-dir` | The folder for account sign-in files, `~/.cli-proxy-api` by default. `~` is expanded. The server watches it, so a file added, edited or removed there takes effect without a restart. |
+| `providers.codex.chatgpt-keep-alive` | A cliproxy-rs addition, `false` by default. `true` keeps up to 2 idle connections to `chatgpt.com` per proxy for 90 seconds, so Codex sign-in requests skip the TCP and TLS handshake. Off, every Codex request opens its own connection, as CLIProxyAPI does. A change applies from the next request, without a restart. Go starts with this key in the file and keeps it when it saves the config, but Go's v8 Management API (`/v8/management/config` writes, which the Go dashboard uses) refuses to change any setting while a key Go does not know is in the file, answering `400 invalid_config`. Remove the key before managing that file from Go. |
 
 ## api-keys
 

@@ -460,7 +460,8 @@
                     "user-agent": "string",
                     "beta-features": "string"
                   }
-                }
+                },
+                "chatgpt-keep-alive": "bool"
               }
             },
             "claude": {

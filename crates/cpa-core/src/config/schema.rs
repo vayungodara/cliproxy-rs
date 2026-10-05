@@ -454,3 +454,28 @@ fn zero_of(kind: &str) -> Option<Value> {
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn yaml(text: &str) -> Value {
+        serde_yaml_ng::from_str(text).unwrap()
+    }
+
+    /// `oauth.providers.codex.chatgpt-keep-alive` is a cliproxy-rs addition in the schema:
+    /// strict management writes accept it as a bool, still reject other keys Go does not
+    /// know, and the v8 migration keeps it instead of commenting it out.
+    #[test]
+    fn chatgpt_keep_alive_is_a_known_codex_bool() {
+        let on = yaml("oauth:\n  providers:\n    codex:\n      chatgpt-keep-alive: true\n");
+        validate(&on, true).unwrap();
+        let wrong = yaml("oauth:\n  providers:\n    codex:\n      chatgpt-keep-alive: [1]\n");
+        assert!(validate(&wrong, true).is_err());
+        let other = yaml("oauth:\n  providers:\n    codex:\n      chatgpt-keep-alive-2: true\n");
+        assert!(validate(&other, true).is_err());
+        let mut migrated = on.clone();
+        assert!(archive_unknown(&mut migrated).is_empty());
+        assert_eq!(migrated, on);
+    }
+}

@@ -4,14 +4,16 @@
 //! - `https://chatgpt.com` (OAuth inference and Alpha Search): uTLS `HelloChrome_Auto`,
 //!   which is Chrome 133 in uTLS v1.8.2. GREASE, permuted extensions, X25519MLKEM768,
 //!   ALPS, brotli certificate compression, ECH GREASE and no session resumption. Dialled
-//!   directly or through the configured proxy, never an environment proxy. Go dials a
-//!   dedicated connection per request; this client keeps up to [`CHROME_IDLE_PER_HOST`]
-//!   idle connections per host and proxy for 90 seconds, so a request usually skips the
-//!   TCP and TLS handshake (docs/DIFFERENCES-FROM-GO.md).
+//!   directly or through the configured proxy, never an environment proxy. By default
+//!   one connection per request, closed with the body, like Go's dedicated uTLS
+//!   connections. With `oauth.providers.codex.chatgpt-keep-alive` (a cliproxy-rs
+//!   addition, off by default) the client keeps up to [`CHROME_IDLE_PER_HOST`] idle
+//!   connections per host and proxy for 90 seconds (docs/DIFFERENCES-FROM-GO.md).
 //! - Every other origin (API-key base URLs, local mocks) and the Responses WebSocket:
 //!   Go's standard transport from [`crate::proxy`].
 //!
-//! Both are cached per effective proxy in bounded 64-entry LRUs.
+//! Both are cached per effective proxy (and, for Chrome, per keep-alive setting) in
+//! bounded 64-entry LRUs.
 
 use std::sync::Mutex;
 
@@ -20,8 +22,9 @@ use wreq::tls::{AlpnProtocol, AlpsProtocol, KeyShare, TlsOptions, TlsVersion};
 
 use crate::proxy::{CACHE_CAPACITY, GoClients, Hooks, Proxy};
 
-/// Idle chatgpt.com connections kept per host, in each per-proxy client: Go's default
-/// `MaxIdleConnsPerHost`, as its Anthropic transport keeps. HTTP/2 multiplexes on one.
+/// Idle chatgpt.com connections kept per host, in each per-proxy client, when keep-alive
+/// is on: Go's default `MaxIdleConnsPerHost`, as its Anthropic transport keeps. HTTP/2
+/// multiplexes on one.
 pub(crate) const CHROME_IDLE_PER_HOST: usize = 2;
 
 /// How long an idle chatgpt.com connection is kept.
@@ -30,7 +33,8 @@ const CHROME_IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(
 pub(crate) struct Transport {
     standard: GoClients,
     hooks: Hooks,
-    chrome: Mutex<Vec<(Proxy, wreq::Client)>>,
+    /// Chrome clients by effective proxy and keep-alive setting, most recent first.
+    chrome: Mutex<Vec<((Proxy, bool), wreq::Client)>>,
 }
 
 impl Transport {
@@ -52,9 +56,10 @@ impl Transport {
     }
 
     /// The client for one request to `url` (`fallbackRoundTripper.RoundTrip`).
-    pub fn for_url(&self, url: &str, proxy: &Proxy) -> wreq::Client {
+    /// `keep_alive` is `chatgpt-keep-alive` and only affects chatgpt.com.
+    pub fn for_url(&self, url: &str, proxy: &Proxy, keep_alive: bool) -> wreq::Client {
         if is_chatgpt(url) {
-            self.chrome(proxy)
+            self.chrome(proxy, keep_alive)
         } else {
             self.standard.get(proxy)
         }
@@ -65,9 +70,9 @@ impl Transport {
         self.standard.get(proxy)
     }
 
-    fn chrome(&self, proxy: &Proxy) -> wreq::Client {
+    fn chrome(&self, proxy: &Proxy, keep_alive: bool) -> wreq::Client {
         let mut cache = self.chrome.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(i) = cache.iter().position(|(p, _)| p == proxy) {
+        if let Some(i) = cache.iter().position(|((p, k), _)| p == proxy && *k == keep_alive) {
             let entry = cache.remove(i);
             let client = entry.1.clone();
             cache.insert(0, entry);
@@ -75,22 +80,27 @@ impl Transport {
         }
         // Go logs an unusable proxy dialer and dials directly.
         let client = self
-            .build_chrome(proxy)
-            .or_else(|_| self.build_chrome(&Proxy::Direct))
+            .build_chrome(proxy, keep_alive)
+            .or_else(|_| self.build_chrome(&Proxy::Direct, keep_alive))
             .expect("Chrome TLS client");
-        cache.insert(0, (proxy.clone(), client.clone()));
+        cache.insert(0, ((proxy.clone(), keep_alive), client.clone()));
         cache.truncate(CACHE_CAPACITY);
         client
     }
 
-    fn build_chrome(&self, proxy: &Proxy) -> wreq::Result<wreq::Client> {
+    fn build_chrome(&self, proxy: &Proxy, keep_alive: bool) -> wreq::Result<wreq::Client> {
         let builder = wreq::Client::builder()
             .redirect(wreq::redirect::Policy::none())
-            .tls_options(chrome_options())
-            // Go opens a dedicated uTLS connection per request and closes it with the body;
-            // pooling keeps the same ClientHello and headers without a handshake per request.
-            .pool_max_idle_per_host(CHROME_IDLE_PER_HOST)
-            .pool_idle_timeout(CHROME_IDLE_TIMEOUT);
+            .tls_options(chrome_options());
+        let builder = if keep_alive {
+            // Opt-in: the same ClientHello and headers, without a handshake per request.
+            builder
+                .pool_max_idle_per_host(CHROME_IDLE_PER_HOST)
+                .pool_idle_timeout(CHROME_IDLE_TIMEOUT)
+        } else {
+            // Go opens a dedicated uTLS connection per request and closes it with the body.
+            builder.pool_max_idle_per_host(0)
+        };
         // ponytail: HTTP/2 framing (SETTINGS, window sizes) is wreq's, not Go's x/net/http2.
         proxy.apply(self.hooks.apply(builder), false)?.build()
     }
