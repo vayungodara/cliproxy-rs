@@ -486,9 +486,16 @@ mod sys {
         next: Mutex<Option<Vec<Dir>>>,
         /// Where the thread reports whether it opened the folders of `next`; the caller
         /// waits for it, so no change made after a retarget can be missed.
-        opened: Mutex<Option<std::sync::mpsc::Sender<io::Result<()>>>>,
+        opened: Mutex<Ack>,
         changed: Notify,
         failed: Mutex<Option<io::Error>>,
+    }
+
+    #[derive(Default)]
+    struct Ack {
+        reply: Option<std::sync::mpsc::Sender<io::Result<()>>>,
+        /// The thread has exited; nobody will answer.
+        closed: bool,
     }
 
     pub struct Watch {
@@ -503,14 +510,22 @@ mod sys {
             let shared = Arc::new(Shared {
                 control: event()?,
                 next: Mutex::new(Some(dirs.clone())),
-                opened: Mutex::new(Some(opened_tx)),
+                opened: Mutex::new(Ack {
+                    reply: Some(opened_tx),
+                    closed: false,
+                }),
                 changed: Notify::new(),
                 failed: Mutex::new(None),
             });
             let thread_shared = shared.clone();
-            std::thread::Builder::new()
-                .name("config-watch".into())
-                .spawn(move || run(&thread_shared))?;
+            std::thread::Builder::new().name("config-watch".into()).spawn(move || {
+                run(&thread_shared);
+                // Drops a pending reply sender, so a waiting retarget gets an error.
+                *thread_shared.opened.lock().unwrap_or_else(PoisonError::into_inner) = Ack {
+                    reply: None,
+                    closed: true,
+                };
+            })?;
             opened_rx
                 .recv()
                 .map_err(|_| io::Error::other("watch thread exited"))??;
@@ -523,7 +538,13 @@ mod sys {
                 return Ok(());
             }
             let (opened_tx, opened_rx) = std::sync::mpsc::channel();
-            *self.shared.opened.lock().unwrap_or_else(PoisonError::into_inner) = Some(opened_tx);
+            {
+                let mut ack = self.shared.opened.lock().unwrap_or_else(PoisonError::into_inner);
+                if ack.closed {
+                    return Err(io::Error::other("watch thread exited"));
+                }
+                ack.reply = Some(opened_tx);
+            }
             *self.shared.next.lock().unwrap_or_else(PoisonError::into_inner) = Some(next.clone());
             self.dirs = next;
             // SAFETY: a valid event handle.
@@ -664,7 +685,12 @@ mod sys {
                 return;
             };
             let opened: io::Result<Vec<Pending>> = dirs.iter().map(Pending::open).collect();
-            let reply = shared.opened.lock().unwrap_or_else(PoisonError::into_inner).take();
+            let reply = shared
+                .opened
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .reply
+                .take();
             let mut pending = match opened {
                 Ok(p) => p,
                 Err(e) => {
