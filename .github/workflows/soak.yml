@@ -1,0 +1,55 @@
+# Memory soak (bench/soak.sh): resident memory must stay flat under hours of large Claude
+# requests. One hour on every release tag (a release candidate); start the 330-minute
+# run by hand before publishing a release. GitHub-hosted jobs stop at 6 hours, so 330
+# minutes is the longest soak a hosted runner can hold.
+name: soak
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: Minutes of load (at most 330)
+        default: "60"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  soak:
+    name: soak (${{ inputs.minutes || '60' }} min)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: actions/setup-go@v7
+        with:
+          go-version: stable
+          cache: false
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: false
+      - name: Build
+        run: cargo build --release --locked -p cliproxy
+      - name: Soak
+        env:
+          MINUTES: ${{ inputs.minutes || '60' }}
+        run: |
+          if (( MINUTES > 330 )); then MINUTES=330; fi
+          go build -o soak/bin/messages bench/messages/main.go
+          bench/soak.sh target/release/cliproxy "$MINUTES" soak
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: soak
+          path: |
+            soak/soak.tsv
+            soak/server.log

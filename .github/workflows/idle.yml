@@ -1,0 +1,135 @@
+# Idle cost outside the per-PR Linux gate: once a week, by hand, and on any push or pull
+# request that changes the file watcher or these gates.
+#
+# - macOS (Apple silicon and Intel) and Windows: release build, the file-watch tests,
+#   then the idle gate (bench/gate.sh, bench/budgets.txt).
+# - Go comparison: CLIProxyAPI's release binary and this one on the same one-API-key
+#   config in a loopback-only network, 30 s of warm-up, then 300 s of samples. No OAuth
+#   credentials are involved, so nothing can be signed out. The numbers go to the job
+#   summary and an artifact; they are reported, not gated.
+name: idle
+
+on:
+  schedule:
+    - cron: "23 4 * * 1"
+  workflow_dispatch:
+  push:
+    paths:
+      - crates/cpa-server/src/fs_events.rs
+      - crates/cpa-server/src/watching.rs
+      - bench/idle.sh
+      - bench/idle-other.sh
+      - bench/gate.sh
+      - bench/budgets.txt
+      - .github/workflows/idle.yml
+  pull_request:
+    paths:
+      - crates/cpa-server/src/fs_events.rs
+      - crates/cpa-server/src/watching.rs
+      - bench/idle.sh
+      - bench/idle-other.sh
+      - bench/gate.sh
+      - bench/budgets.txt
+      - .github/workflows/idle.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  other-os:
+    name: idle gate (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target: aarch64-apple-darwin, os: macos-15 }
+          - { target: x86_64-apple-darwin, os: macos-15-intel }
+          - { target: x86_64-pc-windows-msvc, os: windows-2025 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      # As in release.yml: BoringSSL needs NASM on a native MSVC build; bindgen needs libclang.
+      - name: NASM and libclang (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install nasm --no-progress -y
+          printf '%s\n' 'C:\Program Files\NASM' >> "$GITHUB_PATH"
+          printf 'LIBCLANG_PATH=%s\n' 'C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
+      - name: Rust
+        run: |
+          if ! command -v rustup >/dev/null; then
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+            export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install stable --profile minimal --target ${{ matrix.target }}
+          rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Build
+        run: cargo build --release --locked -p cliproxy --target ${{ matrix.target }}
+      # kqueue on macOS and ReadDirectoryChangesW on Windows are only exercised here.
+      - name: File-watch tests
+        run: cargo test --release --locked -p cpa-server --lib --target ${{ matrix.target }} -- fs_events watching
+      - name: Idle gate
+        run: |
+          exe=cliproxy; os=macos
+          [[ "$RUNNER_OS" == Windows ]] && { exe=cliproxy.exe; os=windows; }
+          bench/gate.sh idle "$os" "target/${{ matrix.target }}/release/$exe" 1
+
+  go-comparison:
+    name: idle, Go vs cliproxy-rs (Linux)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      GO_RELEASE: v8.0.10
+      GO_ARCHIVE: CLIProxyAPI_8.0.10_linux_amd64.tar.gz
+      GO_SHA256: 6211e059951e83acffedac098ad44a8bc60b47a53988c8d34d44397bfabbf578
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
+      - name: Build
+        run: cargo build --release --locked -p cliproxy
+      - name: CLIProxyAPI release binary
+        run: |
+          curl -sSfL -o go.tar.gz "https://github.com/router-for-me/CLIProxyAPI/releases/download/$GO_RELEASE/$GO_ARCHIVE"
+          echo "$GO_SHA256  go.tar.gz" | sha256sum -c -
+          mkdir go-bin && tar -xzf go.tar.gz -C go-bin
+      - name: Compare
+        run: |
+          for server in go rust; do
+            bin=target/release/cliproxy; [[ $server == go ]] && bin=go-bin/cli-proxy-api
+            WARMUP=30 bench/idle.sh "$bin" 0 300 2> "idle-$server.threads" | jq -c --arg s "$server" '. + {server: $s}' | tee -a idle-compare.jsonl
+          done
+          {
+            echo "### Idle, Go $GO_RELEASE vs cliproxy-rs, 300 s after 30 s of warm-up"
+            echo
+            echo "| Server | Wakeups per minute | CPU ms per hour | Threads | RSS (MB) |"
+            echo "| --- | --- | --- | --- | --- |"
+            jq -r '"| \(.server) | \(.wakeups / (.seconds / 60) | . * 10 | round / 10) | \(.cpu_ticks * 10 * 3600 / .seconds | round) | \(.threads) | \(.rss_kb / 1024 | . * 10 | round / 10) |"' idle-compare.jsonl
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: idle-compare
+          path: |
+            idle-compare.jsonl
+            idle-*.threads
