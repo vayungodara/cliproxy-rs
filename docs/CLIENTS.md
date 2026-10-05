@@ -25,6 +25,34 @@ For a persistent personal setup, put this in `~/.claude/settings.json`:
 }
 ```
 
+### Claude Code versions
+
+With a Claude account, cliproxy-rs forwards Claude Code's own identity (its `User-Agent` and SDK and Node versions) when Claude Code is 2.1.280 or newer within major version 2. Other clients, and older Claude Code, are sent upstream as Claude Code 2.1.280. When a `claude-cli` client is not forwarded, the log says so once per account and version:
+
+```text
+claude: Claude Code 2.1.220 on credential claude-you@example.com.json is not passed through; requests use the claude-cli/2.1.280 (external, cli) identity. ...
+```
+
+Anthropic refuses Claude Code releases that are too old for a model. The error reaches your client as a 400:
+
+```text
+Claude Code 2.1.236 does not support this model; version 2.1.251 or newer is required. Run 'claude update', or update the Claude desktop app, then try again.
+```
+
+Its `error.details.error_code` is `claude_code_version_too_old`. From Claude Code itself, run `claude update`. From another client, or from a Claude Code release that is not forwarded, the identity cliproxy-rs sends is older than the model needs. Until a cliproxy-rs release raises it, set a newer one in `config.yaml`. Use the version that `claude --version` prints, and the `X-Stainless-Package-Version` and `X-Stainless-Runtime-Version` headers that release sends:
+
+```yaml
+oauth:
+  providers:
+    claude:
+      header-defaults:
+        user-agent: "claude-cli/<version> (external, cli)"
+        package-version: "<X-Stainless-Package-Version>"
+        runtime-version: "<X-Stainless-Runtime-Version>"
+```
+
+The older layout spells the same block `claude-header-defaults:` at the top level. The version in `user-agent` also becomes the lowest Claude Code version that is forwarded as itself.
+
 ## Codex CLI
 
 [Codex custom model providers](https://developers.openai.com/codex/config-advanced) use the OpenAI Responses format. Put this in `~/.codex/config.toml`, set the environment variable, and replace `<model-id>`. WebSocket support is documented, but it is optional, so this setup uses the normal HTTP endpoint.

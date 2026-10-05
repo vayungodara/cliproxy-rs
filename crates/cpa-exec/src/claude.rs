@@ -1082,6 +1082,11 @@ impl<'a> Ctx<'a> {
     ) -> Result<Prepared, ExecError> {
         let original = utf8(&req.original_body);
         let detection = detect::detect(&req.headers, &original, false, &self.settings);
+        profile::note_refused(
+            &self.credential.id,
+            detect::header(&req.headers, "user-agent"),
+            &self.settings,
+        );
         let confirmed = detection.confirmed;
         let derived = self.derived_session(req);
         let translated = utf8(translated).into_owned();
@@ -1347,6 +1352,11 @@ impl<'a> Ctx<'a> {
     async fn prepare_count(&self, req: &ExecRequest, translated: &[u8]) -> Result<Prepared, ExecError> {
         let original = utf8(&req.original_body);
         let detection = detect::detect(&req.headers, &original, true, &self.settings);
+        profile::note_refused(
+            &self.credential.id,
+            detect::header(&req.headers, "user-agent"),
+            &self.settings,
+        );
         let confirmed = detection.confirmed;
         let session_id = if self.cli_profile {
             let derived = self.derived_session(req);

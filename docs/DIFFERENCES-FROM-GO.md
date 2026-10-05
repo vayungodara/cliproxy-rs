@@ -8,6 +8,7 @@ Where cliproxy-rs has a feature, it aims to behave exactly as CLIProxyAPI does a
 
 ## Deliberate differences
 
+- Claude Code identity: a native Claude Code `User-Agent` at or above the measured baseline (2.1.280) within the same major version is forwarded to Claude accounts. Go forwards only patch releases of the baseline's 2.1 line, so Claude Code 2.2 and later would be sent as 2.1.280 and treated like a third-party client. When the forwarded release is newer than the baseline, its own `X-Stainless-Package-Version` and `X-Stainless-Runtime-Version` go with it; Go replaces them with the baseline values, so its headers can disagree with the forwarded `User-Agent`. A `claude-cli` `User-Agent` that is not forwarded is logged once per credential and version. Stabilized device profiles (`stabilize-device-profile`) are unchanged.
 - Upstream connections: the Claude client for `api.anthropic.com` keeps every idle connection for 90 seconds. Go's transport for it keeps at most 2 idle connections per host (net/http's default) with no time limit, so after a burst of concurrent requests Go dials again and cliproxy-rs does not.
 - Startup: if the config fails to load outside cloud deploy mode, cliproxy-rs exits with a non-zero status, so a service manager sees the failure. Go exits 0.
 - Discovery: subtype PTR queries are answered (Go's zeroconf library never matches them), answers go out on every selected interface, and advertisement changes from a config reload apply within 1 second, by polling.
