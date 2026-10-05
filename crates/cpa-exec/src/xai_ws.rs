@@ -1249,7 +1249,7 @@ impl XaiExecutor {
         let client = self.clients.for_credential(credential, cfg);
         let (socket, handshake) = dial(&client, target, headers, capture, retry).await?;
         let (sink, stream) = socket.split();
-        let conn = Upstream::new(target.clone(), sink);
+        let conn = Upstream::new(target.clone(), sink, self.ws.pool.write);
         // Publish before the reader runs, as the Codex executor does.
         let mut reader = conn.reader.lock().expect("reader handle");
         *session.conn.lock().expect("session conn") = Some(conn.clone());

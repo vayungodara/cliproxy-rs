@@ -510,6 +510,92 @@ async fn pings_do_not_extend_the_idle_deadline() {
     assert!(String::from_utf8_lossy(&error.body).contains("idle timeout"), "{error}");
 }
 
+/// A socket whose upstream stopped reading (half-open) fails the write after the write
+/// bound instead of holding the turn until the read deadline; the one retry on a fresh
+/// socket is bounded the same way.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_write_the_upstream_never_reads_times_out() {
+    let dials = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counted = dials.clone();
+    let app = axum::Router::new().fallback(move |ws: WebSocketUpgrade| {
+        counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        async move {
+            ws.on_upgrade(|socket| async move {
+                // Hold the socket open without reading from it.
+                tokio::time::sleep(Duration::from_secs(120)).await;
+                drop(socket);
+            })
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await });
+
+    let mut executor = CodexExecutor::new().unwrap();
+    executor.ws = Pool::with_write(WriteLimit {
+        floor: Duration::from_millis(300),
+        rate: usize::MAX,
+    });
+    // Far larger than loopback socket buffers, so the write cannot finish.
+    let body = format!(
+        r#"{{"model":"gpt-fixture","input":[{{"type":"message","role":"user","content":"{}"}}]}}"#,
+        "x".repeat(32 << 20)
+    );
+    // Preparing a 32 MiB body takes seconds in a debug build; without the bound the
+    // turn would wait for the upstream to drop the socket (120 s).
+    let result = tokio::time::timeout(
+        Duration::from_secs(60),
+        executor.execute_in_session(&credential(&url), request(&body), &Config::default(), &session(false)),
+    )
+    .await
+    .expect("the write bound ends the turn");
+    let Err(error) = result else {
+        panic!("a write that never completes fails the turn");
+    };
+    assert_eq!(error.scope, FailureScope::Transport);
+    assert!(
+        String::from_utf8_lossy(&error.body).contains("write timed out"),
+        "{error}"
+    );
+    assert_eq!(
+        dials.load(std::sync::atomic::Ordering::SeqCst),
+        2,
+        "one retry on a fresh socket"
+    );
+    assert_eq!(
+        WRITE_LIMIT.deadline(1 << 20),
+        Duration::from_secs(10),
+        "small frames get the floor"
+    );
+    assert_eq!(
+        WRITE_LIMIT.deadline(5 << 20),
+        Duration::from_secs(40),
+        "5 MiB at 128 KiB/s"
+    );
+    // Partial seconds round up: just under 11 x 128 KiB needs almost 11 s.
+    assert_eq!(WRITE_LIMIT.deadline(11 * (128 << 10) - 1), Duration::from_secs(11));
+}
+
+/// A timed-out write maps like a failed one: after the upstream closed with 1009 it is
+/// the request-scoped 413 (no retry on a fresh socket), else a transport error.
+#[test]
+fn write_errors_keep_the_message_too_big_413() {
+    let too_big = message_too_big();
+    for message in [
+        "codex websockets executor: write timed out",
+        "codex websockets executor: write failed",
+    ] {
+        let error = write_error(Some(&too_big), message);
+        assert_eq!((error.status, error.scope), (413, FailureScope::Request), "{message}");
+        let other = transport("codex websockets executor: read idle timeout");
+        for lost in [None, Some(&other)] {
+            let error = write_error(lost, message);
+            assert_eq!(error.scope, FailureScope::Transport, "{message}");
+            assert!(String::from_utf8_lossy(&error.body).contains(message), "{message}");
+        }
+    }
+}
+
 /// A reader that fails before the first turn activates (binary message right after the
 /// handshake) must fail that turn instead of leaving it waiting on a dead socket.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -1304,7 +1304,7 @@ impl<'a> Ctx<'a> {
         }
         if cch {
             let fallback = if !detection.helper_profile || rawjson::get(&body, "system").exists() {
-                self.fallback_billing(&req.headers, &body, &detection.entrypoint, &continuity)
+                self.fallback_billing(&req.headers, &body, &detection.entrypoint, &continuity, confirmed)
             } else {
                 String::new()
             };
@@ -1439,6 +1439,11 @@ impl<'a> Ctx<'a> {
         cloak: bool,
     ) -> Result<(Vec<(String, String)>, Vec<String>), ExecError> {
         let cpa_session = cpa_common::session::cpa_session_id(req.session.as_deref()).unwrap_or_default();
+        // Only a fingerprinted request replaces the caller's identity; an API key without
+        // cloaking forwards the caller's own User-Agent, refused or not.
+        if self.cli_profile || cloak {
+            profile::note_refused(self.credential, &req.headers, &self.settings);
+        }
         // Go: stabilizeDeviceProfile && confirmedClaudeCode, and the error (Home KV
         // unreachable in Home mode) fails the request before it is sent.
         let device_profile = if self.settings.header_defaults.stabilize_device_profile && confirmed {
@@ -1585,6 +1590,7 @@ impl<'a> Ctx<'a> {
         body: &str,
         entrypoint: &str,
         continuity: &session::Continuity,
+        confirmed: bool,
     ) -> String {
         let probe = signals::probe_or_helper(body);
         let (mut prev, mut prompt) = signals::billing_tags(body);
@@ -1599,7 +1605,9 @@ impl<'a> Ctx<'a> {
         let message = cloak::fingerprint_message(body);
         cloak::billing_header(&cloak::Billing {
             signed: true,
-            version: &profile::default_version(&self.settings),
+            // A forwarded newer release signs with its own version, as its User-Agent
+            // says (docs/DIFFERENCES-FROM-GO.md).
+            version: &profile::billing_version(detect::header(headers, "user-agent"), confirmed, &self.settings),
             message: &message,
             entrypoint,
             workload: detect::header(headers, "x-cpa-claude-workload"),

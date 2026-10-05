@@ -25,6 +25,34 @@ For a persistent personal setup, put this in `~/.claude/settings.json`:
 }
 ```
 
+### Claude Code versions
+
+With a Claude account, cliproxy-rs forwards Claude Code's own identity (its `User-Agent` and SDK and Node versions) when Claude Code is 2.1.280 or newer within major version 2. A release newer than 2.1.280 must send both its `X-Stainless-Package-Version` and `X-Stainless-Runtime-Version` headers, as Claude Code does; its session-title and quota-probe requests are forwarded the same way. With `stabilize-device-profile: true`, 2.1.x releases from 2.1.280 still count as Claude Code, so they are not cloaked, but they go upstream with the stabilized 2.1.280 identity; 2.2 and later are cloaked, and the Stainless requirement does not apply. Other clients, and older Claude Code, are sent upstream as Claude Code 2.1.280. When a `claude-cli` client is not forwarded, the log says so at most once per account and version, naming the account by its auth index (the one the dashboard and the Management API show), and says when missing Stainless headers are the reason:
+
+```text
+claude: Claude Code 2.1.220 on credential 1f3a9c0b7d2e4a68 is not passed through; requests use the claude-cli/2.1.280 (external, cli) identity. ...
+```
+
+Anthropic refuses Claude Code releases that are too old for a model. The error reaches your client as a 400:
+
+```text
+Claude Code 2.1.236 does not support this model; version 2.1.251 or newer is required. Run 'claude update', or update the Claude desktop app, then try again.
+```
+
+Its `error.details.error_code` is `claude_code_version_too_old`. From Claude Code itself, run `claude update`. From another client, or from a Claude Code release that is not forwarded, the identity cliproxy-rs sends is older than the model needs. Until a cliproxy-rs release raises it, set a newer one in `config.yaml`. Use the version that `claude --version` prints, and the `X-Stainless-Package-Version` and `X-Stainless-Runtime-Version` headers that release sends:
+
+```yaml
+oauth:
+  providers:
+    claude:
+      header-defaults:
+        user-agent: "claude-cli/<version> (external, cli)"
+        package-version: "<X-Stainless-Package-Version>"
+        runtime-version: "<X-Stainless-Runtime-Version>"
+```
+
+The older layout spells the same block `claude-header-defaults:` at the top level. The version in `user-agent` also becomes the lowest Claude Code version that is forwarded as itself.
+
 ### GPT in Claude Code
 
 Configure an OpenAI API key, then choose an available GPT model from `/v1/models`. You can also use a connected Codex account; read [Accounts and provider terms](../README.md#accounts-and-provider-terms) first. Claude Code sends Messages requests; the proxy translates them to the selected provider's format.

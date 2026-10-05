@@ -44,6 +44,28 @@ use crate::codex_response::{self as response, OutputItems};
 pub(crate) const IDLE_TIMEOUT: Duration = Duration::from_secs(300);
 /// `codexResponsesWebsocketHandshakeTO`.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(30);
+/// Bound on one upstream frame write (docs/DIFFERENCES-FROM-GO.md). Go sets no write
+/// deadline, so a write into a half-open socket held the turn until the 300 s read
+/// deadline. A large frame gets as long as it takes at `rate` bytes per second.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct WriteLimit {
+    pub(crate) floor: Duration,
+    pub(crate) rate: usize,
+}
+
+// ponytail: a fixed 128 KiB/s floor rate (about 1 Mbit/s); a slower uplink sending a
+// multi-megabyte frame times out. Make it configurable if such a link shows up.
+pub(crate) const WRITE_LIMIT: WriteLimit = WriteLimit {
+    floor: Duration::from_secs(10),
+    rate: 128 << 10,
+};
+
+impl WriteLimit {
+    fn deadline(self, len: usize) -> Duration {
+        self.floor
+            .max(Duration::from_secs(len.div_ceil(self.rate.max(1)) as u64))
+    }
+}
 /// Go's per-turn read channel capacity.
 const TURN_BUFFER: usize = 4096;
 /// Bound on a handshake rejection body.
@@ -87,13 +109,15 @@ pub(crate) struct Upstream {
     /// The Home pick this socket keeps (Go `session.lifecycle`); `true` once the socket
     /// shut down, after which no pick binds.
     lease: Mutex<(bool, Option<SessionLease>)>,
+    write: WriteLimit,
 }
 
 impl Upstream {
     /// A socket for `target`, not yet published to a session and without a reader.
-    pub(crate) fn new(target: Target, sink: SplitSink<WebSocket, Message>) -> Arc<Self> {
+    pub(crate) fn new(target: Target, sink: SplitSink<WebSocket, Message>, write: WriteLimit) -> Arc<Self> {
         Arc::new(Self {
             target,
+            write,
             sink: tokio::sync::Mutex::new(sink),
             link: Mutex::default(),
             reader: Mutex::default(),
@@ -132,18 +156,27 @@ impl Upstream {
     }
 
     /// `writeCodexWebsocketMessage` + `mapCodexWebsocketWriteError`: a write after the
-    /// upstream closed with 1009 reports the request-scoped 413 instead.
+    /// upstream closed with 1009 reports the request-scoped 413 instead. A write that
+    /// outlasts [`WriteLimit`] fails like any other write: the caller invalidates the
+    /// socket, so a partly written frame is never followed by another. Cost: one timer
+    /// entry while a write is in flight.
     pub(crate) async fn send(&self, frame: String) -> Result<(), ExecError> {
-        let sent = self.sink.lock().await.send(Message::text(frame)).await;
-        sent.map_err(|_| {
-            self.link
-                .lock()
-                .expect("link")
-                .lost
-                .as_ref()
-                .filter(|e| e.status == 413)
-                .map_or_else(|| transport("codex websockets executor: write failed"), turn_error)
+        let deadline = self.write.deadline(frame.len());
+        let sent = tokio::time::timeout(deadline, async {
+            self.sink.lock().await.send(Message::text(frame)).await
         })
+        .await;
+        match sent {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(_)) => Err(write_error(
+                self.link.lock().expect("link").lost.as_ref(),
+                "codex websockets executor: write failed",
+            )),
+            Err(_) => Err(write_error(
+                self.link.lock().expect("link").lost.as_ref(),
+                "codex websockets executor: write timed out",
+            )),
+        }
     }
 
     /// Go `bindExecutionLifecycle`: the socket keeps the attempt's Home pick until it is
@@ -268,6 +301,7 @@ pub(crate) struct Pool {
     sessions: Mutex<HashMap<String, Arc<Session>>>,
     /// Read deadline for each upstream application message.
     pub(crate) idle: Duration,
+    pub(crate) write: WriteLimit,
 }
 
 impl Default for Pool {
@@ -275,6 +309,7 @@ impl Default for Pool {
         Self {
             sessions: Mutex::default(),
             idle: IDLE_TIMEOUT,
+            write: WRITE_LIMIT,
         }
     }
 }
@@ -284,6 +319,14 @@ impl Pool {
     pub fn with_idle(idle: Duration) -> Self {
         Self {
             idle,
+            ..Self::default()
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_write(write: WriteLimit) -> Self {
+        Self {
+            write,
             ..Self::default()
         }
     }
@@ -405,6 +448,13 @@ fn message_too_big() -> ExecError {
 /// [`closed_too_big`] makes a 413 loss), the loss itself otherwise.
 /// The reader's error for a binary message (Go's `unexpected_binary` stage).
 const UNEXPECTED_BINARY: &str = "codex websockets executor: unexpected binary message";
+
+/// A failed or timed-out write: the request-scoped 413 when the reader already saw the
+/// upstream close with 1009 (the frame was too big), else a transport error.
+pub(crate) fn write_error(lost: Option<&ExecError>, message: &str) -> ExecError {
+    lost.filter(|e| e.status == 413)
+        .map_or_else(|| transport(message), turn_error)
+}
 
 fn turn_error(lost: &ExecError) -> ExecError {
     if lost.status == 413 {
@@ -859,7 +909,7 @@ impl CodexExecutor {
         }
         let (socket, handshake) = self.dial(target, headers, model, model_level_cooling, wire).await?;
         let (sink, stream) = socket.split();
-        let conn = Upstream::new(target.clone(), sink);
+        let conn = Upstream::new(target.clone(), sink, self.ws.write);
         // Publish before the reader runs, so a reader that fails at once still finds its
         // socket current and invalidates it; holding the handle slot keeps a concurrent
         // shutdown from missing the abort handle.

@@ -486,20 +486,23 @@ fn legacy_device_headers(h: &mut GoHeader, p: &Plan<'_>) {
                 h.set(name, fallback);
             }
         };
-        ensure_valid("X-Stainless-Runtime-Version", &d.runtime_version, &|v| {
-            v == d.runtime_version
-        });
-        ensure_valid("X-Stainless-Package-Version", &d.package_version, &|v| {
-            v == d.package_version
-        });
-        ensure_valid("X-Stainless-Os", &profile::host_os(), &|_| true);
-        ensure_valid("X-Stainless-Arch", &profile::host_arch(), &|_| true);
         let ua = p
             .incoming
             .get("user-agent")
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default()
             .trim();
+        // A newer native release keeps its own SDK and runtime versions, so they match
+        // its User-Agent (docs/DIFFERENCES-FROM-GO.md); otherwise Go's baseline values.
+        let newer = profile::newer_than_baseline(ua, p.settings);
+        ensure_valid("X-Stainless-Runtime-Version", &d.runtime_version, &|v| {
+            v == d.runtime_version || (newer && profile::runtime_version_ok(v))
+        });
+        ensure_valid("X-Stainless-Package-Version", &d.package_version, &|v| {
+            v == d.package_version || (newer && profile::package_version_ok(v))
+        });
+        ensure_valid("X-Stainless-Os", &profile::host_os(), &|_| true);
+        ensure_valid("X-Stainless-Arch", &profile::host_arch(), &|_| true);
         if profile::plausible_user_agent(ua, p.settings) {
             h.set("User-Agent", ua);
             return;
@@ -686,5 +689,86 @@ mod tests {
         assert_eq!(get("User-Agent"), "claude-cli/2.1.280 (external, cli)");
         assert_eq!(get("X-Stainless-OS"), "MacOS");
         assert_eq!(get("Accept-Encoding"), "gzip, deflate, br, zstd");
+    }
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::*;
+
+    /// The upstream `User-Agent` and Stainless versions for a confirmed caller sending
+    /// `user_agent` with its own SDK and runtime versions.
+    fn sent(user_agent: &str) -> (String, String, String) {
+        let settings = Settings::default();
+        let incoming: HeaderMap = [
+            ("user-agent", user_agent),
+            ("x-stainless-package-version", "0.120.4"),
+            ("x-stainless-runtime-version", "v27.0.1"),
+        ]
+        .into_iter()
+        .map(|(k, v)| (k.parse().unwrap(), v.parse().unwrap()))
+        .collect();
+        let attributes = Default::default();
+        let h = build(&Plan {
+            api_key: "sk-ant-oat01-FAKE",
+            bearer: true,
+            first_party: true,
+            count_tokens: false,
+            stream: false,
+            extra_betas: &[],
+            body: r#"{"model":"claude-sonnet-4-6"}"#,
+            incoming: &incoming,
+            confirmed: true,
+            helper: false,
+            cli_fingerprint: true,
+            use_oauth_betas: true,
+            session_id: "dd01238e-cdb5-5572-8f27-a28d98fe9075",
+            settings: &settings,
+            attributes: &attributes,
+            cpa_session: "",
+            device_profile: None,
+            cached_session_id: "",
+        });
+        let (pairs, _) = wire(h, true, false);
+        let get = |n: &str| pairs.iter().find(|(k, _)| k == n).unwrap().1.clone();
+        (
+            get("User-Agent"),
+            get("X-Stainless-Package-Version"),
+            get("X-Stainless-Runtime-Version"),
+        )
+    }
+
+    #[test]
+    fn newer_native_releases_keep_their_own_versions() {
+        // A newer minor release is forwarded with its own SDK and runtime versions.
+        assert_eq!(
+            sent("claude-cli/2.2.3 (external, cli)"),
+            (
+                "claude-cli/2.2.3 (external, cli)".into(),
+                "0.120.4".into(),
+                "v27.0.1".into()
+            )
+        );
+        // The baseline release itself keeps Go's baseline SDK and runtime versions.
+        assert_eq!(
+            sent("claude-cli/2.1.280 (external, cli)"),
+            (
+                "claude-cli/2.1.280 (external, cli)".into(),
+                "0.112.1".into(),
+                "v26.3.0".into()
+            )
+        );
+        // Another major, or an older release, gets the whole baseline identity.
+        for refused in ["claude-cli/3.0.0 (external, cli)", "claude-cli/2.1.220 (external, cli)"] {
+            assert_eq!(
+                sent(refused),
+                (
+                    "claude-cli/2.1.280 (external, cli)".into(),
+                    "0.112.1".into(),
+                    "v26.3.0".into()
+                ),
+                "{refused}"
+            );
+        }
     }
 }

@@ -101,17 +101,144 @@ pub(crate) fn default_version(settings: &Settings) -> String {
     }
 }
 
-/// Patch releases at or above the baseline in the same major.minor line keep native
-/// passthrough; Claude Code auto-updates patch releases in the background.
+/// Native Claude Code at or above the baseline within the baseline's major version
+/// keeps native passthrough. Go accepts only patch releases of the baseline's
+/// major.minor line, so a newer minor release was rewritten to the older baseline
+/// identity and cloaked like a third-party client (docs/DIFFERENCES-FROM-GO.md).
+/// With `stabilize-device-profile` Go's rule stays: a stabilized profile forwards only
+/// the exact baseline tuple, so a newer release would send its body under baseline
+/// headers.
 pub(crate) fn plausible_user_agent(user_agent: &str, settings: &Settings) -> bool {
     let user_agent = user_agent.trim();
     if !native_user_agent(user_agent) {
         return false;
     }
     match (version(user_agent), Profile::default_for(settings).version()) {
-        (Some(c), Some(b)) => c.0 == b.0 && c.1 == b.1 && c.2 >= b.2,
+        (Some(c), Some(b)) if settings.header_defaults.stabilize_device_profile => {
+            c.0 == b.0 && c.1 == b.1 && c.2 >= b.2
+        }
+        (Some(c), Some(b)) => c.0 == b.0 && c >= b,
         _ => false,
     }
+}
+
+/// Both Stainless version headers are well formed in their first value, the one
+/// forwarding reads. A forwarded release newer than the baseline needs them, so its SDK
+/// and runtime versions go upstream with its User-Agent instead of baseline values
+/// that release never sends.
+pub(crate) fn stainless_versions_ok(headers: &HeaderMap) -> bool {
+    let first = |name: &str| {
+        headers
+            .get(name)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or_default()
+            .trim()
+            .to_owned()
+    };
+    package_version_ok(&first("x-stainless-package-version"))
+        && runtime_version_ok(&first("x-stainless-runtime-version"))
+}
+
+/// The one rule for treating a caller's User-Agent as Claude Code's own: a plausible
+/// native release, and for one newer than the baseline also well-formed Stainless
+/// version headers. Detection and the refused-version log both use it.
+pub(crate) fn accepted_user_agent(headers: &HeaderMap, user_agent: &str, settings: &Settings) -> bool {
+    plausible_user_agent(user_agent, settings)
+        && (!newer_than_baseline(user_agent, settings) || stainless_versions_ok(headers))
+}
+
+/// The `cc_version` of a billing block cliproxy-rs adds: the forwarded release's own
+/// version for a confirmed caller newer than the baseline, else the baseline's.
+pub(crate) fn billing_version(user_agent: &str, confirmed: bool, settings: &Settings) -> String {
+    match version(user_agent.trim()) {
+        Some((a, b, c)) if confirmed && newer_than_baseline(user_agent, settings) => format!("{a}.{b}.{c}"),
+        _ => default_version(settings),
+    }
+}
+
+/// A passed-through caller newer than the baseline: its own Stainless package and
+/// runtime versions go upstream with its User-Agent, so the three agree. Go pins both
+/// to the baseline values whatever the User-Agent says. Never with
+/// `stabilize-device-profile`: a stabilized profile sends only the baseline tuple, so
+/// nothing newer is forwarded and Go's rules apply.
+pub(crate) fn newer_than_baseline(user_agent: &str, settings: &Settings) -> bool {
+    !settings.header_defaults.stabilize_device_profile
+        && plausible_user_agent(user_agent, settings)
+        && version(user_agent.trim()) > Profile::default_for(settings).version()
+}
+
+/// Refused `claude-cli` versions already logged, by a 64-bit hash of the credential
+/// ID: one bit per version hash mod 64. Two versions on the same bit share one line,
+/// so a collision can drop the line for a different version.
+static REFUSED: OnceLock<Mutex<HashMap<u64, u64>>> = OnceLock::new();
+
+fn hash64(value: &impl std::hash::Hash) -> u64 {
+    use std::hash::{BuildHasher, BuildHasherDefault, DefaultHasher};
+    BuildHasherDefault::<DefaultHasher>::default().hash_one(value)
+}
+
+/// Logs at most once per credential and Claude Code version when a `claude-cli` User-Agent is
+/// refused and the baseline identity is sent instead, so the refused client is
+/// visible. The caller decides that the identity is replaced. Cost per call: a prefix
+/// check on the User-Agent; a refused version also takes one lock and keeps 16 bytes
+/// per credential (key hash and seen mask), however many versions it sends. The line
+/// names the credential by its auth index, never its file name (which can hold the
+/// account email). Returns whether it logged.
+pub(crate) fn note_refused(
+    credential: &cpa_core::credential::Credential,
+    headers: &HeaderMap,
+    settings: &Settings,
+) -> bool {
+    let user_agent = header(headers, "user-agent").trim();
+    if !user_agent
+        .get(..11)
+        .is_some_and(|p| p.eq_ignore_ascii_case("claude-cli/"))
+        || accepted_user_agent(headers, user_agent, settings)
+    {
+        return false;
+    }
+    let seen = version(user_agent);
+    let bit = 1u64 << (hash64(&seen) % 64);
+    {
+        let mut logged = REFUSED.get_or_init(Mutex::default).lock().expect("refused versions");
+        let mask = logged.entry(hash64(&credential.id)).or_default();
+        if *mask & bit != 0 {
+            return false;
+        }
+        *mask |= bit;
+    }
+    let baseline = Profile::default_for(settings).user_agent;
+    let version = seen.map_or_else(|| "an unknown version".to_owned(), |(a, b, c)| format!("{a}.{b}.{c}"));
+    let index = cpa_core::config::credentials::auth_index(credential);
+    let rule = if settings.header_defaults.stabilize_device_profile {
+        "at or above that version within the same major and minor version (stabilize-device-profile)"
+    } else {
+        "at or above that version within the same major version"
+    };
+    let reason = if plausible_user_agent(user_agent, settings) {
+        " It is missing well-formed X-Stainless-Package-Version and X-Stainless-Runtime-Version \
+         headers, which a release newer than that one needs."
+    } else {
+        ""
+    };
+    tracing::warn!(
+        "claude: Claude Code {version} on credential {index} is not passed through; requests \
+         use the {baseline} identity.{reason} Native passthrough needs a native claude-cli \
+         User-Agent {rule}. Update Claude Code, or set claude-header-defaults user-agent, \
+         package-version and runtime-version to a newer release."
+    );
+    true
+}
+
+/// Whether `note_refused` already logged something for this credential.
+#[cfg(test)]
+pub(crate) fn refused_logged(credential_id: &str) -> bool {
+    REFUSED.get().is_some_and(|m| {
+        m.lock()
+            .unwrap()
+            .get(&hash64(&credential_id.to_owned()))
+            .is_some_and(|b| *b != 0)
+    })
 }
 
 /// The host the Stainless headers describe. Unit tests pin Linux x64, the host the
@@ -148,14 +275,14 @@ fn stainless_arch(arch: &str) -> String {
     }
 }
 
-fn package_version_ok(s: &str) -> bool {
+pub(crate) fn package_version_ok(s: &str) -> bool {
     let parts: Vec<_> = s.split('.').collect();
     parts.len() == 3
         && parts
             .iter()
             .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
 }
-fn runtime_version_ok(s: &str) -> bool {
+pub(crate) fn runtime_version_ok(s: &str) -> bool {
     s.strip_prefix('v').is_some_and(package_version_ok)
 }
 
@@ -451,9 +578,122 @@ mod tests {
         assert!(plausible_user_agent("claude-cli/2.1.299 (external, sdk-cli)", &s));
         // The rejected 2.1.220 identity and other release lines are not native.
         assert!(!plausible_user_agent("claude-cli/2.1.220 (external, cli)", &s));
-        assert!(!plausible_user_agent("claude-cli/2.2.280 (external, cli)", &s));
+        assert!(!plausible_user_agent("claude-cli/2.1.279 (external, cli)", &s));
+        // Newer minor releases of the same major pass (Go refuses them); another major
+        // and non-native shapes do not.
+        assert!(plausible_user_agent("claude-cli/2.2.0 (external, cli)", &s));
+        assert!(plausible_user_agent("claude-cli/2.10.3 (external, cli)", &s));
+        assert!(!plausible_user_agent("claude-cli/3.0.0 (external, cli)", &s));
+        assert!(!plausible_user_agent("claude-cli/1.9.999 (external, cli)", &s));
         assert!(!plausible_user_agent("claude-cli/2.1.280", &s));
+        assert!(!newer_than_baseline("claude-cli/2.1.280 (external, cli)", &s));
+        assert!(newer_than_baseline("claude-cli/2.1.281 (external, cli)", &s));
+        assert!(newer_than_baseline("claude-cli/2.2.0 (external, cli)", &s));
+        assert!(!newer_than_baseline("claude-cli/3.0.0 (external, cli)", &s));
+        // Refused claude-cli versions are logged at most once per credential and version.
+        let ua_headers = |ua: &str, extra: &[(&str, &str)]| -> HeaderMap {
+            let mut h = HeaderMap::new();
+            h.insert("user-agent", ua.parse().unwrap());
+            for (k, v) in extra {
+                h.insert(http::HeaderName::from_bytes(k.as_bytes()).unwrap(), v.parse().unwrap());
+            }
+            h
+        };
+        let cred = |id: &str| {
+            cpa_core::credential::Credential::from_file(
+                std::path::Path::new("/fake"),
+                &std::path::Path::new("/fake").join(id),
+                serde_json::json!({"type": "claude"}).as_object().unwrap().clone(),
+            )
+            .unwrap()
+        };
+        let (a, b) = (cred("refused-a.json"), cred("refused-b.json"));
+        let old = "claude-cli/2.1.220 (external, cli)";
+        assert!(note_refused(&a, &ua_headers(old, &[]), &s));
+        assert!(!note_refused(&a, &ua_headers(old, &[]), &s));
+        assert!(note_refused(&b, &ua_headers(old, &[]), &s));
+        assert!(note_refused(
+            &a,
+            &ua_headers("claude-cli/3.0.0 (external, cli)", &[]),
+            &s
+        ));
+        assert!(!note_refused(
+            &a,
+            &ua_headers(
+                "claude-cli/2.2.0 (external, cli)",
+                &[
+                    ("x-stainless-package-version", "0.120.4"),
+                    ("x-stainless-runtime-version", "v27.0.1")
+                ]
+            ),
+            &s
+        ));
+        assert!(!note_refused(&a, &ua_headers("OpenAI/Python 1.0", &[]), &s));
+        // A client cycling versions costs one fixed entry per credential. Other tests
+        // write to the same global map concurrently, so only this key is checked.
+        let cycling = cred("refused-cycling.json");
+        let logged = (0..1000)
+            .filter(|n| {
+                let ua = format!("claude-cli/2.0.{n} (external, cli)");
+                note_refused(&cycling, &ua_headers(&ua, &[]), &s)
+            })
+            .count();
+        assert!(logged <= 64, "{logged}");
+        let mask = REFUSED.get().unwrap().lock().unwrap()[&hash64(&cycling.id)];
+        assert!(mask != 0 && mask.count_ones() as usize == logged, "{mask:b} {logged}");
+        // A newer release without its Stainless versions is refused, and logged.
+        let bare = cred("refused-bare.json");
+        assert!(note_refused(
+            &bare,
+            &ua_headers("claude-cli/2.2.3 (external, cli)", &[]),
+            &s
+        ));
+        let full = [
+            ("x-stainless-package-version", "0.120.4"),
+            ("x-stainless-runtime-version", "v27.0.1"),
+        ];
+        assert!(!note_refused(
+            &bare,
+            &ua_headers("claude-cli/2.2.4 (external, cli)", &full),
+            &s
+        ));
         assert_eq!(default_version(&s), "2.1.280");
+    }
+
+    /// A stabilized device profile forwards only the exact baseline tuple, so Go's
+    /// 2.1 patch rule stays: a newer minor release is cloaked as on master.
+    #[test]
+    fn stabilized_profiles_keep_go_patch_rule() {
+        let mut s = Settings::default();
+        s.header_defaults.stabilize_device_profile = true;
+        assert!(!plausible_user_agent("claude-cli/2.2.0 (external, cli)", &s));
+        assert!(plausible_user_agent("claude-cli/2.1.290 (external, cli)", &s));
+        assert!(!newer_than_baseline("claude-cli/2.2.0 (external, cli)", &s));
+        // Nothing newer is forwarded under a stabilized profile, so Go's rules apply:
+        // baseline billing, and no Stainless requirement.
+        let newer_patch = "claude-cli/2.1.290 (external, cli)";
+        assert!(!newer_than_baseline(newer_patch, &s));
+        assert_eq!(billing_version(newer_patch, true, &s), "2.1.280");
+        let mut bare = HeaderMap::new();
+        bare.insert("user-agent", newer_patch.parse().unwrap());
+        assert!(accepted_user_agent(&bare, newer_patch, &s));
+    }
+
+    #[test]
+    fn billing_version_follows_a_confirmed_newer_release() {
+        let s = Settings::default();
+        let newer = "claude-cli/2.2.3 (external, cli)";
+        assert_eq!(billing_version(newer, true, &s), "2.2.3");
+        assert_eq!(
+            billing_version(newer, false, &s),
+            "2.1.280",
+            "cloaked keeps the baseline"
+        );
+        assert_eq!(
+            billing_version("claude-cli/2.1.280 (external, cli)", true, &s),
+            "2.1.280"
+        );
+        assert_eq!(billing_version("OpenAI/Python 1.0", true, &s), "2.1.280");
     }
 
     /// Go `resolveClaudeDeviceProfileHome` against the same scenarios, recorded by
