@@ -1,5 +1,5 @@
 # Formatting, lints, the full test suite and the harness build on every pull request and
-# push to master, plus a Windows compile check and the Linux size and idle gates. release.yml
+# push to master, plus clippy on Windows and the Linux size and idle gates. release.yml
 # calls this workflow too, so a tagged release runs the same checks before it builds
 # anything.
 # One run per change: pushes to master, and pull requests through `pull_request` only. A
@@ -129,8 +129,11 @@ jobs:
           bench/gate.sh idle linux target/release/cliproxy 2000 || status=1
           exit $status
 
+  # Clippy over every target (tests, examples, benches) with warnings as errors, so code
+  # that only builds on Windows, test-only code included, is held to the Linux rules.
+  # Checking only, no codegen or link, so it stays a few minutes on a warm cache.
   windows:
-    name: cargo check (Windows)
+    name: clippy (Windows)
     runs-on: windows-2025
     timeout-minutes: 60
     defaults:
@@ -146,9 +149,9 @@ jobs:
           printf '%s\n' 'C:\Program Files\NASM' >> "$GITHUB_PATH"
           printf 'LIBCLANG_PATH=%s\n' 'C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
       - name: Rust
-        run: rustup toolchain install stable --profile minimal --target x86_64-pc-windows-msvc && rustup default stable
+        run: rustup toolchain install stable --profile minimal --component clippy --target x86_64-pc-windows-msvc && rustup default stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/master' }}
-      - name: Check
-        run: cargo check --workspace --locked --target x86_64-pc-windows-msvc
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked --target x86_64-pc-windows-msvc -- -D warnings

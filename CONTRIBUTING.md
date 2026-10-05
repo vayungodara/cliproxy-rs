@@ -38,6 +38,6 @@ The dashboard lives in `ui/` (Svelte 5). `npm ci`, `npm run check`, `npm test` a
 - Request bodies are forwarded byte for byte unless a ported rule rewrites them; do not re-serialize JSON just to pass it through.
 - Never log or forward credentials or client keys to the wrong side.
 - Mark a deliberate simplification with a `ponytail:` comment that names its limit and how to lift it.
-- CI must pass: format, clippy, tests, the harness check, the Windows build check and the Linux size and idle gates.
+- CI must pass: format, clippy, tests, the harness check, clippy on Windows (all targets, warnings as errors) and the Linux size and idle gates.
 
 By contributing you agree that your work is released under the [MIT license](LICENSE).
