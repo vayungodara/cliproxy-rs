@@ -8,6 +8,7 @@ use std::time::{Duration, SystemTime};
 use axum::extract::{RawQuery, State};
 use axum::http::StatusCode;
 use axum::response::Response;
+use cpa_exec::proxy::Proxy;
 use serde_json::{Map, Value, json};
 
 use super::auth_files::{Query, auth_kind, fail, recent_requests, reply};
@@ -41,12 +42,19 @@ pub(crate) async fn latest_version(State(state): State<Arc<Management>>) -> Resp
     {
         return reply(StatusCode::OK, [("latest-version", version.clone().into())]);
     }
-    // A fresh, direct client cannot inherit cookies, default headers or proxy
-    // credentials. Never copy incoming headers or read token environment variables.
-    let client = match wreq::Client::builder()
-        .no_proxy()
-        .redirect(wreq::redirect::Policy::none())
-        .build()
+    // Fresh headers and no cookie jar: only proxy authentication belongs to the
+    // transport. Never copy incoming headers or read token environment variables.
+    let cfg = state.rt.config();
+    let proxy = Proxy::parse(
+        cfg.document
+            .get("requests")
+            .and_then(|r| r.get("proxy-url"))
+            .and_then(serde_yaml_ng::Value::as_str)
+            .unwrap_or_default(),
+    );
+    let client = match proxy
+        .apply(wreq::Client::builder().redirect(wreq::redirect::Policy::none()), true)
+        .and_then(wreq::ClientBuilder::build)
     {
         Ok(client) => client,
         Err(_) => return gateway("request_failed", "Could not create the release client.".into()),

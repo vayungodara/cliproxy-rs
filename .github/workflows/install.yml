@@ -149,10 +149,17 @@ jobs:
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
       - name: Build the candidate, not a release lacking --log-file
         run: cargo build --locked -p cliproxy
+      - name: Build local release fixtures before network isolation
+        run: |
+          mkdir -p target/installer-fixtures
+          suffix=''
+          if [ "$RUNNER_OS" = Windows ]; then suffix='.exe'; fi
+          rustc .github/scripts/installer-fixture.rs -o "target/installer-fixtures/hanging$suffix"
+          rustc --cfg legacy .github/scripts/installer-fixture.rs -o "target/installer-fixtures/legacy$suffix"
       - name: Linux installer tests with external network denied
         if: runner.os == 'Linux'
         run: |
-          sudo env "PATH=$PATH" unshare --net -- sh -c 'ip link set lo up && exec setpriv --reuid="$1" --regid="$2" --init-groups -- python3 .github/scripts/test-installers.py target/debug/cliproxy' sh "$(id -u)" "$(id -g)"
+          sudo env "PATH=$PATH" "HOME=$HOME" unshare --net -- sh -c 'ip link set lo up && exec setpriv --reuid="$1" --regid="$2" --init-groups -- python3 .github/scripts/test-installers.py target/debug/cliproxy' sh "$(id -u)" "$(id -g)"
       - name: macOS installer tests with external network denied
         if: runner.os == 'macOS'
         run: |
@@ -162,14 +169,6 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $rule = "cliproxy-installer-test-$([guid]::NewGuid())"
-          # Block every destination except IPv4 loopback and IPv6 ::1 on this disposable runner.
-          $addresses = '0.0.0.0-126.255.255.255', '128.0.0.0-255.255.255.255', '::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'
-          New-NetFirewallRule -Name $rule -DisplayName $rule -Direction Outbound -Action Block -RemoteAddress $addresses | Out-Null
-          try {
-            python .github/scripts/test-installers.py target/debug/cliproxy.exe
-            $code = $LASTEXITCODE
-          } finally {
-            Remove-NetFirewallRule -Name $rule
-          }
-          if ($code -ne 0) { throw "Installer tests failed with exit $code" }
+          # The harness denies external traffic for its programs, not the runner.
+          python .github/scripts/test-installers.py target/debug/cliproxy.exe
+          if ($LASTEXITCODE -ne 0) { throw "Installer tests failed with exit $LASTEXITCODE" }

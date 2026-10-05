@@ -1194,6 +1194,274 @@ async fn latest_version_is_anonymous_cached_and_explicit() {
     release_server.abort();
 }
 
+/// Separate processes give the environment fallback a fresh proxy snapshot without
+/// changing the environment of concurrently running tests. Every address is local;
+/// the unresolvable release host forces the check to use the configured transport.
+#[tokio::test]
+async fn latest_version_uses_configured_and_environment_proxies() {
+    use axum::http::{HeaderMap, Method, Uri};
+    use std::sync::Mutex;
+    if let Ok(case) = std::env::var("CLIPROXY_TEST_RELEASE_PROXY") {
+        let configured = std::env::var("CLIPROXY_TEST_PROXY_URL").unwrap_or_default();
+        let f = Fixture::from_yaml(&format!("release-proxy-{case}"), |auth, hash| {
+            format!(
+                "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\nrequests:\n  proxy-url: '{configured}'\n",
+                auth.display()
+            )
+        });
+        let state = Management::with_options(
+            f.rt.clone(),
+            f.dir.join("config.yaml"),
+            management::Options {
+                latest_release_url: Some("http://release.example.invalid/latest".into()),
+                update_check_disabled: Some(false),
+                ..Default::default()
+            },
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(
+                listener,
+                management::router(state).into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .await
+            .unwrap()
+        });
+        let client = wreq::Client::builder().no_proxy().build().unwrap();
+        for _ in 0..2 {
+            let response = client
+                .get(format!("{base}/v8/management/server/latest-version"))
+                .bearer_auth("fake-management-only")
+                .header("Cookie", "FAKE-browser-cookie")
+                .send()
+                .await
+                .unwrap();
+            if case == "direct" {
+                assert_eq!(
+                    response.status(),
+                    502,
+                    "direct must bypass the proxy for an unresolvable origin"
+                );
+                continue;
+            }
+            assert_eq!(response.status(), 200);
+            assert_eq!(
+                response.json::<Value>().await.unwrap(),
+                json!({"latest-version": "v4.5.6"})
+            );
+        }
+        server.abort();
+        return;
+    }
+    for case in ["configured", "environment", "direct"] {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let record = seen.clone();
+        let proxy = axum::Router::new().fallback(move |method: Method, uri: Uri, headers: HeaderMap| {
+            record.lock().unwrap().push((method, uri, headers));
+            async {
+                (
+                    axum::http::StatusCode::FOUND,
+                    [(
+                        "location",
+                        "https://github.com/vayungodara/cliproxy-rs/releases/tag/v4.5.6",
+                    )],
+                )
+            }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let proxy_url = format!("http://proxy-user:proxy-password@{}", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, proxy).await.unwrap() });
+        let mut command = tokio::process::Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "--exact",
+                "latest_version_uses_configured_and_environment_proxies",
+                "--nocapture",
+            ])
+            .env_clear()
+            .env("PATH", std::env::var("PATH").unwrap_or_default())
+            .env("SYSTEMROOT", std::env::var("SYSTEMROOT").unwrap_or_default())
+            .env("HOME", std::env::temp_dir())
+            .env("CLIPROXY_TEST_RELEASE_PROXY", case)
+            .env(
+                "CLIPROXY_TEST_PROXY_URL",
+                match case {
+                    "configured" => &proxy_url,
+                    "direct" => "direct",
+                    _ => "",
+                },
+            )
+            .env(
+                "HTTP_PROXY",
+                if case != "configured" {
+                    &proxy_url
+                } else {
+                    "http://127.0.0.1:9"
+                },
+            )
+            .env("HTTPS_PROXY", "http://127.0.0.1:9")
+            .env("GITHUB_TOKEN", "FAKE-github-token")
+            .env("GITSTORE_GIT_TOKEN", "FAKE-store-token")
+            .env("OPENAI_API_KEY", "FAKE-provider-token")
+            .kill_on_drop(true);
+        let output = tokio::time::timeout(std::time::Duration::from_secs(30), command.output())
+            .await
+            .unwrap()
+            .unwrap();
+        server.abort();
+        assert!(
+            output.status.success(),
+            "{case}: {} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let seen = seen.lock().unwrap();
+        if case == "direct" {
+            assert!(seen.is_empty(), "direct must not reach the environment proxy");
+            continue;
+        }
+        assert_eq!(
+            seen.len(),
+            1,
+            "two clicks share one HEAD without following the redirect"
+        );
+        let (method, uri, headers) = &seen[0];
+        assert_eq!(*method, Method::HEAD);
+        assert_eq!(uri.to_string(), "http://release.example.invalid/latest");
+        assert_eq!(
+            headers["proxy-authorization"],
+            "Basic cHJveHktdXNlcjpwcm94eS1wYXNzd29yZA=="
+        );
+        assert!(!headers.contains_key("authorization"));
+        assert!(!headers.contains_key("cookie"));
+        assert_eq!(headers["user-agent"], "cliproxy-rs");
+    }
+}
+
+/// A valid but self-signed origin certificate must still fail behind an authenticated
+/// CONNECT proxy. Disabling certificate checks would turn this response into a 200.
+#[tokio::test]
+async fn latest_version_keeps_tls_verification_through_proxy() {
+    use btls::asn1::Asn1Time;
+    use btls::bn::BigNum;
+    use btls::ec::{EcGroup, EcKey};
+    use btls::hash::MessageDigest;
+    use btls::nid::Nid;
+    use btls::pkey::PKey;
+    use btls::ssl::{SslAcceptor, SslMethod};
+    use btls::x509::extension::SubjectAlternativeName;
+    use btls::x509::{X509, X509NameBuilder};
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    let key =
+        PKey::from_ec_key(EcKey::generate(&EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap()).unwrap()).unwrap();
+    let mut name = X509NameBuilder::new().unwrap();
+    name.append_entry_by_nid(Nid::COMMONNAME, "127.0.0.1").unwrap();
+    let name = name.build();
+    let mut cert = X509::builder().unwrap();
+    cert.set_version(2).unwrap();
+    cert.set_serial_number(&BigNum::from_u32(1).unwrap().to_asn1_integer().unwrap())
+        .unwrap();
+    cert.set_subject_name(&name).unwrap();
+    cert.set_issuer_name(&name).unwrap();
+    cert.set_pubkey(&key).unwrap();
+    cert.set_not_before(&Asn1Time::days_from_now(0).unwrap()).unwrap();
+    cert.set_not_after(&Asn1Time::days_from_now(1).unwrap()).unwrap();
+    cert.append_extension(
+        &SubjectAlternativeName::new()
+            .ip("127.0.0.1")
+            .build(&cert.x509v3_context(None, None))
+            .unwrap(),
+    )
+    .unwrap();
+    cert.sign(&key, MessageDigest::sha256()).unwrap();
+    let mut tls = SslAcceptor::mozilla_intermediate_v5(SslMethod::tls()).unwrap();
+    tls.set_certificate(&cert.build()).unwrap();
+    tls.set_private_key(&key).unwrap();
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = listener.local_addr().unwrap();
+    let tls_server = tokio::spawn(cpa_server::listener::serve(
+        listener,
+        axum::Router::new().fallback(|| async {
+            (
+                axum::http::StatusCode::FOUND,
+                [(
+                    "location",
+                    "https://github.com/vayungodara/cliproxy-rs/releases/tag/v4.5.6",
+                )],
+            )
+        }),
+        Some(Arc::new(tls.build())),
+    ));
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let proxy = listener.local_addr().unwrap();
+    let proxy_server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut head = Vec::new();
+        while !head.ends_with(b"\r\n\r\n") {
+            assert!(head.len() < 8192);
+            head.push(socket.read_u8().await.unwrap());
+        }
+        socket
+            .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+            .await
+            .unwrap();
+        let mut upstream = tokio::net::TcpStream::connect(origin).await.unwrap();
+        let _ = tokio::io::copy_bidirectional(&mut socket, &mut upstream).await;
+        String::from_utf8(head).unwrap()
+    });
+    let f = Fixture::from_yaml("release-proxy-tls", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\nrequests:\n  proxy-url: 'http://proxy-user:proxy-password@{proxy}'\n",
+            auth.display()
+        )
+    });
+    let state = Management::with_options(
+        f.rt.clone(),
+        f.dir.join("config.yaml"),
+        management::Options {
+            latest_release_url: Some(format!("https://{origin}/latest")),
+            update_check_disabled: Some(false),
+            ..Default::default()
+        },
+    );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = listener.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        axum::serve(
+            listener,
+            management::router(state).into_make_service_with_connect_info::<std::net::SocketAddr>(),
+        )
+        .await
+        .unwrap()
+    });
+    let response = wreq::Client::builder()
+        .no_proxy()
+        .build()
+        .unwrap()
+        .get(format!("http://{base}/v8/management/server/latest-version"))
+        .bearer_auth("fake-management-only")
+        .header("Cookie", "FAKE-browser-cookie")
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(response.status(), 502);
+    assert_eq!(response.json::<Value>().await.unwrap()["error"], "request_failed");
+    let head = tokio::time::timeout(std::time::Duration::from_secs(2), proxy_server)
+        .await
+        .unwrap()
+        .unwrap()
+        .to_ascii_lowercase();
+    assert!(head.starts_with(&format!("connect {origin} http/1.1\r\n")));
+    assert!(
+        head.contains(&"\r\nProxy-Authorization: Basic cHJveHktdXNlcjpwcm94eS1wYXNzd29yZA==\r\n".to_ascii_lowercase())
+    );
+    assert!(!head.contains("\r\nauthorization:") && !head.contains("\r\ncookie:"));
+    server.abort();
+    tls_server.abort();
+}
+
 /// AI Studio relay credentials: disabling one through the status or fields endpoint
 /// clears its cooldowns (Go `Manager.Update`), so re-enabling routes to it at once.
 #[tokio::test]
