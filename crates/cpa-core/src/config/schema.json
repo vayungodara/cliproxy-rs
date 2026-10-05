@@ -1534,6 +1534,7 @@
         }
       }
     },
-    "config-version": "version"
+    "config-version": "version",
+    "worker-threads": "int"
   }
 }

@@ -77,14 +77,18 @@ impl KimiExecutor {
         self
     }
 
-    pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
+    pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
+        self.needs_prepare_at(credential, cfg, chrono::Utc::now())
+    }
+
+    pub fn needs_prepare_at(&self, credential: &Credential, _cfg: &Config, now: chrono::DateTime<chrono::Utc>) -> bool {
         // Go's refresh loop never schedules API-key-kind credentials.
         !cpa_core::registry::dynamic::is_api_key(credential)
             && refresh_token(credential).is_some()
             && refresh_due(
                 credential,
                 chrono::Duration::from_std(kimi_auth::REFRESH_LEAD).ok(),
-                chrono::Utc::now(),
+                now,
             )
     }
 

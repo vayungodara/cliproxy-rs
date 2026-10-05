@@ -143,7 +143,7 @@ async fn refresh_rotation_preserves_identity_on_optional_profile_failure() {
     assert_eq!(credential.str("id_token"), Some("fake-id"));
     assert_eq!(credential.metadata["unknown"], json!({"preserve":true}));
     assert_eq!(credential.metadata["claude_device_ids"], json!(["a".repeat(64)]));
-    assert!(!needs_prepare(&credential));
+    assert!(!needs_prepare(&credential, chrono::Utc::now()));
     let calls = mock.calls.lock().unwrap();
     assert_eq!(calls.len(), 2);
     assert_eq!(calls[0].2, format!(r#"{{"client_id":"{CLIENT_ID}","grant_type":"refresh_token","refresh_token":"fake-refresh","scope":"{SCOPE}"}}"#).as_bytes());
@@ -412,7 +412,10 @@ async fn prepare_forces_a_refresh_outside_the_lead_window() {
     credential
         .metadata
         .insert("claude_device_ids".into(), json!(["a".repeat(64)]));
-    assert!(!needs_prepare(&credential), "not due and identified");
+    assert!(
+        !needs_prepare(&credential, chrono::Utc::now()),
+        "not due and identified"
+    );
     let patch = oauth.prepare(&credential, &crate::proxy::Proxy::Inherit).await.unwrap();
     assert_eq!(patch.set["access_token"], "sk-ant-oat-new-fake");
     assert_eq!(mock.token_calls.load(Ordering::SeqCst), 1);

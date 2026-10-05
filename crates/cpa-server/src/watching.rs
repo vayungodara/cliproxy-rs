@@ -6,11 +6,12 @@
 //! (`replaceCheckDelay`). Both compare content hashes, so self-writes and
 //! unchanged rewrites are no-ops.
 //!
-//! ponytail: portable metadata polling stands in for fsnotify. Every 50 ms the watcher
-//! stats the config file and the top-level `*.json` auth files and hashes only files
-//! whose metadata changed or that were modified in the last two seconds (git's racy
-//! timestamp rule), so the steady state reads nothing. A change applies once it has
-//! been stable for 150 ms (config) or one tick (auth files).
+//! The watcher sleeps until the operating system reports a change in the config file's
+//! folder or the auth folder ([`crate::fs_events`]). It then stats the config file and
+//! the top-level `*.json` auth files every 50 ms, hashing only files whose metadata
+//! changed or that were modified in the last two seconds (git's racy timestamp rule),
+//! until the change has been stable for 150 ms (config) or one tick (auth files) and is
+//! applied. While nothing changes it does no work and sets no timer.
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError};
@@ -20,6 +21,7 @@ use cpa_core::config::{Config, credentials};
 use cpa_core::credential::{Credential, Source};
 use sha2::{Digest, Sha256};
 
+use crate::fs_events::{Events, Targets};
 use crate::management::Management;
 
 const TICK: Duration = Duration::from_millis(50);
@@ -164,17 +166,27 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
                 .map(|data| <Hash>::from(Sha256::digest(data))),
         )
     };
+    let targets = |state: &Management, current: Option<&Snapshot>| Targets {
+        config: state.path.clone(),
+        auth_dir: state.rt.config().auth_dir.clone(),
+        files: current.map(|s| s.auth.keys().cloned().collect()).unwrap_or_default(),
+    };
+    let first = targets(state, None);
     let state = Arc::downgrade(state);
     tokio::spawn(async move {
+        let mut events = Events::new(&first);
         let mut cache = HashCache::default();
         // The state last reloaded; the first stable observation reloads once, as Go's
         // watcher reloads clients when it starts.
         let mut applied: Option<Snapshot> = None;
         let mut observed: Option<Snapshot> = None;
         let mut since = Instant::now();
-        let mut ticks = tokio::time::interval(TICK);
         loop {
-            ticks.tick().await;
+            if applied.is_some() && applied == observed {
+                events.changed().await;
+            } else {
+                tokio::time::sleep(TICK).await;
+            }
             let Some(state) = state.upgrade() else {
                 return;
             };
@@ -243,6 +255,7 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             }
             // Applied once either way: a failed config load retries on its next change,
             // as Go retries on its next file event, rather than every tick.
+            events.retarget(&targets(&state, Some(&current)));
             applied = Some(current);
         }
     })

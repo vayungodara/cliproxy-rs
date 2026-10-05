@@ -1,6 +1,7 @@
 //! The server's LAN advertisement (Go `discoveryAdvertiserManager`): applied at start,
 //! on every published config and every 15 s while enabled, stopped with a goodbye on
-//! shutdown. One task owns the state, so Go's generation fencing is not needed.
+//! shutdown. One task owns the state, so Go's generation fencing is not needed. While
+//! discovery is off the task sleeps until the next config publish and sets no timer.
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,9 +12,6 @@ use super::mdns::Responder;
 use super::{DiscoveryConfig, ServiceSpec, build_service_spec};
 
 const REFRESH: Duration = Duration::from_secs(15);
-// ponytail: the runtime has no config-change signal, so the published snapshot is
-// polled; reloads apply within this delay instead of immediately as in Go.
-const POLL: Duration = Duration::from_secs(1);
 
 #[cfg(unix)]
 fn hostname() -> String {
@@ -163,30 +161,50 @@ pub struct Advertiser {
 impl Advertiser {
     /// Starts advertising for whatever `config` publishes; `tls` says whether the
     /// listener serves TLS (Go passes `cfg.TLS.Enable`, which its listener honours).
-    pub fn spawn(config: impl Fn() -> Arc<Config> + Send + 'static, tls: bool) -> Self {
+    /// `published` resolves after each config publish.
+    pub fn spawn(
+        config: impl Fn() -> Arc<Config> + Send + 'static,
+        mut published: tokio::sync::watch::Receiver<()>,
+        tls: bool,
+    ) -> Self {
         let (stop, mut stopped) = oneshot::channel();
         let task = tokio::spawn(async move {
             let mut state = State {
                 tls,
                 ..State::default()
             };
+            published.borrow_and_update();
             let mut current = config();
             let mut refreshing = state.apply(&current, true).await;
             let mut next_refresh = tokio::time::Instant::now() + REFRESH;
             loop {
+                let (on, at) = (refreshing, next_refresh);
+                let refresh = async move {
+                    if on {
+                        tokio::time::sleep_until(at).await;
+                    } else {
+                        std::future::pending::<()>().await;
+                    }
+                };
                 tokio::select! {
                     _ = &mut stopped => break,
-                    _ = tokio::time::sleep(POLL) => {}
+                    changed = published.changed() => {
+                        if changed.is_err() {
+                            // The runtime is gone; wait for shutdown without spinning.
+                            let _ = (&mut stopped).await;
+                            break;
+                        }
+                        published.borrow_and_update();
+                        let latest = config();
+                        if Arc::ptr_eq(&latest, &current) {
+                            continue;
+                        }
+                        current = latest;
+                        refreshing = state.apply(&current, true).await;
+                    }
+                    () = refresh => refreshing = state.apply(&current, false).await,
                 }
-                let latest = config();
-                if !Arc::ptr_eq(&latest, &current) {
-                    current = latest;
-                    refreshing = state.apply(&current, true).await;
-                    next_refresh = tokio::time::Instant::now() + REFRESH;
-                } else if refreshing && tokio::time::Instant::now() >= next_refresh {
-                    refreshing = state.apply(&current, false).await;
-                    next_refresh = tokio::time::Instant::now() + REFRESH;
-                }
+                next_refresh = tokio::time::Instant::now() + REFRESH;
             }
             state.stop(None).await;
         });

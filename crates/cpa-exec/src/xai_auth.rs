@@ -912,12 +912,12 @@ pub fn refresh_patch(
 
 /// Whether the background loop should refresh: a refresh token and expiry within the
 /// SDK lead (`RefreshSoon`; requests keep the current token).
-pub fn needs_refresh(credential: &Credential) -> bool {
+pub fn needs_refresh(credential: &Credential, now: DateTime<Utc>) -> bool {
     !metadata_string(credential, "refresh_token").is_empty()
         && crate::kimi_http::refresh_due(
             credential,
             Some(chrono::Duration::from_std(REFRESH_LEAD).expect("lead fits")),
-            Utc::now(),
+            now,
         )
 }
 
