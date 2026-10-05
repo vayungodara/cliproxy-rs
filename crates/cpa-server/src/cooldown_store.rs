@@ -48,6 +48,10 @@ pub struct Quota {
     pub backoff_level: u32,
     #[serde(default, with = "go_time")]
     pub observed_at: Option<SystemTime>,
+    /// cliproxy-rs only: the bounded-trust window exponent (`max-trusted-cooldown`).
+    /// Go's decoder ignores it; records without it start at the first bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trust_level: Option<u32>,
 }
 
 /// Go `Error`.

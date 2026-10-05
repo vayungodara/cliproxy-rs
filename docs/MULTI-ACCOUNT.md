@@ -26,6 +26,8 @@ The provider's sign-in page uses whatever account your browser is logged into. T
 
 `soonest-reset` is experimental and only runs if you choose it. Please report anything that looks wrong.
 
+`soonest-reset` ranks accounts by the usage headers of their last responses. An account whose one-hour rest after a stated reset has ended (see [Cooldowns and limits](#cooldowns-and-limits)) still reports its window as used up, so it sorts last and is checked only when the other accounts are used up or cooling.
+
 You can change the strategy on the dashboard's Configuration page, or in `config.yaml`.
 
 Each account can also have a `priority` (default 0). The proxy only uses the accounts with the highest priority among those that are ready, and falls back to lower ones when all of those are cooling down or disabled. Set Priority and Weight per account on the dashboard's Credentials page, or as top-level `"priority"` and `"weight"` fields in the account's file.
@@ -47,7 +49,7 @@ When `session-affinity` is omitted, both cliproxy-rs and CLIProxyAPI default to 
 
 When a provider answers 429 (too many requests, or a used-up limit), the proxy rests that account for that model and sends the request to the next ready account:
 
-- If the provider says when to try again (a `Retry-After` header), the account rests that long, at least 10 seconds.
+- If the provider says when to try again (a `Retry-After` header or a stated reset), the account rests that long, at least 10 seconds, but at most one hour at first ([`max-trusted-cooldown`](CONFIGURATION.md#routing)). Then the next request checks the account; while that check is out, other requests go elsewhere. If it is still limited, the next rest doubles, never past the stated reset. The dashboard shows such an account as "Limited until" the stated reset, with the time of the next check.
 - Without that, the rest starts at one second and doubles on each further 429, up to 30 minutes.
 - An error that says the whole account is out of quota rests the account for every model.
 - A rejected token (401 or 403) rests the account for 30 minutes, and the dashboard marks it "Sign in again" when the sign-in has expired or was revoked.

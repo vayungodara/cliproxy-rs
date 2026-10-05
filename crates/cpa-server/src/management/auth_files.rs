@@ -357,6 +357,14 @@ fn cooldown_view(cd: &crate::scheduler::CooldownState) -> Value {
         go_time(chrono::DateTime::<chrono::Utc>::from(retry_at)).into(),
     );
     view.insert("remaining_seconds".into(), seconds.into());
+    // cliproxy-rs only: the upstream's stated reset when `max-trusted-cooldown` cut it;
+    // `retry_at` is then the next check, which may already be due.
+    if let Some(recover) = cd.recover_in {
+        view.insert(
+            "recover_at".into(),
+            go_time(chrono::DateTime::<chrono::Utc>::from(SystemTime::now() + recover)).into(),
+        );
+    }
     if reason == "quota" {
         view.insert("backoff_level".into(), cd.level.into());
     }
@@ -496,7 +504,10 @@ fn entry(state: &Management, c: &Credential) -> Option<BTreeMap<&'static str, Va
     let now = SystemTime::now();
     let cooldowns = store.cooldowns(&c.id);
     let expired = access_token_expiry(c).is_some_and(|t| t <= now);
-    let credential_cooldown = cooldowns.iter().find(|cd| cd.model.is_empty());
+    // An ended bounded window (next check due) does not block the credential.
+    let credential_cooldown = cooldowns
+        .iter()
+        .find(|cd| cd.model.is_empty() && !cd.remaining.is_zero());
     let (status, unavailable) = if c.disabled {
         ("disabled", false)
     } else if expired || credential_cooldown.is_some() {

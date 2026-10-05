@@ -3,7 +3,8 @@
 //! days away, then recovers early. The stated reset is trusted only up to the bound,
 //! so the next ordinary request after the bound reaches the upstream and succeeds.
 //! Run with and without `save-cooldown-status`; with it, a restart restores the bounded
-//! cooldown, not the six days. Loopback upstream and fake keys only.
+//! cooldown, not the six days. Requests that arrive together after the bound send one
+//! probe upstream. Loopback upstream and fake keys only.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -20,14 +21,17 @@ use cpa_exec::claude::ClaudeExecutor;
 use serde_json::json;
 
 const FILE: &str = "claude-q.json";
-/// The bound under test; small so the test does not wait an hour.
-const BOUND: Duration = Duration::from_secs(3);
+/// The bound under test: the smallest allowed (Go's 10 s floor), so the test does not
+/// wait an hour.
+const BOUND: Duration = Duration::from_secs(10);
+const SIX_DAYS: Duration = Duration::from_secs(6 * 24 * 3600);
 
 /// The first request is refused with a shared weekly window resetting in six days;
-/// every later one succeeds (the provider reset early).
+/// every later one succeeds (the provider reset early), after a short delay so that
+/// concurrent requests overlap the probe.
 async fn upstream(State(calls): State<Arc<AtomicUsize>>) -> Response {
     if calls.fetch_add(1, Ordering::SeqCst) == 0 {
-        let reset = SystemTime::now() + Duration::from_secs(6 * 24 * 3600);
+        let reset = SystemTime::now() + SIX_DAYS;
         let reset = reset.duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
         return (
             StatusCode::TOO_MANY_REQUESTS,
@@ -40,6 +44,7 @@ async fn upstream(State(calls): State<Arc<AtomicUsize>>) -> Response {
         )
             .into_response();
     }
+    tokio::time::sleep(Duration::from_millis(300)).await;
     (
         [("content-type", "application/json")],
         r#"{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"m","stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}"#,
@@ -56,18 +61,25 @@ async fn serve(app: axum::Router) -> String {
 
 /// A proxy over the private `auth_dir` with one API-key credential at `upstream_url`.
 async fn proxy(auth_dir: &Path, upstream_url: &str, save: bool) -> (String, Arc<cpa_server::Runtime>) {
+    proxy_with(auth_dir, upstream_url, save, &format!("{}s", BOUND.as_secs())).await
+}
+
+async fn proxy_with(
+    auth_dir: &Path,
+    upstream_url: &str,
+    save: bool,
+    bound: &str,
+) -> (String, Arc<cpa_server::Runtime>) {
     let yaml = format!(
         "api-keys: [client-key]\nauth-dir: {dir}\nrouting:\n  cooldown:\n    \
-         save-cooldown-status: {save}\n    max-trusted-cooldown: {bound}s\n",
+         save-cooldown-status: {save}\n    max-trusted-cooldown: \"{bound}\"\n",
         dir = auth_dir.display(),
-        bound = BOUND.as_secs(),
     );
-    let mut credential = Credential::from_file(
-        auth_dir,
-        &auth_dir.join(FILE),
-        json!({"type": "claude"}).as_object().unwrap().clone(),
-    )
-    .unwrap();
+    // The file exists in `auth-dir`, so the runtime's own reconcile keeps it.
+    let meta = json!({"type": "claude", "api_key": "sk-fake-claude", "base_url": upstream_url});
+    std::fs::write(auth_dir.join(FILE), meta.to_string()).unwrap();
+    let mut credential =
+        Credential::from_file(auth_dir, &auth_dir.join(FILE), meta.as_object().unwrap().clone()).unwrap();
     credential.attributes.insert("api_key".into(), "sk-fake-claude".into());
     credential.attributes.insert("base_url".into(), upstream_url.into());
     let rt = Arc::new(cpa_server::testing::runtime(
@@ -114,7 +126,20 @@ async fn early_reset_is_noticed_after_the_bound(save: bool) {
 
     assert_eq!(message(&url).await, 429);
     let cooling = rt.store().cooldowns(FILE);
-    assert!(!cooling.is_empty(), "the 429 cools the credential");
+    let window = cooling
+        .iter()
+        .map(|c| c.remaining)
+        .max()
+        .expect("the 429 cools the credential");
+    // The six-day header was read: the window is the bound (not Go's 1 s backoff for a
+    // 429 without a reset), and the stated reset is kept.
+    assert!(window > BOUND / 2 && window <= BOUND, "{window:?}");
+    let stated = cooling
+        .iter()
+        .filter_map(|c| c.recover_in)
+        .max()
+        .expect("stated reset kept");
+    assert!(stated > SIX_DAYS - Duration::from_secs(60), "{stated:?}");
     assert_eq!(message(&url).await, 429, "still cooling inside the bound");
     assert_eq!(
         calls.load(Ordering::SeqCst),
@@ -129,12 +154,20 @@ async fn early_reset_is_noticed_after_the_bound(save: bool) {
         let next = saved[0].next_retry_after.unwrap();
         let left = next.duration_since(SystemTime::now()).unwrap_or_default();
         assert!(left <= BOUND, "the file holds the bound, not the six days: {left:?}");
-        // A restart restores the bounded cooldown.
+        let recover = saved[0].quota.next_recover_at.unwrap();
+        assert!(
+            recover > SystemTime::now() + SIX_DAYS - Duration::from_secs(60),
+            "Go's recovery time"
+        );
+        assert_eq!(saved[0].quota.trust_level, Some(0));
+        // A restart restores the bounded cooldown, neither escalated nor six days.
         drop(rt);
         let (url, restarted) = proxy(&dir, &upstream_url, save).await;
+        let restored = restarted.store().cooldowns(FILE);
+        let left = restored.iter().map(|c| c.remaining).max().expect("restored");
         assert!(
-            !restarted.store().cooldowns(FILE).is_empty(),
-            "restored from {}",
+            left > Duration::ZERO && left <= BOUND,
+            "restored from {}: {left:?}",
             cds.display()
         );
         url
@@ -144,16 +177,20 @@ async fn early_reset_is_noticed_after_the_bound(save: bool) {
     };
 
     tokio::time::sleep(BOUND + Duration::from_millis(200)).await;
+    // Four requests arrive together: the first pick is the probe, the others see the
+    // credential cooling until it answers.
+    let statuses = futures_util::future::join_all((0..4).map(|_| message(&url))).await;
     assert_eq!(
-        message(&url).await,
-        200,
-        "the first request after the bound is the probe"
+        statuses.iter().filter(|s| **s == 200).count(),
+        1,
+        "the probe succeeds: {statuses:?}"
     );
     assert_eq!(
         calls.load(Ordering::SeqCst),
         2,
-        "exactly one probe reached the upstream"
+        "exactly one probe reached the upstream: {statuses:?}"
     );
+    assert_eq!(message(&url).await, 200, "the account is back after the probe");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -165,4 +202,44 @@ async fn early_reset_is_noticed_after_the_bound_in_memory() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn early_reset_is_noticed_after_the_bound_with_save_cooldown_status() {
     early_reset_is_noticed_after_the_bound(true).await;
+}
+
+/// A `.cds` record with a saved trust count of 2 (the third window) restores at that
+/// window's bound, 4 h under the default 1 h, not at the six days it names.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_saved_trust_count_restores_its_window() {
+    use cpa_server::cooldown_store::{Quota, Record};
+    let dir = auth_dir("count");
+    let at = SystemTime::now() + SIX_DAYS;
+    let record = Record {
+        provider: "claude".into(),
+        auth_id: FILE.into(),
+        status: "cooling".into(),
+        next_retry_after: Some(at),
+        reason: "credential_quota".into(),
+        quota: Quota {
+            exceeded: true,
+            reason: "credential_quota".into(),
+            next_recover_at: Some(at),
+            trust_level: Some(2),
+            ..Default::default()
+        },
+        auth_file: Some(dir.join(FILE)),
+        ..Default::default()
+    };
+    cpa_server::cooldown_store::save(&dir, vec![record], SystemTime::now()).unwrap();
+    let (_url, rt) = proxy_with(&dir, "http://127.0.0.1:9", true, "").await;
+    let left = rt
+        .store()
+        .cooldowns(FILE)
+        .iter()
+        .map(|c| c.remaining)
+        .max()
+        .expect("restored");
+    let four_hours = Duration::from_secs(4 * 3600);
+    assert!(
+        left <= four_hours && left > four_hours - Duration::from_secs(60),
+        "{left:?}"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
 }

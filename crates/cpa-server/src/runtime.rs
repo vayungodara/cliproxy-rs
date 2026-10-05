@@ -1108,6 +1108,9 @@ impl CredentialStore {
             }
             let refs: Vec<(&Credential, &str)> = candidates.iter().map(|(c, p)| (*c, p.as_str())).collect();
             let (picked, lcp) = scheduler.pick_session(&refs, &selection, &policy, ranks, now).unwrap();
+            if let Some((c, m)) = eligible.iter().find(|(c, _)| c.id == picked.id) {
+                scheduler.reserve_probe(c, m, now);
+            }
             (inner.creds.iter().find(|c| c.id == picked.id).unwrap().clone(), lcp)
         };
         let (credential, lcp) = credential;
@@ -1149,10 +1152,11 @@ impl CredentialStore {
         Suspension::None
     }
 
-    /// Whether `model` is cooling for this credential right now.
+    /// Whether `model` is cooling for this credential right now. A probe reservation does
+    /// not count: the lease that holds it is the one asking.
     pub fn blocked(&self, credential: &Credential, model: &str) -> bool {
         let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
-        scheduler.wait(credential, model, Instant::now()).is_some()
+        scheduler.cooling(credential, model, Instant::now())
     }
 
     /// Clears every cooldown and affinity binding of one credential (Go `ResetQuota`).
