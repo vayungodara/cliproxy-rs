@@ -59,7 +59,7 @@ Both scripts read these environment variables:
 | `CLIPROXY_NO_OPEN` | unset | Set to `1` to never open a browser. |
 | `CLIPROXY_RELEASES` | `https://github.com/vayungodara/cliproxy-rs/releases` | Release page base URL for a mirror or installer tests. It must serve `/latest`, `/download/<tag>/SHA256SUMS` and the platform archive under `/download/<tag>/`. |
 
-`CLIPROXY_RELEASES` changes the installer's download source, not the running server. Check that you trust the mirror: a checksum downloaded from the same source cannot establish who published the binary.
+Use only a mirror you trust. The installer checks the archive against the `SHA256SUMS` file from that same mirror.
 
 ### Start at login
 
