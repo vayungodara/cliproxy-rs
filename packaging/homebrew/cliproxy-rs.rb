@@ -48,7 +48,8 @@ class CliproxyRs < Formula
       EOS
       keys_file.chmod 0600
     end
-    keys = keys_file.read.lines.to_h { |line| line.strip.split("=", 2) }
+    keys = keys_file.read.lines.reject { |line| line.strip.empty? || line.lstrip.start_with?("#") }
+                    .to_h { |line| line.strip.split("=", 2) }
     client_key = keys.fetch("CLIPROXY_CLIENT_KEY")
     management_key = keys.fetch("CLIPROXY_MANAGEMENT_KEY")
     unless [client_key, management_key].all? { |key| key.match?(/\A[0-9a-f]{48}\z/) }

@@ -1,5 +1,8 @@
 import unittest
 from pathlib import Path
+import subprocess
+import sys
+import tempfile
 
 from render import render
 
@@ -36,6 +39,25 @@ class RenderTest(unittest.TestCase):
             with self.subTest(tag=tag, checksums=checksums):
                 with self.assertRaises(ValueError):
                     render(tag, checksums, self.template)
+
+    def test_existing_formula_never_downgrades_and_equal_versions_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "cliproxy-rs.rb"
+            sums = Path(directory) / "SHA256SUMS"
+            sums.write_text(self.checksums)
+            for installed in ("1.10.0", "2.0.0", "1.2.4", "1.2.3", "1.2.2"):
+                with self.subTest(installed=installed):
+                    # Different checksums distinguish an equal-version retry from a no-op.
+                    current = render("v1.2.3", self.checksums, self.template).replace("1.2.3", installed)
+                    current = current.replace("1" * 64, "a" * 64)
+                    output.write_text(current)
+                    result = subprocess.run(
+                        [sys.executable, str(Path(__file__).with_name("render.py")), "v1.2.3", str(sums), str(output)],
+                        capture_output=True, text=True,
+                    )
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    expected = current if installed in ("1.10.0", "2.0.0", "1.2.4") else render("v1.2.3", self.checksums, self.template)
+                    self.assertEqual(output.read_text(), expected)
 
 
 if __name__ == "__main__":

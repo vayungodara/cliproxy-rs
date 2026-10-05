@@ -33,7 +33,9 @@ Dir.mktmpdir("cliproxy-homebrew-test") do |directory|
     raise "public #{file.basename}" unless (file.stat.mode & 0777) == 0600
   end
 
-  original_keys = keys_file.read
+  original_keys = "\n  # Keep these existing keys.\n\n#{keys_file.read}\n \t\n"
+  keys_file.unlink
+  keys_file.write original_keys
   config.unlink
   formula.post_install
   raise "existing keys replaced" unless keys_file.read == original_keys
@@ -63,7 +65,11 @@ raise "tap job has wrong event" unless homebrew.fetch("if") == "github.event_nam
 token_step, *guarded_steps = homebrew.fetch("steps")
 guarded_steps.each do |step|
   raise "tap step runs without token" unless step.fetch("if") == "steps.token.outputs.enabled == 'true'"
+  raise "mutable action in tap job" if step["uses"] && !step["uses"].match?(/@[0-9a-f]{40}\z/)
 end
+formula_workflow = YAML.safe_load_file(".github/workflows/homebrew.yml")
+checkout = formula_workflow.fetch("jobs").fetch("formula").fetch("steps").first.fetch("uses")
+raise "mutable formula checkout" unless checkout.match?(/\Aactions\/checkout@[0-9a-f]{40}\z/)
 Dir.mktmpdir("cliproxy-release-test") do |directory|
   ["", "test-token"].each do |token|
     output = Pathname(directory)/"output"
