@@ -2008,11 +2008,16 @@ async fn attempt(
                         return Attempt::Done(done);
                     };
                     return Attempt::Done(match done {
-                        Done::Stream { headers, first, rest } => Done::Stream {
-                            headers,
-                            first,
-                            rest: Completing::new(rest, lease).boxed(),
-                        },
+                        Done::Stream { headers, first, rest } => {
+                            // A good first chunk answers a bounded window's probe now,
+                            // not when the stream ends.
+                            lease.accepted();
+                            Done::Stream {
+                                headers,
+                                first,
+                                rest: Completing::new(rest, lease).boxed(),
+                            }
+                        }
                         buffered => {
                             lease.complete(Outcome::Success);
                             buffered

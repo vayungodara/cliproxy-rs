@@ -748,6 +748,15 @@ impl Lease {
         }
     }
 
+    /// The upstream accepted this attempt (a stream's first chunk arrived): an ended
+    /// bounded window it probes has its answer, so other requests may use the account
+    /// while the stream runs (`Scheduler::accept_probe`). A no-op for remote leases.
+    pub fn accepted(&self) {
+        if self.remote.is_none() {
+            self.store.accept_probe(self);
+        }
+    }
+
     /// Records an intermediate outcome for one model of a pooled alias without ending
     /// the lease.
     pub fn note(&self, model: &str, outcome: &Outcome) {
@@ -1216,6 +1225,22 @@ impl CredentialStore {
         } else {
             Some(wait)
         }
+    }
+
+    fn accept_probe(&self, lease: &Lease) {
+        let inner = self.read();
+        // Like results: a credential edited or re-created since the pick is left alone.
+        if !inner
+            .creds
+            .iter()
+            .any(|c| c.id == lease.credential.id && c.revision == lease.credential.revision)
+        {
+            return;
+        }
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .accept_probe(&lease.credential, &lease.execution_model, Instant::now());
     }
 
     fn record(&self, lease: &Lease, outcome: &Outcome) {

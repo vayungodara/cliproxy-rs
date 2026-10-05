@@ -26,30 +26,66 @@ const FILE: &str = "claude-q.json";
 const BOUND: Duration = Duration::from_secs(10);
 const SIX_DAYS: Duration = Duration::from_secs(6 * 24 * 3600);
 
-/// The first request is refused with a shared weekly window resetting in six days;
-/// every later one succeeds (the provider reset early), after a short delay so that
-/// concurrent requests overlap the probe.
-async fn upstream(State(calls): State<Arc<AtomicUsize>>) -> Response {
-    if calls.fetch_add(1, Ordering::SeqCst) == 0 {
-        let reset = SystemTime::now() + SIX_DAYS;
-        let reset = reset.duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
-        return (
-            StatusCode::TOO_MANY_REQUESTS,
-            [
-                ("content-type", "application/json"),
-                ("anthropic-ratelimit-unified-7d-status", "rejected"),
-                ("anthropic-ratelimit-unified-7d-reset", reset.as_str()),
-            ],
-            r#"{"type":"error","error":{"type":"rate_limit_error","message":"weekly limit"}}"#,
-        )
-            .into_response();
+/// The scripted upstream. The first request is refused with a shared weekly window
+/// resetting in six days; the second (the probe) succeeds once the test releases it, as
+/// one JSON reply or, for a streaming request, a stream whose first event comes at once;
+/// every later request succeeds at once (the provider reset early).
+struct Up {
+    calls: AtomicUsize,
+    release: tokio::sync::Semaphore,
+}
+
+impl Default for Up {
+    fn default() -> Self {
+        Self {
+            calls: AtomicUsize::new(0),
+            release: tokio::sync::Semaphore::new(0),
+        }
     }
-    tokio::time::sleep(Duration::from_millis(300)).await;
-    (
-        [("content-type", "application/json")],
-        r#"{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"m","stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}"#,
-    )
-        .into_response()
+}
+
+const REPLY: &str = r#"{"id":"msg_1","type":"message","role":"assistant","content":[],"model":"m","stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}"#;
+const STREAM_START: &str = "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"m\",\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}}\n\n";
+const STREAM_END: &str = "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
+
+async fn upstream(State(up): State<Arc<Up>>, req: axum::extract::Request) -> Response {
+    let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
+    let stream = serde_json::from_slice::<serde_json::Value>(&body).unwrap()["stream"] == true;
+    match up.calls.fetch_add(1, Ordering::SeqCst) {
+        0 => {
+            let reset = SystemTime::now() + SIX_DAYS;
+            let reset = reset.duration_since(UNIX_EPOCH).unwrap().as_secs().to_string();
+            (
+                StatusCode::TOO_MANY_REQUESTS,
+                [
+                    ("content-type", "application/json"),
+                    ("anthropic-ratelimit-unified-7d-status", "rejected"),
+                    ("anthropic-ratelimit-unified-7d-reset", reset.as_str()),
+                ],
+                r#"{"type":"error","error":{"type":"rate_limit_error","message":"weekly limit"}}"#,
+            )
+                .into_response()
+        }
+        1 if stream => {
+            use futures_util::StreamExt;
+            let up = up.clone();
+            let rest = futures_util::stream::once(async move {
+                up.release.acquire().await.unwrap().forget();
+                Ok::<_, std::convert::Infallible>(axum::body::Bytes::from(STREAM_END))
+            });
+            let chunks = futures_util::stream::once(async { Ok(axum::body::Bytes::from(STREAM_START)) }).chain(rest);
+            (
+                [("content-type", "text/event-stream")],
+                axum::body::Body::from_stream(chunks),
+            )
+                .into_response()
+        }
+        1 => {
+            up.release.acquire().await.unwrap().forget();
+            ([("content-type", "application/json")], REPLY).into_response()
+        }
+        _ => ([("content-type", "application/json")], REPLY).into_response(),
+    }
 }
 
 async fn serve(app: axum::Router) -> String {
@@ -120,8 +156,8 @@ fn auth_dir(name: &str) -> PathBuf {
 
 async fn early_reset_is_noticed_after_the_bound(save: bool) {
     let dir = auth_dir(if save { "saved" } else { "memory" });
-    let calls = Arc::new(AtomicUsize::new(0));
-    let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(calls.clone())).await;
+    let up = Arc::new(Up::default());
+    let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(up.clone())).await;
     let (url, rt) = proxy(&dir, &upstream_url, save).await;
 
     assert_eq!(message(&url).await, 429);
@@ -142,7 +178,7 @@ async fn early_reset_is_noticed_after_the_bound(save: bool) {
     assert!(stated > SIX_DAYS - Duration::from_secs(60), "{stated:?}");
     assert_eq!(message(&url).await, 429, "still cooling inside the bound");
     assert_eq!(
-        calls.load(Ordering::SeqCst),
+        up.calls.load(Ordering::SeqCst),
         1,
         "a cooling credential is not sent upstream"
     );
@@ -178,15 +214,23 @@ async fn early_reset_is_noticed_after_the_bound(save: bool) {
 
     tokio::time::sleep(BOUND + Duration::from_millis(200)).await;
     // Four requests arrive together: the first pick is the probe, the others see the
-    // credential cooling until it answers.
-    let statuses = futures_util::future::join_all((0..4).map(|_| message(&url))).await;
+    // credential cooling until it answers. The probe's reply is held until the other
+    // three have their answers, so the check does not depend on timing.
+    use futures_util::StreamExt;
+    let mut pending: futures_util::stream::FuturesUnordered<_> = (0..4).map(|_| message(&url)).collect();
+    let mut statuses = Vec::new();
+    for _ in 0..3 {
+        let status = tokio::time::timeout(Duration::from_secs(20), pending.next())
+            .await
+            .expect("three requests answer while the probe is held (a second probe would wait too)")
+            .unwrap();
+        statuses.push(status);
+    }
+    assert!(statuses.iter().all(|s| *s != 200), "{statuses:?}");
+    up.release.add_permits(1);
+    assert_eq!(pending.next().await, Some(200), "the probe succeeds");
     assert_eq!(
-        statuses.iter().filter(|s| **s == 200).count(),
-        1,
-        "the probe succeeds: {statuses:?}"
-    );
-    assert_eq!(
-        calls.load(Ordering::SeqCst),
+        up.calls.load(Ordering::SeqCst),
         2,
         "exactly one probe reached the upstream: {statuses:?}"
     );
@@ -243,5 +287,47 @@ async fn a_saved_trust_count_restores_its_window() {
         .max()
         .expect("stated reset kept");
     assert!(stated > SIX_DAYS - Duration::from_secs(60), "{stated:?}");
+    // The restore rewrote the file from the restored state: the count is still there.
+    let rewritten = cpa_server::cooldown_store::load(&dir).unwrap();
+    assert_eq!(rewritten.len(), 1);
+    assert_eq!(rewritten[0].quota.trust_windows, Some(3));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A streaming probe answers the window when its first event arrives: while the stream
+/// is still open, the next request goes upstream and succeeds instead of seeing the
+/// account cooling until the stream ends.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn an_open_probe_stream_frees_the_account() {
+    use futures_util::StreamExt;
+    let dir = auth_dir("stream");
+    let up = Arc::new(Up::default());
+    let upstream_url = serve(axum::Router::new().fallback(upstream).with_state(up.clone())).await;
+    let (url, _rt) = proxy(&dir, &upstream_url, false).await;
+    assert_eq!(message(&url).await, 429);
+    tokio::time::sleep(BOUND + Duration::from_millis(200)).await;
+    let body = json!({"model": "claude-opus-4-6", "max_tokens": 8, "stream": true, "messages": [{"role": "user", "content": "hi"}]});
+    let probe = wreq::Client::new()
+        .post(format!("{url}/v1/messages"))
+        .header("x-api-key", "client-key")
+        .header("content-type", "application/json")
+        .body(body.to_string())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(probe.status().as_u16(), 200);
+    let mut chunks = probe.bytes_stream();
+    let first = tokio::time::timeout(Duration::from_secs(10), chunks.next())
+        .await
+        .expect("the probe's first event")
+        .unwrap()
+        .unwrap();
+    assert!(String::from_utf8_lossy(&first).contains("message_start"));
+    assert_eq!(message(&url).await, 200, "served while the probe stream is open");
+    assert_eq!(up.calls.load(Ordering::SeqCst), 3);
+    up.release.add_permits(1);
+    while let Some(chunk) = chunks.next().await {
+        chunk.unwrap();
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
