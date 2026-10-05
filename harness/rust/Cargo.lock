@@ -393,6 +393,7 @@ dependencies = [
  "cpa-core",
  "gjson",
  "http",
+ "memchr",
  "serde_json",
  "serde_yaml_ng",
  "sha2",
