@@ -169,6 +169,33 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          # The harness denies external traffic for its programs, not the runner.
-          python .github/scripts/test-installers.py target/debug/cliproxy.exe
-          if ($LASTEXITCODE -ne 0) { throw "Installer tests failed with exit $LASTEXITCODE" }
+          $profiles = Get-NetFirewallProfile | Select-Object Name, DefaultOutboundAction
+          $rulePrefix = "cliproxy-installer-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          try {
+            # Explicit block rules override allows. Use the profile default so
+            # the runner can keep reporting while test programs use loopback.
+            $runnerPaths = Get-Process -Name Runner.Listener, Runner.Worker |
+              Select-Object -ExpandProperty Path -Unique
+            if ($runnerPaths.Count -lt 2) { throw 'Could not locate both runner executables' }
+            $i = 0
+            foreach ($path in $runnerPaths) {
+              New-NetFirewallRule -Name "$rulePrefix-runner-$i" -DisplayName "$rulePrefix-runner-$i" `
+                -Direction Outbound -Action Allow -Program $path -Profile Any | Out-Null
+              $i++
+            }
+            New-NetFirewallRule -Name "$rulePrefix-loopback" -DisplayName "$rulePrefix-loopback" `
+              -Direction Outbound -Action Allow -RemoteAddress '127.0.0.0/8', '::1' -Profile Any | Out-Null
+            Set-NetFirewallProfile -Profile Domain, Private, Public -DefaultOutboundAction Block
+            python .github/scripts/test-installers.py target/debug/cliproxy.exe
+            if ($LASTEXITCODE -ne 0) { throw "Installer tests failed with exit $LASTEXITCODE" }
+          } finally {
+            # Restore connectivity before removing the runner exceptions, even
+            # when the harness fails or a firewall command throws.
+            try {
+              foreach ($profile in $profiles) {
+                Set-NetFirewallProfile -Profile $profile.Name -DefaultOutboundAction $profile.DefaultOutboundAction
+              }
+            } finally {
+              Get-NetFirewallRule -Name "$rulePrefix-*" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
+            }
+          }
