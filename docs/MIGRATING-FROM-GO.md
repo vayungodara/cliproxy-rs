@@ -72,7 +72,7 @@ Features Go does not have. Each is opt-in; the defaults behave as Go does.
 
 ## Switching back
 
-Stop cliproxy-rs and start Go on the same config and credential directory. Credentials that cliproxy-rs connected or refreshed stay valid for Go, and the management key keeps working. The config needs no changes: if it uses `routing.strategy: soonest-reset`, Go treats that as `round-robin`. Go also starts with `chatgpt-keep-alive` set and ignores it, but its v8 Management API (and so the Go dashboard) refuses setting changes until the key is removed from the file.
+Stop cliproxy-rs and start Go on the same config and credential directory. Credentials that cliproxy-rs connected or refreshed stay valid for Go, and the management key keeps working. The config needs no changes: if it uses `routing.strategy: soonest-reset`, Go treats that as `round-robin`. Go also starts with `oauth.providers.codex.chatgpt-keep-alive` set and ignores it; a config edit through Go's v8 Management API moves the key into a comment, so keep-alive is off again when you come back to cliproxy-rs.
 
 ## Details
 

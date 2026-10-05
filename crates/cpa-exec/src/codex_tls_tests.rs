@@ -393,18 +393,38 @@ async fn chatgpt_client_keeps_no_idle_connection_by_default() {
     }
 }
 
-/// With the switch on, sequential requests share one connection; switching it off again
-/// takes the per-request client, so the setting applies on the next request.
+/// With the switch on, sequential requests share one connection per proxy; switching it
+/// off takes the per-request client from the next request and retires every pooled
+/// client, so the connections they kept close and no pool (or pool timer) is left.
 #[tokio::test]
 async fn chatgpt_keep_alive_switch_applies_per_request() {
+    use std::sync::atomic::Ordering::SeqCst;
     let up = Upstream::start(H2, std::time::Duration::ZERO, Mode::KeepAlive).await;
     let (transport, url) = (up.transport(), up.url());
-    get_ok_with(&transport, &url, &Proxy::Inherit, true).await;
-    get_ok_with(&transport, &url, &Proxy::Inherit, true).await;
-    assert_eq!(up.accepted(), 1);
-    get_ok_with(&transport, &url, &Proxy::Inherit, false).await;
-    get_ok_with(&transport, &url, &Proxy::Inherit, false).await;
-    assert_eq!(up.accepted(), 3, "off: a new connection per request");
+    let ((a, a_tunnels), (b, b_tunnels)) = (counting_proxy(up.addr).await, counting_proxy(up.addr).await);
+    let pooled = || {
+        let cache = transport.chrome.lock().unwrap();
+        cache.iter().filter(|((_, keep_alive), _)| *keep_alive).count()
+    };
+    for proxy in [&a, &b, &a, &b] {
+        get_ok_with(&transport, &url, proxy, true).await;
+    }
+    assert_eq!((a_tunnels.load(SeqCst), b_tunnels.load(SeqCst)), (1, 1));
+    assert_eq!(
+        (up.accepted(), pooled()),
+        (2, 2),
+        "one kept connection and client per proxy"
+    );
+    get_ok_with(&transport, &url, &Proxy::Direct, false).await;
+    get_ok_with(&transport, &url, &Proxy::Direct, false).await;
+    assert_eq!(up.accepted(), 4, "off: a new connection per request");
+    assert_eq!(pooled(), 0, "pooled clients retired");
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert_eq!(
+        up.closed_by_client(),
+        4,
+        "the two kept connections closed with their pools"
+    );
 }
 
 /// Go dials a dedicated uTLS connection for every chatgpt.com request. With

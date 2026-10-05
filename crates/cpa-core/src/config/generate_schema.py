@@ -87,8 +87,8 @@ for old, family in re.findall(r'\{"([^"]+)", "([^"]+)"\}', families):
         group["fields"]["keys"] = {"list": key}
     put("api-keys." + family, {"list": group})
 schema["fields"]["config-version"] = "version"
-# cliproxy-rs additions (docs/DIFFERENCES-FROM-GO.md). Go starts with them and keeps them
-# when it saves, but its v8 management writes reject any key outside its own structs.
+# cliproxy-rs additions (docs/DIFFERENCES-FROM-GO.md). Go starts with them and ignores
+# them; a config edit through its v8 Management API moves them into comments.
 put("oauth.providers.codex.chatgpt-keep-alive", "bool")
 schema["fields"].pop("home", None)
 Path(__file__).with_name("schema.json").write_text(json.dumps(schema, indent=2) + "\n")
