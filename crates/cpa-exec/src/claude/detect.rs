@@ -1,11 +1,13 @@
 //! Native Claude Code detection (helps/claude_client_detection.go).
 //!
 //! A request is confirmed native only with all strong signals (x-app=cli, a native
-//! User-Agent at or above the measured release within its major version, the
-//! claude-code beta and a valid metadata.user_id; count_tokens omits the last) from a
-//! verified entrypoint, or as one of the exactly measured Haiku helper shapes. A
-//! release newer than the measured one also needs well-formed Stainless version
-//! headers. Copying the User-Agent alone is not enough.
+//! User-Agent, the claude-code beta and a valid metadata.user_id; count_tokens omits
+//! the last) from a verified entrypoint, or as one of the exactly measured Haiku helper
+//! shapes. Without `stabilize-device-profile` the User-Agent may be any release at or
+//! above the measured one within its major version, and a newer one also needs
+//! well-formed Stainless version headers. With it, Go's rule applies: the same
+//! major.minor, patch at or above the measured one, and no Stainless requirement.
+//! Copying the User-Agent alone is not enough.
 
 use http::HeaderMap;
 
@@ -161,8 +163,7 @@ pub(crate) fn detect(headers: &HeaderMap, payload: &str, count_tokens: bool, set
     let x_app = raw_header(headers, "x-app") == "cli";
     // A newer release counts only with its own well-formed SDK and runtime versions:
     // otherwise its forwarded User-Agent would go upstream with baseline versions.
-    let ua = profile::plausible_user_agent(user_agent, settings)
-        && (!profile::newer_than_baseline(user_agent, settings) || profile::stainless_versions_ok(headers));
+    let ua = profile::accepted_user_agent(headers, user_agent, settings);
     let betas = has_claude_code_beta(headers);
     let user_id = rawjson::get(payload, "metadata.user_id");
     let metadata_user_id = user_id.kind() == gjson::Kind::String && valid_user_id(user_id.str());
@@ -587,5 +588,38 @@ mod tests {
             ]
         ));
         assert!(confirmed("claude-cli/2.1.280 (external, cli)", &[]));
+        // Forwarding reads each header's first value: an empty first value with a valid
+        // second one would send the baseline SDK version under the 2.2.3 User-Agent.
+        let mut h = headers(&[
+            ("user-agent", "claude-cli/2.2.3 (external, cli)"),
+            ("x-app", "cli"),
+            ("anthropic-beta", "claude-code-20250219"),
+            ("x-stainless-runtime-version", "v27.0.1"),
+        ]);
+        h.append("x-stainless-package-version", "".parse().unwrap());
+        h.append("x-stainless-package-version", "0.120.4".parse().unwrap());
+        assert!(!detect(&h, &body, false, &s).confirmed);
+    }
+
+    /// With a stabilized profile nothing newer is forwarded, so Go's rules apply: a
+    /// 2.1.290 request is Claude Code without Stainless headers, and its helper is
+    /// confirmed only with the exact baseline tuple.
+    #[test]
+    fn stabilized_profiles_keep_go_detection() {
+        let mut s = Settings::default();
+        s.header_defaults.stabilize_device_profile = true;
+        let body = format!(
+            r#"{{"model":"claude-sonnet-4-6","metadata":{{"user_id":{}}},"messages":[]}}"#,
+            user_id()
+        );
+        let h = headers(&[
+            ("user-agent", "claude-cli/2.1.290 (external, cli)"),
+            ("x-app", "cli"),
+            ("anthropic-beta", "claude-code-20250219"),
+        ]);
+        assert!(detect(&h, &body, false, &s).confirmed);
+        assert!(detect(&h, &body, true, &s).confirmed, "count_tokens");
+        let (h, body) = helper("claude-cli/2.1.290 (external, cli)", "0.120.4", "v27.0.1");
+        assert!(!detect(&h, &body, false, &s).confirmed);
     }
 }

@@ -1442,11 +1442,7 @@ impl<'a> Ctx<'a> {
         // Only a fingerprinted request replaces the caller's identity; an API key without
         // cloaking forwards the caller's own User-Agent, refused or not.
         if self.cli_profile || cloak {
-            profile::note_refused(
-                self.credential,
-                detect::header(&req.headers, "user-agent"),
-                &self.settings,
-            );
+            profile::note_refused(self.credential, &req.headers, &self.settings);
         }
         // Go: stabilizeDeviceProfile && confirmedClaudeCode, and the error (Home KV
         // unreachable in Home mode) fails the request before it is sent.
