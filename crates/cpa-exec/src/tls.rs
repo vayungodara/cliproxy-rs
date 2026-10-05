@@ -239,6 +239,25 @@ mod tests {
         }
     }
 
+    /// Go's Anthropic transport is an `http.Transport` cached per proxy, so a keep-alive
+    /// connection carries the next request; the native client reuses its connection too.
+    #[tokio::test]
+    async fn native_client_reuses_its_connection() {
+        let host = "claude-reuse.test";
+        let (ca, addr, accepted) = crate::test_tls::counting_upstream(host, b"\x08http/1.1").await;
+        let transport = Transport::new(Hooks {
+            trust: Some(wreq::tls::trust::CertStore::from_pem_stack(ca).unwrap()),
+            resolve: vec![(host.into(), addr)],
+        });
+        let url = format!("https://{host}:{}/v1/messages", addr.port());
+        for _ in 0..3 {
+            let clients = transport.clients(&Proxy::Inherit).unwrap();
+            let response = clients.native.post(&url).body("{}").send().await.unwrap();
+            assert_eq!(response.bytes().await.unwrap(), "ok");
+        }
+        assert_eq!(accepted.load(std::sync::atomic::Ordering::SeqCst), 1, "connections");
+    }
+
     #[test]
     fn transport_lru_bound() {
         let t = Transport::new(Hooks::default());
