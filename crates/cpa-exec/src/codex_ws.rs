@@ -62,7 +62,8 @@ pub(crate) const WRITE_LIMIT: WriteLimit = WriteLimit {
 
 impl WriteLimit {
     fn deadline(self, len: usize) -> Duration {
-        self.floor.max(Duration::from_secs((len / self.rate.max(1)) as u64))
+        self.floor
+            .max(Duration::from_secs(len.div_ceil(self.rate.max(1)) as u64))
     }
 }
 /// Go's per-turn read channel capacity.
@@ -165,18 +166,17 @@ impl Upstream {
             self.sink.lock().await.send(Message::text(frame)).await
         })
         .await;
-        let Ok(sent) = sent else {
-            return Err(transport("codex websockets executor: write timed out"));
-        };
-        sent.map_err(|_| {
-            self.link
-                .lock()
-                .expect("link")
-                .lost
-                .as_ref()
-                .filter(|e| e.status == 413)
-                .map_or_else(|| transport("codex websockets executor: write failed"), turn_error)
-        })
+        match sent {
+            Ok(Ok(())) => Ok(()),
+            Ok(Err(_)) => Err(write_error(
+                self.link.lock().expect("link").lost.as_ref(),
+                "codex websockets executor: write failed",
+            )),
+            Err(_) => Err(write_error(
+                self.link.lock().expect("link").lost.as_ref(),
+                "codex websockets executor: write timed out",
+            )),
+        }
     }
 
     /// Go `bindExecutionLifecycle`: the socket keeps the attempt's Home pick until it is
@@ -448,6 +448,13 @@ fn message_too_big() -> ExecError {
 /// [`closed_too_big`] makes a 413 loss), the loss itself otherwise.
 /// The reader's error for a binary message (Go's `unexpected_binary` stage).
 const UNEXPECTED_BINARY: &str = "codex websockets executor: unexpected binary message";
+
+/// A failed or timed-out write: the request-scoped 413 when the reader already saw the
+/// upstream close with 1009 (the frame was too big), else a transport error.
+pub(crate) fn write_error(lost: Option<&ExecError>, message: &str) -> ExecError {
+    lost.filter(|e| e.status == 413)
+        .map_or_else(|| transport(message), turn_error)
+}
 
 fn turn_error(lost: &ExecError) -> ExecError {
     if lost.status == 413 {

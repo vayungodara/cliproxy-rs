@@ -1,10 +1,11 @@
 //! Native Claude Code detection (helps/claude_client_detection.go).
 //!
 //! A request is confirmed native only with all strong signals (x-app=cli, a native
-//! User-Agent on the measured release line, the claude-code beta and a valid
-//! metadata.user_id; count_tokens omits the last) from a verified entrypoint, or as
-//! one of the exactly measured Haiku helper shapes. Copying the User-Agent alone is
-//! not enough.
+//! User-Agent at or above the measured release within its major version, the
+//! claude-code beta and a valid metadata.user_id; count_tokens omits the last) from a
+//! verified entrypoint, or as one of the exactly measured Haiku helper shapes. A
+//! release newer than the measured one also needs well-formed Stainless version
+//! headers. Copying the User-Agent alone is not enough.
 
 use http::HeaderMap;
 
@@ -158,7 +159,10 @@ pub(crate) fn detect(headers: &HeaderMap, payload: &str, count_tokens: bool, set
     let user_agent = raw_header(headers, "user-agent");
     let (entrypoint, _) = user_agent_details(user_agent);
     let x_app = raw_header(headers, "x-app") == "cli";
-    let ua = profile::plausible_user_agent(user_agent, settings);
+    // A newer release counts only with its own well-formed SDK and runtime versions:
+    // otherwise its forwarded User-Agent would go upstream with baseline versions.
+    let ua = profile::plausible_user_agent(user_agent, settings)
+        && (!profile::newer_than_baseline(user_agent, settings) || profile::stainless_versions_ok(headers));
     let betas = has_claude_code_beta(headers);
     let user_id = rawjson::get(payload, "metadata.user_id");
     let metadata_user_id = user_id.kind() == gjson::Kind::String && valid_user_id(user_id.str());
@@ -276,16 +280,20 @@ fn helper_headers(headers: &HeaderMap, settings: &Settings) -> bool {
         return false;
     }
     let baseline = Profile::default_for(settings);
+    let user_agent = raw_header(headers, "user-agent");
     let candidate = (
-        profile::version(raw_header(headers, "user-agent")),
+        profile::version(user_agent),
         raw_header(headers, "x-stainless-package-version"),
         raw_header(headers, "x-stainless-runtime-version"),
     );
-    if candidate.0.is_none()
-        || candidate.0 != profile::version(&baseline.user_agent)
-        || candidate.1 != baseline.package_version
-        || candidate.2 != baseline.runtime_version
-    {
+    let exact = candidate.0.is_some()
+        && candidate.0 == profile::version(&baseline.user_agent)
+        && candidate.1 == baseline.package_version
+        && candidate.2 == baseline.runtime_version;
+    // A newer release's helper is confirmed with its own versions, as its main requests
+    // are (docs/DIFFERENCES-FROM-GO.md); the measured beta and body shapes still guard.
+    let newer = profile::newer_than_baseline(user_agent, settings) && profile::stainless_versions_ok(headers);
+    if !exact && !newer {
         return false;
     }
     if !raw_header(headers, "x-stainless-async").is_empty()
@@ -458,4 +466,126 @@ pub(crate) fn billing_has_cch(billing: &str) -> bool {
         && billing.as_bytes()[start..end]
             .iter()
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const SESSION: &str = "11111111-2222-4333-8444-555555555555";
+
+    fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.parse().unwrap(), v.parse().unwrap()))
+            .collect()
+    }
+
+    fn user_id() -> String {
+        let identity = format!(
+            r#"{{"device_id":"{}","account_uuid":"","session_id":"{SESSION}"}}"#,
+            "a".repeat(64)
+        );
+        serde_json::to_string(&identity).unwrap()
+    }
+
+    /// A Haiku session-title helper in the measured Title280 shape.
+    fn helper(user_agent: &str, package: &str, runtime: &str) -> (HeaderMap, String) {
+        let betas = helper_betas(
+            true,
+            &[
+                "structured-outputs-2025-12-15",
+                "server-side-fallback-2026-06-01",
+                "fallback-credit-2026-06-01",
+                "cache-diagnosis-2026-04-07",
+            ],
+        );
+        let mut pairs = vec![
+            ("user-agent", user_agent),
+            ("x-app", "cli"),
+            ("accept", "application/json"),
+            ("content-type", "application/json"),
+            ("x-stainless-lang", "js"),
+            ("x-stainless-runtime", "node"),
+            ("x-stainless-retry-count", "0"),
+            ("x-stainless-timeout", "600"),
+            ("x-stainless-os", "MacOS"),
+            ("x-stainless-arch", "arm64"),
+            ("anthropic-version", "2023-06-01"),
+            ("anthropic-dangerous-direct-browser-access", "true"),
+            ("accept-encoding", "gzip, deflate, br, zstd"),
+            ("anthropic-beta", betas.as_str()),
+            ("x-claude-code-session-id", SESSION),
+        ];
+        if !package.is_empty() {
+            pairs.push(("x-stainless-package-version", package));
+        }
+        if !runtime.is_empty() {
+            pairs.push(("x-stainless-runtime-version", runtime));
+        }
+        let body = format!(
+            r#"{{"model":"{HELPER_MODEL}","max_tokens":80,"messages":[{{"role":"user","content":"title"}}],"metadata":{{"user_id":{}}},"output_config":{{"format":{{"type":"json_schema","schema":{{"type":"object"}}}}}}}}"#,
+            user_id()
+        );
+        (headers(&pairs), body)
+    }
+
+    /// A newer release's helper is confirmed with its own versions while its measured
+    /// shape holds, like its main requests; without valid versions it is cloaked.
+    #[test]
+    fn newer_release_helpers_follow_the_main_requests() {
+        let s = Settings::default();
+        let confirmed = |ua: &str, package: &str, runtime: &str| {
+            let (h, body) = helper(ua, package, runtime);
+            let d = detect(&h, &body, false, &s);
+            d.confirmed && d.helper_profile
+        };
+        assert!(
+            confirmed("claude-cli/2.1.280 (external, cli)", "0.112.1", "v26.3.0"),
+            "baseline"
+        );
+        assert!(confirmed("claude-cli/2.2.3 (external, cli)", "0.120.4", "v27.0.1"));
+        assert!(!confirmed("claude-cli/2.2.3 (external, cli)", "", "v27.0.1"));
+        assert!(!confirmed("claude-cli/2.2.3 (external, cli)", "0.120", "v27.0.1"));
+        // The baseline release still needs the exact baseline tuple (Go).
+        assert!(!confirmed("claude-cli/2.1.280 (external, cli)", "0.120.4", "v27.0.1"));
+        // A changed shape falls back to cloaking.
+        let (h, body) = helper("claude-cli/2.2.3 (external, cli)", "0.120.4", "v27.0.1");
+        let body = body.replace(r#""max_tokens":80"#, r#""max_tokens":81"#);
+        assert!(!detect(&h, &body, false, &s).confirmed);
+    }
+
+    /// A standard request from a newer release is confirmed only with both Stainless
+    /// version headers well formed; the baseline release does not need them.
+    #[test]
+    fn newer_release_needs_valid_stainless_versions() {
+        let s = Settings::default();
+        let body = format!(
+            r#"{{"model":"claude-sonnet-4-6","metadata":{{"user_id":{}}},"messages":[]}}"#,
+            user_id()
+        );
+        let confirmed = |ua: &str, versions: &[(&str, &str)]| {
+            let mut pairs = vec![
+                ("user-agent", ua),
+                ("x-app", "cli"),
+                ("anthropic-beta", "claude-code-20250219"),
+            ];
+            pairs.extend_from_slice(versions);
+            detect(&headers(&pairs), &body, false, &s).confirmed
+        };
+        let valid = [
+            ("x-stainless-package-version", "0.120.4"),
+            ("x-stainless-runtime-version", "v27.0.1"),
+        ];
+        assert!(confirmed("claude-cli/2.2.3 (external, cli)", &valid));
+        assert!(!confirmed("claude-cli/2.2.3 (external, cli)", &valid[..1]));
+        assert!(!confirmed(
+            "claude-cli/2.2.3 (external, cli)",
+            &[
+                ("x-stainless-package-version", "0.120.4"),
+                ("x-stainless-runtime-version", "27.0.1")
+            ]
+        ));
+        assert!(confirmed("claude-cli/2.1.280 (external, cli)", &[]));
+    }
 }

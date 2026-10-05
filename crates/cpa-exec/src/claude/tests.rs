@@ -1275,3 +1275,79 @@ impl Usage {
         self.0.lock().unwrap().iter().map(|(kind, _, _)| *kind).collect()
     }
 }
+
+/// The refused-version line is written only when the baseline identity really replaces
+/// the caller's: an API key without cloaking forwards the caller's own User-Agent, so
+/// it never logs; an OAuth account sends the baseline identity, so it does.
+#[tokio::test]
+async fn refused_versions_log_only_when_the_identity_is_replaced() {
+    let router = axum::Router::new().fallback(|| async {
+        (
+            [("content-type", "application/json")],
+            r#"{"id":"msg_q","type":"message","role":"assistant","model":"m","content":[],"stop_reason":"end_turn","usage":{"input_tokens":1,"output_tokens":1}}"#,
+        )
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let credential = |file: &str, meta: Value, key: Option<&str>| {
+        let mut c = Credential::from_file(
+            Path::new("/fake"),
+            &Path::new("/fake").join(file),
+            meta.as_object().unwrap().clone(),
+        )
+        .unwrap();
+        if let Some(key) = key {
+            c.attributes.insert("api_key".into(), key.into());
+        }
+        c.attributes.insert("base_url".into(), base.clone());
+        c
+    };
+    let request = || {
+        let body = Bytes::from_static(br#"{"model":"m","max_tokens":8,"messages":[{"role":"user","content":"hi"}]}"#);
+        let mut headers = http::HeaderMap::new();
+        headers.insert("user-agent", "claude-cli/2.1.220 (external, cli)".parse().unwrap());
+        ExecRequest {
+            operation: Operation::Generate,
+            source_format: Format::Claude,
+            response_format: Format::Claude,
+            requested_model: "m".into(),
+            model: "m".into(),
+            original_body: body.clone(),
+            body,
+            stream: false,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            resolved_model: None,
+            usage: Default::default(),
+            request_path: String::new(),
+            headers,
+            caller: Caller {
+                principal: "fake-client".into(),
+                source: "x-api-key",
+            },
+        }
+    };
+    let cfg = Config::parse("").unwrap();
+    let api_key = credential(
+        "refused-api-key.json",
+        serde_json::json!({"type":"claude"}),
+        Some("fake-gateway-key"),
+    );
+    executor.execute(&api_key, request(), &cfg).await.unwrap();
+    assert!(
+        !profile::refused_logged(&api_key.id),
+        "the caller's own User-Agent went upstream"
+    );
+    let mut meta = Value::Object(harness_credential().metadata.clone());
+    meta["access_token"] = "sk-ant-oat01-FAKE".into();
+    let oauth = credential("refused-oauth.json", meta, None);
+    executor.execute(&oauth, request(), &cfg).await.unwrap();
+    assert!(
+        profile::refused_logged(&oauth.id),
+        "the baseline identity went upstream"
+    );
+}

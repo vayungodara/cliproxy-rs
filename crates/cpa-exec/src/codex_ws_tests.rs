@@ -572,6 +572,28 @@ async fn a_write_the_upstream_never_reads_times_out() {
         Duration::from_secs(40),
         "5 MiB at 128 KiB/s"
     );
+    // Partial seconds round up: just under 11 x 128 KiB needs almost 11 s.
+    assert_eq!(WRITE_LIMIT.deadline(11 * (128 << 10) - 1), Duration::from_secs(11));
+}
+
+/// A timed-out write maps like a failed one: after the upstream closed with 1009 it is
+/// the request-scoped 413 (no retry on a fresh socket), else a transport error.
+#[test]
+fn write_errors_keep_the_message_too_big_413() {
+    let too_big = message_too_big();
+    for message in [
+        "codex websockets executor: write timed out",
+        "codex websockets executor: write failed",
+    ] {
+        let error = write_error(Some(&too_big), message);
+        assert_eq!((error.status, error.scope), (413, FailureScope::Request), "{message}");
+        let other = transport("codex websockets executor: read idle timeout");
+        for lost in [None, Some(&other)] {
+            let error = write_error(lost, message);
+            assert_eq!(error.scope, FailureScope::Transport, "{message}");
+            assert!(String::from_utf8_lossy(&error.body).contains(message), "{message}");
+        }
+    }
 }
 
 /// A reader that fails before the first turn activates (binary message right after the
