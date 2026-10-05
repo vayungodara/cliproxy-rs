@@ -8,6 +8,7 @@ mod path;
 mod pretty;
 #[cfg(test)]
 mod scan_tests;
+mod test;
 /// Additional tools for working with JSON data.
 pub mod tools;
 mod util;

@@ -15,3 +15,7 @@ cpa-exec = { path = "../../crates/cpa-exec" }
 cpa-server = { path = "../../crates/cpa-server" }
 tokio = { version = "1.53", features = ["full"] }
 wreq = { version = "=6.0.0-rc.31", features = ["stream", "json"] }
+
+# The same patched gjson as the main workspace (vendor/README.md).
+[patch.crates-io]
+gjson = { path = "../../vendor/gjson" }
