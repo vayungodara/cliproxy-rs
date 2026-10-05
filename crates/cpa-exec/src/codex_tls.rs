@@ -72,6 +72,12 @@ impl Transport {
 
     fn chrome(&self, proxy: &Proxy, keep_alive: bool) -> wreq::Client {
         let mut cache = self.chrome.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !keep_alive {
+            // Keep-alive is off for this request, so it was turned off (or never on): retire
+            // every pooled client. Requests in flight hold their own clone and finish; when
+            // the last clone goes, its pool closes the idle sockets and its timer stops.
+            cache.retain(|((_, pooled), _)| !pooled);
+        }
         if let Some(i) = cache.iter().position(|((p, k), _)| p == proxy && *k == keep_alive) {
             let entry = cache.remove(i);
             let client = entry.1.clone();
