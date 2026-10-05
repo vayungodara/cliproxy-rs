@@ -147,7 +147,7 @@ Not in cliproxy-rs yet:
 
 In the [Claude soak](docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory), cliproxy-rs held 29 MB 30 seconds after 3,000 requests averaging 306 KB, and 43 MB after 600 requests averaging 1.9 MB. A personal install in daily use ran at 75 to 101 MB RSS. That reading was unscripted; sample timing, workload and the exact build were not recorded.
 
-On the [small-request benchmark](docs/BENCHMARKS.md#setup), the launch build answered its first request in a median 17 ms, and Go's startup on the same machine ranged from 45 to 453 ms across runs. It served 793 translated streams/s against Go's 564.
+On the [small-request benchmark](docs/BENCHMARKS.md#setup), the launch build answered its first request in 15 to 46 ms over three rounds, and Go in 104 to 453 ms in the same run. Go took 45 to 98 ms in quieter runs. The launch build served 793 translated streams/s against Go's 564.
 
 Go won non-streaming throughput: 1,568 requests/s against 1,168, with 0.62 ms of CPU per request against 0.85 ms. Go also won plain streaming throughput, 916 against 833 streams/s. With 256 slow streams, cliproxy-rs had a worse p99 latency: 1,414.5 ms against Go's 1,272.2 ms. These synthetic results are from the 0.1.0 launch build. [BENCHMARKS.md](docs/BENCHMARKS.md) records the methods, raw results and later Claude measurements.
 
@@ -160,7 +160,7 @@ Go won non-streaming throughput: 1,568 requests/s against 1,168, with 0.62 ms of
 
 ## Security
 
-The dashboard is built into the binary. Model catalogs are downloaded at start and every three hours; `--local-model` turns that off. See [Running it safely](docs/GETTING-STARTED.md#running-it-safely).
+The dashboard is built into the binary. Model catalogs are downloaded at start and every three hours; `--local-model` turns that off.
 
 Keep `access.api-keys` set and `server.host` on `127.0.0.1` unless your other machines need access. Behind a local tunnel or reverse proxy, set `server.trusted-proxies`; otherwise internet clients count as local. [Running it safely](docs/GETTING-STARTED.md#running-it-safely) explains this. [SECURITY.md](SECURITY.md) covers vulnerability reports.
 
