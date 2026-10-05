@@ -409,6 +409,8 @@ pub(crate) fn enforce_size_limit(
         if output.as_ref().is_some_and(|output| match &**output {
             Output::ProcessFile(file) | Output::File(file) => {
                 std::path::absolute(&file.path).is_ok_and(|active| active == path)
+                    || std::fs::canonicalize(&file.path)
+                        .is_ok_and(|active| std::fs::canonicalize(&path).is_ok_and(|candidate| active == candidate))
             }
             Output::Stdout => false,
         }) {
@@ -1014,6 +1016,26 @@ mod tests {
         assert!(cli.exists() && !old.exists());
         emit("after-clean\n");
         assert!(read(&cli).ends_with("after-clean\n"));
+
+        #[cfg(unix)]
+        {
+            let alias = dir.join("alias");
+            std::os::unix::fs::symlink(&dir, &alias).unwrap();
+            enforce_size_limit(
+                &logs,
+                1,
+                Some(&logs.join(MAIN_LOG)),
+                Some(&alias.join("process output.txt")),
+            )
+            .unwrap();
+            assert!(
+                cli.exists(),
+                "directory aliases must not hide the file open for writing"
+            );
+            emit("after-alias-clean\n");
+            assert!(read(&cli).ends_with("after-alias-clean\n"));
+            std::fs::remove_file(alias).unwrap();
+        }
 
         // Stop the cleaner and restore stdout for the rest of the process.
         configure_output(&logs, Applied { max_total_mb: 0, ..on }).unwrap();
