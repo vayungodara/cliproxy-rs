@@ -1282,6 +1282,30 @@ mod tests {
         addr
     }
 
+    /// Go's `http.DefaultTransport` keeps idle connections per host; the standard clients
+    /// (API-key base URLs, OpenAI-compatible hosts) reuse theirs over HTTP/2 and HTTP/1.1.
+    #[tokio::test]
+    async fn go_clients_reuse_connections() {
+        use std::sync::atomic::Ordering::SeqCst;
+        let host = "upstream-reuse.test";
+        for alpn in [&b"\x02h2\x08http/1.1"[..], b"\x08http/1.1"] {
+            let (ca, addr, accepted) = crate::test_tls::counting_upstream(host, alpn).await;
+            let clients = GoClients::new(Hooks {
+                trust: Some(CertStore::from_pem_stack(ca).unwrap()),
+                resolve: vec![(host.to_owned(), addr)],
+            });
+            let url = format!("https://{host}:{}/v1/messages", addr.port());
+            for _ in 0..3 {
+                let upstream = send(&clients.get(&Proxy::Direct), &url, GoHeaders::new(), "{}", None)
+                    .await
+                    .unwrap();
+                let body: Vec<Bytes> = upstream.body.map(Result::unwrap).collect().await;
+                assert_eq!(body.concat(), b"ok");
+            }
+            assert_eq!(accepted.load(SeqCst), 1, "ALPN {alpn:?}");
+        }
+    }
+
     /// Go's cloned default transport (proxyutil, ForceAttemptHTTP2) offers h2 and
     /// http/1.1 to every TLS upstream and speaks HTTP/2 wherever the upstream picks it,
     /// directly or through a CONNECT proxy; plain HTTP stays HTTP/1.1. Go's default
