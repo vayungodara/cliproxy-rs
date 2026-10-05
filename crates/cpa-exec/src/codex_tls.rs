@@ -4,8 +4,10 @@
 //! - `https://chatgpt.com` (OAuth inference and Alpha Search): uTLS `HelloChrome_Auto`,
 //!   which is Chrome 133 in uTLS v1.8.2. GREASE, permuted extensions, X25519MLKEM768,
 //!   ALPS, brotli certificate compression, ECH GREASE and no session resumption. Dialled
-//!   directly or through the configured proxy, never an environment proxy, with one
-//!   connection per request like Go's dedicated uTLS connections.
+//!   directly or through the configured proxy, never an environment proxy. Go dials a
+//!   dedicated connection per request; this client keeps up to [`CHROME_IDLE_PER_HOST`]
+//!   idle connections per host and proxy for 90 seconds, so a request usually skips the
+//!   TCP and TLS handshake (docs/DIFFERENCES-FROM-GO.md).
 //! - Every other origin (API-key base URLs, local mocks) and the Responses WebSocket:
 //!   Go's standard transport from [`crate::proxy`].
 //!
@@ -17,6 +19,13 @@ use wreq::tls::compress::{CertificateCompressionAlgorithm, CertificateCompressor
 use wreq::tls::{AlpnProtocol, AlpsProtocol, KeyShare, TlsOptions, TlsVersion};
 
 use crate::proxy::{CACHE_CAPACITY, GoClients, Hooks, Proxy};
+
+/// Idle chatgpt.com connections kept per host, in each per-proxy client: Go's default
+/// `MaxIdleConnsPerHost`, as its Anthropic transport keeps. HTTP/2 multiplexes on one.
+pub(crate) const CHROME_IDLE_PER_HOST: usize = 2;
+
+/// How long an idle chatgpt.com connection is kept.
+const CHROME_IDLE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(90);
 
 pub(crate) struct Transport {
     standard: GoClients,
@@ -78,8 +87,10 @@ impl Transport {
         let builder = wreq::Client::builder()
             .redirect(wreq::redirect::Policy::none())
             .tls_options(chrome_options())
-            // Go opens a dedicated uTLS connection per request and closes it with the body.
-            .pool_max_idle_per_host(0);
+            // Go opens a dedicated uTLS connection per request and closes it with the body;
+            // pooling keeps the same ClientHello and headers without a handshake per request.
+            .pool_max_idle_per_host(CHROME_IDLE_PER_HOST)
+            .pool_idle_timeout(CHROME_IDLE_TIMEOUT);
         // ponytail: HTTP/2 framing (SETTINGS, window sizes) is wreq's, not Go's x/net/http2.
         proxy.apply(self.hooks.apply(builder), false)?.build()
     }

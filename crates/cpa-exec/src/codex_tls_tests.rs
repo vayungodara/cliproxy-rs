@@ -175,3 +175,269 @@ fn only_https_chatgpt_uses_the_chrome_profile() {
         assert_eq!(is_chatgpt(url), chrome, "{url}");
     }
 }
+
+/// A local chatgpt.com that counts the TCP connections it accepts and the ones the client
+/// closed. Every request gets `200 ok` after `delay`, over HTTP/2 when ALPN picks it and
+/// HTTP/1.1 with keep-alive otherwise; with `close_after_first`, the server itself closes
+/// each connection shortly after its first answer, leaving the client a stale pooled one.
+struct Upstream {
+    addr: std::net::SocketAddr,
+    ca: Vec<u8>,
+    accepted: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    closed_by_client: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+}
+
+impl Upstream {
+    async fn start(alpn: &'static [u8], delay: std::time::Duration, close_after_first: bool) -> Self {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        let (ca, acceptor) = crate::test_tls::acceptor(&["chatgpt.com".to_owned()], alpn);
+        let acceptor = Arc::new(acceptor);
+        let (accepted, closed) = (Arc::new(AtomicUsize::new(0)), Arc::new(AtomicUsize::new(0)));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let (count, gone) = (accepted.clone(), closed.clone());
+        tokio::spawn(async move {
+            while let Ok((tcp, _)) = listener.accept().await {
+                count.fetch_add(1, SeqCst);
+                let (acceptor, gone) = (acceptor.clone(), gone.clone());
+                tokio::spawn(async move {
+                    let ssl = btls::ssl::Ssl::new(acceptor.context()).unwrap();
+                    let mut tls = tokio_btls::SslStream::new(ssl, tcp).unwrap();
+                    if std::pin::Pin::new(&mut tls).accept().await.is_err() {
+                        return;
+                    }
+                    let by_client = if tls.ssl().selected_alpn_protocol() == Some(b"h2") {
+                        serve_h2(tls, delay, close_after_first).await
+                    } else {
+                        serve_h1(tls, delay, close_after_first).await
+                    };
+                    if by_client {
+                        gone.fetch_add(1, SeqCst);
+                    }
+                });
+            }
+        });
+        Self {
+            addr,
+            ca,
+            accepted,
+            closed_by_client: closed,
+        }
+    }
+
+    fn transport(&self) -> Transport {
+        Transport::new(Hooks {
+            trust: Some(wreq::tls::trust::CertStore::from_pem_stack(self.ca.clone()).unwrap()),
+            resolve: vec![("chatgpt.com".into(), self.addr)],
+        })
+    }
+
+    fn url(&self) -> String {
+        format!("https://chatgpt.com:{}/backend-api/codex/responses", self.addr.port())
+    }
+
+    fn accepted(&self) -> usize {
+        self.accepted.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    fn closed_by_client(&self) -> usize {
+        self.closed_by_client.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+/// Returns whether the client closed the connection (false when the server did).
+async fn serve_h2<S>(io: S, delay: std::time::Duration, close_after_first: bool) -> bool
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
+{
+    let Ok(mut conn) = http2::server::handshake(io).await else {
+        return true;
+    };
+    while let Some(Ok((_, mut respond))) = conn.accept().await {
+        tokio::time::sleep(delay).await;
+        let response = http::Response::builder().status(200).body(()).unwrap();
+        let mut body = respond.send_response(response, false).unwrap();
+        body.send_data(bytes::Bytes::from_static(b"ok"), true).unwrap();
+        if close_after_first {
+            // Let the answer go out, then drop the connection without GOAWAY.
+            let _ = tokio::time::timeout(std::time::Duration::from_millis(50), conn.accept()).await;
+            return false;
+        }
+    }
+    true
+}
+
+/// Returns whether the client closed the connection (false when the server did).
+async fn serve_h1<S>(mut io: S, delay: std::time::Duration, close_after_first: bool) -> bool
+where
+    S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
+{
+    use tokio::io::AsyncWriteExt;
+    let mut buf = Vec::new();
+    loop {
+        let head_end = loop {
+            if let Some(at) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                break at + 4;
+            }
+            let mut chunk = [0u8; 4096];
+            match io.read(&mut chunk).await {
+                Ok(0) | Err(_) => return true,
+                Ok(n) => buf.extend_from_slice(&chunk[..n]),
+            }
+        };
+        let head = String::from_utf8_lossy(&buf[..head_end]).to_ascii_lowercase();
+        let length: usize = head
+            .lines()
+            .find_map(|l| l.strip_prefix("content-length:"))
+            .and_then(|v| v.trim().parse().ok())
+            .unwrap_or(0);
+        while buf.len() < head_end + length {
+            let mut chunk = [0u8; 4096];
+            match io.read(&mut chunk).await {
+                Ok(0) | Err(_) => return true,
+                Ok(n) => buf.extend_from_slice(&chunk[..n]),
+            }
+        }
+        buf.drain(..head_end + length);
+        tokio::time::sleep(delay).await;
+        let reply = b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n\r\nok";
+        if io.write_all(reply).await.is_err() {
+            return true;
+        }
+        if close_after_first {
+            // A keep-alive answer, then the server goes away while the client pools it.
+            let _ = io.flush().await;
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+            return false;
+        }
+    }
+}
+
+async fn get_ok(transport: &Transport, url: &str, proxy: &Proxy) {
+    let response = transport.for_url(url, proxy).get(url).send().await.unwrap();
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.bytes().await.unwrap(), "ok");
+}
+
+const H2: &[u8] = b"\x02h2\x08http/1.1";
+const H1: &[u8] = b"\x08http/1.1";
+
+/// Go dials a dedicated uTLS connection for every chatgpt.com request. The Chrome client
+/// here keeps its connections instead (docs/DIFFERENCES-FROM-GO.md): HTTP/2 multiplexes
+/// requests, concurrent ones included, and HTTP/1.1 keeps a connection alive.
+#[tokio::test]
+async fn chatgpt_client_reuses_connections() {
+    for alpn in [H2, H1] {
+        let up = Upstream::start(alpn, std::time::Duration::ZERO, false).await;
+        let (transport, url) = (up.transport(), up.url());
+        for _ in 0..3 {
+            get_ok(&transport, &url, &Proxy::Inherit).await;
+        }
+        assert_eq!(up.accepted(), 1, "sequential requests, ALPN {alpn:?}");
+        if alpn == H2 {
+            futures_util::future::join_all((0..4).map(|_| get_ok(&transport, &url, &Proxy::Inherit))).await;
+            assert_eq!(up.accepted(), 1, "concurrent HTTP/2 requests");
+        }
+    }
+}
+
+/// At most two connections ([`CHROME_IDLE_PER_HOST`]) stay idle: after four concurrent HTTP/1.1
+/// requests (four connections) the client closes the two extra ones, and the next burst
+/// reuses the two it kept.
+#[tokio::test]
+async fn chatgpt_client_keeps_at_most_two_idle_connections() {
+    let up = Upstream::start(H1, std::time::Duration::from_millis(100), false).await;
+    let (transport, url) = (up.transport(), up.url());
+    let burst = || futures_util::future::join_all((0..4).map(|_| get_ok(&transport, &url, &Proxy::Inherit)));
+    burst().await;
+    assert_eq!(up.accepted(), 4);
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert_eq!(up.closed_by_client(), 2, "idle connections beyond the bound");
+    burst().await;
+    assert_eq!(up.accepted(), 6, "the two kept ones are reused");
+}
+
+/// A pooled connection the server closed while it sat idle is not used again: the next
+/// request opens a new connection and succeeds, over HTTP/2 and HTTP/1.1.
+#[tokio::test]
+async fn chatgpt_client_replaces_a_connection_the_server_closed() {
+    for alpn in [H2, H1] {
+        let up = Upstream::start(alpn, std::time::Duration::ZERO, true).await;
+        let (transport, url) = (up.transport(), up.url());
+        get_ok(&transport, &url, &Proxy::Inherit).await;
+        // The server closes its side 50 ms after answering.
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        get_ok(&transport, &url, &Proxy::Inherit).await;
+        assert_eq!(up.accepted(), 2, "ALPN {alpn:?}");
+    }
+}
+
+/// An HTTP CONNECT proxy that tunnels every request to `target` and counts its tunnels.
+async fn counting_proxy(target: std::net::SocketAddr) -> (Proxy, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+    use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+    use tokio::io::AsyncWriteExt;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let tunnels = std::sync::Arc::new(AtomicUsize::new(0));
+    let count = tunnels.clone();
+    tokio::spawn(async move {
+        while let Ok((mut client, _)) = listener.accept().await {
+            let count = count.clone();
+            tokio::spawn(async move {
+                let mut head = Vec::new();
+                let mut byte = [0u8; 1];
+                while !head.ends_with(b"\r\n\r\n") {
+                    if client.read(&mut byte).await.unwrap_or(0) == 0 {
+                        return;
+                    }
+                    head.push(byte[0]);
+                }
+                if !head.starts_with(b"CONNECT ") {
+                    return;
+                }
+                count.fetch_add(1, SeqCst);
+                let mut upstream = tokio::net::TcpStream::connect(target).await.unwrap();
+                client
+                    .write_all(b"HTTP/1.1 200 Connection established\r\n\r\n")
+                    .await
+                    .unwrap();
+                let _ = tokio::io::copy_bidirectional(&mut client, &mut upstream).await;
+            });
+        }
+    });
+    (Proxy::Url(format!("http://{addr}")), tunnels)
+}
+
+/// Pools never cross proxies: each effective proxy has its own client, so a request
+/// through proxy B never rides a connection tunnelled through proxy A (or a direct one),
+/// and each proxy's own connection is reused for its later requests.
+#[tokio::test]
+async fn chatgpt_pools_are_isolated_per_proxy() {
+    use std::sync::atomic::Ordering::SeqCst;
+    let up = Upstream::start(H2, std::time::Duration::ZERO, false).await;
+    let (transport, url) = (up.transport(), up.url());
+    let ((a, a_tunnels), (b, b_tunnels)) = (counting_proxy(up.addr).await, counting_proxy(up.addr).await);
+    get_ok(&transport, &url, &a).await;
+    get_ok(&transport, &url, &a).await;
+    assert_eq!(
+        (a_tunnels.load(SeqCst), up.accepted()),
+        (1, 1),
+        "proxy A reuses its tunnel"
+    );
+    get_ok(&transport, &url, &b).await;
+    assert_eq!(
+        (a_tunnels.load(SeqCst), b_tunnels.load(SeqCst), up.accepted()),
+        (1, 1, 2),
+        "proxy B dials its own"
+    );
+    get_ok(&transport, &url, &Proxy::Direct).await;
+    assert_eq!(up.accepted(), 3, "a direct request uses neither tunnel");
+    get_ok(&transport, &url, &a).await;
+    get_ok(&transport, &url, &b).await;
+    assert_eq!(
+        (a_tunnels.load(SeqCst), b_tunnels.load(SeqCst), up.accepted()),
+        (1, 1, 3),
+        "each proxy kept its own connection"
+    );
+}
