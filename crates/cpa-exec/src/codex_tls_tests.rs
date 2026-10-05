@@ -110,7 +110,8 @@ async fn capture() -> Vec<u8> {
         resolve: vec![("chatgpt.com".into(), address)],
     });
     let url = format!("https://chatgpt.com:{}/backend-api/codex/responses", address.port());
-    let client = transport.for_url(&url, &Proxy::Inherit);
+    // The default (keep-alive off), as Go dials it.
+    let client = transport.for_url(&url, &Proxy::Inherit, false);
     assert!(client.post(&url).send().await.is_err(), "the listener never answers");
     capture.await.unwrap()
 }
@@ -361,8 +362,13 @@ where
     }
 }
 
+/// One request through the chatgpt.com client with `chatgpt-keep-alive` on.
 async fn get_ok(transport: &Transport, url: &str, proxy: &Proxy) {
-    let response = transport.for_url(url, proxy).get(url).send().await.unwrap();
+    get_ok_with(transport, url, proxy, true).await;
+}
+
+async fn get_ok_with(transport: &Transport, url: &str, proxy: &Proxy, keep_alive: bool) {
+    let response = transport.for_url(url, proxy, keep_alive).get(url).send().await.unwrap();
     assert_eq!(response.status(), 200);
     assert_eq!(response.bytes().await.unwrap(), "ok");
 }
@@ -370,9 +376,41 @@ async fn get_ok(transport: &Transport, url: &str, proxy: &Proxy) {
 const H2: &[u8] = b"\x02h2\x08http/1.1";
 const H1: &[u8] = b"\x08http/1.1";
 
-/// Go dials a dedicated uTLS connection for every chatgpt.com request. The Chrome client
-/// here keeps its connections instead (docs/DIFFERENCES-FROM-GO.md): HTTP/2 multiplexes
-/// requests, concurrent ones included, and HTTP/1.1 keeps a connection alive.
+/// The default, `chatgpt-keep-alive` off, is Go's behaviour: every request dials its own
+/// connection and the client closes it after the response, so none is ever kept idle
+/// (and no idle timer can run), over HTTP/2 and HTTP/1.1.
+#[tokio::test]
+async fn chatgpt_client_keeps_no_idle_connection_by_default() {
+    for alpn in [H2, H1] {
+        let up = Upstream::start(alpn, std::time::Duration::ZERO, Mode::KeepAlive).await;
+        let (transport, url) = (up.transport(), up.url());
+        for _ in 0..3 {
+            get_ok_with(&transport, &url, &Proxy::Inherit, false).await;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        assert_eq!(up.accepted(), 3, "a connection per request, ALPN {alpn:?}");
+        assert_eq!(up.closed_by_client(), 3, "none left idle, ALPN {alpn:?}");
+    }
+}
+
+/// With the switch on, sequential requests share one connection; switching it off again
+/// takes the per-request client, so the setting applies on the next request.
+#[tokio::test]
+async fn chatgpt_keep_alive_switch_applies_per_request() {
+    let up = Upstream::start(H2, std::time::Duration::ZERO, Mode::KeepAlive).await;
+    let (transport, url) = (up.transport(), up.url());
+    get_ok_with(&transport, &url, &Proxy::Inherit, true).await;
+    get_ok_with(&transport, &url, &Proxy::Inherit, true).await;
+    assert_eq!(up.accepted(), 1);
+    get_ok_with(&transport, &url, &Proxy::Inherit, false).await;
+    get_ok_with(&transport, &url, &Proxy::Inherit, false).await;
+    assert_eq!(up.accepted(), 3, "off: a new connection per request");
+}
+
+/// Go dials a dedicated uTLS connection for every chatgpt.com request. With
+/// `chatgpt-keep-alive` on, the Chrome client keeps its connections instead
+/// (docs/DIFFERENCES-FROM-GO.md): sequential requests share one connection over HTTP/2
+/// and HTTP/1.1.
 #[tokio::test]
 async fn chatgpt_client_reuses_connections() {
     for alpn in [H2, H1] {

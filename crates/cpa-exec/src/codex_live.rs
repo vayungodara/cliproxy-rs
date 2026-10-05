@@ -1080,7 +1080,9 @@ impl CodexExecutor {
         }
         let route = |next: &url::Url| {
             Ok(Route {
-                client: self.transport.for_url(next.as_str(), &view.proxy),
+                client: self
+                    .transport
+                    .for_url(next.as_str(), &view.proxy, view.chatgpt_keep_alive),
                 order: None,
             })
         };

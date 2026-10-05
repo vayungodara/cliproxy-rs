@@ -68,10 +68,11 @@ A few behaviours differ from Go on purpose, for example config writes keep the r
 Features Go does not have. Each is opt-in; the defaults behave as Go does.
 
 - Reset-aware routing: `routing.strategy: soonest-reset` (alias `reset-first`). Among ready accounts, it selects the one whose weekly window resets soonest. It stays there until the account cools down or reaches a usage limit, then moves to the next. Reset times come from each account's latest response headers (`anthropic-ratelimit-unified-*` for Claude, `x-codex-*` for Codex). An account without a known future reset gets one request to learn it. Accounts without reset headers come after those with a known reset; equally ranked accounts take turns. Session affinity takes precedence. With several providers for one model, the first provider is selected, as with `fill-first`. This strategy is experimental and opt-in. The default remains `round-robin`; Go reads `soonest-reset` as `round-robin`.
+- Codex connection reuse: `oauth.providers.codex.chatgpt-keep-alive: true` keeps up to 2 idle connections to `chatgpt.com` per proxy for 90 seconds instead of opening one per request. Off by default.
 
 ## Switching back
 
-Stop cliproxy-rs and start Go on the same config and credential directory. Credentials that cliproxy-rs connected or refreshed stay valid for Go, and the management key keeps working. The config needs no changes: if it uses `routing.strategy: soonest-reset`, Go treats that as `round-robin`.
+Stop cliproxy-rs and start Go on the same config and credential directory. Credentials that cliproxy-rs connected or refreshed stay valid for Go, and the management key keeps working. The config needs no changes: if it uses `routing.strategy: soonest-reset`, Go treats that as `round-robin`. Go also starts with `chatgpt-keep-alive` set and ignores it, but its v8 Management API (and so the Go dashboard) refuses setting changes until the key is removed from the file.
 
 ## Details
 
