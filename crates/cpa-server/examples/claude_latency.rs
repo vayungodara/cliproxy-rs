@@ -21,7 +21,9 @@
 //!   `cpa_latency` trace events (handler entered, credential selected, executor entered,
 //!   request translated, upstream request ready) and the mock's timestamps;
 //! - `new_upstream_conns`: TCP (+TLS) connections the mock accepted during the
-//!   measured requests, and the median connect+handshake time the mock saw for them.
+//!   measured requests, and the median connect+handshake time the mock saw for them;
+//! - `process_vmhwm_kb`: this process's peak resident memory so far (proxy, mock and
+//!   client together), so an upper bound on the proxy's own peak.
 //!
 //! Environment: N (requests per run, default 200), SIZES (bytes, default
 //! 5000,50000,300000,2000000), CONC (default 1,8), WARMUP (default 20 requests).
@@ -29,7 +31,7 @@
 use std::collections::HashMap;
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -43,7 +45,33 @@ const MODEL: &str = "claude-sonnet-4-5-20250929";
 // ---- proxy stage marks -------------------------------------------------------------
 
 static MARKS: Mutex<Vec<(&'static str, Instant)>> = Mutex::new(Vec::new());
+/// Marks are recorded only while a one-client run collects them; concurrent runs would
+/// interleave requests in one vector.
+static COLLECTING: AtomicBool = AtomicBool::new(false);
 const STAGES: [&str; 5] = ["handler", "selected", "executor", "translated", "prepared"];
+/// Every point of one request in order: the client start, the proxy's marks, the mock's
+/// timestamps and the client's first byte. A stage is the span between neighbours.
+const POINTS: [&str; 9] = [
+    "start",
+    "handler",
+    "selected",
+    "executor",
+    "translated",
+    "prepared",
+    "upstream_head",
+    "upstream_done",
+    "client_first",
+];
+const STAGE_KEYS: [&str; 8] = [
+    "start->handler",
+    "handler->selected",
+    "selected->executor",
+    "executor->translated",
+    "translated->prepared",
+    "prepared->upstream_head",
+    "upstream_head->upstream_done",
+    "upstream_done->client_first",
+];
 
 struct Probe;
 
@@ -57,6 +85,9 @@ impl<S: tracing::Subscriber> tracing_subscriber::Layer<S> for Probe {
                 }
             }
             fn record_debug(&mut self, _: &tracing::field::Field, _: &dyn std::fmt::Debug) {}
+        }
+        if !COLLECTING.load(Ordering::Relaxed) {
+            return;
         }
         let now = Instant::now();
         let mut stage = Stage(None);
@@ -372,6 +403,7 @@ struct Run {
 
 async fn run(target: Arc<Target>, template: Arc<String>, n: usize, conc: usize, next_id: Arc<AtomicUsize>) -> Run {
     let collect_marks = conc == 1;
+    COLLECTING.store(collect_marks, Ordering::Relaxed);
     let mut tasks = Vec::new();
     let per = n.div_ceil(conc);
     for _ in 0..conc {
@@ -408,7 +440,7 @@ async fn run(target: Arc<Target>, template: Arc<String>, n: usize, conc: usize, 
 fn summarize(run: &Run, mock: &Mock) -> Value {
     let seen = mock.seen.lock().unwrap();
     let (mut up_first, mut up_done, mut client_first) = (Vec::new(), Vec::new(), Vec::new());
-    let mut stages: HashMap<&str, Vec<f64>> = HashMap::new();
+    let mut stages: [Vec<f64>; STAGE_KEYS.len()] = Default::default();
     for (i, s) in run.samples.iter().enumerate() {
         let m = seen.get(&s.id).copied().expect("the mock saw the request");
         up_first.push(ms(m.head - s.start));
@@ -419,36 +451,24 @@ fn summarize(run: &Run, mock: &Mock) -> Value {
             continue;
         }
         let at = |name: &str| marks.iter().find(|(n, _)| *n == name).map(|(_, t)| *t);
-        let mut points = vec![("start", Some(s.start))];
-        points.extend(STAGES.iter().map(|n| (*n, at(n))));
-        points.push(("upstream_head", Some(m.head)));
-        points.push(("upstream_done", Some(m.done)));
-        points.push(("client_first", Some(s.start + s.client_first)));
-        for pair in points.windows(2) {
-            if let ((from, Some(a)), (to, Some(b))) = (pair[0], pair[1]) {
-                stages
-                    .entry(Box::leak(format!("{from}->{to}").into_boxed_str()))
-                    .or_default()
-                    .push(ms(b.saturating_duration_since(a)));
+        let mut points = vec![Some(s.start)];
+        points.extend(STAGES.iter().map(|n| at(n)));
+        points.extend([Some(m.head), Some(m.done), Some(s.start + s.client_first)]);
+        debug_assert_eq!(points.len(), POINTS.len());
+        for (i, pair) in points.windows(2).enumerate() {
+            if let (Some(a), Some(b)) = (pair[0], pair[1]) {
+                stages[i].push(ms(b.saturating_duration_since(a)));
             }
         }
     }
     let mut stage_json = serde_json::Map::new();
-    let order = [
-        "start",
-        "handler",
-        "selected",
-        "executor",
-        "translated",
-        "prepared",
-        "upstream_head",
-        "upstream_done",
-    ];
-    let mut keys: Vec<_> = stages.keys().copied().collect();
-    keys.sort_by_key(|k| order.iter().position(|o| k.starts_with(&format!("{o}->"))));
-    for k in keys {
-        let v = stages.get_mut(k).unwrap();
-        stage_json.insert(k.to_owned(), json!({"p50": pct(v, 0.5), "p99": pct(v, 0.99)}));
+    for (key, values) in STAGE_KEYS.iter().zip(&mut stages) {
+        if !values.is_empty() {
+            stage_json.insert(
+                (*key).to_owned(),
+                json!({"p50": pct(values, 0.5), "p99": pct(values, 0.99)}),
+            );
+        }
     }
     json!({
         "up_first_ms": {"p50": pct(&mut up_first, 0.5), "p99": pct(&mut up_first, 0.99)},
@@ -456,6 +476,18 @@ fn summarize(run: &Run, mock: &Mock) -> Value {
         "client_first_ms": {"p50": pct(&mut client_first, 0.5), "p99": pct(&mut client_first, 0.99)},
         "stages_ms": stage_json,
     })
+}
+
+/// `VmHWM` of this process from /proc, in KB (0 where /proc is missing).
+fn vmhwm_kb() -> u64 {
+    std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|s| {
+            s.lines()
+                .find_map(|l| l.strip_prefix("VmHWM:"))
+                .and_then(|v| v.trim().trim_end_matches("kB").trim().parse().ok())
+        })
+        .unwrap_or(0)
 }
 
 fn env_list(name: &str, default: &str) -> Vec<usize> {
@@ -608,6 +640,9 @@ fn main() {
                     summary["conn_setup_p50_ms"] = json!(pct(&mut setups, 0.5));
                     line.insert(label.into(), summary);
                 }
+                // The whole process (proxy, mock and client) so far: an upper bound on
+                // the proxy's own peak.
+                line.insert("process_vmhwm_kb".into(), json!(vmhwm_kb()));
                 println!("{}", Value::Object(line));
             }
         }
