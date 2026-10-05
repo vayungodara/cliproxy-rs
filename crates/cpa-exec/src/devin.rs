@@ -306,7 +306,11 @@ impl DevinExecutor {
 
     /// Go's refresh scheduling for Devin: no SDK lead, so only a `refresh_interval`
     /// (or an expiry inside it) makes the background loop re-read the user status.
-    pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
+    pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
+        self.needs_prepare_at(credential, cfg, chrono::Utc::now())
+    }
+
+    pub fn needs_prepare_at(&self, credential: &Credential, _cfg: &Config, now: chrono::DateTime<chrono::Utc>) -> bool {
         // Go's refresh loop never schedules API-key-kind credentials.
         if creds(credential).0.is_empty() || cpa_core::registry::dynamic::is_api_key(credential) {
             return false;
@@ -314,7 +318,6 @@ impl DevinExecutor {
         let Some(interval) = crate::kimi_http::preferred_interval(credential) else {
             return false;
         };
-        let now = chrono::Utc::now();
         if let Some(expiry) = crate::kimi_http::expiration(credential)
             && (expiry <= now || expiry - now <= interval)
         {

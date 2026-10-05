@@ -29,6 +29,9 @@ tokio.workspace = true
 tracing.workspace = true
 tokio-util = "0.7"
 futures-util.workspace = true
+# Already in the tree through axum and cpa-server; the heap-trim response hook.
+http-body = "1"
+tower = { version = "0.5", features = ["util"] }
 # Already in the tree through cpa-exec; the TUI client follows redirects itself.
 url = "2"
 # The TUI's management API client.

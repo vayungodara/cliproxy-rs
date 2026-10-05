@@ -407,8 +407,12 @@ impl XaiExecutor {
     }
 
     /// Background refresh when a refresh token is close to expiry.
-    pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
-        xai_auth::needs_refresh(credential)
+    pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
+        self.needs_prepare_at(credential, cfg, chrono::Utc::now())
+    }
+
+    pub fn needs_prepare_at(&self, credential: &Credential, _cfg: &Config, now: chrono::DateTime<chrono::Utc>) -> bool {
+        xai_auth::needs_refresh(credential, now)
     }
 
     /// `XAIExecutor.Refresh` through the credential's proxy.

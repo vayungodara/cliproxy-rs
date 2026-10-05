@@ -281,6 +281,60 @@ The Codex client for `chatgpt.com` opens a new TCP and TLS connection for every 
 - With 8 clients, a 2 MB request also waits for other requests' preparation on its Tokio worker: on the OAuth path the median to the first upstream byte is 56 to 62 ms against 45 to 47 ms with one client. Preparation runs on the async worker; moving it to a blocking thread would hold a thread for every large request, so the remedy is less work per request.
 - Raw results: [`bench/results/2026-10-05-latency.jsonl`](../bench/results/2026-10-05-latency.jsonl).
 
+## Idle: wakeups, threads and memory
+
+Measured on 2026-10-05 on Linux, to see what a server costs while nobody uses it.
+
+### Setup
+
+- A virtual machine with 4 vCPUs (Intel Xeon at 2.60 GHz) and 7.8 GB of memory, running Debian 12 (glibc 2.36) with Linux 6.1.
+- cliproxy-rs master at `1849512`, and the change that replaces the polling loops with file change notifications and deadline timers and starts two request threads by default. Both are release builds made with rustc 1.99.0 on that machine.
+- [`bench/idle.sh`](../bench/idle.sh) runs each server in a loopback-only network namespace with one OpenAI-compatible API key, one client key and 1 or 2,000 Claude credential files whose tokens are valid for 30 days, so none is due for refresh. Without `-local-model`, so the catalog downloads at start are attempted (and fail at once, with no network).
+- After 10 seconds without a request it sums the context switches of every thread from `/proc/<pid>/task/*/status` over 30 seconds (each one is a thread waking up), and reads the CPU ticks (1/100 s), the thread count and `VmRSS`.
+
+```sh
+bench/idle.sh target/release/cliproxy 1 30
+bench/idle.sh target/release/cliproxy 2000 30
+```
+
+### Results
+
+Median of three rounds.
+
+| Server | Auth files | Wakeups in 30 s | CPU ticks in 30 s | Threads | RSS (MB) |
+| --- | --- | --- | --- | --- | --- |
+| master | 1 | 2,900 (97 a second) | 17 | 9 | 18.9 |
+| this change | 1 | 0 | 0 | 3 | 19.5 |
+| master | 2,000 | 1,151 | 3,003 (a whole core) | 10 | 74.2 |
+| this change | 2,000 | 0 | 0 | 3 | 67.0 |
+
+- master's config watcher looked at every file 20 times a second. With 2,000 auth files that kept one core busy all the time; with one file it cost about 0.6% of a core. Each look went through the blocking thread pool, so it woke several threads. Smaller loops ran too: the 5-second refresh scan, the 1-second discovery check and the heap-trim thread's 5-second tick.
+- With this change the idle server does not run at all: no thread woke up in any 30-second window, with 1 or 2,000 files. The watcher sleeps until the kernel reports a change, the refresh loop until the next token is due, the discovery task until the config changes, and the heap trim until a request ends.
+- Threads drop from 9 or more (four request threads on this 4-vCPU machine, a heap-trim thread and blocking-pool threads that the watcher kept alive) to 3: the main thread and two request threads.
+- Idle memory with one file is unchanged within the noise of these runs. The 2,000 credentials themselves cost about 50 MB on either build.
+- The change adds 75 KB of `.text` and 4 KB of `.rodata`; the binary grows from 40,162,216 to 40,256,424 bytes (0.2%).
+- Raw results: [`bench/results/2026-10-05-idle.jsonl`](../bench/results/2026-10-05-idle.jsonl).
+
+### Two request threads under load
+
+The same machine and builds, with `bench/messages.sh` (the Claude soak load: 8 sessions of 100 to 500 KB streamed requests, 1,200 requests per run). The server and the load share all 4 vCPUs, so master starts 4 request threads and this change 2. Two runs each, alternating.
+
+```sh
+N=1200 C=8 SERVER_CPUS=0-3 LOAD_CPUS=0-3 bench/messages.sh /tmp/soak rust target/release/cliproxy
+```
+
+| Server | Run | Peak RSS (MB) | RSS 30 s later (MB) | CPU s | Requests/s | TTFB p50 / p99 (ms) |
+| --- | --- | --- | --- | --- | --- | --- |
+| master | 1 | 63.2 | 29.5 | 27.0 | 20.3 | 15.5 / 33.3 |
+| this change | 1 | 57.1 | 25.2 | 24.3 | 20.4 | 14.9 / 35.9 |
+| master | 2 | 63.1 | 26.5 | 26.9 | 20.3 | 15.5 / 30.7 |
+| this change | 2 | 57.9 | 27.9 | 24.1 | 20.4 | 15.0 / 40.1 |
+
+- With two request threads the peak was about 6 MB (9%) lower and the server used about 10% less CPU for the same requests. Throughput is set by the fake upstream and did not change.
+- Memory 30 seconds after the load was not measurably different in these short runs. The larger effect reported from long-running services (one glibc arena per busy thread, each holding freed memory) needs hours of varied load to show, which this test does not reproduce.
+- The 99th percentile time to first byte was 3 to 9 ms higher with two threads; the median did not move. `worker-threads` or `TOKIO_WORKER_THREADS` raises the count where that matters.
+- Raw results: [`bench/results/2026-10-05-workers.jsonl`](../bench/results/2026-10-05-workers.jsonl).
+
 ## History
 
 Four runs on 2026-10-03 with the same method and machine. The Go column gives the Go result measured in each run, which shows how much the machine itself varied between runs.

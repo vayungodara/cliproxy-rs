@@ -80,13 +80,17 @@ impl MetaExecutor {
 
     /// ShouldPrepareRequestAuth (no usable key but a DCA token), or a due
     /// `refresh_interval`: the SDK refresh lead is nil, so nothing else schedules a mint.
-    pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
+    pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
+        self.needs_prepare_at(credential, cfg, chrono::Utc::now())
+    }
+
+    pub fn needs_prepare_at(&self, credential: &Credential, _cfg: &Config, now: chrono::DateTime<chrono::Utc>) -> bool {
         self.must_mint(credential)
             || (!is_config_api_key(credential)
                 // Go's refresh loop never schedules API-key-kind credentials.
                 && !cpa_core::registry::dynamic::is_api_key(credential)
                 && dca_token(credential).is_some()
-                && refresh_due(credential, None, chrono::Utc::now()))
+                && refresh_due(credential, None, now))
     }
 
     /// `ShouldPrepareRequestAuth`: requests must wait for a mint because there is no

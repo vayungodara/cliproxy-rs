@@ -419,8 +419,8 @@ impl OAuth {
 }
 
 /// `ShouldPrepareRequestAuth`: an OAuth token without a canonical device pool or account.
-pub(crate) fn needs_prepare(credential: &Credential) -> bool {
-    refresh_due(credential, Utc::now()) || needs_identity(credential)
+pub(crate) fn needs_prepare(credential: &Credential, now: DateTime<Utc>) -> bool {
+    refresh_due(credential, now) || needs_identity(credential)
 }
 
 /// Go `ClaudeExecutor.ShouldPrepareRequestAuth`: an OAuth token without a canonical

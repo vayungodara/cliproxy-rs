@@ -51,6 +51,8 @@ pub struct Runtime {
     /// Set only by [`crate::testing::runtime`]: executor calls get credentials that
     /// cannot leave the machine.
     pub(crate) deny_external: std::sync::atomic::AtomicBool,
+    /// Marked on every config publish, so background loops sleep until it changes.
+    config_changed: tokio::sync::watch::Sender<()>,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -91,6 +93,7 @@ impl Runtime {
             plugins: Default::default(),
             remote: RwLock::default(),
             deny_external: Default::default(),
+            config_changed: tokio::sync::watch::Sender::new(()),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -145,6 +148,11 @@ impl Runtime {
         self.config.read().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
+    /// Resolves after the next config publish.
+    pub fn subscribe_config(&self) -> tokio::sync::watch::Receiver<()> {
+        self.config_changed.subscribe()
+    }
+
     /// Replaces the config and the scheduler policy derived from it. Requests already
     /// running keep their snapshot.
     pub fn publish_config(&self, config: Config) {
@@ -175,6 +183,7 @@ impl Runtime {
         }
         self.publish_policy(policy);
         self.store.configure_cooldown_store(dir);
+        self.config_changed.send_replace(());
     }
 
     /// A coherent config/policy pair for the entire route attempt loop.
@@ -446,28 +455,50 @@ impl Runtime {
         if let Some(previous) = task.take() {
             previous.abort();
         }
+        // Wakes at the next deadline, or at the latest after `HORIZON` while any
+        // credential could come due, to catch wall-clock jumps such as a resumed laptop.
+        const HORIZON: Duration = Duration::from_secs(600);
+        // Store changes (each committed refresh is one) are coalesced over this delay.
+        const COALESCE: Duration = Duration::from_secs(1);
         let weak = Arc::downgrade(self);
+        let mut store_changes = self.store.subscribe();
+        let mut config_changes = self.subscribe_config();
         let handle = tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(5));
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
-                interval.tick().await;
                 let Some(rt) = weak.upgrade() else {
                     break;
                 };
+                // Everything published so far is in this scan, including the commits of
+                // the previous batch.
+                store_changes.borrow_and_update();
+                config_changes.borrow_and_update();
                 let cfg = rt.config();
                 let snapshot = rt.store.snapshot();
+                let (now, wall) = (Instant::now(), chrono::Utc::now());
+                let horizon = chrono::Duration::from_std(HORIZON).unwrap_or_default();
+                let mut wake: Option<Instant> = None;
+                let mut soonest = |at: Instant| wake = Some(wake.map_or(at, |w| w.min(at)));
                 let jobs: Vec<_> = {
                     let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
                     state.reconcile(&snapshot);
-                    snapshot
-                        .iter()
-                        .filter(|c| refresh_candidate(c))
-                        .filter(|c| rt.executors.readiness(c, &cfg) != Readiness::Ready)
-                        .filter(|c| state.reserve(c, Instant::now()))
-                        .cloned()
-                        .collect()
+                    let mut jobs = Vec::new();
+                    for c in snapshot.iter().filter(|c| refresh_candidate(c)) {
+                        soonest(now + HORIZON);
+                        match rt.executors.prepare_due(c, &cfg, wall, horizon) {
+                            Some(at) if at > wall => soonest(now + (at - wall).to_std().unwrap_or_default()),
+                            Some(_) if state.reserve(c, now) => jobs.push(c.clone()),
+                            // Reserved or backing off: look again when that ends.
+                            Some(_) => {
+                                if let Some(at) = state.retry_at(c).filter(|at| *at > now) {
+                                    soonest(at);
+                                }
+                            }
+                            None => {}
+                        }
+                    }
+                    jobs
                 };
+                let busy = !jobs.is_empty();
                 // ponytail: bounded batches, so a slow worker delays the next scan.
                 // Use an independent queue if refresh latency matters for large pools.
                 futures_util::stream::iter(jobs)
@@ -501,6 +532,33 @@ impl Runtime {
                         }
                     })
                     .await;
+                drop(rt);
+                // After a batch, look again at once: finished jobs set their backoff,
+                // and the next scan turns it into a deadline.
+                if busy {
+                    continue;
+                }
+                let deadline = async {
+                    match wake {
+                        Some(at) => tokio::time::sleep_until(at.into()).await,
+                        None => std::future::pending().await,
+                    }
+                };
+                tokio::select! {
+                    () = deadline => {}
+                    changed = store_changes.changed() => {
+                        if changed.is_err() {
+                            break;
+                        }
+                        tokio::time::sleep(COALESCE).await;
+                    }
+                    changed = config_changes.changed() => {
+                        if changed.is_err() {
+                            break;
+                        }
+                        tokio::time::sleep(COALESCE).await;
+                    }
+                }
             }
         });
         *task = Some(handle.abort_handle());
@@ -831,6 +889,8 @@ pub struct CredentialStore {
     persisted: Mutex<HashMap<String, u64>>,
     /// Where failed attempts publish Go's error events (set by the runtime).
     error_events: std::sync::OnceLock<Arc<crate::usage::UsageQueue>>,
+    /// Marked on every epoch bump, so background loops sleep until the set changes.
+    changed: tokio::sync::watch::Sender<()>,
 }
 
 impl CredentialStore {
@@ -858,6 +918,7 @@ impl CredentialStore {
             activity: Mutex::default(),
             persisted: Mutex::default(),
             error_events: std::sync::OnceLock::new(),
+            changed: tokio::sync::watch::Sender::new(()),
         })
     }
 
@@ -1272,6 +1333,11 @@ impl CredentialStore {
         }
     }
 
+    /// Resolves after the next change to the credential set or any credential.
+    pub fn subscribe(&self) -> tokio::sync::watch::Receiver<()> {
+        self.changed.subscribe()
+    }
+
     /// Changes whenever the credential set or any credential changes.
     pub fn epoch(&self) -> u64 {
         self.read().epoch
@@ -1334,6 +1400,7 @@ impl CredentialStore {
         let committed = slot.clone();
         inner.generation = generation;
         inner.epoch += 1;
+        self.changed.send_replace(());
         Ok(committed)
     }
 
@@ -1365,6 +1432,7 @@ impl CredentialStore {
         // Registrations depend on the credential (prefix, models): invalidate the
         // registry cache like `apply_patch` does.
         inner.epoch += 1;
+        self.changed.send_replace(());
         drop(inner);
         // Go `Manager.Update` clears the cooldowns of an auth it stores disabled (or
         // with cooling off), so a later re-enable routes to it at once.
@@ -1398,6 +1466,7 @@ impl CredentialStore {
         next.extend(runtime);
         inner.creds = next;
         inner.epoch += 1;
+        self.changed.send_replace(());
         self.scheduler
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -1425,6 +1494,7 @@ impl CredentialStore {
             None => inner.creds.push(credential),
         }
         inner.epoch += 1;
+        self.changed.send_replace(());
         self.scheduler
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -1446,6 +1516,7 @@ impl CredentialStore {
         credential.revision = inner.generation;
         inner.creds.push(Arc::new(credential));
         inner.epoch += 1;
+        self.changed.send_replace(());
         self.scheduler
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -1463,6 +1534,7 @@ impl CredentialStore {
             return;
         }
         inner.epoch += 1;
+        self.changed.send_replace(());
         self.scheduler
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
@@ -2451,6 +2523,46 @@ mod tests {
         tokio::task::yield_now().await;
         assert!(second.is_finished());
         assert!(rt.refresh_task.lock().unwrap().is_none());
+    }
+
+    /// The loop sets no timer while nothing can come due, and a credential added later
+    /// is tried after the store change, not on a schedule.
+    #[tokio::test]
+    async fn refresh_loop_sleeps_until_the_store_changes() {
+        let rt = Arc::new(crate::testing::runtime(
+            Config::parse("").unwrap(),
+            Vec::new(),
+            Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        ));
+        rt.start_auto_refresh();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let mut due = cred("a.json", "claude", false);
+        due.metadata.insert("refresh_token".into(), "fake-refresh".into());
+        due.metadata.insert(
+            "expired".into(),
+            (chrono::Utc::now() - chrono::Duration::hours(1)).to_rfc3339().into(),
+        );
+        rt.store.reconcile(vec![due]);
+        let added = rt.store.get("a.json").unwrap();
+        // The refresh fails (no upstream), which backs off for five minutes.
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let retry = rt.refresh_state.lock().unwrap().retry_at(&added);
+                if retry.is_some_and(|at| at > Instant::now() + Duration::from_secs(200)) {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("the added credential was tried and backed off");
+        rt.stop_auto_refresh();
     }
 
     #[tokio::test]

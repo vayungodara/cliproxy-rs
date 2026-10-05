@@ -164,8 +164,12 @@ impl CodexExecutor {
     }
 
     /// Refresh due under Go's 24h Codex lead. Cheap and side-effect free.
-    pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
-        codex_oauth::refresh_due(credential, Utc::now())
+    pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
+        self.needs_prepare_at(credential, cfg, Utc::now())
+    }
+
+    pub fn needs_prepare_at(&self, credential: &Credential, _cfg: &Config, now: chrono::DateTime<Utc>) -> bool {
+        codex_oauth::refresh_due(credential, now)
     }
 
     /// Refreshes tokens. Go refreshes Codex only in the background and never blocks a

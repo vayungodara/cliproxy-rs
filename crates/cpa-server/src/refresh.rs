@@ -62,8 +62,14 @@ impl RefreshState {
         entry.next = now + Duration::from_secs(seconds);
     }
 
+    /// When a reserved or backed-off credential may be tried again.
+    pub fn retry_at(&self, c: &Credential) -> Option<Instant> {
+        self.entries.get(&c.id).map(|e| e.next)
+    }
+
     pub fn reconcile(&mut self, credentials: &[std::sync::Arc<Credential>]) {
-        self.entries.retain(|id, _| credentials.iter().any(|c| c.id == *id));
+        let ids: std::collections::HashSet<&str> = credentials.iter().map(|c| c.id.as_str()).collect();
+        self.entries.retain(|id, _| ids.contains(id.as_str()));
     }
 }
 
