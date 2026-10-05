@@ -2,6 +2,12 @@
 
 Binary size, memory and throughput of cliproxy-rs and CLIProxyAPI on the same configuration, with a local fake upstream. The numbers come from one small machine and a synthetic load, so use them to compare the two servers with each other. They say little about how much traffic either one can carry on bigger hardware.
 
+## Field memory
+
+On 2026-10-05, a personal install in daily use ran at 75 to 101 MB RSS. That reading was unscripted; sample timing, workload and the exact build were not recorded.
+
+The 17.3 MB idle result below is from a fresh 0.1.0 process with no connected accounts and small synthetic requests. An earlier 647 MB field report prompted the [Claude soak](#claude-soak-large-prompts-and-memory), which measured retained memory after larger requests but did not reproduce that report. Keep those cases separate when comparing memory.
+
 ## Setup
 
 Measured on 2026-10-03.
@@ -9,7 +15,7 @@ Measured on 2026-10-03.
 - cliproxy-rs 0.1.0, the launch build, release profile (thin LTO, one codegen unit, stripped), built with rustc 1.99.0.
 - CLIProxyAPI v8.0.10 (commit `6fecc6e`), the official `linux_amd64` release binary, built with Go 1.26.4.
 - A virtual machine with 2 vCPUs (Intel Xeon at 2.60 GHz) and 3.9 GB of memory, running Debian 12 with Linux 6.1. It is a shared machine, and the same binary measures differently from run to run, by up to about 15%; compare the two servers within one run.
-- Both servers run with the same `config.yaml`: one OpenAI-compatible provider that points at the fake upstream, one client key and an empty credential folder, started with `-local-model`. Each scenario starts a fresh server process.
+- Both servers run with the same `config.yaml`: one OpenAI-compatible provider that points at the fake upstream, one client key and an empty credential folder, started with `--local-model`. Each scenario starts a fresh server process.
 - The server is pinned to CPU 0. The fake upstream and the load generator share CPU 1.
 - The whole run happens in a network namespace with only a loopback interface. Go tries to download its management panel and an Antigravity version file at start; both fail at once there. On a machine with network access, Go's idle memory was about 10 MB higher after those downloads.
 - Both servers write one access-log line per request to standard output (redirected to a file).
@@ -97,7 +103,7 @@ No response failed in any run.
 
 ## Claude soak: large prompts and memory
 
-Measured on 2026-10-04, after a field report from a Linux machine (glibc, systemd user service) that had served Amp through the Claude route for 10 hours: about 2,400 streamed `/v1/messages` requests with large prompts and a few concurrent sessions left cliproxy-rs 0.1.1 at 647 MB resident (`VmRSS`) after a peak (`VmHWM`) of 840 MB, almost all of it anonymous memory. The scenarios above use 1.7 KB requests and did not show it.
+Measured on 2026-10-04, after a field report from a Linux machine (glibc, systemd user service) that had served large-prompt Claude traffic for 10 hours: about 2,400 streamed `/v1/messages` requests with a few concurrent sessions left cliproxy-rs 0.1.1 at 647 MB resident (`VmRSS`) after a peak (`VmHWM`) of 840 MB, almost all of it anonymous memory. The scenarios above use 1.7 KB requests and did not show it.
 
 ### Setup
 

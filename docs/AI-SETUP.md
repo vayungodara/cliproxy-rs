@@ -129,7 +129,7 @@ Tell the user to connect their accounts themselves, in the dashboard (Connect ac
 cliproxy --config ~/.cliproxy-rs/config.yaml --claude-login
 ```
 
-(`--codex-login`, `--codex-device-login`, `--kimi-login`, `--meta-login`, `--xai-login` and `--devin-login` work the same way; add `--no-browser` on a machine without a browser.) Wait until the user says they are done. Also tell them once: using a subscription outside its official app can break the provider's terms, and providers have suspended accounts for it; that is their decision.
+(`--codex-login`, `--codex-device-login`, `--kimi-login`, `--meta-login`, `--xai-login` and `--devin-login` work the same way; add `--no-browser` on a machine without a browser.) Wait until the user says they are done. Point them to [Accounts and provider terms](../README.md#accounts-and-provider-terms). This setup is for one person using their own accounts on their own machines. Use provider-sanctioned integrations or API keys where available.
 
 ## 8. Point the user's tools at it
 

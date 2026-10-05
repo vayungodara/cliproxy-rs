@@ -377,37 +377,26 @@ impl XaiAuth {
         Ok((status, body))
     }
 
-    /// `http.Client.Do` of the discovery GET.
-    // ponytail: adapter until crate::proxy (owner: Claude) sends non-POST
-    // requests; redirects are not followed here, Go follows up to ten.
+    /// `http.Client.Do` of the discovery GET, following redirects as Go does.
     async fn get(&self, url: &str) -> Result<(u16, Bytes), ()> {
-        use tokio::io::AsyncReadExt;
         let mut headers = GoHeaders::new();
         headers.set("User-Agent", "Go-http-client/1.1");
         headers.set("Accept", "application/json");
-        let builder = self
-            .client
-            .get(self.target(url)?)
-            .redirect(wreq::redirect::Policy::none())
-            .timeout(HTTP_TIMEOUT);
-        let (builder, auto_gzip) = headers.apply(builder, None);
-        let response = builder.send().await.map_err(|_| ())?;
-        let status = response.status().as_u16();
-        let gzip = auto_gzip
-            && response
-                .headers()
-                .get(http::header::CONTENT_ENCODING)
-                .and_then(|v| v.to_str().ok())
-                .is_some_and(|v| v.eq_ignore_ascii_case("gzip"));
-        let body = response.bytes().await.map_err(|_| ())?;
-        if !gzip {
-            return Ok((status, body));
-        }
-        let mut decoder = async_compression::tokio::bufread::GzipDecoder::new(&body[..]);
-        decoder.multiple_members(true);
-        let mut out = Vec::new();
-        decoder.read_to_end(&mut out).await.map_err(|_| ())?;
-        Ok((status, Bytes::from(out)))
+        let upstream = crate::proxy::request(
+            &self.client,
+            wreq::Method::GET,
+            &self.target(url)?,
+            headers,
+            None,
+            Some(HTTP_TIMEOUT),
+        )
+        .await
+        .map_err(|_| ())?;
+        let status = upstream.status;
+        let body = crate::proxy::read_all(upstream.body, crate::proxy::MAX_ERROR_BODY, false)
+            .await
+            .map_err(|_| ())?;
+        Ok((status, body))
     }
 
     /// `Discover`.

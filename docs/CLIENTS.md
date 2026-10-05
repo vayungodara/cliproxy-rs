@@ -53,6 +53,25 @@ oauth:
 
 The older layout spells the same block `claude-header-defaults:` at the top level. The version in `user-agent` also becomes the lowest Claude Code version that is forwarded as itself.
 
+### GPT in Claude Code
+
+Configure an OpenAI API key, then choose an available GPT model from `/v1/models`. You can also use a connected Codex account; read [Accounts and provider terms](../README.md#accounts-and-provider-terms) first. Claude Code sends Messages requests; the proxy translates them to the selected provider's format.
+
+```bash
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8317
+export ANTHROPIC_AUTH_TOKEN=your-client-key
+export ANTHROPIC_MODEL='<gpt-model-id>'
+export ANTHROPIC_DEFAULT_HAIKU_MODEL='<gpt-model-id>'
+# Example for a model with at least a 200,000-token context window:
+export CLAUDE_CODE_MAX_CONTEXT_TOKENS=200000
+export CLAUDE_CODE_AUTO_COMPACT_WINDOW=180000
+claude
+```
+
+`ANTHROPIC_DEFAULT_HAIKU_MODEL` routes Claude Code's small-model calls too; otherwise they may still ask for Haiku. You can use a different available GPT model for that slot. If you use Claude Code's named model tiers, set `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL` and `ANTHROPIC_DEFAULT_FABLE_MODEL` to available proxy models as well.
+
+Check the selected model's provider limit and use a compaction window below it. Claude Code's [environment reference](https://code.claude.com/docs/en/env-vars) defines both variables. `CLAUDE_CODE_MAX_CONTEXT_TOKENS` sets the window Claude Code assumes. The upstream's context limit still applies. `CLAUDE_CODE_AUTO_COMPACT_WINDOW` accepts an integer token count from 100,000 to 1,000,000. Set these variables in Claude Code's environment.
+
 ## Codex CLI
 
 [Codex custom model providers](https://developers.openai.com/codex/config-advanced) use the OpenAI Responses format. Put this in `~/.codex/config.toml`, set the environment variable, and replace `<model-id>`. WebSocket support is documented, but it is optional, so this setup uses the normal HTTP endpoint.
@@ -64,12 +83,12 @@ model_provider = "cliproxy"
 [model_providers.cliproxy]
 name = "cliproxy-rs"
 base_url = "http://127.0.0.1:8317/v1"
-env_key = "CLIPROXY_API_KEY"
+env_key = "CLIPROXY_CLIENT_KEY"
 wire_api = "responses"
 ```
 
 ```bash
-export CLIPROXY_API_KEY=your-client-key
+export CLIPROXY_CLIENT_KEY=your-client-key
 codex
 ```
 

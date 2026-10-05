@@ -3,13 +3,16 @@
 #
 # Pushing a tag such as v0.1.0 creates a draft GitHub release with every asset attached;
 # a maintainer reviews and publishes it. A manual run builds the same files as workflow
-# artifacts without creating a release.
+# artifacts without creating a release. Publishing updates the Homebrew tap without
+# rebuilding the release.
 name: release
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -20,6 +23,7 @@ env:
 jobs:
   dashboard:
     name: dashboard
+    if: github.event_name != 'release'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
@@ -47,10 +51,12 @@ jobs:
   # The same fmt, clippy, network-denied tests and Windows check as every push.
   test:
     name: CI
+    if: github.event_name != 'release'
     uses: ./.github/workflows/ci.yml
 
   build:
     name: build ${{ matrix.target }}
+    if: github.event_name != 'release'
     needs: [dashboard, test]
     strategy:
       fail-fast: false
@@ -116,6 +122,7 @@ jobs:
 
   docker:
     name: docker image (not pushed)
+    if: github.event_name != 'release'
     needs: test
     runs-on: ubuntu-24.04
     steps:
@@ -128,7 +135,7 @@ jobs:
   release:
     name: draft release
     needs: [build, docker]
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -146,3 +153,57 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes --draft
+
+  homebrew:
+    name: update Homebrew tap
+    if: github.event_name == 'release' && !github.event.release.prerelease
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    concurrency:
+      group: homebrew-tap
+      cancel-in-progress: false
+    steps:
+      - name: Check tap token
+        id: token
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "$TAP_TOKEN" ]; then
+            echo "HOMEBREW_TAP_TOKEN is not set; skipping the tap update."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.token.outputs.enabled == 'true'
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.token.outputs.enabled == 'true'
+        with:
+          repository: vayungodara/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-tap
+      - name: Render published release formula
+        if: steps.token.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern SHA256SUMS --dir "$RUNNER_TEMP/homebrew-release"
+          mkdir -p homebrew-tap/Formula
+          python3 packaging/homebrew/render.py "$RELEASE_TAG" "$RUNNER_TEMP/homebrew-release/SHA256SUMS" homebrew-tap/Formula/cliproxy-rs.rb
+      - name: Commit formula update
+        if: steps.token.outputs.enabled == 'true'
+        working-directory: homebrew-tap
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          git add Formula/cliproxy-rs.rb
+          if git diff --cached --quiet; then
+            echo "The formula is already current."
+            exit 0
+          fi
+          git config user.name 'Vayun Godara'
+          git config user.email '187050579+vayungodara@users.noreply.github.com'
+          git commit -m "cliproxy-rs: update to $RELEASE_TAG"
+          git push

@@ -57,6 +57,9 @@ Both scripts read these environment variables:
 | `CLIPROXY_INSTALL_DIR` | `~/.local/bin`, or `%LOCALAPPDATA%\Programs\cliproxy-rs` | Where the binary goes. |
 | `CLIPROXY_HOME` | `~/.cliproxy-rs`, or `%USERPROFILE%\.cliproxy-rs` | Config, keys, credentials and log. |
 | `CLIPROXY_NO_OPEN` | unset | Set to `1` to never open a browser. |
+| `CLIPROXY_RELEASES` | `https://github.com/vayungodara/cliproxy-rs/releases` | Release page base URL for a mirror or installer tests. It must serve `/latest`, `/download/<tag>/SHA256SUMS` and the platform archive under `/download/<tag>/`. |
+
+Use only a mirror you trust. The installer checks the archive against the `SHA256SUMS` file from that same mirror.
 
 ### Start at login
 
@@ -71,6 +74,25 @@ Once set up, later runs of the script restart the server through the same mechan
 ### Removing it
 
 Stop the server (`kill $(cat ~/.cliproxy-rs/cliproxy.pid)`, `Stop-Process -Id (Get-Content ~\.cliproxy-rs\cliproxy.pid)` on Windows, or the service command above), then delete the binary. `~/.cliproxy-rs` holds your config, keys and signed-in accounts; delete it only if you no longer need them.
+
+## Homebrew (coming with the next release)
+
+The Homebrew tap is not available yet. Once it is published, install on macOS or Linux with:
+
+```sh
+brew install vayungodara/tap/cliproxy-rs
+brew services start cliproxy-rs
+```
+
+The formula downloads the release binary for Apple silicon, Intel macOS, Linux arm64 or Linux x86_64; it does not compile Rust. Linux needs glibc 2.35 or newer, as with the release archives. Homebrew may also install its own runtime dependencies on older Linux systems; these are separate from the cliproxy binary.
+
+On first install, it creates `$(brew --prefix)/etc/cliproxy-rs/config.yaml`, listening only on `127.0.0.1:8317`, with generated client and management keys in `keys.env` beside it. The directory is private and the config and keys are readable only by the installing user. Sign-in credentials go in its `auth` subdirectory. An upgrade never replaces an existing config or keys. If the config is missing but `keys.env` remains, the formula reuses those keys.
+
+Open `http://127.0.0.1:8317/management.html` and use `CLIPROXY_MANAGEMENT_KEY` from `keys.env` to sign in. Your tools use `CLIPROXY_CLIENT_KEY`. If another server uses port 8317, change `server.port` in the config before starting the service. Run the service as your own user, without `sudo`.
+
+The service passes the config path explicitly, so it does not depend on the current directory. Logs go to `$(brew --prefix)/var/log/cliproxy-rs.log`. Stop it with `brew services stop cliproxy-rs`; remove the binary with `brew uninstall cliproxy-rs`. Your config, keys and sign-in credentials remain until you delete them yourself.
+
+For maintainers: create `vayungodara/homebrew-tap` with an initial default branch and add `HOMEBREW_TAP_TOKEN` to this repository's Actions secrets. Give that token contents write access to the tap only. Publishing a stable release renders `Formula/cliproxy-rs.rb` from the release's `SHA256SUMS` and commits it to the tap. Without the token, the job skips the update; prereleases do not update the formula. Publishing does not rerun the release builds. The template lives in [`packaging/homebrew/cliproxy-rs.rb`](../packaging/homebrew/cliproxy-rs.rb).
 
 ## From a release
 
