@@ -136,6 +136,8 @@ async fn handle(
     body: Result<Bytes, BytesRejection>,
     operation: Operation,
 ) -> Response {
+    // Latency marks for examples/claude_latency.rs; free unless a subscriber enables them.
+    tracing::trace!(target: "cpa_latency", stage = "handler");
     let mut body = match body {
         Ok(body) => body,
         Err(rejection) => return read_failed(&rejection),

@@ -212,6 +212,7 @@ impl ClaudeExecutor {
         cfg: &Config,
         delegation: Delegation,
     ) -> Result<ExecResponse, ExecError> {
+        tracing::trace!(target: "cpa_latency", stage = "executor");
         // Go executorForAuth: an API-key credential runs with cfg.ForAPIKey(), which
         // zeroes the v8 OAuth-only provider settings.
         let scoped = if cpa_core::registry::dynamic::auth_kind(credential) == Some("apikey") {
@@ -296,6 +297,7 @@ impl ClaudeExecutor {
         }
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let original_translated = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
+        tracing::trace!(target: "cpa_latency", stage = "translated");
         let mut prepared = ctx
             .prepare_messages(&req, &translated, &original_translated, upstream_stream)
             .await?;
@@ -534,6 +536,7 @@ impl ClaudeExecutor {
         if let Some(usage) = usage {
             usage.round_trip_started();
         }
+        tracing::trace!(target: "cpa_latency", stage = "prepared");
         let mut upstream = crate::proxy::send_routed(&route, &url, headers, body, None)
             .await
             .map_err(|e| {
