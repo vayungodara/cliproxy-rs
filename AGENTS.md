@@ -29,7 +29,7 @@ A Rust rewrite of CLIProxyAPI (https://github.com/router-for-me/CLIProxyAPI) tar
 - Upstream credentials and client keys must never be logged or forwarded to the wrong side.
 - Upstream request and response capture goes through the shared sink in `crates/cpa-server/src/request_logging.rs`. It redacts `Cookie` and `Set-Cookie` values, credentials in URLs and short keys, and spools large sections to disk. Don't format or log captured bytes anywhere else.
 - Keep request preparation linear in the body size. Coding agents send bodies from 100 KB to several MB, so walk a JSON body once and edit by path (see `crates/cpa-exec/src/claude/signals.rs`) instead of searching it again from the start for each element.
-- Performance and memory claims come from `docs/BENCHMARKS.md`; `bench/run.sh` and `bench/messages.sh` reproduce them.
+- Performance and memory claims come from `docs/BENCHMARKS.md`. `bench/run.sh` and `bench/messages.sh` reproduce its scripted workloads; field observations there are labelled as such and are not reproducible on demand.
 - Tests use local mock upstreams and never send traffic to real provider accounts. Give every test a private `auth-dir`: without one, credential loading falls back to `~/.cli-proxy-api`, where real logins live. Build test runtimes with `cpa_server::testing::runtime`.
 - Mark deliberate simplifications with a `ponytail:` comment naming the ceiling and the upgrade path.
 
