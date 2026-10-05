@@ -242,7 +242,7 @@ mod tests {
     fn keys_expire_and_capacity_is_bounded() {
         let secrets = Secrets::default();
         let created = secrets
-            .create(b"{}".to_vec(), Duration::from_millis(30), "issuer", "config-inline")
+            .create(b"{}".to_vec(), Duration::from_secs(60), "issuer", "config-inline")
             .unwrap();
         assert!(created.token.starts_with("ek_") && created.token.len() == 3 + 43);
         assert!(created.grant.principal.starts_with("sess_") && created.grant.principal.len() == 5 + 24);
@@ -252,8 +252,13 @@ mod tests {
         );
         assert!(secrets.authenticate("ek_unknown").is_none());
         assert!(secrets.authenticate(&created.token[1..]).is_none(), "prefix required");
-        std::thread::sleep(Duration::from_millis(40));
-        assert!(secrets.authenticate(&created.token).is_none(), "expired");
+        // Expiry on its own token: a slow runner can never see this one still valid,
+        // nor the long-lived one above already expired.
+        let short = secrets
+            .create(b"{}".to_vec(), Duration::from_millis(1), "issuer", "config-inline")
+            .unwrap();
+        std::thread::sleep(Duration::from_millis(20));
+        assert!(secrets.authenticate(&short.token).is_none(), "expired");
 
         for _ in 0..MAX_PER_ISSUER {
             assert!(secrets.create(vec![], Duration::from_secs(60), "busy", "p").is_some());
