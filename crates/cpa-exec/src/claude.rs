@@ -791,6 +791,12 @@ fn normalize_fingerprint_profile(raw: &str) -> &'static str {
 }
 
 /// The executor keeps bodies as text; shared byte APIs never split UTF-8 they were given.
+/// `String::from_utf8_lossy` with the fast validator first: request bodies are
+/// almost always valid UTF-8, and the lossy decoder's own check is several times slower.
+fn utf8(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
+    std::str::from_utf8(bytes).map_or_else(|_| String::from_utf8_lossy(bytes), std::borrow::Cow::Borrowed)
+}
+
 fn text(bytes: Vec<u8>) -> String {
     String::from_utf8(bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
@@ -1074,17 +1080,17 @@ impl<'a> Ctx<'a> {
         original_translated: &[u8],
         upstream_stream: bool,
     ) -> Result<Prepared, ExecError> {
-        let original = String::from_utf8_lossy(&req.original_body);
+        let original = utf8(&req.original_body);
         let detection = detect::detect(&req.headers, &original, false, &self.settings);
         let confirmed = detection.confirmed;
         let derived = self.derived_session(req);
-        let translated = String::from_utf8_lossy(translated).into_owned();
+        let translated = utf8(translated).into_owned();
         let session_id = if self.cli_profile {
             session::agent_session_uuid(
                 &session::Inputs {
                     headers: &req.headers,
                     original: &original,
-                    translated: &String::from_utf8_lossy(&req.body),
+                    translated: &utf8(&req.body),
                     derived: &derived,
                     execution: &self.execution,
                 },
@@ -1339,7 +1345,7 @@ impl<'a> Ctx<'a> {
     }
 
     async fn prepare_count(&self, req: &ExecRequest, translated: &[u8]) -> Result<Prepared, ExecError> {
-        let original = String::from_utf8_lossy(&req.original_body);
+        let original = utf8(&req.original_body);
         let detection = detect::detect(&req.headers, &original, true, &self.settings);
         let confirmed = detection.confirmed;
         let session_id = if self.cli_profile {
@@ -1348,7 +1354,7 @@ impl<'a> Ctx<'a> {
                 &session::Inputs {
                     headers: &req.headers,
                     original: &original,
-                    translated: &String::from_utf8_lossy(&req.body),
+                    translated: &utf8(&req.body),
                     derived: &derived,
                     execution: &self.execution,
                 },
@@ -1357,7 +1363,7 @@ impl<'a> Ctx<'a> {
         } else {
             String::new()
         };
-        let mut body = String::from_utf8_lossy(translated).into_owned();
+        let mut body = utf8(translated).into_owned();
         body = set_string_if_different(&body, "model", &self.upstream_model);
         body = self.apply_thinking(req, body)?;
         if self.rebuild_mid_system() {
