@@ -12,10 +12,18 @@ TARGETS = (
 )
 
 
-def render(tag, checksums, template):
+def render(tag, checksums, template, current_formula=None):
     if not re.fullmatch(r"v[0-9]+\.[0-9]+\.[0-9]+", tag):
         raise ValueError("expected a stable release tag such as v0.1.3")
     version = tag[1:]
+    if current_formula is not None:
+        versions = set(re.findall(r"/releases/download/v([0-9]+\.[0-9]+\.[0-9]+)/", current_formula))
+        if len(versions) != 1:
+            raise ValueError("expected one stable version in the current formula")
+        current_version = versions.pop()
+        if tuple(map(int, current_version.split("."))) > tuple(map(int, version.split("."))):
+            print(f"Skipping {tag}; the tap already has v{current_version}.")
+            return current_formula
     formula = template.replace("@VERSION@", version)
     for target in TARGETS:
         archive = f"cliproxy-{version}-{target}.tar.gz"
@@ -35,4 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
     template = Path(__file__).with_name("cliproxy-rs.rb").read_text()
-    args.output.write_text(render(args.tag, args.checksums.read_text(), template))
+    current = args.output.read_text() if args.output.exists() else None
+    formula = render(args.tag, args.checksums.read_text(), template, current)
+    if formula != current:
+        args.output.write_text(formula)
