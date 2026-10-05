@@ -176,19 +176,37 @@ fn only_https_chatgpt_uses_the_chrome_profile() {
     }
 }
 
+/// How the local chatgpt.com treats each connection.
+#[derive(Clone, Copy, PartialEq)]
+enum Mode {
+    /// Answer every request and keep the connection open.
+    KeepAlive,
+    /// Close the connection shortly after its first answer, leaving the client a stale
+    /// pooled one.
+    CloseAfterFirst,
+    /// HTTP/2 only: answer a connection's first stream at once, then hold every later
+    /// stream until another stream arrives on the same connection (at most [`PAIR_WAIT`])
+    /// and answer both, counting the pair. Only a client that has two requests in flight
+    /// on one connection forms a pair; one that sends them one at a time never does.
+    Pair,
+}
+
+const PAIR_WAIT: std::time::Duration = std::time::Duration::from_secs(2);
+
 /// A local chatgpt.com that counts the TCP connections it accepts and the ones the client
 /// closed. Every request gets `200 ok` after `delay`, over HTTP/2 when ALPN picks it and
-/// HTTP/1.1 with keep-alive otherwise; with `close_after_first`, the server itself closes
-/// each connection shortly after its first answer, leaving the client a stale pooled one.
+/// HTTP/1.1 with keep-alive otherwise, as `mode` says.
 struct Upstream {
     addr: std::net::SocketAddr,
     ca: Vec<u8>,
     accepted: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     closed_by_client: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    /// HTTP/2 streams answered together with another on one connection ([`Mode::Pair`]).
+    pairs: std::sync::Arc<std::sync::atomic::AtomicUsize>,
 }
 
 impl Upstream {
-    async fn start(alpn: &'static [u8], delay: std::time::Duration, close_after_first: bool) -> Self {
+    async fn start(alpn: &'static [u8], delay: std::time::Duration, mode: Mode) -> Self {
         use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
         let (ca, acceptor) = crate::test_tls::acceptor(&["chatgpt.com".to_owned()], alpn);
@@ -196,11 +214,12 @@ impl Upstream {
         let (accepted, closed) = (Arc::new(AtomicUsize::new(0)), Arc::new(AtomicUsize::new(0)));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        let (count, gone) = (accepted.clone(), closed.clone());
+        let pairs = Arc::new(AtomicUsize::new(0));
+        let (count, gone, paired) = (accepted.clone(), closed.clone(), pairs.clone());
         tokio::spawn(async move {
             while let Ok((tcp, _)) = listener.accept().await {
                 count.fetch_add(1, SeqCst);
-                let (acceptor, gone) = (acceptor.clone(), gone.clone());
+                let (acceptor, gone, paired) = (acceptor.clone(), gone.clone(), paired.clone());
                 tokio::spawn(async move {
                     let ssl = btls::ssl::Ssl::new(acceptor.context()).unwrap();
                     let mut tls = tokio_btls::SslStream::new(ssl, tcp).unwrap();
@@ -208,9 +227,9 @@ impl Upstream {
                         return;
                     }
                     let by_client = if tls.ssl().selected_alpn_protocol() == Some(b"h2") {
-                        serve_h2(tls, delay, close_after_first).await
+                        serve_h2(tls, delay, mode, &paired).await
                     } else {
-                        serve_h1(tls, delay, close_after_first).await
+                        serve_h1(tls, delay, mode == Mode::CloseAfterFirst).await
                     };
                     if by_client {
                         gone.fetch_add(1, SeqCst);
@@ -223,6 +242,7 @@ impl Upstream {
             ca,
             accepted,
             closed_by_client: closed,
+            pairs,
         }
     }
 
@@ -241,25 +261,52 @@ impl Upstream {
         self.accepted.load(std::sync::atomic::Ordering::SeqCst)
     }
 
+    fn pairs(&self) -> usize {
+        self.pairs.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
     fn closed_by_client(&self) -> usize {
         self.closed_by_client.load(std::sync::atomic::Ordering::SeqCst)
     }
 }
 
 /// Returns whether the client closed the connection (false when the server did).
-async fn serve_h2<S>(io: S, delay: std::time::Duration, close_after_first: bool) -> bool
+async fn serve_h2<S>(io: S, delay: std::time::Duration, mode: Mode, pairs: &std::sync::atomic::AtomicUsize) -> bool
 where
     S: tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin + Send + 'static,
 {
-    let Ok(mut conn) = http2::server::handshake(io).await else {
-        return true;
-    };
-    while let Some(Ok((_, mut respond))) = conn.accept().await {
-        tokio::time::sleep(delay).await;
+    type Respond = http2::server::SendResponse<bytes::Bytes>;
+    let answer = |mut respond: Respond| {
         let response = http::Response::builder().status(200).body(()).unwrap();
         let mut body = respond.send_response(response, false).unwrap();
         body.send_data(bytes::Bytes::from_static(b"ok"), true).unwrap();
-        if close_after_first {
+    };
+    let Ok(mut conn) = http2::server::handshake(io).await else {
+        return true;
+    };
+    let mut first = true;
+    while let Some(Ok((_, respond))) = conn.accept().await {
+        tokio::time::sleep(delay).await;
+        if mode == Mode::Pair && !first {
+            // Hold this answer until a second stream shares the connection. Accepting keeps
+            // driving the connection, so the client's frames still arrive meanwhile.
+            match tokio::time::timeout(PAIR_WAIT, conn.accept()).await {
+                Ok(Some(Ok((_, other)))) => {
+                    pairs.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    answer(respond);
+                    answer(other);
+                }
+                Ok(_) => {
+                    answer(respond);
+                    return true;
+                }
+                Err(_) => answer(respond),
+            }
+            continue;
+        }
+        first = false;
+        answer(respond);
+        if mode == Mode::CloseAfterFirst {
             // Let the answer go out, then drop the connection without GOAWAY.
             let _ = tokio::time::timeout(std::time::Duration::from_millis(50), conn.accept()).await;
             return false;
@@ -329,17 +376,27 @@ const H1: &[u8] = b"\x08http/1.1";
 #[tokio::test]
 async fn chatgpt_client_reuses_connections() {
     for alpn in [H2, H1] {
-        let up = Upstream::start(alpn, std::time::Duration::ZERO, false).await;
+        let up = Upstream::start(alpn, std::time::Duration::ZERO, Mode::KeepAlive).await;
         let (transport, url) = (up.transport(), up.url());
         for _ in 0..3 {
             get_ok(&transport, &url, &Proxy::Inherit).await;
         }
         assert_eq!(up.accepted(), 1, "sequential requests, ALPN {alpn:?}");
-        if alpn == H2 {
-            futures_util::future::join_all((0..4).map(|_| get_ok(&transport, &url, &Proxy::Inherit))).await;
-            assert_eq!(up.accepted(), 1, "concurrent HTTP/2 requests");
-        }
     }
+}
+
+/// Concurrent HTTP/2 requests share one connection at the same time: the mock holds the
+/// second stream's answer until a third stream arrives on that connection, which only
+/// happens when the client multiplexes instead of sending one request at a time.
+#[tokio::test]
+async fn chatgpt_client_multiplexes_concurrent_http2_requests() {
+    let up = Upstream::start(H2, std::time::Duration::ZERO, Mode::Pair).await;
+    let (transport, url) = (up.transport(), up.url());
+    // The connection's first stream is answered at once, so the pool holds a live one.
+    get_ok(&transport, &url, &Proxy::Inherit).await;
+    futures_util::future::join_all((0..2).map(|_| get_ok(&transport, &url, &Proxy::Inherit))).await;
+    assert_eq!(up.accepted(), 1, "one connection");
+    assert_eq!(up.pairs(), 1, "both requests in flight on it together");
 }
 
 /// At most two connections ([`CHROME_IDLE_PER_HOST`]) stay idle: after four concurrent HTTP/1.1
@@ -347,7 +404,7 @@ async fn chatgpt_client_reuses_connections() {
 /// reuses the two it kept.
 #[tokio::test]
 async fn chatgpt_client_keeps_at_most_two_idle_connections() {
-    let up = Upstream::start(H1, std::time::Duration::from_millis(100), false).await;
+    let up = Upstream::start(H1, std::time::Duration::from_millis(100), Mode::KeepAlive).await;
     let (transport, url) = (up.transport(), up.url());
     let burst = || futures_util::future::join_all((0..4).map(|_| get_ok(&transport, &url, &Proxy::Inherit)));
     burst().await;
@@ -363,7 +420,7 @@ async fn chatgpt_client_keeps_at_most_two_idle_connections() {
 #[tokio::test]
 async fn chatgpt_client_replaces_a_connection_the_server_closed() {
     for alpn in [H2, H1] {
-        let up = Upstream::start(alpn, std::time::Duration::ZERO, true).await;
+        let up = Upstream::start(alpn, std::time::Duration::ZERO, Mode::CloseAfterFirst).await;
         let (transport, url) = (up.transport(), up.url());
         get_ok(&transport, &url, &Proxy::Inherit).await;
         // The server closes its side 50 ms after answering.
@@ -415,7 +472,7 @@ async fn counting_proxy(target: std::net::SocketAddr) -> (Proxy, std::sync::Arc<
 #[tokio::test]
 async fn chatgpt_pools_are_isolated_per_proxy() {
     use std::sync::atomic::Ordering::SeqCst;
-    let up = Upstream::start(H2, std::time::Duration::ZERO, false).await;
+    let up = Upstream::start(H2, std::time::Duration::ZERO, Mode::KeepAlive).await;
     let (transport, url) = (up.transport(), up.url());
     let ((a, a_tunnels), (b, b_tunnels)) = (counting_proxy(up.addr).await, counting_proxy(up.addr).await);
     get_ok(&transport, &url, &a).await;
