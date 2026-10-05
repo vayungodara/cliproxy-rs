@@ -27,7 +27,7 @@ For a persistent personal setup, put this in `~/.claude/settings.json`:
 
 ### GPT in Claude Code
 
-Connect your own Codex account, or configure an OpenAI API key, then choose an available GPT model from `/v1/models`. Claude Code sends Messages requests; the proxy translates them to the selected provider's format. This is separate from using a Claude subscription in another tool. Read [Accounts and provider terms](../README.md#accounts-and-provider-terms).
+Configure an OpenAI API key, then choose an available GPT model from `/v1/models`. You can also use a connected Codex account; read [Accounts and provider terms](../README.md#accounts-and-provider-terms) first. Claude Code sends Messages requests; the proxy translates them to the selected provider's format.
 
 ```bash
 export ANTHROPIC_BASE_URL=http://127.0.0.1:8317
@@ -42,7 +42,7 @@ claude
 
 `ANTHROPIC_DEFAULT_HAIKU_MODEL` routes Claude Code's small-model calls too; otherwise they may still ask for Haiku. You can use a different available GPT model for that slot. If you use Claude Code's named model tiers, set `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL` and `ANTHROPIC_DEFAULT_FABLE_MODEL` to available proxy models as well.
 
-The context values are examples, not a promise about a GPT model's capacity. Check the selected model's provider limit and use a compaction window below it. Claude Code's [environment reference](https://code.claude.com/docs/en/env-vars) defines both variables. `CLAUDE_CODE_MAX_CONTEXT_TOKENS` changes the window Claude Code assumes; it does not enlarge the upstream window. `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is an integer token count, not a percentage, and accepts 100,000 to 1,000,000. These are Claude Code settings, not cliproxy-rs config keys.
+Check the selected model's provider limit and use a compaction window below it. Claude Code's [environment reference](https://code.claude.com/docs/en/env-vars) defines both variables. `CLAUDE_CODE_MAX_CONTEXT_TOKENS` sets the window Claude Code assumes. The upstream's context limit still applies. `CLAUDE_CODE_AUTO_COMPACT_WINDOW` accepts an integer token count from 100,000 to 1,000,000. Set these variables in Claude Code's environment.
 
 ## Codex CLI
 
@@ -55,12 +55,12 @@ model_provider = "cliproxy"
 [model_providers.cliproxy]
 name = "cliproxy-rs"
 base_url = "http://127.0.0.1:8317/v1"
-env_key = "CLIPROXY_API_KEY"
+env_key = "CLIPROXY_CLIENT_KEY"
 wire_api = "responses"
 ```
 
 ```bash
-export CLIPROXY_API_KEY=your-client-key
+export CLIPROXY_CLIENT_KEY=your-client-key
 codex
 ```
 

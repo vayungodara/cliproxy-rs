@@ -12,7 +12,7 @@ cliproxy-rs aims to behave like CLIProxyAPI at commit [`6fecc6e`](https://github
 - Account sign-in from the command line or the dashboard: Claude, Codex (browser or device code), Kimi, Meta, xAI and Devin.
 - Routing: round-robin, weighted and fill-first selection, retries, cooldowns, session affinity, model aliases and exclusions, payload rules, per-credential and global proxies.
 - The v8 Management API for configuration, credentials, OAuth sign-in, quota checks (`/requests/api-call`), usage counters, logs and model catalogs, plus the dashboard at `/management.html`.
-- HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log` with Go's per-request access log lines, request log files with client and upstream sections, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`-local-model` turns them off).
+- HTTPS on the main port (`server.tls`), logging in Go's format to stdout or a rotating `main.log` with Go's per-request access log lines, request log files with client and upstream sections, LAN discovery (`-discover` and the `server.discovery` advertisement), `.env` loading, and remote model catalog updates as in Go (`--local-model` turns them off).
 - Plugins (`plugins`, Linux and macOS): loading and configuration, plugin-defined routes, the Management API routes to list, enable, configure and delete plugins, and the plugin quota routes.
 - Home mode (`-home-jwt`): bootstrap, config updates, request dispatch, usage, process and request logs, in-flight reporting and shared KV state. Home-managed plugin sync, tasks and status reporting remain unavailable.
 - The `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` storage backends, and the Redis-protocol usage subscriber on the main port.
@@ -51,7 +51,7 @@ An item is covered when it is implemented and a Rust test or a fixture recorded 
 
 Most missing items are in M6 (plugin runtime integration and parts of Home mode) and M3 (Antigravity). The plugin store and terminal UI exist, though some Go cases remain unported. The README's [Upcoming features](../README.md#upcoming-features) list summarises the feature gaps.
 
-The audit combines a source scan with saved route probes and manual judgments. Rerunning it does not rerun the route probe or prove live-provider compatibility. Counts can lag runtime wiring; a method implemented in a host library may still be unused by the server. The feature descriptions above follow the server's actual call paths.
+The audit combines a source scan with saved route probes and manual judgments. Rerunning it reuses those saved probes and judgments. Live-provider compatibility needs separate testing. Counts can lag runtime wiring; a method implemented in a host library may still be unused by the server. The feature descriptions above follow the server's actual call paths.
 
 ## The audit files
 

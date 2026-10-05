@@ -1,6 +1,6 @@
 # Getting started
 
-This guide connects a coding tool to your own accounts or API keys through cliproxy-rs. For Codex CLI with API keys and mixed providers, start with the [README recipe](../README.md#api-keys-codex-cli-and-mixed-providers). Antigravity is not supported.
+This guide connects a coding tool to your own accounts or API keys through cliproxy-rs. For Codex CLI with API keys and mixed providers, start with the [README recipe](../README.md#api-keys-codex-cli-and-mixed-providers).
 
 ## 1. Install and start it
 

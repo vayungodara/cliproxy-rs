@@ -21,7 +21,7 @@ The provider's sign-in page uses whatever account your browser is logged into. T
 |---|---|---|
 | `round-robin` (default) | Takes the accounts in turn, one request each. | The accounts are alike and you want the load even. |
 | `fill-first` | Uses one account until it cools down or reaches a limit, then the next. | You prefer one account and keep another as a fallback. |
-| `weighted-round-robin` | Takes the accounts in turn in proportion to each account's `weight`. An account with weight 0 is left out. | The plans differ in size, for example a Max plan next to two Pro plans. |
+| `weighted-round-robin` | Takes the accounts in turn in proportion to each account's `weight`. An account with weight 0 is left out. | The plans differ in size. |
 | `soonest-reset` (experimental, a cliproxy-rs addition) | Selects the account whose weekly window resets soonest, until it cools down or reaches a limit. An account without a known reset gets one request to learn it. | You want selection ordered by reset time. CLIProxyAPI reads this value as `round-robin`. |
 
 `soonest-reset` is experimental and only runs if you choose it. Please report anything that looks wrong.
@@ -55,7 +55,7 @@ When a provider answers 429 (too many requests, or a used-up limit), the proxy r
 
 `routing.retry.request-retry` (default 0) adds rounds over the accounts when every attempt in a round failed, and `routing.retry.max-retry-interval` (seconds, default 0) lets the proxy wait for an account to come out of cooldown instead of failing at once. The Reset cooldown button on the Credentials and Quotas pages clears the proxy's own record only; it does not give back any provider limit.
 
-The optional ["plan limits only" preset](CONFIGURATION.md#optional-plan-limits-only-preset) keeps 429 failover for OAuth accounts but stops on the listed non-quota errors instead of trying another account.
+The optional [fail over only on 429 preset](CONFIGURATION.md#optional-preset-fail-over-only-on-429) keeps 429 failover for OAuth accounts. It stops ordinary failover after a failed attempt for the listed non-429 statuses. Credential-preparation failures and an enabled `requests.streaming.bootstrap-retries` can still cause another attempt.
 
 ## Read the quota view
 
@@ -85,7 +85,7 @@ These settings go in the account's file in `auth-dir` (the server reloads it whe
 
 `proxy_url` sends that account's requests through its own proxy (`http://`, `https://`, `socks5://` or `socks5h://`); `"direct"` skips every proxy. Without it, the account uses `requests.proxy-url` from `config.yaml`. When neither is set, most providers follow the `HTTPS_PROXY` environment variables, while Claude accounts connect directly. For an API key in `config.yaml`, the same setting is `proxy-url` on the key's entry.
 
-Claude request shaping follows CLIProxyAPI's rules. It can rewrite system prompts for non-native clients. Those rewrites do not make third-party subscription use permitted. For Claude outside its native applications, use an API key or supported cloud provider.
+Claude request shaping follows CLIProxyAPI's rules. Its default `auto` mode can rewrite system prompts for non-native clients. To turn it off, set `"cloak_mode": "never"` in the account's file, or `oauth.providers.claude.disable-claude-cloak-mode: true` in `config.yaml`. The rewrite does not make using a Claude subscription in another tool permitted; use an API key or a supported cloud provider there.
 
 ## Codex over WebSocket
 
@@ -111,7 +111,7 @@ If you use `tailscale serve` to add HTTPS, it forwards from `127.0.0.1`, so also
 
 ## A worked example: three Claude and two Codex accounts
 
-The plan: a Claude Max account takes the work first, two Claude Pro accounts take over when it runs out, conversations stay on one account, and both Codex accounts use WebSocket.
+This example is for one person using their own accounts on their own machines. The Claude Max account takes requests first. Two Claude Pro accounts take over while it cools down. Conversations stay on one account while it is ready, and both Codex accounts use WebSocket. Use Claude subscriptions only in native Anthropic applications, as described in [Accounts and provider terms](../README.md#accounts-and-provider-terms).
 
 `config.yaml`:
 
@@ -142,8 +142,8 @@ Sign in five times (three Claude accounts, two Codex accounts), then set these f
 |---|---|---|
 | Claude Max | `"priority": 10` | Used first. |
 | Claude Pro, first | `"priority": 0` | Used when the Max account is cooling down. |
-| Claude Pro, second | `"priority": 0`, `"proxy_url": "socks5://127.0.0.1:1081"` | Same, through its own proxy. |
+| Claude Pro, second | `"priority": 0` | Used when the Max account is cooling down. |
 | Codex, first | `"websockets": true` | WebSocket transport. |
 | Codex, second | `"websockets": true` | WebSocket transport. |
 
-With `fill-first`, each provider's top-priority account serves everything until it cools down, then the next one in line takes over, and a conversation already bound to an account stays there. Swap `fill-first` for `soonest-reset` to drain whichever account's week ends soonest, or for `weighted-round-robin` with `"weight"` fields to share the load by plan size.
+With `fill-first`, each provider's top-priority account serves requests until it cools down, then the next ready account takes over. A bound conversation stays on its account while that account is ready. Swap `fill-first` for `soonest-reset` to order accounts by reset time, or for `weighted-round-robin` with `weight` fields to split requests by plan size.
