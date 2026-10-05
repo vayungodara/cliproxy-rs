@@ -298,11 +298,9 @@ impl ClaudeExecutor {
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         let original_translated = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         tracing::trace!(target: "cpa_latency", stage = "translated");
-        let mut prepared = off_worker(
-            req.body.len(),
-            ctx.prepare_messages(&req, &translated, &original_translated, upstream_stream),
-        )
-        .await?;
+        let mut prepared = ctx
+            .prepare_messages(&req, &translated, &original_translated, upstream_stream)
+            .await?;
         // reporter.SetTranslatedReasoningEffort on the body sent upstream.
         if req.usage.enabled() {
             req.usage.request(Format::Claude, prepared.body.as_bytes());
@@ -793,23 +791,6 @@ fn normalize_fingerprint_profile(raw: &str) -> &'static str {
 }
 
 /// The executor keeps bodies as text; shared byte APIs never split UTF-8 they were given.
-/// Bodies from which request preparation takes milliseconds of CPU (10 to 20 µs per KB).
-const OFF_WORKER_BYTES: usize = 64 * 1024;
-
-/// Runs `work` to completion where it cannot stall the runtime: for a large body on a
-/// multi-threaded runtime, the worker hands its other tasks (streams of other sessions)
-/// to another thread first (`block_in_place`). Go's scheduler preempts long goroutines;
-/// Tokio does not. Small bodies, and current-thread runtimes, just await it.
-async fn off_worker<T>(body_len: usize, work: impl std::future::Future<Output = T>) -> T {
-    use tokio::runtime::{Handle, RuntimeFlavor};
-    match Handle::try_current() {
-        Ok(handle) if body_len >= OFF_WORKER_BYTES && handle.runtime_flavor() == RuntimeFlavor::MultiThread => {
-            tokio::task::block_in_place(|| handle.block_on(work))
-        }
-        _ => work.await,
-    }
-}
-
 /// `String::from_utf8_lossy` with the fast validator first: request bodies are
 /// almost always valid UTF-8, and the lossy decoder's own check is several times slower.
 fn utf8(bytes: &[u8]) -> std::borrow::Cow<'_, str> {
