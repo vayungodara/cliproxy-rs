@@ -202,6 +202,8 @@ pub fn run<W: Write + Send + 'static>(
 ) -> io::Result<()> {
     let runtime = tokio::runtime::Handle::current();
     let mut app = app::App::new(base_url, secret, hook);
+    // Unit outside Unix, where Ctrl+C needs no handler set up in advance.
+    #[cfg_attr(not(unix), allow(clippy::let_unit_value))]
     let handlers = {
         let _context = runtime.enter();
         signals()?

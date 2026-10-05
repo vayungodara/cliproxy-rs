@@ -1028,6 +1028,8 @@ async fn standalone_tui(
         Ok(_) => Err("embedded server is not ready".to_owned()),
         Err(e) => Err(e.clone()),
     };
+    // Restores stdout and stderr on Unix; outside Unix nothing was redirected.
+    #[cfg_attr(not(unix), allow(clippy::drop_non_drop))]
     drop(quiet);
     cpa_server::logging::release();
     if let Err(e) = result {
