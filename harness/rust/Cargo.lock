@@ -387,7 +387,7 @@ checksum = "7704b5fdd17b18ae31c4c1da5a2e0305a2bf17b5249300a9ee9ed7b72114c636"
 
 [[package]]
 name = "cpa-common"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64 0.22.1",
  "cpa-core",
@@ -401,7 +401,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-core"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -432,7 +432,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-exec"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
@@ -468,7 +468,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-home"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -489,7 +489,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-plugin"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "async-compression",
  "base64 0.22.1",
@@ -515,7 +515,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-server"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "async-compression",
@@ -556,7 +556,7 @@ dependencies = [
 
 [[package]]
 name = "cpa-translate"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "base64 0.22.1",
  "bytes",
