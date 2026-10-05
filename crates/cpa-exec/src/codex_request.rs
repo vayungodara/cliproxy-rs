@@ -75,6 +75,14 @@ pub(crate) fn response_steering(cfg: &Config) -> bool {
         .unwrap_or(false)
 }
 
+/// `oauth.providers.codex.chatgpt-keep-alive`, a cliproxy-rs addition: off unless set to
+/// true (YAML 1.1 spellings such as `yes` are normalised by the config schema).
+pub(crate) fn chatgpt_keep_alive(cfg: &Config) -> bool {
+    setting(cfg, &["oauth", "providers", "codex", "chatgpt-keep-alive"])
+        .and_then(serde_yaml_ng::Value::as_bool)
+        .unwrap_or(false)
+}
+
 fn setting<'a>(cfg: &'a Config, path: &[&str]) -> Option<&'a serde_yaml_ng::Value> {
     path.iter().try_fold(&cfg.document, |v, k| v.get(*k))
 }
@@ -208,6 +216,10 @@ pub(crate) struct View<'a> {
     pub proxy: crate::proxy::Proxy,
     /// `$CPA-SESSION-ID`: the request's explicit session, never derived fallbacks.
     pub session: Option<String>,
+    /// `oauth.providers.codex.chatgpt-keep-alive` (cliproxy-rs addition, off by default):
+    /// keep idle chatgpt.com connections instead of Go's connection per request. Read
+    /// from the config snapshot of each request, so a reload applies to the next one.
+    pub chatgpt_keep_alive: bool,
 }
 
 impl<'a> View<'a> {
@@ -215,6 +227,7 @@ impl<'a> View<'a> {
     pub fn for_request(credential: &'a Credential, cfg: &Config) -> Self {
         Self {
             proxy: crate::proxy::Proxy::effective(credential, cfg),
+            chatgpt_keep_alive: chatgpt_keep_alive(cfg),
             ..Self::new(credential)
         }
     }
@@ -246,6 +259,7 @@ impl<'a> View<'a> {
             base_url: base_url.trim_end_matches('/'),
             proxy: crate::proxy::Proxy::Inherit,
             session: None,
+            chatgpt_keep_alive: false,
         }
     }
 
@@ -1396,5 +1410,36 @@ mod tests {
         assert_eq!(rational("-0.50"), rational("-5e-1"));
         assert_ne!(rational("8"), rational("80"));
         assert_eq!(rational("0.000"), "0");
+    }
+
+    /// `chatgpt-keep-alive` is off unless the config turns it on, in the v8 layout or the
+    /// flat one (whose `codex:` section moves to `oauth.providers.codex`), and YAML 1.1
+    /// spellings decode as Go decodes a bool field.
+    #[test]
+    fn chatgpt_keep_alive_is_off_unless_configured() {
+        let cases = [
+            ("", false),
+            (
+                "oauth:\n  providers:\n    codex:\n      disable-codex-cloaking: true\n",
+                false,
+            ),
+            (
+                "oauth:\n  providers:\n    codex:\n      chatgpt-keep-alive: false\n",
+                false,
+            ),
+            (
+                "oauth:\n  providers:\n    codex:\n      chatgpt-keep-alive: true\n",
+                true,
+            ),
+            (
+                "oauth:\n  providers:\n    codex:\n      chatgpt-keep-alive: yes\n",
+                true,
+            ),
+            ("codex:\n  chatgpt-keep-alive: true\n", true),
+        ];
+        for (yaml, want) in cases {
+            let cfg = Config::parse(yaml).unwrap();
+            assert_eq!(chatgpt_keep_alive(&cfg), want, "{yaml:?}");
+        }
     }
 }

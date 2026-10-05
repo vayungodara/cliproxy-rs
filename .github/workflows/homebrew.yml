@@ -1,0 +1,57 @@
+name: Homebrew
+
+on:
+  push:
+    branches: ["**"]
+    paths: [packaging/homebrew/**, .github/workflows/homebrew.yml, .github/workflows/release.yml]
+  pull_request:
+    paths: [packaging/homebrew/**, .github/workflows/homebrew.yml, .github/workflows/release.yml]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HOMEBREW_NO_AUTO_UPDATE: "1"
+  HOMEBREW_NO_ANALYTICS: "1"
+
+jobs:
+  formula:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: Homebrew/actions/setup-homebrew@dc7099b3e807f1e2ecc61f3ecabc840eedd5586a
+      - name: Test release rendering
+        run: python3 -m unittest discover -s packaging/homebrew -v
+      - name: Render a local test tap
+        run: |
+          brew tap-new --no-git vayungodara/tap
+          python3 - <<'PY'
+          import sys
+          from pathlib import Path
+          import subprocess
+          sys.path.insert(0, "packaging/homebrew")
+          from render import render
+          checksums = "\n".join(
+              f"{'1' * 64}  cliproxy-1.2.3-{target}.tar.gz"
+              for target in (
+                  "aarch64-apple-darwin", "x86_64-apple-darwin",
+                  "aarch64-unknown-linux-gnu", "x86_64-unknown-linux-gnu",
+              )
+          )
+          tap = Path(subprocess.check_output(["brew", "--repository", "vayungodara/tap"], text=True).strip())
+          template = Path("packaging/homebrew/cliproxy-rs.rb").read_text()
+          (tap / "Formula/cliproxy-rs.rb").write_text(render("v1.2.3", checksums, template))
+          PY
+      - name: Style and offline audit (no binary build or install)
+        run: |
+          # Retain post_install for older Homebrew; only its deprecation cop is excluded.
+          brew style --except-cops FormulaAudit/InstallSteps "$(brew --repository vayungodara/tap)/Formula/cliproxy-rs.rb"
+          brew audit --skip-style --formula vayungodara/tap/cliproxy-rs
+      - name: Test config creation without starting the server
+        run: brew ruby packaging/homebrew/test_formula.rb vayungodara/tap/cliproxy-rs
