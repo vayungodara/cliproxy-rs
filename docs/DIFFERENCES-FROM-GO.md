@@ -8,7 +8,7 @@ Where cliproxy-rs has a feature, it aims to behave exactly as CLIProxyAPI does a
 
 ## Deliberate differences
 
-- Upstream connections: the Codex client for `chatgpt.com` (the Chrome TLS fingerprint) keeps up to 8 idle connections per host and proxy for 90 seconds and sends later requests on them, several at once over HTTP/2. Go dials a dedicated uTLS connection for every request and closes it with the response body (`helps/utls_client.go`), so every Codex request pays a TCP and TLS handshake. The ClientHello, the request headers and the proxy are the same. The Claude client for `api.anthropic.com` keeps every idle connection for 90 seconds, where Go's transport for it keeps at most 2 per host (net/http's default) with no time limit, so after a burst of concurrent requests Go dials again and cliproxy-rs does not.
+- Upstream connections: the Claude client for `api.anthropic.com` keeps every idle connection for 90 seconds. Go's transport for it keeps at most 2 idle connections per host (net/http's default) with no time limit, so after a burst of concurrent requests Go dials again and cliproxy-rs does not.
 - Startup: if the config fails to load outside cloud deploy mode, cliproxy-rs exits with a non-zero status, so a service manager sees the failure. Go exits 0.
 - Discovery: subtype PTR queries are answered (Go's zeroconf library never matches them), answers go out on every selected interface, and advertisement changes from a config reload apply within 1 second, by polling.
 - `.env`: non-UTF-8 bytes inside quoted values are decoded lossily. Go keeps the raw bytes.
