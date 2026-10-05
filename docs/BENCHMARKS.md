@@ -168,6 +168,117 @@ Large prompts (1.9 MB requests), one round.
 - With 1.9 MB prompts master was more than three times slower than Go to first byte; this change's TTFB p50 is 40% lower than Go's, and it holds 43 MB after the run against Go's 184 MB and master's 158 MB.
 - Raw results, including the allocator and trim comparisons: [`bench/results/2026-10-04-messages.jsonl`](../bench/results/2026-10-04-messages.jsonl). The `session` field groups runs that were measured together.
 
+## Claude latency: time added before the first byte
+
+Measured on 2026-10-05: how long cliproxy-rs holds a streamed `/v1/messages` request before its first byte reaches the upstream, and before the first response byte reaches the client, for the Claude Code OAuth path (cloaking and the native TLS client) and the Claude API-key path.
+
+### Setup
+
+- A virtual machine with 8 vCPUs (Intel Xeon at 2.60 GHz) and 16 GB of memory, running Debian 12 (glibc 2.36) with Linux 6.1. It is shared, so compare numbers measured in the same session.
+- "master" is `1849512` (0.1.2) with only the harness and its five trace marks added; "this change" is the branch described below. Both are release builds (thin LTO, one codegen unit) with line tables kept for profiling, rustc 1.99.0.
+- [`bench/latency.sh`](../bench/latency.sh) runs [`claude_latency`](../crates/cpa-server/examples/claude_latency.rs) in a loopback-only network namespace. It is one process with two Tokio runtimes of 4 workers each: one runs the production router, listener and Claude executor; the other runs a mock Anthropic upstream and a keep-alive HTTP/1.1 client. Sharing one process gives every timestamp the same monotonic clock.
+- OAuth path: a Claude Code OAuth credential (an `sk-ant-oat` token with its device and account IDs, so no profile fetch) and the production native TLS profile, with the executor's test hooks resolving `api.anthropic.com` to a local TLS mock that trusts a throwaway CA. Cloaking, cache_control handling, tool-name aliasing, signature sanitising and CCH signing all run. API-key path: a `claude-api-key` entry whose `base-url` is a plain HTTP mock.
+- Bodies: coding-agent conversations of 5,000, 50,000, 300,000 and 2,000,000 bytes (a system prompt with a cache breakpoint, tool definitions, assistant turns with signed thinking, text and `tool_use`, user `tool_result` turns), sent with `stream: true`. The mock reads the whole request and answers at once with a short SSE stream.
+- Per cell: 20 warm-up requests, then 200 measured, from 1 client or from 8 concurrent clients (25 each). The same requests are also sent straight to the mock; "added" is the proxied percentile minus the direct one. Two rounds, run master, this change, master, this change; each cell shows round 1, round 2.
+- First upstream byte: from the client starting the request to the mock's request handler (the request head has arrived). First client byte: to the first response body byte at the client.
+- Stages (1 client, p50): trace events (`target: "cpa_latency"`, level trace, never enabled by the server's own logging) at the route handler, the selected credential, the executor, the translated request and the finished upstream request, plus the mock's timestamps.
+
+```sh
+bench/latency.sh /tmp/latency.jsonl
+N=200 SIZES=300000 CONC=8 bench/latency.sh /tmp/latency.jsonl
+```
+
+### Results
+
+Added to the first upstream byte, ms (round 1, round 2):
+
+| Path | Body | Clients | master p50 | master p99 | this change p50 | this change p99 |
+| --- | --- | --- | --- | --- | --- | --- |
+| OAuth | 5 KB | 1 | 1.28, 1.29 | 1.64, 1.81 | 0.91, 0.95 | 1.22, 1.26 |
+| OAuth | 5 KB | 8 | 2.02, 2.01 | 3.25, 3.40 | 1.56, 1.38 | 2.54, 2.17 |
+| OAuth | 50 KB | 1 | 5.15, 5.38 | 8.11, 7.66 | 2.24, 2.27 | 3.05, 2.58 |
+| OAuth | 50 KB | 8 | 7.78, 8.41 | 14.80, 15.20 | 4.06, 3.97 | 6.32, 5.97 |
+| OAuth | 300 KB | 1 | 21.62, 22.53 | 32.04, 34.59 | 6.57, 6.57 | 8.74, 8.50 |
+| OAuth | 300 KB | 8 | 29.64, 29.14 | 42.44, 46.65 | 6.90, 6.67 | 10.55, 9.26 |
+| OAuth | 2 MB | 1 | 140.48, 141.65 | 205.53, 185.96 | 45.47, 46.29 | 57.51, 70.22 |
+| OAuth | 2 MB | 8 | 202.24, 203.27 | 265.86, 272.41 | 44.97, 45.04 | 65.77, 56.18 |
+| API key | 5 KB | 1 | 0.70, 0.70 | 0.96, 0.88 | 0.48, 0.47 | 0.65, 0.61 |
+| API key | 5 KB | 8 | 1.07, 0.97 | 1.92, 1.48 | 0.72, 0.70 | 1.12, 1.00 |
+| API key | 50 KB | 1 | 2.61, 2.66 | 3.28, 2.92 | 1.20, 1.19 | 1.42, 1.41 |
+| API key | 50 KB | 8 | 4.09, 4.27 | 6.85, 6.78 | 1.86, 1.86 | 3.04, 2.84 |
+| API key | 300 KB | 1 | 10.91, 11.26 | 16.27, 13.97 | 3.93, 3.84 | 5.16, 4.16 |
+| API key | 300 KB | 8 | 15.86, 16.04 | 24.48, 23.88 | 4.04, 4.00 | 5.32, 6.05 |
+| API key | 2 MB | 1 | 74.32, 70.68 | 99.90, 95.36 | 25.64, 24.65 | 39.03, 33.68 |
+| API key | 2 MB | 8 | 112.36, 109.09 | 155.25, 143.15 | 25.57, 24.54 | 33.72, 33.44 |
+
+Added to the first client byte, ms (round 1, round 2):
+
+| Path | Body | Clients | master p50 | master p99 | this change p50 | this change p99 |
+| --- | --- | --- | --- | --- | --- | --- |
+| OAuth | 5 KB | 1 | 1.54, 1.55 | 1.87, 2.09 | 1.13, 1.19 | 1.49, 1.52 |
+| OAuth | 5 KB | 8 | 2.69, 3.00 | 4.73, 5.08 | 2.30, 2.09 | 4.05, 3.04 |
+| OAuth | 50 KB | 1 | 5.44, 5.75 | 8.37, 7.93 | 2.51, 2.59 | 3.31, 2.78 |
+| OAuth | 50 KB | 8 | 10.81, 11.54 | 19.49, 18.60 | 5.78, 5.48 | 9.44, 8.14 |
+| OAuth | 300 KB | 1 | 21.89, 22.87 | 31.87, 34.64 | 6.85, 6.82 | 8.57, 8.40 |
+| OAuth | 300 KB | 8 | 40.30, 42.02 | 62.18, 62.16 | 7.06, 6.89 | 10.67, 9.16 |
+| OAuth | 2 MB | 1 | 141.63, 142.77 | 205.10, 185.38 | 46.32, 46.82 | 57.05, 70.26 |
+| OAuth | 2 MB | 8 | 258.09, 259.16 | 389.99, 397.97 | 43.28, 43.15 | 60.89, 51.53 |
+| API key | 5 KB | 1 | 0.89, 0.89 | 1.24, 1.17 | 0.66, 0.65 | 0.89, 0.82 |
+| API key | 5 KB | 8 | 1.68, 1.43 | 2.72, 2.29 | 1.15, 1.12 | 1.69, 1.56 |
+| API key | 50 KB | 1 | 2.90, 2.94 | 3.59, 3.21 | 1.49, 1.44 | 1.79, 1.71 |
+| API key | 50 KB | 8 | 5.72, 5.77 | 9.61, 8.67 | 2.86, 2.77 | 4.05, 4.08 |
+| API key | 300 KB | 1 | 11.24, 11.55 | 16.43, 14.07 | 4.23, 4.17 | 5.36, 4.44 |
+| API key | 300 KB | 8 | 21.26, 21.25 | 32.36, 32.81 | 4.42, 4.32 | 5.69, 6.15 |
+| API key | 2 MB | 1 | 74.87, 71.53 | 99.89, 95.41 | 26.62, 25.55 | 40.20, 34.13 |
+| API key | 2 MB | 8 | 141.88, 140.22 | 201.42, 191.46 | 25.45, 24.64 | 32.58, 33.19 |
+
+Where the time goes, one client, p50 of round 1 in ms (master → this change):
+
+| Stage | OAuth 50 KB | OAuth 300 KB | OAuth 2 MB | API key 50 KB | API key 300 KB | API key 2 MB |
+| --- | --- | --- | --- | --- | --- | --- |
+| Read the client body (client write, HTTP parse, routing, client key) | 0.13 → 0.12 | 0.22 → 0.19 | 0.90 → 0.82 | 0.11 → 0.11 | 0.21 → 0.21 | 0.88 → 1.67 |
+| Route and select a credential (model peek, session IDs, scheduler) | 0.69 → 0.19 | 1.83 → 0.41 | 9.50 → 1.82 | 0.68 → 0.21 | 1.78 → 0.42 | 9.69 → 1.84 |
+| Translate (Claude to Claude) | 0.03 → 0.03 | 0.19 → 0.18 | 1.59 → 1.52 | 0.04 → 0.03 | 0.17 → 0.22 | 0.56 → 1.51 |
+| Parse and rewrite (thinking, cloaking, cache_control, aliases, signatures, CCH, headers) | 4.09 → 1.75 | 19.20 → 5.59 | 127.80 → 41.04 | 1.65 → 0.71 | 8.60 → 2.88 | 62.44 → 20.69 |
+| Connection checkout, request head on the wire | 0.25 → 0.21 | 0.28 → 0.36 | 0.57 → 0.47 | 0.18 → 0.17 | 0.25 → 0.30 | 0.35 → 0.37 |
+| Request body on the wire | 0.04 → 0.04 | 0.19 → 0.20 | 1.47 → 1.32 | 0.00 → 0.00 | 0.00 → 0.00 | 0.44 → 0.37 |
+| Mock answer to the first client byte | 0.39 → 0.34 | 0.59 → 0.57 | 2.08 → 1.80 | 0.33 → 0.32 | 0.54 → 0.52 | 1.83 → 2.06 |
+
+There is no connect or TLS handshake row: no measured sequential request opened a connection. Of the 12,800 measured proxied requests (6,400 per build), 2 opened one, both in this change's run (API key, 5 KB, 8 clients, round 2): a request that started before the previous connection was back in the pool. In the 2 MB API-key column, reading the client body and translating each take about 1 ms longer than on master; both moved only with `block_in_place` (see below), in every round. The "mock answer" row includes the mock locating its request marker in the body, which the direct baseline pays too.
+
+### Upstream connections
+
+Every client profile now keeps its upstream connections between requests. The tests `native_client_reuses_its_connection` (Claude, `api.anthropic.com` profile), `chatgpt_client_reuses_connections` (Codex, `chatgpt.com` Chrome profile, HTTP/2 and HTTP/1.1) and `go_clients_reuse_connections` (Go's standard transport for API-key base URLs and OpenAI-compatible hosts, HTTP/2 and HTTP/1.1) count the TCP connections a local TLS upstream accepts.
+
+- Claude (`api.anthropic.com`): already pooled before this change, per effective proxy. Go also reuses these: its Claude Code transport is an `http.Transport` cached per proxy (`helps/utls_client.go`), with net/http's default of at most 2 idle connections per host.
+- Codex (`chatgpt.com`): master opened a new TCP and TLS connection for every request, like Go, which dials a dedicated uTLS connection per request and closes it with the response body. It now keeps up to 8 idle connections per host and proxy for 90 seconds, with the same ClientHello and headers (see [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md)).
+- Everything else: pooled before and after, as Go's `http.DefaultTransport` is.
+
+### What changed
+
+- gjson 0.8.1, which the Claude executor uses for most body reads, scanned JSON strings one byte at a time; almost all of a coding agent's prompt is string content. A patched copy in [`vendor/gjson`](../vendor/README.md) finds string ends with `memchr2`, and its validator does the same; results are unchanged and tested against the original functions. `cpa_common::json::valid` got the same string skip. Before this, `gjson::scan_squash` alone took 44% of the CPU in a `perf` profile of the OAuth path at 300 KB.
+- Session-ID extraction (run by the server and again by the executor) asked for about twenty top-level keys, each found by scanning the body. It now indexes the top-level keys of a valid JSON object once; a plain path is answered from the index, and a duplicate key, an invalid body or any other path scans as before.
+- The executor decodes UTF-8 with the fast validator before falling back to the lossy decoder, and the tool-name aliasing no longer copies its output once more.
+- Preparing a body of 64 KB or more runs under `block_in_place` on a multi-threaded runtime, so its milliseconds of CPU no longer hold up the other tasks on that worker, such as other sessions' streams. Measured in a separate session (bench/results, `"session":"block_in_place"`), added to the first client byte, p50 / p99 of two rounds:
+
+| Path | Body | Clients | Without | With |
+| --- | --- | --- | --- | --- |
+| OAuth | 300 KB | 1 | 6.75 / 8.12, 6.73 / 8.36 | 6.94 / 8.55, 7.00 / 7.81 |
+| OAuth | 300 KB | 8 | 11.74 / 19.17, 11.61 / 18.58 | 7.04 / 12.88, 6.97 / 11.41 |
+| OAuth | 2 MB | 1 | 44.55 / 66.00, 42.60 / 57.14 | 45.28 / 55.53, 46.79 / 67.91 |
+| OAuth | 2 MB | 8 | 74.14 / 113.12, 72.60 / 93.52 | 44.05 / 59.69, 44.51 / 59.74 |
+| API key | 300 KB | 8 | 5.63 / 8.55, 5.67 / 8.36 | 3.96 / 5.74, 3.85 / 6.36 |
+| API key | 2 MB | 1 | 23.11 / 31.13, 22.94 / 31.15 | 25.23 / 33.49, 26.09 / 35.91 |
+| API key | 2 MB | 8 | 39.24 / 57.94, 38.51 / 48.61 | 24.30 / 30.92, 25.61 / 32.49 |
+
+  With one client it costs up to 0.3 ms at 300 KB and 0.7 to 4.2 ms at 2 MB (on the API-key path the extra time shows up in reading the client body and in translation, not in the offloaded step); with eight clients the median drops by 1.7 to 4.7 ms at 300 KB and by 13 to 30 ms at 2 MB.
+- The bytes sent upstream are unchanged: the gjson change is checked against the original functions, the index against plain lookups, and the Claude, Codex and server test suites (including the Go golden tests) pass.
+
+### What is left
+
+- At 50 KB the OAuth path adds 2.2 to 2.3 ms before the first upstream byte and the API-key path 1.2 ms; at 300 KB, 6.6 ms and 3.9 ms. Most of it is "parse and rewrite": the Go-ported rules (thinking, cloaking, cache_control, tool aliases, signature sanitising, CCH signing, beta headers) each read the body again, and many return a new copy. In a `perf` profile of the OAuth path at 300 KB, the largest, signature sanitising and tool-name aliasing, take about 15% and 13% of it; the rest is spread over a dozen rules. Bringing 300 KB down to 1 to 2 ms means walking the body once for all of them.
+- Raw results: [`bench/results/2026-10-05-latency.jsonl`](../bench/results/2026-10-05-latency.jsonl).
+
 ## History
 
 Four runs on 2026-10-03 with the same method and machine. The Go column gives the Go result measured in each run, which shows how much the machine itself varied between runs.
