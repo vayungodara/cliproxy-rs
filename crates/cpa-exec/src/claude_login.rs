@@ -81,7 +81,7 @@ pub async fn login(auth_dir: &Path, options: &LoginOptions) -> Result<PathBuf, E
         show_url: Box::new(move |url| show_url(url, port, no_browser)),
     };
     let oauth = OAuth::with_transport(Arc::new(Transport::new(crate::proxy::Hooks::default())));
-    let path = login_with(auth_dir, port, oauth, interaction).await?;
+    let path = login_with(auth_dir, bind(port).await?, oauth, interaction).await?;
     println!("Authentication saved to {}", path.display());
     println!("Claude authentication successful!");
     Ok(path)
@@ -185,14 +185,14 @@ fn login_error(message: impl Into<String>) -> ExecError {
     ExecError::local(400, FailureScope::Request, message)
 }
 
-/// `ClaudeAuthenticator.Login` + `Manager.Login` persistence.
+/// `ClaudeAuthenticator.Login` + `Manager.Login` persistence, serving the callback on
+/// `listener` (from [`bind`]).
 pub(crate) async fn login_with(
     auth_dir: &Path,
-    port: u16,
+    listener: tokio::net::TcpListener,
     oauth: OAuth,
     interaction: Interaction,
 ) -> Result<PathBuf, ExecError> {
-    let listener = bind(port).await?;
     let (verifier, challenge) = pkce()?;
     let state = random_hex(16)?;
     let (results, mut callbacks) = mpsc::channel(1);

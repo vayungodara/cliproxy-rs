@@ -2,34 +2,11 @@
 
 [![CI](https://github.com/vayungodara/cliproxy-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/vayungodara/cliproxy-rs/actions/workflows/ci.yml)
 
-<p align="center">
-  <a href="https://x.com/vayungodara/status/2106492049490899062"><img src="docs/img/hero.gif" alt="cliproxy-rs: one local endpoint for Claude, Codex, Gemini, xAI, Kimi, Meta, Devin and OpenRouter" width="880"></a>
-  <br><sub><a href="https://x.com/vayungodara/status/2106492049490899062">Watch the launch film</a></sub>
-</p>
-
-## What is this?
-
-cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It is a small server you run on your own computer that gives your coding tools, such as Claude Code, Codex CLI or Cursor, one local endpoint for the Anthropic, OpenAI and Gemini APIs, and it translates requests and responses between those formats.
-
-It aims to be a drop-in replacement for the Go version: it reads the same `config.yaml` and the same auth files and serves the same v8 Management API, so you can switch between the two in either direction. Parity is not complete yet; [docs/PARITY.md](docs/PARITY.md) tracks what is covered. The dashboard is built into the binary. It shows which accounts work, how much of each plan's limits is left, and how to connect each tool.
-
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/img/overview-dark.png">
-    <img src="docs/img/overview-light.png" alt="The cliproxy-rs dashboard: requests over the last 200 minutes, ready accounts, success rate, and each account's plan limits" width="880">
-  </picture>
-</p>
-
-## Why would I want it?
-
-- A tool speaks only one API: the proxy translates between the Anthropic, OpenAI and Gemini formats, so an OpenAI-only tool can use a Claude account and the other way round.
-- You run CLIProxyAPI and want a smaller, faster-starting binary with the dashboard built in, without changing your config or auth files.
-- You want Claude Code, Codex CLI and your editor to use the subscriptions and API keys you already have, like a Claude Max plan or a ChatGPT plan, through one local address.
-- You want the 5-hour and weekly limits of your accounts on one screen.
+One local endpoint for Codex CLI, Claude Code and other tools, using your own accounts or API keys. You can mix providers and translate between the OpenAI, Anthropic and Gemini APIs.
 
 ## Quick start
 
-1. Run one command. On macOS or Linux:
+1. On macOS or Linux:
 
    ```sh
    curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
@@ -41,100 +18,155 @@ It aims to be a drop-in replacement for the Go version: it reads the same `confi
    irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1 | iex
    ```
 
-   It installs the latest release after checking its checksum, writes a config with new keys to `~/.cliproxy-rs`, starts the proxy in the background and opens the dashboard in your browser. The keys stay in `~/.cliproxy-rs/keys.env` and are never printed.
+   The installer checks the release checksum, writes `~/.cliproxy-rs/config.yaml`, starts the proxy and opens the dashboard. On Windows, the config is `%USERPROFILE%\.cliproxy-rs\config.yaml`. It saves new keys in `keys.env` without printing them.
 
-2. In the dashboard, sign in with the `CLIPROXY_MANAGEMENT_KEY` line from `keys.env` and choose Connect account. Read the note on [provider terms](#accounts-and-provider-terms) before you connect a subscription.
+2. Sign in to the dashboard with `CLIPROXY_MANAGEMENT_KEY` from `keys.env`. Connect your own account or add a provider API key. Read [Accounts and provider terms](#accounts-and-provider-terms) before connecting a subscription.
 
-3. Open Use with tools and copy the settings for Claude Code, Codex CLI or another tool.
+3. Open the dashboard's **Use with tools** page and copy the Codex CLI or Claude Code settings. Your tools use `CLIPROXY_CLIENT_KEY`, not the management key.
 
-Run the same command again to upgrade; your config and keys stay as they are. [docs/INSTALL.md](docs/INSTALL.md#start-at-login) shows how to start the proxy when you log in.
+Run the same command to upgrade. It keeps your config and keys. [INSTALL.md](docs/INSTALL.md) covers start at login, release binaries, Docker and building from source. [GETTING-STARTED.md](docs/GETTING-STARTED.md) has the longer walkthrough.
 
-[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md) walks through the same steps in more detail.
+## What is this?
 
-## Set up with an AI agent
+cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. Parity is incomplete: the audit has 1,687 items, with 835 covered, 707 partial and 145 missing. [PARITY.md](docs/PARITY.md) defines those counts.
 
-Paste this into Claude Code, Codex or another coding agent on the computer where you want the proxy:
+The dashboard shows accounts, provider limits, request history and tool settings.
 
-```text
-Install and set up cliproxy-rs on this computer by following
-https://github.com/vayungodara/cliproxy-rs/blob/master/docs/AI-SETUP.md exactly.
-Do not sign in to any of my accounts or print my keys; tell me when it is my turn.
-```
+<p align="center">
+  <a href="https://x.com/vayungodara/status/2106492049490899062"><img src="docs/img/hero.gif" alt="cliproxy-rs: one local endpoint for Claude, Codex, Gemini, xAI, Kimi, Meta, Devin and OpenRouter" width="880"></a>
+  <br><sub><a href="https://x.com/vayungodara/status/2106492049490899062">Watch the launch film</a></sub>
+</p>
 
-The agent runs the installer, which picks a free port without touching an existing CLIProxyAPI and keeps the keys in a file only you can read. It checks that the proxy answers, then hands the account sign-in to you.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/overview-dark.png">
+    <img src="docs/img/overview-light.png" alt="The dashboard: recent requests, ready accounts and provider limits" width="880">
+  </picture>
+</p>
 
 ## Use it with your tools
 
-The proxy serves the Anthropic Messages API at `http://127.0.0.1:8317`, the OpenAI API at `http://127.0.0.1:8317/v1` and the Gemini API at `http://127.0.0.1:8317`, all with your client key. For Claude Code:
+The local OpenAI base URL is `http://127.0.0.1:8317/v1`. Claude Code and Gemini clients use `http://127.0.0.1:8317` without `/v1`. Use your installation's port and client key.
 
-```sh
-export ANTHROPIC_BASE_URL=http://127.0.0.1:8317
-export ANTHROPIC_AUTH_TOKEN=your-client-key
-claude
+[CLIENTS.md](docs/CLIENTS.md) has client settings, including [GPT in Claude Code](docs/CLIENTS.md#gpt-in-claude-code). Not every model and tool combination has been tested.
+
+## API keys: Codex CLI and mixed providers
+
+You do not need a subscription login. Merge this provider block into `~/.cliproxy-rs/config.yaml`, or `%USERPROFILE%\.cliproxy-rs\config.yaml` on Windows. Keep `access.api-keys`, `management.secret-key` and the rest of your config. The proxy reloads the configuration on save. The upstream keys below are separate from your proxy's client key. Replace the key and upstream model placeholders with values from each provider.
+
+```yaml
+api-keys:
+  openai-compatibility:
+    - name: deepseek
+      base-url: "https://api.deepseek.com"
+      keys:
+        - api-key: "<deepseek-api-key>"
+      models:
+        - name: "<deepseek-model-id>"
+          alias: "deepseek"
+    - name: openrouter
+      base-url: "https://openrouter.ai/api/v1"
+      keys:
+        - api-key: "<openrouter-api-key>"
+      models:
+        - name: "<openrouter-model-id>"
+          alias: "router"
 ```
 
-[docs/CLIENTS.md](docs/CLIENTS.md) has copy-paste setups for Claude Code, Codex CLI, Gemini CLI, Amp, OpenCode, Factory Droid, Cline, Roo Code, Kilo Code, Cursor, Zed, Continue, Aider and the OpenAI, Anthropic and Gemini SDKs.
+Use the same structure for any of these metered APIs. The base URL excludes `/chat/completions`; the proxy adds it.
+
+| Provider | Base URL | Model IDs and API access |
+| --- | --- | --- |
+| DeepSeek | `https://api.deepseek.com` | [DeepSeek API docs](https://api-docs.deepseek.com/) |
+| GLM (Z.ai) | `https://api.z.ai/api/paas/v4` | [Z.ai API docs](https://docs.z.ai/api-reference/introduction) |
+| Kimi (Moonshot) | `https://api.moonshot.ai/v1` | [Moonshot API docs](https://platform.moonshot.ai/docs) |
+| OpenRouter | `https://openrouter.ai/api/v1` | [OpenRouter API docs](https://openrouter.ai/docs/quickstart) |
+
+Put this in `~/.codex/config.toml`:
+
+```toml
+model = "deepseek"
+model_provider = "cliproxy"
+
+[model_providers.cliproxy]
+name = "cliproxy-rs"
+base_url = "http://127.0.0.1:8317/v1"
+env_key = "CLIPROXY_CLIENT_KEY"
+wire_api = "responses"
+```
+
+```sh
+export CLIPROXY_CLIENT_KEY=your-client-key
+codex
+```
+
+Use the port and `CLIPROXY_CLIENT_KEY` from your installation's `keys.env`. Codex CLI sends Responses requests to the proxy; the proxy translates them to Chat Completions for these upstreams. Set `model = "router"` to use the second provider. Other clients can use either alias at the same endpoint, alongside any connected subscription accounts.
+
+For failover, give two provider entries the same model alias, or add another key to a provider's `keys` list. By default, a 429 cools that credential for the failing model, and the proxy tries another eligible credential for the alias, within the configured attempt limits and error rules. [MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md#cooldowns-and-limits) explains retries when none are ready.
+
+These examples haven't been run against the live providers. Multi-turn tool use with DeepSeek V4 is untested.
 
 ## Accounts and provider terms
 
-Using a subscription outside its official app can break the provider's terms, and providers have suspended accounts for it. Whether to do that is your call and your risk.
+This project is for one person using their own accounts on their own machines. Keep the proxy and its keys private. It is not a shared subscription service.
+
+Use the provider's sanctioned path where one exists:
+
+- OpenAI offers [Sign in with ChatGPT](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt) so eligible users can use their plan in participating tools, including local personal projects. That permission depends on the integration and consent scopes. cliproxy-rs's Codex login follows CLIProxyAPI's existing login flow; it is not the new Sign in with ChatGPT integration.
+- Claude Code supports [gateway configuration](https://code.claude.com/docs/en/llm-gateway-connect). You can route other models into Claude Code through the proxy using their API keys. Anthropic's [authentication rules](https://code.claude.com/docs/en/legal-and-compliance#authentication-and-credential-use) reserve Claude subscription OAuth for Claude Code and other native Anthropic applications. Use an API key or supported cloud provider for Claude in third-party tools.
+
+Personal use is still subject to each provider's terms, and providers can restrict or suspend accounts that break them. Sharing an account, or using it to serve other people, is the clearest case.
 
 ### Several accounts
 
-Like CLIProxyAPI, the proxy can hold more than one Claude or Codex account. Each sign-in becomes one file in `auth-dir`, and a routing setting decides which account serves each request: `round-robin`, `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition that prefers the account whose weekly window resets soonest). Session affinity, which is off by default, keeps each conversation on one account so the provider's prompt cache stays warm. When a provider answers 429, the proxy puts that account in a cooldown for that model and uses the next ready account. [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing, cooldowns, the quota view, per-account proxies, Codex over WebSocket and reaching the proxy from your other machines over Tailscale.
+Each sign-in creates a file in `auth-dir`. Routing chooses among ready credentials with `round-robin`, `fill-first`, `weighted-round-robin` or the opt-in, experimental `soonest-reset` strategy. The installer enables session affinity to keep a conversation on one account. When the setting is omitted, the server default is off. A 429 can move the request to another ready credential for that model. [MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md) covers routing and access from your other machines.
+
+## CLIProxyAPI compatibility
+
+Config and protocol tests check compatibility with Go CLIProxyAPI at `6fecc6e`. The bundled dashboard has tests against both servers. No third-party CLIProxyAPI app has been tested with cliproxy-rs yet.
+
+Before switching, read [MIGRATING-FROM-GO.md](docs/MIGRATING-FROM-GO.md), especially the refresh-token warning. The default Docker image expects `/data/config.yaml` and runs as UID/GID 10001. Update mounts and permissions, or override `--config` and set an accessible `oauth.auth-dir` to keep existing paths.
 
 ## Terminal UI
 
-`cliproxy -tui` opens a terminal management client for a running server. It connects to `-management-base-url`, else the config's `management.base-url`, else `http://127.0.0.1:<port>`, and asks for the management key. `cliproxy -tui -standalone` starts the proxy in the same process, signs in for you and stops the proxy when you quit; it needs a loopback or wildcard `host` and no `server.tls`.
-
-## Works with CLIProxyAPI apps
-
-cliproxy-rs serves the same routes and the same v8 Management API as CLIProxyAPI, so the community apps built on CLIProxyAPI should work with it, for example [CPA-Manager-Plus](https://github.com/seakee/CPA-Manager-Plus), [CLIProxyAPI Quota Inspector](https://github.com/AllenReder/CLIProxyAPI-Quota-Inspector), [ZeroLimit](https://github.com/0xtbug/zero-limit), [Quotio](https://github.com/nguyenphutrong/quotio), [VibeProxy](https://github.com/automazeio/vibeproxy) and [CCS](https://github.com/kaitranntt/ccs). We have not tested all of them. Apps that talk to a running server need only its address and management key; apps that start their own bundled CLIProxyAPI need an option to use an existing server instead. If an app does not work with cliproxy-rs, please [open an issue](https://github.com/vayungodara/cliproxy-rs/issues/new/choose).
-
-## Install options
-
-- `install.sh` (macOS and Linux) and `install.ps1` (Windows), the commands in the quick start. They install the release binary, set it up and start it; `--binary-only` (`-BinaryOnly` on Windows) installs only the binary.
-- Release binaries for macOS (Apple silicon and Intel), Linux (x86_64 and arm64) and Windows (x86_64), with a `SHA256SUMS` file, on the [releases page](https://github.com/vayungodara/cliproxy-rs/releases).
-- Docker, from the repository's `Dockerfile`.
-- Building from source, for contributors and platforms without a release binary.
-
-[docs/INSTALL.md](docs/INSTALL.md) covers each one, starting the proxy at login, and removing it.
+`cliproxy -tui` manages a running server. It uses `-management-base-url`, then `management.base-url`, then `http://127.0.0.1:<port>`, and asks for the management key. `cliproxy -tui -standalone` starts the server in the same process and stops it when you quit. Standalone mode needs a loopback or wildcard `host` and no `server.tls`.
 
 ## Upcoming features
 
-These are not in cliproxy-rs yet. They are planned, in no fixed order:
+Not in cliproxy-rs yet:
 
 - Homebrew and AUR packages.
-- Plugins: providers owned by a plugin (auth files a plugin parses, their models, and their executors without a model router), plugin schedulers, request and response translators, thinking appliers, the `host.model.*` callbacks and the WebSocket response observer. Today plugins load, serve their own routes and quotas, install from the plugin store, add command-line flags and sign in from the dashboard, and requests pass through their frontend auth, model routers, interceptors and usage hooks.
-- Home (cluster) mode: reporting usage, logs and in-flight requests back to Home, Home's KV storage, and syncing plugins managed by Home.
-- Google Antigravity.
-- Image generation and editing through Codex accounts, and importing Vertex service accounts from the dashboard (the command line works).
+- Plugin-owned credentials, models and executors without a model router; plugin schedulers, request and response translators, thinking appliers, `host.model.*` callbacks and the WebSocket response observer. Existing plugins can load, serve routes and quotas, install from the store and participate in frontend auth, model routing, interceptors and usage hooks.
+- Home-managed plugin sync, tasks and status reports. Home usage, log and in-flight reporting and KV storage already work.
+- Google Antigravity accounts.
+- Vertex service-account import from the dashboard. The command line works.
 - The `pprof` debug listener.
-- The upstream request and response sections of request log files.
-- The rest of CLIProxyAPI's own test cases. The parity audit checked 1,687 Go routes, settings, flags and test suites: 798 (47%) are fully covered, 697 partly and 192 not yet. [docs/PARITY.md](docs/PARITY.md) explains the numbers.
-
-## Documentation
-
-- [Getting started](docs/GETTING-STARTED.md): install, configure, connect an account and a tool.
-- [Set up with an AI agent](docs/AI-SETUP.md): exact steps a coding agent can follow.
-- [Use it with your tools](docs/CLIENTS.md): setup for each coding tool and SDK.
-- [Several accounts](docs/MULTI-ACCOUNT.md): routing, limits, quotas and remote access.
-- [Configuration](docs/CONFIGURATION.md): the settings you are most likely to change.
-- [Install](docs/INSTALL.md): every install option, Docker and running as a service.
-- [Moving from CLIProxyAPI](docs/MIGRATING-FROM-GO.md) and [differences from CLIProxyAPI](docs/DIFFERENCES-FROM-GO.md).
-- [Compatibility and parity](docs/PARITY.md) and [benchmarks](docs/BENCHMARKS.md).
-
-## Security
-
-Keep `access.api-keys` set and `server.host` on `127.0.0.1` unless you need other machines to connect. Behind a tunnel or reverse proxy on the same machine, set `server.trusted-proxies`, or every internet client counts as local. The dashboard is built into the binary, and cliproxy-rs never downloads code to run. [Running it safely](docs/GETTING-STARTED.md#running-it-safely) explains each point, and [SECURITY.md](SECURITY.md) says how to report a vulnerability.
+- The remaining parity gaps and Go test cases, listed in [PARITY.md](docs/PARITY.md).
 
 ## Performance
 
-Go is faster on non-streaming throughput. On a 2-vCPU test machine with a local fake upstream (2026-10-03), CLIProxyAPI handled about 34% more non-streaming requests per second (1,568 against 1,168) and about 10% more plain streams (916 against 833). cliproxy-rs was faster on streams it translates between the Anthropic and OpenAI formats (793 against 564 per second, about 41% more) and used less than half of Go's memory: 17 MB at idle against 45 MB, and 25 to 50 MB under load against 58 to 104 MB. It answers its first request about 17 ms after launch, and the release binary is 36 MB against 69 MB. [docs/BENCHMARKS.md](docs/BENCHMARKS.md) has the method and every number.
+In the [Claude soak](docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory), cliproxy-rs held 29 MB 30 seconds after 3,000 requests averaging 306 KB, and 43 MB after 600 requests averaging 1.9 MB. A personal install in daily use ran at 75 to 101 MB RSS. That reading was unscripted; sample timing, workload and the exact build were not recorded.
+
+On the [small-request benchmark](docs/BENCHMARKS.md#setup), the launch build answered its first request in 15 to 46 ms over three rounds, and Go in 104 to 453 ms in the same run. Go took 45 to 98 ms in quieter runs. The launch build served 793 translated streams/s against Go's 564.
+
+Go won non-streaming throughput: 1,568 requests/s against 1,168, with 0.62 ms of CPU per request against 0.85 ms. Go also won plain streaming throughput, 916 against 833 streams/s. With 256 slow streams, cliproxy-rs had a worse p99 latency: 1,414.5 ms against Go's 1,272.2 ms. These synthetic results are from the 0.1.0 launch build. [BENCHMARKS.md](docs/BENCHMARKS.md) records the methods, raw results and later Claude measurements.
+
+## Documentation
+
+- [Getting started](docs/GETTING-STARTED.md) and [installation](docs/INSTALL.md).
+- [Client settings](docs/CLIENTS.md), [several accounts](docs/MULTI-ACCOUNT.md) and [configuration](docs/CONFIGURATION.md).
+- [Moving from CLIProxyAPI](docs/MIGRATING-FROM-GO.md) and [differences from Go](docs/DIFFERENCES-FROM-GO.md).
+- [Parity](docs/PARITY.md) and [benchmarks](docs/BENCHMARKS.md).
+
+## Security
+
+The dashboard is built into the binary. Model catalogs are downloaded at start and every three hours; `--local-model` turns that off.
+
+Keep `access.api-keys` set and `server.host` on `127.0.0.1` unless your other machines need access. Behind a local tunnel or reverse proxy, set `server.trusted-proxies`; otherwise internet clients count as local. [Running it safely](docs/GETTING-STARTED.md#running-it-safely) explains this. [SECURITY.md](SECURITY.md) covers vulnerability reports.
 
 ## Development
 
-The workspace is `crates/cpa-core` (config and account formats), `crates/cpa-exec` (one module per upstream provider), `crates/cpa-translate` (format translation), `crates/cpa-server` (routes, account selection and the Management API), `crates/cliproxy` (the binary) and `ui/` (the dashboard, see [ui/README.md](ui/README.md)). The workspace has 935 tests, run against local mock upstreams only; CI runs the whole suite on every push, with Go and PostgreSQL installed so the tests that compare against them run too. A [differential harness](harness/README.md) sends the same 57 cases to CLIProxyAPI and cliproxy-rs and compares the results.
+The Rust workspace is under `crates/`; the dashboard is under `ui/`. Tests use local mock upstreams. CI runs fmt, clippy and the full suite, with Go and PostgreSQL comparison tests. The [differential harness](harness/README.md) compares 57 cases against CLIProxyAPI.
 
 ```sh
 cargo fmt --all --check
@@ -142,10 +174,10 @@ cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --locked
 ```
 
-[CONTRIBUTING.md](CONTRIBUTING.md) explains how to send a change.
+[CONTRIBUTING.md](CONTRIBUTING.md) explains how to contribute.
 
 Built with some help from AI.
 
 ## License
 
-MIT. See [LICENSE](LICENSE). CLIProxyAPI, which this project follows closely, is also MIT licensed.
+MIT. See [LICENSE](LICENSE). CLIProxyAPI is also MIT licensed.

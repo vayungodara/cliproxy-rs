@@ -1,6 +1,6 @@
 # Getting started
 
-This guide takes you from nothing to a coding tool that runs on your own accounts through cliproxy-rs. It takes a few minutes. If you would rather have a coding agent do it for you, give it [AI-SETUP.md](AI-SETUP.md).
+This guide connects a coding tool to your own accounts or API keys through cliproxy-rs. For Codex CLI with API keys and mixed providers, start with the [README recipe](../README.md#api-keys-codex-cli-and-mixed-providers).
 
 ## 1. Install and start it
 
@@ -57,7 +57,7 @@ cliproxy --config ~/.cliproxy-rs/config.yaml --claude-login --no-browser
 
 The other sign-in flags are `--codex-login`, `--codex-device-login`, `--kimi-login`, `--meta-login`, `--xai-login` and `--devin-login`. API keys for Claude, Codex, Gemini, Vertex AI, xAI and OpenAI-compatible services go on the dashboard's Provider keys page.
 
-Using a subscription outside its official app can break the provider's terms, and providers have suspended accounts for it. Whether to do that is your call and your risk.
+Read [Accounts and provider terms](../README.md#accounts-and-provider-terms) before using a subscription. This setup is for one person using their own accounts on their own machines. Use provider-sanctioned integrations or API keys where available.
 
 ## 4. Point a tool at it
 
