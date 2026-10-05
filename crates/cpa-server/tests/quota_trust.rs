@@ -159,7 +159,7 @@ async fn early_reset_is_noticed_after_the_bound(save: bool) {
             recover > SystemTime::now() + SIX_DAYS - Duration::from_secs(60),
             "Go's recovery time"
         );
-        assert_eq!(saved[0].quota.trust_level, Some(0));
+        assert_eq!(saved[0].quota.trust_windows, Some(1));
         // A restart restores the bounded cooldown, neither escalated nor six days.
         drop(rt);
         let (url, restarted) = proxy(&dir, &upstream_url, save).await;
@@ -204,9 +204,8 @@ async fn early_reset_is_noticed_after_the_bound_with_save_cooldown_status() {
     early_reset_is_noticed_after_the_bound(true).await;
 }
 
-/// A bounded `.cds` record with a saved trust count of 2 (the third window) restores
-/// at that window's bound, 4 h under the default 1 h, not at the days it names, and
-/// keeps its stated reset.
+/// A bounded `.cds` record cliproxy-rs wrote in its third window (count 2, 4 h)
+/// restores as it is: 4 h left, the six-day stated reset kept.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_saved_trust_count_restores_its_window() {
     use cpa_server::cooldown_store::{Quota, Record};
@@ -216,15 +215,14 @@ async fn a_saved_trust_count_restores_its_window() {
         provider: "claude".into(),
         auth_id: FILE.into(),
         status: "cooling".into(),
-        // A bounded record (probe before the stated reset) whose probe time is past its
-        // window, as an edited or foreign file would be.
-        next_retry_after: Some(at - Duration::from_secs(24 * 3600)),
+        // The third bounded window: probe in 4 h, stated reset in six days.
+        next_retry_after: Some(SystemTime::now() + Duration::from_secs(4 * 3600)),
         reason: "credential_quota".into(),
         quota: Quota {
             exceeded: true,
             reason: "credential_quota".into(),
             next_recover_at: Some(at),
-            trust_level: Some(2),
+            trust_windows: Some(3),
             ..Default::default()
         },
         auth_file: Some(dir.join(FILE)),

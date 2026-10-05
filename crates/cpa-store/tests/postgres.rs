@@ -16,7 +16,7 @@ use cpa_store::{PostgresConfig, PostgresPersister, PostgresStore};
 
 fn scratch(name: &str) -> PathBuf {
     // Parallel tests can read the same clock value: the counter keeps their clusters apart.
-    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let nanos = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
