@@ -1476,18 +1476,34 @@ impl Scheduler {
         let since = |at: SystemTime| at.duration_since(wall).unwrap_or_default();
         let (remaining, trust) = match (record.quota.exceeded && !cap.is_zero(), saved) {
             // Written with bounded trust: the probe time is the deadline, so a restart
-            // neither escalates nor waits for the stated reset. A deadline past the saved
-            // window's bound (an edited file) is cut to it.
-            (true, Some(window)) => {
-                let bound = cap.saturating_mul(1 << window);
-                let stated = recover.filter(|r| *r > retry).map(|r| now + since(r));
-                let trust = Trust {
-                    window: Some(window),
-                    bounded: stated.is_some(),
-                    stated,
-                    probe: None,
+            // neither escalates nor waits for the stated reset. A bounded window (stated
+            // reset after the retry) keeps its exponent; a reset that was trusted as
+            // stated is checked against the next window, as when it was recorded. A
+            // deadline past that bound (an edited file) is cut to it and keeps the later
+            // time as its stated reset, so it still reports it and reserves one probe.
+            (true, Some(saved)) => {
+                let stated_at = recover.map_or(retry, |r| r.max(retry));
+                let written_bounded = stated_at > retry;
+                let window = if written_bounded {
+                    saved
+                } else {
+                    saved.saturating_add(1).min(MAX_TRUST_WINDOW)
                 };
-                (since(retry).min(bound), trust)
+                let remaining = since(retry).min(cap.saturating_mul(1 << window));
+                let trust = if written_bounded || remaining < since(stated_at) {
+                    Trust {
+                        window: Some(window),
+                        bounded: true,
+                        stated: Some(now + since(stated_at)),
+                        probe: None,
+                    }
+                } else {
+                    Trust {
+                        window: Some(saved),
+                        ..Trust::default()
+                    }
+                };
+                (remaining, trust)
             }
             // A Go record, or one from before the bound: Go's deadline gets the first
             // bound. Go's `backoff_level` keeps its meaning and does not raise it.
@@ -2141,10 +2157,10 @@ mod tests {
         assert!(back.restore(&c, &saved[0], true, cap, now, wall));
         assert_eq!(back.wait(&c, "m", now), Some(secs(H)));
         assert_eq!(back.records(&c, now, wall), saved);
-        let record = |trust_level, backoff_level| Record {
+        let record_at = |retry: Duration, trust_level, backoff_level| Record {
             auth_id: "a".into(),
             model: "m".into(),
-            next_retry_after: Some(wall + days),
+            next_retry_after: Some(wall + retry),
             quota: Quota {
                 exceeded: true,
                 reason: "quota".into(),
@@ -2155,15 +2171,50 @@ mod tests {
             },
             ..Default::default()
         };
+        let record = |trust_level, backoff_level| record_at(days, trust_level, backoff_level);
         // Go's record with backoff level 2: the first bound; the level stays Go's.
         let mut s = Scheduler::default();
         assert!(s.restore(&c, &record(None, 2), true, cap, now, wall));
         assert_eq!(s.wait(&c, "m", now), Some(secs(H)));
         assert_eq!(entry(&s, &c, "m").level, 2);
-        // A saved count of 2 bounds a six-day deadline to its window, 4 hours.
+        // A bounded record with a saved count of 2 (stated reset after the retry) whose
+        // deadline is past its window, as an edited file: cut to 4 hours, still bounded
+        // and still reporting the stated reset.
         let mut s = Scheduler::default();
-        assert!(s.restore(&c, &record(Some(2), 0), true, cap, now, wall));
+        assert!(s.restore(&c, &record_at(5 * 24 * secs(H), Some(2), 0), true, cap, now, wall));
         assert_eq!(s.wait(&c, "m", now), Some(secs(4 * H)));
+        let trust = entry(&s, &c, "m").trust;
+        assert!(trust.bounded && trust.window == Some(2));
+        assert_eq!(trust.stated, Some(now + days));
+        // A reset trusted as stated (90 min after a 1 h window: the next bound is 2 h)
+        // restores as it was, unbounded, keeping the count.
+        let ninety = secs(90 * MIN);
+        let trusted = Record {
+            quota: Quota {
+                next_recover_at: Some(wall + ninety),
+                ..record_at(ninety, Some(0), 0).quota
+            },
+            ..record_at(ninety, Some(0), 0)
+        };
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &trusted, true, cap, now, wall));
+        assert_eq!(s.wait(&c, "m", now), Some(ninety));
+        let back = &s.records(&c, now, wall)[0];
+        assert_eq!(
+            (
+                back.next_retry_after,
+                back.quota.next_recover_at,
+                back.quota.trust_level
+            ),
+            (trusted.next_retry_after, trusted.quota.next_recover_at, Some(0))
+        );
+        assert!(!entry(&s, &c, "m").trust.bounded);
+        // An edited unbounded record past the next window is cut to it and bounded.
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &record(Some(0), 0), true, cap, now, wall));
+        assert_eq!(s.wait(&c, "m", now), Some(secs(2 * H)));
+        assert!(entry(&s, &c, "m").trust.bounded);
+        assert_eq!(entry(&s, &c, "m").trust.stated, Some(now + days));
         // An absurd saved count is clamped, not overflowed.
         let mut s = Scheduler::default();
         assert!(s.restore(&c, &record(Some(u32::MAX), 0), true, cap, now, wall));

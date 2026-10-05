@@ -204,8 +204,9 @@ async fn early_reset_is_noticed_after_the_bound_with_save_cooldown_status() {
     early_reset_is_noticed_after_the_bound(true).await;
 }
 
-/// A `.cds` record with a saved trust count of 2 (the third window) restores at that
-/// window's bound, 4 h under the default 1 h, not at the six days it names.
+/// A bounded `.cds` record with a saved trust count of 2 (the third window) restores
+/// at that window's bound, 4 h under the default 1 h, not at the days it names, and
+/// keeps its stated reset.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn a_saved_trust_count_restores_its_window() {
     use cpa_server::cooldown_store::{Quota, Record};
@@ -215,7 +216,9 @@ async fn a_saved_trust_count_restores_its_window() {
         provider: "claude".into(),
         auth_id: FILE.into(),
         status: "cooling".into(),
-        next_retry_after: Some(at),
+        // A bounded record (probe before the stated reset) whose probe time is past its
+        // window, as an edited or foreign file would be.
+        next_retry_after: Some(at - Duration::from_secs(24 * 3600)),
         reason: "credential_quota".into(),
         quota: Quota {
             exceeded: true,
@@ -229,17 +232,18 @@ async fn a_saved_trust_count_restores_its_window() {
     };
     cpa_server::cooldown_store::save(&dir, vec![record], SystemTime::now()).unwrap();
     let (_url, rt) = proxy_with(&dir, "http://127.0.0.1:9", true, "").await;
-    let left = rt
-        .store()
-        .cooldowns(FILE)
-        .iter()
-        .map(|c| c.remaining)
-        .max()
-        .expect("restored");
+    let restored = rt.store().cooldowns(FILE);
+    let left = restored.iter().map(|c| c.remaining).max().expect("restored");
     let four_hours = Duration::from_secs(4 * 3600);
     assert!(
         left <= four_hours && left > four_hours - Duration::from_secs(60),
         "{left:?}"
     );
+    let stated = restored
+        .iter()
+        .filter_map(|c| c.recover_in)
+        .max()
+        .expect("stated reset kept");
+    assert!(stated > SIX_DAYS - Duration::from_secs(60), "{stated:?}");
     let _ = std::fs::remove_dir_all(&dir);
 }
