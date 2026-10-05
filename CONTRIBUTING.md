@@ -9,7 +9,7 @@ Thanks for helping. Bug reports, fixes and new tests are all welcome.
 
 ## Building and testing
 
-You need Rust (stable), `cmake`, `clang` and `perl` for BoringSSL. Go 1.26 and PostgreSQL let the plugin and storage tests run instead of skipping.
+You need Rust (stable), `cmake`, `clang` and `perl` for BoringSSL. Go 1.26 and PostgreSQL let the plugin and storage tests run instead of skipping; with `CPA_TEST_NO_SKIP=1`, as in CI, those tests fail instead.
 
 ```sh
 cargo fmt --all --check
@@ -19,6 +19,17 @@ cargo test --workspace --locked
 
 Tests use local mock upstreams only. Never point a test at a real provider or use a real account or key, and run the tests with external network access blocked if you can; CI runs them in a network namespace with only a loopback interface. The BoringSSL build and the release link use a lot of memory, so on a small machine set `CARGO_BUILD_JOBS=2`.
 
+### Performance budgets
+
+CI holds the binary to the numbers in [`bench/budgets.txt`](bench/budgets.txt), and it counts events and bytes, never elapsed time:
+
+- Size, on every pull request: the Linux release binary, its `.text` and `.rodata`, the release archive, and the number of crates linked in more than one version.
+- Idle, on every pull request: [`bench/idle.sh`](bench/idle.sh) with 1 and with 2,000 auth files: wakeups, CPU ticks, threads and RSS over 30 seconds without requests.
+- Heap per request: `crates/cpa-server/tests/alloc_budget.rs`, part of `cargo test`, sends one 306 KB and one 1.9 MB Claude request through the router under a counting allocator.
+- macOS and Windows idle, in the release builds and weekly ([`idle.yml`](.github/workflows/idle.yml)); a 1-hour memory soak on every release tag ([`soak.yml`](.github/workflows/soak.yml)), and up to 330 minutes by hand before a release.
+
+To run the Linux gates locally, build with `cargo build --release -p cliproxy`, then run `bench/gate.sh size x86_64-unknown-linux-gnu target/release/cliproxy` and `bench/gate.sh idle linux target/release/cliproxy 1`. When a change needs more, raise the value in `bench/budgets.txt` and add a dated line above it that names the feature and its cost.
+
 The dashboard lives in `ui/` (Svelte 5). `npm ci`, `npm run check`, `npm test` and `npm run build` there; the build also checks the bundle size budget. See [ui/README.md](ui/README.md).
 
 ## Pull requests
@@ -27,6 +38,6 @@ The dashboard lives in `ui/` (Svelte 5). `npm ci`, `npm run check`, `npm test` a
 - Request bodies are forwarded byte for byte unless a ported rule rewrites them; do not re-serialize JSON just to pass it through.
 - Never log or forward credentials or client keys to the wrong side.
 - Mark a deliberate simplification with a `ponytail:` comment that names its limit and how to lift it.
-- CI must pass: format, clippy, tests, the harness check and the Windows build check.
+- CI must pass: format, clippy, tests, the harness check, the Windows build check and the Linux size and idle gates.
 
 By contributing you agree that your work is released under the [MIT license](LICENSE).

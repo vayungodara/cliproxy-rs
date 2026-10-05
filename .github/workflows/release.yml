@@ -98,6 +98,15 @@ jobs:
           rustup default stable
       - name: Build
         run: cargo build --release --locked -p cliproxy --target ${{ matrix.target }}
+      # Pull requests gate Linux; macOS and Windows are gated here, before anything is
+      # published, and weekly by idle.yml. CPU time, wakeups, threads and memory over a
+      # minute without requests, against bench/budgets.txt.
+      - name: Idle gate (macOS, Windows)
+        if: runner.os != 'Linux'
+        run: |
+          exe=cliproxy; os=macos
+          [[ "$RUNNER_OS" == Windows ]] && { exe=cliproxy.exe; os=windows; }
+          bench/gate.sh idle "$os" "target/${{ matrix.target }}/release/$exe" 1
       - name: Package
         run: |
           tagged=false; [[ "$GITHUB_REF" == refs/tags/v* ]] && tagged=true
@@ -114,6 +123,7 @@ jobs:
           fi
           if [[ "$RUNNER_OS" == Windows ]]; then 7z a -tzip "out/$name.zip" "$name" >/dev/null; else tar -czf "out/$name.tar.gz" "$name"; fi
           ls -l out
+          bench/gate.sh size "${{ matrix.target }}" "$name/$exe" out/"$name".*
       - uses: actions/upload-artifact@v7
         with:
           name: build-${{ matrix.target }}
@@ -131,6 +141,8 @@ jobs:
         run: docker build -t cliproxy-rs:ci .
       - name: Smoke test
         run: docker run --rm cliproxy-rs:ci --version
+      - name: Size gate
+        run: bench/gate.sh image cliproxy-rs:ci
 
   release:
     name: draft release
