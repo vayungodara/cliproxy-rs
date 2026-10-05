@@ -315,6 +315,17 @@ Median of three rounds.
 - The change adds 112 KB of `.text` and 4 KB of `.rodata`; the binary grows from 40,162,216 to 40,307,912 bytes (0.4%). (This build also carries current master's other changes since `1849512`, so part of the growth is theirs.)
 - Raw results: [`bench/results/2026-10-06-idle.jsonl`](../bench/results/2026-10-06-idle.jsonl).
 
+### Against Go, idle
+
+The `go-comparison` job in [`idle.yml`](../.github/workflows/idle.yml) runs `bench/idle.sh` on a GitHub-hosted Ubuntu 22.04 runner for CLIProxyAPI v8.0.10 (the release binary) and for cliproxy-rs, on the same config: one OpenAI-compatible API key and no credential files. Each gets 30 seconds of warm-up and then 300 seconds of samples. Two runs on 2026-10-05, cliproxy-rs with the changes above:
+
+| Server | Wakeups per minute | CPU ms per hour | Threads | RSS (MB) |
+| --- | --- | --- | --- | --- |
+| CLIProxyAPI v8.0.10 | 7.6 and 7.2 | 120 and 120 | 9 | 46.1 and 46.0 |
+| cliproxy-rs | 0 and 0 | 0 and 0 | 3 | 21.9 and 21.5 |
+
+CPU time is read in clock ticks of 10 ms, so Go's figure is one tick in five minutes in each run. The weekly job publishes these numbers in its summary.
+
 ### Two request threads under load
 
 The same machine and builds, with `bench/messages.sh` (the Claude soak load: 8 sessions of 100 to 500 KB streamed requests, 1,200 requests per run). The server and the load share all 4 vCPUs, so master starts 4 request threads and this change 2. Two runs each, alternating.

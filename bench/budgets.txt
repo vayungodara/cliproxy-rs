@@ -1,0 +1,61 @@
+# Performance budgets, checked by bench/gate.sh (size, idle) and by
+# crates/cpa-server/tests/alloc_budget.rs (heap per request) on GitHub-hosted runners.
+#
+#   <key> <value> <tolerance %>
+#
+# A measurement fails when it exceeds value * (1 + tolerance / 100). Byte budgets are the
+# last accepted measurement with 2% of room; counts that must stay near zero have none.
+# A change that needs more raises the value here, with a dated line above it that names
+# the feature and its cost, as ui/scripts/size.mjs does for the dashboard:
+#
+#   # 2026-11-02: Homebrew service hook, +18 KB .text.
+#
+# A key without a line is reported and not gated, so a new target or metric starts by
+# reporting. Targets from docs/BENCHMARKS.md that these do not meet yet are noted next to
+# their lines; the budgets hold today's numbers so that nothing gets worse meanwhile.
+
+# Release binary and archive, Linux x86_64 (every pull request). Target: binary 30 MB
+# or less, archive 13 MB or less.
+# 2026-10-05: first budgets, measured by this job (Ubuntu 22.04 runner) on master with
+# file change notifications.
+size.x86_64-unknown-linux-gnu.binary_bytes   40_307_056  2
+size.x86_64-unknown-linux-gnu.text_bytes     26_370_487  2
+size.x86_64-unknown-linux-gnu.rodata_bytes    8_492_512  2
+size.x86_64-unknown-linux-gnu.archive_bytes  17_102_342  2
+# Crates linked into the binary in two or more versions; a new one fails until it is
+# justified here. 2026-10-05: base64, block-buffer, cpufeatures, crypto-common, digest,
+# getrandom, hashbrown (3), rand, rand_core, sha2, thiserror.
+deps.x86_64-unknown-linux-gnu.duplicate_crates  11  0
+
+# Idle, Linux (every pull request): 30 s without requests, after 10 s of warm-up,
+# with 1 and with 2,000 auth files. Idle RSS moves by up to 15% between runs of the same
+# binary, so it gets 10% of room. Target RSS: 15 MB or less with one file.
+idle.linux.1.wakeups          30   0
+idle.linux.1.cpu_ticks         1   0
+idle.linux.1.threads           6   0
+idle.linux.1.rss_kb       23_500  10
+idle.linux.2000.wakeups       30   0
+idle.linux.2000.cpu_ticks      1   0
+idle.linux.2000.threads        6   0
+idle.linux.2000.rss_kb    71_000  10
+
+# Idle, macOS and Windows (release builds and the weekly idle workflow): 60 s without
+# requests. Windows adds one parked thread for file change notifications. RSS from the
+# first runs on 2026-10-05: 15.0 MB on macos-15 (Apple silicon), 10.3 MB on
+# macos-15-intel, 15.8 MB on windows-2025 (working set).
+idle.macos.1.cpu_ms           20   0
+idle.macos.1.idle_wakeups     30   0
+idle.macos.1.threads           6   0
+idle.macos.1.rss_kb       15_400  10
+idle.windows.1.cpu_ms         20   0
+idle.windows.1.threads         7   0
+idle.windows.1.rss_kb     16_300  10
+
+# Heap per request through the Claude route (debug test build, counting allocator):
+# peak live bytes above the idle baseline and allocation calls, for one streamed
+# /v1/messages request of about 306 KB and one of about 1.9 MB. Target: peak at most
+# 3x the body; today it is 6x.
+alloc.306k.peak_bytes       1_876_705  2
+alloc.306k.allocations          2_404  3
+alloc.1900k.peak_bytes     11_083_105  2
+alloc.1900k.allocations         7_071  3

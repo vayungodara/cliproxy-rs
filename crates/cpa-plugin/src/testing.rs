@@ -103,6 +103,16 @@ pub fn built_plugins(tmp: &Path, test: &str) -> Option<&'static Path> {
         })
         .as_deref();
     if built.is_none() {
+        // CI sets CPA_TEST_NO_SKIP: there a missing Go toolchain fails the test. A skip
+        // line alone is not enough, because the harness captures test output and a
+        // passing test's output is never shown.
+        assert!(
+            std::env::var_os("CPA_TEST_NO_SKIP").is_none(),
+            "cpa-plugin {test}: no Go {}.{}+ toolchain in $HOME/sdk/go*/bin, PATH or /usr/local/go/bin, \
+             and CPA_TEST_NO_SKIP is set",
+            MIN_GO.0,
+            MIN_GO.1
+        );
         // Straight to the process's stderr: the test harness hides `eprintln!` output
         // of passing tests, and a skip must not look like a real run.
         use std::io::Write as _;

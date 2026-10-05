@@ -51,6 +51,12 @@ struct Cluster {
 impl Cluster {
     fn start() -> Option<Cluster> {
         let Some(bin) = pg_bin() else {
+            // CI sets CPA_TEST_NO_SKIP: there a missing PostgreSQL fails the test instead
+            // of passing silently (the harness hides a passing test's output).
+            assert!(
+                std::env::var_os("CPA_TEST_NO_SKIP").is_none(),
+                "no PostgreSQL binaries (install postgresql or set CPA_TEST_PG_BIN), and CPA_TEST_NO_SKIP is set"
+            );
             eprintln!("skipping: no PostgreSQL binaries (install postgresql or set CPA_TEST_PG_BIN)");
             return None;
         };
