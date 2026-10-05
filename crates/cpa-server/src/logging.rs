@@ -1,6 +1,8 @@
 //! The process log (Go internal/logging/global_logger.go, log_dir_cleaner.go and
 //! `util.SetLogLevel`): Go's line format, stdout or a rotating `main.log`, the
-//! log-directory size cleaner and the `debug` level switch.
+//! log-directory size cleaner and the `debug` level switch. The binary's `--log-file`
+//! replaces only stdout: `logging-to-file` still writes `main.log` and the cleaner
+//! still runs.
 //!
 //! [`init`] installs the subscriber once; [`configure`] applies a config snapshot
 //! and acts only on the settings that changed, as Go's reload does.
@@ -30,6 +32,7 @@ const MAIN_LOG: &str = "main.log";
 const CLEANER_INTERVAL: Duration = Duration::from_secs(60);
 
 static OUTPUT: Mutex<Output> = Mutex::new(Output::Stdout);
+/// `--log-file`: where stdout output goes instead, kept across config reloads.
 static LOG_FILE: OnceLock<PathBuf> = OnceLock::new();
 static HOOK: Mutex<Option<Arc<LogHook>>> = Mutex::new(None);
 static STATE: Mutex<Option<Applied>> = Mutex::new(None);
@@ -90,6 +93,7 @@ struct Applied {
 
 enum Output {
     Stdout,
+    ProcessFile(RotatingFile),
     File(RotatingFile),
 }
 
@@ -197,8 +201,10 @@ fn logs_setting<'a>(cfg: &'a Config, key: &str) -> Option<&'a serde_yaml_ng::Val
     cfg.document.get("observability")?.get("logs")?.get(key)
 }
 
-/// Opt-in process log destination, kept across config reloads. Uses the existing
-/// synchronous 10 MiB rotation: one fd, no new thread, timer or per-request work.
+/// Opt-in replacement for stdout, kept across config reloads: lines that would go
+/// to stdout go to `path` instead, while `logging-to-file` still selects `main.log`
+/// and its cleaner. Uses the existing synchronous 10 MiB rotation: one fd, no new
+/// thread, timer or per-request work.
 pub fn set_log_file(path: PathBuf) -> io::Result<()> {
     let mut file = RotatingFile {
         path: path.clone(),
@@ -209,16 +215,13 @@ pub fn set_log_file(path: PathBuf) -> io::Result<()> {
     LOG_FILE
         .set(path)
         .map_err(|_| io::Error::other("log file already set"))?;
-    *OUTPUT.lock().unwrap_or_else(PoisonError::into_inner) = Output::File(file);
+    *OUTPUT.lock().unwrap_or_else(PoisonError::into_inner) = Output::ProcessFile(file);
     Ok(())
 }
 
 fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
-    // ponytail: CLI rotations are retained forever; use the directory cleaner here
-    // if a separate CLI log-size budget is needed.
-    if LOG_FILE.get().is_some() {
-        return Ok(());
-    }
+    // ponytail: `--log-file` rotations are retained forever (the cleaner only covers
+    // the log directory); give it a size budget if one is ever needed.
     let mut output = OUTPUT.lock().unwrap_or_else(PoisonError::into_inner);
     let protected = if applied.logging_to_file {
         create_dir(dir)
@@ -230,6 +233,15 @@ fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
             size: 0,
         });
         Some(path)
+    } else if let Some(path) = LOG_FILE.get() {
+        let mut file = RotatingFile {
+            path: path.clone(),
+            file: None,
+            size: 0,
+        };
+        file.open_existing_or_new(0, MAX_FILE_SIZE)?;
+        *output = Output::ProcessFile(file);
+        None
     } else {
         *output = Output::Stdout;
         None
@@ -486,16 +498,16 @@ impl Write for OutputGuard {
             hook.push(String::from_utf8_lossy(buf).trim_end_matches(['\n', '\r']).to_owned());
         }
         match &mut *self.0 {
-            Output::Stdout if hooked.is_some() => Ok(buf.len()),
+            Output::Stdout | Output::ProcessFile(_) if hooked.is_some() => Ok(buf.len()),
             Output::Stdout => io::stdout().write(buf),
-            Output::File(file) => file.write(buf, MAX_FILE_SIZE),
+            Output::ProcessFile(file) | Output::File(file) => file.write(buf, MAX_FILE_SIZE),
         }
     }
 
     fn flush(&mut self) -> io::Result<()> {
         match &mut *self.0 {
             Output::Stdout => io::stdout().flush(),
-            Output::File(file) => file.file.as_mut().map_or(Ok(()), Write::flush),
+            Output::ProcessFile(file) | Output::File(file) => file.file.as_mut().map_or(Ok(()), Write::flush),
         }
     }
 }
@@ -796,6 +808,73 @@ mod tests {
         // Within the limit nothing happens; a missing directory is not an error.
         assert_eq!(enforce_size_limit(dir, 800, Some(&protected)).unwrap(), 0);
         assert_eq!(enforce_size_limit(&dir.join("none"), 1, None).unwrap(), 0);
+    }
+
+    /// `--log-file` stands in for stdout only: `logging-to-file: true` still writes
+    /// `main.log` with the directory cleaner, and switching it off goes back to the
+    /// CLI file while the cleaner keeps its budget. The only test that touches the
+    /// process-wide output.
+    #[test]
+    fn log_file_replaces_only_stdout() {
+        let dir = scratch("cli-file");
+        let cli = dir.join("cli.log");
+        let logs = dir.join("logs");
+        set_log_file(cli.clone()).unwrap();
+        let emit = |line: &str| GlobalWriter.make_writer().write_all(line.as_bytes()).unwrap();
+        let read = |path: &Path| std::fs::read_to_string(path).unwrap_or_default();
+        // An old rotation over the 1 MiB budget, older than anything written here.
+        let stale = |name: &str| {
+            let path = logs.join(name);
+            std::fs::write(&path, vec![b'x'; 2 * 1024 * 1024]).unwrap();
+            File::options()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(1_000_000_000))
+                .unwrap();
+            path
+        };
+        let gone = |path: &Path| {
+            let deadline = std::time::Instant::now() + Duration::from_secs(10);
+            while path.exists() && std::time::Instant::now() < deadline {
+                std::thread::sleep(Duration::from_millis(20));
+            }
+            !path.exists()
+        };
+        emit("before-config\n");
+        assert_eq!(read(&cli), "before-config\n");
+
+        create_dir(&logs).unwrap();
+        let old = stale("main-2001-09-09T01-46-40.000.log");
+        let on = Applied {
+            logging_to_file: true,
+            max_total_mb: 1,
+            debug: false,
+        };
+        configure_output(&logs, on).unwrap();
+        emit("to-main\n");
+        assert_eq!(read(&logs.join(MAIN_LOG)), "to-main\n");
+        assert_eq!(read(&cli), "before-config\n");
+        assert!(gone(&old), "the cleaner runs with logging-to-file and --log-file");
+
+        let old = stale("error-old.log");
+        configure_output(
+            &logs,
+            Applied {
+                logging_to_file: false,
+                ..on
+            },
+        )
+        .unwrap();
+        emit("to-cli\n");
+        assert_eq!(read(&cli), "before-config\nto-cli\n");
+        assert_eq!(read(&logs.join(MAIN_LOG)), "to-main\n");
+        assert!(gone(&old), "the cleaner keeps running with only --log-file");
+
+        // Stop the cleaner and restore stdout for the rest of the process.
+        configure_output(&logs, Applied { max_total_mb: 0, ..on }).unwrap();
+        *OUTPUT.lock().unwrap() = Output::Stdout;
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// Hooks see the written line itself, logrus level names, the local time and

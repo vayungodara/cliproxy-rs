@@ -3,7 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, SystemTime};
 
 use axum::extract::{RawQuery, State};
 use axum::http::StatusCode;
@@ -33,9 +33,11 @@ pub(crate) async fn latest_version(State(state): State<Arc<Management>>) -> Resp
             ],
         );
     }
+    // The lock is held across the HEAD on purpose: concurrent clicks share one
+    // request and its cached result instead of each reaching GitHub.
     let mut cache = state.latest_release.lock().await;
     if let Some((at, version)) = cache.as_ref()
-        && at.elapsed() < RELEASE_CACHE_TTL
+        && release_cache_fresh(*at, SystemTime::now())
     {
         return reply(StatusCode::OK, [("latest-version", version.clone().into())]);
     }
@@ -73,8 +75,14 @@ pub(crate) async fn latest_version(State(state): State<Arc<Management>>) -> Resp
     let Some(version) = version else {
         return gateway("invalid_response", "missing release version".to_owned());
     };
-    *cache = Some((Instant::now(), version.to_owned()));
+    *cache = Some((SystemTime::now(), version.to_owned()));
     reply(StatusCode::OK, [("latest-version", version.into())])
+}
+
+/// Fresh for under 12 hours of wall-clock time. A timestamp in the future (the clock
+/// went backwards) counts as expired.
+fn release_cache_fresh(at: SystemTime, now: SystemTime) -> bool {
+    now.duration_since(at).is_ok_and(|age| age < RELEASE_CACHE_TTL)
 }
 
 fn gateway(error: &str, message: String) -> Response {
@@ -213,11 +221,16 @@ mod tests {
                 ..Default::default()
             },
         );
-        for (age, expected) in [
-            (Duration::from_secs(12 * 60 * 60 - 1), StatusCode::OK),
-            (Duration::from_secs(12 * 60 * 60), StatusCode::BAD_GATEWAY),
+        let hours = |h: u64| Duration::from_secs(h * 60 * 60);
+        let now = SystemTime::now();
+        for (at, expected) in [
+            (now - (hours(12) - Duration::from_secs(5)), StatusCode::OK),
+            (now - hours(12), StatusCode::BAD_GATEWAY),
+            (now - hours(13), StatusCode::BAD_GATEWAY),
+            // A clock that went backwards: the cached time is in the future.
+            (now + hours(1), StatusCode::BAD_GATEWAY),
         ] {
-            *state.latest_release.lock().await = Some((Instant::now() - age, "v1.2.3".into()));
+            *state.latest_release.lock().await = Some((at, "v1.2.3".into()));
             let response = latest_version(State(state.clone())).await;
             assert_eq!(response.status(), expected);
             if expected == StatusCode::OK {
@@ -229,6 +242,17 @@ mod tests {
             }
         }
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn release_cache_freshness_uses_wall_clock() {
+        let at = SystemTime::UNIX_EPOCH + Duration::from_secs(1_800_000_000);
+        let ttl = RELEASE_CACHE_TTL;
+        assert!(release_cache_fresh(at, at));
+        assert!(release_cache_fresh(at, at + ttl - Duration::from_nanos(1)));
+        assert!(!release_cache_fresh(at, at + ttl));
+        assert!(!release_cache_fresh(at, at + ttl * 3));
+        assert!(!release_cache_fresh(at, at - Duration::from_secs(1)));
     }
 
     #[test]

@@ -58,7 +58,8 @@ pub struct Management {
     pub(crate) latest_release_url: std::borrow::Cow<'static, str>,
     pub(crate) update_check_disabled: bool,
     // No task or expiry timer: allocated only after a successful, explicit check.
-    pub(crate) latest_release: tokio::sync::Mutex<Option<(std::time::Instant, String)>>,
+    // Wall-clock time, so a cached result also expires across sleep or hibernation.
+    pub(crate) latest_release: tokio::sync::Mutex<Option<(std::time::SystemTime, String)>>,
     /// Pending and recent management logins (Go `oauthSessionStore`).
     pub(crate) oauth: oauth::Sessions,
     /// Callback forwarders by port (Go `callbackForwarders`).
