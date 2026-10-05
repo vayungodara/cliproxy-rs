@@ -139,12 +139,12 @@ async fn oauth_mock() -> OAuth {
     )
 }
 
-fn free_port() -> u16 {
-    std::net::TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port()
+/// The callback listener on a port the kernel picked, bound once and handed to the
+/// login: probing a free port and binding it again races parallel tests.
+async fn callback() -> (tokio::net::TcpListener, u16) {
+    let listener = bind(0).await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    (listener, port)
 }
 
 fn temp_dir() -> PathBuf {
@@ -196,8 +196,8 @@ async fn browser_login_writes_go_file_and_migrates_the_legacy_one() {
     )
     .unwrap();
     let mock = oauth_mock().await;
-    let port = free_port();
-    let path = login_with(&dir, port, mock, browser(port, state_of)).await.unwrap();
+    let (listener, port) = callback().await;
+    let path = login_with(&dir, listener, mock, browser(port, state_of)).await.unwrap();
     assert_eq!(
         path,
         dir.join(credential_file_name("a@example.invalid", "org-1", "acct-1"))
@@ -269,8 +269,8 @@ fn legacy_matching_follows_go_identity_rules() {
 async fn a_wrong_state_fails_the_login_without_writing() {
     let dir = temp_dir();
     let mock = oauth_mock().await;
-    let port = free_port();
-    let error = login_with(&dir, port, mock, browser(port, |_| "forged".into()))
+    let (listener, port) = callback().await;
+    let error = login_with(&dir, listener, mock, browser(port, |_| "forged".into()))
         .await
         .unwrap_err();
     assert_eq!(
@@ -296,9 +296,9 @@ async fn pasted_callback_completes_the_login() {
         })),
         show_url: Box::new(move |u| *url.lock().unwrap() = u.to_owned()),
     };
-    // The mock binds first: the kernel may hand a just-released port to the next bind.
     let mock = oauth_mock().await;
-    let path = login_with(&dir, free_port(), mock, interaction).await.unwrap();
+    let (listener, _) = callback().await;
+    let path = login_with(&dir, listener, mock, interaction).await.unwrap();
     assert!(path.exists());
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -307,7 +307,7 @@ async fn pasted_callback_completes_the_login() {
 async fn an_empty_paste_keeps_waiting_for_the_browser() {
     let dir = temp_dir();
     let mock = oauth_mock().await;
-    let port = free_port();
+    let (listener, port) = callback().await;
     let mut interaction = browser(port, state_of);
     let show = interaction.show_url;
     interaction.manual_delay = Duration::from_millis(1);
@@ -320,7 +320,7 @@ async fn an_empty_paste_keeps_waiting_for_the_browser() {
             show(&url);
         });
     });
-    assert!(login_with(&dir, port, mock, interaction).await.is_ok());
+    assert!(login_with(&dir, listener, mock, interaction).await.is_ok());
     std::fs::remove_dir_all(dir).unwrap();
 }
 
