@@ -2,6 +2,12 @@
 
 Binary size, memory and throughput of cliproxy-rs and CLIProxyAPI on the same configuration, with a local fake upstream. The numbers come from one small machine and a synthetic load, so use them to compare the two servers with each other. They say little about how much traffic either one can carry on bigger hardware.
 
+## Field memory
+
+On 2026-10-05, the owner reported RSS of 75 to 101 MB during personal use. This is a field observation, not a scripted benchmark. The report here does not specify sample timing, workload or the exact build, so it does not establish a long-run memory ceiling.
+
+The 17.3 MB idle result below is from a fresh 0.1.0 process with no connected accounts and small synthetic requests. It is not representative of a running personal proxy. The [Claude soak](#claude-soak-large-prompts-and-memory) measures retained memory after larger requests, including the earlier high-RSS field report. Keep those cases separate when comparing memory.
+
 ## Setup
 
 Measured on 2026-10-03.

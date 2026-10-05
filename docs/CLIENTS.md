@@ -25,6 +25,25 @@ For a persistent personal setup, put this in `~/.claude/settings.json`:
 }
 ```
 
+### GPT in Claude Code
+
+Connect your own Codex account, or configure an OpenAI API key, then choose an available GPT model from `/v1/models`. Claude Code sends Messages requests; the proxy translates them to the selected provider's format. This is separate from using a Claude subscription in another tool. Read [Accounts and provider terms](../README.md#accounts-and-provider-terms).
+
+```bash
+export ANTHROPIC_BASE_URL=http://127.0.0.1:8317
+export ANTHROPIC_AUTH_TOKEN=your-client-key
+export ANTHROPIC_MODEL='<gpt-model-id>'
+export ANTHROPIC_DEFAULT_HAIKU_MODEL='<gpt-model-id>'
+# Example for a model with at least a 200,000-token context window:
+export CLAUDE_CODE_MAX_CONTEXT_TOKENS=200000
+export CLAUDE_CODE_AUTO_COMPACT_WINDOW=180000
+claude
+```
+
+`ANTHROPIC_DEFAULT_HAIKU_MODEL` routes Claude Code's small-model calls too; otherwise they may still ask for Haiku. You can use a different available GPT model for that slot. If you use Claude Code's named model tiers, set `ANTHROPIC_DEFAULT_OPUS_MODEL`, `ANTHROPIC_DEFAULT_SONNET_MODEL` and `ANTHROPIC_DEFAULT_FABLE_MODEL` to available proxy models as well.
+
+The context values are examples, not a promise about a GPT model's capacity. Check the selected model's provider limit and use a compaction window below it. Claude Code's [environment reference](https://code.claude.com/docs/en/env-vars) defines both variables. `CLAUDE_CODE_MAX_CONTEXT_TOKENS` changes the window Claude Code assumes; it does not enlarge the upstream window. `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is an integer token count, not a percentage, and accepts 100,000 to 1,000,000. These are Claude Code settings, not cliproxy-rs config keys.
+
 ## Codex CLI
 
 [Codex custom model providers](https://developers.openai.com/codex/config-advanced) use the OpenAI Responses format. Put this in `~/.codex/config.toml`, set the environment variable, and replace `<model-id>`. WebSocket support is documented, but it is optional, so this setup uses the normal HTTP endpoint.

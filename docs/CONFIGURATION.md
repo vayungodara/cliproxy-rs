@@ -79,8 +79,8 @@ How the server picks an account for each request. [MULTI-ACCOUNT.md](MULTI-ACCOU
 
 | Setting | What it does |
 |---|---|
-| `strategy` | `round-robin` (the default), `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental, a cliproxy-rs addition: spend the account whose weekly window resets soonest first). |
-| `session-affinity` | `true` keeps a conversation on the account that served its first request. Off by default. |
+| `strategy` | `round-robin` (the default), `fill-first`, `weighted-round-robin`, or `soonest-reset` (experimental and opt-in: select the account whose weekly window resets soonest). |
+| `session-affinity` | `true` keeps a conversation on the account that served its first request. The installer writes `true` for new configs. If omitted, the server default is `false`, as in Go. |
 | `session-affinity-ttl` | How long a conversation stays bound to its account, `"1h"` by default. |
 | `retry.request-retry` | Extra rounds over the accounts after a failed attempt, `0` by default. |
 | `retry.max-retry-credentials` | At most this many accounts tried per round; `0` means all of them. |
@@ -88,11 +88,36 @@ How the server picks an account for each request. [MULTI-ACCOUNT.md](MULTI-ACCOU
 | `cooldown.disable-cooling` | `true` keeps failing accounts in rotation instead of resting them. |
 | `cooldown.transient-error-cooldown-seconds` | How long to rest an account after a temporary upstream error; `0` means 60 seconds, a negative value turns it off. |
 
+### Optional "plan limits only" preset
+
+This commented preset keeps 429 cooldown and failover for Claude and Codex OAuth accounts. For the listed request, authentication, billing and server errors, it returns the error without trying another account or adding a cooldown. Unlisted statuses keep normal handling. It does not increase plan limits, disable provider checks or apply to API keys. A credential's own `request_scoped_errors` rules take precedence.
+
+Uncomment the block to use it. `oauth-request-scoped-errors` is the accepted legacy spelling of `oauth.request-scoped-errors`; use one spelling, not both. The regular expression matches even an empty error body. Rules need a body matcher; status alone does not match.
+
+```yaml
+# oauth-request-scoped-errors:
+#   claude: &plan-limits-only
+#     - {status: 429, match-regexr: ["(?s).*"], action: continue-and-cooldown}
+#     - {status: 400, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 401, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 402, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 403, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 404, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 408, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 500, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 502, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 503, match-regexr: ["(?s).*"], action: stop}
+#     - {status: 504, match-regexr: ["(?s).*"], action: stop}
+#   codex: *plan-limits-only
+```
+
 ## requests
 
 | Setting | What it does |
 |---|---|
 | `proxy-url` | An outbound proxy for every upstream request, such as `socks5://127.0.0.1:1080` or `http://proxy:3128`. A single account can use its own proxy instead; see [per-account proxies](MULTI-ACCOUNT.md#per-account-proxies-and-request-shaping). |
+
+Claude accounts ignore `HTTPS_PROXY` and `HTTP_PROXY`. Without an explicit proxy, they connect directly. Set `requests.proxy-url` or the account's `proxy_url` when you need one. Claude API keys pointed at a custom, non-Anthropic base URL use the standard transport, which can inherit environment proxies.
 
 ## observability
 
@@ -100,7 +125,7 @@ How the server picks an account for each request. [MULTI-ACCOUNT.md](MULTI-ACCOU
 |---|---|
 | `logs.logging-to-file` | `true` writes the log to `main.log` in a `logs` folder, rotated, instead of standard output. |
 | `logs.logs-max-total-size-mb` | The most disk space the log files may use. |
-| `logs.request-log` | `true` writes one file per request with the request and the response, for debugging. Request bodies are written as they are, so these files can hold prompts. |
+| `logs.request-log` | `true` writes one file per request with client and upstream request/response sections. Captured credentials are redacted, but bodies can still hold private prompts and output. Keep the logs private. |
 
 ## Environment
 
