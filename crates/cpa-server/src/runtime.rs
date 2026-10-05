@@ -924,7 +924,7 @@ impl CredentialStore {
                 let has_models = records
                     .iter()
                     .any(|r| r.auth_id.trim() == c.id && !r.model.trim().is_empty());
-                scheduler.restore(c, record, has_models, now, wall);
+                scheduler.restore(c, record, has_models, policy.max_trusted_cooldown, now, wall);
             }
         }
         self.persist_cooldowns();

@@ -276,6 +276,9 @@ pub struct Policy {
     /// routing.cooldown.save-cooldown-status: persist cooldowns as `.cds` files in
     /// `auth-dir` (cooldown_store.rs), never in credential files.
     pub save_cooldown_status: bool,
+    /// routing.cooldown.max-trusted-cooldown (cliproxy-rs only): the first bound on a
+    /// quota reset an upstream states ([`trusted`]); zero trusts every reset, as Go does.
+    pub max_trusted_cooldown: Duration,
     /// routing.force-model-prefix: bool, default false.
     pub force_model_prefix: bool,
     /// Enabled `openai-compatibility` entries in config order with their
@@ -299,6 +302,7 @@ impl Default for Policy {
             session_affinity_ttl: Duration::from_secs(3600),
             session_affinity_subagents: true,
             save_cooldown_status: false,
+            max_trusted_cooldown: DEFAULT_TRUSTED_COOLDOWN,
             force_model_prefix: false,
             compat_disable_cooling: Vec::new(),
             oauth_request_scoped_errors: HashMap::new(),
@@ -320,6 +324,7 @@ pub struct RawRouting<'a> {
     pub disable_cooling: bool,
     pub save_cooldown_status: bool,
     pub transient_error_cooldown_seconds: i64,
+    pub max_trusted_cooldown: &'a str,
 }
 
 // ponytail: OAuth-provider disable-cooling and request-scoped-error maps stay empty until
@@ -338,6 +343,7 @@ impl From<&cpa_core::config::RoutingConfig> for Policy {
             disable_cooling: r.cooldown.disable_cooling,
             save_cooldown_status: r.cooldown.save_cooldown_status,
             transient_error_cooldown_seconds: r.cooldown.transient_error_cooldown_seconds,
+            max_trusted_cooldown: &r.cooldown.max_trusted_cooldown,
         })
     }
 }
@@ -364,8 +370,25 @@ pub fn normalize(raw: RawRouting<'_>) -> Policy {
         disable_cooling: raw.disable_cooling,
         save_cooldown_status: raw.save_cooldown_status,
         transient_error_cooldown_seconds: raw.transient_error_cooldown_seconds,
+        max_trusted_cooldown: trusted_cooldown(raw.max_trusted_cooldown),
         ..Policy::default()
     }
+}
+
+const DEFAULT_TRUSTED_COOLDOWN: Duration = Duration::from_secs(3600);
+
+/// `max-trusted-cooldown`: a Go duration (`"90m"`) or whole seconds; empty or
+/// unreadable means the one-hour default, zero or negative turns the bound off.
+fn trusted_cooldown(raw: &str) -> Duration {
+    let raw = raw.trim();
+    let nanos = match raw.parse::<i64>() {
+        Ok(seconds) => seconds.saturating_mul(1_000_000_000),
+        Err(_) => match cpa_core::config::parse_duration(raw) {
+            Some(nanos) => nanos,
+            None => return DEFAULT_TRUSTED_COOLDOWN,
+        },
+    };
+    Duration::from_nanos(nanos.max(0) as u64)
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -637,6 +660,32 @@ fn quota_backoff(level: u32) -> (Duration, u32) {
     } else {
         (Duration::from_secs(seconds), level + 1)
     }
+}
+
+/// Bounded trust for a stated quota reset (docs/DIFFERENCES-FROM-GO.md): a reset longer
+/// than `cap` doubled `level` times is cut to that bound and `level` counts one more
+/// window, so the next ordinary request after the bound probes the account. An early
+/// provider reset is then noticed within the bound instead of after the stated time.
+/// A 429 that lands inside a live window (a concurrent request) keeps that window's
+/// deadline and level: it returns zero and the caller keeps the later deadline. Success
+/// clears the cooldown and with it `level`.
+///
+/// ponytail: requests that arrive together after a window all go upstream before the
+/// first 429 lands; reserve the probe at pick time if that ever costs real quota.
+/// `level` is shared with Go's no-hint backoff level, so a credential that
+/// mixes hinted and unhinted 429s starts its bound higher (at most 2^11 hours, still
+/// capped by the stated reset). Give the bound its own counter if that ever matters.
+fn trusted(stated: Duration, cap: Duration, level: &mut u32, live: bool) -> Duration {
+    if cap.is_zero() {
+        return stated;
+    }
+    let step = if live { level.saturating_sub(1) } else { *level };
+    let bound = cap.saturating_mul(1 << step.min(20));
+    if stated <= bound {
+        return stated;
+    }
+    *level = step + 1;
+    if live { Duration::ZERO } else { bound }
 }
 
 /// Go `recoverableFailureRetryAfterWithHint`.
@@ -1100,7 +1149,13 @@ impl Scheduler {
                     } else if let Some(hint) = error.retry_after {
                         // A present hint, even zero, gets the 10s floor (Go
                         // minQuotaCooldownFloor); only an absent one backs off.
-                        Some(hint.max(Duration::from_secs(10)))
+                        let stated = hint.max(Duration::from_secs(10));
+                        Some(trusted(
+                            stated,
+                            policy.max_trusted_cooldown,
+                            &mut level,
+                            prev_live.is_some(),
+                        ))
                     } else if let Some(prev) = prev.filter(|s| s.quota && s.deadline > now) {
                         // Go `quotaCooldownAfterFailure`: an active quota deadline is
                         // reused, not extended.
@@ -1251,6 +1306,7 @@ impl Scheduler {
         c: &Credential,
         record: &crate::cooldown_store::Record,
         has_model_records: bool,
+        cap: Duration,
         now: Instant,
         wall: SystemTime,
     ) -> bool {
@@ -1274,6 +1330,14 @@ impl Scheduler {
         if model.is_empty() && has_model_records && record.quota.reason != "credential_quota" {
             return false;
         }
+        // A quota reset restored from a file (written by Go, or before the bound) gets
+        // the same bounded trust as one an upstream states now.
+        let mut level = record.quota.backoff_level;
+        let remaining = if record.quota.exceeded {
+            trusted(remaining, cap, &mut level, false)
+        } else {
+            remaining
+        };
         let deadline = now + remaining;
         let error = record.last_error.clone().unwrap_or_default();
         let status = match error.http_status {
@@ -1290,7 +1354,7 @@ impl Scheduler {
             key,
             Cooldown {
                 deadline,
-                level: record.quota.backoff_level,
+                level,
                 status,
                 quota: record.quota.exceeded,
                 error: if error.message.is_empty() {
@@ -1595,6 +1659,126 @@ mod tests {
     }
 
     #[test]
+    fn max_trusted_cooldown_reads_durations_seconds_and_off() {
+        let read = |raw| {
+            normalize(RawRouting {
+                max_trusted_cooldown: raw,
+                ..Default::default()
+            })
+            .max_trusted_cooldown
+        };
+        assert_eq!(read(""), Duration::from_secs(3600));
+        assert_eq!(read("90m"), Duration::from_secs(5400));
+        assert_eq!(read("120"), Duration::from_secs(120));
+        assert_eq!(read("0"), Duration::ZERO);
+        assert_eq!(read("0s"), Duration::ZERO);
+        assert_eq!(read("-5"), Duration::ZERO);
+        assert_eq!(read("soon"), Duration::from_secs(3600), "unreadable keeps the default");
+    }
+
+    /// A stated reset six days away is trusted for one hour, then for doubling windows
+    /// while the account keeps answering 429, and never past the stated reset. Success
+    /// clears the escalation; `0` trusts the stated reset as Go does.
+    #[test]
+    fn quota_resets_are_trusted_up_to_a_doubling_bound() {
+        const H: u64 = 3600;
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let start = Instant::now();
+        let reset = start + Duration::from_secs(6 * 24 * H);
+        let quota = |at: Instant, scope| {
+            let mut e = ExecError::local(429, scope, "usage_limit_reached");
+            e.retry_after = Some(reset - at);
+            Outcome::Failure(e)
+        };
+        for scope in [FailureScope::Model, FailureScope::Credential] {
+            let mut s = Scheduler::default();
+            let mut now = start;
+            for window in [1, 2, 4, 8, 16, 32, 64] {
+                s.record(&c, "m", &quota(now, scope), &p, now);
+                assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(window * H)), "{scope:?}");
+                // A concurrent 429 inside the window neither extends nor escalates it.
+                let inside = now + Duration::from_secs(60);
+                s.record(&c, "m", &quota(inside, scope), &p, inside);
+                assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(window * H)), "{scope:?}");
+                assert!(s.retry_eligible(&c, "m", now + Duration::from_secs(window * H)));
+                now += Duration::from_secs(window * H);
+            }
+            // 127 hours have passed; the next window would be 128 hours, past the reset.
+            s.record(&c, "m", &quota(now, scope), &p, now);
+            assert_eq!(
+                s.wait(&c, "m", now),
+                Some(reset - now),
+                "{scope:?}: capped by the stated reset"
+            );
+            // The account came back early: success clears the escalation.
+            let mut s = Scheduler::default();
+            s.record(&c, "m", &quota(start, scope), &p, start);
+            s.record(
+                &c,
+                "m",
+                &quota(start + Duration::from_secs(H), scope),
+                &p,
+                start + Duration::from_secs(H),
+            );
+            assert_eq!(
+                s.wait(&c, "m", start + Duration::from_secs(H)),
+                Some(Duration::from_secs(2 * H))
+            );
+            let later = start + Duration::from_secs(3 * H);
+            s.record(&c, "m", &Outcome::Success, &p, later);
+            s.record(&c, "m", &quota(later, scope), &p, later);
+            assert_eq!(
+                s.wait(&c, "m", later),
+                Some(Duration::from_secs(H)),
+                "{scope:?}: back to the first bound"
+            );
+        }
+        // A reset shorter than the bound is kept as stated.
+        let mut s = Scheduler::default();
+        let mut e = ExecError::local(429, FailureScope::Model, "quota");
+        e.retry_after = Some(Duration::from_secs(1800));
+        s.record(&c, "m", &Outcome::Failure(e), &p, start);
+        assert_eq!(s.wait(&c, "m", start), Some(Duration::from_secs(1800)));
+        // `0` is Go: the whole stated reset.
+        let go = Policy {
+            max_trusted_cooldown: Duration::ZERO,
+            ..Policy::default()
+        };
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &quota(start, FailureScope::Model), &go, start);
+        assert_eq!(s.wait(&c, "m", start), Some(reset - start));
+    }
+
+    /// Restored `.cds` records (Go's, or written before the bound) get the same bound.
+    #[test]
+    fn restored_quota_resets_are_bounded_too() {
+        use crate::cooldown_store::{Quota, Record};
+        let c = cred("a", serde_json::json!({}));
+        let (now, wall) = (Instant::now(), SystemTime::now());
+        let record = |at| Record {
+            auth_id: "a".into(),
+            model: "m".into(),
+            next_retry_after: Some(at),
+            quota: Quota {
+                exceeded: true,
+                reason: "quota".into(),
+                next_recover_at: Some(at),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let six_days = wall + Duration::from_secs(6 * 24 * 3600);
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &record(six_days), true, Duration::from_secs(3600), now, wall));
+        assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(3600)));
+        assert_eq!(s.records(&c, now, wall)[0].quota.backoff_level, 1, "one window spent");
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &record(six_days), true, Duration::ZERO, now, wall));
+        assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(6 * 24 * 3600)));
+    }
+
+    #[test]
     fn cooldown_deadlines_floor_backoff_and_sibling_success() {
         let c = cred("a", serde_json::json!({}));
         let p = Policy::default();
@@ -1680,7 +1864,11 @@ mod tests {
         let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
         let cases = fixture["cooldown"].as_array().unwrap();
         assert_eq!(cases.len(), 25);
-        let policy = Policy::default();
+        // Go trusts every stated reset (docs/DIFFERENCES-FROM-GO.md).
+        let policy = Policy {
+            max_trusted_cooldown: Duration::ZERO,
+            ..Policy::default()
+        };
         for case in cases {
             let name = case["name"].as_str().unwrap();
             let c = cred(&format!("{name}.json"), serde_json::json!({}));

@@ -87,6 +87,8 @@ for old, family in re.findall(r'\{"([^"]+)", "([^"]+)"\}', families):
         group["fields"]["keys"] = {"list": key}
     put("api-keys." + family, {"list": group})
 schema["fields"]["config-version"] = "version"
+# cliproxy-rs additions (docs/DIFFERENCES-FROM-GO.md); Go ignores them when it starts.
+put("routing.cooldown.max-trusted-cooldown", "string")
 schema["fields"].pop("home", None)
 Path(__file__).with_name("schema.json").write_text(json.dumps(schema, indent=2) + "\n")
 print(f"Generated schema from {revision}")

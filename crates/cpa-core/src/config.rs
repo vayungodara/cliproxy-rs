@@ -182,6 +182,10 @@ pub struct CooldownConfig {
     pub disable_cooling: bool,
     pub save_cooldown_status: bool,
     pub transient_error_cooldown_seconds: i64,
+    /// cliproxy-rs only: the longest quota reset trusted at first, as a duration
+    /// (`"1h"`) or seconds; empty means one hour, `0` trusts every reset (Go).
+    #[serde(deserialize_with = "de_go_string", skip_serializing_if = "String::is_empty")]
+    pub max_trusted_cooldown: String,
 }
 
 // Do not derive Debug: the key must never appear in diagnostic output.
@@ -560,6 +564,15 @@ mod tests {
         assert!(!cfg.routing.cooldown.disable_cooling);
         assert!(cfg.routing.cooldown.save_cooldown_status);
         assert_eq!(cfg.routing.cooldown.transient_error_cooldown_seconds, -3);
+        // cliproxy-rs's own cooldown key: an int or a duration, kept as written, and
+        // part of the schema so management writes do not archive it.
+        for (yaml, expect) in [("0", "0"), ("90m", "90m")] {
+            let text = format!("routing:\n  cooldown:\n    max-trusted-cooldown: {yaml}\n");
+            let cfg = Config::parse(&text).unwrap();
+            assert_eq!(cfg.routing.cooldown.max_trusted_cooldown, expect);
+            assert!(ConfigDocument::parse(&text).unwrap().archive_unknown().is_empty());
+        }
+        assert!(Config::parse("routing: {cooldown: {max-trusted-cooldown: [1]}}").is_err());
         let empty = Config::default();
         assert_eq!(empty.routing, RoutingConfig::default());
         assert_eq!(empty.routing.session_affinity_subagents, None);
