@@ -43,6 +43,9 @@ struct Args {
     /// Write process logs to this file (10 MiB rotation), without a shell wrapper.
     #[arg(long)]
     log_file: Option<PathBuf>,
+    /// Change to this directory first, before reading .env, plugins or relative paths.
+    #[arg(long)]
+    working_dir: Option<PathBuf>,
     /// Log in to Claude using browser OAuth and PKCE.
     #[arg(long)]
     claude_login: bool,
@@ -348,6 +351,47 @@ fn argv_enables_bool_flag(args: &[String], name: &str) -> bool {
     enabled
 }
 
+/// The `-working-dir` value (`-working-dir D`, `--working-dir D`, `-working-dir=D`,
+/// `--working-dir=D`; the last one wins), read from the raw arguments so the directory
+/// changes before `.env`, the plugin bootstrap or any relative path is read. Like Go's
+/// parse it stops at the first operand or `--`, and built-in value flags take the next
+/// token. A flag the binary does not define may be a plugin flag: it is read as taking
+/// the next token unless that token is a flag; the full parse confirms the result.
+fn prescan_working_dir(args: &[String]) -> Option<String> {
+    let mut found = None;
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        i += 1;
+        if arg == "--" || arg.len() < 2 || !arg.starts_with('-') {
+            break;
+        }
+        let bare = arg.strip_prefix("--").unwrap_or(&arg[1..]);
+        let (name, value) = match bare.split_once('=') {
+            Some((n, v)) => (n, Some(v)),
+            None => (bare, None),
+        };
+        if value.is_some() {
+            if name == "working-dir" {
+                found = value.map(str::to_owned);
+            }
+            continue;
+        }
+        let Some(next) = args.get(i) else { break };
+        let takes_value = match Args::command().get_arguments().find(|a| a.get_long() == Some(name)) {
+            Some(flag) => flag.get_action().takes_values(),
+            None => !next.starts_with('-'),
+        };
+        if takes_value {
+            if name == "working-dir" {
+                found = Some(next.clone());
+            }
+            i += 1;
+        }
+    }
+    found
+}
+
 /// Whether the binary itself defines `name` (plugin flags are only known once the
 /// plugins have loaded).
 fn builtin_flag(name: &str) -> bool {
@@ -550,6 +594,11 @@ fn flag_error(cmd: &mut clap::Command, message: &str) -> ! {
 fn main() -> anyhow::Result<()> {
     cpa_server::logging::init();
     let raw: Vec<String> = std::env::args().collect();
+    // First, so .env, plugins, the default config and relative paths resolve there.
+    let working_dir = prescan_working_dir(&raw[1..]);
+    if let Some(dir) = &working_dir {
+        std::env::set_current_dir(dir).with_context(|| format!("change to working directory {dir:?}"))?;
+    }
     if raw.get(1).map(String::as_str) == Some("discover") {
         let flags = go_flags(&DiscoverArgs::command(), raw.into_iter().skip(1), &())
             .unwrap_or_else(|e| flag_error(&mut DiscoverArgs::command(), &e));
@@ -594,20 +643,15 @@ fn main() -> anyhow::Result<()> {
     .unwrap_or_else(|e| flag_error(&mut cmd, &e));
     let matches = cmd.clone().get_matches_from(flags);
     let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    if args.working_dir.as_deref() != working_dir.as_deref().map(Path::new) {
+        // The pre-scan read a plugin flag's value differently from the parse.
+        flag_error(
+            &mut cmd,
+            "-working-dir must come before any plugin flag that takes a value",
+        );
+    }
     if let Some(path) = &args.log_file {
         cpa_server::logging::set_log_file(path.clone()).context("open process log")?;
-        // A direct Windows Run entry needs no persistent console or shell parent.
-        #[cfg(windows)]
-        {
-            #[link(name = "kernel32")]
-            unsafe extern "system" {
-                fn FreeConsole() -> i32;
-            }
-            // SAFETY: detaches only this process from its console; no pointers.
-            unsafe {
-                FreeConsole();
-            }
-        }
     }
     if args.discover || args.discover_json {
         let cli = (csv_flags(&args.discover_include), csv_flags(&args.discover_exclude));
@@ -786,6 +830,11 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
         }
         return Ok(());
     }
+    // Only the plain server detaches: discovery, login, import, TUI and plugin
+    // commands keep their console.
+    if args.log_file.is_some() {
+        free_console();
+    }
     serve(
         config,
         config_path,
@@ -798,6 +847,22 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
         None,
     )
     .await
+}
+
+/// A direct Windows Run entry needs no persistent console or shell parent; logs go
+/// to the `--log-file` instead.
+fn free_console() {
+    #[cfg(windows)]
+    {
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn FreeConsole() -> i32;
+        }
+        // SAFETY: detaches only this process from its console; no pointers.
+        unsafe {
+            FreeConsole();
+        }
+    }
 }
 
 /// Go's `commandMode`: a login or import flag is set.
@@ -1416,6 +1481,44 @@ mod tests {
         assert!(sub(&["-timeout"]).is_err());
         assert!(sub(&["-timeout", "1.5"]).is_err());
         assert!(sub(&["---x"]).is_err());
+    }
+
+    #[test]
+    fn working_dir_prescan_reads_every_spelling() {
+        let scan = |a: &[&str]| prescan_working_dir(&a.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());
+        for spelling in [
+            &["-working-dir", "d"][..],
+            &["--working-dir", "d"],
+            &["-working-dir=d"],
+            &["--working-dir=d"],
+            &["-tui", "-config", "c.yaml", "--working-dir", "d", "-local-model"],
+            &["-working-dir", "x", "-working-dir=d"],
+            // An undefined (plugin) flag with a value, or a boolean one before a flag.
+            &["-plugin-mode", "fast", "-working-dir", "d"],
+            &["-plugin-verbose", "-working-dir", "d"],
+        ] {
+            assert_eq!(scan(spelling).as_deref(), Some("d"), "{spelling:?}");
+        }
+        // The value may start with a dash, as for every Go value flag.
+        assert_eq!(scan(&["-working-dir", "-d"]).as_deref(), Some("-d"));
+        assert_eq!(scan(&["-working-dir="]).as_deref(), Some(""));
+        // Values of other flags, operands, `--` and a missing value are not it.
+        assert_eq!(scan(&["-config", "-working-dir", "x"]), None);
+        assert_eq!(scan(&["-password", "--working-dir=x"]), None);
+        assert_eq!(scan(&["run", "-working-dir", "x"]), None);
+        assert_eq!(scan(&["--", "-working-dir", "x"]), None);
+        assert_eq!(scan(&["-working-dir"]), None);
+        assert_eq!(scan(&["discover", "-working-dir", "x"]), None);
+        // The full parse agrees, and the flag is not passed to plugins.
+        let raw = ["cliproxy", "-tui", "--working-dir=d", "-log-file", "l"].map(str::to_owned);
+        let cmd = Args::command();
+        let matches = cmd.clone().get_matches_from(go_flags(&cmd, raw.clone(), &()).unwrap());
+        let args = Args::from_arg_matches(&matches).unwrap();
+        assert_eq!(args.working_dir.as_deref(), Some(Path::new("d")));
+        assert_eq!(prescan_working_dir(&raw[1..]).as_deref(), Some("d"));
+        let builtin = plugin_cli::builtin_values(&cmd, &matches);
+        assert!(builtin.iter().all(|(n, _)| n != "working-dir" && n != "log-file"));
+        assert!(builtin.iter().any(|(n, v)| n == "tui" && v == "true"));
     }
 
     #[test]

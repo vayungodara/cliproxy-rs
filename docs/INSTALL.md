@@ -26,7 +26,7 @@ Neither needs `sudo`, administrator rights, Rust or any other tool. The first ru
 
 Sign in to the dashboard with the `CLIPROXY_MANAGEMENT_KEY` line from `keys.env` (`cat ~/.cliproxy-rs/keys.env`, or `Get-Content ~\.cliproxy-rs\keys.env` on Windows). Your tools use `CLIPROXY_CLIENT_KEY`.
 
-Running the script again upgrades the binary to the latest release and restarts the server. On macOS and Linux, an already-current binary is left running; `--service` can still add start at login, and a binary-only install can still be set up. Upgrades keep a hard link at `cliproxy.prev` and restore and restart it if the new server fails `/healthz`. Windows renames the running executable before installing its replacement, then restarts it. Neither script changes an existing `config.yaml` or `keys.env`.
+Running the script again upgrades the binary to the latest release and restarts the server. On macOS and Linux, a current binary is left alone only when the managed server is running and its last-start marker is at least as new as the binary. A rerun after `--binary-only` or an interrupted upgrade starts the installed version without downloading it again. Unix upgrades keep a hard link at `cliproxy.prev`; Windows stages and checks the replacement before renaming the running executable. Both restore the previous image and verify it answers if startup fails. Neither script changes an existing `config.yaml` or `keys.env`. Probes and printed dashboard addresses follow the configured host, port and TLS setting; wildcard hosts use loopback. The Windows installer requires a release with `--log-file` and `--working-dir`; older releases are refused before the existing installation changes.
 
 On a machine without a browser, such as a server you reach over SSH, keep the server on `127.0.0.1` and open an SSH tunnel from your own computer, for example `ssh -L 8317:127.0.0.1:8317 you@server`, then open `http://127.0.0.1:8317/management.html` there. [Tailscale](MULTI-ACCOUNT.md#reach-the-proxy-from-other-machines) works too. Never listen on `0.0.0.0` without client keys.
 
@@ -68,13 +68,22 @@ Without `--service`, the server runs until the computer restarts (on Windows, un
 
 - Linux: a systemd user unit, `~/.config/systemd/user/cliproxy.service`, enabled and started. It runs while you are logged in; for a server that should run without a login session, run `loginctl enable-linger` once. Stop it with `systemctl --user disable --now cliproxy`.
 - macOS: a launchd agent, `~/Library/LaunchAgents/io.github.vayungodara.cliproxy-rs.plist`, which also restarts the server if it crashes. Stop it with `launchctl bootout gui/$(id -u)/io.github.vayungodara.cliproxy-rs` and delete the file.
-- Windows: an entry named `cliproxy-rs` under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` that runs `cliproxy.exe --config ... --log-file ...` directly when you sign in. The process detaches its console and writes logs itself; no PowerShell, WMI or cmd.exe launcher remains. Logs rotate at 10 MiB, with old files kept. Remove the entry with `Remove-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run -Name cliproxy-rs`.
+- Windows: an entry named `cliproxy-rs` under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` that runs `cliproxy.exe --config ... --log-file ... --working-dir ...` directly when you sign in. A console or Windows Terminal window may flash briefly before the server detaches. The working directory is your config folder, including at sign-in, so its `.env` and relative paths resolve as they do after installation. No PowerShell, WMI or cmd.exe launcher remains. Logs rotate at 10 MiB, with old files kept. `logging-to-file: true` still writes `main.log` for the dashboard and uses the existing size cleaner. Remove the entry with `Remove-ItemProperty HKCU:\Software\Microsoft\Windows\CurrentVersion\Run -Name cliproxy-rs`.
 
 Once set up, later upgrades restart the server through the same mechanism. The System page checks for a new release only when clicked, with an anonymous HEAD request cached for 12 h. Set `CLIPROXY_NO_UPDATE_CHECK=1` in the server's environment before starting it to disable these checks. Release checks use a direct connection, without configured or environment proxies, so they cannot send proxy credentials either.
 
 ### Removing it
 
-Stop the server (`kill $(cat ~/.cliproxy-rs/cliproxy.pid)`, `Get-Process cliproxy | Stop-Process` on Windows, or the service command above), then delete the binary. The Windows command stops all processes named cliproxy; a direct sign-in launch does not update the installer's pid file. `~/.cliproxy-rs` holds your config, keys and signed-in accounts; delete it only if you no longer need them.
+Stop the server (`kill $(cat ~/.cliproxy-rs/cliproxy.pid)` or the Unix service command above), then delete the binary. On Windows, select the process by its config path, because a direct sign-in launch does not update the installer's pid file:
+
+```powershell
+$config = Join-Path $env:USERPROFILE '.cliproxy-rs\config.yaml'
+Get-CimInstance Win32_Process -Filter "Name LIKE 'cliproxy%.exe'" |
+  Where-Object { $_.CommandLine -and $_.CommandLine.Contains($config) } |
+  ForEach-Object { Stop-Process -Id $_.ProcessId }
+```
+
+Use your actual config path if you set `CLIPROXY_HOME`. This leaves other configurations sharing the binary directory running. `~/.cliproxy-rs` holds your config, keys and signed-in accounts; delete it only if you no longer need them.
 
 ## Homebrew (coming with the next release)
 
