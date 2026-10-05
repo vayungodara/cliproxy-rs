@@ -1654,6 +1654,20 @@ pub fn std_valid(data: &[u8]) -> bool {
     true
 }
 
+/// The first index at or after `i` holding a byte a JSON string scan must look at (a
+/// control character, `"` or `\\`), or `d.len()`: memchr2 finds the next `"` or `\\`,
+/// then one vectorised pass looks for a control character before it.
+fn skip_plain(d: &[u8], i: usize) -> usize {
+    let rest = &d[i.min(d.len())..];
+    let end = memchr::memchr2(b'"', b'\\', rest).unwrap_or(rest.len());
+    let span = &rest[..end];
+    // No early exit, so the check vectorises; the position is only needed on failure.
+    if span.iter().fold(false, |any, &b| any | (b < b' ')) {
+        return i + span.iter().position(|&b| b < b' ').unwrap_or(end);
+    }
+    i + end
+}
+
 pub fn valid(data: &[u8]) -> bool {
     fn ws(c: u8) -> bool {
         matches!(c, b' ' | b'\t' | b'\n' | b'\r')
@@ -1751,7 +1765,9 @@ pub fn valid(data: &[u8]) -> bool {
     }
     fn string(d: &[u8], mut i: usize) -> Option<usize> {
         while i < d.len() {
-            match d[i] {
+            i = skip_plain(d, i);
+            let Some(&c) = d.get(i) else { break };
+            match c {
                 c if c < b' ' => return None,
                 b'\\' => {
                     i += 1;
@@ -2995,6 +3011,29 @@ mod tests {
         // Plain ASCII strings stay raw; anything that needs marshaling is HTML-escaped too.
         assert_eq!(s(try_set_str(b"{}", "a", "a<b").unwrap()), r#"{"a":"a<b"}"#);
         assert_eq!(s(try_set_str(b"{}", "a", "é<\"").unwrap()), "{\"a\":\"é\\u003c\\\"\"}");
+    }
+
+    /// `valid` jumps over plain string bytes; a byte that decides validity must be seen
+    /// wherever it sits in a long string.
+    #[test]
+    fn valid_sees_string_bytes_in_every_word_lane() {
+        for at in 0..40 {
+            let doc = |inner: &[u8]| {
+                let mut d = b"{\"k\":\"".to_vec();
+                d.extend(std::iter::repeat_n(b'x', at));
+                d.extend_from_slice(inner);
+                d.extend_from_slice("yyyyyyyéyyyyyyyyy\"}".as_bytes());
+                d
+            };
+            assert!(valid(&doc(b"")), "plain, offset {at}");
+            assert!(valid(&doc(b"\\n")), "escape, offset {at}");
+            assert!(valid(&doc(b"\\u00e9")), "unicode escape, offset {at}");
+            assert!(!valid(&doc(b"\n")), "raw newline, offset {at}");
+            assert!(!valid(&doc(b"\x1f")), "raw 0x1f, offset {at}");
+            assert!(!valid(&doc(b"\\x")), "bad escape, offset {at}");
+            assert!(!valid(&doc(b"\"")), "early quote, offset {at}");
+            assert!(valid(&doc(b"\x20\x7f")), "0x20 and 0x7f are plain, offset {at}");
+        }
     }
 
     #[test]

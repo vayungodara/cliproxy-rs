@@ -1,6 +1,8 @@
 [workspace]
 resolver = "3"
 members = ["crates/*"]
+# Patched third-party crates (see vendor/README.md); not workspace members.
+exclude = ["vendor"]
 
 [workspace.package]
 version = "0.1.2"
@@ -38,3 +40,7 @@ wreq = { version = "6.0.0-rc.31", features = ["stream", "json"] }
 lto = "thin"
 codegen-units = 1
 strip = true
+
+# gjson 0.8.1 with SIMD string scanning; behaviour unchanged (vendor/README.md).
+[patch.crates-io]
+gjson = { path = "vendor/gjson" }
