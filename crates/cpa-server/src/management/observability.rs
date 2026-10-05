@@ -3,112 +3,77 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use axum::extract::{RawQuery, State};
 use axum::http::StatusCode;
 use axum::response::Response;
-use cpa_exec::proxy::{self, GoHeaders, Proxy, Route};
 use serde_json::{Map, Value, json};
 
 use super::auth_files::{Query, auth_kind, fail, recent_requests, reply};
 use super::{Management, json as respond};
 
-/// Release lookup for `GET /server/latest-version`: the cliproxy-rs repository's
-/// GitHub latest-release API. Empty until that repository is published; the endpoint
-/// then answers with Go's failed-lookup shape instead of asking anyone.
-pub const LATEST_RELEASE_URL: &str = "";
+/// Public redirect endpoint, not the authenticated GitHub API.
+pub const LATEST_RELEASE_URL: &str = "https://github.com/vayungodara/cliproxy-rs/releases/latest";
 const LATEST_RELEASE_USER_AGENT: &str = "cliproxy-rs";
+const RELEASE_CACHE_TTL: Duration = Duration::from_secs(12 * 60 * 60);
 
-/// Go `GetLatestVersion`: one GET through `requests.proxy-url` (or the environment
-/// proxies), 10 s timeout.
+/// Explicit checks only. One HEAD, no redirects, cookies or GitHub/store tokens.
+/// Cost: one lock per check; a timestamp and tag only after success. No idle work.
 pub(crate) async fn latest_version(State(state): State<Arc<Management>>) -> Response {
-    let url = state.latest_release_url.clone();
-    if url.is_empty() {
+    if state.update_check_disabled {
         return reply(
-            StatusCode::BAD_GATEWAY,
+            StatusCode::SERVICE_UNAVAILABLE,
             [
-                ("error", "request_failed".into()),
-                ("message", "no release repository is configured".into()),
+                ("error", "update_check_disabled".into()),
+                (
+                    "message",
+                    "Update checks are disabled by CLIPROXY_NO_UPDATE_CHECK=1.".into(),
+                ),
             ],
         );
     }
-    let cfg = state.rt.config();
-    let global = cfg
-        .document
-        .get("requests")
-        .and_then(|r| r.get("proxy-url"))
-        .and_then(serde_yaml_ng::Value::as_str)
-        .unwrap_or_default();
-    let client = state.clients.get(&Proxy::parse(global));
-    let mut headers = GoHeaders::new();
-    headers.set("Accept", "application/vnd.github+json");
-    headers.set("User-Agent", LATEST_RELEASE_USER_AGENT);
-    // Go `util.ResolveGitHubToken`.
-    let token = ["GITHUB_TOKEN", "github_token"]
-        .iter()
-        .filter_map(|n| std::env::var(n).ok())
-        .map(|t| t.trim().to_owned())
-        .find(|t| !t.is_empty())
-        .or_else(|| {
-            let git = std::env::var("GITSTORE_GIT_URL").unwrap_or_default().to_lowercase();
-            git.contains("github.com").then(|| {
-                std::env::var("GITSTORE_GIT_TOKEN")
-                    .unwrap_or_default()
-                    .trim()
-                    .to_owned()
-            })
-        })
-        .filter(|t| !t.is_empty());
-    if let Some(token) = token {
-        headers.set("Authorization", format!("Bearer {token}"));
+    let mut cache = state.latest_release.lock().await;
+    if let Some((at, version)) = cache.as_ref()
+        && at.elapsed() < RELEASE_CACHE_TTL
+    {
+        return reply(StatusCode::OK, [("latest-version", version.clone().into())]);
     }
-    let upstream = match proxy::send_request(
-        &|_| {
-            Ok(Route {
-                client: client.clone(),
-                order: None,
-            })
-        },
-        axum::http::Method::GET,
-        &url,
-        headers,
-        None,
-        Some(Duration::from_secs(10)),
-    )
-    .await
+    // A fresh, direct client cannot inherit cookies, default headers or proxy
+    // credentials. Never copy incoming headers or read token environment variables.
+    let client = match wreq::Client::builder()
+        .no_proxy()
+        .redirect(wreq::redirect::Policy::none())
+        .build()
+    {
+        Ok(client) => client,
+        Err(_) => return gateway("request_failed", "Could not create the release client.".into()),
+    };
+    let upstream = match client
+        .head(state.latest_release_url.as_ref())
+        .header("User-Agent", LATEST_RELEASE_USER_AGENT)
+        .timeout(Duration::from_secs(10))
+        .send()
+        .await
     {
         Ok(u) => u,
-        Err(e) => return gateway("request_failed", String::from_utf8_lossy(&e.body).into_owned()),
+        Err(_) => return gateway("request_failed", "Could not check the latest release.".into()),
     };
-    let ok = upstream.status == 200;
-    let limit = if ok { 1 << 20 } else { 1024 };
-    let body = proxy::read_all(upstream.body, limit, true).await.unwrap_or_default();
-    if !ok {
-        let text = String::from_utf8_lossy(&body);
-        return gateway(
-            "unexpected_status",
-            format!("status {}: {}", upstream.status, text.trim()),
-        );
+    if !upstream.status().is_redirection() {
+        return gateway("unexpected_status", format!("status {}", upstream.status().as_u16()));
     }
-    let info: Value = match serde_json::Deserializer::from_slice(&body).into_iter::<Value>().next() {
-        Some(Ok(v)) => v,
-        Some(Err(e)) => return gateway("decode_failed", e.to_string()),
-        None => return gateway("decode_failed", "EOF".to_owned()),
-    };
-    let field = |k: &str| {
-        info.get(k)
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .trim()
-            .to_owned()
-    };
-    let version = Some(field("tag_name"))
-        .filter(|v| !v.is_empty())
-        .unwrap_or_else(|| field("name"));
-    if version.is_empty() {
+    let version = upstream
+        .headers()
+        .get("location")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("https://github.com/vayungodara/cliproxy-rs/releases/tag/"))
+        .filter(|v| {
+            !v.is_empty() && v.len() <= 128 && v.bytes().all(|b| b.is_ascii_alphanumeric() || b".-_".contains(&b))
+        });
+    let Some(version) = version else {
         return gateway("invalid_response", "missing release version".to_owned());
-    }
+    };
+    *cache = Some((Instant::now(), version.to_owned()));
     reply(StatusCode::OK, [("latest-version", version.into())])
 }
 
@@ -218,6 +183,53 @@ pub(crate) async fn usage_queue(State(state): State<Arc<Management>>, RawQuery(r
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn release_cache_expires_after_twelve_hours() {
+        let dir = std::env::temp_dir().join(format!("release-cache-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("auth")).unwrap();
+        let config = cpa_core::config::Config::parse(&format!(
+            "config-version: 8\noauth:\n  auth-dir: '{}'\n",
+            dir.join("auth").display()
+        ))
+        .unwrap();
+        let rt = Arc::new(crate::testing::runtime(
+            config,
+            vec![],
+            cpa_exec::Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        ));
+        let state = Management::with_options(
+            rt,
+            dir.join("config.yaml"),
+            super::super::Options {
+                latest_release_url: Some("http://127.0.0.1:0/latest".into()),
+                update_check_disabled: Some(false),
+                ..Default::default()
+            },
+        );
+        for (age, expected) in [
+            (Duration::from_secs(12 * 60 * 60 - 1), StatusCode::OK),
+            (Duration::from_secs(12 * 60 * 60), StatusCode::BAD_GATEWAY),
+        ] {
+            *state.latest_release.lock().await = Some((Instant::now() - age, "v1.2.3".into()));
+            let response = latest_version(State(state.clone())).await;
+            assert_eq!(response.status(), expected);
+            if expected == StatusCode::OK {
+                let body = axum::body::to_bytes(response.into_body(), 1024).await.unwrap();
+                assert_eq!(
+                    serde_json::from_slice::<Value>(&body).unwrap(),
+                    json!({"latest-version":"v1.2.3"})
+                );
+            }
+        }
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn same_base_and_key_sum_bucket_by_bucket() {

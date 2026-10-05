@@ -13,6 +13,7 @@
 # Options (when piping, pass them as: sh -s -- --service):
 #   --service      also start cliproxy-rs at login, with a systemd user unit or a launchd agent
 #   --binary-only  only install or upgrade the binary
+#   --check        report installed and available versions without changing anything
 #
 # Environment:
 #   CLIPROXY_VERSION      release tag to install, such as v0.1.0 (default: the latest)
@@ -42,21 +43,18 @@ main() {
     unit="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user/cliproxy.service"
   fi
 
-  setup=1 service=
+  setup=1 service='' check='' requested_service=''
   for arg in "$@"; do
     case "$arg" in
-      --service) service=1 ;;
+      --service) service=1 requested_service=1 ;;
       --binary-only) setup= ;;
-      *) fail "unknown option $arg; the options are --service and --binary-only" ;;
+      --check) check=1 ;;
+      *) fail "unknown option $arg; the options are --service, --binary-only and --check" ;;
     esac
   done
   [ -n "$setup" ] || [ -z "$service" ] || fail "--service and --binary-only do not go together"
   # A service installed by an earlier run keeps being used.
   [ ! -f "$unit" ] || service=1
-  if [ -n "$setup" ] && [ -n "$service" ] && [ "$os" != Darwin ]; then
-    systemctl --user show-environment >/dev/null 2>&1 ||
-      fail "systemd user services are not available here; run this without --service"
-  fi
 
   case "$os-$(uname -m)" in
     Linux-x86_64 | Linux-amd64) target=x86_64-unknown-linux-gnu ;;
@@ -75,26 +73,51 @@ main() {
   fi
   name="cliproxy-${tag#v}-$target"
 
-  tmp=$(mktemp -d)
-  trap 'rm -rf "$tmp"' EXIT
-  curl -fsSL --retry 3 -o "$tmp/$name.tar.gz" "$releases/download/$tag/$name.tar.gz" || fail "could not download $name.tar.gz from release $tag"
-  curl -fsSL --retry 3 -o "$tmp/SHA256SUMS" "$releases/download/$tag/SHA256SUMS" || fail "could not download SHA256SUMS from release $tag"
-  expected=$(awk -v f="$name.tar.gz" '$2 == f || $2 == "*" f { print $1 }' "$tmp/SHA256SUMS")
-  [ -n "$expected" ] || fail "$name.tar.gz is not listed in SHA256SUMS"
-  if command -v sha256sum >/dev/null 2>&1; then
-    actual=$(sha256sum "$tmp/$name.tar.gz" | awk '{ print $1 }')
+  installed=$([ ! -x "$bin" ] || "$bin" --version 2>/dev/null | tail -n 1)
+  current=
+  [ "$installed" != "cliproxy ${tag#v}" ] || current=1
+  if [ -n "$current" ]; then
+    printf 'cliproxy %s is already current.\n' "${tag#v}"
   else
-    actual=$(shasum -a 256 "$tmp/$name.tar.gz" | awk '{ print $1 }')
+    printf 'Installed: %s; available: cliproxy %s\n' "${installed:-not installed}" "${tag#v}"
   fi
-  [ "$actual" = "$expected" ] || fail "checksum mismatch for $name.tar.gz; nothing was installed"
+  [ -z "$check" ] || return 0
+  # Explicit setup still works after --binary-only, or when adding start at login.
+  if [ -n "$current" ] && { [ -z "$setup" ] || { [ -f "$home/config.yaml" ] && [ -z "$requested_service" ]; }; }; then
+    return 0
+  fi
+  if [ -n "$setup" ] && [ -n "$service" ] && [ "$os" != Darwin ]; then
+    systemctl --user show-environment >/dev/null 2>&1 ||
+      fail "systemd user services are not available here; run this without --service"
+  fi
+  backup=
+  if [ -z "$current" ]; then
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    curl -fsSL --retry 3 -o "$tmp/$name.tar.gz" "$releases/download/$tag/$name.tar.gz" || fail "could not download $name.tar.gz from release $tag"
+    curl -fsSL --retry 3 -o "$tmp/SHA256SUMS" "$releases/download/$tag/SHA256SUMS" || fail "could not download SHA256SUMS from release $tag"
+    expected=$(awk -v f="$name.tar.gz" '$2 == f || $2 == "*" f { print $1 }' "$tmp/SHA256SUMS")
+    [ -n "$expected" ] || fail "$name.tar.gz is not listed in SHA256SUMS"
+    if command -v sha256sum >/dev/null 2>&1; then
+      actual=$(sha256sum "$tmp/$name.tar.gz" | awk '{ print $1 }')
+    else
+      actual=$(shasum -a 256 "$tmp/$name.tar.gz" | awk '{ print $1 }')
+    fi
+    [ "$actual" = "$expected" ] || fail "checksum mismatch for $name.tar.gz; nothing was installed"
 
-  tar -xzf "$tmp/$name.tar.gz" -C "$tmp"
-  mkdir -p "$dir"
-  # Renamed into place, so a running server keeps its old binary until it restarts.
-  install -m 0755 "$tmp/$name/cliproxy" "$dir/.cliproxy.new"
-  mv -f "$dir/.cliproxy.new" "$bin"
-  [ "$os" != Darwin ] || xattr -d com.apple.quarantine "$bin" 2>/dev/null || true
-  printf 'Installed %s at %s\n' "$("$bin" --version 2>/dev/null | tail -n 1)" "$bin"
+    tar -xzf "$tmp/$name.tar.gz" -C "$tmp"
+    mkdir -p "$dir"
+    # Renamed into place, so a running server keeps its old binary until it restarts.
+    install -m 0755 "$tmp/$name/cliproxy" "$dir/.cliproxy.new"
+    if [ -f "$bin" ]; then
+      rm -f "$dir/cliproxy.prev"
+      ln "$bin" "$dir/cliproxy.prev"
+      backup=1
+    fi
+    mv -f "$dir/.cliproxy.new" "$bin"
+    [ "$os" != Darwin ] || xattr -d com.apple.quarantine "$bin" 2>/dev/null || true
+    printf 'Installed %s at %s\n' "$("$bin" --version 2>/dev/null | tail -n 1)" "$bin"
+  fi
   case ":$PATH:" in
     *":$dir:"*) ;;
     *) printf 'Add %s to your PATH to run cliproxy by name.\n' "$dir" ;;
@@ -141,14 +164,15 @@ EOF
   port=$(awk '/^server:/ { s = 1; next } /^[^ #]/ { s = 0 } (s || /^port:/) && $1 == "port:" { print $2; exit }' "$config" | tr -d "\"'")
   port=${port:-8317}
 
-  stop_pidfile
-  if [ -z "$service" ]; then
-    (cd "$home" && exec nohup "$bin" --config "$config" </dev/null >>"$log" 2>&1) &
-    echo $! >"$pidfile"
-    how="kill \$(cat '$pidfile')"
-  elif [ "$os" = Darwin ]; then
-    mkdir -p "$(dirname "$unit")"
-    cat >"$unit" <<EOF
+  start_server() {
+    stop_pidfile
+    if [ -z "$service" ]; then
+      (cd "$home" && exec nohup "$bin" --config "$config" </dev/null >>"$log" 2>&1) &
+      echo $! >"$pidfile"
+      how="kill \$(cat '$pidfile')"
+    elif [ "$os" = Darwin ]; then
+      mkdir -p "$(dirname "$unit")"
+      cat >"$unit" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -163,16 +187,16 @@ EOF
 </dict>
 </plist>
 EOF
-    domain="gui/$(id -u)"
-    if launchctl print "$domain/$label" >/dev/null 2>&1; then
-      launchctl kickstart -k "$domain/$label"
+      domain="gui/$(id -u)"
+      if launchctl print "$domain/$label" >/dev/null 2>&1; then
+        launchctl kickstart -k "$domain/$label"
+      else
+        launchctl bootstrap "$domain" "$unit"
+      fi
+      how="launchctl bootout $domain/$label (and delete $unit to stop starting it at login)"
     else
-      launchctl bootstrap "$domain" "$unit"
-    fi
-    how="launchctl bootout $domain/$label (and delete $unit to stop starting it at login)"
-  else
-    mkdir -p "$(dirname "$unit")"
-    cat >"$unit" <<EOF
+      mkdir -p "$(dirname "$unit")"
+      cat >"$unit" <<EOF
 [Unit]
 Description=cliproxy-rs
 
@@ -186,23 +210,25 @@ Restart=on-failure
 [Install]
 WantedBy=default.target
 EOF
-    systemctl --user daemon-reload
-    systemctl --user enable --quiet cliproxy.service
-    systemctl --user restart cliproxy.service
-    how="systemctl --user disable --now cliproxy"
-  fi
+      systemctl --user daemon-reload
+      systemctl --user enable --quiet cliproxy.service
+      systemctl --user restart cliproxy.service
+      how="systemctl --user disable --now cliproxy"
+    fi
+  }
+  start_server
 
   sleep 1
   i=0
   until curl -fs -m 2 -o /dev/null "http://127.0.0.1:$port/healthz"; do
-    [ -n "$service" ] || kill -0 "$(cat "$pidfile")" 2>/dev/null || fail "cliproxy-rs stopped right after starting; the end of $log says why"
+    [ -n "$service" ] || kill -0 "$(cat "$pidfile")" 2>/dev/null || upgrade_failed "cliproxy-rs stopped right after starting; the end of $log says why"
     i=$((i + 1))
-    [ "$i" -lt 20 ] || fail "cliproxy-rs did not answer on port $port; the end of $log says why"
+    [ "$i" -lt 20 ] || upgrade_failed "cliproxy-rs did not answer on port $port; the end of $log says why"
     sleep 1
   done
   if [ -z "$service" ] && ! kill -0 "$(cat "$pidfile")" 2>/dev/null; then
     rm -f "$pidfile"
-    fail "another program already answers on port $port, so cliproxy-rs could not start there; see $log"
+    upgrade_failed "another program already answers on port $port, so cliproxy-rs could not start there; see $log"
   fi
 
   url="http://127.0.0.1:$port/management.html"
@@ -231,6 +257,16 @@ EOF
   else
     printf '\nNext: open the dashboard, sign in with your management key, and choose Connect account.\n'
   fi
+}
+
+# Restore the same inode the old server used, then restart using its unchanged config.
+upgrade_failed() {
+  if [ -n "$backup" ]; then
+    mv -f "$dir/cliproxy.prev" "$bin"
+    printf 'Upgrade failed; restored the previous binary.\n' >&2
+    start_server
+  fi
+  fail "$1"
 }
 
 # True when nothing listens on 127.0.0.1:$1 (curl exits with 7 when the connection is refused).

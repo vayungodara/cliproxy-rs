@@ -30,6 +30,7 @@ const MAIN_LOG: &str = "main.log";
 const CLEANER_INTERVAL: Duration = Duration::from_secs(60);
 
 static OUTPUT: Mutex<Output> = Mutex::new(Output::Stdout);
+static LOG_FILE: OnceLock<PathBuf> = OnceLock::new();
 static HOOK: Mutex<Option<Arc<LogHook>>> = Mutex::new(None);
 static STATE: Mutex<Option<Applied>> = Mutex::new(None);
 static LEVEL: OnceLock<reload::Handle<LevelFilter, tracing_subscriber::Registry>> = OnceLock::new();
@@ -196,7 +197,28 @@ fn logs_setting<'a>(cfg: &'a Config, key: &str) -> Option<&'a serde_yaml_ng::Val
     cfg.document.get("observability")?.get("logs")?.get(key)
 }
 
+/// Opt-in process log destination, kept across config reloads. Uses the existing
+/// synchronous 10 MiB rotation: one fd, no new thread, timer or per-request work.
+pub fn set_log_file(path: PathBuf) -> io::Result<()> {
+    let mut file = RotatingFile {
+        path: path.clone(),
+        file: None,
+        size: 0,
+    };
+    file.open_existing_or_new(0, MAX_FILE_SIZE)?;
+    LOG_FILE
+        .set(path)
+        .map_err(|_| io::Error::other("log file already set"))?;
+    *OUTPUT.lock().unwrap_or_else(PoisonError::into_inner) = Output::File(file);
+    Ok(())
+}
+
 fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
+    // ponytail: CLI rotations are retained forever; use the directory cleaner here
+    // if a separate CLI log-size budget is needed.
+    if LOG_FILE.get().is_some() {
+        return Ok(());
+    }
     let mut output = OUTPUT.lock().unwrap_or_else(PoisonError::into_inner);
     let protected = if applied.logging_to_file {
         create_dir(dir)

@@ -1090,35 +1090,35 @@ async fn config_key_prefix_patch_refreshes_the_registry() {
     server.abort();
 }
 
-/// `GET /server/latest-version`: Go's failed-lookup shape while no release
-/// repository is configured, and Go's handling of each release-API answer.
+/// Update checks use exactly one credential-free HEAD, never follow redirects,
+/// cache success, reject unrelated locations and honor the kill switch.
 #[tokio::test]
-async fn latest_version_follows_go_for_each_release_answer() {
-    use axum::http::{HeaderMap, StatusCode};
+async fn latest_version_is_anonymous_cached_and_explicit() {
+    use axum::http::{HeaderMap, Method, StatusCode};
     use std::sync::Mutex;
-    let seen: Arc<Mutex<Vec<(String, String)>>> = Arc::default();
+    let seen: Arc<Mutex<Vec<(Method, HeaderMap)>>> = Arc::default();
     let record = seen.clone();
     let release = axum::Router::new().route(
         "/{case}",
-        axum::routing::get(
-            move |axum::extract::Path(case): axum::extract::Path<String>, headers: HeaderMap| {
+        axum::routing::any(
+            move |axum::extract::Path(case): axum::extract::Path<String>, method: Method, headers: HeaderMap| {
                 let record = record.clone();
                 async move {
-                    let h = |n: &str| {
-                        headers
-                            .get(n)
-                            .and_then(|v| v.to_str().ok())
-                            .unwrap_or_default()
-                            .to_owned()
+                    record.lock().unwrap().push((method, headers));
+                    let location = match case.as_str() {
+                        "tag" => "https://github.com/vayungodara/cliproxy-rs/releases/tag/v1.2.3",
+                        "other" => "https://example.invalid/releases/tag/v9",
+                        "empty" => "https://github.com/vayungodara/cliproxy-rs/releases/tag/",
+                        _ => "",
                     };
-                    record.lock().unwrap().push((h("accept"), h("user-agent")));
-                    match case.as_str() {
-                        "tag" => (StatusCode::OK, r#"{"tag_name":" v1.2.3 ","name":"ignored"}"#.to_owned()),
-                        "name" => (StatusCode::OK, r#"{"tag_name":"","name":"Release 9"}"#.to_owned()),
-                        "empty" => (StatusCode::OK, r#"{"tag_name":" "}"#.to_owned()),
-                        "bad" => (StatusCode::OK, "not json".to_owned()),
-                        _ => (StatusCode::FORBIDDEN, " rate limited \n".to_owned()),
-                    }
+                    (
+                        if case == "limited" {
+                            StatusCode::FORBIDDEN
+                        } else {
+                            StatusCode::FOUND
+                        },
+                        [("location", location)],
+                    )
                 }
             },
         ),
@@ -1127,75 +1127,70 @@ async fn latest_version_follows_go_for_each_release_answer() {
     let upstream = format!("http://{}", listener.local_addr().unwrap());
     let release_server = tokio::spawn(async move { axum::serve(listener, release).await.unwrap() });
 
-    let get = |url: Option<String>| async move {
-        let f = Fixture::new(&format!(
-            "latest-{}",
-            url.as_deref().map_or("none", |u| u.rsplit('/').next().unwrap())
-        ));
-        let options = management::Options {
-            latest_release_url: url,
-            ..Default::default()
-        };
-        let state = Management::with_options(f.rt.clone(), f.dir.join("config.yaml"), options);
-        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-        let base = format!("http://{}", listener.local_addr().unwrap());
-        let app = management::router(state);
-        let server = tokio::spawn(async move {
-            axum::serve(
-                listener,
-                app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
-            )
-            .await
-            .unwrap()
-        });
-        let r = wreq::Client::new()
-            .get(format!("{base}/v8/management/server/latest-version"))
-            .bearer_auth("fake-management-only")
-            .send()
-            .await
-            .unwrap();
-        let out = (r.status().as_u16(), r.json::<Value>().await.unwrap());
-        server.abort();
-        out
+    let get = |case: &'static str, disabled: bool| {
+        let url = format!("{upstream}/{case}");
+        async move {
+            let f = Fixture::new(&format!("latest-{}", case));
+            let options = management::Options {
+                latest_release_url: Some(url),
+                update_check_disabled: Some(disabled),
+                ..Default::default()
+            };
+            let state = Management::with_options(f.rt.clone(), f.dir.join("config.yaml"), options);
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            let app = management::router(state);
+            let server = tokio::spawn(async move {
+                axum::serve(
+                    listener,
+                    app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+                )
+                .await
+                .unwrap()
+            });
+            let mut out = (0, Value::Null);
+            for _ in 0..2 {
+                let r = wreq::Client::new()
+                    .get(format!("{base}/v8/management/server/latest-version"))
+                    .bearer_auth("fake-management-only")
+                    .header("Cookie", "secret-cookie=FAKE")
+                    .send()
+                    .await
+                    .unwrap();
+                out = (r.status().as_u16(), r.json::<Value>().await.unwrap());
+            }
+            server.abort();
+            out
+        }
     };
     assert_eq!(
-        get(None).await,
+        get("tag", true).await,
         (
-            502,
-            json!({"error": "request_failed", "message": "no release repository is configured"})
+            503,
+            json!({"error": "update_check_disabled", "message": "Update checks are disabled by CLIPROXY_NO_UPDATE_CHECK=1."})
         )
     );
-    assert!(seen.lock().unwrap().is_empty(), "nothing is asked while unconfigured");
+    assert!(seen.lock().unwrap().is_empty(), "nothing is asked when disabled");
+    assert_eq!(get("tag", false).await, (200, json!({"latest-version": "v1.2.3"})));
+    assert_eq!(seen.lock().unwrap().len(), 1, "second click uses the cache");
     assert_eq!(
-        get(Some(format!("{upstream}/tag"))).await,
-        (200, json!({"latest-version": "v1.2.3"}))
-    );
-    assert_eq!(
-        get(Some(format!("{upstream}/name"))).await,
-        (200, json!({"latest-version": "Release 9"}))
-    );
-    assert_eq!(
-        get(Some(format!("{upstream}/empty"))).await,
+        get("empty", false).await,
         (
             502,
             json!({"error": "invalid_response", "message": "missing release version"})
         )
     );
-    let (status, body) = get(Some(format!("{upstream}/bad"))).await;
-    assert_eq!((status, body["error"].as_str()), (502, Some("decode_failed")));
+    let (status, body) = get("other", false).await;
+    assert_eq!((status, body["error"].as_str()), (502, Some("invalid_response")));
     assert_eq!(
-        get(Some(format!("{upstream}/limited"))).await,
-        (
-            502,
-            json!({"error": "unexpected_status", "message": "status 403: rate limited"})
-        )
+        get("limited", false).await,
+        (502, json!({"error": "unexpected_status", "message": "status 403"}))
     );
-    assert!(
-        seen.lock()
-            .unwrap()
-            .iter()
-            .all(|h| *h == ("application/vnd.github+json".to_owned(), "cliproxy-rs".to_owned()))
-    );
+    assert!(seen.lock().unwrap().iter().all(|(method, h)| *method == Method::HEAD
+        && h["user-agent"] == "cliproxy-rs"
+        && !h.contains_key("authorization")
+        && !h.contains_key("proxy-authorization")
+        && !h.contains_key("cookie")));
     release_server.abort();
 }
 

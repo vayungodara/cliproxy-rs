@@ -1,16 +1,14 @@
-# Runs install.sh (Linux, macOS) and install.ps1 (Windows) against a published release
-# whenever an installer changes, or by hand for any tag. Each job installs on a clean
-# runner, checks the running server from a later step (so it outlived the installer),
-# reruns the installer, installs a second copy while 8317 is taken, and sets up start at
-# login.
+# Published Unix releases retain the login-service smoke tests. Candidate binaries
+# on all three systems exercise local checksummed releases, no-op checks, upgrades,
+# rollback and direct Windows startup without waiting for the next release.
 name: Installers
 
 on:
   push:
     branches: ["**"]
-    paths: [install.sh, install.ps1, .github/workflows/install.yml]
+    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, crates/cliproxy/**, crates/cpa-server/src/logging.rs]
   pull_request:
-    paths: [install.sh, install.ps1, .github/workflows/install.yml]
+    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, crates/cliproxy/**, crates/cpa-server/src/logging.rs]
   workflow_dispatch:
     inputs:
       version:
@@ -55,15 +53,16 @@ jobs:
           test "$(code http://127.0.0.1:8317/v1/models)" = 401
           test "$(code -H "Authorization: Bearer $CLIPROXY_MANAGEMENT_KEY" http://127.0.0.1:8317/v8/management/config)" = 200
           test "$(code http://127.0.0.1:8317/management.html)" = 200
-      - name: A rerun keeps config and keys and restarts the server
+      - name: A current rerun keeps config, keys and the running server
         run: |
           [ "$VERSION" = latest ] || export CLIPROXY_VERSION="$VERSION"
           before=$(cksum ~/.cliproxy-rs/config.yaml ~/.cliproxy-rs/keys.env)
           old=$(cat ~/.cliproxy-rs/cliproxy.pid)
           sh install.sh
           test "$(cksum ~/.cliproxy-rs/config.yaml ~/.cliproxy-rs/keys.env)" = "$before"
-          test "$(cat ~/.cliproxy-rs/cliproxy.pid)" != "$old"
-          if kill -0 "$old" 2>/dev/null; then echo "the old server still runs"; exit 1; fi
+          sh install.sh --check
+          test "$(cat ~/.cliproxy-rs/cliproxy.pid)" = "$old"
+          kill -0 "$old"
           curl -fsS http://127.0.0.1:8317/healthz
       - name: A second install moves to the next free port
         run: |
@@ -120,93 +119,57 @@ jobs:
           if [ "$RUNNER_OS" = Linux ]; then XDG_RUNTIME_DIR="/run/user/$(id -u)" systemctl --user status cliproxy --no-pager || true; fi
           if [ "$RUNNER_OS" = macOS ]; then launchctl print "gui/$(id -u)/io.github.vayungodara.cliproxy-rs" || true; fi
 
-  windows:
-    name: install.ps1 (windows-2025)
-    runs-on: windows-2025
-    timeout-minutes: 15
+  candidate:
+    name: Local upgrade paths (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     defaults:
       run:
-        shell: powershell
+        shell: bash
     steps:
       - uses: actions/checkout@v7
-      - name: Install with Windows PowerShell 5.1, as irm | iex does
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
+      - name: Build tools (Windows)
+        if: runner.os == 'Windows'
         run: |
-          if ($env:VERSION -ne 'latest') { $env:CLIPROXY_VERSION = $env:VERSION }
-          Get-Content -Raw .\install.ps1 | Invoke-Expression
-      - name: The server outlived the installer and answers with the generated keys
+          choco install nasm --no-progress -y
+          printf '%s\n' 'C:\Program Files\NASM' >> "$GITHUB_PATH"
+          printf '%s\n' 'LIBCLANG_PATH=C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
+      - name: Rust
+        run: rustup toolchain install stable --profile minimal && rustup default stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      - name: Build the candidate, not a release lacking --log-file
+        run: cargo build --locked -p cliproxy
+      - name: Linux installer tests with external network denied
+        if: runner.os == 'Linux'
         run: |
-          $ErrorActionPreference = 'Stop'
-          $data = "$env:USERPROFILE\.cliproxy-rs"
-          $k = @{}
-          Get-Content "$data\keys.env" | Where-Object { $_ -match '^(\w+)=(.*)$' } | ForEach-Object { $k[$Matches[1]] = $Matches[2] }
-          if ($k.CLIPROXY_PORT -ne '8317') { throw "port $($k.CLIPROXY_PORT)" }
-          function Code($uri, $key) {
-            $h = @{}
-            if ($key) { $h.Authorization = "Bearer $key" }
-            try { (Invoke-WebRequest -Uri $uri -Headers $h -UseBasicParsing).StatusCode } catch { [int]$_.Exception.Response.StatusCode }
-          }
-          if ((Code 'http://127.0.0.1:8317/healthz') -ne 200) { throw 'healthz' }
-          if ((Code 'http://127.0.0.1:8317/v1/models' $k.CLIPROXY_CLIENT_KEY) -ne 200) { throw 'client key' }
-          if ((Code 'http://127.0.0.1:8317/v1/models') -ne 401) { throw 'no key accepted' }
-          if ((Code 'http://127.0.0.1:8317/v8/management/config' $k.CLIPROXY_MANAGEMENT_KEY) -ne 200) { throw 'management key' }
-          $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-          $who = (Get-Acl "$data\keys.env").Access.IdentityReference.Value | Sort-Object -Unique
-          $who
-          if ($who | Where-Object { $_ -notin $me, 'NT AUTHORITY\SYSTEM', 'BUILTIN\Administrators' }) { throw 'keys.env is readable by others' }
-      - name: A rerun keeps config and keys and restarts the server
+          sudo env "PATH=$PATH" unshare --net -- sh -c 'ip link set lo up && exec setpriv --reuid="$1" --regid="$2" --init-groups -- python3 .github/scripts/test-installers.py target/debug/cliproxy' sh "$(id -u)" "$(id -g)"
+      - name: macOS installer tests with external network denied
+        if: runner.os == 'macOS'
         run: |
-          $ErrorActionPreference = 'Stop'
-          if ($env:VERSION -ne 'latest') { $env:CLIPROXY_VERSION = $env:VERSION }
-          $data = "$env:USERPROFILE\.cliproxy-rs"
-          $before = (Get-FileHash "$data\config.yaml", "$data\keys.env").Hash -join ','
-          $old = Get-Content "$data\cliproxy.pid"
-          Get-Content -Raw .\install.ps1 | Invoke-Expression
-          if (((Get-FileHash "$data\config.yaml", "$data\keys.env").Hash -join ',') -ne $before) { throw 'config or keys changed' }
-          if ((Get-Content "$data\cliproxy.pid") -eq $old) { throw 'server not restarted' }
-          if (Get-Process -Id $old -ErrorAction SilentlyContinue) { throw 'old server still running' }
-      - name: A second install moves to the next free port
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if ($env:VERSION -ne 'latest') { $env:CLIPROXY_VERSION = $env:VERSION }
-          $env:CLIPROXY_HOME = "$env:RUNNER_TEMP\second"
-          $env:CLIPROXY_INSTALL_DIR = "$env:RUNNER_TEMP\second-bin"
-          Get-Content -Raw .\install.ps1 | Invoke-Expression
-          if (-not (Select-String -Path "$env:CLIPROXY_HOME\keys.env" -Pattern '^CLIPROXY_PORT=8318$' -Quiet)) { throw 'not 8318' }
-          Invoke-WebRequest -Uri http://127.0.0.1:8318/healthz -UseBasicParsing | Out-Null
-          Stop-Process -Id (Get-Content "$env:CLIPROXY_HOME\cliproxy.pid")
-      - name: Start at sign-in, with PowerShell 7 and the -Service option
+          sandbox-exec -p '(version 1)(allow default)(deny network-outbound)(allow network-outbound (remote ip "localhost:*"))' python3 .github/scripts/test-installers.py target/debug/cliproxy
+      - name: Windows installer tests with external network denied
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          if ($env:VERSION -ne 'latest') { $env:CLIPROXY_VERSION = $env:VERSION }
-          & ([scriptblock]::Create((Get-Content -Raw .\install.ps1))) -Service
-          $entry = (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run').'cliproxy-rs'
-          $entry
-          # What Windows runs at sign-in, after stopping the server the installer started.
-          $data = "$env:USERPROFILE\.cliproxy-rs"
-          Stop-Process -Id (Get-Content "$data\cliproxy.pid")
-          Start-Sleep -Seconds 1
-          $launcher = Start-Process -FilePath powershell.exe -ArgumentList ($entry -replace '^powershell\.exe ', '') -PassThru
-          $launcher.WaitForExit()
-          Start-Sleep -Seconds 2
-          Invoke-WebRequest -Uri http://127.0.0.1:8317/healthz -UseBasicParsing | Out-Null
-          if ((Get-Process -Id (Get-Content "$data\cliproxy.pid")).ProcessName -ne 'cliproxy') { throw 'pid file' }
-          Remove-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name cliproxy-rs
-      - name: Diagnostics
-        if: failure()
-        run: |
-          foreach ($h in "$env:USERPROFILE\.cliproxy-rs", "$env:RUNNER_TEMP\second") {
-            if (-not (Test-Path $h)) { continue }
-            "== $h"
-            if (Test-Path "$h\cliproxy.pid") {
-              $id = [int](Get-Content "$h\cliproxy.pid")
-              "pid file: $id"
-              $p = Get-CimInstance Win32_Process -Filter "ProcessId = $id"
-              if ($p) { "running: $($p.Name), parent $($p.ParentProcessId): $($p.CommandLine)" } else { "process $id is not running" }
-            } else { 'no pid file' }
-            foreach ($f in 'cliproxy.log', 'cliproxy.err.log') {
-              if (Test-Path "$h\$f") { "-- $f"; Get-Content "$h\$f" -Tail 40 }
-            }
+          $rule = "cliproxy-installer-test-$([guid]::NewGuid())"
+          # Block every destination except IPv4 loopback and IPv6 ::1 on this disposable runner.
+          $addresses = '0.0.0.0-126.255.255.255', '128.0.0.0-255.255.255.255', '::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff'
+          New-NetFirewallRule -Name $rule -DisplayName $rule -Direction Outbound -Action Block -RemoteAddress $addresses | Out-Null
+          try {
+            python .github/scripts/test-installers.py target/debug/cliproxy.exe
+            $code = $LASTEXITCODE
+          } finally {
+            Remove-NetFirewallRule -Name $rule
           }
-          Get-CimInstance Win32_Process -Filter "Name = 'cliproxy.exe'" | Format-Table ProcessId, ParentProcessId, CommandLine -AutoSize -Wrap | Out-String -Width 300
-          Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -ge 8300 -and $_.LocalPort -le 8399 } | Format-Table LocalAddress, LocalPort, OwningProcess | Out-String
+          if ($code -ne 0) { throw "Installer tests failed with exit $code" }
