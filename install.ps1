@@ -97,7 +97,7 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
   # Use that image for rollback, not the untested cliproxy.exe already on disk.
   $runningPrevious = $null
   if (-not $BinaryOnly) {
-    $runningPrevious = Get-CliproxyServers $pidfile $dir $config | Where-Object {
+    $runningPrevious = Get-CliproxyServers $dir $config | Where-Object {
       $_.ExecutablePath -and [IO.Path]::GetDirectoryName($_.ExecutablePath) -eq $dir -and
         [IO.Path]::GetFileName($_.ExecutablePath) -like 'cliproxy.prev-*.exe'
     } | Select-Object -First 1 -ExpandProperty ExecutablePath
@@ -383,25 +383,21 @@ function Remove-CliproxyImages($dir, $keep) {
 }
 
 # Finds this install's server: a cliproxy image from the install directory started with this
-# config, which also finds a Run-entry launch the pid file does not know, plus the pid file's
-# process if it is a cliproxy image. A server for another config sharing the binary keeps running.
-function Get-CliproxyServers($pidfile, $dir, $config) {
+# config, including Run-entry launches without a pid file. A reused pid must not
+# select a server for another config sharing the binary.
+function Get-CliproxyServers($dir, $config) {
   $directory = $dir.TrimEnd('\')
-  $recorded = 0
-  $text = Get-Content -LiteralPath $pidfile -ErrorAction SilentlyContinue | Select-Object -First 1
-  if (-not $text -or -not [int]::TryParse($text.Trim(), [ref]$recorded)) { $recorded = 0 }
   try { $all = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'cliproxy%.exe'" -OperationTimeoutSec 10) }
   catch { throw "install.ps1: could not list running processes ($($_.Exception.Message))" }
   $all | Where-Object {
-    ($_.Name -eq 'cliproxy.exe' -or $_.Name -like 'cliproxy.prev-*.exe') -and (
-      ($recorded -gt 0 -and $_.ProcessId -eq $recorded) -or
-      ($_.ExecutablePath -and [IO.Path]::GetDirectoryName($_.ExecutablePath) -eq $directory -and
-        $_.CommandLine -and $_.CommandLine.IndexOf($config, [StringComparison]::OrdinalIgnoreCase) -ge 0))
+    ($_.Name -eq 'cliproxy.exe' -or $_.Name -like 'cliproxy.prev-*.exe') -and
+      $_.ExecutablePath -and [IO.Path]::GetDirectoryName($_.ExecutablePath) -eq $directory -and
+      $_.CommandLine -and $_.CommandLine.IndexOf($config, [StringComparison]::OrdinalIgnoreCase) -ge 0
   }
 }
 
 function Stop-Cliproxy($pidfile, $dir, $config) {
-  foreach ($p in (Get-CliproxyServers $pidfile $dir $config)) { Stop-CliproxyId $p.ProcessId }
+  foreach ($p in (Get-CliproxyServers $dir $config)) { Stop-CliproxyId $p.ProcessId }
   Remove-Item -LiteralPath $pidfile -Force -ErrorAction SilentlyContinue
 }
 

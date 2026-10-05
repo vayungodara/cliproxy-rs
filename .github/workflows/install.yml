@@ -183,8 +183,10 @@ jobs:
                 -Direction Outbound -Action Allow -Program $path -Profile Any | Out-Null
               $i++
             }
+            # Windows rejects ::1 in firewall rules. The installer suite checks
+            # IPv6 loopback under this policy without an explicit address rule.
             New-NetFirewallRule -Name "$rulePrefix-loopback" -DisplayName "$rulePrefix-loopback" `
-              -Direction Outbound -Action Allow -RemoteAddress '127.0.0.0/8', '::1' -Profile Any | Out-Null
+              -Direction Outbound -Action Allow -RemoteAddress '127.0.0.0/8' -Profile Any | Out-Null
             Set-NetFirewallProfile -Profile Domain, Private, Public -DefaultOutboundAction Block
             python .github/scripts/test-installers.py target/debug/cliproxy.exe
             if ($LASTEXITCODE -ne 0) { throw "Installer tests failed with exit $LASTEXITCODE" }

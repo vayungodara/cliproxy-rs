@@ -280,6 +280,10 @@ def main():
                     assert response.status == 200
                 second_pid = int((second / "cliproxy.pid").read_text().strip())
                 env.update(CLIPROXY_HOME=str(home))
+                if windows:
+                    # Simulate a stale PID reused by another config sharing the
+                    # binary; the command-line match must still protect it.
+                    (home / "cliproxy.pid").write_text(str(second_pid))
                 install()
                 health()
                 with urllib.request.urlopen("http://127.0.0.1:8318/healthz", timeout=5) as response:
@@ -452,7 +456,14 @@ esac
 kill -0 "$1"; echo "kill -0 status=$?"
 name=$(ps -p "$1" -o "$2="); rc=$?; printf 'name status=%s output=<%s>\n' "$rc" "$name"
 state=$(ps -p "$1" -o stat=); rc=$?; printf 'stat status=%s output=<%s>\n' "$rc" "$state"
-''', "diagnostics", recorded_pid, "ucomm" if platform.system() == "Darwin" else "comm"],
+eval "$(sed '$d' "$3")"
+pidfile=$4; os=$(uname -s)
+if managed_pid && pid_running "$pid"; then
+  echo 'installer PID helpers: PASS'
+else
+  rc=$?; printf 'installer PID helpers: FAIL status=%s pid=<%s> ps_status=<%s>\n' "$rc" "${pid-unset}" "${status-unset}"
+fi
+''', "diagnostics", recorded_pid, "ucomm" if platform.system() == "Darwin" else "comm", repo / "install.sh", marker],
                                          env=env, timeout=10)
                         print(status.stdout, file=sys.stderr)
                         subprocess.run(["ps", "-p", recorded_pid, "-o", "pid=,ppid=,stat=,comm=,args="], check=False, timeout=10)
