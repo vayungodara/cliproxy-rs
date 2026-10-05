@@ -1,6 +1,6 @@
 <script lang="ts">
   import { store, Res } from "../store.svelte";
-  import { api, endpoint } from "../api";
+  import { api, endpoint, ApiError } from "../api";
   import { readPath } from "../core";
   import Load from "../Load.svelte";
 
@@ -35,7 +35,8 @@
       ],
     ].filter((f) => f[1]),
   );
-  const clean = (v: string) => v.replace(/^v/, "");
+  const clean = (v: string) => v.replace(/^cliproxy-rs[/-]/, "").replace(/^v/, "");
+  const disabled = $derived(latest.error instanceof ApiError && latest.error.code === "update_check_disabled");
 </script>
 
 <div class="head"><h1>System</h1></div>
@@ -52,9 +53,11 @@
 <section class="section">
   <div class="section-head">
     <h2>Updates</h2>
-    <button class="key" disabled={latest.loading} onclick={() => latest.load()}>Check for a new release</button>
+    <button class="key" disabled={latest.loading || disabled} onclick={() => latest.load()}>Check for a new release</button>
   </div>
-  {#if latest.data !== undefined || latest.error || latest.loading}
+  {#if disabled}
+    <p class="note" role="status">Update checks are disabled by <code>CLIPROXY_NO_UPDATE_CHECK=1</code>.</p>
+  {:else if latest.data !== undefined || latest.error || latest.loading}
     <Load res={latest} what="Release information">
       {#snippet children(v)}
         <p class="row">
@@ -63,5 +66,5 @@
         </p>
       {/snippet}
     </Load>
-  {:else}<p class="muted">The server asks GitHub on request; nothing is checked automatically.</p>{/if}
+  {:else}<p class="muted">Nothing is checked automatically.{store.kind === "rust" ? " Checks send no credentials to GitHub and are cached for 12 h." : " The server asks GitHub when you click."}</p>{/if}
 </section>

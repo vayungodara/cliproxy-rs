@@ -67,10 +67,18 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
     Expand-Archive -Path $zip -DestinationPath $tmp -Force
 
     $pidfile = Join-Path $data 'cliproxy.pid'
-    # Windows cannot replace a running .exe, so the server stops first (a full run starts it again).
-    if (-not $BinaryOnly) { Stop-Cliproxy $pidfile }
     New-Item -ItemType Directory -Force -Path $dir | Out-Null
-    try { Copy-Item (Join-Path $tmp "$name\cliproxy.exe") $exe -Force } catch { throw "install.ps1: could not replace $exe; if cliproxy is running, stop it and run this again" }
+    # Windows permits renaming a running image. Leave it serving until the new
+    # image is in place; -BinaryOnly never stops the running server.
+    $previous = Join-Path $dir ("cliproxy.prev-" + [guid]::NewGuid() + '.exe')
+    if (Test-Path $exe) { Move-Item $exe $previous }
+    try { Copy-Item (Join-Path $tmp "$name\cliproxy.exe") $exe } catch {
+      Remove-Item $exe -Force -ErrorAction SilentlyContinue
+      if (Test-Path $previous) { Move-Item $previous $exe }
+      throw
+    }
+    # A running old image may remain locked until the next installer run.
+    Get-ChildItem $dir -Filter 'cliproxy.prev-*.exe' | Remove-Item -Force -ErrorAction SilentlyContinue
   } finally {
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
   }
@@ -128,35 +136,18 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
     if (($inServer -or $line -match '^port:') -and $line -match '^\s*port:\s*["'']?(\d+)') { $port = [int]$Matches[1]; break }
   }
 
-  # The start command, as a script so the sign-in entry can run the same thing. Win32_Process.Create
-  # starts the server outside this window: its parent is the WMI host, it gets its own hidden console
-  # and none of this shell's handles, so closing the window (or a CI step ending) leaves it running.
-  # cmd.exe only appends the server's output and errors to cliproxy.log.
-  $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
-  $command = 'cmd.exe /d /c ""' + $exe + '" --config "' + $config + '" >> "' + $log + '" 2>&1"'
-  $start = @'
-# Starts cliproxy-rs in the background, outside this window. Written by install.ps1.
-$startup = New-CimInstance -ClassName Win32_ProcessStartup -ClientOnly -Property @{ ShowWindow = [uint16]0 }
-$r = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = @@COMMAND@@; CurrentDirectory = @@DATA@@; ProcessStartupInformation = $startup }
-if ($r.ReturnValue -ne 0) { throw "cliproxy-rs could not be started: Win32_Process.Create returned $($r.ReturnValue)" }
-# The server is that cmd.exe's child. It may be gone already if its config is broken.
-$server = $null
-for ($i = 0; $i -lt 30 -and -not $server; $i++) {
-  Start-Sleep -Milliseconds 100
-  $server = Get-CimInstance Win32_Process -Filter "ParentProcessId = $($r.ProcessId) AND Name = 'cliproxy.exe'"
-}
-Set-Content -Path @@PIDFILE@@ -Value $(if ($server) { $server.ProcessId } else { $r.ProcessId })
-'@
-  $start = $start.Replace('@@COMMAND@@', (& $q $command)).Replace('@@DATA@@', (& $q $data)).Replace('@@PIDFILE@@', (& $q $pidfile))
-  Stop-Cliproxy $pidfile
-  & ([scriptblock]::Create($start))
+  # Direct process launch and in-process logging; no persistent shell or WMI host.
+  $arguments = "--config `"$config`" --log-file `"$log`""
+  Stop-Cliproxy $pidfile $dir
+  $proc = Start-Process -FilePath $exe -ArgumentList $arguments -WorkingDirectory $data -WindowStyle Hidden -PassThru
+  Set-Content -Path $pidfile -Value $proc.Id
+  Get-ChildItem $dir -Filter 'cliproxy.prev-*.exe' | Remove-Item -Force -ErrorAction SilentlyContinue
   if ($Service) {
-    $startFile = Join-Path $data 'start.ps1'
-    [IO.File]::WriteAllText($startFile, $start + "`n")
     # A new profile may have no Run key yet. Only create it then: New-Item -Force on an existing key
     # would replace it and drop the other programs' entries.
     if (-not (Test-Path $runKey)) { New-Item -Path $runKey | Out-Null }
-    Set-ItemProperty -Path $runKey -Name 'cliproxy-rs' -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$startFile`""
+    Set-ItemProperty -Path $runKey -Name 'cliproxy-rs' -Value "`"$exe`" $arguments"
+    Remove-Item (Join-Path $data 'start.ps1') -Force -ErrorAction SilentlyContinue
   }
 
   $proc = Get-Process -Id ([int](Get-Content $pidfile)) -ErrorAction SilentlyContinue
@@ -221,15 +212,19 @@ function New-Hex {
   -join ($bytes | ForEach-Object { $_.ToString('x2') })
 }
 
-# Stops the server an earlier run started, if it is still running.
-function Stop-Cliproxy($pidfile) {
-  if (-not (Test-Path $pidfile)) { return }
-  $p = Get-Process -Id ([int](Get-Content $pidfile)) -ErrorAction SilentlyContinue
-  if ($p -and $p.ProcessName -eq 'cliproxy') {
+# Also finds a direct Run-entry process: no launcher updates its pid file at login.
+# ponytail: one managed server per install directory; use separate directories for multiple instances.
+function Stop-Cliproxy($pidfile, $dir) {
+  $directory = [IO.Path]::GetFullPath($dir).TrimEnd('\')
+  $servers = Get-Process -Name 'cliproxy', 'cliproxy.prev-*' -ErrorAction SilentlyContinue | Where-Object {
+    $_.Path -and [IO.Path]::GetDirectoryName($_.Path) -eq $directory -and
+      ([IO.Path]::GetFileName($_.Path) -eq 'cliproxy.exe' -or [IO.Path]::GetFileName($_.Path) -like 'cliproxy.prev-*.exe')
+  }
+  foreach ($p in $servers) {
     Stop-Process -Id $p.Id -Force
     $p.WaitForExit(10000) | Out-Null
   }
-  Remove-Item $pidfile -Force
+  Remove-Item $pidfile -Force -ErrorAction SilentlyContinue
 }
 
 Install-CliproxyRs -Service $Service.IsPresent -BinaryOnly $BinaryOnly.IsPresent

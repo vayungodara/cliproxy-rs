@@ -40,6 +40,9 @@ struct Args {
     /// Configure File Path
     #[arg(long, default_value = "")]
     config: String,
+    /// Write process logs to this file (10 MiB rotation), without a shell wrapper.
+    #[arg(long)]
+    log_file: Option<PathBuf>,
     /// Log in to Claude using browser OAuth and PKCE.
     #[arg(long)]
     claude_login: bool,
@@ -591,6 +594,21 @@ fn main() -> anyhow::Result<()> {
     .unwrap_or_else(|e| flag_error(&mut cmd, &e));
     let matches = cmd.clone().get_matches_from(flags);
     let args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    if let Some(path) = &args.log_file {
+        cpa_server::logging::set_log_file(path.clone()).context("open process log")?;
+        // A direct Windows Run entry needs no persistent console or shell parent.
+        #[cfg(windows)]
+        {
+            #[link(name = "kernel32")]
+            unsafe extern "system" {
+                fn FreeConsole() -> i32;
+            }
+            // SAFETY: detaches only this process from its console; no pointers.
+            unsafe {
+                FreeConsole();
+            }
+        }
+    }
     if args.discover || args.discover_json {
         let cli = (csv_flags(&args.discover_include), csv_flags(&args.discover_exclude));
         let opts = discover_options(
@@ -606,7 +624,12 @@ fn main() -> anyhow::Result<()> {
     let host = plugins.map(|(host, _)| host).unwrap_or_default();
     #[cfg(all(target_os = "linux", target_env = "gnu"))]
     trim_heap_periodically();
-    runtime.block_on(run(args, host, builtin))
+    let file_log = args.log_file.is_some();
+    let result = runtime.block_on(run(args, host, builtin));
+    if file_log && let Err(error) = &result {
+        tracing::error!("{error:#}");
+    }
+    result
 }
 
 /// glibc keeps the memory that request handling frees in its per-thread arenas and only

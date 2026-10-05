@@ -53,9 +53,12 @@ pub struct Management {
     /// When runtime-only credentials were first seen and last changed (Go's
     /// `CreatedAt`/`UpdatedAt` for them; the store keeps no timestamps).
     pub(crate) runtime_seen: Mutex<std::collections::HashMap<String, auth_files::RuntimeSeen>>,
-    /// Go net/http clients by proxy for `api-call` and the release lookup.
+    /// Go net/http clients by proxy for `api-call`.
     pub(crate) clients: cpa_exec::proxy::GoClients,
-    pub(crate) latest_release_url: String,
+    pub(crate) latest_release_url: std::borrow::Cow<'static, str>,
+    pub(crate) update_check_disabled: bool,
+    // No task or expiry timer: allocated only after a successful, explicit check.
+    pub(crate) latest_release: tokio::sync::Mutex<Option<(std::time::Instant, String)>>,
     /// Pending and recent management logins (Go `oauthSessionStore`).
     pub(crate) oauth: oauth::Sessions,
     /// Callback forwarders by port (Go `callbackForwarders`).
@@ -86,6 +89,8 @@ pub struct Options {
     pub management_password: Option<String>,
     /// Overrides [`observability::LATEST_RELEASE_URL`] (tests point it at a local server).
     pub latest_release_url: Option<String>,
+    /// Overrides CLIPROXY_NO_UPDATE_CHECK (tests only).
+    pub update_check_disabled: Option<bool>,
     /// One local base URL for every provider's login endpoints (tests only).
     pub login_base: Option<String>,
     /// Overrides the log directory Go resolves at startup (tests only).
@@ -136,7 +141,11 @@ impl Management {
         let latest_release_url = options
             .latest_release_url
             .clone()
-            .unwrap_or_else(|| observability::LATEST_RELEASE_URL.to_owned());
+            .map(std::borrow::Cow::Owned)
+            .unwrap_or(std::borrow::Cow::Borrowed(observability::LATEST_RELEASE_URL));
+        let update_check_disabled = options
+            .update_check_disabled
+            .unwrap_or_else(|| std::env::var("CLIPROXY_NO_UPDATE_CHECK").is_ok_and(|v| v == "1"));
         let login_base = options.login_base.clone();
         let log_dir = options
             .log_dir
@@ -163,6 +172,8 @@ impl Management {
             runtime_seen: Mutex::default(),
             clients: cpa_exec::proxy::GoClients::new(cpa_exec::proxy::Hooks::default()),
             latest_release_url,
+            update_check_disabled,
+            latest_release: tokio::sync::Mutex::new(None),
             oauth: oauth::Sessions::default(),
             forwarders: Mutex::default(),
             login_base,

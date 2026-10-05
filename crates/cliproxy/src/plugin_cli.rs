@@ -142,7 +142,8 @@ pub fn builtin_values(cmd: &clap::Command, matches: &clap::ArgMatches) -> Vec<(S
         .filter(|arg| !arg.get_id().as_str().starts_with("plugin:"))
         .filter_map(|arg| {
             let name = arg.get_long()?;
-            if matches!(name, "help" | "version") {
+            // log-file belongs to this process, not Go's plugin command-line contract.
+            if matches!(name, "help" | "version" | "log-file") {
                 return None;
             }
             let id = arg.get_id().as_str();
