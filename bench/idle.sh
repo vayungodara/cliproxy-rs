@@ -30,6 +30,8 @@ if [[ -z ${BENCH_ISOLATION:-} ]]; then
   fi
   export BENCH_ISOLATION=proxy-env HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 \
     ALL_PROXY=http://127.0.0.1:9 NO_PROXY=127.0.0.1,localhost,::1
+  # curl and Go read the lowercase names first.
+  export https_proxy=$HTTPS_PROXY http_proxy=$HTTP_PROXY all_proxy=$ALL_PROXY no_proxy=$NO_PROXY
 fi
 
 BIN=$(realpath "$1")
@@ -72,11 +74,13 @@ done
 
 "$BIN" -config "$DIR/config.yaml" > "$DIR/server.log" 2>&1 &
 PID=$!
+ready=false
 for _ in $(seq 1 400); do
-  curl -sf -o /dev/null -H "Authorization: Bearer $KEY" "http://127.0.0.1:$PORT/v1/models" && break
-  kill -0 "$PID" 2>/dev/null || { cat "$DIR/server.log" >&2; exit 1; }
+  curl -sf -m 2 -o /dev/null -H "Authorization: Bearer $KEY" "http://127.0.0.1:$PORT/v1/models" && { ready=true; break; }
+  kill -0 "$PID" 2>/dev/null || break
   sleep 0.025
 done
+$ready || { echo "server did not answer" >&2; cat "$DIR/server.log" >&2; exit 1; }
 sleep "$WARMUP"
 
 switches() { # "<tid> <name> <context switches>" per thread
