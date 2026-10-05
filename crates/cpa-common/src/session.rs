@@ -152,32 +152,92 @@ struct Body<'a> {
     json: &'a [u8],
     nested: bool,
     exists: bool,
-    /// The top-level members of a valid JSON object, by unescaped key: the value when the
-    /// key appears once, `None` for a duplicate. Most lookups here ask for a key the body
-    /// lacks or one after `messages`, and gjson finds either only by scanning the object
-    /// (a coding agent's prompt is hundreds of KB). A plain path answers from this index;
-    /// anything else, and a duplicate key (gjson tries each in turn), scans as before.
-    keys: Option<std::collections::HashMap<Vec<u8>, Option<Res<'a>>>>,
+    /// The raw values of the [`INDEXED_ROOTS`] members of a valid JSON object, borrowed from
+    /// the body: `None` while a root is absent, `Some(None)` for a duplicate key (gjson tries
+    /// each in turn, so those lookups scan). Most lookups here ask for a root the body lacks
+    /// or one after `messages`, which gjson finds only by scanning the whole object (a
+    /// coding agent's prompt is hundreds of KB). Other members are skipped without being
+    /// decoded; a body with an escaped key gets no index.
+    roots: Option<[Option<Option<&'a [u8]>>; INDEXED_ROOTS.len()]>,
 }
+
+/// The top-level keys session extraction looks up through [`Body`]. A root missing here
+/// only means that lookup scans the body as gjson does.
+const INDEXED_ROOTS: [&str; 52] = [
+    "actionID",
+    "actionId",
+    "action_id",
+    "cachedContent",
+    "cached_content",
+    "chatId",
+    "chat_id",
+    "childSessionId",
+    "child_session_id",
+    "contents",
+    "conversation",
+    "conversationId",
+    "conversation_id",
+    "extra_body",
+    "forkSource",
+    "fork_source",
+    "forked_from_id",
+    "forked_from_thread_id",
+    "metadata",
+    "parentActionID",
+    "parentActionId",
+    "parentConversationID",
+    "parentConversationId",
+    "parentID",
+    "parentId",
+    "parentSession",
+    "parentSessionID",
+    "parentSessionId",
+    "parentSubagentId",
+    "parentTaskID",
+    "parentTaskId",
+    "parentThreadID",
+    "parentThreadId",
+    "parent_action_id",
+    "parent_conversation_id",
+    "parent_id",
+    "parent_session",
+    "parent_session_id",
+    "parent_subagent_id",
+    "parent_task_id",
+    "parent_thread_id",
+    "previousSessionId",
+    "previous_session_id",
+    "promptCacheKey",
+    "prompt_cache_key",
+    "request",
+    "sessionID",
+    "sessionId",
+    "session_id",
+    "taskID",
+    "taskId",
+    "task_id",
+];
 
 impl<'a> Body<'a> {
     fn new(payload: &'a [u8]) -> Self {
         let object = payload.iter().find(|b| !b.is_ascii_whitespace()) == Some(&b'{');
-        let keys = (object && json::valid(payload)).then(|| {
-            let mut keys = std::collections::HashMap::new();
-            json::parse(payload).each(|key, value| {
-                keys.entry(key.bytes().into_owned())
-                    .and_modify(|v| *v = None)
-                    .or_insert(Some(value));
-                true
+        let roots = (object && json::valid(payload)).then(|| {
+            let mut roots = [None; INDEXED_ROOTS.len()];
+            let mut escaped = false;
+            json::object_members(payload, |key, esc, value| {
+                escaped |= esc;
+                if let Some(at) = INDEXED_ROOTS.iter().position(|r| r.as_bytes() == key) {
+                    roots[at] = Some(if roots[at].is_some() { None } else { Some(value) });
+                }
+                !escaped
             });
-            keys
+            (!escaped).then_some(roots)
         });
         let mut body = Self {
             json: payload,
             nested: false,
             exists: false,
-            keys,
+            roots: roots.flatten(),
         };
         if !payload.is_empty() {
             body.nested = body.get("request").exists() && !body.get("contents").exists();
@@ -193,14 +253,15 @@ impl<'a> Body<'a> {
                     .bytes()
                     .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
         };
-        if let Some(keys) = &self.keys
+        let (first, rest) = path.split_once('.').map_or((path, None), |(f, r)| (f, Some(r)));
+        if let Some(roots) = &self.roots
             && path.split('.').all(plain)
+            && let Some(at) = INDEXED_ROOTS.iter().position(|r| *r == first)
         {
-            let (first, rest) = path.split_once('.').map_or((path, None), |(f, r)| (f, Some(r)));
-            match (keys.get(first.as_bytes()), rest) {
+            match (roots[at], rest) {
                 (None, _) => return Res::default(),
-                (Some(Some(value)), None) => return value.clone(),
-                (Some(Some(value)), Some(rest)) if value.raw.first() == Some(&b'{') => return value.get(rest),
+                (Some(Some(value)), None) => return json::parse(value),
+                (Some(Some(value)), Some(rest)) if value.first() == Some(&b'{') => return json::get(value, rest),
                 _ => {}
             }
         }
@@ -1786,6 +1847,41 @@ mod tests {
         assert_eq!(cpa_session_id(None), None);
     }
 
+    /// Allocations on this thread (see [`crate::alloc_count`]).
+    fn allocated(f: impl FnOnce()) -> usize {
+        let before = crate::alloc_count::bytes();
+        f();
+        crate::alloc_count::bytes() - before
+    }
+
+    /// The index borrows raw slices and decodes on lookup, so a large escaped `system`
+    /// string and many top-level keys session extraction never asks for cost no memory:
+    /// building the index and the extractors' lookups allocate exactly what they do on a
+    /// body with only the queried keys. The previous index decoded every member (the
+    /// escaped string included) and stored each key.
+    #[test]
+    fn body_index_allocates_nothing_for_unrelated_keys() {
+        use crate::json;
+        let small = r#"{"metadata":{"user_id":"u1"},"model":"m"}"#.to_owned();
+        let mut big = String::from(r#"{"metadata":{"user_id":"u1"},"model":"m","system":""#);
+        big.push_str(&r#"line \"quoted\" \u00e9\n"#.repeat(50_000));
+        big.push('"');
+        for i in 0..2_000 {
+            big.push_str(&format!(r#","unrelated_{i}":{{"x":"\u0041{i}"}}"#));
+        }
+        big.push('}');
+        assert!(json::valid(big.as_bytes()));
+        let lookups = |payload: &str| {
+            let body = super::Body::new(payload.as_bytes());
+            assert!(body.roots.is_some());
+            assert_eq!(body.root("metadata.user_id"), "u1");
+            assert_eq!(body.first(super::PARENT_PATHS), "");
+            assert_eq!(body.first(&["conversation_id", "chat_id"]), "");
+        };
+        let (small_bytes, big_bytes) = (allocated(|| lookups(&small)), allocated(|| lookups(&big)));
+        assert_eq!(big_bytes, small_bytes, "allocations independent of unrelated members");
+    }
+
     /// `Body` answers lookups for absent top-level keys without scanning. gjson matches
     /// unescaped keys, so an escaped key must still be found, a key nested under another
     /// must not count as top-level, and an invalid body keeps gjson's own scan.
@@ -1799,14 +1895,14 @@ mod tests {
             "c3"
         );
         assert_eq!(id(r#"{"metadata":{"conversation_id":"m"}}"#), "");
-        // Not valid JSON (a trailing comma): no key set, gjson's scan still finds it.
+        // Not valid JSON (a trailing comma): no index, gjson's scan still finds it.
         assert_eq!(id(r#"{"messages":[1,],"conversation_id":"c4"}"#), "c4");
         let nested = super::Body::new(br#"{"request":{"conversation_id":"r1"}}"#);
         assert!(nested.nested);
         assert_eq!(nested.first(&["conversation_id"]), "r1");
         let body = super::Body::new(br#"{"metadata":{"user_id":"u1"}}"#);
         assert_eq!(body.root("metadata.user_id"), "u1");
-        assert!(body.keys.is_some());
+        assert!(body.roots.is_some());
         // Every lookup agrees with a plain gjson lookup on the whole document, including
         // duplicate keys (gjson moves on to the next one when the first lacks the rest),
         // a string where an object was expected, and a key after a long `messages`.
@@ -1819,6 +1915,7 @@ mod tests {
             r#"{"metadata":"{\"user_id\":\"s\"}","x":{"user_id":"no"}}"#,
             r#"{"metadata":{"user_id":{"x":1}},"prompt_cache_key":17,"thread_id":true}"#,
             r#"{"request":{"metadata":{"user_id":"r2"}},"contents":[]}"#,
+            " {\n \"metadata\" :\t{ \"user_id\" : \"w\" } , \"thread_id\" : 5 , \"prompt_cache_key\" : null } ",
             long.as_str(),
         ];
         let paths = [
@@ -1835,7 +1932,7 @@ mod tests {
         ];
         for payload in payloads {
             let body = super::Body::new(payload.as_bytes());
-            assert!(body.keys.is_some(), "{payload}");
+            assert!(body.roots.is_some(), "{payload}");
             for path in paths {
                 let (fast, slow) = (body.get(path), crate::json::get(payload.as_bytes(), path));
                 assert_eq!(

@@ -1586,6 +1586,60 @@ pub fn get<'a>(json: &'a [u8], path: &(impl JsonPath + ?Sized)) -> Res<'a> {
     c.value
 }
 
+/// The members of a JSON object that [`valid`] accepted, in document order, as borrowed
+/// raw slices: the key without its quotes and whether it holds escapes, then the value
+/// (a string keeps its quotes). Nothing is decoded or allocated; `f` returning false
+/// stops the walk. Anything but an object visits nothing.
+pub fn object_members<'a>(json: &'a [u8], mut f: impl FnMut(&'a [u8], bool, &'a [u8]) -> bool) {
+    let ws = |json: &[u8], mut i: usize| {
+        while i < json.len() && json[i].is_ascii_whitespace() {
+            i += 1;
+        }
+        i
+    };
+    let mut i = ws(json, 0);
+    if json.get(i) != Some(&b'{') {
+        return;
+    }
+    i += 1;
+    loop {
+        i = ws(json, i);
+        if json.get(i) != Some(&b'"') {
+            return;
+        }
+        let (next, end, esc, ok) = parse_string(json, i + 1);
+        if !ok {
+            return;
+        }
+        let key = &json[i + 1..end - 1];
+        i = ws(json, next);
+        if json.get(i) != Some(&b':') {
+            return;
+        }
+        let start = ws(json, i + 1);
+        let end = match json.get(start) {
+            Some(b'{' | b'[') => parse_squash(json, start).1,
+            Some(b'"') => parse_string(json, start + 1).1,
+            Some(_) => {
+                let mut e = start;
+                while e < json.len() && !matches!(json[e], b',' | b'}' | b']') && !json[e].is_ascii_whitespace() {
+                    e += 1;
+                }
+                e
+            }
+            None => return,
+        };
+        if !f(key, esc, &json[start..end]) {
+            return;
+        }
+        i = ws(json, end);
+        if json.get(i) != Some(&b',') {
+            return;
+        }
+        i += 1;
+    }
+}
+
 /// gjson.Parse: the first value, with containers taking the rest of the input as raw.
 pub fn parse(json: &[u8]) -> Res<'_> {
     let mut i = 0;

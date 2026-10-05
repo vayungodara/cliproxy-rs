@@ -77,3 +77,40 @@ pub(crate) fn recorded_value(b: &[u8]) -> serde_json::Value {
         Err(_) => serde_json::json!({"b64": base64::engine::general_purpose::STANDARD.encode(b)}),
     }
 }
+
+/// Test-only allocation counter: bytes allocated on the current thread, so parallel
+/// tests do not disturb each other.
+#[cfg(test)]
+pub(crate) mod alloc_count {
+    use std::alloc::{GlobalAlloc, Layout, System};
+    use std::cell::Cell;
+
+    thread_local! {
+        static BYTES: Cell<usize> = const { Cell::new(0) };
+    }
+
+    struct Counting;
+
+    // SAFETY: forwards to the system allocator unchanged; the counter is a const
+    // thread-local that never allocates.
+    unsafe impl GlobalAlloc for Counting {
+        unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+            let _ = BYTES.try_with(|b| b.set(b.get() + layout.size()));
+            unsafe { System.alloc(layout) }
+        }
+        unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+            unsafe { System.dealloc(ptr, layout) }
+        }
+        unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+            let _ = BYTES.try_with(|b| b.set(b.get() + new_size));
+            unsafe { System.realloc(ptr, layout, new_size) }
+        }
+    }
+
+    #[global_allocator]
+    static GLOBAL: Counting = Counting;
+
+    pub(crate) fn bytes() -> usize {
+        BYTES.with(Cell::get)
+    }
+}
