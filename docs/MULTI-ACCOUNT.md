@@ -1,6 +1,6 @@
 # Several accounts
 
-This guide is for people with more than one Claude or ChatGPT (Codex) account who want cliproxy-rs to spread work across them and move on when one reaches its limit. It assumes the proxy is already running ([GETTING-STARTED.md](GETTING-STARTED.md)).
+This guide covers routing across your own accounts and API keys, for use on your own machines. Do not pool other people's subscriptions. Read [Accounts and provider terms](../README.md#accounts-and-provider-terms). It assumes the proxy is already running ([GETTING-STARTED.md](GETTING-STARTED.md)).
 
 ## Add the accounts
 
@@ -20,9 +20,9 @@ The provider's sign-in page uses whatever account your browser is logged into. T
 | Strategy | What it does | Use it when |
 |---|---|---|
 | `round-robin` (default) | Takes the accounts in turn, one request each. | The accounts are alike and you want the load even. |
-| `fill-first` | Uses one account until it cools down or reaches a limit, then the next. | You want to drain one plan before touching the others, for example a main account and spares. |
+| `fill-first` | Uses one account until it cools down or reaches a limit, then the next. | You prefer one account and keep another as a fallback. |
 | `weighted-round-robin` | Takes the accounts in turn in proportion to each account's `weight`. An account with weight 0 is left out. | The plans differ in size, for example a Max plan next to two Pro plans. |
-| `soonest-reset` (experimental, a cliproxy-rs addition) | Spends the account whose weekly window resets soonest first, until it cools down or uses up a window, then moves to the next. An account whose reset time is not known yet gets one probe request so the proxy can learn it. | You want to use up each week's allowance before it resets and is lost. CLIProxyAPI reads this value as `round-robin`. |
+| `soonest-reset` (experimental, a cliproxy-rs addition) | Selects the account whose weekly window resets soonest, until it cools down or reaches a limit. An account without a known reset gets one request to learn it. | You want selection ordered by reset time. CLIProxyAPI reads this value as `round-robin`. |
 
 `soonest-reset` is experimental and only runs if you choose it. Please report anything that looks wrong.
 
@@ -32,7 +32,7 @@ Each account can also have a `priority` (default 0). The proxy only uses the acc
 
 ## Session affinity
 
-For Claude and Codex subscriptions, turn it on:
+The installer enables affinity for new configs. It leaves an existing config unchanged. To enable it by hand:
 
 ```yaml
 routing:
@@ -41,7 +41,7 @@ routing:
 
 With affinity on, a conversation stays on the account that served its first request. Providers keep a prompt cache per account, so the next turn of a conversation on the same account reads the long shared beginning from cache: it is cheaper against your limits and the reply starts sooner. Moving a conversation to another account throws that cache away. The proxy recognises a conversation from the session headers that Claude Code, Codex, OpenCode and similar tools send. When a request has none, the proxy matches its messages against the conversations it has seen for the same client key and model: a conversation that grows keeps its account, a branch of an earlier conversation stays on that conversation's account, and a conversation whose early history was summarised (compacted) is recognised from the turns it kept. A request that matches no earlier conversation starts a new one, which its next turns are matched against. Message matching needs a client key (`access.api-keys`) and at least one message that is not a system message; a request without either is identified by its instructions and first user message instead, and when it has no user message, by a hash of its first messages.
 
-Affinity is off by default, in cliproxy-rs and in CLIProxyAPI. It works together with the routing strategy: a conversation that is already bound keeps its account, and only new conversations follow the strategy. With `soonest-reset`, new conversations go to the account whose week resets soonest, while running ones finish where they started. When the bound account cools down or is disabled, the conversation moves to another account automatically. `session-affinity-ttl` (default `"1h"`) is how long an idle conversation keeps its account, and `session-affinity-subagents` (default `true`) puts the subagents that a tool starts on their parent's account too, so they share its cache.
+When `session-affinity` is omitted, both cliproxy-rs and CLIProxyAPI default to off. Affinity works with the routing strategy: a bound conversation keeps its account; new conversations follow the strategy. When the bound account cools down or is disabled, the conversation moves to another account. `session-affinity-ttl` (default `"1h"`) controls how long an idle conversation keeps its account. `session-affinity-subagents` (default `true`) binds child sessions to their parent's account too.
 
 ## Cooldowns and limits
 
@@ -54,6 +54,8 @@ When a provider answers 429 (too many requests, or a used-up limit), the proxy r
 - A successful request on the account clears its cooldown for that model.
 
 `routing.retry.request-retry` (default 0) adds rounds over the accounts when every attempt in a round failed, and `routing.retry.max-retry-interval` (seconds, default 0) lets the proxy wait for an account to come out of cooldown instead of failing at once. The Reset cooldown button on the Credentials and Quotas pages clears the proxy's own record only; it does not give back any provider limit.
+
+The optional ["plan limits only" preset](CONFIGURATION.md#optional-plan-limits-only-preset) keeps 429 failover for OAuth accounts but stops on the listed non-quota errors instead of trying another account.
 
 ## Read the quota view
 
@@ -83,7 +85,7 @@ These settings go in the account's file in `auth-dir` (the server reloads it whe
 
 `proxy_url` sends that account's requests through its own proxy (`http://`, `https://`, `socks5://` or `socks5h://`); `"direct"` skips every proxy. Without it, the account uses `requests.proxy-url` from `config.yaml`. When neither is set, most providers follow the `HTTPS_PROXY` environment variables, while Claude accounts connect directly. For an API key in `config.yaml`, the same setting is `proxy-url` on the key's entry.
 
-Claude accounts also take `cloak_mode`. Requests that do not come from Claude Code are reshaped to look like Claude Code's own requests: `"auto"` (the default) does this only for clients other than Claude Code, `"always"` does it for every client the proxy cannot confirm as Claude Code, and `"never"` turns it off. `cloak_strict_mode`, `cloak_sensitive_words` (comma separated) and `cloak_cache_user_id` fine-tune it. `oauth.providers.claude.disable-claude-cloak-mode: true` in `config.yaml` turns it off for every Claude account. For Claude API keys, the same options sit in a `cloak` block on the key's entry (`mode`, `strict-mode`, `sensitive-words`, `cache-user-id`).
+Claude request shaping follows CLIProxyAPI's rules. It can rewrite system prompts for non-native clients. Those rewrites do not make third-party subscription use permitted. For Claude outside its native applications, use an API key or supported cloud provider.
 
 ## Codex over WebSocket
 

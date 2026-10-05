@@ -23,9 +23,9 @@ The way back works too. In our tests against fake sign-in servers, Go 6fecc6e li
 4. Start cliproxy-rs with the same config: `cliproxy --config /path/to/config.yaml`.
 5. Open `/management.html` and check that your credentials are listed and healthy, then send a test request with one of your client keys.
 
-If you run Go as a systemd service or in Docker, replace the binary or image and keep the same paths. See [INSTALL.md](INSTALL.md) for both.
+For a systemd service, replace the binary and keep your config and credential paths. Docker users cannot keep the same container paths with the current image: mount the writable data directory at `/data`, put the config at `/data/config.yaml`, and set `oauth.auth-dir: /data/auth`. The container runs as uid and gid 10001. [INSTALL.md](INSTALL.md#docker) covers volume ownership, listen address and management access.
 
-Do not run Go and cliproxy-rs against the same credential directory at the same time. Both refresh OAuth tokens in the background and write the new tokens to the files. Some providers rotate the refresh token on every refresh, so a refresh by one server can invalidate the token the other is holding, and the account then needs a new sign-in. To try cliproxy-rs next to Go, give it a copy of the directory and a different port, or connect a separate test account.
+Do not run Go and cliproxy-rs with credentials for the same account at the same time, even from separate copies of the auth directory. Both refresh OAuth tokens. A provider that rotates refresh tokens can invalidate the token held by the other server and force a new sign-in. A copied auth directory is not an isolated test. To try both servers side by side, use a separate test account and a different port. Keep the backup private, and do not assume its refresh tokens remain usable after either server refreshes them.
 
 ## Command-line flags
 
@@ -39,11 +39,9 @@ These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs d
 
 | Go setting or feature | In cliproxy-rs |
 | --- | --- |
-| `observability.logs.request-log` and error request logs | Request log files and per-request error logs are written as in Go, with the client's request (headers masked) and the response it received, but without Go's `=== API REQUEST ===` and `=== API RESPONSE ===` sections: the provider executors do not report the upstream exchange to the log yet. |
 | `pprof` | No profiling endpoint. |
-| `gpt-image` models through Codex accounts | `/v1/images/generations` and `/v1/images/edits` reach xAI and OpenAI-compatible upstreams only. A request that routes to a Codex credential fails; Go serves it through the ChatGPT backend. |
 | Plugins on the request path | Frontend auth, model routers and the plugin executors they route to, request, response and stream-chunk interceptors, the request lifecycle and usage plugins run as in Go, and so do the `host.http.*`, `host.auth.*` and `host.affinity.lookup` callbacks. Providers owned by a plugin are not served yet: an auth file a plugin parses (including one saved by a plugin sign-in) is not loaded as a credential, and plugin models and executors are only reached through a model router. Plugin schedulers, request and response translators, thinking appliers, the `host.model.*` callbacks and the WebSocket response observer are not called. |
-| Home reporting and storage | With `-home-jwt`, bootstrap, config updates and dispatch through Home work, but usage, logs and in-flight requests are not reported back to Home, Home's KV storage is not used, and Home's plugin sync, plugin tasks and plugin status reports are not implemented. Plugins load from the local configuration only. |
+| Home-managed plugins | With `-home-jwt`, bootstrap, config updates, dispatch, usage, process and request logs, in-flight reporting and shared KV state work. Home's plugin sync, tasks and status reports are not implemented. Plugins load from the local configuration only. |
 | `management.panel-github-repository`, `management.disable-auto-update-panel`, `MANAGEMENT_STATIC_PATH` | The dashboard is built into the binary and never downloaded or read from disk. `management.disable-control-panel` is honoured. |
 | Config reload log summaries | The config is reloaded, but the changes are not summarised in the log. |
 
@@ -57,7 +55,7 @@ The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, coold
 
 Not available on cliproxy-rs:
 
-- `server/latest-version` answers `502` with "no release repository is configured" until cliproxy-rs publishes releases. Go asks GitHub for the latest CLIProxyAPI release.
+- `server/latest-version` answers `502` with "no release repository is configured". The default lookup URL is empty, even though cliproxy-rs has releases. Go asks GitHub for the latest CLIProxyAPI release.
 
 The bundled dashboard checks which server it is talking to and marks these features as not available instead of failing.
 
@@ -69,7 +67,7 @@ A few behaviours differ from Go on purpose, for example config writes keep the r
 
 Features Go does not have. Each is opt-in; the defaults behave as Go does.
 
-- Reset-aware routing: `routing.strategy: soonest-reset` (alias `reset-first`). Among the accounts available right now, cliproxy-rs sends requests to the one whose weekly usage window resets soonest, and keeps using it until it cools down or one of its usage windows (Claude's 5-hour or 7-day, Codex's primary or secondary) is used up. Then it moves to the account with the next soonest reset. This spends quota that would otherwise expire at the reset, instead of spreading requests evenly. Reset times come from the rate-limit headers of each account's latest response (`anthropic-ratelimit-unified-*` for Claude, `x-codex-*` for Codex). An account without a known reset (not used yet, or its reset has passed) first gets one request, so its reset is learned, and then ranks by it. An account whose responses carry no reset comes after the accounts with a known reset. Accounts that rank equally take turns. Session affinity still wins: a conversation bound to an account stays on it. With several providers for one model, the first provider is used, as with `fill-first`. The default stays `round-robin`. Go reads `soonest-reset` as `round-robin`.
+- Reset-aware routing: `routing.strategy: soonest-reset` (alias `reset-first`). Among ready accounts, it selects the one whose weekly window resets soonest. It stays there until the account cools down or reaches a usage limit, then moves to the next. Reset times come from each account's latest response headers (`anthropic-ratelimit-unified-*` for Claude, `x-codex-*` for Codex). An account without a known future reset gets one request to learn it. Accounts without reset headers come after those with a known reset; equally ranked accounts take turns. Session affinity takes precedence. With several providers for one model, the first provider is selected, as with `fill-first`. This strategy is experimental and opt-in. The default remains `round-robin`; Go reads `soonest-reset` as `round-robin`.
 
 ## Switching back
 
