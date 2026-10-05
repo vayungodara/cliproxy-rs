@@ -159,7 +159,8 @@ pub(crate) fn remap(body: &str, secret: &str) -> (String, Reverse) {
             out = updated;
         }
     }
-    (String::from_utf8_lossy(&out).into_owned(), reverse)
+    let out = String::from_utf8(out).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
+    (out, reverse)
 }
 
 /// The renames of [`remap`] and the inverse map, read with Go's gjson semantics (which
