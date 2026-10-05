@@ -1,5 +1,5 @@
-# Idle cost outside the per-PR Linux gate: once a week, by hand, and on any push or pull
-# request that changes the file watcher or these gates.
+# Idle cost outside the per-PR Linux gate: once a week, by hand, and on a push to master
+# or a pull request that changes the file watcher or these gates.
 #
 # - macOS (Apple silicon and Intel) and Windows: release build, the file-watch tests,
 #   then the idle gate (bench/gate.sh, bench/budgets.txt).
@@ -7,6 +7,10 @@
 #   config in a loopback-only network, 30 s of warm-up, then 300 s of samples. No OAuth
 #   credentials are involved, so nothing can be signed out. The numbers go to the job
 #   summary and an artifact; they are reported, not gated.
+# One run per change: pushes to master, and pull requests through `pull_request` only. A
+# branch push used to start a second run of every job for the same commit. Runs are
+# grouped per pull request (or per ref outside one), and a newer push cancels the older
+# run.
 name: idle
 
 on:
@@ -14,6 +18,7 @@ on:
     - cron: "23 4 * * 1"
   workflow_dispatch:
   push:
+    branches: [master]
     paths:
       - crates/cpa-server/src/fs_events.rs
       - crates/cpa-server/src/watching.rs
@@ -36,7 +41,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:

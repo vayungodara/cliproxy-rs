@@ -5,7 +5,7 @@ name: Installers
 
 on:
   push:
-    branches: ["**"]
+    branches: [master]
     paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, crates/cliproxy/**, crates/cpa-server/src/logging.rs]
   pull_request:
     paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, crates/cliproxy/**, crates/cpa-server/src/logging.rs]
@@ -18,8 +18,10 @@ on:
 permissions:
   contents: read
 
+# Pushes to master and pull requests, not both for the same commit; grouped per pull
+# request so a newer push cancels the older run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
