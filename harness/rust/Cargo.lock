@@ -536,6 +536,7 @@ dependencies = [
  "http-body",
  "hyper",
  "hyper-util",
+ "libc",
  "regex",
  "serde",
  "serde_json",
@@ -550,6 +551,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "windows-sys",
  "wreq",
  "zstd",
 ]

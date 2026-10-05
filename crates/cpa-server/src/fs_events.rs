@@ -111,12 +111,6 @@ impl Events {
         Self { watch }
     }
 
-    /// Whether events come from the kernel rather than the 2-second fallback.
-    #[cfg(test)]
-    pub fn native(&self) -> bool {
-        self.watch.is_some()
-    }
-
     /// Returns when something may have changed.
     pub async fn changed(&mut self) {
         match &mut self.watch {
@@ -159,6 +153,7 @@ mod sys {
     use std::io;
     use std::os::fd::{AsRawFd, FromRawFd, OwnedFd};
     use std::os::unix::ffi::OsStrExt;
+    use tokio::io::Interest;
     use tokio::io::unix::AsyncFd;
 
     const MASK: u32 = libc::IN_CREATE
@@ -185,7 +180,7 @@ mod sys {
                 return Err(io::Error::last_os_error());
             }
             // SAFETY: `raw` is a fresh descriptor nobody else owns.
-            let fd = AsyncFd::new(unsafe { OwnedFd::from_raw_fd(raw) })?;
+            let fd = AsyncFd::with_interest(unsafe { OwnedFd::from_raw_fd(raw) }, Interest::READABLE)?;
             let mut watch = Self {
                 fd,
                 dirs: Vec::new(),
@@ -282,6 +277,7 @@ mod sys {
     use std::os::unix::ffi::OsStrExt;
     use std::os::unix::fs::MetadataExt;
     use std::path::PathBuf;
+    use tokio::io::Interest;
     use tokio::io::unix::AsyncFd;
 
     /// macOS `OPEN_MAX`, the most `setrlimit` accepts for descriptors.
@@ -309,7 +305,9 @@ mod sys {
             // SAFETY: plain syscall on our own descriptor.
             unsafe { libc::fcntl(raw, libc::F_SETFD, libc::FD_CLOEXEC) };
             let mut watch = Self {
-                kq: AsyncFd::new(owned)?,
+                // Read interest only: a kqueue descriptor supports EVFILT_READ, and
+                // registering it for writes fails.
+                kq: AsyncFd::with_interest(owned, Interest::READABLE)?,
                 open: HashMap::new(),
             };
             watch.retarget(targets)?;
@@ -486,6 +484,9 @@ mod sys {
         /// Signalled to make the thread reread `next` (or stop when it is `None`).
         control: Handle,
         next: Mutex<Option<Vec<Dir>>>,
+        /// Where the thread reports whether it opened the folders of `next`; the caller
+        /// waits for it, so no change made after a retarget can be missed.
+        opened: Mutex<Option<std::sync::mpsc::Sender<io::Result<()>>>>,
         changed: Notify,
         failed: Mutex<Option<io::Error>>,
     }
@@ -498,18 +499,21 @@ mod sys {
     impl Watch {
         pub fn new(targets: &Targets) -> io::Result<Self> {
             let dirs = dirs(targets);
+            let (opened_tx, opened_rx) = std::sync::mpsc::channel();
             let shared = Arc::new(Shared {
                 control: event()?,
                 next: Mutex::new(Some(dirs.clone())),
+                opened: Mutex::new(Some(opened_tx)),
                 changed: Notify::new(),
                 failed: Mutex::new(None),
             });
-            let (ready_tx, ready_rx) = std::sync::mpsc::channel();
             let thread_shared = shared.clone();
             std::thread::Builder::new()
                 .name("config-watch".into())
-                .spawn(move || run(&thread_shared, ready_tx))?;
-            ready_rx.recv().map_err(|_| io::Error::other("watch thread exited"))??;
+                .spawn(move || run(&thread_shared))?;
+            opened_rx
+                .recv()
+                .map_err(|_| io::Error::other("watch thread exited"))??;
             Ok(Self { shared, dirs })
         }
 
@@ -518,11 +522,14 @@ mod sys {
             if next == self.dirs {
                 return Ok(());
             }
+            let (opened_tx, opened_rx) = std::sync::mpsc::channel();
+            *self.shared.opened.lock().unwrap_or_else(PoisonError::into_inner) = Some(opened_tx);
             *self.shared.next.lock().unwrap_or_else(PoisonError::into_inner) = Some(next.clone());
             self.dirs = next;
             // SAFETY: a valid event handle.
             unsafe { SetEvent(self.shared.control.0) };
-            Ok(())
+            // Milliseconds: the thread only reopens the folder handles.
+            opened_rx.recv().map_err(|_| io::Error::other("watch thread exited"))?
         }
 
         pub async fn changed(&mut self) -> io::Result<()> {
@@ -651,17 +658,17 @@ mod sys {
         }
     }
 
-    fn run(shared: &Shared, ready: std::sync::mpsc::Sender<io::Result<()>>) {
-        let mut ready = Some(ready);
+    fn run(shared: &Shared) {
         loop {
             let Some(dirs) = shared.next.lock().unwrap_or_else(PoisonError::into_inner).clone() else {
                 return;
             };
             let opened: io::Result<Vec<Pending>> = dirs.iter().map(Pending::open).collect();
+            let reply = shared.opened.lock().unwrap_or_else(PoisonError::into_inner).take();
             let mut pending = match opened {
                 Ok(p) => p,
                 Err(e) => {
-                    match ready.take() {
+                    match reply {
                         Some(tx) => drop(tx.send(Err(e))),
                         None => {
                             *shared.failed.lock().unwrap_or_else(PoisonError::into_inner) = Some(e);
@@ -671,7 +678,7 @@ mod sys {
                     return;
                 }
             };
-            if let Some(tx) = ready.take() {
+            if let Some(tx) = reply {
                 let _ = tx.send(Ok(()));
             }
             loop {
@@ -776,8 +783,10 @@ mod tests {
         std::fs::write(&t.config, "port: 1\n").unwrap();
         std::fs::write(root.join("auth/a.json"), "{}").unwrap();
         t.files.push(root.join("auth/a.json"));
-        let mut events = Events::new(&t);
-        assert!(events.native());
+        // Directly, so a setup failure shows its error instead of falling back.
+        let mut events = Events {
+            watch: Some(sys::Watch::new(&t).expect("file change notifications")),
+        };
         assert!(!fires(&mut events).await, "no event while nothing changes");
         // An unrelated file next to the config is ignored (kqueue sees only folders).
         std::fs::write(root.join("notes.txt"), "x").unwrap();
