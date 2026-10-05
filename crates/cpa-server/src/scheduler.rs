@@ -666,9 +666,12 @@ fn quota_backoff(level: u32) -> (Duration, u32) {
 /// than `cap` doubled `level` times is cut to that bound and `level` counts one more
 /// window, so the next ordinary request after the bound probes the account. An early
 /// provider reset is then noticed within the bound instead of after the stated time.
-/// A 429 that lands inside a live window (a concurrent request) keeps that window's
-/// deadline and level: it returns zero and the caller keeps the later deadline. Success
-/// clears the cooldown and with it `level`.
+/// A 429 that lands while a cooldown is live (a concurrent request) gets the bound of
+/// the window in progress and keeps `level`, so it does not count as a new window; the
+/// caller keeps the later deadline, which moves by at most the time between the two
+/// answers. A live cooldown that was not bounded (a 503, or a 429 without a reset)
+/// has no window in progress: level 0 gives it the first bound. Success clears the
+/// cooldown and with it `level`.
 ///
 /// ponytail: requests that arrive together after a window all go upstream before the
 /// first 429 lands; reserve the probe at pick time if that ever costs real quota.
@@ -685,7 +688,7 @@ fn trusted(stated: Duration, cap: Duration, level: &mut u32, live: bool) -> Dura
         return stated;
     }
     *level = step + 1;
-    if live { Duration::ZERO } else { bound }
+    bound
 }
 
 /// Go `recoverableFailureRetryAfterWithHint`.
@@ -1697,12 +1700,17 @@ mod tests {
             for window in [1, 2, 4, 8, 16, 32, 64] {
                 s.record(&c, "m", &quota(now, scope), &p, now);
                 assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(window * H)), "{scope:?}");
-                // A concurrent 429 inside the window neither extends nor escalates it.
-                let inside = now + Duration::from_secs(60);
+                // A concurrent 429 answered a second later keeps the window's bound and
+                // does not escalate it.
+                let inside = now + Duration::from_secs(1);
                 s.record(&c, "m", &quota(inside, scope), &p, inside);
-                assert_eq!(s.wait(&c, "m", now), Some(Duration::from_secs(window * H)), "{scope:?}");
-                assert!(s.retry_eligible(&c, "m", now + Duration::from_secs(window * H)));
-                now += Duration::from_secs(window * H);
+                assert_eq!(
+                    s.wait(&c, "m", inside),
+                    Some(Duration::from_secs(window * H)),
+                    "{scope:?}"
+                );
+                now = inside + Duration::from_secs(window * H);
+                assert!(s.retry_eligible(&c, "m", now));
             }
             // 127 hours have passed; the next window would be 128 hours, past the reset.
             s.record(&c, "m", &quota(now, scope), &p, now);
@@ -1733,6 +1741,17 @@ mod tests {
                 Some(Duration::from_secs(H)),
                 "{scope:?}: back to the first bound"
             );
+        }
+        // A reset that arrives during a cooldown the bound did not set (a 503, a 429
+        // without a reset) gets the first bound, not the shorter live deadline.
+        for (status, hint) in [(503, None), (429, None)] {
+            let mut s = Scheduler::default();
+            let mut e = ExecError::local(status, FailureScope::Model, "earlier");
+            e.retry_after = hint;
+            s.record(&c, "m", &Outcome::Failure(e), &p, start);
+            let at = start + Duration::from_millis(500);
+            s.record(&c, "m", &quota(at, FailureScope::Model), &p, at);
+            assert_eq!(s.wait(&c, "m", at), Some(Duration::from_secs(H)), "after {status}");
         }
         // A reset shorter than the bound is kept as stated.
         let mut s = Scheduler::default();
