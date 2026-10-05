@@ -467,7 +467,7 @@ diff -ruN a/gjson/src/test.rs b/gjson/src/test.rs
 diff -ruN a/gjson/src/valid.rs b/gjson/src/valid.rs
 --- a/gjson/src/valid.rs
 +++ b/gjson/src/valid.rs
-@@ -205,20 +205,28 @@
+@@ -205,20 +205,29 @@
      (c >= b'0' && c <= b'9') || (c >= b'a' && c <= b'f') || (c >= b'A' && c <= b'F')
  }
  
@@ -499,13 +499,14 @@ diff -ruN a/gjson/src/valid.rs b/gjson/src/valid.rs
 -                    i += 1;
 -                }
 -            }
-+            // cliproxy-rs: skip eight plain bytes at a time; the byte loop below still
-+            // decides every STRING byte, so the result is the same.
++            // cliproxy-rs: jump over the plain span up to the next `"` or `\` (memchr2),
++            // stopping early at a control byte; the byte loop below still decides every
++            // STRING byte, so the result is the same.
 +            i = skip_plain(json, i);
              while i < json.len() {
                  ch = json[i];
                  if TABLE[ch as usize] & STRING == STRING {
-@@ -462,3 +470,8 @@
+@@ -462,3 +471,8 @@
          assert_eq!(valid(r#"[ 123.0e1f"#), false);
      }
  }

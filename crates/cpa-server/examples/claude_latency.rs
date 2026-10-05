@@ -21,7 +21,9 @@
 //!   `cpa_latency` trace events (handler entered, credential selected, executor entered,
 //!   request translated, upstream request ready) and the mock's timestamps;
 //! - `new_upstream_conns`: TCP (+TLS) connections the mock accepted during the
-//!   measured requests, and the median connect+handshake time the mock saw for them;
+//!   measured requests, and `conn_setup_p50_ms`, the median server-side setup time
+//!   after `accept()` returned: the TLS handshake on the OAuth path, next to nothing on
+//!   the plain-HTTP API-key path. The TCP connect itself is not included;
 //! - `process_vmhwm_kb`: this process's peak resident memory so far (proxy, mock and
 //!   client together), so an upper bound on the proxy's own peak.
 //!
@@ -135,6 +137,7 @@ fn marker(body: &[u8]) -> Option<u64> {
 async fn serve_mock(listener: tokio::net::TcpListener, tls: Option<Arc<btls::ssl::SslAcceptor>>, mock: Arc<Mock>) {
     loop {
         let (tcp, _) = listener.accept().await.unwrap();
+        // Setup time starts here, after the TCP connect completed (not measured).
         let accepted = Instant::now();
         tcp.set_nodelay(true).unwrap();
         let (tls, mock) = (tls.clone(), mock.clone());
