@@ -23,13 +23,13 @@ The way back works too. In our tests against fake sign-in servers, Go 6fecc6e li
 4. Start cliproxy-rs with the same config: `cliproxy --config /path/to/config.yaml`.
 5. Open `/management.html` and check that your credentials are listed and healthy, then send a test request with one of your client keys.
 
-For a systemd service, replace the binary and keep your config and credential paths. Docker users cannot keep the same container paths with the current image: mount the writable data directory at `/data`, put the config at `/data/config.yaml`, and set `oauth.auth-dir: /data/auth`. The container runs as uid and gid 10001. [INSTALL.md](INSTALL.md#docker) covers volume ownership, listen address and management access.
+For a systemd service, replace the binary and keep your config and credential paths. The default Docker image expects `/data/config.yaml` and runs as UID/GID 10001. Update mounts and permissions, or override `--config` and set an accessible `oauth.auth-dir` to keep existing paths. [INSTALL.md](INSTALL.md#docker) covers volume ownership, listen address and management access.
 
 Do not run Go and cliproxy-rs with credentials for the same account at the same time, even from separate copies of the auth directory. Both refresh OAuth tokens. A provider that rotates refresh tokens can invalidate the token held by the other server and force a new sign-in. A copied auth directory is not an isolated test. To try both servers side by side, use a separate test account and a different port. Keep the backup private, and do not assume its refresh tokens remain usable after either server refreshes them.
 
 ## Command-line flags
 
-cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-config`) or with two dashes. These work as in Go: `-config`, `-claude-login`, `-codex-login`, `-codex-device-login`, `-kimi-login`, `-kimi-ai-login`, `-xai-login`, `-meta-login`, `-devin-login`, `-vertex-import` (with `-vertex-import-prefix`), `-no-browser`, `-oauth-callback-port`, `-password`, `-local-model`, `-home-jwt` (or `HOME_JWT`), and LAN discovery with `-discover` (or the `discover` subcommand) and its `-discover-*` options.
+cliproxy-rs accepts every CLIProxyAPI flag, in Go's single-dash spelling (`-config`) or with two dashes. These work as in Go: `-config`, `-claude-login`, `-codex-login`, `-codex-device-login`, `-kimi-login`, `-kimi-ai-login`, `-xai-login`, `-meta-login`, `-devin-login`, `-vertex-import` (with `-vertex-import-prefix`), `-no-browser`, `-oauth-callback-port`, `-password`, `--local-model`, `-home-jwt` (or `HOME_JWT`), and LAN discovery with `-discover` (or the `discover` subcommand) and its `-discover-*` options.
 
 `-antigravity-login` exits with a "not supported by cliproxy-rs yet" error and status 1. `-tui` and `-tui -standalone` open the terminal UI as in Go, with the differences listed in [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md).
 
@@ -41,7 +41,7 @@ These settings are accepted in `config.yaml` and kept on save, but cliproxy-rs d
 | --- | --- |
 | `pprof` | No profiling endpoint. |
 | Plugins on the request path | Frontend auth, model routers and the plugin executors they route to, request, response and stream-chunk interceptors, the request lifecycle and usage plugins run as in Go, and so do the `host.http.*`, `host.auth.*` and `host.affinity.lookup` callbacks. Providers owned by a plugin are not served yet: an auth file a plugin parses (including one saved by a plugin sign-in) is not loaded as a credential, and plugin models and executors are only reached through a model router. Plugin schedulers, request and response translators, thinking appliers, the `host.model.*` callbacks and the WebSocket response observer are not called. |
-| Home-managed plugins | With `-home-jwt`, bootstrap, config updates, dispatch, usage, process and request logs, in-flight reporting and shared KV state work. Home's plugin sync, tasks and status reports are not implemented. Plugins load from the local configuration only. |
+| Home-managed plugins | With `-home-jwt`, bootstrap, config updates, dispatch, usage, process and request logs, in-flight reporting and shared KV state work. Plugin binaries must already be installed locally; Home-supplied configuration can configure them, but Home-managed plugin sync, tasks and status reports are unavailable. |
 | `management.panel-github-repository`, `management.disable-auto-update-panel`, `MANAGEMENT_STATIC_PATH` | The dashboard is built into the binary and never downloaded or read from disk. `management.disable-control-panel` is honoured. |
 | Config reload log summaries | The config is reloaded, but the changes are not summarised in the log. |
 
@@ -55,7 +55,7 @@ The v8 routes for config, credentials, OAuth sign-in, `requests/api-call`, coold
 
 Not available on cliproxy-rs:
 
-- `server/latest-version` answers `502` with "no release repository is configured". The default lookup URL is empty, even though cliproxy-rs has releases. Go asks GitHub for the latest CLIProxyAPI release.
+- `server/latest-version` answers `502` with "no release repository is configured" because cliproxy-rs doesn't check for its own releases yet. Go asks GitHub for the latest CLIProxyAPI release.
 
 The bundled dashboard checks which server it is talking to and marks these features as not available instead of failing.
 

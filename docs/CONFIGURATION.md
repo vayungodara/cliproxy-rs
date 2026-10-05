@@ -88,11 +88,11 @@ How the server picks an account for each request. [MULTI-ACCOUNT.md](MULTI-ACCOU
 | `cooldown.disable-cooling` | `true` keeps failing accounts in rotation instead of resting them. |
 | `cooldown.transient-error-cooldown-seconds` | How long to rest an account after a temporary upstream error; `0` means 60 seconds, a negative value turns it off. |
 
-### Optional "plan limits only" preset
+### Optional preset: fail over only on 429
 
-This commented preset keeps 429 cooldown and failover for Claude and Codex OAuth accounts. For the listed request, authentication, billing and server errors, it returns the error without trying another account or adding a cooldown. Unlisted statuses keep normal handling. It does not increase plan limits, disable provider checks or apply to API keys. A credential's own `request_scoped_errors` rules take precedence.
+This commented preset keeps 429 cooldown and failover for Claude and Codex OAuth accounts. It stops ordinary failover after a failed attempt for the listed non-429 statuses, without adding a cooldown. Credential-preparation failures and an enabled `requests.streaming.bootstrap-retries` can still cause another attempt. Unlisted statuses keep normal handling. The preset applies only to OAuth accounts and leaves plan limits and provider checks unchanged. A credential's own `request_scoped_errors` rules take precedence.
 
-Uncomment the block to use it. `oauth-request-scoped-errors` is the accepted legacy spelling of `oauth.request-scoped-errors`; use one spelling, not both. The regular expression matches even an empty error body. Rules need a body matcher; status alone does not match.
+Uncomment the block to use it. `oauth-request-scoped-errors` is the legacy spelling of `oauth.request-scoped-errors`; use only one. `(?s).*` matches any body, including an empty one. Rules need a body matcher; status alone does not match.
 
 ```yaml
 # oauth-request-scoped-errors:
@@ -125,7 +125,7 @@ Claude accounts ignore `HTTPS_PROXY` and `HTTP_PROXY`. Without an explicit proxy
 |---|---|
 | `logs.logging-to-file` | `true` writes the log to `main.log` in a `logs` folder, rotated, instead of standard output. |
 | `logs.logs-max-total-size-mb` | The most disk space the log files may use. |
-| `logs.request-log` | `true` writes one file per request with client and upstream request/response sections. Captured credentials are redacted, but bodies can still hold private prompts and output. Keep the logs private. |
+| `logs.request-log` | `true` writes one file per request with client and upstream request/response sections. Recognised sensitive headers and URL fields are masked, but bodies can contain credentials, including Realtime client secrets, as well as private prompts and output. Keep the logs private. |
 
 ## Environment
 
