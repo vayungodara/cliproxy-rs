@@ -132,7 +132,7 @@ Claude accounts ignore `HTTPS_PROXY` and `HTTP_PROXY`. Without an explicit proxy
 
 ## worker-threads
 
-`worker-threads: 4` at the top level sets how many threads serve requests. Without it, cliproxy-rs uses the smaller of the CPU count and two, which is plenty for one person: a request costs about a millisecond of CPU, and the rest is waiting on the provider. Each extra thread can keep its own pool of freed memory, so more threads mean a larger resident size. The setting is read once at start; the `TOKIO_WORKER_THREADS` environment variable overrides it.
+`worker-threads: 4` at the top level sets how many threads serve requests. Without it, cliproxy-rs uses the smaller of the CPU count and two, which is plenty for one person: a small request costs about a millisecond of CPU and a 300 KB Claude request about 30 ms, and most of a request's time is spent waiting on the provider. Each extra thread can keep its own pool of freed memory, so more threads mean a larger resident size. The setting is read once at start; the `TOKIO_WORKER_THREADS` environment variable overrides it.
 
 This setting exists only in cliproxy-rs. CLIProxyAPI starts with it in the file and keeps it when it saves settings, but its Management API refuses to upload a whole `config.yaml` that contains it. See [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md).
 
