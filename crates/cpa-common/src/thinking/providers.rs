@@ -318,11 +318,41 @@ fn claude_enabled(body: &[u8], budget: Option<i64>) -> Vec<u8> {
     delete_if_empty_object(result, "output_config")
 }
 
+/// Claude models that answer 400 to `thinking: {"type": "disabled"}` because thinking
+/// is always on (Opus 5.5, Fable 5 and 5.1, Mythos) or is turned down with
+/// `between_tools` instead (Sonnet 5.5). Source: Anthropic's "Troubleshooting thinking"
+/// table, checked 2026-10-05. Go sends `disabled` to them and gets the 400.
+fn claude_rejects_disabled(model: &str) -> bool {
+    let model = model.trim().to_ascii_lowercase();
+    [
+        "claude-opus-5-5",
+        "claude-sonnet-5-5",
+        "claude-fable-5",
+        "claude-mythos-5",
+        "claude-mythos-preview",
+    ]
+    .iter()
+    .any(|prefix| model.starts_with(prefix))
+}
+
+/// Thinking off for `model` (the registry ID, or the body's `model` for an alias):
+/// `disabled`, or the lowest effort on a model that refuses `disabled`
+/// (docs/DIFFERENCES-FROM-GO.md).
+// ponytail: a fixed model list; move it into the model registry as a capability if
+// Anthropic keeps adding always-on models.
+fn claude_off(body: &[u8], model: &str, drop_display: bool) -> Vec<u8> {
+    if claude_rejects_disabled(model) || claude_rejects_disabled(&json::get(body, "model").str()) {
+        return claude_adaptive(body, Some("low"));
+    }
+    claude_disable(body, drop_display)
+}
+
 fn claude(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<u8>, Error> {
+    let model = info.map_or("", |i| i.id.as_str());
     if is_user_defined_model(info) {
         let body = object_or_empty(body);
         return Ok(match config.mode {
-            Mode::None => claude_disable(&body, true),
+            Mode::None => claude_off(&body, model, true),
             Mode::Auto => claude_enabled(&body, None),
             Mode::Level if config.level.is_empty() => body,
             Mode::Level => claude_adaptive(&body, Some(&config.level)),
@@ -336,7 +366,7 @@ fn claude(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<
     let body = object_or_empty(body);
     let adaptive = !support.levels.is_empty();
     let budget = match config.mode {
-        Mode::None => return Ok(claude_disable(&body, true)),
+        Mode::None => return Ok(claude_off(&body, model, true)),
         Mode::Level if adaptive && !config.level.is_empty() => return Ok(claude_adaptive(&body, Some(&config.level))),
         Mode::Level => match super::convert_level_to_budget(&config.level) {
             Some(budget) => budget,
@@ -347,7 +377,7 @@ fn claude(body: &[u8], config: &Config, info: Option<&ModelCaps>) -> Result<Vec<
         Mode::Auto => return Ok(claude_enabled(&body, None)),
     };
     if budget == 0 {
-        return Ok(claude_disable(&body, false));
+        return Ok(claude_off(&body, model, false));
     }
     let result = claude_enabled(&body, Some(budget));
     Ok(normalize_claude_budget(result, budget, info))
