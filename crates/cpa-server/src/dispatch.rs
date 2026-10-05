@@ -1972,6 +1972,7 @@ async fn attempt(
                 (None, None) => rt.executors.execute(&credential, req, cfg).await,
             }
         };
+        tracing::trace!(target: "cpa_latency", stage = "selected");
         let mut executed = execute(lease.credential.clone(), req.clone()).await;
         // Go `tryRefreshAfterUnauthorized`: one refresh-and-retry per credential. Home
         // credentials never refresh here (Go home_unauthorized_refresh): the 401 goes to
