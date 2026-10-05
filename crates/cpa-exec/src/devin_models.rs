@@ -270,6 +270,7 @@ const FETCH_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_MODELS_SIZE: usize = 8 << 20;
 
 static UPDATER_STARTED: AtomicBool = AtomicBool::new(false);
+static ETAGS: crate::catalog_etag::Etags = crate::catalog_etag::Etags::new();
 
 /// `StartDevinModelsUpdater`: fetches the Devin catalog now and every three hours into
 /// the process-wide catalog. Safe to call more than once; one updater runs. Must be
@@ -323,11 +324,19 @@ pub(crate) enum Refreshed {
 
 /// `tryRefreshDevinModels`.
 pub(crate) async fn refresh(store: &devin::Store, client: &wreq::Client, urls: &[String], label: &str) -> Refreshed {
-    let Some((data, source)) = fetch(client, urls).await else {
+    let Some((data, source, headers)) = fetch(client, urls).await else {
         tracing::warn!("{label}: fetch failed from all URLs, keeping current data (embedded or cached fallback)");
         return Refreshed::FetchFailed;
     };
-    match store.load(&data, &source) {
+    let Some(data) = data else {
+        tracing::info!("{label} completed from {source}, no changes detected");
+        return Refreshed::Unchanged(source);
+    };
+    let loaded = store.load(&data, &source);
+    if loaded.is_ok() {
+        ETAGS.remember(&source, &headers);
+    }
+    match loaded {
         Err(e) => {
             tracing::warn!("{label}: fetched catalog rejected, keeping current data: {e}");
             Refreshed::Rejected(e)
@@ -343,18 +352,16 @@ pub(crate) async fn refresh(store: &devin::Store, client: &wreq::Client, urls: &
     }
 }
 
-/// `fetchDevinModelsFromRemote`: the first URL answering 200, read up to 8 MiB.
-async fn fetch(client: &wreq::Client, urls: &[String]) -> Option<(Vec<u8>, String)> {
+/// `fetchDevinModelsFromRemote`: the first URL answering 200, read up to 8 MiB, or 304
+/// to the `ETag` it sent last (`None` data: unchanged).
+async fn fetch(client: &wreq::Client, urls: &[String]) -> Option<(Option<Vec<u8>>, String, http::HeaderMap)> {
     for url in urls {
-        let response = crate::proxy::request(
-            client,
-            wreq::Method::GET,
-            url,
-            crate::proxy::GoHeaders::new(),
-            None,
-            Some(FETCH_TIMEOUT),
-        )
-        .await;
+        let mut headers = crate::proxy::GoHeaders::new();
+        let etag = ETAGS.get(url);
+        if let Some(tag) = &etag {
+            headers.set("If-None-Match", tag.clone());
+        }
+        let response = crate::proxy::request(client, wreq::Method::GET, url, headers, None, Some(FETCH_TIMEOUT)).await;
         let upstream = match response {
             Ok(u) => u,
             Err(e) => {
@@ -365,17 +372,21 @@ async fn fetch(client: &wreq::Client, urls: &[String]) -> Option<(Vec<u8>, Strin
                 continue;
             }
         };
+        if upstream.status == 304 && etag.is_some() {
+            return Some((None, url.clone(), upstream.headers));
+        }
         if upstream.status != 200 {
             tracing::warn!("devin models updater: unexpected status {} from {url}", upstream.status);
             continue;
         }
+        let headers = upstream.headers;
         let read = tokio::time::timeout(
             FETCH_TIMEOUT,
             crate::proxy::read_all(upstream.body, MAX_MODELS_SIZE, false),
         )
         .await;
         match read {
-            Ok(Ok(body)) => return Some((body.to_vec(), url.clone())),
+            Ok(Ok(body)) => return Some((Some(body.to_vec()), url.clone(), headers)),
             _ => {
                 tracing::warn!("devin models updater: read failed from {url}");
                 continue;

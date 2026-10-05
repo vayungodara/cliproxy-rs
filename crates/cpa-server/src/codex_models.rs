@@ -38,6 +38,7 @@ fn flag(cfg: &Config, path: &[&str]) -> bool {
 
 /// The catalog response, written like Go's `WriteModelListResponse`.
 pub fn response(rt: &Runtime, client_version: &str) -> Response {
+    crate::model_updater::codex_client_catalog_wanted(rt);
     let cfg = rt.config();
     let registry = rt.registry();
     let available: Vec<BTreeMap<String, GoValue>> = registry

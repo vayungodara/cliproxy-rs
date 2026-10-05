@@ -500,6 +500,16 @@ mod tests {
         assert!(cfg.api_keys.is_empty(), "present null list beats legacy");
     }
 
+    /// `worker-threads` is cliproxy-rs only: a whole-file upload through the Management
+    /// API keeps it (Go's v8 upload refuses unknown sections), and its type is checked.
+    #[test]
+    fn worker_threads_is_a_known_int() {
+        let doc = |text: &str| serde_yaml_ng::from_str::<serde_yaml_ng::Value>(text).unwrap();
+        validate_config_fields(&doc("config-version: 8\nworker-threads: 3\n"), true).unwrap();
+        assert!(validate_config_fields(&doc("worker-threads: many\n"), true).is_err());
+        assert!(validate_config_fields(&doc("worker-thread: 3\n"), true).is_err());
+    }
+
     #[test]
     fn legacy_spellings_still_work() {
         let cfg = Config::parse("host: 127.0.0.1\nport: 9000\napi-keys: [' a ', a, '', b]\nauth-dir: /x\n").unwrap();

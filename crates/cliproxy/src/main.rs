@@ -470,8 +470,38 @@ fn discover_options(
     }
 }
 
-fn runtime() -> io::Result<tokio::runtime::Runtime> {
-    tokio::runtime::Builder::new_multi_thread().enable_all().build()
+/// Blocking-pool ceiling (tokio's default is 512). Threads start only on demand and exit
+/// after tokio's 10 s keep-alive, so this bounds bursts, not idle. Native plugin calls
+/// each hold one for the whole call and may wait on callbacks that need another, so the
+/// ceiling stays well above any realistic number of concurrent plugin calls.
+const MAX_BLOCKING_THREADS: usize = 64;
+
+/// A personal proxy spends its time waiting on upstreams, so two workers serve hundreds
+/// of requests per second, and each extra worker can hold its own glibc arena.
+fn runtime(config: Option<&Path>) -> io::Result<tokio::runtime::Runtime> {
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(worker_threads(config))
+        .max_blocking_threads(MAX_BLOCKING_THREADS)
+        .enable_all()
+        .build()
+}
+
+/// `TOKIO_WORKER_THREADS`, else `worker-threads` in `config` (read once at start), else
+/// the smaller of the CPU count and 2.
+fn worker_threads(config: Option<&Path>) -> usize {
+    let positive = |n: u64| usize::try_from(n).ok().filter(|n| *n > 0);
+    if let Ok(raw) = std::env::var("TOKIO_WORKER_THREADS") {
+        match raw.trim().parse().ok().and_then(positive) {
+            Some(n) => return n,
+            None => tracing::warn!("ignoring TOKIO_WORKER_THREADS={raw:?}: not a positive number"),
+        }
+    }
+    let configured = config
+        .and_then(|path| std::fs::read(path).ok())
+        .and_then(|raw| serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(&raw).ok())
+        .and_then(|doc| doc.get("worker-threads").and_then(serde_yaml_ng::Value::as_u64))
+        .and_then(positive);
+    configured.unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get().min(2)))
 }
 
 /// Waits for Ctrl+C or SIGTERM, Go's `signal.NotifyContext(SIGINT, SIGTERM)`.
@@ -608,7 +638,7 @@ fn main() -> anyhow::Result<()> {
         }
         let cli = (csv_flags(&args.include), csv_flags(&args.exclude));
         let opts = discover_options(args.timeout, args.json, args.service_type, &args.config, cli);
-        std::process::exit(runtime()?.block_on(discovery::cli::discover(&opts)));
+        std::process::exit(runtime(None)?.block_on(discovery::cli::discover(&opts)));
     }
     if !argv_enables_bool_flag(&raw[1..], "discover-json") {
         println!("{}", banner());
@@ -622,7 +652,7 @@ fn main() -> anyhow::Result<()> {
     if !discover_mode {
         dotenv::load_from_working_dir();
     }
-    let runtime = runtime()?;
+    let runtime = runtime(Some(&plugin_cli::bootstrap_config_path(&raw[1..], "")))?;
     // Go: plugins from the bootstrap config register their flags before the parse.
     let builtin_cmd = Args::command();
     let plugins = (!discover_mode).then(|| {
@@ -667,7 +697,7 @@ fn main() -> anyhow::Result<()> {
     let builtin = plugin_cli::builtin_values(&cmd, &matches);
     let host = plugins.map(|(host, _)| host).unwrap_or_default();
     #[cfg(all(target_os = "linux", target_env = "gnu"))]
-    trim_heap_periodically();
+    runtime.spawn(heap_trim::run());
     let file_log = args.log_file.is_some();
     let result = runtime.block_on(run(args, host, builtin));
     if file_log && let Err(error) = &result {
@@ -681,12 +711,27 @@ fn main() -> anyhow::Result<()> {
 /// process stays near its peak size while most of that memory is free. `malloc_trim`
 /// hands the free pages of every arena back. Trimming under load costs page faults on
 /// the next requests, so it runs once the process goes quiet (under 50 ms of CPU in five
-/// seconds), and at least once a minute. See docs/BENCHMARKS.md (Claude soak).
+/// seconds), and at least once a minute while busy. With no requests the task parks:
+/// no timer, no wakeup. See docs/BENCHMARKS.md (Claude soak).
+///
+/// Cost per request: the response body is boxed once more, and its drop does one
+/// atomic load (plus a wakeup when the task is parked).
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
-fn trim_heap_periodically() {
+mod heap_trim {
+    use std::pin::Pin;
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::task::{Context, Poll};
+    use std::time::Duration;
+
+    use axum::body::{Body, Bytes, HttpBody};
+
     const TICK: Duration = Duration::from_secs(5);
     const QUIET: Duration = Duration::from_millis(50);
     const MAX_GAP: u32 = 12;
+
+    static PARKED: AtomicBool = AtomicBool::new(false);
+    static WAKE: tokio::sync::Notify = tokio::sync::Notify::const_new();
+
     fn cpu_time() -> Duration {
         // SAFETY: getrusage writes only into the struct it is given.
         let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
@@ -694,26 +739,66 @@ fn trim_heap_periodically() {
         let tv = |t: libc::timeval| Duration::new(t.tv_sec as u64, t.tv_usec as u32 * 1000);
         tv(usage.ru_utime) + tv(usage.ru_stime)
     }
-    let trim = || {
-        let (mut last, mut ticks, mut trimmed) = (cpu_time(), 0, false);
+
+    pub async fn run() {
         loop {
-            std::thread::sleep(TICK);
-            let now = cpu_time();
-            let quiet = now.saturating_sub(last) < QUIET;
-            last = now;
-            ticks += 1;
-            if !quiet {
-                trimmed = false;
-            }
-            if (quiet && !trimmed) || ticks >= MAX_GAP {
-                // SAFETY: malloc_trim only releases the allocator's own free memory.
-                unsafe { libc::malloc_trim(0) };
-                (ticks, trimmed) = (0, true);
+            PARKED.store(true, Ordering::Release);
+            WAKE.notified().await;
+            let (mut last, mut ticks) = (cpu_time(), 0);
+            loop {
+                tokio::time::sleep(TICK).await;
+                let now = cpu_time();
+                let quiet = now.saturating_sub(last) < QUIET;
+                last = now;
+                ticks += 1;
+                if quiet || ticks >= MAX_GAP {
+                    // SAFETY: malloc_trim only releases the allocator's own free memory.
+                    unsafe { libc::malloc_trim(0) };
+                    ticks = 0;
+                }
+                if quiet {
+                    break;
+                }
             }
         }
-    };
-    if let Err(e) = std::thread::Builder::new().name("heap-trim".into()).spawn(trim) {
-        tracing::warn!("heap trim thread not started: {e}");
+    }
+
+    /// Wakes the parked task when a response body is done (sent, or dropped with the
+    /// connection).
+    pub fn layer(app: axum::Router) -> axum::Router {
+        app.layer(tower::util::MapResponseLayer::new(|res: axum::response::Response| {
+            res.map(|body| Body::new(Done(body)))
+        }))
+    }
+
+    struct Done(Body);
+
+    impl HttpBody for Done {
+        type Data = Bytes;
+        type Error = axum::Error;
+
+        fn poll_frame(
+            self: Pin<&mut Self>,
+            cx: &mut Context<'_>,
+        ) -> Poll<Option<Result<http_body::Frame<Bytes>, axum::Error>>> {
+            Pin::new(&mut self.get_mut().0).poll_frame(cx)
+        }
+
+        fn is_end_stream(&self) -> bool {
+            self.0.is_end_stream()
+        }
+
+        fn size_hint(&self) -> http_body::SizeHint {
+            self.0.size_hint()
+        }
+    }
+
+    impl Drop for Done {
+        fn drop(&mut self) {
+            if PARKED.load(Ordering::Relaxed) && PARKED.swap(false, Ordering::AcqRel) {
+                WAKE.notify_one();
+            }
+        }
     }
 }
 
@@ -1202,7 +1287,7 @@ async fn serve(
         rt.set_cooldown_backend(cooldown);
     }
     // Go `startModelCatalogUpdaters`.
-    cpa_server::model_updater::start(rt.local_model(), home_config.is_some());
+    cpa_server::model_updater::start(&rt, home_config.is_some());
     let home = home_config.map(|home_config| {
         let dispatcher = Arc::new(home::Dispatcher::new(&rt));
         rt.set_remote_dispatch(Some(dispatcher.clone()));
@@ -1234,7 +1319,8 @@ async fn serve(
     let advertiser = {
         let rt = rt.clone();
         // The served transport decides `tls=`: HTTPS exactly when server.tls loaded.
-        discovery::advertise::Advertiser::spawn(move || rt.config(), tls.is_some())
+        let published = rt.subscribe_config();
+        discovery::advertise::Advertiser::spawn(move || rt.config(), published, tls.is_some())
     };
     // Go applies its CORS middleware to every route, not only management.
     let app = match &home {
@@ -1252,6 +1338,8 @@ async fn serve(
     let app = app.layer(axum::middleware::from_fn(cpa_server::management::cors));
     let app = cpa_server::request_logging::router(&management, app);
     let app = cpa_server::observability::router(&rt, app);
+    #[cfg(all(target_os = "linux", target_env = "gnu"))]
+    let app = heap_trim::layer(app);
     // Go's listener also serves the Redis protocol (usage queue) to management clients;
     // in Home mode it answers "ERR redis usage output disabled in home mode".
     let mut server = Box::pin(cpa_server::listener::serve_with_resp(
@@ -1299,6 +1387,30 @@ async fn serve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `worker-threads` from the config file; anything but a positive number, or no
+    /// file, falls back to min(CPUs, 2). (`TOKIO_WORKER_THREADS` is not set in tests.)
+    #[test]
+    fn worker_threads_come_from_the_config_file() {
+        let dir = std::env::temp_dir().join(format!("cliproxy-workers-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("config.yaml");
+        let default = std::thread::available_parallelism().map_or(1, |n| n.get().min(2));
+        std::fs::write(&path, "port: 1\nworker-threads: 5\n").unwrap();
+        assert_eq!(worker_threads(Some(&path)), 5);
+        for text in [
+            "worker-threads: 0\n",
+            "worker-threads: -3\n",
+            "worker-threads: many\n",
+            ": not yaml [",
+        ] {
+            std::fs::write(&path, text).unwrap();
+            assert_eq!(worker_threads(Some(&path)), default, "{text:?}");
+        }
+        assert_eq!(worker_threads(Some(&dir.join("missing.yaml"))), default);
+        assert_eq!(worker_threads(None), default);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     // Expected values: Go resolveManagementBaseURL (tests/fixtures/discovery_main_go.json).
     #[test]

@@ -176,8 +176,12 @@ impl ClaudeExecutor {
         self
     }
 
-    pub fn needs_prepare(&self, credential: &Credential, _cfg: &Config) -> bool {
-        oauth::needs_prepare(credential)
+    pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
+        self.needs_prepare_at(credential, cfg, chrono::Utc::now())
+    }
+
+    pub fn needs_prepare_at(&self, credential: &Credential, _cfg: &Config, now: chrono::DateTime<chrono::Utc>) -> bool {
+        oauth::needs_prepare(credential, now)
     }
 
     pub async fn prepare(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {

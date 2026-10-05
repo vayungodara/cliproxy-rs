@@ -130,9 +130,16 @@ Claude accounts ignore `HTTPS_PROXY` and `HTTP_PROXY`. Without an explicit proxy
 | `logs.logs-max-total-size-mb` | The most disk space the log files may use. |
 | `logs.request-log` | `true` writes one file per request with client and upstream request/response sections. Recognised sensitive headers and URL fields are masked, but bodies can contain credentials, including Realtime client secrets, as well as private prompts and output. Keep the logs private. |
 
+## worker-threads
+
+`worker-threads: 4` at the top level sets how many threads serve requests. Without it, cliproxy-rs uses two (one on a single-core machine), which is plenty for one person: a request costs about a millisecond of CPU, and the rest is waiting on the provider. Each extra thread can keep its own pool of freed memory, so more threads mean a larger resident size. The setting is read once at start; the `TOKIO_WORKER_THREADS` environment variable overrides it.
+
+This setting exists only in cliproxy-rs. CLIProxyAPI starts with it in the file and keeps it when it saves settings, but its Management API refuses to upload a whole `config.yaml` that contains it. See [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md).
+
 ## Environment
 
 - `MANAGEMENT_PASSWORD`: the management key, instead of `management.secret-key`.
+- `TOKIO_WORKER_THREADS`: the number of request threads, instead of `worker-threads`.
 - `RUST_LOG`: overrides the log level, for example `RUST_LOG=debug`.
 - A `.env` file in the working directory is loaded at start, as in CLIProxyAPI.
 - `PGSTORE_*`, `OBJECTSTORE_*` and `GITSTORE_*` keep the config and the account files in PostgreSQL, an S3-compatible bucket or a git repository, as in CLIProxyAPI.

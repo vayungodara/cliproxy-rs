@@ -12,6 +12,7 @@ pub mod cooldown_store;
 pub mod dispatch;
 mod error_events;
 mod errors;
+mod fs_events;
 mod gemini;
 mod gojson;
 mod home_models;

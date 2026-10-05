@@ -91,6 +91,7 @@ schema["fields"]["config-version"] = "version"
 # them; a config edit through its v8 Management API moves them into comments.
 put("oauth.providers.codex.chatgpt-keep-alive", "bool")
 put("routing.cooldown.max-trusted-cooldown", "string")
+schema["fields"]["worker-threads"] = "int"
 schema["fields"].pop("home", None)
 Path(__file__).with_name("schema.json").write_text(json.dumps(schema, indent=2) + "\n")
 print(f"Generated schema from {revision}")

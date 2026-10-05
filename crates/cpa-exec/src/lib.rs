@@ -18,6 +18,7 @@
 //! Go sends it and recovers on 401.
 
 pub mod aistudio;
+pub mod catalog_etag;
 pub mod claude;
 pub mod claude_login;
 pub mod codex;
@@ -293,15 +294,52 @@ impl Executors {
     /// cheap and side-effect free. Providers implement this; the runtime reads
     /// [`Self::readiness`].
     pub fn needs_prepare(&self, credential: &Credential, cfg: &Config) -> bool {
+        self.needs_prepare_at(credential, cfg, chrono::Utc::now())
+    }
+
+    /// [`Self::needs_prepare`] as of `now`. Once true it stays true as time passes until
+    /// the credential is prepared: every provider compares an expiry or a last refresh
+    /// with the clock.
+    pub fn needs_prepare_at(&self, credential: &Credential, cfg: &Config, now: chrono::DateTime<chrono::Utc>) -> bool {
         match credential.provider.as_str() {
-            "claude" => self.claude.needs_prepare(credential, cfg),
-            "codex" => self.codex.needs_prepare(credential, cfg),
-            p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.needs_prepare(credential, cfg),
-            meta::PROVIDER => self.devices.meta.needs_prepare(credential, cfg),
-            xai::PROVIDER => self.openai.xai.needs_prepare(credential, cfg),
-            devin::PROVIDER => self.devices.devin.needs_prepare(credential, cfg),
+            "claude" => self.claude.needs_prepare_at(credential, cfg, now),
+            "codex" => self.codex.needs_prepare_at(credential, cfg, now),
+            p if kimi::PROVIDERS.contains(&p) => self.devices.kimi.needs_prepare_at(credential, cfg, now),
+            meta::PROVIDER => self.devices.meta.needs_prepare_at(credential, cfg, now),
+            xai::PROVIDER => self.openai.xai.needs_prepare_at(credential, cfg, now),
+            devin::PROVIDER => self.devices.devin.needs_prepare_at(credential, cfg, now),
             _ => false,
         }
+    }
+
+    /// The earliest time within `horizon` of `now` at which `credential` needs
+    /// preparation (`now` if it already does), to one second. Bisects
+    /// [`Self::needs_prepare_at`], so every provider's own rule decides; about a dozen
+    /// cheap evaluations for a credential that comes due inside the horizon, one for
+    /// the rest.
+    pub fn prepare_due(
+        &self,
+        credential: &Credential,
+        cfg: &Config,
+        now: chrono::DateTime<chrono::Utc>,
+        horizon: chrono::Duration,
+    ) -> Option<chrono::DateTime<chrono::Utc>> {
+        if self.needs_prepare_at(credential, cfg, now) {
+            return Some(now);
+        }
+        let (mut lo, mut hi) = (now, now + horizon);
+        if !self.needs_prepare_at(credential, cfg, hi) {
+            return None;
+        }
+        while hi - lo > chrono::Duration::seconds(1) {
+            let mid = lo + (hi - lo) / 2;
+            if self.needs_prepare_at(credential, cfg, mid) {
+                hi = mid;
+            } else {
+                lo = mid;
+            }
+        }
+        Some(hi)
     }
 
     /// Prepares `credential` and returns the metadata change to commit.
@@ -400,6 +438,46 @@ mod readiness_tests {
         for (i, (c, expected)) in cases.iter().enumerate() {
             assert_eq!(executors.readiness(c, &cfg), *expected, "case {i}");
         }
+    }
+
+    /// The refresh loop sleeps until `prepare_due`: each provider's own lead before
+    /// expiry (Claude 4 h, Kimi 5 min), to the second, `now` once due, and nothing past
+    /// the horizon.
+    #[test]
+    fn prepare_due_finds_each_providers_deadline() {
+        let executors = Executors {
+            claude: claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
+            devices: Default::default(),
+            openai: Default::default(),
+            google: Default::default(),
+        };
+        let cfg = Config::default();
+        let now = chrono::Utc::now();
+        let horizon = chrono::Duration::hours(1);
+        let with_expiry = |provider: &str, expiry: chrono::DateTime<chrono::Utc>| {
+            credential(serde_json::json!({
+                "type": provider,
+                "access_token": "fake-access",
+                "refresh_token": "fake-refresh",
+                "expired": expiry.to_rfc3339(),
+            }))
+        };
+        let near = |got: Option<chrono::DateTime<chrono::Utc>>, want: chrono::DateTime<chrono::Utc>| {
+            let got = got.expect("due inside the horizon");
+            assert!((got - want).num_milliseconds().abs() <= 1000, "{got} vs {want}");
+        };
+        let offset = chrono::Duration::seconds(1337);
+        let claude = with_expiry("claude", now + chrono::Duration::hours(4) + offset);
+        near(executors.prepare_due(&claude, &cfg, now, horizon), now + offset);
+        let kimi = with_expiry("kimi", now + chrono::Duration::minutes(5) + offset);
+        near(executors.prepare_due(&kimi, &cfg, now, horizon), now + offset);
+        let due = with_expiry("claude", now - chrono::Duration::hours(1));
+        assert_eq!(executors.prepare_due(&due, &cfg, now, horizon), Some(now));
+        let later = with_expiry("claude", now + chrono::Duration::hours(6));
+        assert_eq!(executors.prepare_due(&later, &cfg, now, horizon), None);
+        let api_key = credential(serde_json::json!({"type": "claude", "access_token": "sk-ant-api03-fake"}));
+        assert_eq!(executors.prepare_due(&api_key, &cfg, now, horizon), None);
     }
 
     /// Go `authHasRefreshCredential`.
