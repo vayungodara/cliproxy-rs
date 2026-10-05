@@ -165,18 +165,7 @@ def main():
         def pid():
             return int((home / "cliproxy.pid").read_text().strip())
 
-        firewall = "cliproxy-installer-" + root.name
         try:
-            if windows:
-                # Scope denial to test programs, not the hosted runner's own
-                # connection to GitHub. Windows CI runs this with admin rights.
-                paths = [binary, bindir / exe, bindir / "cliproxy.new.exe", Path(sys.executable),
-                         Path(shutil.which("powershell.exe")), Path(shutil.which("pwsh.exe"))]
-                programs = ",".join("'" + str(p).replace("'", "''") + "'" for p in paths)
-                ps(f"$ErrorActionPreference='Stop'; $i=0; foreach($program in @({programs})){{ "
-                   f"$name='{firewall}-'+$i; $i++; New-NetFirewallRule -Name $name -DisplayName $name "
-                   "-Program $program -Direction Outbound -Action Block -RemoteAddress "
-                   "'0.0.0.0-126.255.255.255','128.0.0.0-255.255.255.255','::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff' | Out-Null }")
             process_log = root / "process.log"
             process_log.write_text("keep existing log\n")
             failed = capture([binary, "--config", str(root / "missing-config.yaml"),
@@ -455,7 +444,18 @@ esac
                 def process():
                     marker = folder / "cliproxy.pid"
                     if marker.exists() and not windows:
-                        subprocess.run(["ps", "-p", marker.read_text().strip(), "-o", "pid=,ppid=,stat=,comm=,args="], check=False, timeout=10)
+                        recorded_pid = marker.read_text().strip()
+                        print(f"pid file: {recorded_pid}", file=sys.stderr)
+                        # Observe shell exit statuses too: a direct Python exec
+                        # reports EPERM, not the status the installer sees.
+                        status = capture(["sh", "-c", '''
+kill -0 "$1"; echo "kill -0 status=$?"
+name=$(ps -p "$1" -o "$2="); rc=$?; printf 'name status=%s output=<%s>\n' "$rc" "$name"
+state=$(ps -p "$1" -o stat=); rc=$?; printf 'stat status=%s output=<%s>\n' "$rc" "$state"
+''', "diagnostics", recorded_pid, "ucomm" if platform.system() == "Darwin" else "comm"],
+                                         env=env, timeout=10)
+                        print(status.stdout, file=sys.stderr)
+                        subprocess.run(["ps", "-p", recorded_pid, "-o", "pid=,ppid=,stat=,comm=,args="], check=False, timeout=10)
                 diagnostic(process)
             if windows:
                 diagnostic(lambda: print(ps("Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 8317,8318 } | Format-Table LocalAddress,LocalPort,OwningProcess", check=False)))
@@ -480,10 +480,6 @@ esac
                         ps("Set-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name cliproxy-rs -Value '" + original_run.replace("'", "''") + "'", check=False)
                     else:
                         ps("Remove-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name cliproxy-rs -ErrorAction SilentlyContinue", check=False)
-                except (OSError, subprocess.SubprocessError) as error:
-                    print(f"Best-effort cleanup: {error}", file=sys.stderr)
-                try:
-                    ps(f"Get-NetFirewallRule -Name '{firewall}-*' -ErrorAction SilentlyContinue | Remove-NetFirewallRule", check=False)
                 except (OSError, subprocess.SubprocessError) as error:
                     print(f"Best-effort cleanup: {error}", file=sys.stderr)
             server.shutdown()

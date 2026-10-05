@@ -221,8 +221,6 @@ pub fn set_log_file(path: PathBuf) -> io::Result<()> {
 }
 
 fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
-    // ponytail: `--log-file` rotations outside the log directory are retained
-    // forever; extend the cleaner's scope if they ever need a size budget.
     let mut output = OUTPUT.lock().unwrap_or_else(PoisonError::into_inner);
     let protected = if applied.logging_to_file {
         create_dir(dir)
@@ -310,7 +308,12 @@ fn start_cleaner(dir: &Path, max_total_mb: i64, protected: Option<PathBuf>) {
         .name("log-dir-cleaner".into())
         .spawn(move || {
             while CLEANER_GENERATION.load(Ordering::SeqCst) == generation {
-                match enforce_size_limit(&dir, max_bytes, protected.as_deref()) {
+                match enforce_size_limit(
+                    &dir,
+                    max_bytes,
+                    protected.as_deref(),
+                    LOG_FILE.get().map(PathBuf::as_path),
+                ) {
                     Ok(0) => {}
                     Ok(deleted) => tracing::debug!(
                         "logging: removed {deleted} old log file(s) to enforce log directory size limit"
@@ -326,27 +329,65 @@ fn start_cleaner(dir: &Path, max_total_mb: i64, protected: Option<PathBuf>) {
 }
 
 /// Go `enforceLogDirSizeLimit`: deletes the oldest `*.log` / `*.log.gz` files (by
-/// modification time, never `protected`) until the directory is within `max_bytes`.
-pub(crate) fn enforce_size_limit(dir: &Path, max_bytes: u64, protected: Option<&Path>) -> io::Result<usize> {
+/// modification time, never `protected`) and the selected process-log family until
+/// their combined size is within `max_bytes`. No other files outside `dir` qualify.
+pub(crate) fn enforce_size_limit(
+    dir: &Path,
+    max_bytes: u64,
+    protected: Option<&Path>,
+    process_log: Option<&Path>,
+) -> io::Result<usize> {
     let protected = protected.map(std::path::absolute).transpose()?;
-    let entries = match std::fs::read_dir(dir) {
-        Ok(entries) => entries,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(0),
-        Err(e) => return Err(e),
-    };
+    let dir = std::path::absolute(dir)?;
+    let process_log = process_log.map(std::path::absolute).transpose()?;
+    let process_dir = process_log.as_deref().and_then(Path::parent);
+    let mut dirs = vec![dir.clone()];
+    if let Some(parent) = process_dir
+        && parent != dir
+    {
+        dirs.push(parent.to_owned());
+    }
     let mut files = Vec::new();
     let mut total = 0u64;
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().trim().to_lowercase();
-        if !(name.ends_with(".log") || name.ends_with(".log.gz")) {
-            continue;
+    for scan_dir in dirs {
+        let entries = match std::fs::read_dir(&scan_dir) {
+            Ok(entries) => entries,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => continue,
+            Err(e) => return Err(e),
+        };
+        for entry in entries.flatten() {
+            let filename = entry.file_name();
+            let name = filename.to_string_lossy();
+            let normal_log = scan_dir == dir && {
+                let name = name.trim().to_lowercase();
+                name.ends_with(".log") || name.ends_with(".log.gz")
+            };
+            let process_file = process_log.as_ref().is_some_and(|path| {
+                if Some(scan_dir.as_path()) != process_dir {
+                    return false;
+                }
+                let base = path.file_name().unwrap_or_default().to_string_lossy();
+                if name == base {
+                    return true;
+                }
+                let (stem, ext) = base.rfind('.').map_or((&*base, ""), |i| (&base[..i], &base[i..]));
+                name.strip_prefix(stem)
+                    .and_then(|v| v.strip_prefix('-'))
+                    .and_then(|v| v.strip_suffix(ext))
+                    .is_some_and(|timestamp| {
+                        chrono::NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%dT%H-%M-%S%.3f").is_ok()
+                    })
+            });
+            if !normal_log && !process_file {
+                continue;
+            }
+            let Ok(info) = entry.metadata() else { continue };
+            if !info.is_file() {
+                continue;
+            }
+            total += info.len();
+            files.push((info.modified().ok(), info.len(), std::path::absolute(entry.path())?));
         }
-        let Ok(info) = entry.metadata() else { continue };
-        if !info.is_file() {
-            continue;
-        }
-        total += info.len();
-        files.push((info.modified().ok(), info.len(), std::path::absolute(entry.path())?));
     }
     if total <= max_bytes {
         return Ok(0);
@@ -360,7 +401,22 @@ pub(crate) fn enforce_size_limit(dir: &Path, max_bytes: u64, protected: Option<&
         if protected.as_ref().is_some_and(|p| *p == path) {
             continue;
         }
-        if let Err(error) = std::fs::remove_file(&path) {
+        // Serialize deletion with rotation/reconfiguration only for --log-file.
+        // A previous cleaner generation must not unlink the newly active output.
+        let output = process_log
+            .as_ref()
+            .map(|_| OUTPUT.lock().unwrap_or_else(PoisonError::into_inner));
+        if output.as_ref().is_some_and(|output| match &**output {
+            Output::ProcessFile(file) | Output::File(file) => {
+                std::path::absolute(&file.path).is_ok_and(|active| active == path)
+            }
+            Output::Stdout => false,
+        }) {
+            continue;
+        }
+        let removed = std::fs::remove_file(&path);
+        drop(output);
+        if let Err(error) = removed {
             let name = path.file_name().unwrap_or_default().to_string_lossy();
             tracing::warn!("logging: failed to remove old log file: {name}: {error}");
             continue;
@@ -800,7 +856,7 @@ mod tests {
         put("notes.txt", 5000, 0); // not a log
         // Total 1300 > 800: drop the two oldest unprotected logs.
         let protected = dir.join(MAIN_LOG);
-        assert_eq!(enforce_size_limit(dir, 800, Some(&protected)).unwrap(), 2);
+        assert_eq!(enforce_size_limit(dir, 800, Some(&protected), None).unwrap(), 2);
         let mut left: Vec<String> = std::fs::read_dir(dir)
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
@@ -808,8 +864,50 @@ mod tests {
         left.sort();
         assert_eq!(left, ["main.log", "notes.txt", "v1-responses-b.LOG"]);
         // Within the limit nothing happens; a missing directory is not an error.
-        assert_eq!(enforce_size_limit(dir, 800, Some(&protected)).unwrap(), 0);
-        assert_eq!(enforce_size_limit(&dir.join("none"), 1, None).unwrap(), 0);
+        assert_eq!(enforce_size_limit(dir, 800, Some(&protected), None).unwrap(), 0);
+        assert_eq!(enforce_size_limit(&dir.join("none"), 1, None, None).unwrap(), 0);
+    }
+
+    #[test]
+    fn cleaner_shares_budget_with_only_the_selected_process_log_family() {
+        let root = scratch("process-budget");
+        let logs = root.join("logs");
+        create_dir(&logs).unwrap();
+        let cli = root.join("process output.txt");
+        let put = |path: &Path, size: usize, seconds: u64| {
+            std::fs::write(path, vec![b'x'; size]).unwrap();
+            File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(1_700_000_000 + seconds))
+                .unwrap();
+        };
+        put(&cli, 200, 0); // oldest, protected despite exceeding a smaller budget
+        let old_cli = root.join("process output-2026-01-01T00-00-00.001.txt");
+        let old_main = logs.join("main-2026-01-02T00-00-00.002.log");
+        let new_cli = root.join("process output-2026-01-03T00-00-00.003.txt");
+        put(&old_cli, 300, 1);
+        put(&old_main, 300, 2);
+        put(&logs.join(MAIN_LOG), 400, 3);
+        put(&new_cli, 200, 4);
+        let unrelated = root.join("unrelated.log");
+        let near_match = root.join("process output-not-a-timestamp.txt");
+        put(&unrelated, 5000, 0);
+        put(&near_match, 5000, 0);
+        // Combined 1400 > 800, though each directory separately fits 800.
+        assert_eq!(enforce_size_limit(&logs, 800, Some(&cli), Some(&cli)).unwrap(), 2);
+        assert!(!old_cli.exists() && !old_main.exists());
+        assert!(new_cli.exists() && logs.join(MAIN_LOG).exists() && cli.exists());
+        assert!(unrelated.exists() && near_match.exists());
+        assert_eq!(enforce_size_limit(&logs, 800, Some(&cli), Some(&cli)).unwrap(), 0);
+        // A missing normal log directory must not disable external rotations.
+        assert_eq!(
+            enforce_size_limit(&root.join("missing"), 200, Some(&cli), Some(&cli)).unwrap(),
+            1
+        );
+        assert!(cli.exists() && !new_cli.exists());
+        let _ = std::fs::remove_dir_all(root);
     }
 
     /// `--log-file` stands in for stdout only: `logging-to-file: true` still writes
@@ -820,7 +918,7 @@ mod tests {
     fn log_file_replaces_only_stdout() {
         let dir = scratch("cli-file");
         let logs = dir.join("logs");
-        let cli = logs.join("cli.log");
+        let cli = dir.join("process output.txt");
         set_log_file(cli.clone()).unwrap();
         let emit = |line: &str| GlobalWriter.make_writer().write_all(line.as_bytes()).unwrap();
         let read = |path: &Path| std::fs::read_to_string(path).unwrap_or_default();
@@ -897,10 +995,25 @@ mod tests {
         );
         assert!(cli.exists(), "configure_output must protect the active process log");
         // A relative/dotted directory spelling must match the absolute protected path.
-        enforce_size_limit(&logs.join("."), 1, LOG_FILE.get().map(PathBuf::as_path)).unwrap();
+        enforce_size_limit(
+            &logs.join("."),
+            1,
+            LOG_FILE.get().map(PathBuf::as_path),
+            LOG_FILE.get().map(PathBuf::as_path),
+        )
+        .unwrap();
         assert!(cli.exists(), "the cleaner must never unlink the active process log");
         emit("still-linked\n");
         assert_eq!(read(&cli), format!("before-config\nto-cli\n{large}still-linked\n"));
+
+        // No stale protected path: even a previous generation must respect the
+        // output currently open, while removing its rotations outside logs/.
+        let old = backup_name(&cli, chrono::Utc::now());
+        std::fs::write(&old, b"rotation").unwrap();
+        enforce_size_limit(&logs, 1, Some(&logs.join(MAIN_LOG)), Some(&cli)).unwrap();
+        assert!(cli.exists() && !old.exists());
+        emit("after-clean\n");
+        assert!(read(&cli).ends_with("after-clean\n"));
 
         // Stop the cleaner and restore stdout for the rest of the process.
         configure_output(&logs, Applied { max_total_mb: 0, ..on }).unwrap();
