@@ -2550,8 +2550,9 @@ mod tests {
         );
         rt.store.reconcile(vec![due]);
         let added = rt.store.get("a.json").unwrap();
-        // The refresh fails (no upstream), which backs off for five minutes.
-        tokio::time::timeout(Duration::from_secs(5), async {
+        // The refresh fails (no upstream; the OAuth client retries twice with 1 s and
+        // 2 s pauses), which backs off for five minutes.
+        tokio::time::timeout(Duration::from_secs(20), async {
             loop {
                 let retry = rt.refresh_state.lock().unwrap().retry_at(&added);
                 if retry.is_some_and(|at| at > Instant::now() + Duration::from_secs(200)) {

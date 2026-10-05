@@ -125,7 +125,7 @@ impl Events {
     }
 
     /// Follows a moved auth folder, a replaced config file and, on macOS, the current
-    /// auth files. Called after each applied change.
+    /// auth files. Called after each look that followed an event.
     pub fn retarget(&mut self, targets: &Targets) {
         if let Some(watch) = &mut self.watch
             && let Err(e) = watch.retarget(targets)
