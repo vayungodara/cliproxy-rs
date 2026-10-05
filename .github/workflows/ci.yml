@@ -1,12 +1,16 @@
-# Formatting, lints, the full test suite and the harness build on every push and pull
-# request, plus a Windows compile check and the Linux size and idle gates. release.yml
+# Formatting, lints, the full test suite and the harness build on every pull request and
+# push to master, plus a Windows compile check and the Linux size and idle gates. release.yml
 # calls this workflow too, so a tagged release runs the same checks before it builds
 # anything.
+# One run per change: pushes to master, and pull requests through `pull_request` only. A
+# branch push used to start a second run of every job for the same commit. Runs are
+# grouped per pull request (or per ref outside one), and a newer push cancels the older
+# run.
 name: CI
 
 on:
   push:
-    branches: ["**"]
+    branches: [master]
   pull_request:
   workflow_dispatch:
   workflow_call:
@@ -15,7 +19,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-ci
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-ci
   cancel-in-progress: true
 
 env:

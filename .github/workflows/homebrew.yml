@@ -2,7 +2,7 @@ name: Homebrew
 
 on:
   push:
-    branches: ["**"]
+    branches: [master]
     paths: [packaging/homebrew/**, .github/workflows/homebrew.yml, .github/workflows/release.yml]
   pull_request:
     paths: [packaging/homebrew/**, .github/workflows/homebrew.yml, .github/workflows/release.yml]
@@ -11,8 +11,10 @@ on:
 permissions:
   contents: read
 
+# Pushes to master and pull requests, not both for the same commit; grouped per pull
+# request so a newer push cancels the older run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
