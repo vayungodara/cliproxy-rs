@@ -152,24 +152,58 @@ struct Body<'a> {
     json: &'a [u8],
     nested: bool,
     exists: bool,
+    /// The top-level members of a valid JSON object, by unescaped key: the value when the
+    /// key appears once, `None` for a duplicate. Most lookups here ask for a key the body
+    /// lacks or one after `messages`, and gjson finds either only by scanning the object
+    /// (a coding agent's prompt is hundreds of KB). A plain path answers from this index;
+    /// anything else, and a duplicate key (gjson tries each in turn), scans as before.
+    keys: Option<std::collections::HashMap<Vec<u8>, Option<Res<'a>>>>,
 }
 
 impl<'a> Body<'a> {
     fn new(payload: &'a [u8]) -> Self {
-        let (exists, nested) = if payload.is_empty() {
-            (false, false)
-        } else {
-            let nested = json::get(payload, "request").exists() && !json::get(payload, "contents").exists();
-            (json::parse(payload).exists(), nested)
-        };
-        Self {
+        let object = payload.iter().find(|b| !b.is_ascii_whitespace()) == Some(&b'{');
+        let keys = (object && json::valid(payload)).then(|| {
+            let mut keys = std::collections::HashMap::new();
+            json::parse(payload).each(|key, value| {
+                keys.entry(key.bytes().into_owned())
+                    .and_modify(|v| *v = None)
+                    .or_insert(Some(value));
+                true
+            });
+            keys
+        });
+        let mut body = Self {
             json: payload,
-            nested,
-            exists,
+            nested: false,
+            exists: false,
+            keys,
+        };
+        if !payload.is_empty() {
+            body.nested = body.get("request").exists() && !body.get("contents").exists();
+            body.exists = json::parse(payload).exists();
         }
+        body
     }
 
     fn get(&self, path: &str) -> Res<'a> {
+        let plain = |segment: &str| {
+            !segment.is_empty()
+                && segment
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
+        };
+        if let Some(keys) = &self.keys
+            && path.split('.').all(plain)
+        {
+            let (first, rest) = path.split_once('.').map_or((path, None), |(f, r)| (f, Some(r)));
+            match (keys.get(first.as_bytes()), rest) {
+                (None, _) => return Res::default(),
+                (Some(Some(value)), None) => return value.clone(),
+                (Some(Some(value)), Some(rest)) if value.raw.first() == Some(&b'{') => return value.get(rest),
+                _ => {}
+            }
+        }
         json::get(self.json, path)
     }
 
@@ -1750,5 +1784,66 @@ mod tests {
         assert_eq!(bounded.len(), 255);
         assert_eq!(bounded, super::bound_session_identity(&long));
         assert_eq!(cpa_session_id(None), None);
+    }
+
+    /// `Body` answers lookups for absent top-level keys without scanning. gjson matches
+    /// unescaped keys, so an escaped key must still be found, a key nested under another
+    /// must not count as top-level, and an invalid body keeps gjson's own scan.
+    #[test]
+    fn body_key_shortcut_keeps_gjson_matches() {
+        let id = |payload: &str| super::Body::new(payload.as_bytes()).first(&["conversation_id", "chat_id"]);
+        assert_eq!(id(r#"{"messages":[],"conversation_id":"c1"}"#), "c1");
+        assert_eq!(id(r#"{"messages":[],"conversation_\u0069d":"c2"}"#), "c2");
+        assert_eq!(
+            id(r#"{"messages":[{"conversation_id":"nested"}],"chat_id":"c3"}"#),
+            "c3"
+        );
+        assert_eq!(id(r#"{"metadata":{"conversation_id":"m"}}"#), "");
+        // Not valid JSON (a trailing comma): no key set, gjson's scan still finds it.
+        assert_eq!(id(r#"{"messages":[1,],"conversation_id":"c4"}"#), "c4");
+        let nested = super::Body::new(br#"{"request":{"conversation_id":"r1"}}"#);
+        assert!(nested.nested);
+        assert_eq!(nested.first(&["conversation_id"]), "r1");
+        let body = super::Body::new(br#"{"metadata":{"user_id":"u1"}}"#);
+        assert_eq!(body.root("metadata.user_id"), "u1");
+        assert!(body.keys.is_some());
+        // Every lookup agrees with a plain gjson lookup on the whole document, including
+        // duplicate keys (gjson moves on to the next one when the first lacks the rest),
+        // a string where an object was expected, and a key after a long `messages`.
+        let long = format!(
+            r#"{{"messages":[{{"content":"{}"}}],"metadata":{{"user_id":"u3"}}}}"#,
+            "x".repeat(5000)
+        );
+        let payloads = [
+            r#"{"metadata":{"a":1},"metadata":{"user_id":"u2"}}"#,
+            r#"{"metadata":"{\"user_id\":\"s\"}","x":{"user_id":"no"}}"#,
+            r#"{"metadata":{"user_id":{"x":1}},"prompt_cache_key":17,"thread_id":true}"#,
+            r#"{"request":{"metadata":{"user_id":"r2"}},"contents":[]}"#,
+            long.as_str(),
+        ];
+        let paths = [
+            "metadata",
+            "metadata.user_id",
+            "metadata.user_id.x",
+            "prompt_cache_key",
+            "thread_id",
+            "request",
+            "request.metadata.user_id",
+            "contents",
+            "missing",
+            "metadata.missing",
+        ];
+        for payload in payloads {
+            let body = super::Body::new(payload.as_bytes());
+            assert!(body.keys.is_some(), "{payload}");
+            for path in paths {
+                let (fast, slow) = (body.get(path), crate::json::get(payload.as_bytes(), path));
+                assert_eq!(
+                    (fast.exists(), fast.str()),
+                    (slow.exists(), slow.str()),
+                    "{path} in {payload}"
+                );
+            }
+        }
     }
 }
