@@ -206,6 +206,7 @@ fn logs_setting<'a>(cfg: &'a Config, key: &str) -> Option<&'a serde_yaml_ng::Val
 /// and its cleaner. Uses the existing synchronous 10 MiB rotation: one fd, no new
 /// thread, timer or per-request work.
 pub fn set_log_file(path: PathBuf) -> io::Result<()> {
+    let path = std::path::absolute(path)?;
     let mut file = RotatingFile {
         path: path.clone(),
         file: None,
@@ -220,8 +221,8 @@ pub fn set_log_file(path: PathBuf) -> io::Result<()> {
 }
 
 fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
-    // ponytail: `--log-file` rotations are retained forever (the cleaner only covers
-    // the log directory); give it a size budget if one is ever needed.
+    // ponytail: `--log-file` rotations outside the log directory are retained
+    // forever; extend the cleaner's scope if they ever need a size budget.
     let mut output = OUTPUT.lock().unwrap_or_else(PoisonError::into_inner);
     let protected = if applied.logging_to_file {
         create_dir(dir)
@@ -232,7 +233,7 @@ fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
             file: None,
             size: 0,
         });
-        Some(path)
+        Some(std::path::absolute(path)?)
     } else if let Some(path) = LOG_FILE.get() {
         let mut file = RotatingFile {
             path: path.clone(),
@@ -241,7 +242,7 @@ fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
         };
         file.open_existing_or_new(0, MAX_FILE_SIZE)?;
         *output = Output::ProcessFile(file);
-        None
+        Some(path.clone())
     } else {
         *output = Output::Stdout;
         None
@@ -327,6 +328,7 @@ fn start_cleaner(dir: &Path, max_total_mb: i64, protected: Option<PathBuf>) {
 /// Go `enforceLogDirSizeLimit`: deletes the oldest `*.log` / `*.log.gz` files (by
 /// modification time, never `protected`) until the directory is within `max_bytes`.
 pub(crate) fn enforce_size_limit(dir: &Path, max_bytes: u64, protected: Option<&Path>) -> io::Result<usize> {
+    let protected = protected.map(std::path::absolute).transpose()?;
     let entries = match std::fs::read_dir(dir) {
         Ok(entries) => entries,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(0),
@@ -344,7 +346,7 @@ pub(crate) fn enforce_size_limit(dir: &Path, max_bytes: u64, protected: Option<&
             continue;
         }
         total += info.len();
-        files.push((info.modified().ok(), info.len(), entry.path()));
+        files.push((info.modified().ok(), info.len(), std::path::absolute(entry.path())?));
     }
     if total <= max_bytes {
         return Ok(0);
@@ -355,7 +357,7 @@ pub(crate) fn enforce_size_limit(dir: &Path, max_bytes: u64, protected: Option<&
         if total <= max_bytes {
             break;
         }
-        if protected.is_some_and(|p| p == path) {
+        if protected.as_ref().is_some_and(|p| *p == path) {
             continue;
         }
         if let Err(error) = std::fs::remove_file(&path) {
@@ -817,8 +819,8 @@ mod tests {
     #[test]
     fn log_file_replaces_only_stdout() {
         let dir = scratch("cli-file");
-        let cli = dir.join("cli.log");
         let logs = dir.join("logs");
+        let cli = logs.join("cli.log");
         set_log_file(cli.clone()).unwrap();
         let emit = |line: &str| GlobalWriter.make_writer().write_all(line.as_bytes()).unwrap();
         let read = |path: &Path| std::fs::read_to_string(path).unwrap_or_default();
@@ -870,6 +872,35 @@ mod tests {
         assert_eq!(read(&cli), "before-config\nto-cli\n");
         assert_eq!(read(&logs.join(MAIN_LOG)), "to-main\n");
         assert!(gone(&old), "the cleaner keeps running with only --log-file");
+
+        // Even when the active CLI file alone exceeds the budget, keep it linked.
+        let large = "x".repeat(2 * 1024 * 1024);
+        emit(&large);
+        // Delete the CLI file first if configure_output forgets its protected path.
+        File::options()
+            .write(true)
+            .open(&cli)
+            .unwrap()
+            .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(1_000_000_000))
+            .unwrap();
+        configure_output(
+            &logs,
+            Applied {
+                logging_to_file: false,
+                ..on
+            },
+        )
+        .unwrap();
+        assert!(
+            gone(&logs.join(MAIN_LOG)),
+            "the active cleaner must run with the CLI file protected"
+        );
+        assert!(cli.exists(), "configure_output must protect the active process log");
+        // A relative/dotted directory spelling must match the absolute protected path.
+        enforce_size_limit(&logs.join("."), 1, LOG_FILE.get().map(PathBuf::as_path)).unwrap();
+        assert!(cli.exists(), "the cleaner must never unlink the active process log");
+        emit("still-linked\n");
+        assert_eq!(read(&cli), format!("before-config\nto-cli\n{large}still-linked\n"));
 
         // Stop the cleaner and restore stdout for the rest of the process.
         configure_output(&logs, Applied { max_total_mb: 0, ..on }).unwrap();

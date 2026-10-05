@@ -18,11 +18,26 @@ import urllib.request
 import zipfile
 
 
+def capture(command, *, timeout=120, **kwargs):
+    # Children launched by PowerShell can inherit a pipe and keep communicate()
+    # blocked after the shell exits. A file keeps output without waiting for EOF.
+    with tempfile.TemporaryFile(mode="w+", encoding="utf-8", errors="replace") as output:
+        try:
+            result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT,
+                                    timeout=timeout, **kwargs)
+        except subprocess.TimeoutExpired:
+            output.seek(0)
+            print(output.read(), file=sys.stderr)
+            raise
+        output.seek(0)
+        return subprocess.CompletedProcess(command, result.returncode, output.read())
+
+
 def main():
     binary = Path(sys.argv[1]).resolve()
     repo = Path(__file__).resolve().parents[2]
     windows = os.name == "nt"
-    version = subprocess.check_output([binary, "--version"], text=True).splitlines()[-1].split()[-1]
+    version = subprocess.check_output([binary, "--version"], text=True, timeout=20).splitlines()[-1].split()[-1]
     target = {
         ("Linux", "x86_64"): "x86_64-unknown-linux-gnu",
         ("Linux", "aarch64"): "aarch64-unknown-linux-gnu",
@@ -63,12 +78,11 @@ def main():
             wrapper.write_text(f'#!/bin/sh\nif [ "$1" = --version ]; then echo "cliproxy 999.1.0"; else exec {shlex.quote(str(binary))} "$@"; fi\n')
             wrapper.chmod(0o755)
             package("v999.1.0", wrapper)
-        hanging = root / ("hanging" + (".exe" if windows else ""))
-        subprocess.run(["rustc", str(repo / ".github/scripts/installer-fixture.rs"), "-o", hanging], check=True)
+        fixtures = repo / "target/installer-fixtures"
+        hanging = fixtures / ("hanging" + (".exe" if windows else ""))
         package("v999.3.0", hanging)
         if windows:
-            legacy = root / "legacy.exe"
-            subprocess.run(["rustc", "--cfg", "legacy", str(repo / ".github/scripts/installer-fixture.rs"), "-o", legacy], check=True)
+            legacy = fixtures / "legacy.exe"
             package("v999.0.0", legacy)
         if not windows:
             bad = root / "broken"
@@ -117,9 +131,10 @@ def main():
         original_run = None
 
         def ps(code, check=True, cwd=None):
-            result = subprocess.run(["powershell.exe", "-NoProfile", "-Command", code], env=env, cwd=cwd,
-                                    text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            result = capture(["powershell.exe", "-NoProfile", "-Command", code], env=env, cwd=cwd, timeout=30)
             if check:
+                if result.returncode:
+                    print(result.stdout, file=sys.stderr)
                 assert result.returncode == 0, result.stdout
             return result.stdout.strip()
 
@@ -133,7 +148,7 @@ def main():
                     command = [shell, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(repo / "install.ps1"), *args]
             else:
                 command = ["sh", str(repo / "install.sh"), *args]
-            result = subprocess.run(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, timeout=120)
+            result = capture(command, env=env)
             assert (result.returncode == 0) == success, result.stdout
             return result.stdout
 
@@ -150,21 +165,50 @@ def main():
         def pid():
             return int((home / "cliproxy.pid").read_text().strip())
 
+        firewall = "cliproxy-installer-" + root.name
         try:
+            if windows:
+                # Scope denial to test programs, not the hosted runner's own
+                # connection to GitHub. Windows CI runs this with admin rights.
+                paths = [binary, bindir / exe, bindir / "cliproxy.new.exe", Path(sys.executable),
+                         Path(shutil.which("powershell.exe")), Path(shutil.which("pwsh.exe"))]
+                programs = ",".join("'" + str(p).replace("'", "''") + "'" for p in paths)
+                ps(f"$ErrorActionPreference='Stop'; $i=0; foreach($program in @({programs})){{ "
+                   f"$name='{firewall}-'+$i; $i++; New-NetFirewallRule -Name $name -DisplayName $name "
+                   "-Program $program -Direction Outbound -Action Block -RemoteAddress "
+                   "'0.0.0.0-126.255.255.255','128.0.0.0-255.255.255.255','::2-ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff' | Out-Null }")
             process_log = root / "process.log"
             process_log.write_text("keep existing log\n")
-            failed = subprocess.run([binary, "--config", str(root / "missing-config.yaml"),
+            failed = capture([binary, "--config", str(root / "missing-config.yaml"),
                                      "--log-file", process_log, "--local-model"], cwd=root, env=env,
-                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=20)
+                                    timeout=20)
             assert failed.returncode != 0
             logged = process_log.read_text()
             assert logged.startswith("keep existing log\n") and "config" in logged[len("keep existing log\n"):], logged
             if windows:
                 original_run = ps("$e=(Get-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -ErrorAction SilentlyContinue).'cliproxy-rs'; if($e){$e}")
+                # Explicit OWNER RIGHTS must not survive on a pre-existing home;
+                # removing inherited ACEs alone does not remove explicit grants.
+                print(ps("$ErrorActionPreference='Stop'; New-Item -ItemType Directory -Path $env:CLIPROXY_HOME | Out-Null; "
+                         "$acl=Get-Acl $env:CLIPROXY_HOME; $sid=New-Object Security.Principal.SecurityIdentifier('S-1-3-4'); "
+                         "$acl.AddAccessRule((New-Object Security.AccessControl.FileSystemAccessRule($sid,'FullControl','ContainerInherit,ObjectInherit','None','Allow'))); "
+                         "Set-Acl $env:CLIPROXY_HOME $acl; Write-Output \"Before install: $((Get-Acl $env:CLIPROXY_HOME).Sddl)\""))
             else:
                 assert "not installed" in install("--check")
                 assert not home.exists() and not bindir.exists()
                 assert not any("/download/" in r for r in requests)
+            # Check the bracketed IPv6 wildcard and YAML boolean aliases without
+            # asking the server to bind a bracketed literal (not a bind address).
+            probe_config = root / "probe-only.yaml"
+            probe_config.write_text('server:\n  host: "[::]"\n  tls: # self-signed\n    enable: ON\n')
+            if windows:
+                script = str(repo / "install.ps1").replace("'", "''")
+                test_config = str(probe_config).replace("'", "''")
+                base = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-CliproxyRs -Service.*$', ''; . ([scriptblock]::Create($code)); (Get-CliproxyProbe '{test_config}').Base")
+            else:
+                code = (repo / "install.sh").read_text().removesuffix('main "$@"\n')
+                base = capture(["sh", "-c", code + '\nconfig=$1; read_probe; printf "%s" "$base"', "sh", probe_config], env=env).stdout
+            assert base.strip() == "https://[::1]:8317", base
             install(pipe=windows)
             health()
             keys = dict(line.split("=", 1) for line in (home / "keys.env").read_text().splitlines() if line.startswith("CLIPROXY_"))
@@ -183,9 +227,12 @@ def main():
                     code = error.code
                 assert code == expected, (path, code)
             if windows:
-                ps("$ErrorActionPreference='Stop'; $me=[Security.Principal.WindowsIdentity]::GetCurrent().Name; "
-                   "$who=(Get-Acl \"$env:CLIPROXY_HOME\\keys.env\").Access.IdentityReference.Value; "
-                   "if($who | Where-Object { $_ -notin $me, 'NT AUTHORITY\\SYSTEM', 'BUILTIN\\Administrators' }){throw 'keys readable by others'}")
+                print(ps("$ErrorActionPreference='Stop'; $me=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; "
+                   "foreach($p in @($env:USERPROFILE, $env:CLIPROXY_HOME, \"$env:CLIPROXY_HOME\\keys.env\")){ "
+                   "$acl=Get-Acl -LiteralPath $p; Write-Output \"ACL $p $($acl.Sddl)\"; "
+                   "$acl.Access | Format-Table IdentityReference,AccessControlType,IsInherited | Out-String | Write-Output }; "
+                   "$who=(Get-Acl \"$env:CLIPROXY_HOME\\keys.env\").GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]).IdentityReference.Value; "
+                   "if($who | Where-Object { $_ -notin $me, 'S-1-5-18', 'S-1-5-32-544' }){throw \"keys readable by others: $who\"}"))
             else:
                 assert (home / "keys.env").stat().st_mode & 0o777 == 0o600
             before = [(home / f).read_bytes() for f in ("config.yaml", "keys.env")]
@@ -205,9 +252,6 @@ def main():
             if not windows:
                 assert (bindir / "cliproxy.prev").stat().st_ino == old_inode
                 requests.clear()
-                print(subprocess.run(["ps", "-p", str(old_pid), "-o", "pid=,comm="], text=True, capture_output=True).stdout)
-                if platform.system() == "Darwin":
-                    print(subprocess.run(["ps", "-p", str(old_pid), "-o", "ucomm="], text=True, capture_output=True).stdout)
             install()
             health()
             assert pid() != old_pid
@@ -217,11 +261,27 @@ def main():
                 restarted = pid()
                 assert "already current" in install()
                 assert pid() == restarted
-                subprocess.run(["kill", str(restarted)], check=True)
+                subprocess.run(["kill", str(restarted)], check=True, timeout=10)
                 time.sleep(2)
                 install()
                 health()
                 assert pid() != restarted, "a stopped current binary must start again"
+                # Minimal Linux and Seatbelt can refuse ps, but pid-file installs
+                # still start, stop and verify the managed process with kill -0.
+                shimdir = root / "no-ps"
+                shimdir.mkdir()
+                (shimdir / "ps").write_text("#!/bin/sh\nexit 126\n")
+                (shimdir / "ps").chmod(0o755)
+                original_path = env["PATH"]
+                env["PATH"] = str(shimdir) + os.pathsep + original_path
+                previous_pid = pid()
+                os.utime(bindir / exe, None)
+                try:
+                    install()
+                    health()
+                    assert pid() != previous_pid, "ps refusal must not skip stopping the old server"
+                finally:
+                    env["PATH"] = original_path
             second = root / "second"
             env.update(CLIPROXY_HOME=str(second))
             try:
@@ -237,12 +297,15 @@ def main():
                     assert response.status == 200, "upgrading one config must not stop another config sharing the binary"
                 health()
             finally:
-                if (second / "cliproxy.pid").exists():
-                    second_pid = int((second / "cliproxy.pid").read_text().strip())
-                    if windows:
-                        ps(f"Stop-Process -Id {second_pid} -ErrorAction SilentlyContinue", check=False)
-                    else:
-                        subprocess.run(["kill", str(second_pid)], check=False)
+                try:
+                    if (second / "cliproxy.pid").exists():
+                        second_pid = int((second / "cliproxy.pid").read_text().strip())
+                        if windows:
+                            ps(f"Stop-Process -Id {second_pid} -ErrorAction SilentlyContinue", check=False)
+                        else:
+                            subprocess.run(["kill", str(second_pid)], check=False, timeout=10)
+                except (OSError, ValueError, subprocess.SubprocessError) as error:
+                    print(f"Best-effort cleanup: {error}", file=sys.stderr)
                 env.update(CLIPROXY_HOME=str(home))
             if not windows:
                 # A service command fails once after the swap; rollback must restart and
@@ -288,6 +351,11 @@ esac
                     env["PATH"] = original_path
             env["CLIPROXY_VERSION"] = "v999.3.0"
             image = (bindir / exe).read_bytes()
+            if windows:
+                running = pid()
+                install("-BinaryOnly")
+                assert pid() == running
+                health()
             output = install(success=False)
             assert ("Rolled back" if windows else "verified it is healthy") in output, output
             if not windows:
@@ -349,13 +417,19 @@ esac
             connection = urllib.request.build_opener(urllib.request.ProxyHandler({}))
             with connection.open("http://[::1]:8317/healthz", timeout=5) as response:
                 assert response.status == 200
-            if not windows:
-                cert = root / "fixture-cert.pem"
-                key = root / "fixture-key.pem"
-                subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
-                                "-subj", "/CN=localhost", "-keyout", key, "-out", cert],
-                               check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                config.write_text(config.read_text().replace("  port: 8317", f"  port: 8317\n  tls:\n    enable: true\n    cert: '{cert}'\n    key: '{key}'"))
+            config.write_text(config.read_text().replace('host: "::1"', 'host: "::"'))
+            os.utime(bindir / exe, None)
+            assert "http://[::1]:8317/management.html" in install()
+            with connection.open("http://[::1]:8317/healthz", timeout=5) as response:
+                assert response.status == 200
+            cert = root / "fixture-cert.pem"
+            key = root / "fixture-key.pem"
+            subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
+                            "-subj", "/CN=localhost", "-keyout", key, "-out", cert],
+                           check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+            plain = config.read_text()
+            for mapping, enabled in [("tls: # self-signed", "true"), ("tls:", "yes")]:
+                config.write_text(plain.replace("  port: 8317", f"  port: 8317\n  {mapping}\n    enable: {enabled}\n    cert: '{cert}'\n    key: '{key}'"))
                 os.utime(bindir / exe, None)
                 assert "https://[::1]:8317/management.html" in install()
                 connection = urllib.request.build_opener(urllib.request.ProxyHandler({}),
@@ -365,20 +439,31 @@ esac
             print(f"PASS {platform.system()}: install, upgrade, binary-only, unchanged keys" +
                   (", direct Run entry and process log" if windows else ", check, current no-op, hard link, rollback, checksum rejection"))
         except BaseException:
+            def diagnostic(action):
+                try:
+                    action()
+                except (OSError, subprocess.SubprocessError) as error:
+                    print(f"Best-effort diagnostics: {error}", file=sys.stderr)
+
             for folder in (home, root / "second"):
-                print(f"Diagnostics: {folder}", file=sys.stderr)
-                logfile = folder / "cliproxy.log"
-                if logfile.exists():
-                    print("\n".join(logfile.read_text(errors="replace").splitlines()[-40:]), file=sys.stderr)
-                marker = folder / "cliproxy.pid"
-                if marker.exists() and not windows:
-                    subprocess.run(["ps", "-p", marker.read_text().strip(), "-o", "pid=,ppid=,stat=,comm=,args="], check=False)
+                def logs():
+                    print(f"Diagnostics: {folder}", file=sys.stderr)
+                    logfile = folder / "cliproxy.log"
+                    if logfile.exists():
+                        print("\n".join(logfile.read_text(errors="replace").splitlines()[-40:]), file=sys.stderr)
+                diagnostic(logs)
+                def process():
+                    marker = folder / "cliproxy.pid"
+                    if marker.exists() and not windows:
+                        subprocess.run(["ps", "-p", marker.read_text().strip(), "-o", "pid=,ppid=,stat=,comm=,args="], check=False, timeout=10)
+                diagnostic(process)
             if windows:
-                ps("Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 8317,8318 } | Format-Table LocalAddress,LocalPort,OwningProcess", check=False)
-            elif shutil.which("lsof"):
-                subprocess.run(["lsof", "-nP", "-iTCP:8317", "-sTCP:LISTEN"], check=False)
-            elif shutil.which("ss"):
-                subprocess.run(["ss", "-ltnp"], check=False)
+                diagnostic(lambda: print(ps("Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue | Where-Object { $_.LocalPort -in 8317,8318 } | Format-Table LocalAddress,LocalPort,OwningProcess", check=False)))
+            else:
+                if shutil.which("lsof"):
+                    diagnostic(lambda: subprocess.run(["lsof", "-nP", "-iTCP:8317", "-sTCP:LISTEN"], check=False, timeout=10))
+                if shutil.which("ss"):
+                    diagnostic(lambda: subprocess.run(["ss", "-ltnp"], check=False, timeout=10))
             raise
         finally:
             try:
@@ -386,14 +471,21 @@ esac
                     if windows:
                         ps(f"Stop-Process -Id {pid()} -ErrorAction SilentlyContinue", check=False)
                     else:
-                        subprocess.run(["kill", str(pid())], check=False)
-                if windows:
+                        subprocess.run(["kill", str(pid())], check=False, timeout=10)
+            except (OSError, ValueError, subprocess.SubprocessError) as error:
+                print(f"Best-effort cleanup: {error}", file=sys.stderr)
+            if windows:
+                try:
                     if original_run:
                         ps("Set-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name cliproxy-rs -Value '" + original_run.replace("'", "''") + "'", check=False)
                     else:
                         ps("Remove-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' -Name cliproxy-rs -ErrorAction SilentlyContinue", check=False)
-            except (OSError, ValueError, subprocess.SubprocessError) as error:
-                print(f"Best-effort cleanup: {error}", file=sys.stderr)
+                except (OSError, subprocess.SubprocessError) as error:
+                    print(f"Best-effort cleanup: {error}", file=sys.stderr)
+                try:
+                    ps(f"Get-NetFirewallRule -Name '{firewall}-*' -ErrorAction SilentlyContinue | Remove-NetFirewallRule", check=False)
+                except (OSError, subprocess.SubprocessError) as error:
+                    print(f"Best-effort cleanup: {error}", file=sys.stderr)
             server.shutdown()
             server.server_close()
 

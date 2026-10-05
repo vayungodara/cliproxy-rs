@@ -93,24 +93,35 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
     throw
   }
 
+  # A binary-only upgrade can leave the healthy server running from an older image.
+  # Use that image for rollback, not the untested cliproxy.exe already on disk.
+  $runningPrevious = $null
+  if (-not $BinaryOnly) {
+    $runningPrevious = Get-CliproxyServers $pidfile $dir $config | Where-Object {
+      $_.ExecutablePath -and [IO.Path]::GetDirectoryName($_.ExecutablePath) -eq $dir -and
+        [IO.Path]::GetFileName($_.ExecutablePath) -like 'cliproxy.prev-*.exe'
+    } | Select-Object -First 1 -ExpandProperty ExecutablePath
+  }
   # The previous image's flags decide how a rollback restarts it.
   $previousArguments = $null
-  if (Test-Path -LiteralPath $exe) {
+  $previous = if ($runningPrevious) { $runningPrevious } else { $exe }
+  if (Test-Path -LiteralPath $previous) {
     $previousHelp = ''
     # An image that cannot print its help is restarted, if needed, with --config only.
-    try { $previousHelp = Get-CliproxyHelp $exe } catch { $previousHelp = '' }
+    try { $previousHelp = Get-CliproxyHelp $previous } catch { $previousHelp = '' }
     $previousArguments = New-CliproxyArguments $previousHelp $config $log $data
-  }
+  } else { $previous = $null }
   # Windows permits renaming a running image, so a running server keeps serving from
   # this run's cliproxy.prev-<guid>.exe until it is stopped.
-  $previous = $null
-  if ($previousArguments) {
-    $previous = Join-Path $dir ("cliproxy.prev-" + [guid]::NewGuid() + '.exe')
-    [IO.File]::Move($exe, $previous)
+  $displaced = $null
+  if (Test-Path -LiteralPath $exe) {
+    $displaced = Join-Path $dir ("cliproxy.prev-" + [guid]::NewGuid() + '.exe')
+    [IO.File]::Move($exe, $displaced)
+    if (-not $runningPrevious) { $previous = $displaced }
   }
   try { [IO.File]::Move($staged, $exe) } catch {
     $why = $_.Exception.Message
-    if ($previous) { [IO.File]::Move($previous, $exe) }
+    if ($displaced) { [IO.File]::Move($displaced, $exe) }
     throw "install.ps1: could not put the new cliproxy.exe in place ($why); the previous one is unchanged"
   }
   # Older images from earlier runs, unless a server still runs from them (then they are locked).
@@ -223,9 +234,16 @@ function Initialize-CliproxyHome($data, $config, $keys) {
     if (Test-Path -LiteralPath $keys) { throw "install.ps1: $keys exists but $config does not; restore config.yaml, or move keys.env away to make new keys" }
     New-Item -ItemType Directory -Force -Path (Join-Path $data 'auth') | Out-Null
     # Only you, SYSTEM and Administrators can read the folder, wherever CLIPROXY_HOME points.
-    $me = [Security.Principal.WindowsIdentity]::GetCurrent().Name
-    icacls $data /inheritance:r /grant:r "${me}:(OI)(CI)F" '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null
-    if ($LASTEXITCODE -ne 0) { throw "install.ps1: could not make $data private" }
+    # Replace the DACL, including explicit grants on an existing folder, rather than
+    # only removing inherited grants. keys.env inherits exactly these three trustees.
+    $acl = New-Object Security.AccessControl.DirectorySecurity
+    $acl.SetAccessRuleProtection($true, $false)
+    $me = [Security.Principal.WindowsIdentity]::GetCurrent().User
+    foreach ($sid in @($me, (New-Object Security.Principal.SecurityIdentifier('S-1-5-18')), (New-Object Security.Principal.SecurityIdentifier('S-1-5-32-544')))) {
+      $rule = New-Object Security.AccessControl.FileSystemAccessRule($sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')
+      $acl.AddAccessRule($rule)
+    }
+    Set-Acl -LiteralPath $data -AclObject $acl
     $listening = [Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties().GetActiveTcpListeners().Port
     $port = 8317..8336 | Where-Object { $listening -notcontains $_ } | Select-Object -First 1
     if (-not $port) { throw 'install.ps1: ports 8317 to 8336 are all in use; free one and run this again' }
@@ -286,7 +304,7 @@ function Start-Cliproxy($image, $arguments, $data, $pidfile) {
 }
 
 # Address, port and scheme from server.host/port/tls.enable, or the older top-level
-# host/port/tls keys. A wildcard host is probed on 127.0.0.1.
+# host/port/tls keys. Wildcards are probed on their family's loopback address.
 # ponytail: block-style YAML only; a flow mapping such as `server: {port: 9000}` falls back to
 # the defaults. Parse with the binary itself if configs start using that form.
 function Get-CliproxyProbe($config) {
@@ -306,10 +324,11 @@ function Get-CliproxyProbe($config) {
   $pick = { param($new, $old) if ($values.ContainsKey($new)) { $values[$new] } elseif ($values.ContainsKey($old)) { $values[$old] } else { $null } }
   $address = [string](& $pick 'server.host' 'host')
   $address = $address.Trim().TrimStart('[').TrimEnd(']')
-  if ($address -in '', '0.0.0.0', '::') { $address = '127.0.0.1' }
+  if ($address -in '', '0.0.0.0') { $address = '127.0.0.1' }
+  if ($address -eq '::') { $address = '::1' }
   $port = 0
   if (-not [int]::TryParse([string](& $pick 'server.port' 'port'), [ref]$port) -or $port -le 0) { $port = 8317 }
-  $tls = [string](& $pick 'server.tls.enable' 'tls.enable') -match '^(?i:true)$'
+  $tls = [string](& $pick 'server.tls.enable' 'tls.enable') -match '^(?i:true|y|yes|on)$'
   $urlHost = if ($address.Contains(':')) { "[$address]" } else { $address }
   $scheme = if ($tls) { 'https' } else { 'http' }
   [pscustomobject]@{ Address = $address; Port = $port; Tls = $tls; Base = "${scheme}://${urlHost}:$port" }
@@ -363,23 +382,26 @@ function Remove-CliproxyImages($dir, $keep) {
     ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
 }
 
-# Stops this install's server: a cliproxy image from the install directory started with this
+# Finds this install's server: a cliproxy image from the install directory started with this
 # config, which also finds a Run-entry launch the pid file does not know, plus the pid file's
 # process if it is a cliproxy image. A server for another config sharing the binary keeps running.
-function Stop-Cliproxy($pidfile, $dir, $config) {
+function Get-CliproxyServers($pidfile, $dir, $config) {
   $directory = $dir.TrimEnd('\')
   $recorded = 0
   $text = Get-Content -LiteralPath $pidfile -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $text -or -not [int]::TryParse($text.Trim(), [ref]$recorded)) { $recorded = 0 }
-  try { $all = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'cliproxy%.exe'") }
+  try { $all = @(Get-CimInstance Win32_Process -Filter "Name LIKE 'cliproxy%.exe'" -OperationTimeoutSec 10) }
   catch { throw "install.ps1: could not list running processes ($($_.Exception.Message))" }
-  $servers = $all | Where-Object {
+  $all | Where-Object {
     ($_.Name -eq 'cliproxy.exe' -or $_.Name -like 'cliproxy.prev-*.exe') -and (
       ($recorded -gt 0 -and $_.ProcessId -eq $recorded) -or
       ($_.ExecutablePath -and [IO.Path]::GetDirectoryName($_.ExecutablePath) -eq $directory -and
         $_.CommandLine -and $_.CommandLine.IndexOf($config, [StringComparison]::OrdinalIgnoreCase) -ge 0))
   }
-  foreach ($p in $servers) { Stop-CliproxyId $p.ProcessId }
+}
+
+function Stop-Cliproxy($pidfile, $dir, $config) {
+  foreach ($p in (Get-CliproxyServers $pidfile $dir $config)) { Stop-CliproxyId $p.ProcessId }
   Remove-Item -LiteralPath $pidfile -Force -ErrorAction SilentlyContinue
 }
 

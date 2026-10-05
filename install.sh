@@ -290,7 +290,7 @@ read_probe() {
       indent = match($0, /[^ ]/) - 1
       while (depth && levels[depth] >= indent) depth--
       line = substr($0, indent + 1); key = line; sub(/[ ]*:.*$/, "", key)
-      value = line; sub(/^[^:]*:[ ]*/, "", value); sub(/[ ]+#.*$/, "", value)
+      value = line; sub(/^[^:]*:[ ]*/, "", value); sub(/(^|[ ]+)#.*$/, "", value)
       gsub(/^[ ]+|[ ]+$/, "", value); gsub(/^[\047\042]|[\047\042]$/, "", value)
       path = ""; for (j = 1; j <= depth; j++) path = path names[j] "."
       values[path key] = value
@@ -304,9 +304,9 @@ read_probe() {
   port=$(printf '%s\n' "$settings" | sed -n '1p')
   port=${port:-8317}
   host=$(printf '%s\n' "$settings" | sed -n '2p')
-  case "$host" in '' | 0.0.0.0 | ::) host=127.0.0.1 ;; esac
+  case "$host" in '' | 0.0.0.0) host=127.0.0.1 ;; :: | '[::]') host=::1 ;; esac
   scheme=http
-  [ "$(printf '%s\n' "$settings" | sed -n '3p')" != true ] || scheme=https
+  case "$(printf '%s\n' "$settings" | sed -n '3p' | tr '[:upper:]' '[:lower:]')" in true | y | yes | on) scheme=https ;; esac
   case "$host" in *:*)
     host="[${host#[}]"
     host="${host%]}]"
@@ -371,17 +371,32 @@ stop_pidfile() {
 managed_pid() {
   pid=$(cat "$pidfile" 2>/dev/null) || return 1
   case "$pid" in '' | *[!0-9]*) return 1 ;; esac
-  # Darwin comm depends on reading argv via sysctl and can become "(cliproxy)"
-  # in a sandbox. ucomm reads the saved process name directly, without argv.
+  [ "$pid" -gt 0 ] || return 1
+  # Darwin's setuid ps cannot execute under Seatbelt; minimal Linux images may
+  # have no ps. In either case retain the pid-file/kill -0 check.
   field='comm'
   [ "$os" != Darwin ] || field=ucomm
-  command=$(ps -p "$pid" -o "$field=" 2>/dev/null | sed 's/^[ ]*//;s/[ ]*$//')
+  if command=$(ps -p "$pid" -o "$field=" 2>/dev/null); then
+    command=$(printf '%s\n' "$command" | sed 's/^[ ]*//;s/[ ]*$//')
+  else
+    status=$?
+    case "$status" in 126 | 127)
+      kill -0 "$pid" 2>/dev/null
+      return $?
+      ;;
+    *) return 1 ;; esac
+  fi
   case "$command" in *cliproxy | *cliproxy.prev) return 0 ;; *) return 1 ;; esac
 }
 
 pid_running() {
   kill -0 "$1" 2>/dev/null || return 1
-  case "$(ps -p "$1" -o stat= 2>/dev/null)" in '' | *Z*) return 1 ;; esac
+  if state=$(ps -p "$1" -o stat= 2>/dev/null); then
+    case "$state" in '' | *Z*) return 1 ;; esac
+  else
+    status=$?
+    case "$status" in 126 | 127) return 0 ;; *) return 1 ;; esac
+  fi
   return 0
 }
 
