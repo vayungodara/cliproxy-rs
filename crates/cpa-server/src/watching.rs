@@ -208,6 +208,9 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             }
             let Some(current) = observed.clone() else { continue };
             if applied.as_ref() == Some(&current) {
+                // Nothing to reload, but the event may have been a missing auth folder
+                // appearing (empty), which the watch must now follow.
+                events.retarget(&targets(&state, Some(&current)));
                 continue;
             }
             let config_changed = applied.as_ref().map_or(initial_hash, |a| a.config) != current.config;
@@ -540,6 +543,34 @@ mod tests {
         let text = capture.text();
         assert!(!text.contains("config successfully reloaded"), "{text}");
         assert!(!text.contains("config changes detected"), "{text}");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A missing auth folder is watched through its parent; once it is created (empty,
+    /// so nothing reloads), files written into it are still seen.
+    #[tokio::test]
+    async fn auth_folder_created_after_start_is_followed() {
+        let (state, dir) = state();
+        let auth = dir.join("later");
+        std::fs::write(&state.path, format!("oauth: {{auth-dir: {}}}\n", auth.display())).unwrap();
+        reload(&state).unwrap();
+        let capture = Capture::default();
+        let _guard = capture.install();
+        let initial = state.rt.config();
+        let watcher = start(&state);
+        tokio::time::timeout(Duration::from_secs(3), async {
+            while Arc::ptr_eq(&state.rt.config(), &initial) {
+                tokio::time::sleep(TICK).await;
+            }
+        })
+        .await
+        .unwrap();
+        std::fs::create_dir(&auth).unwrap();
+        tokio::time::sleep(Duration::from_millis(500)).await;
+        std::fs::write(auth.join("a.json"), "{}").unwrap();
+        capture.wait_for("auth file changed (CREATE): a.json").await;
+        watcher.abort();
+        let _ = watcher.await;
         std::fs::remove_dir_all(dir).unwrap();
     }
 
