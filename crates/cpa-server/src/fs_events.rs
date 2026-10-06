@@ -1491,11 +1491,12 @@ mod tests {
     }
 
     /// A config folder whose ACL denies listing (only config.yaml is readable) is not
-    /// mistaken for a delete-pending one: notifications cannot cover it, so setting
-    /// them up fails and the watcher polls instead of watching nothing.
+    /// mistaken for a delete-pending one: either setting up notifications fails, so the
+    /// watcher polls, or the folder could be opened after all (an elevated token with
+    /// backup rights) and an edit wakes the watcher. Never watched-by-nobody.
     #[cfg(windows)]
-    #[test]
-    fn an_unlistable_config_folder_is_an_error() {
+    #[tokio::test]
+    async fn an_unlistable_config_folder_is_never_left_unwatched() {
         let root = temp();
         let conf = root.join("conf");
         std::fs::create_dir(&conf).unwrap();
@@ -1517,11 +1518,24 @@ mod tests {
             auth_dir: root.join("auth"),
             files: Vec::new(),
         };
-        let result = sys::Watch::new(&t).map(drop);
+        let outcome = match sys::Watch::new(&t) {
+            Err(e) => Err(e),
+            Ok(watch) => {
+                let mut events = Events {
+                    watch: Some(watch),
+                    rearm: false,
+                };
+                settle(&mut events, &t).await;
+                std::fs::write(&t.config, "port: 2\n").unwrap();
+                Ok(wake(&mut events, &t).await)
+            }
+        };
         icacls(&["/remove:d", "*S-1-1-0"]);
         std::fs::remove_dir_all(root).unwrap();
-        let e = result.expect_err("an unlistable folder was left unwatched");
-        assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied, "{e}");
+        match outcome {
+            Err(e) => assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied, "{e}"),
+            Ok(woke) => assert!(woke, "an unlistable folder was left unwatched"),
+        }
     }
 
     #[cfg(windows)]
