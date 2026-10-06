@@ -880,13 +880,12 @@ mod sys {
         }
     }
 
-    /// The watched folders, then their parents for folder renames. A parent that cannot
-    /// be opened only loses that safety net.
+    /// The parents of the watched folders (folder renames only), then the folders. The
+    /// parents open first, so a folder renamed into place after its open fails is still
+    /// seen. A folder that is missing (between the two renames of a swap) is skipped
+    /// until its parent's next event; a parent that cannot be opened only loses that
+    /// safety net.
     fn open_all(dirs: &[Dir]) -> io::Result<Vec<Pending>> {
-        let mut pending = dirs
-            .iter()
-            .map(|d| Pending::open(d, FILTER, false))
-            .collect::<io::Result<Vec<_>>>()?;
         let mut parents: Vec<Dir> = Vec::new();
         for dir in dirs {
             let (Some(parent), Some(name)) = (dir.path.parent(), dir.path.file_name()) else {
@@ -901,11 +900,17 @@ mod sys {
                 }),
             }
         }
-        pending.extend(
-            parents
-                .iter()
-                .filter_map(|p| Pending::open(p, PARENT_FILTER, true).ok()),
-        );
+        let mut pending: Vec<Pending> = parents
+            .iter()
+            .filter_map(|p| Pending::open(p, PARENT_FILTER, true).ok())
+            .collect();
+        for dir in dirs {
+            match Pending::open(dir, FILTER, false) {
+                Ok(p) => pending.push(p),
+                Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+                Err(e) => return Err(e),
+            }
+        }
         Ok(pending)
     }
 
