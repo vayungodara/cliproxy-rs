@@ -38,7 +38,7 @@ pub(crate) fn header<'a>(headers: &'a HeaderMap, name: &str) -> &'a str {
 }
 
 /// Go `headerValue`: the first value, untrimmed.
-fn raw_header<'a>(headers: &'a HeaderMap, name: &str) -> &'a str {
+pub(crate) fn raw_header<'a>(headers: &'a HeaderMap, name: &str) -> &'a str {
     headers.get(name).and_then(|v| v.to_str().ok()).unwrap_or_default()
 }
 

@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 use http::HeaderMap;
 use sha2::{Digest, Sha256};
 
-use super::detect::{NATIVE_ENTRYPOINTS, header, native_user_agent, user_agent_details};
+use super::detect::{NATIVE_ENTRYPOINTS, header, native_user_agent, raw_header, user_agent_details};
 use super::settings::Settings;
 
 /// Claude Code 2.1.280 / @anthropic-ai/sdk 0.112.1 on Node v26.3.0, macOS arm64.
@@ -127,16 +127,17 @@ pub(crate) fn plausible_user_agent(user_agent: &str, settings: &Settings) -> boo
 /// and runtime versions go upstream with its User-Agent instead of baseline values
 /// that release never sends.
 pub(crate) fn stainless_versions_ok(headers: &HeaderMap) -> bool {
-    let first = |name: &str| {
-        headers
-            .get(name)
-            .and_then(|v| v.to_str().ok())
-            .unwrap_or_default()
-            .trim()
-            .to_owned()
-    };
-    package_version_ok(&first("x-stainless-package-version"))
-        && runtime_version_ok(&first("x-stainless-runtime-version"))
+    stainless_versions(headers) == (true, true)
+}
+
+/// Whether the first `X-Stainless-Package-Version` and `X-Stainless-Runtime-Version`
+/// values are well formed, in that order.
+fn stainless_versions(headers: &HeaderMap) -> (bool, bool) {
+    let first = |name: &str| raw_header(headers, name).trim();
+    (
+        package_version_ok(first("x-stainless-package-version")),
+        runtime_version_ok(first("x-stainless-runtime-version")),
+    )
 }
 
 /// The one rule for treating a caller's User-Agent as Claude Code's own: a plausible
@@ -189,7 +190,8 @@ pub(crate) fn note_refused(
     headers: &HeaderMap,
     settings: &Settings,
 ) -> bool {
-    let user_agent = header(headers, "user-agent").trim();
+    // The value detection judged (`detect`), not the first non-empty one.
+    let user_agent = raw_header(headers, "user-agent").trim();
     if !user_agent
         .get(..11)
         .is_some_and(|p| p.eq_ignore_ascii_case("claude-cli/"))
@@ -210,22 +212,38 @@ pub(crate) fn note_refused(
     let baseline = Profile::default_for(settings).user_agent;
     let version = seen.map_or_else(|| "an unknown version".to_owned(), |(a, b, c)| format!("{a}.{b}.{c}"));
     let index = cpa_core::config::credentials::auth_index(credential);
-    let rule = if settings.header_defaults.stabilize_device_profile {
-        "at or above that version within the same major and minor version (stabilize-device-profile)"
+    // A plausible release is refused only for its Stainless versions: Claude Code sends
+    // both, so something on the way removed or changed them.
+    let advice = if plausible_user_agent(user_agent, settings) {
+        let (missing, these, them) = match stainless_versions(headers) {
+            (false, false) => (
+                "X-Stainless-Package-Version and X-Stainless-Runtime-Version headers",
+                "these headers",
+                "them",
+            ),
+            (false, true) => ("X-Stainless-Package-Version header", "this header", "it"),
+            _ => ("X-Stainless-Runtime-Version header", "this header", "it"),
+        };
+        format!(
+            "It is missing a well-formed {missing}, which a release newer than that one needs. \
+             Claude Code sends {these}, so the client or a proxy in front of cliproxy-rs is \
+             stripping or rewriting {them}."
+        )
     } else {
-        "at or above that version within the same major version"
-    };
-    let reason = if plausible_user_agent(user_agent, settings) {
-        " It is missing well-formed X-Stainless-Package-Version and X-Stainless-Runtime-Version \
-         headers, which a release newer than that one needs."
-    } else {
-        ""
+        let rule = if settings.header_defaults.stabilize_device_profile {
+            "at or above that version within the same major and minor version (stabilize-device-profile)"
+        } else {
+            "at or above that version within the same major version"
+        };
+        format!(
+            "Native passthrough needs a native claude-cli User-Agent {rule}. Update Claude Code, \
+             or set claude-header-defaults user-agent, package-version and runtime-version to a \
+             newer release."
+        )
     };
     tracing::warn!(
         "claude: Claude Code {version} on credential {index} is not passed through; requests \
-         use the {baseline} identity.{reason} Native passthrough needs a native claude-cli \
-         User-Agent {rule}. Update Claude Code, or set claude-header-defaults user-agent, \
-         package-version and runtime-version to a newer release."
+         use the {baseline} identity. {advice}"
     );
     true
 }
@@ -641,13 +659,63 @@ mod tests {
         assert!(logged <= 64, "{logged}");
         let mask = REFUSED.get().unwrap().lock().unwrap()[&hash64(&cycling.id)];
         assert!(mask != 0 && mask.count_ones() as usize == logged, "{mask:b} {logged}");
-        // A newer release without its Stainless versions is refused, and logged.
+        // A newer release without its Stainless versions is refused, and the line names
+        // exactly the headers missing or malformed, and where they were lost.
+        let capture = crate::kimi_fixture::LogCapture::default();
+        let guard = capture.install();
+        let line = |id: &str, headers: &HeaderMap| {
+            capture.0.lock().unwrap().clear();
+            assert!(note_refused(&cred(id), headers, &s), "{id}");
+            capture.0.lock().unwrap().concat()
+        };
+        let newer = "claude-cli/2.2.3 (external, cli)";
+        let both = line("refused-bare.json", &ua_headers(newer, &[]));
+        assert!(
+            both.contains("missing a well-formed X-Stainless-Package-Version and X-Stainless-Runtime-Version headers,"),
+            "{both}"
+        );
+        assert!(
+            both.contains("rewriting them.") && !both.contains("Update Claude Code"),
+            "{both}"
+        );
+        let runtime = line(
+            "refused-runtime.json",
+            &ua_headers(newer, &[("x-stainless-package-version", "0.120.4")]),
+        );
+        assert!(
+            runtime.contains("missing a well-formed X-Stainless-Runtime-Version header,")
+                && !runtime.contains("Package-Version"),
+            "{runtime}"
+        );
+        let package = line(
+            "refused-package.json",
+            &ua_headers(
+                newer,
+                &[
+                    ("x-stainless-package-version", "0.120"),
+                    ("x-stainless-runtime-version", "v27.0.1"),
+                ],
+            ),
+        );
+        assert!(
+            package.contains("missing a well-formed X-Stainless-Package-Version header,")
+                && !package.contains("Runtime-Version"),
+            "{package}"
+        );
+        // A release refused for its version gets the update advice instead.
+        let outdated = line("refused-outdated.json", &ua_headers(old, &[]));
+        assert!(
+            outdated.contains("Update Claude Code") && !outdated.contains("X-Stainless"),
+            "{outdated}"
+        );
+        drop(guard);
+        // Detection reads the first User-Agent value even when it is empty, so a
+        // claude-cli value after it was never judged and is not logged.
+        let mut second = HeaderMap::new();
+        second.append("user-agent", http::HeaderValue::from_static(""));
+        second.append("user-agent", http::HeaderValue::from_static(old));
+        assert!(!note_refused(&cred("refused-second.json"), &second, &s));
         let bare = cred("refused-bare.json");
-        assert!(note_refused(
-            &bare,
-            &ua_headers("claude-cli/2.2.3 (external, cli)", &[]),
-            &s
-        ));
         let full = [
             ("x-stainless-package-version", "0.120.4"),
             ("x-stainless-runtime-version", "v27.0.1"),
