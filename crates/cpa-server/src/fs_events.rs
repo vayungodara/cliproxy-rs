@@ -16,8 +16,9 @@
 //! facility can be set up (inotify or descriptor limits, or an operating system other
 //! than Linux, macOS and Windows), it falls back to looking every 2 seconds and logs
 //! that once. As in Go, a change made by another machine on a network or FUSE file
-//! system (NFS, SMB, 9p such as WSL2's /mnt/c, sshfs) raises no event here and is seen
-//! with the next local change.
+//! system (NFS, 9p such as WSL2's /mnt/c, sshfs) raises no event here and is seen with
+//! the next local change; on an SMB/CIFS share it may not be reported, depending on the
+//! server.
 use std::ffi::OsString;
 use std::io;
 use std::path::{Component, Path, PathBuf};
@@ -1556,12 +1557,17 @@ mod tests {
     }
 
     /// A config folder whose ACL denies Everyone `deny` (on the folder only, so
-    /// config.yaml stays readable) must not be mistaken for a delete-pending one: either
-    /// setting up notifications fails (the 2-second poll) or the folder could be opened
-    /// after all and an edit wakes the watcher. Never watched-by-nobody. Returns whether
-    /// a zero-access open of the folder failed with access denied.
+    /// config.yaml keeps its own ACL) is never left watched by nobody. Whether the deny
+    /// takes effect depends on the account (an administrator's privileges can open the
+    /// folder anyway), so the test checks the outcome that matches what a zero-access
+    /// open finds, without requiring either:
+    ///
+    /// - denied (as on a delete-pending folder): setting up notifications must fail,
+    ///   so the watcher polls instead of skipping the folder;
+    /// - allowed: notifications either fail (the folder cannot be listed) or watch it,
+    ///   and then an in-place edit of config.yaml wakes the watcher.
     #[cfg(windows)]
-    async fn unlistable_config_folder(deny: &str) -> bool {
+    async fn unlistable_config_folder(deny: &str) {
         let root = temp();
         let conf = root.join("conf");
         std::fs::create_dir(&conf).unwrap();
@@ -1582,8 +1588,14 @@ mod tests {
             files: Vec::new(),
         };
         // Nothing below panics until the ACL is restored.
-        let zero_access = open_raw(&conf, 0).map(close_raw);
-        let readable = std::fs::read(&t.config).is_ok();
+        let acl = std::process::Command::new("icacls")
+            .arg(&plain)
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .unwrap_or_default();
+        let denied = open_raw(&conf, 0)
+            .map(close_raw)
+            .is_err_and(|e| e.kind() == std::io::ErrorKind::PermissionDenied);
         let outcome = match sys::Watch::new(&t) {
             Err(e) => Err(e),
             Ok(watch) => {
@@ -1599,25 +1611,24 @@ mod tests {
         let restored = icacls(&["/remove:d", "*S-1-1-0"]);
         assert!(restored, "icacls /remove:d");
         std::fs::remove_dir_all(root).unwrap();
-        assert!(readable, "({deny}) made config.yaml unreadable");
+        let case = format!("({deny}), zero-access open denied: {denied}; ACL:\n{acl}");
         match outcome {
-            Err(e) => assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied, "({deny}): {e}"),
-            Ok(woke) => assert!(woke, "({deny}): an unlistable folder was left unwatched"),
+            Err(e) => assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied, "{e}; {case}"),
+            Ok(_) if denied => panic!("a folder denying even a zero-access open was skipped; {case}"),
+            Ok(woke) => assert!(woke, "the folder was left unwatched; {case}"),
         }
-        zero_access.is_err_and(|e| e.kind() == std::io::ErrorKind::PermissionDenied)
     }
 
     #[cfg(windows)]
     #[tokio::test]
     async fn an_unlistable_config_folder_is_never_left_unwatched() {
-        // List folder / read data only: a zero-access open still succeeds.
+        // List folder / read data only.
         unlistable_config_folder("RD").await;
-        // Generic read, SYNCHRONIZE included: CreateFileW adds SYNCHRONIZE to every open,
-        // so even a zero-access open is denied, as on a delete-pending folder.
-        assert!(
-            unlistable_config_folder("R").await,
-            "a zero-access open of a folder denying (R) succeeded"
-        );
+        // Generic read, and SYNCHRONIZE by name: CreateFileW adds SYNCHRONIZE to every
+        // open, so where the deny takes effect even a zero-access open is refused, as on
+        // a delete-pending folder.
+        unlistable_config_folder("R").await;
+        unlistable_config_folder("RD,S").await;
     }
 
     #[cfg(windows)]
