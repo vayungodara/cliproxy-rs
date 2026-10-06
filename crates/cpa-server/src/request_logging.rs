@@ -1861,7 +1861,11 @@ mod tests {
                 gate: None,
             });
             state.rt.set_remote_dispatch(Some(home.clone()));
-            let app = axum::Router::new().fallback(|| async { (StatusCode::INTERNAL_SERVER_ERROR, "fixture error") });
+            let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+            let app = axum::Router::new().fallback(move |axum::Extension(log): axum::Extension<RequestLog>| {
+                let _ = tx.send(log);
+                async { (StatusCode::INTERNAL_SERVER_ERROR, "fixture error") }
+            });
             let mut app = router(&state, app);
             let mut request = HttpRequest::builder()
                 .method("POST")
@@ -1872,7 +1876,15 @@ mod tests {
             request.extensions_mut().insert(RequestId("fixture-request-id".into()));
             let response = app.call(request).await.unwrap();
             axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            // The log is finalized in a spawned task after the body ends: forwarded to
+            // Home, or written on the blocking pool. Wait for that task, not a fixed time,
+            // so the counts below are final.
+            let log = rx.recv().await.unwrap();
+            let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
+            while !log.1.done.load(Ordering::Acquire) {
+                assert!(tokio::time::Instant::now() < deadline, "request log never finalized");
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
             let captured = home.logs.lock().unwrap();
             assert_eq!(captured.len(), usize::from(enabled && available));
             assert_eq!(logs(&dir).len(), usize::from(!enabled));
