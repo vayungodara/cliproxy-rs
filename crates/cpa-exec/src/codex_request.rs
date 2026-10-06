@@ -455,6 +455,15 @@ pub(crate) struct Shaped {
 
 /// Applies the Codex body rules for `call`.
 // ponytail: the Claude-source reasoning replay cache is not applied here yet.
+// ponytail: each rule that edits the body returns a new copy while the previous one is
+// still alive, so a streamed 1.9 MB /v1/responses request peaks at 16.8 MB of live heap
+// (8.8x the body; alloc.codex.* in bench/budgets.txt). At that peak, heaptrack counted
+// about four body-sized buffers from `sanitize_reasoning`'s edits, one each from
+// `translate_request`, `ensure_image_tool` and the route's
+// `rewrite_orphan_delegation_input`, and about three more in string formatting and JSON
+// serialization whose callers it did not resolve. Walking the body once and splicing the
+// edits into one output buffer (as crates/cpa-exec/src/claude/signals.rs does) is the
+// way toward the 3x target.
 pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, call: Call) -> Result<Shaped, ExecError> {
     let model = base_model(&req.model);
     let model = model.as_str();

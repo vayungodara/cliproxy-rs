@@ -21,6 +21,14 @@ const TURN_VERSION: &str = "cpa-session-turn-v1";
 const LARGE_PART: usize = 16 * 1024;
 const SPARSE_BYTES: usize = 12 * 1024;
 const DEFAULT_MAX_TURNS: usize = 1024;
+// ponytail: Go's caps, which bound entries, not bytes. With session affinity on and four
+// interleaved agent sessions sending no session ID (counting allocator, 2026-10-06),
+// 150-turn conversations at one request every 3 s held 60 MB of heap after an hour and
+// then stayed at 64 to 70 MB (the 1 h TTL), and 300-turn conversations at one request a
+// second reached the 262,144-prefix cap within 20 minutes at 86 MB. Each turn binds a new
+// group, so prefix entries grow with the square of a conversation's length, and every
+// fingerprint and prefix key is a 64-character hex string. Keeping 32-byte digests would
+// cut that without moving the caps; lower caps would be a difference from Go.
 const DEFAULT_MAX_GROUPS: usize = 4096;
 const DEFAULT_MAX_PREFIXES: usize = 262_144;
 const MAX_TURNS: usize = 4096;
