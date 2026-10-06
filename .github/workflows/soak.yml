@@ -114,9 +114,9 @@ jobs:
           MINUTES: ${{ matrix.minutes }}
           # Published releases are measured for comparison; only this build is gated on
           # its peak.
-          PEAK_MB: ${{ matrix.binary == 'build' && '-' || '0' }}
+          PEAK_KB: ${{ matrix.binary == 'build' && '-' || '0' }}
         run: |
-          [[ $PEAK_MB == - ]] && unset PEAK_MB
+          [[ $PEAK_KB == - ]] && unset PEAK_KB
           go build -o soak/bin/messages bench/messages/main.go
           bench/soak.sh "$BIN" "$MINUTES" soak
       - name: Summary

@@ -11,22 +11,24 @@
 # MIX=field models a day of coding-agent traffic: 4 sessions, 2 of them Claude
 # (streamed /v1/messages) and 2 Codex (streamed /v1/responses through the Codex executor
 # and an API key whose base-url is the fake Codex upstream), each a conversation that
-# grows from 200 KB to 2 MB in 100 KB steps and then starts over (about 1.1 MB per
-# request on average). Every 4th Claude turn first sends the same body to
-# /v1/messages/count_tokens, alternating between the Claude model and the Codex model,
-# so both local tokenizer paths run. Batches of BATCH turns (default 160).
+# grows from 200 KB to 2 MB in 100 KB steps and then starts over (requests average about
+# 1 MB). Every 4th Claude turn first sends the same body to /v1/messages/count_tokens,
+# alternating between the Claude model and the Codex model, so both local token counts
+# run. Batches of BATCH turns (default 160).
 #
-# After each batch the server rests REST seconds (default 20) and its VmRSS is recorded
-# in <output dir>/soak.tsv. Every 10 s, <output dir>/samples.tsv records VmRSS, VmHWM,
-# threads, CPU ticks (1/100 s) and context switches. After the last batch the server
-# stays idle for IDLE seconds (default 0 for claude, 300 for field) and is sampled again.
+# After each batch the server rests REST seconds (default 20) and its VmRSS and RssAnon
+# are recorded in <output dir>/soak.tsv. Every 10 s, <output dir>/samples.tsv records
+# VmRSS, VmHWM, threads, CPU ticks (1/100 s), context switches and RssAnon (VmRSS without
+# the binary's file pages, which come and go with the page cache). After the last batch
+# the server stays idle for IDLE seconds (default 0 for claude, 300 for field), then its
+# wakeups are counted over 30 more seconds.
 #
-# The run fails on any failed request, when the highest resting RSS of the last third of
-# the batches is more than 10% (plus 2 MB) above the highest of the first third, or,
-# when PEAK_MB is set (MIX=field defaults to the bound in bench/budgets.txt), when
-# VmHWM ends above PEAK_MB. The summary is <output dir>/summary.json. GitHub-hosted jobs
-# stop at 6 hours, so CI runs at most 330 minutes. External network is denied as in
-# bench/run.sh.
+# The run fails on any failed request; when the highest resting RSS of the last third of
+# the batches is more than 10% (plus 2 MB) above the highest of the first third; or when
+# VmHWM ends above PEAK_KB (for MIX=field, soak.field.peak_hwm_kb in bench/budgets.txt
+# with its tolerance, unless PEAK_KB is set; 0 turns the check off). The summary goes to
+# <output dir>/summary.json. GitHub-hosted jobs stop at 6 hours, so CI runs at most 330
+# minutes. External network is denied as in bench/run.sh.
 set -euo pipefail
 
 if [[ -z ${BENCH_ISOLATION:-} ]]; then
@@ -58,7 +60,7 @@ case $MIX in
   field)
     LOAD=(-n "${BATCH:-160}" -c 4 -codex 2 -codex-model gpt-5.5 -count 4 -min 200000 -max 2000000 -step 100000)
     IDLE=${IDLE:-300}
-    PEAK_MB=${PEAK_MB-$(awk '$1 == "soak.field.peak_hwm_kb" {gsub("_", "", $2); print int($2 * (1 + $3 / 100) / 1024)}' "$HERE/budgets.txt")} ;;
+    PEAK_KB=${PEAK_KB-$(awk '$1 == "soak.field.peak_hwm_kb" {gsub("_", "", $2); print int($2 * (1 + $3 / 100))}' "$HERE/budgets.txt")} ;;
   *) echo "MIX must be claude or field" >&2; exit 2 ;;
 esac
 mkdir -p "$OUT/bin" "$OUT/auth"
@@ -113,15 +115,15 @@ status() { awk -v f="$1" '$1 == f ":" {print $2}' "/proc/$SRV_PID/status"; }
 # Context switches of every thread, voluntary and not (as bench/idle.sh counts wakeups).
 switches() { cat /proc/"$SRV_PID"/task/*/status 2>/dev/null | awk '$1 ~ /_ctxt_switches:$/ {n += $2} END {print n + 0}'; }
 start=$(date +%s)
-{ printf 't_s\trss_kb\thwm_kb\tthreads\tcpu_ticks\tctxsw\n'
+{ printf 't_s\trss_kb\thwm_kb\tthreads\tcpu_ticks\tctxsw\tanon_kb\n'
   while kill -0 "$SRV_PID" 2>/dev/null; do
-    printf '%d\t%s\t%s\t%s\t%s\t%s\n' $(( $(date +%s) - start )) "$(status VmRSS)" "$(status VmHWM)" \
-      "$(status Threads)" "$(awk '{print $14 + $15}' "/proc/$SRV_PID/stat")" "$(switches)"
+    printf '%d\t%s\t%s\t%s\t%s\t%s\t%s\n' $(( $(date +%s) - start )) "$(status VmRSS)" "$(status VmHWM)" \
+      "$(status Threads)" "$(awk '{print $14 + $15}' "/proc/$SRV_PID/stat")" "$(switches)" "$(status RssAnon)"
     sleep 10
   done; } > "$OUT/samples.tsv" 2>/dev/null &
 SAMPLER=$!
 
-printf 'batch\tminute\tok\tbad\trest_rss_kb\thwm_kb\n' > "$OUT/soak.tsv"
+printf 'batch\tminute\tok\tbad\trest_rss_kb\thwm_kb\trest_anon_kb\n' > "$OUT/soak.tsv"
 : > "$OUT/batches.jsonl"
 end=$(( start + MINUTES * 60 ))
 batch=0
@@ -130,8 +132,8 @@ while (( $(date +%s) < end )); do
   result=$("$OUT/bin/messages" load -url "http://127.0.0.1:$PORT/v1/messages" -key "$KEY" -seed "$batch" "${LOAD[@]}")
   echo "$result" >> "$OUT/batches.jsonl"
   sleep "${REST:-20}"
-  printf '%d\t%d\t%s\t%s\t%s\t%s\n' "$batch" $(( ($(date +%s) - start) / 60 )) \
-    "$(jq -r .ok <<<"$result")" "$(jq -r .bad <<<"$result")" "$(status VmRSS)" "$(status VmHWM)" >> "$OUT/soak.tsv"
+  printf '%d\t%d\t%s\t%s\t%s\t%s\t%s\n' "$batch" $(( ($(date +%s) - start) / 60 )) \
+    "$(jq -r .ok <<<"$result")" "$(jq -r .bad <<<"$result")" "$(status VmRSS)" "$(status VmHWM)" "$(status RssAnon)" >> "$OUT/soak.tsv"
   tail -n 1 "$OUT/soak.tsv"
 done
 cpu_load=$(awk '{print $14 + $15}' "/proc/$SRV_PID/stat")
@@ -143,13 +145,13 @@ if (( IDLE > 0 )); then
   # Wakeups over the last 30 s of the idle phase, measured as bench/idle.sh does.
   c0=$(switches) t0=$(awk '{print $14 + $15}' "/proc/$SRV_PID/stat")
   sleep 30
-  idle_json=$(jq -cn --argjson s "$IDLE" --argjson r "$(status VmRSS)" --argjson w "$(( $(switches) - c0 ))" \
+  idle_json=$(jq -cn --argjson s "$IDLE" --argjson r "$(status VmRSS)" --argjson a "$(status RssAnon)" --argjson w "$(( $(switches) - c0 ))" \
     --argjson c "$(( $(awk '{print $14 + $15}' "/proc/$SRV_PID/stat") - t0 ))" --argjson t "$(status Threads)" \
-    '{idle_after_s: $s, idle_rss_kb: $r, idle_wakeups_30s: $w, idle_cpu_ticks_30s: $c, idle_threads: $t}')
+    '{idle_after_s: $s, idle_rss_kb: $r, idle_anon_kb: $a, idle_wakeups_30s: $w, idle_cpu_ticks_30s: $c, idle_threads: $t}')
 fi
 
 verdict=0
-awk -F'\t' -v peak_mb="${PEAK_MB:-0}" -v hwm="$(status VmHWM)" 'NR > 1 {rss[++n] = $5; bad += $4}
+awk -F'\t' -v peak="${PEAK_KB:-0}" -v hwm="$(status VmHWM)" 'NR > 1 {rss[++n] = $5; bad += $4}
   END {
     third = int(n / 3); if (third < 1) { print "too few batches for a verdict"; exit 1 }
     for (i = 1; i <= third; i++) if (rss[i] > first) first = rss[i]
@@ -157,24 +159,31 @@ awk -F'\t' -v peak_mb="${PEAK_MB:-0}" -v hwm="$(status VmHWM)" 'NR > 1 {rss[++n]
     limit = first * 1.10 + 2048
     printf "%d batches; resting RSS: first third up to %d kB, last third up to %d kB (limit %d kB); %d failed requests\n", n, first, last, limit, bad
     fail = last > limit || bad > 0
-    if (peak_mb > 0) {
-      printf "VmHWM %d kB (limit %d kB)\n", hwm, peak_mb * 1024
-      fail = fail || hwm > peak_mb * 1024
+    if (peak > 0) {
+      printf "VmHWM %d kB (limit %d kB)\n", hwm, peak
+      fail = fail || hwm > peak
     }
     exit fail
   }' "$OUT/soak.tsv" || verdict=1
 
+# CPU time per request depends on the machine, so the summary names it.
+cpu_model=$(awk -F': ' '$1 ~ /^model name/ {print $2; exit}' /proc/cpuinfo)
 jq -cn --arg mix "$MIX" --argjson minutes "$MINUTES" --argjson load_s "$load_s" \
+  --arg cpu_model "$cpu_model" --argjson cpus "$(nproc)" \
   --argjson cpu "$cpu_load" --argjson hwm "$(status VmHWM)" --argjson idle "$idle_json" \
   --slurpfile batches "$OUT/batches.jsonl" --rawfile soak "$OUT/soak.tsv" --rawfile samples "$OUT/samples.tsv" '
-  def col($text; $i): [$text | split("\n")[1:][] | select(length > 0) | split("\t")[$i] | tonumber];
-  (col($soak; 4)) as $rest | (col($samples; 1)) as $rss | (col($samples; 3)) as $threads
+  # Whole rows only: the sampler may be writing the last one.
+  def col($text; $i): [$text | split("\n")[1:][] | split("\t") | select(length >= 7) | .[$i] | tonumber];
+  (col($soak; 4)) as $rest | (col($soak; 6)) as $rest_anon | (col($samples; 1)) as $rss
+  | (col($samples; 6)) as $anon | (col($samples; 3)) as $threads
   | ($rest | length / 3 | floor) as $third
-  | {mix: $mix, minutes: $minutes, batches: ($rest | length),
+  | {mix: $mix, minutes: $minutes, load_seconds: $load_s, cpu_model: $cpu_model, cpus: $cpus, batches: ($rest | length),
      requests_ok: ([$batches[].ok] | add), requests_bad: ([$batches[].bad] | add),
      avg_request_kb: (([$batches[] | .avg_request_kb * .ok] | add) / ([$batches[].ok] | add) | floor),
      rest_rss_kb: {min: ($rest | min), first_third_max: ($rest[:$third] | max), last_third_max: ($rest[-$third:] | max)},
+     rest_anon_kb: {min: ($rest_anon | min), first_third_max: ($rest_anon[:$third] | max), last_third_max: ($rest_anon[-$third:] | max)},
      sampled_rss_kb: {min: ($rss | min), median: ($rss | sort | .[length / 2 | floor]), max: ($rss | max)},
+     sampled_anon_kb: {max: ($anon | max)},
      hwm_kb: $hwm, max_threads: ($threads | max), cpu_ticks_under_load: $cpu, cpu_ms_per_request:
        ($cpu * 10 / (([$batches[].ok] | add)) | floor)} + $idle' | tee "$OUT/summary.json"
 exit "$verdict"
