@@ -23,10 +23,12 @@
 # the server stays idle for IDLE seconds (default 0 for claude, 300 for field), then its
 # wakeups are counted over 30 more seconds.
 #
-# The run fails on any failed request; when the highest resting RSS of the last third of
-# the batches is more than 10% (plus 2 MB) above the highest of the first third; or when
-# VmHWM ends above PEAK_KB (for MIX=field, soak.field.peak_hwm_kb in bench/budgets.txt
-# with its tolerance, unless PEAK_KB is set; 0 turns the check off). The summary goes to
+# The run fails on any failed request; when the resting RSS climbs: the highest resting
+# RSS of the last third of the batches is more than 10% (plus 2 MB) above the highest of
+# the first third, or the lowest of the last third is that far above the lowest of the
+# first third (a floor that rises under peaks that do not); or when VmHWM ends above
+# PEAK_KB (for MIX=field, soak.field.peak_hwm_kb in bench/budgets.txt with its
+# tolerance, unless PEAK_KB is set; 0 turns the check off). The summary goes to
 # <output dir>/summary.json. GitHub-hosted jobs stop at 6 hours, so CI runs at most 330
 # minutes. External network is denied as in bench/run.sh.
 set -euo pipefail
@@ -154,11 +156,14 @@ verdict=0
 awk -F'\t' -v peak="${PEAK_KB:-0}" -v hwm="$(status VmHWM)" 'NR > 1 {rss[++n] = $5; bad += $4}
   END {
     third = int(n / 3); if (third < 1) { print "too few batches for a verdict"; exit 1 }
-    for (i = 1; i <= third; i++) if (rss[i] > first) first = rss[i]
-    for (i = n - third + 1; i <= n; i++) if (rss[i] > last) last = rss[i]
-    limit = first * 1.10 + 2048
-    printf "%d batches; resting RSS: first third up to %d kB, last third up to %d kB (limit %d kB); %d failed requests\n", n, first, last, limit, bad
-    fail = last > limit || bad > 0
+    first_max = last_max = 0; first_min = rss[1]; last_min = rss[n]
+    for (i = 1; i <= third; i++) { if (rss[i] > first_max) first_max = rss[i]; if (rss[i] < first_min) first_min = rss[i] }
+    for (i = n - third + 1; i <= n; i++) { if (rss[i] > last_max) last_max = rss[i]; if (rss[i] < last_min) last_min = rss[i] }
+    max_limit = first_max * 1.10 + 2048; min_limit = first_min * 1.10 + 2048
+    printf "%d batches; %d failed requests\n", n, bad
+    printf "resting RSS, highest: first third %d kB, last third %d kB (limit %d kB)\n", first_max, last_max, max_limit
+    printf "resting RSS, lowest: first third %d kB, last third %d kB (limit %d kB)\n", first_min, last_min, min_limit
+    fail = last_max > max_limit || last_min > min_limit || bad > 0
     if (peak > 0) {
       printf "VmHWM %d kB (limit %d kB)\n", hwm, peak
       fail = fail || hwm > peak
@@ -177,11 +182,18 @@ jq -cn --arg mix "$MIX" --argjson minutes "$MINUTES" --argjson load_s "$load_s" 
   (col($soak; 4)) as $rest | (col($soak; 6)) as $rest_anon | (col($samples; 1)) as $rss
   | (col($samples; 6)) as $anon | (col($samples; 3)) as $threads
   | ($rest | length / 3 | floor) as $third
-  | {mix: $mix, minutes: $minutes, load_seconds: $load_s, cpu_model: $cpu_model, cpus: $cpus, batches: ($rest | length),
+  # The resting readings over the whole run and over the first and last thirds.
+  | def windows($v): {min: ($v | min), max: ($v | max),
+      first_third_min: ($v[:$third] | min), first_third_max: ($v[:$third] | max),
+      last_third_min: ($v[-$third:] | min), last_third_max: ($v[-$third:] | max)};
+  {mix: $mix, minutes: $minutes, load_seconds: $load_s, cpu_model: $cpu_model, cpus: $cpus, batches: ($rest | length),
      requests_ok: ([$batches[].ok] | add), requests_bad: ([$batches[].bad] | add),
+     # messages_ok, responses_ok, count_tokens_ok and their _bad counts, when the load
+     # reports them (MIX=field).
+     requests_by_kind: ([$batches[] | to_entries[] | select(.key | test("^[a-z_]+_(ok|bad)$")) | select(.key != "ok" and .key != "bad")]
+       | group_by(.key) | map({key: .[0].key, value: (map(.value) | add)}) | from_entries),
      avg_request_kb: (([$batches[] | .avg_request_kb * .ok] | add) / ([$batches[].ok] | add) | floor),
-     rest_rss_kb: {min: ($rest | min), first_third_max: ($rest[:$third] | max), last_third_max: ($rest[-$third:] | max)},
-     rest_anon_kb: {min: ($rest_anon | min), first_third_max: ($rest_anon[:$third] | max), last_third_max: ($rest_anon[-$third:] | max)},
+     rest_rss_kb: windows($rest), rest_anon_kb: windows($rest_anon),
      sampled_rss_kb: {min: ($rss | min), median: ($rss | sort | .[length / 2 | floor]), max: ($rss | max)},
      sampled_anon_kb: {max: ($anon | max)},
      hwm_kb: $hwm, max_threads: ($threads | max), cpu_ticks_under_load: $cpu, cpu_ms_per_request:
