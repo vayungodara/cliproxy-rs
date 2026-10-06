@@ -1,0 +1,54 @@
+# Builds the Docker image, without pushing it, when a pull request or a push to master
+# changes what the image build depends on besides the source: the Dockerfile, the build
+# context filter, the manifests and the vendored crates. release.yml builds the same image
+# before every release; this catches a Dockerfile that misses a new input before a tag
+# does.
+# One run per change: pushes to master, and pull requests through `pull_request` only.
+# Runs are grouped per pull request (or per ref outside one), and a newer push cancels the
+# older run.
+name: docker
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - Cargo.toml
+      - Cargo.lock
+      - crates/**/Cargo.toml
+      - vendor/**
+      - .github/workflows/docker.yml
+  pull_request:
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - Cargo.toml
+      - Cargo.lock
+      - crates/**/Cargo.toml
+      - vendor/**
+      - .github/workflows/docker.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The build, smoke test and size gate of the docker job in release.yml, on the same
+  # runner image and with the same (default) build arguments and platform.
+  image:
+    name: docker image (not pushed)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: docker build -t cliproxy-rs:ci .
+      - name: Smoke test
+        run: docker run --rm cliproxy-rs:ci --version
+      - name: Size gate
+        run: bench/gate.sh image cliproxy-rs:ci
