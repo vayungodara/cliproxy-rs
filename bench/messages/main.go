@@ -2,12 +2,17 @@
 //
 //	messages upstream -addr 127.0.0.1:9202
 //	messages load -url http://127.0.0.1:8340/v1/messages -n 3000 -c 8
+//	messages load -url http://127.0.0.1:8340/v1/messages -n 300 -c 4 \
+//	    -codex 2 -codex-model gpt-5.5 -count 4 -min 100000 -max 2000000 -step 50000
 //
 // upstream is a fake Anthropic Messages endpoint. POST /v1/messages reads the whole
 // request and streams a Claude SSE reply: message_start, a thinking block with a
 // signature, a text block, a tool_use block naming the request's first tool, then
 // message_delta and message_stop. -events sets the number of delta events and -delay
-// the pause between them.
+// the pause between them. It is also a fake Codex upstream: POST /responses reads the
+// whole request and streams an OpenAI Responses reply with the same number of events (a
+// reasoning item with a summary and encrypted content, a message, a function call naming
+// the request's first tool) ending in response.completed with the full output and usage.
 //
 // load models a coding agent. Each of -c workers is one session whose conversation
 // grows turn by turn from -min to -max bytes (assistant turns with signed thinking and
@@ -15,6 +20,15 @@
 // request is streamed and counts as ok only with status 200 and a body containing
 // message_stop. It prints one JSON line with throughput and latency percentiles: ttfb is
 // the time to the first response byte, total the time to the end of the stream.
+//
+// -codex N makes the last N workers Codex sessions instead: Responses requests to the
+// /v1/responses route next to -url (reasoning items with encrypted content, function calls
+// and large function_call_output text), counted ok with status 200 and a
+// response.completed event. With -count K, every Kth turn of a Claude session first sends
+// the same body to /v1/messages/count_tokens, alternating between the Claude model and
+// -codex-model (a Claude client counting tokens for a Codex model), counted ok with
+// status 200 and input_tokens in the body. The JSON line then also breaks the counts
+// down by kind.
 package main
 
 import (
@@ -138,7 +152,108 @@ func upstream(args []string) {
 		send("message_delta", `{"type":"message_delta","delta":{"stop_reason":"tool_use","stop_sequence":null},"usage":{"output_tokens":`+fmt.Sprint(*events*30)+`}}`)
 		send("message_stop", `{"type":"message_stop"}`)
 	})
-	log.Printf("fake Claude upstream on %s (%d events, %s apart)", *addr, *events, *delay)
+
+	encrypted := strings.Repeat("gAAAAABo3x9kZ2VuY3J5cHRlZC1yZWFzb25pbmc", 50)
+	http.HandleFunc("POST /responses", func(w http.ResponseWriter, req *http.Request) {
+		var body struct {
+			Model string `json:"model"`
+			Tools []struct {
+				Name string `json:"name"`
+			} `json:"tools"`
+		}
+		data, err := io.ReadAll(req.Body)
+		if err != nil || json.Unmarshal(data, &body) != nil {
+			http.Error(w, "bad request", 400)
+			return
+		}
+		tool := "shell"
+		if len(body.Tools) > 0 {
+			tool = body.Tools[0].Name
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("x-request-id", "req_bench")
+		f := w.(http.Flusher)
+		seq := 0
+		send := func(event string, payload map[string]any) {
+			payload["type"] = event
+			payload["sequence_number"] = seq
+			seq++
+			b, _ := json.Marshal(payload)
+			fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, b)
+			f.Flush()
+		}
+		pause := func() {
+			if *delay > 0 {
+				time.Sleep(*delay)
+			}
+		}
+		now := time.Now()
+		id := fmt.Sprintf("resp_bench%d", now.UnixNano())
+		response := func(status string, output []any, usage any) map[string]any {
+			return map[string]any{"id": id, "object": "response", "created_at": now.Unix(), "status": status,
+				"model": body.Model, "output": output, "usage": usage, "parallel_tool_calls": false,
+				"reasoning": map[string]any{"effort": "medium", "summary": "auto"}, "store": false}
+		}
+		send("response.created", map[string]any{"response": response("in_progress", []any{}, nil)})
+		send("response.in_progress", map[string]any{"response": response("in_progress", []any{}, nil)})
+
+		third := *events / 3
+		var summary strings.Builder
+		reasoning := map[string]any{"id": "rs_" + id, "type": "reasoning", "summary": []any{}}
+		send("response.output_item.added", map[string]any{"output_index": 0, "item": reasoning})
+		part := map[string]any{"type": "summary_text", "text": ""}
+		send("response.reasoning_summary_part.added", map[string]any{"item_id": "rs_" + id, "output_index": 0, "summary_index": 0, "part": part})
+		for i := 0; i < third; i++ {
+			pause()
+			summary.WriteString(thinking[i])
+			send("response.reasoning_summary_text.delta", map[string]any{"item_id": "rs_" + id, "output_index": 0, "summary_index": 0, "delta": thinking[i]})
+		}
+		part["text"] = summary.String()
+		send("response.reasoning_summary_text.done", map[string]any{"item_id": "rs_" + id, "output_index": 0, "summary_index": 0, "text": summary.String()})
+		send("response.reasoning_summary_part.done", map[string]any{"item_id": "rs_" + id, "output_index": 0, "summary_index": 0, "part": part})
+		reasoning["summary"] = []any{part}
+		reasoning["encrypted_content"] = encrypted
+		send("response.output_item.done", map[string]any{"output_index": 0, "item": reasoning})
+
+		var text strings.Builder
+		message := map[string]any{"id": "msg_" + id, "type": "message", "status": "in_progress", "role": "assistant", "content": []any{}}
+		send("response.output_item.added", map[string]any{"output_index": 1, "item": message})
+		content := map[string]any{"type": "output_text", "text": "", "annotations": []any{}}
+		send("response.content_part.added", map[string]any{"item_id": "msg_" + id, "output_index": 1, "content_index": 0, "part": content})
+		for i := third; i < 2*third; i++ {
+			pause()
+			text.WriteString(thinking[i])
+			send("response.output_text.delta", map[string]any{"item_id": "msg_" + id, "output_index": 1, "content_index": 0, "delta": thinking[i]})
+		}
+		content["text"] = text.String()
+		send("response.output_text.done", map[string]any{"item_id": "msg_" + id, "output_index": 1, "content_index": 0, "text": text.String()})
+		send("response.content_part.done", map[string]any{"item_id": "msg_" + id, "output_index": 1, "content_index": 0, "part": content})
+		message["status"], message["content"] = "completed", []any{content}
+		send("response.output_item.done", map[string]any{"output_index": 1, "item": message})
+
+		var args strings.Builder
+		call := map[string]any{"id": "fc_" + id, "type": "function_call", "status": "in_progress", "name": tool, "call_id": "call_" + id, "arguments": ""}
+		send("response.output_item.added", map[string]any{"output_index": 2, "item": call})
+		args.WriteString(`{"path":"`)
+		for i := 2 * third; i < *events; i++ {
+			pause()
+			delta := strings.ReplaceAll(thinking[i][:40], " ", "_")
+			args.WriteString(delta)
+			send("response.function_call_arguments.delta", map[string]any{"item_id": "fc_" + id, "output_index": 2, "delta": delta})
+		}
+		args.WriteString(`"}`)
+		send("response.function_call_arguments.done", map[string]any{"item_id": "fc_" + id, "output_index": 2, "arguments": args.String()})
+		call["status"], call["arguments"] = "completed", args.String()
+		send("response.output_item.done", map[string]any{"output_index": 2, "item": call})
+
+		input := len(data) / 4
+		usage := map[string]any{"input_tokens": input, "input_tokens_details": map[string]any{"cached_tokens": input * 9 / 10},
+			"output_tokens": *events * 30, "output_tokens_details": map[string]any{"reasoning_tokens": *events * 10},
+			"total_tokens": input + *events*30}
+		send("response.completed", map[string]any{"response": response("completed", []any{reasoning, message, call}, usage)})
+	})
+	log.Printf("fake Claude and Codex upstream on %s (%d events, %s apart)", *addr, *events, *delay)
 	log.Fatal(http.ListenAndServe(*addr, nil))
 }
 
@@ -206,6 +321,69 @@ func (s *session) body(model string) []byte {
 	return b
 }
 
+// codexSession is one growing Codex conversation in the Responses format.
+type codexSession struct {
+	r            *rand.Rand
+	id           string
+	instructions string
+	tools        []msg
+	input        []msg
+	size         int
+}
+
+func newCodexSession(r *rand.Rand) *codexSession {
+	s := &codexSession{r: r, id: fmt.Sprintf("%016x", r.Int63())}
+	s.instructions = "You are a coding agent working in the user's repository. " + text(r, 18000)
+	for i := 0; i < 24; i++ {
+		s.tools = append(s.tools, msg{
+			"type":        "function",
+			"name":        fmt.Sprintf("tool_%02d", i),
+			"description": text(r, 900),
+			"strict":      false,
+			"parameters": msg{"type": "object", "properties": msg{
+				"path":    msg{"type": "string", "description": text(r, 120)},
+				"content": msg{"type": "string", "description": text(r, 120)},
+				"limit":   msg{"type": "integer"},
+			}, "required": []string{"path"}},
+		})
+	}
+	s.input = []msg{{"type": "message", "role": "user", "content": []msg{{"type": "input_text", "text": text(r, 2000)}}}}
+	s.size = 40000 + 2000
+	return s
+}
+
+// turn appends one reasoning item, a function call and its output, about step bytes.
+func (s *codexSession) turn(step int) {
+	n := len(s.input)
+	call := fmt.Sprintf("call_%s_%d", s.id, n)
+	s.input = append(s.input,
+		msg{"type": "reasoning", "id": fmt.Sprintf("rs_%s_%d", s.id, n),
+			"summary":           []msg{{"type": "summary_text", "text": text(s.r, 600)}},
+			"encrypted_content": strings.Repeat("gAAAAABo3x9kZ2VuY3J5cHRlZC1yZWFzb25pbmc", 30)},
+		msg{"type": "function_call", "id": fmt.Sprintf("fc_%s_%d", s.id, n), "call_id": call,
+			"name": fmt.Sprintf("tool_%02d", n%24), "arguments": `{"path":"src/lib.rs"}`},
+		msg{"type": "function_call_output", "call_id": call, "output": text(s.r, step-2500)},
+	)
+	s.size += step
+}
+
+func (s *codexSession) body(model string) []byte {
+	b, _ := json.Marshal(msg{
+		"model":               model,
+		"instructions":        s.instructions,
+		"input":               s.input,
+		"tools":               s.tools,
+		"tool_choice":         "auto",
+		"parallel_tool_calls": false,
+		"reasoning":           msg{"effort": "medium", "summary": "auto"},
+		"store":               false,
+		"stream":              true,
+		"include":             []string{"reasoning.encrypted_content"},
+		"prompt_cache_key":    s.id,
+	})
+	return b
+}
+
 func load(args []string) {
 	fs := flag.NewFlagSet("load", flag.ExitOnError)
 	url := fs.String("url", "", "request URL")
@@ -217,18 +395,24 @@ func load(args []string) {
 	maxSize := fs.Int("max", 500_000, "largest request size in bytes before a new session")
 	step := fs.Int("step", 25_000, "bytes each turn adds")
 	seed := fs.Int64("seed", 1, "random seed")
+	codexWorkers := fs.Int("codex", 0, "how many of the -c sessions are Codex Responses sessions")
+	codexModel := fs.String("codex-model", "gpt-5.5", "model of the Codex sessions and of every other count_tokens request")
+	countEvery := fs.Int("count", 0, "send count_tokens before every Nth Claude turn (0: never)")
 	fs.Parse(args)
+	base := strings.TrimSuffix(*url, "/v1/messages")
 
 	client := &http.Client{Transport: &http.Transport{
 		MaxIdleConns:        *workers,
 		MaxIdleConnsPerHost: *workers,
 		DisableCompression:  true,
 	}}
+	type kind struct{ ok, bad int }
 	type result struct {
 		ttfb, total []time.Duration
 		ok, bad     int
 		bytesIn     int64
 		bytesOut    int64
+		kinds       map[string]*kind
 	}
 	results := make([]result, *workers)
 	var issued atomic.Int64
@@ -238,9 +422,76 @@ func load(args []string) {
 		wg.Add(1)
 		go func(w int, res *result) {
 			defer wg.Done()
+			res.kinds = map[string]*kind{}
 			r := rand.New(rand.NewSource(*seed*1000 + int64(w)))
+			codex := w >= *workers-*codexWorkers
+			// send posts one request; done reports whether the reply is complete.
+			send := func(name, url string, body []byte, stream bool, done func([]byte) bool) {
+				k := res.kinds[name]
+				if k == nil {
+					k = &kind{}
+					res.kinds[name] = k
+				}
+				req, _ := http.NewRequest("POST", url, bytes.NewReader(body))
+				req.Header.Set("Content-Type", "application/json")
+				if codex {
+					req.Header.Set("Authorization", "Bearer "+*key)
+				} else {
+					req.Header.Set("anthropic-version", "2023-06-01")
+					req.Header.Set("anthropic-beta", "interleaved-thinking-2025-05-14")
+					if *key != "" {
+						req.Header.Set("x-api-key", *key)
+					}
+				}
+				t0 := time.Now()
+				resp, err := client.Do(req)
+				if err != nil {
+					res.bad++
+					k.bad++
+					return
+				}
+				br := bufio.NewReader(resp.Body)
+				_, err = br.Peek(1)
+				ttfb := time.Since(t0)
+				data, err2 := io.ReadAll(br)
+				resp.Body.Close()
+				if err != nil || err2 != nil || resp.StatusCode != 200 || !done(data) {
+					res.bad++
+					k.bad++
+					if res.bad <= 3 {
+						log.Printf("bad %s response: status %d err %v %v: %.300s", name, resp.StatusCode, err, err2, data)
+					}
+					return
+				}
+				res.ok++
+				k.ok++
+				if stream {
+					res.ttfb = append(res.ttfb, ttfb)
+					res.total = append(res.total, time.Since(t0))
+				}
+				res.bytesOut += int64(len(body))
+				res.bytesIn += int64(len(data))
+			}
+			has := func(marker string) func([]byte) bool {
+				return func(data []byte) bool { return bytes.Contains(data, []byte(marker)) }
+			}
 			var s *session
+			var cs *codexSession
+			turns := 0
 			for issued.Add(1) <= int64(*total) {
+				turns++
+				if codex {
+					if cs == nil || cs.size+*step > *maxSize {
+						cs = newCodexSession(r)
+						for cs.size < *minSize {
+							cs.turn(*step)
+						}
+					} else {
+						cs.turn(*step)
+					}
+					send("responses", base+"/v1/responses", cs.body(*codexModel), true, has("response.completed"))
+					continue
+				}
 				if s == nil || s.size+*step > *maxSize {
 					s = newSession(r, *minSize)
 					for s.size < *minSize {
@@ -249,37 +500,14 @@ func load(args []string) {
 				} else {
 					s.turn(*step)
 				}
-				body := s.body(*model)
-				req, _ := http.NewRequest("POST", *url, bytes.NewReader(body))
-				req.Header.Set("Content-Type", "application/json")
-				req.Header.Set("anthropic-version", "2023-06-01")
-				req.Header.Set("anthropic-beta", "interleaved-thinking-2025-05-14")
-				if *key != "" {
-					req.Header.Set("x-api-key", *key)
-				}
-				t0 := time.Now()
-				resp, err := client.Do(req)
-				if err != nil {
-					res.bad++
-					continue
-				}
-				br := bufio.NewReader(resp.Body)
-				_, err = br.Peek(1)
-				ttfb := time.Since(t0)
-				data, err2 := io.ReadAll(br)
-				resp.Body.Close()
-				if err != nil || err2 != nil || resp.StatusCode != 200 || !bytes.Contains(data, []byte("message_stop")) {
-					res.bad++
-					if res.bad <= 3 {
-						log.Printf("bad response: status %d err %v %v: %.300s", resp.StatusCode, err, err2, data)
+				if *countEvery > 0 && turns%*countEvery == 0 {
+					counted := *model
+					if (turns / *countEvery)%2 == 0 {
+						counted = *codexModel
 					}
-					continue
+					send("count_tokens", base+"/v1/messages/count_tokens", s.body(counted), false, has(`"input_tokens"`))
 				}
-				res.ok++
-				res.ttfb = append(res.ttfb, ttfb)
-				res.total = append(res.total, time.Since(t0))
-				res.bytesOut += int64(len(body))
-				res.bytesIn += int64(len(data))
+				send("messages", *url, s.body(*model), true, has("message_stop"))
 			}
 		}(w, &results[w])
 	}
@@ -290,6 +518,7 @@ func load(args []string) {
 	out := map[string]any{"seconds": elapsed.Seconds()}
 	ok, bad := 0, 0
 	var in, sent int64
+	kinds := map[string]*kind{}
 	for _, r := range results {
 		ttfb = append(ttfb, r.ttfb...)
 		tot = append(tot, r.total...)
@@ -297,6 +526,13 @@ func load(args []string) {
 		bad += r.bad
 		in += r.bytesIn
 		sent += r.bytesOut
+		for name, k := range r.kinds {
+			if kinds[name] == nil {
+				kinds[name] = &kind{}
+			}
+			kinds[name].ok += k.ok
+			kinds[name].bad += k.bad
+		}
 	}
 	pct := func(lat []time.Duration, p float64) float64 {
 		if len(lat) == 0 {
@@ -312,6 +548,11 @@ func load(args []string) {
 	if ok > 0 {
 		out["avg_request_kb"] = sent / int64(ok) / 1024
 		out["avg_response_kb"] = in / int64(ok) / 1024
+	}
+	if *codexWorkers > 0 || *countEvery > 0 {
+		for name, k := range kinds {
+			out[name+"_ok"], out[name+"_bad"] = k.ok, k.bad
+		}
 	}
 	json.NewEncoder(os.Stdout).Encode(out)
 }

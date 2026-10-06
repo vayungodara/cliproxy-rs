@@ -1,17 +1,33 @@
-# Memory soak (bench/soak.sh): resident memory must stay flat under hours of large Claude
-# requests. One hour on every release tag (a release candidate); start the 330-minute
-# run by hand before publishing a release. GitHub-hosted jobs stop at 6 hours, so 330
-# minutes is the longest soak a hosted runner can hold.
+# Memory soak (bench/soak.sh): resident memory must stay flat, and its peak bounded, under
+# hours of large requests.
+#
+# - Release tags (a release candidate): one hour of the Claude load and one hour of the
+#   field mix (Claude, Codex and count_tokens, 200 KB to 2 MB conversations), side by
+#   side. Start the 330-minute run by hand before publishing a release.
+# - Weekly: 300 minutes of the field mix. With the build and the idle phase this stays
+#   inside GitHub's 6-hour job limit; 330 minutes is the longest load a hosted runner can
+#   hold.
+# - By hand: either load for up to 330 minutes. `releases` soaks published release
+#   binaries (checked against their SHA256SUMS) next to this build under the same load,
+#   for a before-and-after comparison; their peak is reported, not gated.
 name: soak
 
 on:
   push:
     tags: ["v*"]
+  schedule:
+    - cron: "41 2 * * 6"
   workflow_dispatch:
     inputs:
       minutes:
         description: Minutes of load (at most 330)
         default: "60"
+      mix:
+        description: Load, claude or field
+        default: field
+      releases:
+        description: Published versions to soak next to this build, for example "0.1.2 0.2.0"
+        default: ""
 
 permissions:
   contents: read
@@ -23,37 +39,99 @@ env:
   RUST_TOOLCHAIN: "1.99.0"
 
 jobs:
-  soak:
-    name: soak (${{ inputs.minutes || '60' }} min)
+  plan:
+    name: plan
     runs-on: ubuntu-22.04
-    timeout-minutes: 350
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          MINUTES: ${{ inputs.minutes }}
+          MIX: ${{ inputs.mix }}
+          RELEASES: ${{ inputs.releases }}
+        run: |
+          case $EVENT in
+            push) runs='[{"mix":"claude","minutes":60},{"mix":"field","minutes":60}]' ;;
+            schedule) runs='[{"mix":"field","minutes":300}]' ;;
+            *)
+              [[ $MINUTES =~ ^[1-9][0-9]{0,2}$ ]] || { echo "::error::minutes must be a positive whole number"; exit 1; }
+              (( MINUTES <= 330 )) || MINUTES=330
+              [[ $MIX == claude || $MIX == field ]] || { echo "::error::mix must be claude or field"; exit 1; }
+              runs=$(jq -cn --arg mix "$MIX" --argjson m "$MINUTES" '[{mix: $mix, minutes: $m}]') ;;
+          esac
+          for v in $RELEASES; do
+            [[ $v =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::release versions look like 0.2.0"; exit 1; }
+          done
+          matrix=$(jq -cn --argjson runs "$runs" --arg releases "$RELEASES" \
+            '[$runs[] | . + {binary: "build"}] + [$runs[] as $r | ($releases | split(" ") | map(select(length > 0)))[] | $r + {binary: .}]')
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+  soak:
+    name: soak (${{ matrix.mix }}, ${{ matrix.binary }}, ${{ matrix.minutes }} min)
+    needs: plan
+    runs-on: ubuntu-22.04
+    timeout-minutes: 355
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
       - name: Build tools
+        if: matrix.binary == 'build'
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
       - name: Rust
+        if: matrix.binary == 'build'
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
       - uses: actions/setup-go@v7
         with:
           go-version: stable
           cache: false
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        if: matrix.binary == 'build'
         with:
           save-if: false
       - name: Build
-        run: cargo build --release --locked -p cliproxy
+        if: matrix.binary == 'build'
+        run: |
+          cargo build --release --locked -p cliproxy
+          echo "BIN=target/release/cliproxy" >> "$GITHUB_ENV"
+      - name: Release binary
+        if: matrix.binary != 'build'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ matrix.binary }}
+        run: |
+          name=cliproxy-$VERSION-x86_64-unknown-linux-gnu
+          gh release download "v$VERSION" -p "$name.tar.gz" -p SHA256SUMS -D release
+          (cd release && grep " $name.tar.gz\$" SHA256SUMS | sha256sum -c - && tar xzf "$name.tar.gz")
+          echo "BIN=release/$name/cliproxy" >> "$GITHUB_ENV"
       - name: Soak
         env:
-          MINUTES: ${{ inputs.minutes || '60' }}
+          MIX: ${{ matrix.mix }}
+          MINUTES: ${{ matrix.minutes }}
+          # Published releases are measured for comparison; only this build is gated on
+          # its peak.
+          PEAK_MB: ${{ matrix.binary == 'build' && '-' || '0' }}
         run: |
-          [[ $MINUTES =~ ^[1-9][0-9]{0,2}$ ]] || { echo "::error::minutes must be a positive whole number"; exit 1; }
-          if (( MINUTES > 330 )); then MINUTES=330; fi
+          [[ $PEAK_MB == - ]] && unset PEAK_MB
           go build -o soak/bin/messages bench/messages/main.go
-          bench/soak.sh target/release/cliproxy "$MINUTES" soak
+          bench/soak.sh "$BIN" "$MINUTES" soak
+      - name: Summary
+        if: always()
+        run: |
+          [[ -f soak/summary.json ]] || exit 0
+          { echo "### Soak: ${{ matrix.mix }}, ${{ matrix.binary }}, ${{ matrix.minutes }} min"
+            echo '```json'; jq . soak/summary.json; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: soak
+          name: soak-${{ matrix.mix }}-${{ matrix.binary }}
           path: |
             soak/soak.tsv
+            soak/samples.tsv
+            soak/batches.jsonl
+            soak/summary.json
             soak/server.log
