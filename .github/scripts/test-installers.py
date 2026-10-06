@@ -230,7 +230,18 @@ if stop_pidfile; then exit 0; else exit 1; fi
             if windows:
                 script = str(repo / "install.ps1").replace("'", "''")
                 test_config = str(probe_config).replace("'", "''")
-                base = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-CliproxyRs -Service.*$', ''; . ([scriptblock]::Create($code)); (Get-CliproxyProbe '{test_config}').Base")
+                base = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-CliproxyRs -Service.*$', ''; . ([scriptblock]::Create($code)); (Get-CliproxyProbe '{test_config}').Base; " + '''
+$script:removed=@()
+function Get-ChildItem {
+  [pscustomobject]@{Name='cliproxy.prev-keep.exe'; FullName='/long/path/cliproxy.prev-keep.exe'}
+  [pscustomobject]@{Name='cliproxy.prev-old.exe'; FullName='/long/path/cliproxy.prev-old.exe'}
+}
+function Remove-Item { param($LiteralPath,[switch]$Force,$ErrorAction); $script:removed += $LiteralPath }
+Remove-CliproxyImages '/short/path' '/short/path/cliproxy.prev-keep.exe'
+if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/cliproxy.prev-old.exe'){
+  throw "cleanup removed the rollback image through a directory alias: $script:removed"
+}
+''')
             else:
                 code = (repo / "install.sh").read_text().removesuffix('main "$@"\n')
                 base = capture(["sh", "-c", code + '\nconfig=$1; read_probe; printf "%s" "$base"', "sh", probe_config], env=env).stdout
@@ -387,6 +398,12 @@ esac
                 install("-BinaryOnly")
                 assert pid() == running
                 health()
+                script = str(repo / "install.ps1").replace("'", "''")
+                selected = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-CliproxyRs -Service.*$', ''; . ([scriptblock]::Create($code)); "
+                              "$dir=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:CLIPROXY_INSTALL_DIR); "
+                              "$data=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:CLIPROXY_HOME); "
+                              "Get-CliproxyServers $dir (Join-Path $data 'config.yaml') | ForEach-Object { [IO.Path]::GetFileName($_.ExecutablePath) }")
+                assert selected.startswith("cliproxy.prev-") and selected.endswith(".exe"), selected
             output = install(success=False)
             assert ("Rolled back" if windows else "verified it is healthy") in output, output
             if not windows:

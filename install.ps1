@@ -378,7 +378,10 @@ function Restore-CliproxyImage($exe, $previous) {
 
 # Removes previous images no process holds open, except $keep.
 function Remove-CliproxyImages($dir, $keep) {
-  Get-ChildItem -LiteralPath $dir -Filter 'cliproxy.prev-*.exe' | Where-Object { $_.FullName -ne $keep } |
+  # Enumeration can expand an 8.3 directory alias while $keep retains it. All
+  # candidates are in this directory, so compare their unique image filenames.
+  $keepName = if ($keep) { [IO.Path]::GetFileName($keep) } else { $null }
+  Get-ChildItem -LiteralPath $dir -Filter 'cliproxy.prev-*.exe' | Where-Object { $_.Name -ne $keepName } |
     ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
 }
 
