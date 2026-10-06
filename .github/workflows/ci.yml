@@ -24,6 +24,9 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # One exact compiler for every job: the size and allocation budgets are exact numbers
+  # from one compiler and std. Bumping it means re-measuring bench/budgets.txt.
+  RUST_TOOLCHAIN: "1.99.0"
   CARGO_INCREMENTAL: "0"
 
 jobs:
@@ -37,7 +40,7 @@ jobs:
         # BoringSSL (through btls-sys) needs cmake, clang and perl; bindgen needs libclang.
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
       - name: Rust
-        run: rustup toolchain install stable --profile minimal --component rustfmt,clippy && rustup default stable
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy && rustup default "$RUST_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/master' }}
@@ -109,7 +112,7 @@ jobs:
       - name: Build tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
       - name: Rust
-        run: rustup toolchain install stable --profile minimal && rustup default stable
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/master' }}
@@ -149,7 +152,7 @@ jobs:
           printf '%s\n' 'C:\Program Files\NASM' >> "$GITHUB_PATH"
           printf 'LIBCLANG_PATH=%s\n' 'C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
       - name: Rust
-        run: rustup toolchain install stable --profile minimal --component clippy --target x86_64-pc-windows-msvc && rustup default stable
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy --target x86_64-pc-windows-msvc && rustup default "$RUST_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/master' }}

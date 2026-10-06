@@ -84,23 +84,34 @@ case $OS in
   macos)
     cpu_ms() { ps -o time= -p "$PID" | awk -F'[:.]' '{print ($1 * 60 + $2) * 1000 + $3 * 10}'; }
     c0=$(cpu_ms)
-    # Delta mode: the second sample counts the events of the window only.
-    wakeups=$(top -l 2 -s "$WINDOW" -c d -pid "$PID" -stats pid,idlew | awk -v p="$PID" '$1 == p {w = $2} END {print w + 0}')
+    # Delta mode: the second sample counts the events of the window only. top exits 0
+    # without a row when it cannot see the process, so a missing row is a failure.
+    samples=$(top -l 2 -s "$WINDOW" -c d -pid "$PID" -stats pid,idlew)
+    wakeups=$(awk -v p="$PID" '$1 == p {n++; w = $2} END {if (n >= 2) print w}' <<<"$samples")
+    [[ -n $wakeups ]] || { echo "top reported no second sample for pid $PID:" >&2; echo "$samples" >&2; exit 1; }
     c1=$(cpu_ms)
     threads=$(ps -M -p "$PID" | tail -n +2 | wc -l | tr -d ' ')
     rss=$(ps -o rss= -p "$PID" | tr -d ' ')
+    kill -0 "$PID" 2> /dev/null && [[ -n $c0 && -n $c1 && ${threads:-0} -gt 0 && ${rss:-0} -gt 0 ]] ||
+      { echo "server gone or not measured (threads=$threads rss=$rss)" >&2; exit 1; }
     printf '{"os":"macos","auth_files":%d,"seconds":%d,"cpu_ms":%d,"idle_wakeups":%d,"threads":%d,"rss_kb":%d}\n' \
       "$FILES" "$WINDOW" $((c1 - c0)) "$wakeups" "$threads" "$rss"
     ;;
   windows)
     stats() {
       powershell -NoProfile -Command \
-        "\$p = Get-Process -Id $WINPID; '{0} {1} {2}' -f [int64]\$p.TotalProcessorTime.TotalMilliseconds, \$p.Threads.Count, [int64](\$p.WorkingSet64 / 1024)" |
+        "\$p = Get-Process -Id $WINPID -ErrorAction Stop; '{0} {1} {2}' -f [int64]\$p.TotalProcessorTime.TotalMilliseconds, \$p.Threads.Count, [int64](\$p.WorkingSet64 / 1024)" |
         tr -d '\r'
     }
-    read -r c0 _ _ <<<"$(stats)"
+    # Assigned first, so a failing Get-Process stops the script (set -e) instead of
+    # reading as zeros.
+    first=$(stats)
+    read -r c0 _ _ <<<"$first"
     sleep "$WINDOW"
-    read -r c1 threads rss <<<"$(stats)"
+    second=$(stats)
+    read -r c1 threads rss <<<"$second"
+    [[ ${threads:-0} -gt 0 && ${rss:-0} -gt 0 && -n $c0 && -n $c1 ]] ||
+      { echo "server gone or not measured: '$first' / '$second'" >&2; exit 1; }
     printf '{"os":"windows","auth_files":%d,"seconds":%d,"cpu_ms":%d,"threads":%d,"rss_kb":%d}\n' \
       "$FILES" "$WINDOW" $((c1 - c0)) "$threads" "$rss"
     ;;

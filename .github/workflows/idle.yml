@@ -46,6 +46,9 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  # One exact compiler for every job: the size and allocation budgets are exact numbers
+  # from one compiler and std. Bumping it means re-measuring bench/budgets.txt.
+  RUST_TOOLCHAIN: "1.99.0"
   CARGO_INCREMENTAL: "0"
 
 jobs:
@@ -79,8 +82,8 @@ jobs:
             echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
             export PATH="$HOME/.cargo/bin:$PATH"
           fi
-          rustup toolchain install stable --profile minimal --target ${{ matrix.target }}
-          rustup default stable
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target ${{ matrix.target }}
+          rustup default "$RUST_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/master' }}
@@ -108,7 +111,7 @@ jobs:
       - name: Build tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
       - name: Rust
-        run: rustup toolchain install stable --profile minimal && rustup default stable
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
         with:
           save-if: ${{ github.ref == 'refs/heads/master' }}
