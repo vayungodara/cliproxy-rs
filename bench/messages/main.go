@@ -340,9 +340,9 @@ func checkClaudeStream(body []byte) error {
 	return nil
 }
 
-// checkResponsesStream: response.completed arrived, and every function call's argument
-// deltas join into exactly the arguments of its done event and of response.completed,
-// which parse as JSON.
+// checkResponsesStream: response.completed arrived, and every function call in it had a
+// done event, and its argument deltas join into exactly the arguments of that done event
+// and of response.completed, which parse as JSON.
 func checkResponsesStream(body []byte) error {
 	type item struct {
 		ID        string `json:"id"`
@@ -352,6 +352,7 @@ func checkResponsesStream(body []byte) error {
 	var output []item
 	completed := false
 	deltas := map[string]*strings.Builder{}
+	done := map[string]bool{}
 	err := sseData(body, func(payload []byte) error {
 		var event struct {
 			Type      string `json:"type"`
@@ -376,6 +377,7 @@ func checkResponsesStream(body []byte) error {
 			if joined == nil || joined.String() != event.Arguments {
 				return fmt.Errorf("call %s: argument deltas do not join into its done arguments", event.ItemID)
 			}
+			done[event.ItemID] = true
 		case "response.completed":
 			completed, output = true, event.Response.Output
 		}
@@ -393,6 +395,9 @@ func checkResponsesStream(body []byte) error {
 			continue
 		}
 		calls++
+		if !done[it.ID] {
+			return fmt.Errorf("call %s: no response.function_call_arguments.done", it.ID)
+		}
 		joined := deltas[it.ID]
 		if joined == nil || joined.String() != it.Arguments {
 			return fmt.Errorf("call %s: argument deltas do not join into its completed arguments", it.ID)
