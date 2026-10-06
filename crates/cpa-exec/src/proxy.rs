@@ -656,22 +656,13 @@ pub async fn send_request_raw(
         // The URL Go's client reports for this hop.
         let hop_url = if sent == 0 { url.to_owned() } else { current.to_string() };
         let hop = route(&current).map_err(|e| local(e, &hop_url))?;
-        // Go sends nothing once the deadline has passed. wreq would send even with a zero
-        // timeout: it polls the request before its timer, which fires on a 1 ms tick.
-        let remaining = deadline.map(|d| d.saturating_duration_since(std::time::Instant::now()));
-        if remaining.is_some_and(|r| r.is_zero()) {
-            return Err(SendError::Timeout { url: hop_url });
-        }
-        let mut builder = hop
+        let builder = hop
             .client
             .request(
                 method.clone(),
                 exact.as_deref().filter(|_| sent == 0).unwrap_or(current.as_str()),
             )
             .redirect(wreq::redirect::Policy::none());
-        if let Some(remaining) = remaining {
-            builder = builder.timeout(remaining);
-        }
         // Go's standard transport (no exact order) speaks HTTP/2 wherever ALPN picks it.
         let go_transport = hop.order.is_none();
         let (builder, auto_gzip) = hop_headers.clone().apply_gzip(
@@ -689,6 +680,14 @@ pub async fn send_request_raw(
             builder.header(http::header::CONTENT_LENGTH, "0")
         } else {
             builder
+        };
+        // Last, so the hop's setup counts too. Go sends nothing once the deadline has
+        // passed; wreq would send even with a zero timeout: it polls the request before
+        // its timer, which fires on a 1 ms tick.
+        let builder = match deadline.map(|d| d.saturating_duration_since(std::time::Instant::now())) {
+            Some(remaining) if remaining.is_zero() => return Err(SendError::Timeout { url: hop_url }),
+            Some(remaining) => builder.timeout(remaining),
+            None => builder,
         };
         let response = builder.send().await.map_err(|error| SendError::Transport {
             error,
