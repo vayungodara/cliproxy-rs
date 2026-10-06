@@ -233,7 +233,10 @@ fn go_time(t: Option<SystemTime>) -> GoTime {
 /// A stored credential as Go's `coreauth.Auth` presents it to the plugin host.
 fn host_auth(state: &Management, c: &Credential) -> HostAuth {
     let store = state.rt.store();
-    let cooldown = store.cooldowns(&c.id).into_iter().find(|cd| cd.model.is_empty());
+    let cooldown = store
+        .cooldowns(&c.id)
+        .into_iter()
+        .find(|cd| cd.model.is_empty() && !cd.remaining.is_zero());
     let (status, unavailable) = if c.disabled {
         ("disabled", false)
     } else if cooldown.is_some() {

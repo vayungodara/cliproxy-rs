@@ -63,7 +63,8 @@
           "fields": {
             "disable-cooling": "bool",
             "save-cooldown-status": "bool",
-            "transient-error-cooldown-seconds": "int"
+            "transient-error-cooldown-seconds": "int",
+            "max-trusted-cooldown": "string"
           }
         }
       }

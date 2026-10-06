@@ -48,6 +48,12 @@ pub struct Quota {
     pub backoff_level: u32,
     #[serde(default, with = "go_time")]
     pub observed_at: Option<SystemTime>,
+    /// cliproxy-rs only (`max-trusted-cooldown`): bounded windows spent, 0 for none.
+    /// Written on every quota record cliproxy-rs saves, so its presence marks a record
+    /// whose deadline restores as it is. Go's decoder ignores it; records without it
+    /// (Go's, or older) get the first bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trust_windows: Option<u32>,
 }
 
 /// Go `Error`.
@@ -416,6 +422,17 @@ mod tests {
             assert!(raw.ends_with("}\n"), "{name}: MarshalIndent plus newline");
             let mut actual: serde_json::Value = serde_json::from_str(&raw).unwrap();
             mask(&mut actual);
+            // The one deliberate difference (docs/DIFFERENCES-FROM-GO.md): every quota
+            // record cliproxy-rs writes carries `trust_windows`, which Go's decoder skips.
+            for record in actual["records"].as_array_mut().unwrap() {
+                if record["quota"]["exceeded"] == true {
+                    let removed = record["quota"].as_object_mut().unwrap().remove("trust_windows");
+                    assert!(
+                        removed.is_some_and(|v| v.is_u64()),
+                        "{name}: trust_windows on quota records"
+                    );
+                }
+            }
             assert_eq!(actual, expected, "{name}");
         }
         let _ = std::fs::remove_dir_all(&dir);

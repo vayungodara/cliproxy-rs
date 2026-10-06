@@ -748,6 +748,15 @@ impl Lease {
         }
     }
 
+    /// The upstream accepted this attempt (a stream's first chunk arrived): an ended
+    /// bounded window it probes has its answer, so other requests may use the account
+    /// while the stream runs (`Scheduler::accept_probe`). A no-op for remote leases.
+    pub fn accepted(&self) {
+        if self.remote.is_none() {
+            self.store.accept_probe(self);
+        }
+    }
+
     /// Records an intermediate outcome for one model of a pooled alias without ending
     /// the lease.
     pub fn note(&self, model: &str, outcome: &Outcome) {
@@ -924,7 +933,7 @@ impl CredentialStore {
                 let has_models = records
                     .iter()
                     .any(|r| r.auth_id.trim() == c.id && !r.model.trim().is_empty());
-                scheduler.restore(c, record, has_models, now, wall);
+                scheduler.restore(c, record, has_models, policy.max_trusted_cooldown, now, wall);
             }
         }
         self.persist_cooldowns();
@@ -1108,6 +1117,9 @@ impl CredentialStore {
             }
             let refs: Vec<(&Credential, &str)> = candidates.iter().map(|(c, p)| (*c, p.as_str())).collect();
             let (picked, lcp) = scheduler.pick_session(&refs, &selection, &policy, ranks, now).unwrap();
+            if let Some((c, m)) = eligible.iter().find(|(c, _)| c.id == picked.id) {
+                scheduler.reserve_probe(c, m, now);
+            }
             (inner.creds.iter().find(|c| c.id == picked.id).unwrap().clone(), lcp)
         };
         let (credential, lcp) = credential;
@@ -1149,10 +1161,11 @@ impl CredentialStore {
         Suspension::None
     }
 
-    /// Whether `model` is cooling for this credential right now.
+    /// Whether `model` is cooling for this credential right now. A probe reservation does
+    /// not count: the lease that holds it is the one asking.
     pub fn blocked(&self, credential: &Credential, model: &str) -> bool {
         let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
-        scheduler.wait(credential, model, Instant::now()).is_some()
+        scheduler.cooling(credential, model, Instant::now())
     }
 
     /// Clears every cooldown and affinity binding of one credential (Go `ResetQuota`).
@@ -1212,6 +1225,22 @@ impl CredentialStore {
         } else {
             Some(wait)
         }
+    }
+
+    fn accept_probe(&self, lease: &Lease) {
+        let inner = self.read();
+        // Like results: a credential edited or re-created since the pick is left alone.
+        if !inner
+            .creds
+            .iter()
+            .any(|c| c.id == lease.credential.id && c.revision == lease.credential.revision)
+        {
+            return;
+        }
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .accept_probe(&lease.credential, &lease.execution_model, Instant::now());
     }
 
     fn record(&self, lease: &Lease, outcome: &Outcome) {

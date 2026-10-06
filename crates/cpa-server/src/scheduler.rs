@@ -276,6 +276,9 @@ pub struct Policy {
     /// routing.cooldown.save-cooldown-status: persist cooldowns as `.cds` files in
     /// `auth-dir` (cooldown_store.rs), never in credential files.
     pub save_cooldown_status: bool,
+    /// routing.cooldown.max-trusted-cooldown (cliproxy-rs only): the first bound on a
+    /// quota reset an upstream states ([`trusted`]); zero trusts every reset, as Go does.
+    pub max_trusted_cooldown: Duration,
     /// routing.force-model-prefix: bool, default false.
     pub force_model_prefix: bool,
     /// Enabled `openai-compatibility` entries in config order with their
@@ -299,6 +302,7 @@ impl Default for Policy {
             session_affinity_ttl: Duration::from_secs(3600),
             session_affinity_subagents: true,
             save_cooldown_status: false,
+            max_trusted_cooldown: DEFAULT_TRUSTED_COOLDOWN,
             force_model_prefix: false,
             compat_disable_cooling: Vec::new(),
             oauth_request_scoped_errors: HashMap::new(),
@@ -320,6 +324,7 @@ pub struct RawRouting<'a> {
     pub disable_cooling: bool,
     pub save_cooldown_status: bool,
     pub transient_error_cooldown_seconds: i64,
+    pub max_trusted_cooldown: &'a str,
 }
 
 // ponytail: OAuth-provider disable-cooling and request-scoped-error maps stay empty until
@@ -338,6 +343,7 @@ impl From<&cpa_core::config::RoutingConfig> for Policy {
             disable_cooling: r.cooldown.disable_cooling,
             save_cooldown_status: r.cooldown.save_cooldown_status,
             transient_error_cooldown_seconds: r.cooldown.transient_error_cooldown_seconds,
+            max_trusted_cooldown: &r.cooldown.max_trusted_cooldown,
         })
     }
 }
@@ -364,7 +370,43 @@ pub fn normalize(raw: RawRouting<'_>) -> Policy {
         disable_cooling: raw.disable_cooling,
         save_cooldown_status: raw.save_cooldown_status,
         transient_error_cooldown_seconds: raw.transient_error_cooldown_seconds,
+        max_trusted_cooldown: trusted_cooldown(raw.max_trusted_cooldown),
         ..Policy::default()
+    }
+}
+
+const DEFAULT_TRUSTED_COOLDOWN: Duration = Duration::from_secs(3600);
+
+/// `max-trusted-cooldown`: a Go duration (`"90m"`) or a bare number of seconds. Empty
+/// means the one-hour default and zero or negative turns the bound off; a positive value
+/// is at least Go's 10 s quota floor. An unreadable value (`"1d"`, `false`, `"1.5"`)
+/// keeps the default and is logged once per value.
+fn trusted_cooldown(raw: &str) -> Duration {
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return DEFAULT_TRUSTED_COOLDOWN;
+    }
+    let nanos = match raw.parse::<i64>() {
+        Ok(seconds) => seconds.saturating_mul(1_000_000_000),
+        Err(_) => match cpa_core::config::parse_duration(raw) {
+            Some(nanos) => nanos,
+            None => {
+                static WARNED: std::sync::Mutex<String> = std::sync::Mutex::new(String::new());
+                let mut last = WARNED.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                if *last != raw {
+                    raw.clone_into(&mut last);
+                    tracing::warn!(
+                        "routing.cooldown.max-trusted-cooldown {raw:?} is not a duration (\"90m\") or a \
+                         number of seconds; using 1h"
+                    );
+                }
+                return DEFAULT_TRUSTED_COOLDOWN;
+            }
+        },
+    };
+    match nanos {
+        ..=0 => Duration::ZERO,
+        n => Duration::from_nanos(n as u64).max(Duration::from_secs(10)),
     }
 }
 
@@ -559,6 +601,38 @@ pub(crate) struct Cooldown {
     /// A model quota inherited from a credential-wide quota (Go reason
     /// `credential_quota` on sibling model states).
     pub credential: bool,
+    /// Bounded trust of a stated quota reset (cliproxy-rs only); `level` stays Go's.
+    pub trust: Trust,
+}
+
+/// Bounded trust of one cooldown (`max-trusted-cooldown`, docs/DIFFERENCES-FROM-GO.md).
+/// Costs nothing until a stated reset is cut: then one comparison per 429 and, per
+/// recorded result, a probe check on the two keys the result touches.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct Trust {
+    /// Exponent of the latest bounded window, which lasted `cap << window`. Kept after
+    /// the window ends, so the next cut window doubles; a success clears it.
+    pub window: Option<u32>,
+    /// The deadline is the bound's: a concurrent 429 inside it keeps it.
+    pub bounded: bool,
+    /// The upstream's stated reset behind a bounded deadline (Go's recovery time).
+    pub stated: Option<Instant>,
+    /// An unanswered probe request holds the ended window until this instant.
+    pub probe: Option<Instant>,
+}
+
+/// Longest a probe reserves an ended bounded window. A 429 arrives within seconds; a
+/// probe still unanswered after this is being served, and its result clears it anyway.
+const PROBE_HOLD: Duration = Duration::from_secs(30);
+/// Largest trust exponent: `cap << 20` is over a century for any cap of 1 h or more.
+const MAX_TRUST_WINDOW: u32 = 20;
+
+impl Cooldown {
+    /// When this entry stops blocking picks: its deadline, or an unanswered probe.
+    fn until(&self, now: Instant) -> Option<Instant> {
+        let live = (self.deadline > now).then_some(self.deadline);
+        live.max(self.trust.probe.filter(|p| *p > now))
+    }
 }
 
 #[derive(Default)]
@@ -639,6 +713,21 @@ fn quota_backoff(level: u32) -> (Duration, u32) {
     }
 }
 
+/// Bounded trust for a stated quota reset (docs/DIFFERENCES-FROM-GO.md): a reset longer
+/// than the window's bound is cut to it, so the next ordinary request after the bound
+/// probes the account and an early provider reset is noticed within the bound. The
+/// first window is `cap`; each cut window after one that ended without a success is
+/// twice the last (`window` is the last exponent). Returns the bound and its exponent,
+/// or `None` when the stated reset is trusted as it is (it fits, or `cap` is zero).
+fn bound(stated: Duration, cap: Duration, window: Option<u32>) -> Option<(Duration, u32)> {
+    if cap.is_zero() {
+        return None;
+    }
+    let step = window.map_or(0, |w| w.saturating_add(1)).min(MAX_TRUST_WINDOW);
+    let bound = cap.saturating_mul(1 << step);
+    (stated > bound).then_some((bound, step))
+}
+
 /// Go `recoverableFailureRetryAfterWithHint`.
 fn transient(policy: &Policy, hint: Option<Duration>, disabled: bool) -> Option<Duration> {
     if disabled || policy.transient_error_cooldown_seconds < 0 {
@@ -684,7 +773,7 @@ impl Scheduler {
         [model, ""].into_iter().any(|m| {
             self.cooldowns
                 .get(&(c.id.clone(), m.to_owned()))
-                .is_some_and(|s| s.quota && s.deadline > now)
+                .is_some_and(|s| s.quota && s.until(now).is_some())
         })
     }
 
@@ -695,10 +784,20 @@ impl Scheduler {
             .filter_map(|model| {
                 self.cooldowns
                     .get(&(c.id.clone(), model.to_owned()))
-                    .and_then(|s| s.deadline.checked_duration_since(now))
+                    .and_then(|s| s.until(now)?.checked_duration_since(now))
                     .filter(|d| !d.is_zero())
             })
             .max()
+    }
+
+    /// Whether a cooldown deadline (not a probe reservation) is ahead for `model`.
+    pub fn cooling(&self, c: &Credential, model: &str, now: Instant) -> bool {
+        let model = canonical_model(model);
+        [model, ""].into_iter().any(|m| {
+            self.cooldowns
+                .get(&(c.id.clone(), m.to_owned()))
+                .is_some_and(|s| s.deadline > now)
+        })
     }
 
     /// The last failure recorded for this credential and model, if any.
@@ -711,11 +810,60 @@ impl Scheduler {
 
     pub fn retry_eligible(&self, c: &Credential, model: &str, now: Instant) -> bool {
         let model = canonical_model(model);
+        // A bounded window or an unanswered probe is not waited for: the probe answers
+        // for everyone, and holding requests to the window's end would release them
+        // together as a burst of probes.
         [model, ""].into_iter().all(|model| {
-            self.cooldowns
-                .get(&(c.id.clone(), model.to_owned()))
-                .is_none_or(|s| s.deadline <= now || retry_status(s.status))
+            self.cooldowns.get(&(c.id.clone(), model.to_owned())).is_none_or(|s| {
+                let probing = s.trust.probe.is_some_and(|p| p > now);
+                !probing && (s.deadline <= now || (retry_status(s.status) && !s.trust.bounded))
+            })
         })
+    }
+
+    /// The upstream accepted the attempt that probes `model` (a stream's first chunk):
+    /// the ended bounded window has its answer, so other picks may go through while
+    /// the stream runs. Only expired bounded entries change; their count stays until
+    /// the stream's own outcome is recorded. When the credential-wide window ended,
+    /// its copies on the credential's model keys are disarmed too. Cost: two lookups,
+    /// and a scan of the credential's keys only when its own window ended.
+    pub fn accept_probe(&mut self, c: &Credential, model: &str, now: Instant) {
+        let model = canonical_model(model);
+        let mut credential_wide = false;
+        for m in [model, ""] {
+            if let Some(s) = self.cooldowns.get_mut(&(c.id.clone(), m.to_owned()))
+                && s.trust.bounded
+                && s.deadline <= now
+            {
+                s.trust.bounded = false;
+                s.trust.probe = None;
+                credential_wide |= m.is_empty();
+            }
+        }
+        if credential_wide {
+            for ((id, m), s) in &mut self.cooldowns {
+                if *id == c.id && !m.is_empty() && s.trust.bounded && s.deadline <= now {
+                    s.trust.bounded = false;
+                    s.trust.probe = None;
+                }
+            }
+        }
+    }
+
+    /// Reserves the probe of `c` for `model` when its pick ends a bounded window: until
+    /// the probe's result is recorded (or [`PROBE_HOLD`] passes), the window's keys keep
+    /// cooling, so concurrent requests do not each go upstream. Cost per pick: two
+    /// lookups.
+    pub fn reserve_probe(&mut self, c: &Credential, model: &str, now: Instant) {
+        let model = canonical_model(model);
+        for m in [model, ""] {
+            if let Some(s) = self.cooldowns.get_mut(&(c.id.clone(), m.to_owned()))
+                && s.trust.bounded
+                && s.deadline <= now
+            {
+                s.trust.probe = now.checked_add(PROBE_HOLD);
+            }
+        }
     }
 
     /// Picks among ready candidates, each paired with its provider key (Go
@@ -1040,6 +1188,12 @@ impl Scheduler {
     pub fn record(&mut self, c: &Credential, model: &str, outcome: &Outcome, policy: &Policy, now: Instant) {
         let model = canonical_model(model);
         let key = (c.id.clone(), model.to_owned());
+        // Any answer ends a probe reservation on the keys it touches.
+        for m in [model, ""] {
+            if let Some(s) = self.cooldowns.get_mut(&(c.id.clone(), m.to_owned())) {
+                s.trust.probe = None;
+            }
+        }
         let error = match outcome {
             Outcome::Success => {
                 // Active credential quota survives success on an in-flight sibling.
@@ -1049,6 +1203,13 @@ impl Scheduler {
                 }
                 if self.cooldowns.get(&global).is_some_and(|s| s.deadline <= now) {
                     self.cooldowns.remove(&global);
+                    // The credential recovered: model keys that a credential-wide window
+                    // escalated forget it too (their Go state is left as Go keeps it).
+                    for ((id, _), s) in &mut self.cooldowns {
+                        if *id == c.id && s.deadline <= now {
+                            s.trust = Trust::default();
+                        }
+                    }
                 }
                 self.cooldowns.remove(&key);
                 return;
@@ -1072,7 +1233,13 @@ impl Scheduler {
         let text = crate::classify::error_text(error);
         let prev = self.cooldowns.get(&key);
         let prev_live = prev.filter(|s| s.deadline > now).map(|s| s.deadline);
+        let prev_trust = prev.map(|s| s.trust).unwrap_or_default();
         let mut level = prev.filter(|s| s.quota).map(|s| s.level).unwrap_or(0);
+        // Causes other than a cut reset keep the trust count: nothing recovered.
+        let mut trust = Trust {
+            window: prev_trust.window,
+            ..Trust::default()
+        };
         let hint = error.retry_after.filter(|d| !d.is_zero());
         let mut quota = false;
         let duration = if crate::classify::is_model_support(status, &text) {
@@ -1100,7 +1267,51 @@ impl Scheduler {
                     } else if let Some(hint) = error.retry_after {
                         // A present hint, even zero, gets the 10s floor (Go
                         // minQuotaCooldownFloor); only an absent one backs off.
-                        Some(hint.max(Duration::from_secs(10)))
+                        let stated = hint.max(Duration::from_secs(10));
+                        let cap = policy.max_trusted_cooldown;
+                        if !cap.is_zero()
+                            && let Some(window) = prev.filter(|s| s.trust.bounded && s.deadline > now)
+                        {
+                            // A concurrent answer inside a live bounded window: the probe
+                            // deadline and the count stand, but an earlier stated reset
+                            // moves the probe up to it.
+                            let reset = now.checked_add(stated);
+                            let old = window.deadline;
+                            let deadline = reset.map_or(old, |r| old.min(r));
+                            let mut window_trust = window.trust;
+                            if let Some(slot) = self.cooldowns.get_mut(&key) {
+                                slot.deadline = deadline;
+                                slot.error = text;
+                                slot.trust.stated = reset.or(slot.trust.stated);
+                                window_trust = slot.trust;
+                            }
+                            if credential_quota {
+                                // Model keys that inherited this credential window (same
+                                // deadline, bounded) follow it when it moves up; longer
+                                // independent cooldowns stand.
+                                for ((id, m), state) in &mut self.cooldowns {
+                                    if *id == c.id && !m.is_empty() && state.trust.bounded && state.deadline == old {
+                                        state.deadline = deadline;
+                                        state.trust.stated = window_trust.stated;
+                                        state.trust.window = state.trust.window.max(window_trust.window);
+                                    }
+                                }
+                                self.extend_siblings(c, deadline, now);
+                            }
+                            return;
+                        }
+                        Some(match bound(stated, cap, prev_trust.window) {
+                            Some((bound, window)) => {
+                                trust = Trust {
+                                    window: Some(window),
+                                    bounded: true,
+                                    stated: now.checked_add(stated),
+                                    probe: None,
+                                };
+                                bound
+                            }
+                            None => stated,
+                        })
                     } else if let Some(prev) = prev.filter(|s| s.quota && s.deadline > now) {
                         // Go `quotaCooldownAfterFailure`: an active quota deadline is
                         // reused, not extended.
@@ -1133,6 +1344,33 @@ impl Scheduler {
             return;
         };
         let deadline = prev_live.map_or(next, |p| p.max(next));
+        // An answer from a request already in flight (a 503, a 401) inside a live bounded
+        // quota window that outlasts it: the window stands as it is, quota and all, so
+        // its saved record keeps the stated reset and count. Only bounded windows; Go's
+        // own cooldowns merge as Go does.
+        if prev_live == Some(deadline)
+            && let Some(slot) = self.cooldowns.get_mut(&key).filter(|s| s.quota && s.trust.bounded)
+        {
+            slot.error = text;
+            return;
+        }
+        // Provenance follows the deadline: a longer earlier cooldown that stands keeps
+        // its own bounded flag and stated reset.
+        let provenance = |deadline: Instant| {
+            if deadline == next {
+                trust
+            } else if prev_live == Some(deadline) {
+                Trust {
+                    probe: None,
+                    ..prev_trust
+                }
+            } else {
+                Trust {
+                    window: trust.window,
+                    ..Trust::default()
+                }
+            }
+        };
         let state = |deadline| Cooldown {
             deadline,
             level,
@@ -1141,6 +1379,7 @@ impl Scheduler {
             error: text.clone(),
             since: SystemTime::now(),
             credential: false,
+            trust: provenance(deadline),
         };
         self.cooldowns.insert(key, state(deadline));
         if credential_quota {
@@ -1153,7 +1392,20 @@ impl Scheduler {
                     .get(&own)
                     .filter(|s| s.deadline > now)
                     .map_or(deadline, |s| s.deadline.max(deadline));
-                self.cooldowns.insert(own, state(own_deadline));
+                let own_trust = self.cooldowns.get(&own).map(|s| s.trust).unwrap_or_default();
+                let own_window = own_trust.window;
+                let mut own_state = state(own_deadline);
+                if own_deadline != deadline {
+                    // The model's own longer deadline wins: its provenance goes with it.
+                    own_state.trust = Trust {
+                        probe: None,
+                        ..own_trust
+                    };
+                } else {
+                    own_state.trust = provenance(deadline);
+                }
+                own_state.trust.window = own_state.trust.window.max(own_window);
+                self.cooldowns.insert(own, own_state);
             }
         }
     }
@@ -1161,12 +1413,18 @@ impl Scheduler {
     /// Go's credential-scoped 429: live sibling model states become quota cooldowns
     /// (`credential_quota`) lasting at least as long as the credential.
     fn extend_siblings(&mut self, c: &Credential, deadline: Instant, now: Instant) {
-        let level = self
+        let (level, trust) = self
             .cooldowns
             .get(&(c.id.clone(), String::new()))
-            .map_or(0, |s| s.level);
+            .map_or((0, Trust::default()), |s| (s.level, s.trust));
         for ((id, model), state) in &mut self.cooldowns {
             if *id == c.id && !model.is_empty() && state.deadline > now {
+                let window = state.trust.window.max(trust.window);
+                if deadline >= state.deadline {
+                    state.trust = Trust { probe: None, ..trust };
+                }
+                // A model further along its own escalation keeps its count.
+                state.trust.window = window;
                 state.deadline = state.deadline.max(deadline);
                 state.quota = true;
                 state.credential = true;
@@ -1202,6 +1460,12 @@ impl Scheduler {
             .filter(|((id, _), state)| *id == c.id && state.deadline > now)
             .map(|((_, model), state)| {
                 let at = wall + (state.deadline - now);
+                // Go's recovery time is the stated reset; the probe time is the retry.
+                let recover = state
+                    .trust
+                    .stated
+                    .filter(|r| state.trust.bounded && *r > state.deadline)
+                    .map_or(at, |r| wall + (r - now));
                 let reason = match (model.is_empty() || state.credential, state.quota, state.status) {
                     (true, true, _) => "credential_quota".to_owned(),
                     (false, true, 429) => "quota".to_owned(),
@@ -1218,9 +1482,10 @@ impl Scheduler {
                         Quota {
                             exceeded: true,
                             reason: reason.clone(),
-                            next_recover_at: Some(at),
+                            next_recover_at: Some(recover),
                             backoff_level: state.level,
                             observed_at: None,
+                            trust_windows: Some(state.trust.window.map_or(0, |w| w.saturating_add(1))),
                         }
                     } else {
                         Quota::default()
@@ -1251,6 +1516,7 @@ impl Scheduler {
         c: &Credential,
         record: &crate::cooldown_store::Record,
         has_model_records: bool,
+        cap: Duration,
         now: Instant,
         wall: SystemTime,
     ) -> bool {
@@ -1260,18 +1526,48 @@ impl Scheduler {
         let Some(retry) = record.next_retry_after.filter(|at| *at > wall) else {
             return false;
         };
-        let at = match record.quota.next_recover_at.filter(|_| record.quota.exceeded) {
-            Some(recover) => retry.max(recover),
-            None => retry,
-        };
-        let Some(remaining) = at.duration_since(wall).ok() else {
-            return false;
-        };
-        if remaining.is_zero() {
-            return false;
-        }
+        let recover = record.quota.next_recover_at.filter(|_| record.quota.exceeded);
+        let saved = record.quota.trust_windows.map(|n| n.min(MAX_TRUST_WINDOW + 1));
         let model = record.model.trim();
         if model.is_empty() && has_model_records && record.quota.reason != "credential_quota" {
+            return false;
+        }
+        let since = |at: SystemTime| at.duration_since(wall).unwrap_or_default();
+        let (remaining, trust) = match (record.quota.exceeded && !cap.is_zero(), saved) {
+            // Written by cliproxy-rs: the saved retry is the deadline, as it is, whatever
+            // set it (a bounded window, a trusted reset, or a longer cooldown from another
+            // cause that a credential-wide quota marked), so a restart never cuts or
+            // escalates it. A stated reset after the retry marks a bounded window.
+            (true, Some(spent)) => {
+                let stated = recover.filter(|r| *r > retry).map(|r| now + since(r));
+                let trust = Trust {
+                    window: spent.checked_sub(1),
+                    bounded: stated.is_some(),
+                    stated,
+                    probe: None,
+                };
+                (since(retry), trust)
+            }
+            // A Go record, or one from before the bound: Go's deadline gets the first
+            // bound. Go's `backoff_level` keeps its meaning and does not raise it.
+            (true, None) => {
+                let at = recover.map_or(retry, |r| retry.max(r));
+                match bound(since(at), cap, None) {
+                    Some((bound, window)) => (
+                        bound,
+                        Trust {
+                            window: Some(window),
+                            bounded: true,
+                            stated: Some(now + since(at)),
+                            probe: None,
+                        },
+                    ),
+                    None => (since(at), Trust::default()),
+                }
+            }
+            (false, _) => (since(recover.map_or(retry, |r| retry.max(r))), Trust::default()),
+        };
+        if remaining.is_zero() {
             return false;
         }
         let deadline = now + remaining;
@@ -1281,25 +1577,45 @@ impl Scheduler {
             s => u16::try_from(s).unwrap_or(0),
         };
         let key = (c.id.clone(), canonical_model(model).to_owned());
-        let deadline = self
-            .cooldowns
-            .get(&key)
-            .filter(|prev| prev.deadline > now)
-            .map_or(deadline, |prev| prev.deadline.max(deadline));
+        let prev = self.cooldowns.get(&key).filter(|prev| prev.deadline > now);
+        let prev_wins = prev.is_some_and(|p| p.deadline > deadline);
+        let deadline = prev.map_or(deadline, |prev| prev.deadline.max(deadline));
+        let mut quota = (
+            record.quota.exceeded,
+            status,
+            !model.is_empty() && record.quota.reason == "credential_quota",
+        );
+        let mut trust = trust;
+        // With bounded trust on either side, provenance and the quota classification come
+        // from the entry that supplies the deadline, and the counts merge. Without it the
+        // merge is Go's.
+        if let Some(prev) = prev.filter(|p| p.trust != Trust::default() || trust != Trust::default()) {
+            let window = prev.trust.window.max(trust.window);
+            if prev_wins {
+                trust = Trust {
+                    probe: None,
+                    ..prev.trust
+                };
+                quota = (prev.quota, prev.status, prev.credential);
+            }
+            trust.window = window;
+        }
+        let (quota, status, credential) = quota;
         self.cooldowns.insert(
             key,
             Cooldown {
                 deadline,
                 level: record.quota.backoff_level,
                 status,
-                quota: record.quota.exceeded,
+                quota,
                 error: if error.message.is_empty() {
                     record.reason.clone()
                 } else {
                     error.message
                 },
                 since: record.updated_at.unwrap_or(wall),
-                credential: !model.is_empty() && record.quota.reason == "credential_quota",
+                credential,
+                trust,
             },
         );
         true
@@ -1327,12 +1643,25 @@ impl Scheduler {
     }
 }
 
+/// Time left until a bounded cooldown's stated reset, while it is ahead.
+fn recover_after(s: &Cooldown, now: Instant) -> Option<Duration> {
+    let stated = s
+        .trust
+        .stated
+        .filter(|r| s.trust.bounded && *r > now && *r > s.deadline)?;
+    Some(stated - now)
+}
+
 /// One active cooldown for management views (additive read API). `model` is empty for
 /// a credential-wide cooldown.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CooldownState {
     pub model: String,
+    /// Until the next attempt (zero once a bounded window ended and the next request
+    /// probes the account).
     pub remaining: Duration,
+    /// Until the upstream's stated reset, when the bound cut it (cliproxy-rs only).
+    pub recover_in: Option<Duration>,
     pub level: u32,
     pub status: u16,
     pub quota: bool,
@@ -1349,10 +1678,11 @@ impl Scheduler {
         let mut out: Vec<CooldownState> = self
             .cooldowns
             .iter()
-            .filter(|((cid, _), s)| cid == id && s.deadline > now)
+            .filter(|((cid, _), s)| cid == id && (s.deadline > now || recover_after(s, now).is_some()))
             .map(|((_, model), s)| CooldownState {
                 model: model.clone(),
-                remaining: s.deadline - now,
+                remaining: s.deadline.saturating_duration_since(now),
+                recover_in: recover_after(s, now),
                 level: s.level,
                 status: s.status,
                 quota: s.quota,
@@ -1595,6 +1925,578 @@ mod tests {
     }
 
     #[test]
+    fn max_trusted_cooldown_reads_durations_seconds_and_off() {
+        let read = |raw| {
+            normalize(RawRouting {
+                max_trusted_cooldown: raw,
+                ..Default::default()
+            })
+            .max_trusted_cooldown
+        };
+        assert_eq!(read(""), Duration::from_secs(3600));
+        assert_eq!(read("90m"), Duration::from_secs(5400));
+        assert_eq!(read("120"), Duration::from_secs(120));
+        assert_eq!(read("0"), Duration::ZERO);
+        assert_eq!(read("0s"), Duration::ZERO);
+        assert_eq!(read("-5"), Duration::ZERO);
+        for unreadable in ["soon", "1d", "false", "1.5"] {
+            assert_eq!(read(unreadable), Duration::from_secs(3600), "{unreadable}");
+        }
+        assert_eq!(read("3"), Duration::from_secs(10), "clamped to Go's floor");
+        assert_eq!(read("2s"), Duration::from_secs(10), "clamped to Go's floor");
+    }
+
+    const H: u64 = 3600;
+    const MIN: u64 = 60;
+
+    fn secs(n: u64) -> Duration {
+        Duration::from_secs(n)
+    }
+
+    /// A 429 whose stated reset is `stated` from `at`.
+    fn hinted(scope: FailureScope, stated: Duration) -> Outcome {
+        let mut e = ExecError::local(429, scope, "usage_limit_reached");
+        e.retry_after = Some(stated);
+        Outcome::Failure(e)
+    }
+
+    fn unhinted(scope: FailureScope) -> Outcome {
+        Outcome::Failure(ExecError::local(429, scope, "rate limited"))
+    }
+
+    fn entry<'a>(s: &'a Scheduler, c: &Credential, model: &str) -> &'a Cooldown {
+        &s.cooldowns[&(c.id.clone(), model.to_owned())]
+    }
+
+    /// A stated reset six days away is trusted for one hour, then for doubling windows
+    /// while the account keeps answering 429, and never past the stated reset. Success
+    /// clears the escalation; `0` trusts the stated reset as Go does.
+    #[test]
+    fn quota_resets_are_trusted_up_to_a_doubling_bound() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let start = Instant::now();
+        let reset = start + secs(6 * 24 * H);
+        for (scope, key) in [(FailureScope::Model, "m"), (FailureScope::Credential, "")] {
+            let mut s = Scheduler::default();
+            let mut now = start;
+            for window in [1, 2, 4, 8, 16, 32, 64] {
+                s.record(&c, "m", &hinted(scope, reset - now), &p, now);
+                assert_eq!(s.wait(&c, "m", now), Some(secs(window * H)), "{scope:?}");
+                assert_eq!(entry(&s, &c, key).trust.stated, Some(reset), "{scope:?}: stated kept");
+                assert_eq!(entry(&s, &c, key).level, 0, "{scope:?}: Go's level untouched");
+                now += secs(window * H);
+                assert!(s.retry_eligible(&c, "m", now));
+            }
+            // 127 hours have passed; the next window would be 128 hours, past the reset.
+            s.record(&c, "m", &hinted(scope, reset - now), &p, now);
+            assert_eq!(
+                s.wait(&c, "m", now),
+                Some(reset - now),
+                "{scope:?}: capped by the stated reset"
+            );
+            // The account came back early: success clears the escalation.
+            let mut s = Scheduler::default();
+            s.record(&c, "m", &hinted(scope, reset - start), &p, start);
+            let then = start + secs(H);
+            s.record(&c, "m", &hinted(scope, reset - then), &p, then);
+            assert_eq!(s.wait(&c, "m", then), Some(secs(2 * H)));
+            let later = start + secs(3 * H);
+            s.record(&c, "m", &Outcome::Success, &p, later);
+            s.record(&c, "m", &hinted(scope, reset - later), &p, later);
+            assert_eq!(
+                s.wait(&c, "m", later),
+                Some(secs(H)),
+                "{scope:?}: back to the first bound"
+            );
+        }
+        // A reset shorter than the bound is kept as stated.
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(30 * MIN)), &p, start);
+        assert_eq!(s.wait(&c, "m", start), Some(secs(30 * MIN)));
+        assert!(!entry(&s, &c, "m").trust.bounded);
+        // `0` is Go: the whole stated reset.
+        let go = Policy {
+            max_trusted_cooldown: Duration::ZERO,
+            ..Policy::default()
+        };
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, reset - start), &go, start);
+        assert_eq!(s.wait(&c, "m", start), Some(reset - start));
+    }
+
+    /// The trust count is its own: Go's no-hint backoff level neither raises the first
+    /// bound nor is changed by a cut window.
+    #[test]
+    fn trust_count_and_go_backoff_level_are_separate() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        // No-hint 429s first: Go's level climbs (1 s, 2 s, 4 s, ...).
+        let mut s = Scheduler::default();
+        let mut now = Instant::now();
+        for _ in 0..9 {
+            s.record(&c, "m", &unhinted(FailureScope::Model), &p, now);
+            now += secs(600);
+        }
+        assert_eq!(entry(&s, &c, "m").level, 9);
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, now);
+        assert_eq!(s.wait(&c, "m", now), Some(secs(H)), "the first bound, not 2^9 hours");
+        assert_eq!(entry(&s, &c, "m").level, 9, "Go's level keeps its meaning");
+        // Hinted first, then no-hint 429s after the window: Go's backoff runs from its
+        // own level, and the next cut window still doubles.
+        let mut s = Scheduler::default();
+        let mut now = Instant::now();
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, now);
+        now += secs(H);
+        s.record(&c, "m", &unhinted(FailureScope::Model), &p, now);
+        assert_eq!(s.wait(&c, "m", now), Some(secs(1)), "Go's first backoff step");
+        now += secs(1);
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, now);
+        assert_eq!(s.wait(&c, "m", now), Some(secs(2 * H)), "the trust count survived");
+    }
+
+    /// A stated reset that lands during a cooldown the bound did not set (a 5xx, a
+    /// 401, a no-hint 429 backoff) opens a bounded window instead of probing at once.
+    #[test]
+    fn a_reset_inside_another_cooldown_gets_the_bound() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        let start = Instant::now();
+        let first = |status: u16, scope| {
+            let mut s = Scheduler::default();
+            s.record(
+                &c,
+                "m",
+                &Outcome::Failure(ExecError::local(status, scope, "earlier")),
+                &p,
+                start,
+            );
+            s
+        };
+        for (status, scope, earlier) in [
+            (503, FailureScope::Credential, secs(60)),
+            (429, FailureScope::Model, secs(1)),
+        ] {
+            let mut s = first(status, scope);
+            assert_eq!(s.wait(&c, "m", start), Some(earlier));
+            let at = start + Duration::from_millis(500);
+            s.record(&c, "m", &hinted(FailureScope::Model, days), &p, at);
+            assert_eq!(s.wait(&c, "m", at), Some(secs(H)), "after {status}");
+            assert!(entry(&s, &c, "m").trust.bounded, "after {status}");
+            // A concurrent 6-day answer inside that window neither extends nor escalates.
+            let later = at + secs(60);
+            s.record(&c, "m", &hinted(FailureScope::Model, days), &p, later);
+            assert_eq!(s.wait(&c, "m", at), Some(secs(H)), "after {status}");
+            assert_eq!(entry(&s, &c, "m").trust.window, Some(0), "after {status}");
+        }
+        // A longer cooldown from another cause stands, and is not marked bounded.
+        let mut s = first(401, FailureScope::Credential);
+        let cap = Policy {
+            max_trusted_cooldown: secs(600),
+            ..Policy::default()
+        };
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &cap, start);
+        assert_eq!(s.wait(&c, "m", start), Some(secs(30 * MIN)));
+        assert!(!entry(&s, &c, "m").trust.bounded);
+    }
+
+    /// Inside a live bounded window, a concurrent stated reset keeps the probe deadline
+    /// unless it is earlier; with the setting off Go's merge applies.
+    #[test]
+    fn concurrent_resets_keep_or_shorten_the_window() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let start = Instant::now();
+        let window = |s: &mut Scheduler, policy: &Policy| {
+            s.record(&c, "m", &hinted(FailureScope::Model, secs(6 * 24 * H)), policy, start);
+        };
+        // A 45-minute reset at minute 30 does not push the probe to minute 75.
+        let mut s = Scheduler::default();
+        window(&mut s, &p);
+        let at = start + secs(30 * MIN);
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(45 * MIN)), &p, at);
+        assert_eq!(s.wait(&c, "m", start), Some(secs(H)));
+        // A 30-minute reset at minute 1 moves it up to minute 31.
+        let mut s = Scheduler::default();
+        window(&mut s, &p);
+        let at = start + secs(MIN);
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(30 * MIN)), &p, at);
+        assert_eq!(s.wait(&c, "m", start), Some(secs(31 * MIN)));
+        assert_eq!(entry(&s, &c, "m").trust.window, Some(0), "not a new window");
+        // Setting off: Go keeps the later deadline.
+        let go = Policy {
+            max_trusted_cooldown: Duration::ZERO,
+            ..Policy::default()
+        };
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(H)), &go, start);
+        let at = start + secs(30 * MIN);
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(45 * MIN)), &go, at);
+        assert_eq!(s.wait(&c, "m", start), Some(secs(75 * MIN)));
+    }
+
+    /// The first pick after a bounded window reserves the probe: the window keeps
+    /// cooling until the probe's answer, and is never waited for by retries.
+    #[test]
+    fn one_probe_per_ended_window() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let start = Instant::now();
+        for (scope, key) in [(FailureScope::Model, "m"), (FailureScope::Credential, "")] {
+            let mut s = Scheduler::default();
+            s.record(&c, "m", &hinted(scope, secs(6 * 24 * H)), &p, start);
+            let near = start + secs(H) - secs(5);
+            assert!(
+                !s.retry_eligible(&c, "m", near),
+                "{scope:?}: a bounded window is not waited for"
+            );
+            let end = start + secs(H);
+            assert_eq!(s.wait(&c, "m", end), None, "{scope:?}: the probe is due");
+            s.reserve_probe(&c, "m", end);
+            assert_eq!(s.wait(&c, "m", end), Some(PROBE_HOLD), "{scope:?}: reserved");
+            assert!(s.quota_cooling(&c, "m", end), "{scope:?}");
+            assert!(!s.retry_eligible(&c, "m", end), "{scope:?}");
+            // An unrelated model of the same credential waits too when the window is the
+            // credential's.
+            assert_eq!(s.wait(&c, "other", end).is_some(), key.is_empty(), "{scope:?}");
+            // The probe's 429 opens the next window; its success would clear all.
+            s.record(&c, "m", &hinted(scope, secs(5 * 24 * H)), &p, end + secs(2));
+            assert_eq!(s.wait(&c, "m", end + secs(2)), Some(secs(2 * H)), "{scope:?}");
+            assert_eq!(entry(&s, &c, key).trust.probe, None);
+            // A cancelled probe frees the window at once; a lost one after PROBE_HOLD.
+            let next = end + secs(2) + secs(2 * H);
+            s.reserve_probe(&c, "m", next);
+            s.record(&c, "m", &Outcome::Cancelled, &p, next + secs(1));
+            assert_eq!(s.wait(&c, "m", next + secs(1)), None, "{scope:?}");
+            s.reserve_probe(&c, "m", next + secs(1));
+            assert_eq!(s.wait(&c, "m", next + secs(1) + PROBE_HOLD), None, "{scope:?}");
+        }
+        // Only bounded windows reserve: an ended Go backoff does not.
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &unhinted(FailureScope::Model), &p, start);
+        s.reserve_probe(&c, "m", start + secs(2));
+        assert_eq!(s.wait(&c, "m", start + secs(2)), None);
+    }
+
+    /// A credential-wide window escalates the model keys too; when the credential
+    /// recovers through a success on another model, they forget the count.
+    #[test]
+    fn a_success_on_another_model_clears_the_escalation() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let start = Instant::now();
+        let days = secs(6 * 24 * H);
+        let mut s = Scheduler::default();
+        s.record(&c, "a", &hinted(FailureScope::Credential, days), &p, start);
+        assert_eq!(entry(&s, &c, "a").trust.window, Some(0));
+        let end = start + secs(H);
+        s.record(&c, "b", &Outcome::Success, &p, end);
+        s.record(&c, "a", &hinted(FailureScope::Model, days), &p, end);
+        assert_eq!(s.wait(&c, "a", end), Some(secs(H)), "the first bound again");
+    }
+
+    /// A probe the upstream accepted (a stream started) ends the window's question at
+    /// once: the next pick goes through while the stream runs, and a later hinted 429
+    /// still doubles. A credential-wide window's copies on model keys are disarmed too;
+    /// a newer live window is left alone.
+    #[test]
+    fn an_accepted_probe_frees_the_account_and_keeps_the_count() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        let start = Instant::now();
+        let end = start + secs(H);
+        // Model scope.
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, start);
+        s.reserve_probe(&c, "m", end);
+        assert!(s.wait(&c, "m", end).is_some(), "reserved");
+        s.accept_probe(&c, "m", end);
+        assert_eq!(s.wait(&c, "m", end), None, "the next pick goes through");
+        s.reserve_probe(&c, "m", end + secs(1));
+        assert_eq!(s.wait(&c, "m", end + secs(1)), None, "no second reservation");
+        let later = end + secs(60);
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, later);
+        assert_eq!(s.wait(&c, "m", later), Some(secs(2 * H)), "the count survived");
+        // A live window (another model's newer one) is untouched.
+        s.accept_probe(&c, "m", later + secs(1));
+        assert!(entry(&s, &c, "m").trust.bounded);
+        // Credential scope: B's accepted probe disarms A's copy as well.
+        let mut s = Scheduler::default();
+        s.record(&c, "a", &hinted(FailureScope::Credential, days), &p, start);
+        s.reserve_probe(&c, "b", end);
+        s.accept_probe(&c, "b", end);
+        assert_eq!(s.wait(&c, "b", end), None);
+        s.reserve_probe(&c, "a", end);
+        assert_eq!(s.wait(&c, "a", end), None, "A's copy does not reserve again");
+        assert_eq!(entry(&s, &c, "a").trust.window, Some(0), "count kept");
+    }
+
+    /// An earlier credential-wide reset moves up the model keys that inherited the
+    /// window; an independent longer cooldown stands.
+    #[test]
+    fn an_earlier_credential_reset_shortens_inherited_model_windows() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let start = Instant::now();
+        let mut s = Scheduler::default();
+        let support = ExecError::local(400, FailureScope::Model, "model is not supported");
+        s.record(&c, "support", &Outcome::Failure(support), &p, start);
+        s.record(&c, "sibling", &unhinted(FailureScope::Model), &p, start);
+        s.record(&c, "a", &hinted(FailureScope::Credential, secs(6 * 24 * H)), &p, start);
+        let at = start + secs(MIN);
+        s.record(&c, "a", &hinted(FailureScope::Credential, secs(30 * MIN)), &p, at);
+        for model in ["a", "sibling", "unrelated"] {
+            assert_eq!(s.wait(&c, model, start), Some(secs(31 * MIN)), "{model}");
+        }
+        assert_eq!(s.wait(&c, "support", start), Some(secs(12 * H)));
+    }
+
+    /// Provenance follows the winning deadline: the failing model's own longer bounded
+    /// window keeps its flag and stated reset through a credential-wide merge.
+    #[test]
+    fn the_own_key_keeps_its_window_through_a_credential_merge() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        let start = Instant::now();
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, start);
+        s.record(
+            &c,
+            "m",
+            &hinted(FailureScope::Model, days - secs(H)),
+            &p,
+            start + secs(H),
+        );
+        let own_end = start + secs(3 * H);
+        let at = start + secs(H) + secs(MIN);
+        s.record(&c, "m", &hinted(FailureScope::Credential, days), &p, at);
+        let own = entry(&s, &c, "m");
+        assert_eq!(own.deadline, own_end);
+        assert!(own.trust.bounded && own.trust.stated == Some(start + days));
+        s.reserve_probe(&c, "m", own_end);
+        assert!(
+            entry(&s, &c, "m").trust.probe.is_some(),
+            "it reserves a probe at its end"
+        );
+    }
+
+    /// A restore into a scheduler that already holds a later deadline keeps that
+    /// entry's provenance and classification, merging the counts.
+    #[test]
+    fn a_restore_keeps_the_winner_trust() {
+        use crate::cooldown_store::{Quota, Record};
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let (now, wall) = (Instant::now(), SystemTime::now());
+        let days = secs(6 * 24 * H);
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, now);
+        let live = entry(&s, &c, "m").trust;
+        let shorter = Record {
+            auth_id: "a".into(),
+            model: "m".into(),
+            next_retry_after: Some(wall + secs(10 * MIN)),
+            quota: Quota {
+                exceeded: true,
+                reason: "quota".into(),
+                next_recover_at: Some(wall + secs(10 * MIN)),
+                trust_windows: Some(3),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(s.restore(&c, &shorter, true, secs(H), now, wall));
+        let merged = entry(&s, &c, "m");
+        assert_eq!(merged.deadline, now + secs(H));
+        assert!(merged.trust.bounded && merged.trust.stated == live.stated);
+        assert_eq!(merged.trust.window, Some(2), "counts merge");
+    }
+
+    /// A 503 from a request already in flight inside a live bounded window: the window
+    /// stands, and its saved record keeps the stated reset and count.
+    #[test]
+    fn a_503_inside_a_bounded_window_keeps_it() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let (now, wall) = (Instant::now(), SystemTime::now());
+        let days = secs(6 * 24 * H);
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, now);
+        let at = now + secs(30 * MIN);
+        let unavailable = ExecError::local(503, FailureScope::Model, "overloaded");
+        s.record(&c, "m", &Outcome::Failure(unavailable), &p, at);
+        let saved = &s.records(&c, at, wall + secs(30 * MIN))[0];
+        assert!(saved.quota.exceeded);
+        assert_eq!(saved.quota.next_recover_at, Some(wall + days));
+        assert_eq!(saved.quota.trust_windows, Some(1));
+        assert_eq!(saved.reason, "quota");
+    }
+
+    /// `.cds` records: the probe time is the retry, the stated reset Go's recovery time,
+    /// and the count is its own field. Restores never escalate, and Go's records get
+    /// the first bound whatever their backoff level.
+    #[test]
+    fn restored_quota_resets_are_bounded_too() {
+        use crate::cooldown_store::{Quota, Record};
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let (now, wall) = (Instant::now(), SystemTime::now());
+        let cap = secs(H);
+        let days = secs(6 * 24 * H);
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, now);
+        let saved = s.records(&c, now, wall);
+        assert_eq!(saved[0].next_retry_after, Some(wall + secs(H)));
+        assert_eq!(saved[0].quota.next_recover_at, Some(wall + days));
+        assert_eq!(
+            (saved[0].quota.trust_windows, saved[0].quota.backoff_level),
+            (Some(1), 0)
+        );
+        // Our own record restores as it was: one hour, the same window.
+        let mut back = Scheduler::default();
+        assert!(back.restore(&c, &saved[0], true, cap, now, wall));
+        assert_eq!(back.wait(&c, "m", now), Some(secs(H)));
+        assert_eq!(back.records(&c, now, wall), saved);
+        let record_at = |retry: Duration, trust_windows, backoff_level| Record {
+            auth_id: "a".into(),
+            model: "m".into(),
+            next_retry_after: Some(wall + retry),
+            quota: Quota {
+                exceeded: true,
+                reason: "quota".into(),
+                next_recover_at: Some(wall + days),
+                backoff_level,
+                trust_windows,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        // Go's record with backoff level 2: the first bound; the level stays Go's.
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &record_at(days, None, 2), true, cap, now, wall));
+        assert_eq!(s.wait(&c, "m", now), Some(secs(H)));
+        assert_eq!(entry(&s, &c, "m").level, 2);
+        // Our record in its third window (4 h, count 2): restored as it is, and the
+        // count survives, so the next cut window is 8 h.
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &record_at(secs(4 * H), Some(3), 0), true, cap, now, wall));
+        assert_eq!(s.wait(&c, "m", now), Some(secs(4 * H)));
+        let trust = entry(&s, &c, "m").trust;
+        assert!(trust.bounded && trust.window == Some(2));
+        assert_eq!(trust.stated, Some(now + days));
+        let later = now + secs(4 * H);
+        s.record(&c, "m", &hinted(FailureScope::Model, days - secs(4 * H)), &p, later);
+        assert_eq!(s.wait(&c, "m", later), Some(secs(8 * H)));
+        // A reset trusted as stated restores as it was, unbounded, keeping the count.
+        let ninety = secs(90 * MIN);
+        let trusted = Record {
+            quota: Quota {
+                next_recover_at: Some(wall + ninety),
+                ..record_at(ninety, Some(1), 0).quota
+            },
+            ..record_at(ninety, Some(1), 0)
+        };
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &trusted, true, cap, now, wall));
+        assert_eq!(s.wait(&c, "m", now), Some(ninety));
+        let back = &s.records(&c, now, wall)[0];
+        assert_eq!(
+            (
+                back.next_retry_after,
+                back.quota.next_recover_at,
+                back.quota.trust_windows
+            ),
+            (trusted.next_retry_after, trusted.quota.next_recover_at, Some(1))
+        );
+        assert!(!entry(&s, &c, "m").trust.bounded);
+        // An absurd saved count is clamped, not overflowed.
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &record_at(secs(H), Some(u32::MAX), 0), true, cap, now, wall));
+        assert_eq!(entry(&s, &c, "m").trust.window, Some(MAX_TRUST_WINDOW));
+        // Setting off: Go's six days.
+        let mut s = Scheduler::default();
+        assert!(s.restore(&c, &record_at(days, Some(3), 0), true, Duration::ZERO, now, wall));
+        assert_eq!(s.wait(&c, "m", now), Some(days));
+    }
+
+    /// A longer cooldown of another cause that a credential-wide quota marked as quota
+    /// (model B's 12 h model-support cooldown during a six-day 429 on model A) keeps its
+    /// own deadline through a save and a restore: it is cliproxy-rs's record, not Go's.
+    #[test]
+    fn a_marked_sibling_restores_its_own_deadline() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let (now, wall) = (Instant::now(), SystemTime::now());
+        let mut s = Scheduler::default();
+        let support = ExecError::local(400, FailureScope::Model, "model is not supported");
+        s.record(&c, "b", &Outcome::Failure(support), &p, now);
+        assert_eq!(s.wait(&c, "b", now), Some(secs(12 * H)), "Go's model-support cooldown");
+        s.record(&c, "a", &hinted(FailureScope::Credential, secs(6 * 24 * H)), &p, now);
+        let records = s.records(&c, now, wall);
+        let b = records.iter().find(|r| r.model == "b").unwrap();
+        assert!(b.quota.exceeded && b.quota.trust_windows.is_some(), "{b:?}");
+        let mut back = Scheduler::default();
+        for r in &records {
+            back.restore(&c, r, true, secs(H), now, wall);
+        }
+        assert_eq!(back.wait(&c, "b", now), Some(secs(12 * H)));
+        assert!(!entry(&back, &c, "b").trust.bounded, "not cut, so not a bounded window");
+    }
+
+    /// A credential-wide window does not lower a model's own count: a model already in
+    /// its fourth window (8 h) keeps it when a credential-wide 1 h window outlasts its
+    /// own, so its next cut window is 16 h, not 2 h. Both the sibling and the failing
+    /// model's own key.
+    #[test]
+    fn credential_wide_windows_keep_the_larger_model_count() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        for failing in ["other", "m"] {
+            let mut now = Instant::now();
+            let mut s = Scheduler::default();
+            for window in [1, 2, 4, 8] {
+                s.record(&c, "m", &hinted(FailureScope::Model, days), &p, now);
+                assert_eq!(s.wait(&c, "m", now), Some(secs(window * H)));
+                if window < 8 {
+                    now += secs(window * H);
+                }
+            }
+            // Ten minutes before m's 8 h window ends, a credential-wide hint whose 1 h
+            // window outlasts it.
+            let late = now + secs(8 * H) - secs(10 * MIN);
+            s.record(&c, failing, &hinted(FailureScope::Credential, days), &p, late);
+            assert_eq!(entry(&s, &c, "m").trust.window, Some(3), "{failing}: count kept");
+            let end = late + secs(H);
+            s.record(&c, "m", &hinted(FailureScope::Model, days), &p, end);
+            assert_eq!(s.wait(&c, "m", end), Some(secs(16 * H)), "{failing}");
+        }
+    }
+
+    /// Go's level climbs under Cloudflare challenges too, even inside a live window; a
+    /// stated reset there still gets the first bound.
+    #[test]
+    fn a_reset_inside_a_cloudflare_window_gets_the_first_bound() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let mut now = Instant::now();
+        let mut s = Scheduler::default();
+        for _ in 0..5 {
+            let challenge = ExecError::local(403, FailureScope::Model, "cloudflare challenge");
+            s.record(&c, "m", &Outcome::Failure(challenge), &p, now);
+            now += secs(1);
+        }
+        assert!(entry(&s, &c, "m").level >= 5);
+        assert!(s.wait(&c, "m", now).is_some(), "inside the challenge window");
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(6 * 24 * H)), &p, now);
+        assert_eq!(s.wait(&c, "m", now), Some(secs(H)));
+    }
+
+    #[test]
     fn cooldown_deadlines_floor_backoff_and_sibling_success() {
         let c = cred("a", serde_json::json!({}));
         let p = Policy::default();
@@ -1680,7 +2582,11 @@ mod tests {
         let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap();
         let cases = fixture["cooldown"].as_array().unwrap();
         assert_eq!(cases.len(), 25);
-        let policy = Policy::default();
+        // Go trusts every stated reset (docs/DIFFERENCES-FROM-GO.md).
+        let policy = Policy {
+            max_trusted_cooldown: Duration::ZERO,
+            ..Policy::default()
+        };
         for case in cases {
             let name = case["name"].as_str().unwrap();
             let c = cred(&format!("{name}.json"), serde_json::json!({}));

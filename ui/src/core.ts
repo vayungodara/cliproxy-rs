@@ -114,9 +114,20 @@ export type CredState = { lamp: Lamp; label: string; detail: string };
 /** One state per credential, derived only from fields Go's /credentials reports. */
 export function credState(a: Data, now = Date.now()): CredState {
   if (a.disabled) return { lamp: "off", label: "Disabled", detail: "" };
-  const cooldowns: Data[] = (Array.isArray(a.cooldowns) ? a.cooldowns : []).filter(
-    (c) => Date.parse(c.retry_at) > now,
-  );
+  const all: Data[] = Array.isArray(a.cooldowns) ? a.cooldowns : [];
+  // cliproxy-rs: recover_at is the upstream's stated reset when the trust bound cut it.
+  const limited = all
+    .filter((c) => c.scope !== "model" && Date.parse(c.recover_at) > now)
+    .map((c) => [Date.parse(c.recover_at), Date.parse(c.retry_at)])[0];
+  if (limited) {
+    const next = limited[1] > now ? `in ${span(limited[1] - now)}` : "on next request";
+    return {
+      lamp: "warn",
+      label: `Limited until ${new Date(limited[0]).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })} · next check ${next}`,
+      detail: a.status_message || "",
+    };
+  }
+  const cooldowns = all.filter((c) => Date.parse(c.retry_at) > now);
   const whole = cooldowns.filter((c) => c.scope !== "model");
   const until = Math.min(
     ...whole.map((c) => Date.parse(c.retry_at)),

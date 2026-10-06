@@ -50,6 +50,15 @@ test("credential state: disabled wins, only live cooldowns count, model cooldown
   assert.equal(credState({ status: "error", unavailable: true, next_retry_after: at(90_000) }, now).label, "Cooling 2m");
   assert.equal(credState({ status: "error", unavailable: true }, now).lamp, "bad");
   assert.equal(credState({ status: "error", status_message: "bad token" }, now).detail, "bad token");
+  // A cut stated reset: limited until it, next check at retry_at (or now, when due).
+  const cut = credState(
+    { status: "active", cooldowns: [{ scope: "credential", retry_at: at(30 * 60_000), recover_at: at(6 * 86_400_000) }] },
+    now,
+  );
+  assert.match(cut.label, /^Limited until .+ · next check in 30m$/);
+  const due = credState({ status: "active", cooldowns: [{ scope: "credential", retry_at: at(-1000), recover_at: at(86_400_000) }] }, now);
+  assert.match(due.label, /· next check on next request$/);
+  assert.equal(due.lamp, "warn");
   // Rust reports cooldowns: null today.
   assert.equal(credState({ status: "active", cooldowns: null }, now).label, "Ready");
   assert.deepEqual(credState({ status: "pending" }, now), { lamp: "off", label: "pending", detail: "" });
