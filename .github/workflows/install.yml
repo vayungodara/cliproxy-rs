@@ -156,6 +156,7 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then suffix='.exe'; fi
           rustc .github/scripts/installer-fixture.rs -o "target/installer-fixtures/hanging$suffix"
           rustc --cfg legacy .github/scripts/installer-fixture.rs -o "target/installer-fixtures/legacy$suffix"
+          rustc --cfg plain_health .github/scripts/installer-fixture.rs -o "target/installer-fixtures/plain-health$suffix"
       - name: Linux installer tests with external network denied
         if: runner.os == 'Linux'
         run: |

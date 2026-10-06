@@ -87,6 +87,7 @@ def main():
         if windows:
             legacy = fixtures / "legacy.exe"
             package("v999.0.0", legacy)
+            package("v999.4.0", fixtures / "plain-health.exe")
         if not windows:
             bad = root / "broken"
             bad.write_text("#!/bin/sh\nif [ \"$1\" = --version ]; then echo 'cliproxy 999.2.0'; else exit 1; fi\n")
@@ -497,8 +498,48 @@ esac
                               urllib.request.HTTPSHandler(context=ssl._create_unverified_context()))
                 with connection.open("https://[::1]:8317/healthz", timeout=5) as response:
                     assert response.status == 200
+            if windows:
+                class Unhealthy(http.server.BaseHTTPRequestHandler):
+                    def do_GET(self):
+                        self.send_response(503)
+                        self.end_headers()
+
+                    def log_message(self, *_):
+                        pass
+
+                unhealthy = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Unhealthy)
+                context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+                context.load_cert_chain(cert, key)
+                unhealthy.socket = context.wrap_socket(unhealthy.socket, server_side=True)
+                threading.Thread(target=unhealthy.serve_forever, daemon=True).start()
+                script = str(repo / "install.ps1").replace("'", "''")
+                try:
+                    print(ps(f"$ErrorActionPreference='Stop'; $code=(Get-Content -Raw '{script}') -replace '(?m)^Install-CliproxyRs -Service.*$', ''; . ([scriptblock]::Create($code)); " + f'''
+$before = [Net.ServicePointManager]::ServerCertificateValidationCallback
+$good = [pscustomobject]@{{Tls=$true; Base='https://[::1]:8317'}}
+$bad = [pscustomobject]@{{Tls=$true; Base='https://127.0.0.1:{unhealthy.server_port}'}}
+if(-not (Test-CliproxyUp $good)){{throw 'self-signed HTTPS health probe failed'}}
+if(Test-CliproxyUp $bad){{throw 'HTTPS 503 must fail the health probe'}}
+if([Net.ServicePointManager]::ServerCertificateValidationCallback -ne $before){{throw 'health probe changed global certificate validation'}}
+$accepted = $false
+try {{ Invoke-WebRequest "$($good.Base)/healthz" -UseBasicParsing -TimeoutSec 2 | Out-Null; $accepted = $true }} catch {{}}
+if($accepted){{throw 'certificate exception leaked to an ordinary request'}}
+Write-Output 'PASS Windows PowerShell 5.1: HTTPS status and scoped certificate validation'
+'''))
+                finally:
+                    unhealthy.shutdown()
+                    unhealthy.server_close()
+                # Accepting a TCP connection is insufficient: this candidate
+                # speaks plaintext on the TLS port and must restore the healthy image.
+                image = (bindir / exe).read_bytes()
+                env["CLIPROXY_VERSION"] = "v999.4.0"
+                output = install(success=False)
+                assert "Rolled back" in output and "ROLLBACK FAILED" not in output, output
+                assert (bindir / exe).read_bytes() == image
+                with connection.open("https://[::1]:8317/healthz", timeout=5) as response:
+                    assert response.status == 200, "TLS rollback must restore the original healthy server"
             print(f"PASS {platform.system()}: install, upgrade, binary-only, unchanged keys" +
-                  (", direct Run entry and process log" if windows else ", check, current no-op, hard link, rollback, checksum rejection"))
+                  (", direct Run entry, process log and HTTPS rollback" if windows else ", check, current no-op, hard link, rollback, checksum rejection"))
         except BaseException:
             def diagnostic(action):
                 try:

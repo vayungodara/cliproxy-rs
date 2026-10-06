@@ -11,7 +11,34 @@ fn main() {
     } else {
         #[cfg(legacy)]
         std::process::exit(2);
-        #[cfg(not(legacy))]
+        #[cfg(plain_health)]
+        {
+            use std::io::{Read, Write};
+            let args: Vec<_> = std::env::args().collect();
+            let config =
+                std::fs::read_to_string(&args[args.iter().position(|arg| arg == "--config").unwrap() + 1]).unwrap();
+            let value = |key| {
+                config
+                    .lines()
+                    .find_map(|line| line.trim().strip_prefix(key))
+                    .unwrap()
+                    .trim()
+                    .trim_matches('"')
+            };
+            let listener =
+                std::net::TcpListener::bind((value("host:"), value("port:").parse::<u16>().unwrap())).unwrap();
+            // Deliberately speaks HTTP despite a TLS config: a TCP-only probe
+            // accepts this broken upgrade; a real HTTPS probe must roll it back.
+            for stream in listener.incoming() {
+                let mut stream = stream.unwrap();
+                stream
+                    .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+                    .unwrap();
+                let _ = stream.read(&mut [0; 1024]);
+                let _ = stream.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK");
+            }
+        }
+        #[cfg(not(any(legacy, plain_health)))]
         {
             #[cfg(unix)]
             unsafe {
