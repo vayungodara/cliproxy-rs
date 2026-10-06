@@ -377,7 +377,11 @@ fn public_ip_replaces_ipv4_host_candidates() {
     assert_eq!(advertise(sdp, "relay.example.com"), sdp, "not an IP");
 }
 
-/// Two consecutive free loopback UDP ports.
+/// Two consecutive loopback UDP ports that were free when checked.
+// ponytail: the relay binds a configured port range, not sockets it is handed, so another
+// test or process can take a port between this check and the relay's bind. The caller
+// retries its first setup with a new pair; a port taken between a release and the next
+// setup still fails it. Letting the relay take bound sockets would close both gaps.
 fn free_port_pair() -> u16 {
     (20000..60000)
         .step_by(7)
@@ -395,25 +399,8 @@ fn free_port_pair() -> u16 {
 async fn cancelled_setup_frees_ports_and_slot() {
     // A STUN server that never answers keeps upstream gathering pending.
     let silent = std::net::UdpSocket::bind("127.0.0.1:0").unwrap();
-    let port = free_port_pair();
-    let config = RelayConfig {
-        enabled: true,
-        max_sessions: 1,
-        udp_port_min: port,
-        udp_port_max: port + 1,
-        ice_servers: vec![crate::realtime::relay::IceServer {
-            urls: vec![format!("stun:{}", silent.local_addr().unwrap())],
-            ..Default::default()
-        }],
-        ..RelayConfig::default()
-    };
     let limiter = Arc::new(Limiter::default());
-    limiter.set_limit(config.max_sessions());
-    let relay = Relay {
-        config,
-        limiter: limiter.clone(),
-        bind_ip: Some("127.0.0.1".parse().unwrap()),
-    };
+    limiter.set_limit(1);
     let route = || Route {
         proxy_url: String::new(),
         credential: "c".into(),
@@ -424,13 +411,42 @@ async fn cancelled_setup_frees_ports_and_slot() {
     let offer = client.pc.create_offer(None).await.unwrap();
     let offer = complete(&mut client, offer).await;
 
-    let (probe, slot_free) = Probe::new(&limiter);
-    let first = tokio::time::timeout(
-        Duration::from_millis(300),
-        relay.new_session(offer.clone(), route(), Box::new(probe)),
-    )
-    .await;
-    assert!(first.is_err(), "setup is still gathering when the request goes away");
+    // The relay reports a port of its range that is in use as "no free UDP port"; that
+    // only means something else took one since `free_port_pair`, so try another pair.
+    let mut retries = 3;
+    let (relay, slot_free) = loop {
+        let port = free_port_pair();
+        let relay = Relay {
+            config: RelayConfig {
+                enabled: true,
+                max_sessions: 1,
+                udp_port_min: port,
+                udp_port_max: port + 1,
+                ice_servers: vec![crate::realtime::relay::IceServer {
+                    urls: vec![format!("stun:{}", silent.local_addr().unwrap())],
+                    ..Default::default()
+                }],
+                ..RelayConfig::default()
+            },
+            limiter: limiter.clone(),
+            bind_ip: Some("127.0.0.1".parse().unwrap()),
+        };
+        let (probe, slot_free) = Probe::new(&limiter);
+        let first = tokio::time::timeout(
+            Duration::from_millis(300),
+            relay.new_session(offer.clone(), route(), Box::new(probe)),
+        )
+        .await;
+        let message = match first {
+            Err(_) => break (relay, slot_free),
+            Ok(result) => result.err().map(|e| e.message).unwrap_or_default(),
+        };
+        assert!(
+            retries > 0 && message.contains("no free UDP port"),
+            "setup is still gathering when the request goes away: {message}"
+        );
+        retries -= 1;
+    };
     released_after_close(&slot_free).await;
     // A second attempt fails at once while the slot or a port is still held, and stays
     // pending (gathering) once both are free.
