@@ -20,11 +20,20 @@ One local endpoint for Codex CLI, Claude Code and other tools, using your own ac
 
    The installer checks the release checksum, writes `~/.cliproxy-rs/config.yaml`, starts the proxy and opens the dashboard. On Windows, the config is `%USERPROFILE%\.cliproxy-rs\config.yaml`. It saves new keys in `keys.env` without printing them.
 
-2. Sign in to the dashboard with `CLIPROXY_MANAGEMENT_KEY` from `keys.env`. Connect your own account or add a provider API key. Read [Accounts and provider terms](#accounts-and-provider-terms) before connecting a subscription.
+   Or, on macOS or Linux, with Homebrew:
+
+   ```sh
+   brew install vayungodara/tap/cliproxy-rs
+   brew services start cliproxy-rs
+   ```
+
+   Its config and `keys.env` live in `$(brew --prefix)/etc/cliproxy-rs/`, and the dashboard is at `http://127.0.0.1:8317/management.html`. See [Homebrew](docs/INSTALL.md#homebrew).
+
+2. Sign in to the dashboard with `CLIPROXY_MANAGEMENT_KEY` from the `keys.env` next to your config. Connect your own account or add a provider API key. Read [Accounts and provider terms](#accounts-and-provider-terms) before connecting a subscription.
 
 3. Open the dashboard's **Use with tools** page and copy the Codex CLI or Claude Code settings. Your tools use `CLIPROXY_CLIENT_KEY`, not the management key.
 
-Run the same command to upgrade. It keeps your config and keys. [INSTALL.md](docs/INSTALL.md) covers start at login, release binaries, Docker and building from source. [GETTING-STARTED.md](docs/GETTING-STARTED.md) has the longer walkthrough.
+Run the install command again to upgrade, or `brew upgrade cliproxy-rs` with Homebrew. Both keep your config and keys. [INSTALL.md](docs/INSTALL.md) covers start at login, release binaries, Docker and building from source. [GETTING-STARTED.md](docs/GETTING-STARTED.md) has the longer walkthrough.
 
 ## What is this?
 
@@ -135,7 +144,7 @@ Before switching, read [MIGRATING-FROM-GO.md](docs/MIGRATING-FROM-GO.md), especi
 
 Not in cliproxy-rs yet:
 
-- Homebrew and AUR packages.
+- An AUR package.
 - Plugin-owned credentials, models and executors without a model router; plugin schedulers, request and response translators, thinking appliers, `host.model.*` callbacks and the WebSocket response observer. Existing plugins can load, serve routes and quotas, install from the store and participate in frontend auth, model routing, interceptors and usage hooks.
 - Home-managed plugin sync, tasks and status reports. Home usage, log and in-flight reporting and KV storage already work.
 - Google Antigravity accounts.

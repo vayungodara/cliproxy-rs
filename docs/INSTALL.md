@@ -85,9 +85,9 @@ Get-CimInstance Win32_Process -Filter "Name LIKE 'cliproxy%.exe'" |
 
 Use your actual config path if you set `CLIPROXY_HOME`. This leaves other configurations sharing the binary directory running. `~/.cliproxy-rs` holds your config, keys and signed-in accounts; delete it only if you no longer need them.
 
-## Homebrew (coming with the next release)
+## Homebrew
 
-The Homebrew tap is not available yet. Once it is published, install on macOS or Linux with:
+On macOS or Linux, install from the tap:
 
 ```sh
 brew install vayungodara/tap/cliproxy-rs
@@ -102,7 +102,7 @@ Open `http://127.0.0.1:8317/management.html` and use `CLIPROXY_MANAGEMENT_KEY` f
 
 The service passes the config path explicitly, so it does not depend on the current directory. Logs go to `$(brew --prefix)/var/log/cliproxy-rs.log`. Stop it with `brew services stop cliproxy-rs`; remove the binary with `brew uninstall cliproxy-rs`. Your config, keys and sign-in credentials remain until you delete them yourself.
 
-For maintainers: create `vayungodara/homebrew-tap` with an initial default branch and add `HOMEBREW_TAP_TOKEN` to this repository's Actions secrets. Give that token contents write access to the tap only. Publishing a stable release renders `Formula/cliproxy-rs.rb` from the release's `SHA256SUMS` and commits it to the tap. Without the token, the job skips the update; prereleases do not update the formula. Publishing does not rerun the release builds. The template lives in [`packaging/homebrew/cliproxy-rs.rb`](../packaging/homebrew/cliproxy-rs.rb).
+For maintainers: add `HOMEBREW_TAP_TOKEN` to this repository's Actions secrets. Give that token contents write access to the tap only. Publishing a stable release renders `Formula/cliproxy-rs.rb` from the release's `SHA256SUMS` and commits it to the tap. Without the token, the job skips the update; prereleases do not update the formula. Publishing does not rerun the release builds. The template lives in [`packaging/homebrew/cliproxy-rs.rb`](../packaging/homebrew/cliproxy-rs.rb).
 
 ## From a release
 
