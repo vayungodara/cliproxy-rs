@@ -538,6 +538,8 @@ impl Connection {
                     () = client.gone() => Err(None),
                 }
             };
+            // A finished turn wakes idle work such as the heap trim (one atomic load).
+            cpa_common::idle::activity();
             match flow {
                 Ok(Flow::Next) => {}
                 Ok(Flow::End) => break,

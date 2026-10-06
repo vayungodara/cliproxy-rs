@@ -15,6 +15,7 @@
 //! made by another machine on a network or FUSE file system raise no event and are seen
 //! with the next local change.
 use std::collections::BTreeMap;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError};
 use std::time::{Duration, Instant, SystemTime};
@@ -197,21 +198,41 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             // event. Cost per wake: a few watch calls (one stat per watched file on
             // macOS), on the blocking pool.
             let wake_targets = woke.then(|| targets(&state, observed.as_ref()));
-            let (snapshot, returned, returned_events) = tokio::task::spawn_blocking({
+            // A panic in the work is caught inside the closure, so `events` always comes
+            // back and notifications stay on.
+            let looked = tokio::task::spawn_blocking({
                 let state = state.clone();
                 move || {
-                    if let Some(t) = wake_targets {
-                        events.retarget(&t);
-                    }
-                    let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
-                    let snapshot = observe(&state, &mut cache);
-                    (snapshot, cache, events)
+                    let snapshot = catch_unwind(AssertUnwindSafe(|| {
+                        if let Some(t) = wake_targets {
+                            events.retarget(&t);
+                        }
+                        let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
+                        observe(&state, &mut cache)
+                    }));
+                    (snapshot.ok(), cache, events)
                 }
             })
-            .await
-            .unwrap_or_default();
-            cache = returned;
-            events = returned_events;
+            .await;
+            let snapshot = match looked {
+                Ok((snapshot, returned_cache, returned_events)) => {
+                    cache = returned_cache;
+                    events = returned_events;
+                    snapshot
+                }
+                // Cancelled at shutdown.
+                Err(_) => {
+                    cache = HashCache::default();
+                    events = Events::default();
+                    None
+                }
+            };
+            let Some(snapshot) = snapshot else {
+                tracing::error!(
+                    "config watcher: looking at the config and auth files failed; retrying on the next change"
+                );
+                continue;
+            };
             if observed.as_ref() != Some(&snapshot) {
                 observed = Some(snapshot);
                 since = Instant::now();
@@ -242,22 +263,27 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
                 let state = state.clone();
                 let current = current.clone();
                 move || {
-                    let loaded = reload_config(&state, read_config);
-                    events.retarget(&targets(&state, Some(&current)));
-                    (loaded, events)
+                    let loaded = catch_unwind(AssertUnwindSafe(|| reload_config(&state, read_config)));
+                    let _ = catch_unwind(AssertUnwindSafe(|| {
+                        events.retarget(&targets(&state, Some(&current)));
+                    }));
+                    (loaded.map_err(|_| ()), events)
                 }
             })
             .await;
             let loaded = match reloaded {
                 Ok((loaded, returned)) => {
                     events = returned;
-                    Ok(loaded)
+                    loaded
                 }
-                Err(e) => {
+                Err(_) => {
                     events = Events::default();
-                    Err(e)
+                    Err(())
                 }
             };
+            if loaded.is_err() {
+                tracing::error!("config watcher: reload failed unexpectedly; retrying on the next change");
+            }
             if let Some(before) = &applied {
                 let accepted = matches!(loaded, Ok(Ok(Some(_))));
                 persist_changes(&state, before, &current, config_changed && accepted);

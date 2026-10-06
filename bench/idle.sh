@@ -6,8 +6,9 @@
 #
 # Starts the binary on a config with one OpenAI-compatible API key, one client key and
 # <auth files> Claude credential files (default 1) whose tokens are valid for 30 days,
-# so nothing is due for refresh. After WARMUP seconds (default 20, past the blocking
-# pool's 10 s keep-alive) without any request, it samples for <seconds> (default 30) and
+# so nothing is due for refresh. After WARMUP seconds (default 30: the startup heap trim
+# runs on the blocking pool 5 to 10 s after start, and its thread exits after a 10 s
+# keep-alive) without any request, it samples for <seconds> (default 30) and
 # prints one JSON line:
 #
 #   wakeups       context switches of all threads in the window, voluntary and not,
@@ -41,7 +42,7 @@ fi
 BIN=$(realpath "$1")
 FILES=${2:-1}
 SECONDS_=${3:-30}
-WARMUP=${WARMUP:-20}
+WARMUP=${WARMUP:-30}
 PORT=${PORT:-8341}
 KEY=sk-bench-client-key
 DIR=$(mktemp -d /tmp/cliproxy-idle.XXXXXX)
