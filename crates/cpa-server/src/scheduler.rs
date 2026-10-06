@@ -882,7 +882,7 @@ impl Scheduler {
         }
         if let Some(ended) = credential_window {
             for ((id, m), s) in &mut self.cooldowns {
-                if *id == c.id && !m.is_empty() && s.trust.bounded && s.deadline == ended {
+                if *id == c.id && !m.is_empty() && s.trust.bounded && s.deadline == ended && !s.newer_than(picked) {
                     s.trust.accept();
                 }
             }
@@ -1275,9 +1275,14 @@ impl Scheduler {
                     self.cooldowns.remove(&global);
                     // The credential recovered: model keys that a credential-wide window
                     // escalated forget it too (their Go state is left as Go keeps it). A
-                    // model's own ended bounded window still waits for its probe.
+                    // model's own ended bounded window still waits for its probe, and one
+                    // a newer probe reserved or answered keeps its state.
                     for ((id, _), s) in &mut self.cooldowns {
-                        if *id == c.id && s.deadline <= now && (!s.trust.bounded || s.deadline == ended) {
+                        if *id == c.id
+                            && s.deadline <= now
+                            && (!s.trust.bounded || s.deadline == ended)
+                            && !s.newer_than(picked)
+                        {
                             s.trust = Trust::default();
                         }
                     }
@@ -2349,7 +2354,8 @@ mod tests {
 
     /// The credential's probe answers its window and the window's copies on model keys,
     /// not a model's own window that ended unprobed before it: that model still gets a
-    /// probe of its own, after a streamed probe and after a plain success alike.
+    /// probe of its own, after a streamed probe and after a plain success alike, and the
+    /// credential probe's later success leaves that model's newer probe state alone.
     #[test]
     fn a_credential_probe_leaves_a_models_own_ended_window() {
         let c = cred("a", serde_json::json!({}));
@@ -2377,6 +2383,31 @@ mod tests {
                 "streamed {streamed}: m reserves its own probe"
             );
         }
+        // The credential's stream started, then m's probe was taken over by a later one
+        // that was accepted too. The credential stream's success comes from an older
+        // lease: it leaves m's accepted window alone, so the superseded m probe's late
+        // 429 is still ignored and the later probe's success frees m.
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, days), &p, start);
+        let opened = start + secs(H) + secs(MIN);
+        s.record(&c, "a", &hinted(FailureScope::Credential, days), &p, opened);
+        let end = opened + secs(H);
+        let credential_probe = s.reserve_probe(&c, "b", end);
+        s.accept_probe_picked(&c, "b", credential_probe, end);
+        let first = s.reserve_probe(&c, "m", end);
+        let lapsed = end + PROBE_HOLD + secs(1);
+        let second = s.reserve_probe(&c, "m", lapsed);
+        assert!(credential_probe != first && first != second, "real generations");
+        s.accept_probe_picked(&c, "m", second, lapsed);
+        let done = lapsed + secs(1);
+        s.record_picked(&c, "b", &Outcome::Success, &p, credential_probe, done);
+        s.record_picked(&c, "m", &hinted(FailureScope::Model, days), &p, first, done);
+        assert_eq!(s.wait(&c, "m", done), None, "no window from the superseded probe");
+        s.record_picked(&c, "m", &Outcome::Success, &p, second, done + secs(1));
+        assert!(
+            !s.cooldowns.contains_key(&(c.id.clone(), "m".to_owned())),
+            "m recovered"
+        );
     }
 
     /// A probe whose hold lapsed was taken over by a later probe: its late 429 neither
