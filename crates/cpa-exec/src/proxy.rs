@@ -573,6 +573,8 @@ pub async fn send_request(
         .map_err(|e| match e {
             SendError::Transport { error, .. } => crate::upstream::transport_error(error),
             SendError::Local { error, .. } => error,
+            // What `transport_error` makes of the transport's own timeout.
+            SendError::Timeout { .. } => ExecError::local(502, FailureScope::Transport, "upstream request failed"),
         })?;
     Ok(Upstream {
         status: raw.status,
@@ -582,13 +584,19 @@ pub async fn send_request(
 }
 
 /// Why [`send_request_raw`] failed: the transport's own error (which may name the URL,
-/// so callers decide what to show), or a locally generated one. `url` is the URL Go's
-/// client names in its `*url.Error`: the failing hop (the caller's URL as written for
-/// the first request), or the rejected `Location` when the redirect limit is hit.
+/// so callers decide what to show), a locally generated one, or `Timeout`: the
+/// deadline passed before a hop was sent, so nothing was sent, and callers report it
+/// as they report the transport's own timeout. `url` is the URL Go's client names in
+/// its `*url.Error`: the failing hop (the caller's URL as written for the first
+/// request), or the rejected `Location` when the redirect limit is hit.
+// ponytail: wreq has no public constructor for its timeout error, so `Timeout` cannot be
+// a `Transport`; each renderer repeats what it makes of one. Fold it into `Transport`
+// if wreq ever exposes that constructor.
 #[derive(Debug)]
 pub enum SendError {
     Transport { error: wreq::Error, url: String },
     Local { error: ExecError, url: String },
+    Timeout { url: String },
 }
 
 /// [`Upstream`] with the transport's raw body errors and the response's protocol
@@ -648,6 +656,12 @@ pub async fn send_request_raw(
         // The URL Go's client reports for this hop.
         let hop_url = if sent == 0 { url.to_owned() } else { current.to_string() };
         let hop = route(&current).map_err(|e| local(e, &hop_url))?;
+        // Go sends nothing once the deadline has passed. wreq would send even with a zero
+        // timeout: it polls the request before its timer, which fires on a 1 ms tick.
+        let remaining = deadline.map(|d| d.saturating_duration_since(std::time::Instant::now()));
+        if remaining.is_some_and(|r| r.is_zero()) {
+            return Err(SendError::Timeout { url: hop_url });
+        }
         let mut builder = hop
             .client
             .request(
@@ -655,10 +669,8 @@ pub async fn send_request_raw(
                 exact.as_deref().filter(|_| sent == 0).unwrap_or(current.as_str()),
             )
             .redirect(wreq::redirect::Policy::none());
-        if let Some(deadline) = deadline {
-            // With nothing left the timeout is zero: the hop ends at the next timer tick
-            // (1 ms) with the transport's own timeout error, as a slow hop does.
-            builder = builder.timeout(deadline.saturating_duration_since(std::time::Instant::now()));
+        if let Some(remaining) = remaining {
+            builder = builder.timeout(remaining);
         }
         // Go's standard transport (no exact order) speaks HTTP/2 wherever ALPN picks it.
         let go_transport = hop.order.is_none();
@@ -1627,6 +1639,83 @@ mod tests {
             Err(other) => panic!("{other:?}"),
             Ok(upstream) => panic!("followed both redirects: {}", upstream.status),
         }
+    }
+
+    /// Once the deadline has passed, Go sends nothing: a 307 that would resend a POST
+    /// body to its target ends without a request, with the error a transport timeout
+    /// gives callers.
+    #[tokio::test]
+    async fn no_hop_is_sent_after_the_deadline() {
+        use axum::response::IntoResponse;
+        use std::sync::atomic::{AtomicUsize, Ordering::SeqCst};
+        const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(200);
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let hits = Arc::new(AtomicUsize::new(0));
+        let seen = hits.clone();
+        let app = axum::Router::new().fallback(move |uri: http::Uri| {
+            let seen = seen.clone();
+            async move {
+                if uri.path() == "/start" {
+                    return (
+                        http::StatusCode::TEMPORARY_REDIRECT,
+                        [(http::header::LOCATION, "/target")],
+                    )
+                        .into_response();
+                }
+                seen.fetch_add(1, SeqCst);
+                "done".into_response()
+            }
+        });
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let client = default_client();
+        // The redirect handling uses up the budget: choosing the second hop's client
+        // takes longer than the whole timeout.
+        let route = |next: &url::Url| {
+            if next.path() == "/target" {
+                std::thread::sleep(TIMEOUT);
+            }
+            Ok(Route {
+                client: client.clone(),
+                order: None,
+            })
+        };
+        let start = format!("http://{addr}/start");
+        let post = || Some(Bytes::from_static(b"{}"));
+        let sent = send_request_raw(
+            &route,
+            wreq::Method::POST,
+            &start,
+            GoHeaders::new(),
+            post(),
+            Some(TIMEOUT),
+        )
+        .await;
+        match sent {
+            Err(SendError::Timeout { url }) => assert_eq!(url, format!("http://{addr}/target")),
+            Err(other) => panic!("{other:?}"),
+            Ok(upstream) => panic!("followed the redirect: {}", upstream.status),
+        }
+        // The same error as a transport timeout through `send_request`.
+        let error = send_request(
+            &route,
+            wreq::Method::POST,
+            &start,
+            GoHeaders::new(),
+            post(),
+            Some(TIMEOUT),
+        )
+        .await
+        .err()
+        .unwrap();
+        // `transport_error` reads nothing from the wreq error; any one will do.
+        let any = default_client().get("not a url").send().await.unwrap_err();
+        let transport = crate::upstream::transport_error(any);
+        assert_eq!(
+            (error.status, error.scope, error.body),
+            (transport.status, transport.scope, transport.body)
+        );
+        assert_eq!(hits.load(SeqCst), 0, "the redirect target got a request");
     }
 
     #[test]

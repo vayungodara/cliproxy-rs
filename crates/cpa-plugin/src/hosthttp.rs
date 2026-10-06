@@ -1096,6 +1096,8 @@ fn error_chain<'a>(err: &'a (dyn std::error::Error + 'static)) -> Vec<&'a (dyn s
 fn send_error_parts(err: SendError) -> (String, String) {
     let (err, hop) = match err {
         SendError::Local { error, url } => return (url, String::from_utf8_lossy(&error.body).into_owned()),
+        // What `transport_cause` reads in the transport's own timeout (wreq's text).
+        SendError::Timeout { url } => return (url, "operation timed out".into()),
         SendError::Transport { error, url } => (error, url),
     };
     let cause = transport_cause(&err, go_url::parse(&hop).ok().as_ref());
@@ -1325,6 +1327,34 @@ mod tests {
             let _ = taken.send(());
         }
         assert_eq!(sizes, [32_768, 32_768, 4_464]);
+    }
+
+    /// A hop skipped because the deadline passed reads as the transport's own timeout.
+    #[tokio::test]
+    async fn a_skipped_hop_reads_as_a_transport_timeout() {
+        // Connections complete in the backlog and are never answered.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let target = format!("http://{}/x", listener.local_addr().unwrap());
+        let client = proxy::default_client();
+        let route = |_: &url::Url| {
+            Ok(Route {
+                client: client.clone(),
+                order: None,
+            })
+        };
+        let timeout = Some(std::time::Duration::from_millis(50));
+        let sent = proxy::send_request_raw(&route, wreq::Method::GET, &target, GoHeaders::new(), None, timeout);
+        let Err(timed_out) = sent.await else {
+            panic!("an unanswered request succeeded");
+        };
+        assert!(
+            matches!(&timed_out, SendError::Transport { error, .. } if error.is_timeout()),
+            "{timed_out:?}"
+        );
+        assert_eq!(
+            send_error_parts(SendError::Timeout { url: target.clone() }),
+            send_error_parts(timed_out)
+        );
     }
 
     #[test]
