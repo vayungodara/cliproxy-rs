@@ -256,7 +256,7 @@ CPU per request depends on the machine, and each build had a runner of its own, 
 
 ### Gates
 
-- `soak.yml` runs the field mix for an hour on every release tag and for 300 minutes every week, and fails if the resting RSS climbs (the rule above), if any request fails, or if `VmHWM` ends above `soak.field.peak_hwm_kb` in [`bench/budgets.txt`](../bench/budgets.txt) (this change's 169.0 MB plus 20%, which 0.2.0 exceeds).
+- `soak.yml` runs the field mix for an hour on every release tag, next to an hour of the Claude soak's load, and for 300 minutes every week. The field mix fails if the resting RSS climbs (the rule above), if any request fails, or if `VmHWM` ends above `soak.field.peak_hwm_kb` in [`bench/budgets.txt`](../bench/budgets.txt) (this change's 169.0 MB plus 20%, which 0.2.0 exceeds).
 - Raw results: [`bench/results/2026-10-06-field.jsonl`](../bench/results/2026-10-06-field.jsonl), one `bench/soak.sh` summary per run. The `session` field groups them: `ci-runners-60min` (the three runners), `vm2-releases-10min` and `vm2-allocator-10min` (the 2-vCPU machine; the allocator runs name their setting in `env`, and the two without one are this change's same-machine runs), and `tokenizer-steps` (`RssAnon` in kB after each request on a fresh server).
 
 ## Claude latency: time added before the first byte
