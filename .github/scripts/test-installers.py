@@ -136,12 +136,19 @@ def main():
         def ps(code, check=True, cwd=None):
             entered = root / "powershell-entered"
             entered.unlink(missing_ok=True)
-            prelude = "[IO.File]::WriteAllText('" + str(entered).replace("'", "''") + "','entered'); "
+            path = str(entered).replace("'", "''")
+            prelude = f"[IO.File]::WriteAllText('{path}','entered'); "
+            finished = f"; [IO.File]::WriteAllText('{path}','finished')"
+            began = time.monotonic()
             try:
-                result = capture(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", prelude + code], env=env, cwd=cwd, timeout=30)
+                result = capture(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", prelude + code + finished], env=env, cwd=cwd, timeout=120)
             except subprocess.TimeoutExpired:
-                print(f"PowerShell helper entered command: {entered.exists()}", file=sys.stderr)
+                phase = entered.read_text() if entered.exists() else "not entered"
+                print(f"PowerShell helper phase: {phase}", file=sys.stderr)
                 raise
+            elapsed = time.monotonic() - began
+            if elapsed > 10:
+                print(f"PowerShell helper completed in {elapsed:.1f}s", file=sys.stderr)
             if check:
                 if result.returncode:
                     print(result.stdout, file=sys.stderr)
