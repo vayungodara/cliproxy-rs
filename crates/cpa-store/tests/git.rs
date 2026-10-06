@@ -488,6 +488,11 @@ fn a_failed_git_directory_swap_puts_the_worktree_back() {
     std::fs::set_permissions(probe.join("inner"), std::fs::Permissions::from_mode(0o555)).unwrap();
     let enforced = std::fs::rename(probe.join("inner"), dir.join("inner")).is_err();
     if !enforced {
+        // CI sets CPA_TEST_NO_SKIP: a run as root must not pass without the check.
+        assert!(
+            std::env::var_os("CPA_TEST_NO_SKIP").is_none(),
+            "directory permissions are not enforced (running as root?), and CPA_TEST_NO_SKIP is set"
+        );
         return;
     }
     std::fs::write(workspace.config_path(), "source: local\n").unwrap();

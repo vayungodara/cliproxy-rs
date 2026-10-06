@@ -27,6 +27,7 @@ export GOPROXY=off GOTOOLCHAIN=local
 
 BIN=$(realpath "$1")
 MINUTES=$2
+[[ $MINUTES =~ ^[1-9][0-9]{0,3}$ ]] || { echo "minutes must be a positive whole number" >&2; exit 2; }
 OUT=$(realpath -m "${3:-/tmp/cliproxy-soak}")
 HERE=$(cd "$(dirname "$0")" && pwd)
 PORT=8345

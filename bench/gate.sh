@@ -19,6 +19,13 @@ failed=0
 
 check() { # key measured
   local key=$1 got=$2 line value tol limit
+  # A failed measurement must not read as 0 (bash treats an empty value as 0).
+  if [[ ! $got =~ ^[0-9]+$ ]]; then
+    printf '%-44s %12s   NOT MEASURED\n' "$key" "${got:-<empty>}"
+    echo "::error title=Performance budget::$key was not measured (got '${got}')."
+    failed=1
+    return 0
+  fi
   line=$(sed 's/#.*//' "$BUDGETS" | awk -v k="$key" '$1 == k {print $2, ($3 == "" ? 0 : $3)}')
   if [[ -z $line ]]; then
     printf '%-44s %12s   (no budget)\n' "$key" "$got"
@@ -49,7 +56,8 @@ size_gate() { # target binary [archive]
   local target=$1 bin=$2 archive=${3:-}
   summary_header "Size, $target"
   check "size.$target.binary_bytes" "$(bytes "$bin")"
-  if command -v size > /dev/null && head -c 4 "$bin" | grep -q 'ELF'; then
+  # Required for Linux targets: a missing section row fails instead of being skipped.
+  if [[ $target == *-linux-* ]]; then
     check "size.$target.text_bytes" "$(size -A "$bin" | awk '$1 == ".text" {print $2}')"
     check "size.$target.rodata_bytes" "$(size -A "$bin" | awk '$1 == ".rodata" {print $2}')"
   fi
@@ -84,12 +92,21 @@ idle_gate() { # os binary [files]
       done
       ;;
     macos | windows)
-      local json
+      local json key metrics
       json=$("$HERE/idle-other.sh" "$os" "$bin" "$files" "${IDLE_SECONDS:-60}")
       echo "$json"
-      # jq on Windows ends its lines with CRLF.
-      for metric in $(jq -r 'keys[] | select(. != "os" and . != "seconds" and . != "auth_files")' <<<"$json" | tr -d '\r'); do
-        check "idle.$os.$files.$metric" "$(jq -r ".$metric" <<<"$json" | tr -d '\r')"
+      # Apple silicon and Intel idle at different sizes, so each has its own budgets.
+      if [[ $os == macos ]]; then
+        key=macos-$(uname -m)
+        metrics="cpu_ms idle_wakeups threads rss_kb"
+      else
+        key=windows
+        metrics="cpu_ms threads rss_kb"
+      fi
+      for metric in $metrics; do
+        # jq on Windows ends its lines with CRLF; a missing key prints "null", which
+        # check() rejects.
+        check "idle.$key.$files.$metric" "$(jq -r ".$metric" <<<"$json" | tr -d '\r')"
       done
       ;;
     *) echo "unknown os $os" >&2; exit 2 ;;

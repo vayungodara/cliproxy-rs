@@ -19,6 +19,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # One exact compiler for every job: the size and allocation budgets are exact numbers
+  # from one compiler and std. Bumping it means re-measuring bench/budgets.txt.
+  RUST_TOOLCHAIN: "1.99.0"
 
 jobs:
   dashboard:
@@ -94,8 +97,8 @@ jobs:
             echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
             export PATH="$HOME/.cargo/bin:$PATH"
           fi
-          rustup toolchain install stable --profile minimal --target ${{ matrix.target }}
-          rustup default stable
+          rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --target ${{ matrix.target }}
+          rustup default "$RUST_TOOLCHAIN"
       - name: Build
         run: cargo build --release --locked -p cliproxy --target ${{ matrix.target }}
       # Pull requests gate Linux; macOS and Windows are gated here, before anything is
