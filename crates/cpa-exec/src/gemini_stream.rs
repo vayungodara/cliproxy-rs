@@ -339,8 +339,7 @@ pub(crate) fn claude_input_tokens(payload: &[u8]) -> Option<i64> {
     if segments.is_empty() {
         return Some(0);
     }
-    static ENCODER: OnceLock<Option<tiktoken_rs::CoreBPE>> = OnceLock::new();
-    let encoder = ENCODER.get_or_init(|| tiktoken_rs::o200k_base().ok()).as_ref()?;
+    let encoder = crate::tokenizer::encoder(crate::tokenizer::Encoding::O200kBase).ok()?;
     Some(encoder.encode_ordinary(&segments.join("\n")).len() as i64)
 }
 

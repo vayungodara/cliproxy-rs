@@ -30,7 +30,7 @@ use futures_util::StreamExt;
 use serde_json::Value;
 
 use crate::codex_response::OutputItems;
-use crate::codex_tokens::{Encoding, count_input_tokens};
+use crate::codex_tokens::count_input_tokens;
 use crate::kimi_http::{
     DeferredUsage, UsageRule, credential_headers, defer_usage, payload_rules, read_all_strict, refresh_due,
     report_model, rfc3339_local_now,
@@ -39,6 +39,7 @@ use crate::meta_auth::{DEFAULT_API_BASE_URL, MetaAuth, MintedKey};
 use crate::meta_codex::go_trim_space;
 use crate::openai_compat_payload::{ensure_responses_usage_details, sanitize_reasoning_encrypted_content};
 use crate::proxy::{GoClients, GoHeaders, MAX_ERROR_BODY, Proxy, default_client, lines, read_all, send};
+use crate::tokenizer::Encoding;
 use cpa_common::codex_client::normalize_codex_instructions;
 
 /// Provider string served by this executor.

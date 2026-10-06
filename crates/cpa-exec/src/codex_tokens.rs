@@ -4,12 +4,7 @@
 use cpa_common::gostr::trim_space;
 use cpa_common::json::{self as gj, Kind, Res};
 
-/// The tiktoken encodings Go's `tokenizer.ForModel` picks for Codex models.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Encoding {
-    O200kBase,
-    Cl100kBase,
-}
+use crate::tokenizer::{Encoding, encoder};
 
 /// `tokenizerForCodexModel`: o200k for GPT-5, GPT-4.1 and GPT-4o, cl100k otherwise.
 pub(crate) fn encoding_for_model(model: &str) -> Encoding {
@@ -19,17 +14,6 @@ pub(crate) fn encoding_for_model(model: &str) -> Encoding {
     } else {
         Encoding::Cl100kBase
     }
-}
-
-fn encoder(encoding: Encoding) -> Result<&'static tiktoken_rs::CoreBPE, String> {
-    type Slot = std::sync::OnceLock<Result<tiktoken_rs::CoreBPE, String>>;
-    static O200K: Slot = Slot::new();
-    static CL100K: Slot = Slot::new();
-    let loaded = match encoding {
-        Encoding::O200kBase => O200K.get_or_init(|| tiktoken_rs::o200k_base().map_err(|e| e.to_string())),
-        Encoding::Cl100kBase => CL100K.get_or_init(|| tiktoken_rs::cl100k_base().map_err(|e| e.to_string())),
-    };
-    loaded.as_ref().map_err(Clone::clone)
 }
 
 /// `countCodexInputTokens`: instructions, message text, function calls and outputs, other

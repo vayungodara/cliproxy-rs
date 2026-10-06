@@ -1,7 +1,5 @@
 //! Custom-origin count_tokens: Go's O200kBase estimate, without generation cloaking.
 
-use std::sync::OnceLock;
-
 use bytes::Bytes;
 use cpa_core::exec::{ExecError, FailureScope};
 use serde_json::Value;
@@ -84,10 +82,7 @@ pub(crate) fn count(body: &[u8]) -> Result<Bytes, ExecError> {
     } else {
         fields(&mut segments, choice, &["type", "name"]);
     }
-    static ENCODER: OnceLock<Result<tiktoken_rs::CoreBPE, String>> = OnceLock::new();
-    let encoder = ENCODER
-        .get_or_init(|| tiktoken_rs::o200k_base().map_err(|e| e.to_string()))
-        .as_ref()
+    let encoder = crate::tokenizer::encoder(crate::tokenizer::Encoding::O200kBase)
         .map_err(|_| ExecError::local(500, FailureScope::Request, "cannot initialize O200kBase tokenizer"))?;
     let count = encoder.encode_ordinary(&segments.join("\n")).len();
     Ok(Bytes::from(format!(r#"{{"input_tokens":{count}}}"#)))
