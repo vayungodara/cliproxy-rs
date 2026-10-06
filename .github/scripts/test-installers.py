@@ -273,6 +273,33 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/cliproxy.p
                    "if($who | Where-Object { $_ -notin $me, 'S-1-5-18', 'S-1-5-32-544' }){throw \"keys readable by others: $who\"}"))
             else:
                 assert (home / "keys.env").stat().st_mode & 0o777 == 0o600
+            if windows:
+                # An oldest rotation opened without delete sharing cannot be
+                # removed on Windows, even if Rust ignores its read-only bit.
+                # Startup must keep its budget and prune other eligible files.
+                locked = home / "cliproxy-2001-09-09T01-46-40.000.log"
+                removable = home / "cliproxy-2001-09-09T01-46-41.000.log"
+                for rotation, seconds in ((locked, 1_000_000_000), (removable, 1_000_000_001)):
+                    with rotation.open("wb") as output:
+                        output.truncate(33 * 1024 * 1024)
+                    os.utime(rotation, (seconds, seconds))
+                locked.chmod(0o444)
+                reader = locked.open("rb")
+                try:
+                    install()
+                    health()
+                    assert locked.exists() and not removable.exists(), "a locked rotation must not block cleanup of other logs"
+                    assert (home / "cliproxy.log").stat().st_size > 0, "pruning must preserve the active process log"
+                    print("PASS Windows: locked process rotation skipped; remaining rotations pruned")
+                finally:
+                    reader.close()
+                    for rotation in (locked, removable):
+                        try:
+                            if rotation.exists():
+                                rotation.chmod(0o600)
+                                rotation.unlink()
+                        except OSError as error:
+                            print(f"Best-effort rotation cleanup: {error}", file=sys.stderr)
             before = [(home / f).read_bytes() for f in ("config.yaml", "keys.env")]
             old_pid = pid()
             old_inode = (bindir / exe).stat().st_ino
@@ -304,8 +331,8 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/cliproxy.p
                 install()
                 health()
                 assert pid() != restarted, "a stopped current binary must start again"
-                # Linux uses procfs without procps; Seatbelt uses the Darwin-only
-                # kill -0 fallback when ps cannot even inspect its own shell.
+                # Linux uses procfs without procps; Darwin confirms names with
+                # non-setuid pgrep when ps cannot even inspect its own shell.
                 shimdir = root / "no-ps"
                 shimdir.mkdir()
                 original_path = env["PATH"]
@@ -319,7 +346,6 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/cliproxy.p
                         install()
                         health()
                         assert pid() != previous_pid, f"ps status {refused} must not skip stopping the old server"
-                    if platform.system() == "Linux":
                         subprocess.run(["kill", str(pid())], check=True, timeout=10)
                         time.sleep(2)
                         unrelated = subprocess.Popen(["sleep", "120"], env=env)
@@ -328,7 +354,7 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/cliproxy.p
                             os.utime(bindir / exe, None)
                             install()
                             health()
-                            assert unrelated.poll() is None, "no-procps install must never signal an unrelated stale PID"
+                            assert unrelated.poll() is None, f"ps status {refused} on {platform.system()} must never signal an unrelated stale PID"
                         finally:
                             unrelated.terminate()
                             unrelated.wait(timeout=10)

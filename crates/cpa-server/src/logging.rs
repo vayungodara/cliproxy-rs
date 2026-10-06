@@ -231,7 +231,7 @@ fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
         && let Some(path) = LOG_FILE.get()
         && let Some(budget) = rotation_budget
     {
-        prune_process_rotations(path, budget)?;
+        prune_process_rotations(path, budget);
     }
     let protected = if applied.logging_to_file {
         create_dir(dir)
@@ -414,7 +414,9 @@ pub(crate) fn enforce_size_limit(
         if total <= max_bytes {
             break;
         }
-        let canonical = canonical_log_path(&path)?;
+        let Ok(canonical) = canonical_log_path(&path) else {
+            continue;
+        };
         if protected.as_ref().is_some_and(|p| *p == canonical) {
             continue;
         }
@@ -497,7 +499,7 @@ impl RotatingFile {
                 self.file = Some(file);
                 self.size = info.len();
                 if let Some(budget) = self.rotation_budget {
-                    prune_process_rotations(&self.path, budget)?;
+                    prune_process_rotations(&self.path, budget);
                 }
                 Ok(())
             }
@@ -535,7 +537,7 @@ impl RotatingFile {
         self.file = Some(file);
         self.size = 0;
         if let Some(budget) = self.rotation_budget {
-            prune_process_rotations(&self.path, budget)?;
+            prune_process_rotations(&self.path, budget);
         }
         Ok(())
     }
@@ -551,11 +553,10 @@ fn is_process_rotation(name: &str, base: &str) -> bool {
 
 /// Runs only at startup/reconfiguration and rotation, under the writer's lock.
 /// Excluding the base filename keeps the open file out of both deletion and budget.
-fn prune_process_rotations(path: &Path, max_bytes: u64) -> io::Result<()> {
-    let entries = match std::fs::read_dir(path.parent().unwrap_or(Path::new("."))) {
-        Ok(entries) => entries,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
-        Err(e) => return Err(e),
+/// Cleanup is best-effort: it must not fail log writes or log reconfiguration.
+fn prune_process_rotations(path: &Path, max_bytes: u64) {
+    let Ok(entries) = std::fs::read_dir(path.parent().unwrap_or(Path::new("."))) else {
+        return;
     };
     let base = path.file_name().unwrap_or_default().to_string_lossy();
     let mut files = Vec::new();
@@ -564,22 +565,24 @@ fn prune_process_rotations(path: &Path, max_bytes: u64) -> io::Result<()> {
         if !is_process_rotation(&entry.file_name().to_string_lossy(), &base) {
             continue;
         }
-        let info = entry.metadata()?;
+        let Ok(info) = entry.metadata() else { continue };
         if !info.is_file() {
             continue;
         }
         total += info.len();
-        files.push((info.modified()?, info.len(), entry.path()));
+        files.push((info.modified().ok(), info.len(), entry.path()));
     }
     files.sort_by_key(|(modified, _, _)| *modified);
     for (_, size, path) in files {
         if total <= max_bytes {
             break;
         }
-        std::fs::remove_file(path)?;
-        total -= size;
+        match std::fs::remove_file(path) {
+            Ok(()) => total -= size,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => total -= size,
+            Err(_) => continue,
+        }
     }
-    Ok(())
 }
 
 /// `os.MkdirAll(dir, 0755)`.
@@ -940,6 +943,30 @@ mod tests {
         );
         assert_eq!(std::fs::read(&unrelated).unwrap(), b"unlimited Go logs");
         assert_eq!(std::fs::read(&malformed).unwrap(), b"not a rotation");
+        drop(file);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn process_pruning_does_not_drop_a_line_when_directory_scanning_fails() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = scratch("process-prune-denied");
+        let path = dir.join("process.log");
+        let mut file = RotatingFile::new(path.clone());
+        file.rotation_budget = Some(4);
+        file.write(b"a", 1).unwrap();
+        // Write + search permits rotation but not enumeration by the cleaner.
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o300)).unwrap();
+        let denied = std::fs::read_dir(&dir).is_err();
+        let result = file.write(b"b", 1);
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).unwrap();
+        // Root can bypass mode bits; ordinary users exercise the failure path.
+        if denied {
+            result.unwrap();
+            assert_eq!(std::fs::read(&path).unwrap(), b"b");
+        }
         drop(file);
         std::fs::remove_dir_all(dir).unwrap();
     }

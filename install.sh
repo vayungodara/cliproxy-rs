@@ -378,7 +378,8 @@ managed_pid() {
   elif [ "$os" = Darwin ]; then
     # Seatbelt refuses setuid ps; bash 3.2's substitution status is not reliable.
     if ! ps -p $$ -o pid= >/dev/null 2>&1; then
-      kill -0 "$pid" 2>/dev/null
+      # pgrep is not setuid. Never trust liveness alone for a stale pid file.
+      pgrep -x 'cliproxy([.]prev)?' 2>/dev/null | grep -qx "$pid"
       return $?
     fi
     command=$(ps -p "$pid" -o ucomm= 2>/dev/null) || return 1
@@ -397,7 +398,10 @@ pid_running() {
     state=${state##*) }
     case "$state" in '' | Z\ *) return 1 ;; esac
   else
-    if [ "$os" = Darwin ] && ! ps -p $$ -o pid= >/dev/null 2>&1; then return 0; fi
+    if [ "$os" = Darwin ] && ! ps -p $$ -o pid= >/dev/null 2>&1; then
+      pgrep -x 'cliproxy([.]prev)?' 2>/dev/null | grep -qx "$1"
+      return $?
+    fi
     state=$(ps -p "$1" -o stat= 2>/dev/null) || return 1
     case "$state" in '' | *Z*) return 1 ;; esac
   fi
