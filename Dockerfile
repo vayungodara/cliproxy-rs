@@ -9,6 +9,8 @@ WORKDIR /src
 # Only what the build reads, so documentation edits do not invalidate the cached build.
 COPY Cargo.toml Cargo.lock ./
 COPY crates crates
+# Patched crates referenced by [patch.crates-io] in Cargo.toml.
+COPY vendor vendor
 COPY ui/dist ui/dist
 # On small machines pass --build-arg BUILD_JOBS=1; the final link needs about 2 GB of memory.
 ARG BUILD_JOBS
