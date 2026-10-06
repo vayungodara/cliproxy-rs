@@ -1876,10 +1876,11 @@ mod tests {
             request.extensions_mut().insert(RequestId("fixture-request-id".into()));
             let response = app.call(request).await.unwrap();
             axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+            // The handler ran inside `app.call`, so its log is already queued.
+            let log = rx.try_recv().expect("handler sent its RequestLog");
             // The log is finalized in a spawned task after the body ends: forwarded to
             // Home, or written on the blocking pool. Wait for that task, not a fixed time,
             // so the counts below are final.
-            let log = rx.recv().await.unwrap();
             let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(10);
             while !log.1.done.load(Ordering::Acquire) {
                 assert!(tokio::time::Instant::now() < deadline, "request log never finalized");
