@@ -17,18 +17,20 @@
 // load models a coding agent. Each of -c workers is one session whose conversation
 // grows turn by turn from -min to -max bytes (assistant turns with signed thinking and
 // tool_use, user turns with large tool_result text), then starts a new session. Every
-// request is streamed and counts as ok only with status 200 and a body containing
-// message_stop. It prints one JSON line with throughput and latency percentiles: ttfb is
-// the time to the first response byte, total the time to the end of the stream.
+// request is streamed and counts as ok only with status 200, a message_stop event and a
+// tool_use block whose input_json_delta fragments join into valid JSON. It prints one
+// JSON line with throughput and latency percentiles: ttfb is the time to the first
+// response byte, total the time to the end of the stream.
 //
 // -codex N makes the last N workers Codex sessions instead: Responses requests to the
 // /v1/responses route next to -url (reasoning items with encrypted content, function calls
-// and large function_call_output text), counted ok with status 200 and a
-// response.completed event. With -count K, every Kth turn of a Claude session first sends
-// the same body to /v1/messages/count_tokens, alternating between the Claude model and
-// -codex-model (a Claude client counting tokens for a Codex model), counted ok with
-// status 200 and input_tokens in the body. The JSON line then also breaks the counts
-// down by kind.
+// and large function_call_output text), counted ok with status 200, a response.completed
+// event and a function call whose argument deltas join into exactly the arguments of its
+// done event and of response.completed, and parse as JSON. With -count K, every Kth turn
+// of a Claude session first sends the same body to /v1/messages/count_tokens, alternating
+// between the Claude model and -codex-model (a Claude client counting tokens for a Codex
+// model), counted ok with status 200 and input_tokens in the body. The JSON line then
+// also breaks the counts down by kind.
 package main
 
 import (
@@ -143,9 +145,11 @@ func upstream(args []string) {
 		}
 		send("content_block_stop", `{"type":"content_block_stop","index":1}`)
 		send("content_block_start", `{"type":"content_block_start","index":2,"content_block":{"type":"tool_use","id":"toolu_bench","name":"`+tool+`","input":{}}}`)
-		for i := 2 * third; i < *events; i++ {
-			pause()
-			b, _ := json.Marshal(`{"path":"` + thinking[i][:40] + `"`)
+		for i, piece := range argumentDeltas(thinking[2*third:]) {
+			if i > 0 {
+				pause()
+			}
+			b, _ := json.Marshal(piece)
 			send("content_block_delta", `{"type":"content_block_delta","index":2,"delta":{"type":"input_json_delta","partial_json":`+string(b)+`}}`)
 		}
 		send("content_block_stop", `{"type":"content_block_stop","index":2}`)
@@ -235,14 +239,13 @@ func upstream(args []string) {
 		var args strings.Builder
 		call := map[string]any{"id": "fc_" + id, "type": "function_call", "status": "in_progress", "name": tool, "call_id": "call_" + id, "arguments": ""}
 		send("response.output_item.added", map[string]any{"output_index": 2, "item": call})
-		args.WriteString(`{"path":"`)
-		for i := 2 * third; i < *events; i++ {
-			pause()
-			delta := strings.ReplaceAll(thinking[i][:40], " ", "_")
+		for i, delta := range argumentDeltas(thinking[2*third:]) {
+			if i > 0 {
+				pause()
+			}
 			args.WriteString(delta)
 			send("response.function_call_arguments.delta", map[string]any{"item_id": "fc_" + id, "output_index": 2, "delta": delta})
 		}
-		args.WriteString(`"}`)
 		send("response.function_call_arguments.done", map[string]any{"item_id": "fc_" + id, "output_index": 2, "arguments": args.String()})
 		call["status"], call["arguments"] = "completed", args.String()
 		send("response.output_item.done", map[string]any{"output_index": 2, "item": call})
@@ -255,6 +258,153 @@ func upstream(args []string) {
 	})
 	log.Printf("fake Claude and Codex upstream on %s (%d events, %s apart)", *addr, *events, *delay)
 	log.Fatal(http.ListenAndServe(*addr, nil))
+}
+
+// argumentDeltas splits a tool call's arguments, {"path":"..."}, into one fragment per
+// text: the first opens the object, the last closes it, so the fragments join into JSON.
+func argumentDeltas(texts []string) []string {
+	deltas := make([]string, 0, len(texts))
+	for _, t := range texts {
+		deltas = append(deltas, strings.ReplaceAll(t[:40], " ", "_"))
+	}
+	if len(deltas) == 0 {
+		return []string{`{"path":""}`}
+	}
+	deltas[0] = `{"path":"` + deltas[0]
+	deltas[len(deltas)-1] += `"}`
+	return deltas
+}
+
+// sseData calls f with the JSON payload of every data line of an SSE body.
+func sseData(body []byte, f func([]byte) error) error {
+	for _, line := range bytes.Split(body, []byte("\n")) {
+		payload, ok := bytes.CutPrefix(bytes.TrimSpace(line), []byte("data:"))
+		if !ok {
+			continue
+		}
+		if err := f(bytes.TrimSpace(payload)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// checkClaudeStream: message_stop arrived, and every tool_use block's input_json_delta
+// fragments join into valid JSON.
+func checkClaudeStream(body []byte) error {
+	var stopped bool
+	inputs := map[int]*strings.Builder{}
+	err := sseData(body, func(payload []byte) error {
+		var event struct {
+			Type         string `json:"type"`
+			Index        int    `json:"index"`
+			ContentBlock struct {
+				Type string `json:"type"`
+			} `json:"content_block"`
+			Delta struct {
+				Type        string `json:"type"`
+				PartialJSON string `json:"partial_json"`
+			} `json:"delta"`
+		}
+		if err := json.Unmarshal(payload, &event); err != nil {
+			return fmt.Errorf("event is not JSON: %w", err)
+		}
+		switch {
+		case event.Type == "content_block_start" && event.ContentBlock.Type == "tool_use":
+			inputs[event.Index] = &strings.Builder{}
+		case event.Type == "content_block_delta" && event.Delta.Type == "input_json_delta":
+			input := inputs[event.Index]
+			if input == nil {
+				return fmt.Errorf("input_json_delta for block %d, which is not a tool_use block", event.Index)
+			}
+			input.WriteString(event.Delta.PartialJSON)
+		case event.Type == "message_stop":
+			stopped = true
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if !stopped {
+		return fmt.Errorf("no message_stop")
+	}
+	if len(inputs) == 0 {
+		return fmt.Errorf("no tool_use block")
+	}
+	for index, input := range inputs {
+		if !json.Valid([]byte(input.String())) {
+			return fmt.Errorf("tool_use block %d: input_json_delta fragments join into invalid JSON: %.200s", index, input.String())
+		}
+	}
+	return nil
+}
+
+// checkResponsesStream: response.completed arrived, and every function call's argument
+// deltas join into exactly the arguments of its done event and of response.completed,
+// which parse as JSON.
+func checkResponsesStream(body []byte) error {
+	type item struct {
+		ID        string `json:"id"`
+		Type      string `json:"type"`
+		Arguments string `json:"arguments"`
+	}
+	var output []item
+	completed := false
+	deltas := map[string]*strings.Builder{}
+	err := sseData(body, func(payload []byte) error {
+		var event struct {
+			Type      string `json:"type"`
+			ItemID    string `json:"item_id"`
+			Delta     string `json:"delta"`
+			Arguments string `json:"arguments"`
+			Response  struct {
+				Output []item `json:"output"`
+			} `json:"response"`
+		}
+		if err := json.Unmarshal(payload, &event); err != nil {
+			return fmt.Errorf("event is not JSON: %w", err)
+		}
+		switch event.Type {
+		case "response.function_call_arguments.delta":
+			if deltas[event.ItemID] == nil {
+				deltas[event.ItemID] = &strings.Builder{}
+			}
+			deltas[event.ItemID].WriteString(event.Delta)
+		case "response.function_call_arguments.done":
+			joined := deltas[event.ItemID]
+			if joined == nil || joined.String() != event.Arguments {
+				return fmt.Errorf("call %s: argument deltas do not join into its done arguments", event.ItemID)
+			}
+		case "response.completed":
+			completed, output = true, event.Response.Output
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	if !completed {
+		return fmt.Errorf("no response.completed")
+	}
+	calls := 0
+	for _, it := range output {
+		if it.Type != "function_call" {
+			continue
+		}
+		calls++
+		joined := deltas[it.ID]
+		if joined == nil || joined.String() != it.Arguments {
+			return fmt.Errorf("call %s: argument deltas do not join into its completed arguments", it.ID)
+		}
+		if !json.Valid([]byte(it.Arguments)) {
+			return fmt.Errorf("call %s: arguments are not JSON: %.200s", it.ID, it.Arguments)
+		}
+	}
+	if calls == 0 {
+		return fmt.Errorf("no function call in response.completed")
+	}
+	return nil
 }
 
 type msg = map[string]any
@@ -425,8 +575,8 @@ func load(args []string) {
 			res.kinds = map[string]*kind{}
 			r := rand.New(rand.NewSource(*seed*1000 + int64(w)))
 			codex := w >= *workers-*codexWorkers
-			// send posts one request; done reports whether the reply is complete.
-			send := func(name, url string, body []byte, stream bool, done func([]byte) bool) {
+			// send posts one request; check returns why a reply is incomplete or invalid.
+			send := func(name, url string, body []byte, stream bool, check func([]byte) error) {
 				k := res.kinds[name]
 				if k == nil {
 					k = &kind{}
@@ -455,11 +605,15 @@ func load(args []string) {
 				ttfb := time.Since(t0)
 				data, err2 := io.ReadAll(br)
 				resp.Body.Close()
-				if err != nil || err2 != nil || resp.StatusCode != 200 || !done(data) {
+				var invalid error
+				if err == nil && err2 == nil && resp.StatusCode == 200 {
+					invalid = check(data)
+				}
+				if err != nil || err2 != nil || resp.StatusCode != 200 || invalid != nil {
 					res.bad++
 					k.bad++
 					if res.bad <= 3 {
-						log.Printf("bad %s response: status %d err %v %v: %.300s", name, resp.StatusCode, err, err2, data)
+						log.Printf("bad %s response: status %d err %v %v %v: %.300s", name, resp.StatusCode, err, err2, invalid, data)
 					}
 					return
 				}
@@ -472,8 +626,11 @@ func load(args []string) {
 				res.bytesOut += int64(len(body))
 				res.bytesIn += int64(len(data))
 			}
-			has := func(marker string) func([]byte) bool {
-				return func(data []byte) bool { return bytes.Contains(data, []byte(marker)) }
+			counted := func(data []byte) error {
+				if !bytes.Contains(data, []byte(`"input_tokens"`)) {
+					return fmt.Errorf("no input_tokens")
+				}
+				return nil
 			}
 			var s *session
 			var cs *codexSession
@@ -489,7 +646,7 @@ func load(args []string) {
 					} else {
 						cs.turn(*step)
 					}
-					send("responses", base+"/v1/responses", cs.body(*codexModel), true, has("response.completed"))
+					send("responses", base+"/v1/responses", cs.body(*codexModel), true, checkResponsesStream)
 					continue
 				}
 				if s == nil || s.size+*step > *maxSize {
@@ -501,13 +658,13 @@ func load(args []string) {
 					s.turn(*step)
 				}
 				if *countEvery > 0 && turns%*countEvery == 0 {
-					counted := *model
+					countModel := *model
 					if (turns / *countEvery)%2 == 0 {
-						counted = *codexModel
+						countModel = *codexModel
 					}
-					send("count_tokens", base+"/v1/messages/count_tokens", s.body(counted), false, has(`"input_tokens"`))
+					send("count_tokens", base+"/v1/messages/count_tokens", s.body(countModel), false, counted)
 				}
-				send("messages", *url, s.body(*model), true, has("message_stop"))
+				send("messages", *url, s.body(*model), true, checkClaudeStream)
 			}
 		}(w, &results[w])
 	}
