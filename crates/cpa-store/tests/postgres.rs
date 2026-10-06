@@ -72,24 +72,42 @@ impl Cluster {
             "initdb: {}",
             String::from_utf8_lossy(&output.stderr)
         );
-        let port = std::net::TcpListener::bind("127.0.0.1:0")
-            .unwrap()
-            .local_addr()
-            .unwrap()
-            .port();
-        let options = format!(
-            "-p {port} -c listen_addresses=127.0.0.1 -k {} -c fsync=off -c shared_buffers=16MB -c max_connections=20",
-            root.display()
-        );
-        let status = Command::new(bin.join("pg_ctl"))
-            .args(["-s", "-w", "-l"])
-            .arg(root.join("log"))
-            .args(["-D"])
-            .arg(&data)
-            .args(["-o", &options, "start"])
-            .status()
-            .unwrap();
-        assert!(status.success(), "pg_ctl start failed");
+        // ponytail: the server binds the port itself, so another test's listener or client
+        // socket can take it between this probe and that bind; a start that fails there
+        // retries with a new port, three times. A cluster on its Unix socket alone would
+        // need no port, but these tests would then no longer cover TCP connections.
+        let log = root.join("log");
+        let mut retries = 3;
+        let port = loop {
+            let port = std::net::TcpListener::bind("127.0.0.1:0")
+                .unwrap()
+                .local_addr()
+                .unwrap()
+                .port();
+            let options = format!(
+                "-p {port} -c listen_addresses=127.0.0.1 -k {} -c fsync=off -c shared_buffers=16MB -c max_connections=20",
+                root.display()
+            );
+            // pg_ctl appends to the log; each attempt starts a new one.
+            let _ = std::fs::remove_file(&log);
+            let status = Command::new(bin.join("pg_ctl"))
+                .args(["-s", "-w", "-l"])
+                .arg(&log)
+                .args(["-D"])
+                .arg(&data)
+                .args(["-o", &options, "start"])
+                .status()
+                .unwrap();
+            if status.success() {
+                break port;
+            }
+            let server_log = std::fs::read_to_string(&log).unwrap_or_default();
+            assert!(
+                retries > 0 && server_log.contains("Address already in use"),
+                "pg_ctl start failed: {server_log}"
+            );
+            retries -= 1;
+        };
         Some(Cluster { bin, data, port })
     }
 
