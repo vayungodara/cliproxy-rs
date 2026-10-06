@@ -1,16 +1,21 @@
-//! Memory gate: the heap a large Claude request costs on its way through the proxy.
+//! Memory gate: the heap a large Claude or Codex request costs on its way through the
+//! proxy.
 //!
 //! A counting global allocator (this test binary only; release builds use the system
 //! allocator untouched) records live bytes and allocation calls while one streamed
-//! `/v1/messages` request of about 306 KB, then one of about 1.9 MB, goes from a
-//! client through the router to a local fake Anthropic upstream and back. The request
-//! body is built before counting starts and handed to the router directly. The fake
-//! upstream runs on its own thread and runtime, which the allocator does not count:
-//! hyper sizes its read buffers from how much the previous read returned, so the
-//! upstream's allocations depend on scheduling, not on the proxy. Each size is sent
-//! three times and gated on the smallest peak and call count. The ceilings are the
-//! `alloc.*` lines of `bench/budgets.txt`; the measured values are printed so a change
-//! can update them with a dated note.
+//! request of about 306 KB, then one of about 1.9 MB, goes from a client through the
+//! router to a local fake upstream and back: `/v1/messages` through the Claude executor
+//! to a fake Anthropic upstream, then `/v1/responses` through the Codex executor (an API
+//! key whose base-url is the fake upstream). `/v1/messages/count_tokens` with the same
+//! Claude bodies is counted too: an OAuth credential counts locally with the shared
+//! o200k_base encoder, which the warm-up builds. The request body is built before counting
+//! starts and handed to the router directly. The fake upstream runs on its own thread
+//! and runtime, which the allocator does not count: hyper sizes its read buffers from
+//! how much the previous read returned, so the upstream's allocations depend on
+//! scheduling, not on the proxy. Each size is sent three times and gated on the smallest
+//! peak and call count. The ceilings are the `alloc.*` lines of `bench/budgets.txt`; the
+//! measured values are printed so a change can update them with a dated note. Both
+//! routes run in one test, one after the other, because the counters are process-wide.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::path::PathBuf;
@@ -81,11 +86,21 @@ fn grow(size: usize) {
 #[global_allocator]
 static ALLOCATOR: Counting = Counting;
 
-/// The fake upstream drains the request without keeping it and streams a short reply.
+/// The fake upstream drains the request without keeping it and streams a short reply:
+/// Responses events on the Codex path (`/responses`), Claude events otherwise.
 async fn upstream(req: Request) -> axum::response::Response {
+    let codex = req.uri().path().ends_with("/responses");
     let mut body = req.into_body().into_data_stream();
     while let Some(chunk) = body.next().await {
         drop(chunk.unwrap());
+    }
+    if codex {
+        let sse = "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"gpt-5.5\",\"output\":[]}}\n\n\
+                   event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]}}\n\n\
+                   event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"ok\"}\n\n\
+                   event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\",\"annotations\":[]}]}}\n\n\
+                   event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gpt-5.5\",\"output\":[{\"id\":\"msg_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}}\n\n";
+        return ([("content-type", "text/event-stream")], sse).into_response();
     }
     let sse = "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"claude-sonnet-4-5\",\"usage\":{\"input_tokens\":1,\"output_tokens\":1}}}\n\n\
                event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\
@@ -137,6 +152,50 @@ fn conversation(target: usize) -> Bytes {
     Bytes::from(serde_json::to_vec(&body).unwrap())
 }
 
+/// The same conversation for Codex, in the Responses format: 18 KB of instructions, 24
+/// function tools, then reasoning items with encrypted content, function calls and
+/// their large outputs.
+fn responses_conversation(target: usize) -> Bytes {
+    use serde_json::json;
+    let filler = |n: usize| "Explain the change in this diff and list any risks. ".repeat(n / 52 + 1);
+    let tools: Vec<_> = (0..24)
+        .map(|i| {
+            json!({
+                "type": "function",
+                "name": format!("tool_{i}"),
+                "description": filler(400),
+                "parameters": {"type": "object", "properties": {"path": {"type": "string"}, "text": {"type": "string"}}},
+            })
+        })
+        .collect();
+    let mut input =
+        vec![json!({"type": "message", "role": "user", "content": [{"type": "input_text", "text": filler(2000)}]})];
+    let mut size = 30_000;
+    let mut turn = 0;
+    while size < target {
+        let call = format!("call_{turn:06}");
+        input.push(json!({"type": "reasoning", "id": format!("rs_{turn:06}"), "summary": [{"type": "summary_text", "text": filler(600)}], "encrypted_content": "gAAAAABo".repeat(150)}));
+        input.push(json!({"type": "function_call", "id": format!("fc_{turn:06}"), "call_id": call, "name": "tool_1", "arguments": "{\"path\":\"src/main.rs\"}"}));
+        input.push(json!({"type": "function_call_output", "call_id": call, "output": filler(20_000)}));
+        size += 22_000;
+        turn += 1;
+    }
+    let body = json!({
+        "model": "gpt-5.5",
+        "instructions": filler(18_000),
+        "input": input,
+        "tools": tools,
+        "tool_choice": "auto",
+        "parallel_tool_calls": false,
+        "reasoning": {"effort": "medium", "summary": "auto"},
+        "store": false,
+        "stream": true,
+        "include": ["reasoning.encrypted_content"],
+        "prompt_cache_key": "alloc-budget",
+    });
+    Bytes::from(serde_json::to_vec(&body).unwrap())
+}
+
 /// The ceiling for `key` in bench/budgets.txt: `<key> <value> <tolerance %>`, read the way
 /// bench/gate.sh reads it.
 fn budget(key: &str) -> usize {
@@ -155,7 +214,7 @@ fn budget(key: &str) -> usize {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn large_claude_requests_stay_within_their_heap_budget() {
+async fn large_requests_stay_within_their_heap_budget() {
     // The fake upstream: its own thread and single-threaded runtime, not counted.
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
@@ -180,13 +239,17 @@ async fn large_claude_requests_stay_within_their_heap_budget() {
         r#"{"type":"claude","access_token":"tok-A","email":"a@example.com"}"#,
     )
     .unwrap();
-    let mut config = Config::parse("").unwrap();
+    let mut config = Config::parse(&format!(
+        "codex-api-key:\n  - api-key: sk-FAKE-codex\n    base-url: {upstream_url}\n    models:\n      - name: gpt-5.5\n"
+    ))
+    .unwrap();
     config.api_keys = vec!["client-key-1".into()];
     config.auth_dir = dir.clone();
-    let creds = cpa_core::config::credentials::from_auth_dir(&config)
+    let mut creds: Vec<_> = cpa_core::config::credentials::from_auth_dir(&config)
         .into_iter()
         .map(cpa_server::testing::local)
         .collect();
+    creds.extend(cpa_core::config::credentials::from_config(&config));
     let executors = Executors {
         claude: ClaudeExecutor::new(&upstream_url).unwrap(),
         codex: Default::default(),
@@ -198,10 +261,17 @@ async fn large_claude_requests_stay_within_their_heap_budget() {
     cpa_server::install_registry(&rt);
     let app = cpa_server::router(rt);
 
-    let send = |body: Bytes| {
+    // `route` is "claude" (`/v1/messages`), "count" (`/v1/messages/count_tokens`) or
+    // "codex" (`/v1/responses`).
+    let send = |route: &'static str, body: Bytes| {
         let app = app.clone();
         async move {
-            let request = axum::http::Request::post("/v1/messages")
+            let (path, done): (_, &[u8]) = match route {
+                "claude" => ("/v1/messages", b"message_stop"),
+                "count" => ("/v1/messages/count_tokens", b"\"input_tokens\""),
+                _ => ("/v1/responses", b"response.completed"),
+            };
+            let request = axum::http::Request::post(path)
                 .header("x-api-key", "client-key-1")
                 .header("anthropic-version", "2023-06-01")
                 .header("content-type", "application/json")
@@ -211,22 +281,32 @@ async fn large_claude_requests_stay_within_their_heap_budget() {
             let status = response.status();
             let text = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
             assert_eq!(status, 200, "{text:?}");
-            assert!(text.windows(12).any(|w| w == b"message_stop"), "{text:?}");
+            assert!(text.windows(done.len()).any(|w| w == done), "{text:?}");
         }
     };
 
     let mut over = Vec::new();
-    for (name, target) in [("306k", 306_000), ("1900k", 1_900_000)] {
-        let body = conversation(target);
+    for (route, name, target) in [
+        ("claude", "306k", 306_000),
+        ("claude", "1900k", 1_900_000),
+        ("count", "count.306k", 306_000),
+        ("count", "count.1900k", 1_900_000),
+        ("codex", "codex.306k", 306_000),
+        ("codex", "codex.1900k", 1_900_000),
+    ] {
+        let body = match route {
+            "codex" => responses_conversation(target),
+            _ => conversation(target),
+        };
         // Warm-up: connection pool, registries and lazy statics.
-        send(body.clone()).await;
+        send(route, body.clone()).await;
         let (mut peak, mut calls) = (usize::MAX, usize::MAX);
         for _ in 0..3 {
             let base = LIVE.load(Ordering::Relaxed);
             PEAK.store(base, Ordering::Relaxed);
             CALLS.store(0, Ordering::Relaxed);
             COUNTING.store(true, Ordering::Relaxed);
-            send(body.clone()).await;
+            send(route, body.clone()).await;
             COUNTING.store(false, Ordering::Relaxed);
             peak = peak.min(PEAK.load(Ordering::Relaxed).saturating_sub(base));
             calls = calls.min(CALLS.load(Ordering::Relaxed));

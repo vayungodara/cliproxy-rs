@@ -72,13 +72,45 @@ idle.windows.1.cpu_ms         20   0
 idle.windows.1.threads         7   0
 idle.windows.1.rss_kb     16_300  10
 
+# Field-mix soak (bench/soak.sh MIX=field: Claude, Codex and count_tokens requests of
+# 200 KB to 2 MB from 4 sessions, on release tags and weekly): VmHWM at the end of the
+# run, in kB. A 60-minute run of this build on a GitHub-hosted Ubuntu 22.04 runner peaked
+# at 173,072 kB; 0.2.0 peaked at 225,380 kB under the same load. Peaks come from requests
+# that happen to overlap, so a 300-minute run sees more of them: 20% of room keeps the
+# bound (207,686 kB) below both 0.2.0 and this build plus one more o200k_base tokenizer
+# (about 47,700 kB resident).
+# 2026-10-06: first bound.
+soak.field.peak_hwm_kb    173_072  20
+
 # Heap per request through the Claude route (debug test build, counting allocator):
 # peak live bytes above the idle baseline and allocation calls, for one streamed
 # /v1/messages request of about 306 KB and one of about 1.9 MB, the fake upstream not
 # counted, smallest of three sends. Target: peak at most 3x the body; today it is 6x.
 # 2026-10-06: re-measured with the upstream excluded; identical over 9 runs, 4 of them
 # under full CPU contention.
-alloc.306k.peak_bytes       1_876_745  2
-alloc.306k.allocations          2_379  3
-alloc.1900k.peak_bytes     11_083_145  2
-alloc.1900k.allocations         7_040  3
+# 2026-10-06: the test's runtime also holds the Codex API key the Codex budgets below
+# use: +32 bytes and +14 allocations per request.
+alloc.306k.peak_bytes       1_876_777  2
+alloc.306k.allocations          2_393  3
+alloc.1900k.peak_bytes     11_083_177  2
+alloc.1900k.allocations         7_054  3
+
+# The same through the Codex route: one streamed /v1/responses request of about 322 KB and
+# one of about 1.9 MB (reasoning items, function calls and their outputs) through the
+# Codex executor and an API key whose base-url is the fake upstream. Target: peak at most
+# 3x the body; today it is 8.8x (the request is rewritten pass by pass, each pass a new
+# copy of the body).
+# 2026-10-06: first budgets; identical over 4 runs.
+alloc.codex.306k.peak_bytes       2_769_147  2
+alloc.codex.306k.allocations          1_683  3
+alloc.codex.1900k.peak_bytes     16_783_275  2
+alloc.codex.1900k.allocations         4_004  3
+
+# count_tokens with the same Claude bodies, counted locally as for an OAuth login: the
+# body as a JSON tree, its text joined, then the shared o200k_base encoder (built by the
+# warm-up, so not counted here). Target: peak at most 3x the body; today it is 7.3x.
+# 2026-10-06: first budgets; identical over 3 runs.
+alloc.count.306k.peak_bytes       2_259_573  2
+alloc.count.306k.allocations        275_337  3
+alloc.count.1900k.peak_bytes     13_530_973  2
+alloc.count.1900k.allocations     1_630_109  3
