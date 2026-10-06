@@ -6,13 +6,17 @@
 #
 # Starts the binary on a config with one OpenAI-compatible API key, one client key and
 # <auth files> Claude credential files (default 1) whose tokens are valid for 30 days,
-# so nothing is due for refresh. After WARMUP seconds (default 10) without any request,
-# it samples for <seconds> (default 30) and prints one JSON line:
+# so nothing is due for refresh. After WARMUP seconds (default 20, past the blocking
+# pool's 10 s keep-alive) without any request, it samples for <seconds> (default 30) and
+# prints one JSON line:
 #
 #   wakeups       context switches of all threads in the window, voluntary and not,
 #                 summed from /proc/<pid>/task/*/status
 #   cpu_ticks     user + system clock ticks (1/100 s) in the window
+#   threads_start threads at the start of the window
 #   threads       threads at the end of the window
+#   exited        threads that ended inside the window (their wakeups are lost, so the
+#                 script then exits non-zero)
 #   rss_kb        VmRSS at the end of the window
 #
 # Per-thread context switches go to stderr, so a regression names its thread. The same
@@ -37,7 +41,7 @@ fi
 BIN=$(realpath "$1")
 FILES=${2:-1}
 SECONDS_=${3:-30}
-WARMUP=${WARMUP:-10}
+WARMUP=${WARMUP:-20}
 PORT=${PORT:-8341}
 KEY=sk-bench-client-key
 DIR=$(mktemp -d /tmp/cliproxy-idle.XXXXXX)
@@ -94,6 +98,7 @@ switches() { # "<tid> <name> <context switches>" per thread
 ticks() { awk '{print $14 + $15}' "/proc/$PID/stat"; }
 
 switches > "$TMP/before"; c0=$(ticks)
+threads_start=$(wc -l < "$TMP/before")
 sleep "$SECONDS_"
 switches > "$TMP/after"; c1=$(ticks)
 threads=$(ls /proc/"$PID"/task | wc -l)
@@ -105,6 +110,12 @@ join -a 2 -e 0 -o 2.1,2.2,1.3,2.3 "$TMP/before" "$TMP/after" |
   awk '{print $2 "/" $1, $4 - $3}' | sort -k2 -nr > "$TMP/window"
 awk '{printf "  %-24s %d\n", $1, $2}' "$TMP/window" >&2
 wakeups=$(awk '{s += $2} END {print s + 0}' "$TMP/window")
+exited=$(join -v 1 "$TMP/before" "$TMP/after" | wc -l)
+if (( exited > 0 )); then
+  echo "threads that exited inside the window (their wakeups are not counted):" >&2
+  join -v 1 "$TMP/before" "$TMP/after" | sed 's/^/  /' >&2
+fi
 
-printf '{"binary":"%s","auth_files":%d,"seconds":%d,"wakeups":%d,"cpu_ticks":%d,"threads":%d,"rss_kb":%d,"isolation":"%s"}\n' \
-  "$(basename "$BIN")" "$FILES" "$SECONDS_" "$wakeups" $((c1 - c0)) "$threads" "$rss" "$BENCH_ISOLATION"
+printf '{"binary":"%s","auth_files":%d,"seconds":%d,"wakeups":%d,"cpu_ticks":%d,"threads_start":%d,"threads":%d,"exited":%d,"rss_kb":%d,"isolation":"%s"}\n' \
+  "$(basename "$BIN")" "$FILES" "$SECONDS_" "$wakeups" $((c1 - c0)) "$threads_start" "$threads" "$exited" "$rss" "$BENCH_ISOLATION"
+(( exited == 0 ))

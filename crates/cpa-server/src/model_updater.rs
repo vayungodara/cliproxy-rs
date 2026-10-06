@@ -60,10 +60,18 @@ pub fn plan(local_model: bool, home_enabled: bool) -> Plan {
 
 /// Go `startModelCatalogUpdaters`. Safe to call more than once: one updater runs.
 /// Cost while no Codex or Devin credential exists: one parked task that looks at the
-/// credentials' providers after each change to the set.
+/// credentials' providers after each change to the set. In Home mode the local store
+/// stays empty, so both updaters start at once, as in Go.
 pub fn start(rt: &Arc<Runtime>, home_enabled: bool) {
     let plan = plan(rt.local_model(), home_enabled);
-    if plan.codex_client || plan.devin {
+    if home_enabled {
+        if plan.codex_client {
+            cpa_exec::codex_catalog_updater::start_codex_client_models_updater();
+        }
+        if plan.devin {
+            cpa_exec::devin_models::start_devin_models_updater();
+        }
+    } else if plan.codex_client || plan.devin {
         let weak = Arc::downgrade(rt);
         let mut changes = rt.store().subscribe();
         tokio::spawn(async move {
