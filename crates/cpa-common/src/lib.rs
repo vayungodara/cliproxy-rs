@@ -33,6 +33,7 @@ pub mod gemini_schema;
 pub mod gostr;
 mod gostr_tables;
 pub mod headers;
+pub mod idle;
 pub mod json;
 #[cfg(test)]
 mod json_go_vectors;

@@ -30,8 +30,7 @@ const FALLBACK_POLL: Duration = Duration::from_secs(2);
 pub(crate) struct Targets {
     pub config: PathBuf,
     pub auth_dir: PathBuf,
-    /// The auth files seen last: kqueue watches each one, and symlinked ones have their
-    /// links followed on every platform.
+    /// The auth files seen last; kqueue watches each one.
     pub files: Vec<PathBuf>,
 }
 
@@ -43,6 +42,32 @@ struct Dir {
     names: Option<Vec<OsString>>,
     /// Whether `*.json` entries matter (the auth folder).
     json: bool,
+    /// Writes to entries matter (the auth folder, the config's folder, a symlinked
+    /// file's real folder). Otherwise only entries appearing, vanishing or being renamed
+    /// do (a missing folder's ancestor, a folder holding a symlink), so a busy home
+    /// folder does not wake the watcher on every write.
+    content: bool,
+    /// Watched as a folder. A folder that only holds symlinks on the way is `false`; on
+    /// macOS each link itself is watched instead.
+    folder: bool,
+    /// Only on the way to a target (a symlink's folder, a symlinked file's real folder):
+    /// a permission error skips it instead of turning notifications off.
+    optional: bool,
+}
+
+/// Why a folder is watched; see [`Dir`].
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Role {
+    /// The auth folder.
+    Auth,
+    /// The config file's folder.
+    Content,
+    /// A symlinked auth file's real folder.
+    RealParent,
+    /// The nearest existing ancestor of a missing folder.
+    Ancestor,
+    /// The folder holding a symlink on the way.
+    Link,
 }
 
 impl Dir {
@@ -78,48 +103,55 @@ fn dot(path: &Path) -> &Path {
     }
 }
 
-type Add<'a> = dyn FnMut(PathBuf, Option<OsString>, bool) + 'a;
+type Add<'a> = dyn FnMut(PathBuf, Option<OsString>, Role) + 'a;
 
 /// Watches the nearest existing ancestor of the missing folder `missing`, for the first
 /// missing component only, so a busy ancestor such as the home folder wakes nothing
 /// else. Each retarget moves the watch one level down as `mkdir -p` proceeds.
 fn add_missing(missing: &Path, add: &mut Add<'_>) {
+    let missing = dot(missing);
     if let Some(ancestor) = missing.ancestors().skip(1).find(|a| dot(a).is_dir()) {
         let first = missing
             .strip_prefix(ancestor)
             .ok()
             .and_then(|rest| rest.components().next())
             .map(|c| c.as_os_str().to_owned());
-        add(dot(ancestor).to_owned(), first, false);
+        add(dot(ancestor).to_owned(), first, Role::Ancestor);
     }
 }
 
 /// For each symlink on the way to `path`, watches the folder holding the link for the
 /// link's name: a Kubernetes `..data` swap or an `ln -sfn` then wakes the watcher.
-/// Cost: one lstat per path component, only when retargeting.
-fn follow_links(path: &Path, add: &mut Add<'_>) {
+/// Cost: one lstat per path component, only when retargeting. Returns the path with
+/// every link on the way resolved (it may not exist).
+fn follow_links(path: &Path, add: &mut Add<'_>) -> PathBuf {
     let mut cur = PathBuf::new();
     let mut rest = path.to_owned();
     let mut hops = 0;
     loop {
         let mut components = rest.components();
-        let Some(component) = components.next() else { return };
+        let Some(component) = components.next() else { return cur };
         let remaining = components.as_path().to_owned();
         match component {
             Component::Prefix(_) | Component::RootDir => cur.push(component.as_os_str()),
             Component::CurDir => {}
-            Component::ParentDir => {
-                if !cur.pop() {
-                    cur.push("..");
+            // Only a resolved name can be popped: `../..` stays two levels up.
+            Component::ParentDir => match cur.components().next_back() {
+                Some(Component::Normal(_)) => {
+                    cur.pop();
                 }
-            }
+                Some(Component::RootDir | Component::Prefix(_)) => {}
+                _ => cur.push(".."),
+            },
             Component::Normal(name) => {
                 let next = cur.join(name);
                 let link = next.symlink_metadata().is_ok_and(|m| m.file_type().is_symlink());
                 if link && hops < 40 {
                     hops += 1;
-                    add(dot(&cur).to_owned(), Some(name.to_owned()), false);
-                    let Ok(target) = std::fs::read_link(&next) else { return };
+                    add(dot(&cur).to_owned(), Some(name.to_owned()), Role::Link);
+                    let Ok(target) = std::fs::read_link(&next) else {
+                        return next;
+                    };
                     // An absolute target replaces `cur` when pushed.
                     rest = target.join(&remaining);
                     continue;
@@ -136,11 +168,18 @@ fn follow_links(path: &Path, add: &mut Add<'_>) {
 /// hold any symlink on the way to them.
 fn dirs(t: &Targets) -> Vec<Dir> {
     let mut out: Vec<Dir> = Vec::new();
-    let mut add = |path: PathBuf, name: Option<OsString>, json: bool| {
+    let mut add = |path: PathBuf, name: Option<OsString>, role: Role| {
         let path = std::fs::canonicalize(&path).unwrap_or(path);
+        let json = role == Role::Auth;
+        let content = matches!(role, Role::Auth | Role::Content | Role::RealParent);
+        let folder = role != Role::Link;
+        let optional = matches!(role, Role::Link | Role::RealParent);
         match out.iter_mut().find(|d| d.path == path) {
             Some(d) => {
                 d.json |= json;
+                d.content |= content;
+                d.folder |= folder;
+                d.optional &= optional;
                 if let (Some(names), Some(n)) = (&mut d.names, name)
                     && !names.contains(&n)
                 {
@@ -151,35 +190,51 @@ fn dirs(t: &Targets) -> Vec<Dir> {
                 path,
                 names: Some(name.into_iter().collect()),
                 json,
+                content,
+                folder,
+                optional,
             }),
         }
     };
     let name = |p: &Path| p.file_name().map(ToOwned::to_owned);
     let folder = parent(&t.config);
     match name(&t.config) {
-        Some(n) if folder.is_dir() => add(folder, Some(n), false),
+        Some(n) if folder.is_dir() => add(folder, Some(n), Role::Content),
         _ => add_missing(&folder, &mut add),
     }
     follow_links(&t.config, &mut add);
     if let Ok(real) = std::fs::canonicalize(&t.config)
         && let Some(n) = name(&real)
     {
-        add(parent(&real), Some(n), false);
+        add(parent(&real), Some(n), Role::Content);
     }
     if t.auth_dir.is_dir() {
-        add(t.auth_dir.clone(), None, true);
+        add(t.auth_dir.clone(), None, Role::Auth);
     } else {
         add_missing(&t.auth_dir, &mut add);
     }
     follow_links(&t.auth_dir, &mut add);
-    for file in &t.files {
-        if file.symlink_metadata().is_ok_and(|m| m.file_type().is_symlink()) {
-            follow_links(file, &mut add);
-            if let Ok(real) = std::fs::canonicalize(file)
-                && let Some(n) = name(&real)
-            {
-                add(parent(&real), Some(n), false);
+    // Symlinked auth files, dangling ones included (the directory listing still has
+    // them). Cost: one directory listing per retarget.
+    for entry in std::fs::read_dir(&t.auth_dir).into_iter().flatten().flatten() {
+        let file = entry.path();
+        let json = file
+            .file_name()
+            .is_some_and(|n| n.to_string_lossy().to_lowercase().ends_with(".json"));
+        if !json || !entry.file_type().is_ok_and(|f| f.is_symlink()) {
+            continue;
+        }
+        let resolved = follow_links(&file, &mut add);
+        match std::fs::canonicalize(&file) {
+            // macOS watches the file itself through the link (Targets::files).
+            Ok(real) if cfg!(not(target_os = "macos")) => {
+                if let Some(n) = name(&real) {
+                    add(parent(&real), Some(n), Role::RealParent);
+                }
             }
+            Ok(_) => {}
+            // Dangling: watch for its target to appear.
+            Err(_) => add_missing(&resolved, &mut add),
         }
     }
     out
@@ -267,6 +322,13 @@ mod sys {
     /// mount of the single file) notifies only the file, not this folder.
     const FILE_MASK: u32 =
         libc::IN_MODIFY | libc::IN_CLOSE_WRITE | libc::IN_ATTRIB | libc::IN_DELETE_SELF | libc::IN_MOVE_SELF;
+    /// Folders where only entries appearing, vanishing or being renamed matter.
+    const ENTRY_MASK: u32 = libc::IN_CREATE
+        | libc::IN_DELETE
+        | libc::IN_MOVED_FROM
+        | libc::IN_MOVED_TO
+        | libc::IN_DELETE_SELF
+        | libc::IN_MOVE_SELF;
 
     pub struct Watch {
         fd: AsyncFd<OwnedFd>,
@@ -308,19 +370,34 @@ mod sys {
         pub fn retarget(&mut self, targets: &Targets) -> io::Result<bool> {
             let mut next: HashMap<i32, Vec<Dir>> = HashMap::new();
             let mut vanished = false;
-            for dir in dirs(targets) {
-                match self.add(&dir.path, MASK | libc::IN_ONLYDIR) {
+            let mut dirs = dirs(targets);
+            // Entry-only folders first: adding a watch replaces the mask of the same inode,
+            // so a full add after them wins where two paths share one.
+            dirs.sort_by_key(|d| d.content);
+            for dir in dirs {
+                let mask = if dir.content { MASK } else { ENTRY_MASK };
+                match self.add(&dir.path, mask | libc::IN_ONLYDIR) {
                     Ok(wd) => next.entry(wd).or_default().push(dir),
                     // Removed since `dirs` looked: the next wake retargets again.
                     Err(e) if e.raw_os_error() == Some(libc::ENOENT) => vanished = true,
+                    // A folder only on the way to a target that cannot be watched: its
+                    // target's own folder still is.
+                    Err(e)
+                        if dir.optional
+                            && matches!(e.raw_os_error(), Some(libc::EACCES | libc::EPERM | libc::ENOTDIR)) => {}
                     Err(e) => return Err(e),
                 }
             }
-            match self.add(&targets.config, FILE_MASK) {
+            // IN_MASK_ADD: should the config path be a folder that is watched too, its
+            // folder mask is kept.
+            match self.add(&targets.config, FILE_MASK | libc::IN_MASK_ADD) {
                 Ok(wd) => next.entry(wd).or_default().push(Dir {
                     path: targets.config.clone(),
                     names: None,
                     json: false,
+                    content: true,
+                    folder: false,
+                    optional: false,
                 }),
                 // No file to watch; its folder sees it appear.
                 Err(e) if matches!(e.raw_os_error(), Some(libc::ENOENT | libc::ENOTDIR | libc::EACCES)) => {}
@@ -407,12 +484,29 @@ mod sys {
 
     pub struct Watch {
         kq: AsyncFd<OwnedFd>,
-        /// Each watched path with the descriptor and the file identity it was opened at.
-        open: HashMap<PathBuf, (OwnedFd, (u64, u64))>,
+        /// Each watched path (and whether it is a symlink watched as itself) with the
+        /// descriptor and the file identity it was opened at.
+        open: HashMap<(PathBuf, bool), (OwnedFd, (u64, u64))>,
     }
 
-    fn identity(path: &std::path::Path) -> Option<(u64, u64)> {
-        std::fs::metadata(path).ok().map(|m| (m.dev(), m.ino()))
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    enum Kind {
+        Folder {
+            optional: bool,
+        },
+        /// A symlink on the way, watched as itself.
+        Link,
+        File,
+    }
+
+    /// Device and inode, of the link itself for `link`.
+    fn identity(path: &std::path::Path, link: bool) -> Option<(u64, u64)> {
+        let meta = if link {
+            std::fs::symlink_metadata(path)
+        } else {
+            std::fs::metadata(path)
+        };
+        meta.ok().map(|m| (m.dev(), m.ino()))
     }
 
     /// `kern.maxfilesperproc`, the most descriptors one process may hold.
@@ -489,38 +583,63 @@ mod sys {
         }
 
         /// Opens what is not watched yet and reopens paths whose file was replaced
-        /// (another device and inode). Returns whether anything new is watched.
+        /// (another device and inode). Returns whether the watched set changed, so the
+        /// caller looks once more: a change made before a new watch existed raised no
+        /// event, and a dropped watch may have missed one.
         pub fn retarget(&mut self, targets: &Targets) -> io::Result<bool> {
-            let mut want: Vec<PathBuf> = dirs(targets).into_iter().map(|d| d.path).collect();
-            want.push(targets.config.clone());
-            if let Ok(real) = std::fs::canonicalize(&targets.config) {
-                want.push(real);
+            let mut want: Vec<(PathBuf, Kind)> = Vec::new();
+            for dir in dirs(targets) {
+                if dir.folder {
+                    want.push((dir.path, Kind::Folder { optional: dir.optional }));
+                } else {
+                    // A folder that only holds symlinks on the way: watch each link,
+                    // not the folder, so a busy home folder wakes nothing.
+                    for name in dir.names.iter().flatten() {
+                        want.push((dir.path.join(name), Kind::Link));
+                    }
+                }
             }
-            want.extend(targets.files.iter().cloned());
-            want.sort();
-            want.dedup();
+            want.push((targets.config.clone(), Kind::File));
+            if let Ok(real) = std::fs::canonicalize(&targets.config) {
+                want.push((real, Kind::File));
+            }
+            want.extend(targets.files.iter().map(|f| (f.clone(), Kind::File)));
+            let order = |(p, k): &(PathBuf, Kind)| (p.clone(), *k == Kind::Link);
+            want.sort_by(|a, b| (&a.0, a.1 == Kind::Link).cmp(&(&b.0, b.1 == Kind::Link)));
+            want.dedup_by(|a, b| a.0 == b.0 && (a.1 == Kind::Link) == (b.1 == Kind::Link));
             // Leave at least half the descriptors to sockets and logs; past that, the
             // 2-second poll is the better trade.
             let limit = soft_limit().min(max_files_per_proc());
             if want.len() as libc::rlim_t > limit / 2 {
                 return Err(io::Error::from_raw_os_error(libc::EMFILE));
             }
+            let keys: Vec<(PathBuf, bool)> = want.iter().map(order).collect();
+            let before = self.open.len();
             // Closing a descriptor drops its kqueue registration.
             self.open
-                .retain(|path, (_, id)| want.binary_search(path).is_ok() && identity(path) == Some(*id));
-            let mut changed = false;
-            for path in want {
-                if self.open.contains_key(&path) {
+                .retain(|k, (_, id)| keys.binary_search(k).is_ok() && identity(&k.0, k.1) == Some(*id));
+            let mut changed = self.open.len() != before;
+            for (path, kind) in &want {
+                let link = *kind == Kind::Link;
+                let k = (path.clone(), link);
+                if self.open.contains_key(&k) {
                     continue;
                 }
-                let Some(id) = identity(&path) else { continue };
+                let Some(id) = identity(path, link) else { continue };
                 let c = CString::new(path.as_os_str().as_bytes())?;
+                let flags = libc::O_EVTONLY | libc::O_CLOEXEC | if link { libc::O_SYMLINK } else { 0 };
                 // SAFETY: `c` is a valid C string for the duration of the call.
-                let fd = unsafe { libc::open(c.as_ptr(), libc::O_EVTONLY | libc::O_CLOEXEC) };
+                let fd = unsafe { libc::open(c.as_ptr(), flags) };
                 if fd < 0 {
                     let e = io::Error::last_os_error();
-                    // Removed since it was listed: the next change event covers it.
-                    if e.kind() == io::ErrorKind::NotFound {
+                    let code = e.raw_os_error();
+                    let skip = e.kind() == io::ErrorKind::NotFound
+                        // An unreadable auth file is skipped, not a reason to poll.
+                        || (*kind == Kind::File && matches!(code, Some(libc::EACCES | libc::EPERM)))
+                        // So is a folder or link only on the way to a target.
+                        || (matches!(kind, Kind::Folder { optional: true } | Kind::Link)
+                            && matches!(code, Some(libc::EACCES | libc::EPERM | libc::ENOTDIR)));
+                    if skip {
                         continue;
                     }
                     return Err(e);
@@ -532,12 +651,17 @@ mod sys {
                 change.ident = fd.as_raw_fd() as libc::uintptr_t;
                 change.filter = libc::EVFILT_VNODE;
                 change.flags = libc::EV_ADD | libc::EV_CLEAR;
-                change.fflags = libc::NOTE_WRITE
-                    | libc::NOTE_EXTEND
-                    | libc::NOTE_ATTRIB
-                    | libc::NOTE_DELETE
-                    | libc::NOTE_RENAME
-                    | libc::NOTE_REVOKE;
+                change.fflags = if link {
+                    // The link itself: replaced (`ln -sfn`, a `..data` swap) or removed.
+                    libc::NOTE_DELETE | libc::NOTE_RENAME | libc::NOTE_ATTRIB | libc::NOTE_REVOKE
+                } else {
+                    libc::NOTE_WRITE
+                        | libc::NOTE_EXTEND
+                        | libc::NOTE_ATTRIB
+                        | libc::NOTE_DELETE
+                        | libc::NOTE_RENAME
+                        | libc::NOTE_REVOKE
+                };
                 // SAFETY: one valid change, no event output.
                 let rc = unsafe {
                     libc::kevent(
@@ -552,9 +676,15 @@ mod sys {
                 if rc < 0 {
                     return Err(io::Error::last_os_error());
                 }
-                self.open.insert(path, (fd, id));
+                self.open.insert(k, (fd, id));
                 changed = true;
             }
+            // A required folder that vanished between listing and opening: look again,
+            // which lists its ancestor instead. Files and optional folders are left out,
+            // so one that stays missing or unreadable cannot make the watcher spin.
+            changed |= want
+                .iter()
+                .any(|(p, k)| *k == Kind::Folder { optional: false } && !self.open.contains_key(&(p.clone(), false)));
             Ok(changed)
         }
 
@@ -897,6 +1027,9 @@ mod sys {
                     path: parent.to_owned(),
                     names: Some(vec![name.to_owned()]),
                     json: false,
+                    content: false,
+                    folder: true,
+                    optional: true,
                 }),
             }
         }
@@ -907,7 +1040,12 @@ mod sys {
         for dir in dirs {
             match Pending::open(dir, FILTER, false) {
                 Ok(p) => pending.push(p),
-                Err(e) if e.kind() == io::ErrorKind::NotFound => {}
+                // Gone (renamed away or deleted), or delete-pending (access denied while
+                // the name no longer resolves): the caller's next retarget, which the
+                // reopen notification triggers, watches its nearest ancestor instead.
+                Err(e)
+                    if e.kind() == io::ErrorKind::NotFound
+                        || (e.raw_os_error() == Some(ERROR_ACCESS_DENIED as i32) && !dir.path.exists()) => {}
                 Err(e) => return Err(e),
             }
         }
@@ -1238,6 +1376,101 @@ mod tests {
         std::fs::write(t.auth_dir.join("b.json"), "{}").unwrap();
         assert!(wake(&mut events, &t).await, "file in the renamed folder");
         drop(events);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Renaming the watched auth folder away, or deleting it, keeps notifications on:
+    /// the recreated folder is watched again and a login in it is seen.
+    #[cfg(any(target_os = "linux", target_os = "macos", windows))]
+    #[tokio::test]
+    async fn survives_the_auth_folder_going_away() {
+        for rename in [true, false] {
+            let root = temp();
+            let t = Targets {
+                config: root.join("config.yaml"),
+                auth_dir: root.join("auth"),
+                files: Vec::new(),
+            };
+            std::fs::write(&t.config, "port: 1\n").unwrap();
+            let mut events = native(&t);
+            settle(&mut events, &t).await;
+            if rename {
+                std::fs::rename(&t.auth_dir, root.join("auth.old")).unwrap();
+            } else {
+                std::fs::remove_dir_all(&t.auth_dir).unwrap();
+            }
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            settle(&mut events, &t).await;
+            // A delete-pending folder (no POSIX delete semantics) frees its name once the
+            // watch lets go of it.
+            let mut retries = 0;
+            while let Err(e) = std::fs::create_dir(&t.auth_dir) {
+                assert!(retries < 40 && e.kind() == std::io::ErrorKind::AlreadyExists, "{e}");
+                retries += 1;
+                let _ = wake(&mut events, &t).await;
+            }
+            settle(&mut events, &t).await;
+            std::fs::write(t.auth_dir.join("a.json"), "{}").unwrap();
+            assert!(
+                wake(&mut events, &t).await,
+                "login after the folder came back (rename: {rename})"
+            );
+            assert!(events.watch.is_some(), "notifications turned off (rename: {rename})");
+            drop(events);
+            std::fs::remove_dir_all(root).unwrap();
+        }
+    }
+
+    /// `-config ../../current/config.yaml` with `current` a release symlink: the folder
+    /// holding the link is watched, and `ln -sfn` to a new release wakes the watcher.
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn follows_a_release_link_behind_leading_parent_dirs() {
+        let root = temp();
+        std::fs::create_dir_all(root.join("rel1")).unwrap();
+        std::fs::create_dir_all(root.join("rel2")).unwrap();
+        std::fs::write(root.join("rel1/config.yaml"), "port: 1\n").unwrap();
+        std::fs::write(root.join("rel2/config.yaml"), "port: 2\n").unwrap();
+        std::os::unix::fs::symlink("rel1", root.join("current")).unwrap();
+        let cwd = std::env::current_dir().unwrap();
+        let depth = cwd.components().filter(|c| matches!(c, Component::Normal(_))).count();
+        let relative = PathBuf::from("../".repeat(depth))
+            .join(root.strip_prefix("/").unwrap())
+            .join("current/config.yaml");
+        assert!(depth >= 2 && relative.is_file(), "{relative:?}");
+        let t = Targets {
+            config: relative,
+            auth_dir: root.join("auth"),
+            files: Vec::new(),
+        };
+        let d = dirs(&t);
+        let holder = d.iter().find(|d| d.path == root).expect("link folder watched");
+        assert!(holder.matters("current".as_ref()), "{d:?}");
+        let mut events = native(&t);
+        settle(&mut events, &t).await;
+        // `ln -sfn rel2 current`: a new link renamed over the old one.
+        std::os::unix::fs::symlink("rel2", root.join("current.new")).unwrap();
+        std::fs::rename(root.join("current.new"), root.join("current")).unwrap();
+        assert!(wake(&mut events, &t).await, "release switch");
+        drop(events);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// A dangling symlinked auth file: the nearest existing folder on the way to its
+    /// target is watched for the missing name.
+    #[cfg(unix)]
+    #[test]
+    fn dangling_auth_links_watch_for_their_target() {
+        let root = temp();
+        std::os::unix::fs::symlink(root.join("later/x.json"), root.join("auth/x.json")).unwrap();
+        let t = Targets {
+            config: root.join("auth/config.yaml"),
+            auth_dir: root.join("auth"),
+            files: Vec::new(),
+        };
+        let d = dirs(&t);
+        let top = d.iter().find(|d| d.path == root).expect("target's ancestor watched");
+        assert!(top.matters("later".as_ref()) && !top.content, "{d:?}");
         std::fs::remove_dir_all(root).unwrap();
     }
 
