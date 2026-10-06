@@ -11,7 +11,9 @@
 //! the top-level `*.json` auth files every 50 ms, hashing only files whose metadata
 //! changed or that were modified in the last two seconds (git's racy timestamp rule),
 //! until the change has been stable for 150 ms (config) or one tick (auth files) and is
-//! applied. While nothing changes it does no work and sets no timer.
+//! applied. While nothing changes it does no work and sets no timer. As in Go, changes
+//! made by another machine on a network or FUSE file system raise no event and are seen
+//! with the next local change.
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, PoisonError};
@@ -166,15 +168,14 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
                 .map(|data| <Hash>::from(Sha256::digest(data))),
         )
     };
-    let targets = |state: &Management, current: Option<&Snapshot>| Targets {
-        config: state.path.clone(),
-        auth_dir: state.rt.config().auth_dir.clone(),
-        files: current.map(|s| s.auth.keys().cloned().collect()).unwrap_or_default(),
-    };
     let first = targets(state, None);
     let state = Arc::downgrade(state);
     tokio::spawn(async move {
-        let mut events = Events::new(&first);
+        // Off the request threads: setup can block on a slow network path, and on
+        // Windows it waits for the watch thread. A panic leaves the 2-second poll.
+        let mut events = tokio::task::spawn_blocking(move || Events::new(&first))
+            .await
+            .unwrap_or_default();
         let mut cache = HashCache::default();
         // The state last reloaded; the first stable observation reloads once, as Go's
         // watcher reloads clients when it starts.
@@ -182,7 +183,8 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
         let mut observed: Option<Snapshot> = None;
         let mut since = Instant::now();
         loop {
-            if applied.is_some() && applied == observed {
+            let woke = applied.is_some() && applied == observed;
+            if woke {
                 events.changed().await;
             } else {
                 tokio::time::sleep(TICK).await;
@@ -190,17 +192,26 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             let Some(state) = state.upgrade() else {
                 return;
             };
-            let (snapshot, returned) = tokio::task::spawn_blocking({
+            // After an event, retarget before looking: a file that lands before the new
+            // watch exists shows up in this look, and one that lands after raises an
+            // event. Cost per wake: a few watch calls (one stat per watched file on
+            // macOS), on the blocking pool.
+            let wake_targets = woke.then(|| targets(&state, observed.as_ref()));
+            let (snapshot, returned, returned_events) = tokio::task::spawn_blocking({
                 let state = state.clone();
                 move || {
+                    if let Some(t) = wake_targets {
+                        events.retarget(&t);
+                    }
                     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
                     let snapshot = observe(&state, &mut cache);
-                    (snapshot, cache)
+                    (snapshot, cache, events)
                 }
             })
             .await
             .unwrap_or_default();
             cache = returned;
+            events = returned_events;
             if observed.as_ref() != Some(&snapshot) {
                 observed = Some(snapshot);
                 since = Instant::now();
@@ -208,9 +219,6 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             }
             let Some(current) = observed.clone() else { continue };
             if applied.as_ref() == Some(&current) {
-                // Nothing to reload, but the event may have been a missing auth folder
-                // appearing (empty), which the watch must now follow.
-                events.retarget(&targets(&state, Some(&current)));
                 continue;
             }
             let config_changed = applied.as_ref().map_or(initial_hash, |a| a.config) != current.config;
@@ -227,11 +235,29 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
                     tracing::info!("config file changed, reloading: {}", state.path.display());
                 }
             }
-            let loaded = tokio::task::spawn_blocking({
+            // The reload may move auth-dir, and new auth files need their own watches on
+            // macOS: retarget after it, on the same blocking thread. A change that lands
+            // before a new watch exists is caught by the extra look `Events` then makes.
+            let reloaded = tokio::task::spawn_blocking({
                 let state = state.clone();
-                move || reload_config(&state, read_config)
+                let current = current.clone();
+                move || {
+                    let loaded = reload_config(&state, read_config);
+                    events.retarget(&targets(&state, Some(&current)));
+                    (loaded, events)
+                }
             })
             .await;
+            let loaded = match reloaded {
+                Ok((loaded, returned)) => {
+                    events = returned;
+                    Ok(loaded)
+                }
+                Err(e) => {
+                    events = Events::default();
+                    Err(e)
+                }
+            };
             if let Some(before) = &applied {
                 let accepted = matches!(loaded, Ok(Ok(Some(_))));
                 persist_changes(&state, before, &current, config_changed && accepted);
@@ -258,10 +284,19 @@ pub fn start(state: &Arc<Management>) -> tokio::task::JoinHandle<()> {
             }
             // Applied once either way: a failed config load retries on its next change,
             // as Go retries on its next file event, rather than every tick.
-            events.retarget(&targets(&state, Some(&current)));
             applied = Some(current);
         }
     })
+}
+
+/// What the watch should cover: the config file, the auth folder of the published
+/// config, and the auth files last seen there.
+fn targets(state: &Management, current: Option<&Snapshot>) -> Targets {
+    Targets {
+        config: state.path.clone(),
+        auth_dir: state.rt.config().auth_dir.clone(),
+        files: current.map(|s| s.auth.keys().cloned().collect()).unwrap_or_default(),
+    }
 }
 
 /// Go `persistConfigAsync` / `persistAuthAsync`: with a remote store, what changed

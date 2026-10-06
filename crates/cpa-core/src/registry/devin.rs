@@ -775,6 +775,8 @@ impl Store {
         inner.models = models;
         inner.raw = data.to_vec();
         inner.revision += 1;
+        // Registries built from the previous Devin models are stale now.
+        super::GENERATION.fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         Ok(true)
     }
 

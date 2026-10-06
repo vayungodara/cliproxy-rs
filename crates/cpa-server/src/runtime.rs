@@ -455,8 +455,10 @@ impl Runtime {
         if let Some(previous) = task.take() {
             previous.abort();
         }
-        // Wakes at the next deadline, or at the latest after `HORIZON` while any
-        // credential could come due, to catch wall-clock jumps such as a resumed laptop.
+        // Wakes at the next deadline, or at the latest after `HORIZON` of awake time while
+        // a credential can ever come due, to catch wall-clock jumps such as a resumed
+        // laptop (monotonic time stops during suspend). Credentials that never need
+        // preparation (API keys, Gemini CLI tokens) set no timer.
         const HORIZON: Duration = Duration::from_secs(600);
         // Store changes (each committed refresh is one) are coalesced over this delay.
         const COALESCE: Duration = Duration::from_secs(1);
@@ -482,8 +484,12 @@ impl Runtime {
                     let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
                     state.reconcile(&snapshot);
                     let mut jobs = Vec::new();
+                    // Far enough ahead that any expiry has passed, near enough for chrono.
+                    let eventually = wall + chrono::Duration::days(36_500);
                     for c in snapshot.iter().filter(|c| refresh_candidate(c)) {
-                        soonest(now + HORIZON);
+                        if rt.executors.needs_prepare_at(c, &cfg, eventually) {
+                            soonest(now + HORIZON);
+                        }
                         match rt.executors.prepare_due(c, &cfg, wall, horizon) {
                             Some(at) if at > wall => soonest(now + (at - wall).to_std().unwrap_or_default()),
                             Some(_) if state.reserve(c, now) => jobs.push(c.clone()),

@@ -426,6 +426,11 @@ pub async fn responses(
     };
     // Go `prepareCodexMultiAgentV2Tools` then `prepareCodexOrphanDelegation`.
     let settings = cpa_common::codex_client::Settings::for_responses_handler(&rt.config());
+    // The spawn_agent model list comes from the Codex client catalog.
+    // Cost: one header check, then one `Once` check, per request.
+    if cpa_common::codex_client::multi_agent_client(&headers, settings.optimize_multi_agent_v2) {
+        crate::model_updater::codex_client_catalog_wanted(&rt);
+    }
     let body = Bytes::from(cpa_common::codex_client::prepare_responses_request(
         &headers, &body, &settings,
     ));

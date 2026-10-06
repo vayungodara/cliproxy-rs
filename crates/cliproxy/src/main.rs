@@ -423,20 +423,23 @@ fn discover_options(
     }
 }
 
-/// Blocking-pool ceiling (tokio's default is 512). Threads start only on demand and exit
-/// after tokio's 10 s keep-alive, so this bounds bursts, not idle. Native plugin calls
-/// each hold one for the whole call and may wait on callbacks that need another, so the
-/// ceiling stays well above any realistic number of concurrent plugin calls.
-const MAX_BLOCKING_THREADS: usize = 64;
-
 /// A personal proxy spends its time waiting on upstreams, so two workers serve hundreds
-/// of requests per second, and each extra worker can hold its own glibc arena.
+/// of requests per second, and each extra worker can hold its own glibc arena. The
+/// blocking pool keeps tokio's default ceiling (512): its threads start on demand and
+/// exit after 10 idle seconds, and a native plugin call holds one for the whole call
+/// while its HTTP callbacks need others (DNS), so a low ceiling could deadlock.
 fn runtime(config: Option<&Path>) -> io::Result<tokio::runtime::Runtime> {
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(worker_threads(config))
-        .max_blocking_threads(MAX_BLOCKING_THREADS)
         .enable_all()
         .build()
+}
+
+/// `worker-threads` as written in `path`, if any.
+fn configured_workers(path: &Path) -> Option<u64> {
+    let raw = std::fs::read(path).ok()?;
+    let doc = serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(&raw).ok()?;
+    doc.get("worker-threads")?.as_u64()
 }
 
 /// `TOKIO_WORKER_THREADS`, else `worker-threads` in `config` (read once at start), else
@@ -449,11 +452,7 @@ fn worker_threads(config: Option<&Path>) -> usize {
             None => tracing::warn!("ignoring TOKIO_WORKER_THREADS={raw:?}: not a positive number"),
         }
     }
-    let configured = config
-        .and_then(|path| std::fs::read(path).ok())
-        .and_then(|raw| serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(&raw).ok())
-        .and_then(|doc| doc.get("worker-threads").and_then(serde_yaml_ng::Value::as_u64))
-        .and_then(positive);
+    let configured = config.and_then(configured_workers).and_then(positive);
     configured.unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get().min(2)))
 }
 
@@ -644,8 +643,10 @@ fn main() -> anyhow::Result<()> {
 /// process stays near its peak size while most of that memory is free. `malloc_trim`
 /// hands the free pages of every arena back. Trimming under load costs page faults on
 /// the next requests, so it runs once the process goes quiet (under 50 ms of CPU in five
-/// seconds), and at least once a minute while busy. With no requests the task parks:
-/// no timer, no wakeup. See docs/BENCHMARKS.md (Claude soak).
+/// seconds), and at least once a minute while busy. It trims once after startup, then
+/// parks until a response ends: with no requests, no timer and no wakeup. The trim
+/// itself runs on the blocking pool, off the two request threads. See
+/// docs/BENCHMARKS.md (Claude soak).
 ///
 /// Cost per request: the response body is boxed once more, and its drop does one
 /// atomic load (plus a wakeup when the task is parked).
@@ -675,8 +676,6 @@ mod heap_trim {
 
     pub async fn run() {
         loop {
-            PARKED.store(true, Ordering::Release);
-            WAKE.notified().await;
             let (mut last, mut ticks) = (cpu_time(), 0);
             loop {
                 tokio::time::sleep(TICK).await;
@@ -685,14 +684,18 @@ mod heap_trim {
                 last = now;
                 ticks += 1;
                 if quiet || ticks >= MAX_GAP {
+                    // Milliseconds to tens of ms on a large heap: not on a request thread.
                     // SAFETY: malloc_trim only releases the allocator's own free memory.
-                    unsafe { libc::malloc_trim(0) };
+                    let _ = tokio::task::spawn_blocking(|| unsafe { libc::malloc_trim(0) }).await;
                     ticks = 0;
                 }
                 if quiet {
                     break;
                 }
             }
+            // A wake between these two lines is kept: `notify_one` stores a permit.
+            PARKED.store(true, Ordering::Release);
+            WAKE.notified().await;
         }
     }
 
@@ -795,6 +798,17 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
     if let Some(store) = &store {
         config.auth_dir = store.auth_dir.clone();
         tracing::info!("{}", store.enabled);
+    }
+    // The runtime was sized from -config (or ./config.yaml) before a store or Home could
+    // supply this file.
+    if (store.is_some() || home_config.is_some())
+        && let Some(n) = configured_workers(&config_path)
+        && usize::try_from(n).ok() != Some(tokio::runtime::Handle::current().metrics().num_workers())
+    {
+        tracing::warn!(
+            "worker-threads in {} is ignored: it is read only from -config/./config.yaml; set TOKIO_WORKER_THREADS",
+            config_path.display()
+        );
     }
     let config_present = match &home_config {
         // Go: `configFileExists = cfg.Port != 0` for a config loaded from Home.
@@ -1153,6 +1167,26 @@ fn standalone_base_url((addr, tls): (SocketAddr, bool)) -> Result<String, String
     Ok(format!("http://{}", SocketAddr::new(ip, addr.port())))
 }
 
+/// Go `Service.ensureAuthDir`.
+fn ensure_auth_dir(dir: &Path) -> anyhow::Result<()> {
+    match std::fs::metadata(dir) {
+        Ok(meta) if meta.is_dir() => Ok(()),
+        Ok(_) => anyhow::bail!("cliproxy: auth path exists but is not a directory: {}", dir.display()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            let mut builder = std::fs::DirBuilder::new();
+            builder.recursive(true);
+            #[cfg(unix)]
+            std::os::unix::fs::DirBuilderExt::mode(&mut builder, 0o755);
+            builder
+                .create(dir)
+                .with_context(|| format!("cliproxy: failed to create auth directory {}", dir.display()))?;
+            tracing::info!("created missing auth directory: {}", dir.display());
+            Ok(())
+        }
+        Err(e) => Err(e).with_context(|| format!("cliproxy: error checking auth directory {}", dir.display())),
+    }
+}
+
 /// `listening` (standalone TUI only) receives the bound address and whether TLS is on.
 #[allow(clippy::too_many_arguments)]
 async fn serve(
@@ -1168,6 +1202,11 @@ async fn serve(
 ) -> anyhow::Result<()> {
     if config.api_keys.is_empty() && home_config.is_none() {
         tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
+    }
+    // Go `ensureAuthDir`: outside Home mode a missing auth-dir is created, so the
+    // watcher has a folder to watch for the first login.
+    if home_config.is_none() {
+        ensure_auth_dir(&config.auth_dir)?;
     }
     // Auth-dir files and config API keys, synthesized as Go's watcher does. Home mode
     // runs on credentials Home dispatches per request.

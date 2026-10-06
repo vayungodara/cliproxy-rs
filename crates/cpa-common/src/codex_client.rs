@@ -115,7 +115,9 @@ fn folds_to_ascii(value: &str, ascii: &str) -> bool {
         .eq(ascii.chars().map(|c| c.to_ascii_lowercase()))
 }
 
-fn multi_agent_client(headers: &HeaderMap, enabled: bool) -> bool {
+/// Whether `prepare_tools` rewrites this request: the setting is on and the caller is
+/// an official Codex client.
+pub fn multi_agent_client(headers: &HeaderMap, enabled: bool) -> bool {
     enabled && is_codex_client_user_agent(&header(headers, "user-agent"))
 }
 
