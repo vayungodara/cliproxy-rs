@@ -4,8 +4,11 @@
 //! allocator untouched) records live bytes and allocation calls while one streamed
 //! `/v1/messages` request of about 306 KB, then one of about 1.9 MB, goes from a
 //! client through the router to a local fake Anthropic upstream and back. The request
-//! body is built before counting starts and handed to the router directly, so only the
-//! proxy and the fake upstream allocate during the window. The ceilings are the
+//! body is built before counting starts and handed to the router directly. The fake
+//! upstream runs on its own thread and runtime, which the allocator does not count:
+//! hyper sizes its read buffers from how much the previous read returned, so the
+//! upstream's allocations depend on scheduling, not on the proxy. Each size is sent
+//! three times and gated on the smallest peak and call count. The ceilings are the
 //! `alloc.*` lines of `bench/budgets.txt`; the measured values are printed so a change
 //! can update them with a dated note.
 
@@ -30,12 +33,21 @@ static PEAK: AtomicUsize = AtomicUsize::new(0);
 static CALLS: AtomicUsize = AtomicUsize::new(0);
 static COUNTING: AtomicBool = AtomicBool::new(false);
 
+thread_local! {
+    /// Set on the fake upstream's thread. `const`, so reading it never allocates.
+    static UNCOUNTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+fn counted() -> bool {
+    !UNCOUNTED.try_with(std::cell::Cell::get).unwrap_or(false)
+}
+
 // SAFETY: every call is forwarded to the system allocator unchanged; the counters are
 // plain atomics and never allocate.
 unsafe impl GlobalAlloc for Counting {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let p = unsafe { System.alloc(layout) };
-        if !p.is_null() {
+        if !p.is_null() && counted() {
             grow(layout.size());
         }
         p
@@ -43,12 +55,14 @@ unsafe impl GlobalAlloc for Counting {
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
         unsafe { System.dealloc(ptr, layout) };
-        LIVE.fetch_sub(layout.size(), Ordering::Relaxed);
+        if counted() {
+            LIVE.fetch_sub(layout.size(), Ordering::Relaxed);
+        }
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         let p = unsafe { System.realloc(ptr, layout, new_size) };
-        if !p.is_null() {
+        if !p.is_null() && counted() {
             LIVE.fetch_sub(layout.size(), Ordering::Relaxed);
             grow(new_size);
         }
@@ -142,12 +156,22 @@ fn budget(key: &str) -> usize {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn large_claude_requests_stay_within_their_heap_budget() {
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    // The fake upstream: its own thread and single-threaded runtime, not counted.
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    listener.set_nonblocking(true).unwrap();
     let upstream_url = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move {
-        axum::serve(listener, axum::Router::new().fallback(upstream))
-            .await
-            .unwrap()
+    std::thread::spawn(move || {
+        UNCOUNTED.with(|u| u.set(true));
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        runtime.block_on(async move {
+            let listener = tokio::net::TcpListener::from_std(listener).unwrap();
+            axum::serve(listener, axum::Router::new().fallback(upstream))
+                .await
+                .unwrap()
+        });
     });
     let dir: PathBuf = std::env::temp_dir().join(format!("cpa-alloc-budget-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -196,14 +220,17 @@ async fn large_claude_requests_stay_within_their_heap_budget() {
         let body = conversation(target);
         // Warm-up: connection pool, registries and lazy statics.
         send(body.clone()).await;
-        let base = LIVE.load(Ordering::Relaxed);
-        PEAK.store(base, Ordering::Relaxed);
-        CALLS.store(0, Ordering::Relaxed);
-        COUNTING.store(true, Ordering::Relaxed);
-        send(body.clone()).await;
-        COUNTING.store(false, Ordering::Relaxed);
-        let peak = PEAK.load(Ordering::Relaxed).saturating_sub(base);
-        let calls = CALLS.load(Ordering::Relaxed);
+        let (mut peak, mut calls) = (usize::MAX, usize::MAX);
+        for _ in 0..3 {
+            let base = LIVE.load(Ordering::Relaxed);
+            PEAK.store(base, Ordering::Relaxed);
+            CALLS.store(0, Ordering::Relaxed);
+            COUNTING.store(true, Ordering::Relaxed);
+            send(body.clone()).await;
+            COUNTING.store(false, Ordering::Relaxed);
+            peak = peak.min(PEAK.load(Ordering::Relaxed).saturating_sub(base));
+            calls = calls.min(CALLS.load(Ordering::Relaxed));
+        }
         let (peak_max, calls_max) = (
             budget(&format!("alloc.{name}.peak_bytes")),
             budget(&format!("alloc.{name}.allocations")),

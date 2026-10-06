@@ -764,6 +764,11 @@ async fn session_close_closes_unclaimed_tunnels() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn relays_over_ipv6() {
     if std::net::UdpSocket::bind((std::net::Ipv6Addr::LOCALHOST, 0)).is_err() {
+        // CI sets CPA_TEST_NO_SKIP: the harness hides a passing test's output.
+        assert!(
+            std::env::var_os("CPA_TEST_NO_SKIP").is_none(),
+            "relays_over_ipv6: this host cannot bind UDP on ::1, and CPA_TEST_NO_SKIP is set"
+        );
         eprintln!("skipping relays_over_ipv6: this host cannot bind UDP on ::1");
         return;
     }

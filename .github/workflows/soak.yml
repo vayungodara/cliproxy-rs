@@ -18,6 +18,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
+  # One exact compiler for every job: the size and allocation budgets are exact numbers
+  # from one compiler and std. Bumping it means re-measuring bench/budgets.txt.
+  RUST_TOOLCHAIN: "1.99.0"
 
 jobs:
   soak:
@@ -29,7 +32,7 @@ jobs:
       - name: Build tools
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
       - name: Rust
-        run: rustup toolchain install stable --profile minimal && rustup default stable
+        run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
       - uses: actions/setup-go@v7
         with:
           go-version: stable
@@ -43,6 +46,7 @@ jobs:
         env:
           MINUTES: ${{ inputs.minutes || '60' }}
         run: |
+          [[ $MINUTES =~ ^[1-9][0-9]{0,2}$ ]] || { echo "::error::minutes must be a positive whole number"; exit 1; }
           if (( MINUTES > 330 )); then MINUTES=330; fi
           go build -o soak/bin/messages bench/messages/main.go
           bench/soak.sh target/release/cliproxy "$MINUTES" soak

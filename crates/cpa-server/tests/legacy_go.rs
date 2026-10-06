@@ -408,6 +408,12 @@ async fn v0_saves_like_go_persist_locked() {
             let text = res.text().await.unwrap();
             assert!(text.starts_with(r#"{"error":"failed to save config: "#), "{text}");
         }
+    } else {
+        // CI sets CPA_TEST_NO_SKIP: a run as root must not pass without the check.
+        assert!(
+            std::env::var_os("CPA_TEST_NO_SKIP").is_none(),
+            "file permissions are not enforced (running as root?), and CPA_TEST_NO_SKIP is set"
+        );
     }
     std::fs::set_permissions(&path, writable).unwrap();
     server.abort();
