@@ -644,7 +644,7 @@ fn main() -> anyhow::Result<()> {
 /// hands the free pages of every arena back. Trimming under load costs page faults on
 /// the next requests, so it runs once the process goes quiet (under 50 ms of CPU in five
 /// seconds), and at least once a minute while busy. It trims once after startup, then
-/// parks until a response ends: with no requests, no timer and no wakeup. The trim
+/// parks until a response or a WebSocket turn ends: with no requests, no timer and no wakeup. The trim
 /// itself runs on the blocking pool, off the two request threads. See
 /// docs/BENCHMARKS.md (Claude soak).
 ///
@@ -653,7 +653,6 @@ fn main() -> anyhow::Result<()> {
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 mod heap_trim {
     use std::pin::Pin;
-    use std::sync::atomic::{AtomicBool, Ordering};
     use std::task::{Context, Poll};
     use std::time::Duration;
 
@@ -662,9 +661,6 @@ mod heap_trim {
     const TICK: Duration = Duration::from_secs(5);
     const QUIET: Duration = Duration::from_millis(50);
     const MAX_GAP: u32 = 12;
-
-    static PARKED: AtomicBool = AtomicBool::new(false);
-    static WAKE: tokio::sync::Notify = tokio::sync::Notify::const_new();
 
     fn cpu_time() -> Duration {
         // SAFETY: getrusage writes only into the struct it is given.
@@ -693,9 +689,7 @@ mod heap_trim {
                     break;
                 }
             }
-            // A wake between these two lines is kept: `notify_one` stores a permit.
-            PARKED.store(true, Ordering::Release);
-            WAKE.notified().await;
+            cpa_common::idle::park().await;
         }
     }
 
@@ -731,9 +725,7 @@ mod heap_trim {
 
     impl Drop for Done {
         fn drop(&mut self) {
-            if PARKED.load(Ordering::Relaxed) && PARKED.swap(false, Ordering::AcqRel) {
-                WAKE.notify_one();
-            }
+            cpa_common::idle::activity();
         }
     }
 }
@@ -799,15 +791,22 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
         config.auth_dir = store.auth_dir.clone();
         tracing::info!("{}", store.enabled);
     }
-    // The runtime was sized from -config (or ./config.yaml) before a store or Home could
-    // supply this file.
+    // The runtime was sized from -config (or ./config.yaml) before a store or Home
+    // supplied the config it now runs on.
     if (store.is_some() || home_config.is_some())
-        && let Some(n) = configured_workers(&config_path)
+        && std::env::var_os("TOKIO_WORKER_THREADS").is_none()
+        && let Some(n) = config
+            .document
+            .get("worker-threads")
+            .and_then(serde_yaml_ng::Value::as_u64)
         && usize::try_from(n).ok() != Some(tokio::runtime::Handle::current().metrics().num_workers())
     {
+        let source = match &home_config {
+            Some(_) => "the config Home supplies".to_owned(),
+            None => config_path.display().to_string(),
+        };
         tracing::warn!(
-            "worker-threads in {} is ignored: it is read only from -config/./config.yaml; set TOKIO_WORKER_THREADS",
-            config_path.display()
+            "worker-threads in {source} is ignored: it is read only from -config/./config.yaml; set TOKIO_WORKER_THREADS"
         );
     }
     let config_present = match &home_config {

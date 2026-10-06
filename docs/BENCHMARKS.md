@@ -290,7 +290,7 @@ Measured on 2026-10-06 on Linux, to see what a server costs while nobody uses it
 - A virtual machine with 4 vCPUs (Intel Xeon at 2.60 GHz) and 7.8 GB of memory, running Debian 12 (glibc 2.36) with Linux 6.1.
 - cliproxy-rs master at `1849512`, and the change that replaces the polling loops with file change notifications and deadline timers and starts two request threads by default. Both are release builds made with rustc 1.99.0 on that machine.
 - [`bench/idle.sh`](../bench/idle.sh) runs each server in a loopback-only network namespace with one OpenAI-compatible API key, one client key and 1 or 2,000 Claude credential files whose tokens are valid for 30 days, so none is due for refresh. Without `-local-model`, so the catalog downloads at start are attempted (and fail at once, with no network).
-- After a 20-second warm-up without requests, which lets the blocking pool's 10-second keep-alive expire, it sums the context switches of every thread alive across the next 30 seconds from `/proc/<pid>/task/*/status` (each one is a thread waking up), and reads the CPU ticks (1/100 s), the thread count at both ends and `VmRSS`. A thread that exits inside the window makes the run fail, since its wakeups would go uncounted.
+- After a 30-second warm-up without requests, which outlasts the startup heap trim (5 to 10 seconds after start, on the blocking pool) and the pool's 10-second keep-alive, it sums the context switches of every thread alive across the next 30 seconds from `/proc/<pid>/task/*/status` (each one is a thread waking up), and reads the CPU ticks (1/100 s), the thread count at both ends and `VmRSS`. A thread that exits inside the window makes the run fail, since its wakeups would go uncounted.
 
 ```sh
 bench/idle.sh target/release/cliproxy 1 30
@@ -303,16 +303,16 @@ Median of three rounds.
 
 | Server | Auth files | Wakeups in 30 s | CPU ticks in 30 s | Threads | RSS (MB) |
 | --- | --- | --- | --- | --- | --- |
-| master | 1 | 2,906 (97 a second) | 14 | 8 to 10 | 20.8 |
-| this change | 1 | 0 | 0 | 3 | 19.5 |
-| master | 2,000 | 1,181 | 3,003 (a whole core) | 9 to 11 | 74.4 |
-| this change | 2,000 | 0 | 0 | 3 | 69.2 |
+| master | 1 | 2,901 (97 a second) | 18 | 8 to 12 | 21.2 |
+| this change | 1 | 0 | 0 | 3 | 19.7 |
+| master | 2,000 | 1,109 | 3,005 (a whole core) | 9 to 10 | 71.3 |
+| this change | 2,000 | 0 | 0 | 3 | 70.2 |
 
 - master's config watcher looked at every file 20 times a second. With 2,000 auth files that kept one core busy all the time; with one file it cost about 0.6% of a core. Each look went through the blocking thread pool, so it woke several threads. Smaller loops ran too: the 5-second refresh scan, the 1-second discovery check and the heap-trim thread's 5-second tick.
-- With this change no thread woke up in any 30-second window, with 1 or 2,000 files. The watcher sleeps until the kernel reports a change, the refresh loop until the next token is due (at most 10 minutes, to catch clock jumps), the discovery task until the config changes, and the heap trim until a request ends; the 3-hour catalog refresh, and the 15-second advertisement refresh when discovery is on, still run. A blocking-pool thread exits 10 seconds after its last file or DNS task.
-- Threads drop from 8 to 11 (four request threads on this 4-vCPU machine, a heap-trim thread and blocking-pool threads that the watcher kept alive) to 3: the main thread and two request threads. The count was the same at both ends of every window, and no thread exited inside one.
+- With this change no thread woke up in any 30-second window, with 1 or 2,000 files. The watcher sleeps until the kernel reports a change, the refresh loop until the next token is due (at most 10 minutes, to catch clock jumps), the discovery task until the config changes, and the heap trim, after one trim at startup, until a response or WebSocket turn ends; the 3-hour catalog refresh, and the 15-second advertisement refresh when discovery is on, still run. A blocking-pool thread exits 10 seconds after its last file or DNS task.
+- Threads drop from 8 to 12 (four request threads on this 4-vCPU machine, a heap-trim thread and blocking-pool threads that the watcher kept alive) to 3: the main thread and two request threads. The count was the same at both ends of every window, and no thread exited inside one.
 - Idle memory with one file is unchanged within the noise of these runs. The 2,000 credentials themselves cost about 50 MB on either build.
-- The change adds 100 KB of `.text` and 4 KB of `.rodata`; the binary grows from 40,162,216 to 40,292,936 bytes (0.3%). (This build also carries current master's other changes since `1849512`, so part of the growth is theirs.)
+- The change adds 112 KB of `.text` and 4 KB of `.rodata`; the binary grows from 40,162,216 to 40,307,912 bytes (0.4%). (This build also carries current master's other changes since `1849512`, so part of the growth is theirs.)
 - Raw results: [`bench/results/2026-10-06-idle.jsonl`](../bench/results/2026-10-06-idle.jsonl).
 
 ### Two request threads under load
