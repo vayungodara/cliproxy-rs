@@ -8,6 +8,8 @@ On 2026-10-05, a personal install in daily use ran at 75 to 101 MB RSS. That rea
 
 The 17.3 MB idle result below is from a fresh 0.1.0 process with no connected accounts and small synthetic requests. An earlier 647 MB field report prompted the [Claude soak](#claude-soak-large-prompts-and-memory), which measured retained memory after larger requests but did not reproduce that report. Keep those cases separate when comparing memory.
 
+A later field report from 0.2.0, serving Claude and Codex with 1 to 2 MB prompts, showed a resting floor that rose from 26 to 89 MB over 7 hours and peaks of 300 to 400 MB. It prompted the [field mix](#field-mix-claude-codex-and-count_tokens) soak, in which two copies of the same tokenizer, about 94 MB, made up most of 0.2.0's resting RSS of 128 to 145 MB.
+
 ## Setup
 
 Measured on 2026-10-03.
@@ -173,6 +175,89 @@ Large prompts (1.9 MB requests), one round.
 - 30 seconds after the load it holds 29 MB against master's 45 to 50 MB and Go's 80 to 82 MB. Peak RSS barely moved (63 to 64 MB against 66 to 67 MB): the peak is the requests in flight, and trimming only returns what they leave behind.
 - With 1.9 MB prompts master was more than three times slower than Go to first byte; this change's TTFB p50 is 40% lower than Go's, and it holds 43 MB after the run against Go's 184 MB and master's 158 MB.
 - Raw results, including the allocator and trim comparisons: [`bench/results/2026-10-04-messages.jsonl`](../bench/results/2026-10-04-messages.jsonl). The `session` field groups runs that were measured together.
+
+## Field mix: Claude, Codex and count_tokens
+
+Measured on 2026-10-06, after a field report from a Linux server (glibc, 2 request threads) that served a coding agent's Claude and Codex traffic, with 1 to 2 MB prompts, on 0.2.0. A sampler read `/proc` once a minute; by hour after start:
+
+| Hour | RSS min / median / max (MB) | `VmHWM` (MB) |
+| --- | --- | --- |
+| 0 | 26 / 31 / 54 | 148 |
+| 1 | 29 / 47 / 100 | 148 |
+| 2 | 39 / 64 / 82 | 148 |
+| 3 | 33 / 54 / 73 | 148 |
+| 4 | 52 / 77 / 315 | 395 |
+| 5 | 66 / 66 / 214 | 403 |
+| 6 | 89 / 91 / 202 | 438 |
+| 7 | 89 / 89 / 405 | 439 |
+
+The floor (each hour's lowest sample) rose from 26 to 89 MB and the peaks reached 300 to 400 MB. These are field observations: the traffic, the config and the sampling cannot be reproduced on demand. The [Claude soak](#claude-soak-large-prompts-and-memory) never sent Codex requests, count_tokens or bodies over 500 KB, so it could not show this.
+
+### Setup
+
+- [`bench/soak.sh`](../bench/soak.sh) with `MIX=field`, in a loopback-only network namespace. [`bench/messages/`](../bench/messages) is the fake upstream for both providers and the load generator. The server has one Claude API key and one Codex API key whose `base-url` is the fake upstream; a Claude API key on another origin has its count_tokens counted locally, as an OAuth login does.
+- Load: 4 concurrent sessions, 2 Claude (streamed `/v1/messages`, shaped as in the Claude soak) and 2 Codex (streamed `/v1/responses` for `gpt-5.5` through the Codex executor: 18 KB of instructions, 24 function tools, then reasoning items with encrypted content, function calls and their outputs). Each conversation grows from 200 KB to 2 MB in 100 KB steps, then a new one starts; requests averaged 1,019 to 1,028 KB. Before every 4th Claude turn the same body goes to `/v1/messages/count_tokens`, alternately for the Claude model and for `gpt-5.5` (a Claude client counting tokens for a Codex model). The fake upstream reads the whole request and streams 150 events 2 ms apart for either provider.
+- Batches of 160 turns (about 178 requests with the count_tokens calls). After each batch the server rests 20 seconds and its `VmRSS` is read: the resting floor. `VmRSS`, `VmHWM`, threads, CPU ticks and context switches are also sampled every 10 seconds. After 60 minutes of load the server idles for 300 seconds, then its context switches are counted over 30 more seconds, as `bench/idle.sh` counts them.
+- Builds: the 0.1.2 and 0.2.0 release binaries (`cliproxy-<version>-x86_64-unknown-linux-gnu.tar.gz`, checked against each release's `SHA256SUMS`) and this change, built on the runner with rustc 1.99.0. Each ran on its own GitHub-hosted Ubuntu 22.04 runner (4 vCPUs, so 0.1.2 starts 4 request threads and the others 2), all three at the same time, through `soak.yml`'s `releases` input. MB here is 1,024 kB as `/proc` reports it.
+
+```sh
+MIX=field bench/soak.sh target/release/cliproxy 60 /tmp/soak-field
+```
+
+### Results
+
+60 minutes each; no request failed.
+
+| | 0.1.2 | 0.2.0 | This change |
+| --- | --- | --- | --- |
+| Requests (Claude / Codex / count_tokens) | 7,186 / 8,334 / 1,746 | 7,889 / 8,271 / 1,834 | 8,047 / 8,433 / 1,869 |
+| Resting RSS, lowest / highest (MB) | 132.3 / 157.9 | 128.2 / 145.4 | 80.6 / 97.6 |
+| Resting RSS, highest in the first / last third (MB) | 157.9 / 157.1 | 140.7 / 139.4 | 96.3 / 97.6 |
+| RSS every 10 s, median / highest (MB) | 180.2 / 222.4 | 165.1 / 212.8 | 105.7 / 150.9 |
+| Peak RSS (`VmHWM`, MB) | 233.2 | 220.1 | 169.0 |
+| Server CPU per request (ms), own runner | 89 | 47 | 31 |
+| Threads under load | 8 | 4 | 4 |
+| After 300 s idle: RSS (MB), wakeups in 30 s, threads | 144.6, 2,913, 8 | 138.3, 4, 3 | 93.0, 3, 3 |
+
+CPU per request depends on the machine, and each build had a runner of its own, so the CPU row does not compare the builds. On one machine (a virtual machine with 2 vCPUs, Intel Xeon at 2.60 GHz, and 3.8 GB of memory, running Debian 12 with glibc 2.36 and Linux 6.1, shared by the server and the load generator; 10 minutes of the same load per build, one after another), the tokenizer change made no difference to CPU, and the memory differences held:
+
+| Same machine, 10 minutes | 0.1.2 | 0.2.0 | This change (2 runs) |
+| --- | --- | --- | --- |
+| Server CPU per request (ms) | 68.2 | 43.1 | 42.9, 44.1 |
+| Resting `RssAnon` (MB) | 102.3 to 114.6 | 99.0 to 108.2 | 54.0 to 66.0, 54.4 to 62.5 |
+| Peak RSS (`VmHWM`, MB) | 199.0 | 204.7 | 158.7, 158.3 |
+
+- The resting floor stepped up once, in the first batch, and stayed flat for the hour on all three builds; none failed the soak's rule (the last third at most 10% plus 2 MB above the first). The step is the tokenizers below. Over the hour this load did not reproduce a slow climb like the field report's: there, Claude count_tokens, Codex count_tokens and Claude clients of Codex models may first have run hours apart, and each built its own tokenizer then.
+- Against 0.2.0, this change's resting RSS is 47.6 MB lower at its lowest and 47.8 MB lower at its highest, and its peak 51.1 MB lower.
+- 0.1.2 woke 2,913 times in 30 seconds after the load: its file watcher polled (see [Idle](#idle-wakeups-threads-and-memory)). Both later builds were back to 3 threads and 3 or 4 wakeups in 30 seconds.
+
+### What the heap held
+
+- Tokenizers, measured as the growth of `RssAnon` after a trim on a fresh server, one small request at a time: Claude count_tokens added 46.5 MB, Codex count_tokens for `gpt-5.5` 46.5 MB, for `gpt-4` 24.0 MB, and a Claude client's streamed request to `gpt-5.5` (whose `message_start` gets an o200k_base estimate of the request, as in Go) 47.1 MB: 164.1 MB of tokenizers on 0.2.0, and within 0.3 MB of that on 0.1.2. Five modules kept seven lazily built `tiktoken_rs::CoreBPE` statics between them (five o200k_base, two cl100k_base), each built and kept for good. With one shared encoder per encoding the same sequence adds 46.8, 0, 24.1 and 0.2 MB: 71.0 MB.
+- heaptrack, on master with line tables, after 200 field-mix turns, both count_tokens paths included: 67.1 MB was still allocated at exit, 63.8 MB of it two o200k_base encoders (31.9 MB each, one built by Claude count_tokens and one by Codex count_tokens) and 1.7 MB the tokenizer regex's caches. Everything else came to 1.7 MB, the largest being TLS root certificates (0.7 MB). Of the 31.9 MB per encoder, the encoder map and its keys are 9.6 MB, a decoder map and its values 9.6 MB, a sorted token list 5.9 MB and 128 per-thread copies of the regex 5.8 MB; counting never decodes. The 600,000 short token allocations at malloc's 32-byte minimum chunk make it 47 MB resident.
+- glibc held almost nothing back. `malloc_info` after the same load and 30 seconds idle: 31.5 MB free inside the arenas, already returned to the kernel by the server's heap trim, and 37.6 MB in five mmapped chunks (the encoders' hash tables). Calling `malloc_trim(0)` again through gdb changed `RssAnon` by 40 kB. The resting floor is live data.
+
+### What was checked and ruled out, or left
+
+- Duplicate tokenizers: confirmed, and fixed by sharing one lazily built encoder per encoding. Go tokenizes at the same places (`helps.CountClaudeInputTokens` for Claude count_tokens and the `message_start` estimate, which share one codec behind a `sync.Once`; Codex, Meta and xAI `CountTokens`; `TokenizerForModel` for OpenAI-compatible counts), so the counts need the real encoders. Nothing is built until a count needs one, and the first count waits for it (0.15 s for o200k_base, 0.06 s for cl100k_base). Claude and Codex traffic without count_tokens builds none: a first streamed Claude request and a first streamed Codex Responses request added about 0.5 MB each.
+- Unbounded maps: every map on these routes is bounded by an entry count, a time window or the open connections, and the hour above shows no climb. Two have bounds far above a few MB. The Codex reasoning replay, used only for Claude-format clients of Codex models, keeps up to 10,240 sessions of up to 256 turns each and drops expired ones only when they are read or at that cap (Go also purges them on a timer); a Responses client never fills it. The [LCP session matcher](../crates/cpa-server/src/lcp.rs) is the other. It is used only with session affinity on, for requests that carry no session ID, and it is bounded by entry counts (Go's), not bytes. Driven directly with four interleaved sessions and a counting allocator, 150-turn conversations at one request every 3 seconds held 60 MB after an hour and then 64 to 70 MB (its 1-hour TTL), and 300-turn conversations at one request a second reached its 262,144-prefix cap within 20 minutes at 86 MB. Left as is, with the numbers in a `ponytail:` note.
+- Fragmentation: ruled out for the resting floor (above). For peaks, glibc's dynamic mmap threshold lets body-sized buffers come from the arenas and stay resident until the next trim. On the 2-vCPU machine above (10 minutes of the field mix per setting, this change), a fixed `MALLOC_MMAP_THRESHOLD_` lowered the peak but cost CPU, and `MALLOC_ARENA_MAX=2` changed neither (the server and the load generator shared the 2 vCPUs, so CPU per request is higher than on the runners):
+
+  | Setting | Resting `RssAnon` (MB) | Highest `RssAnon` sample (MB) | Peak RSS (`VmHWM`, MB) | CPU per request (ms) |
+  | --- | --- | --- | --- | --- |
+  | glibc defaults, run 1 | 54.0 to 66.0 | 114.8 | 158.7 | 42.9 |
+  | glibc defaults, run 2 | 54.4 to 62.5 | 119.5 | 158.3 | 44.1 |
+  | `MALLOC_MMAP_THRESHOLD_=1048576` | 51.9 to 52.4 | 91.9 | 131.9 | 51.2 |
+  | `MALLOC_MMAP_THRESHOLD_=262144` | 52.0 to 52.2 | 84.9 | 124.7 | 56.1 |
+  | `MALLOC_ARENA_MAX=2` | 51.8 to 59.2 | 111.8 | 155.0 | 42.6 |
+
+  A 1 MiB threshold took 26.6 MB (17%) off the peak for 16 to 19% more CPU per request, and 256 KiB 33.8 MB for 27 to 31% more: every large buffer then comes from fresh, zeroed pages. The server sets none of these; `MALLOC_MMAP_THRESHOLD_` in its environment remains an option for anyone who would trade that CPU for the lower peak.
+- Peak per request: the Claude route peaks at 6.0x its body (11,083,177 bytes of live heap for a 1,843,825-byte request), count_tokens on the same body at 7.3x (13,530,973 bytes, in 1,630,109 allocations) and the Codex route at 8.8x (16,783,275 bytes for 1,916,052). `crates/cpa-server/tests/alloc_budget.rs` now gates all three. Codex request shaping rewrites the body pass by pass, each pass a new copy; walking it once is a larger change, left with its numbers in a `ponytail:` note in `crates/cpa-exec/src/codex_request.rs`.
+
+### Gates
+
+- `soak.yml` runs the field mix for an hour on every release tag and for 300 minutes every week, and fails if the resting RSS climbs (the rule above), if any request fails, or if `VmHWM` ends above `soak.field.peak_hwm_kb` in [`bench/budgets.txt`](../bench/budgets.txt) (this change's 169.0 MB plus 20%, which 0.2.0 exceeds).
+- Raw results: [`bench/results/2026-10-06-field.jsonl`](../bench/results/2026-10-06-field.jsonl), one `bench/soak.sh` summary per run. The `session` field groups them: `ci-runners-60min` (the three runners), `vm2-releases-10min` and `vm2-allocator-10min` (the 2-vCPU machine; the allocator runs name their setting in `env`, and the two without one are this change's same-machine runs), and `tokenizer-steps` (`RssAnon` in kB after each request on a fresh server).
 
 ## Claude latency: time added before the first byte
 
