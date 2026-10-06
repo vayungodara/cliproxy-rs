@@ -613,6 +613,11 @@ pub(crate) struct Trust {
     /// Exponent of the latest bounded window, which lasted `cap << window`. Kept after
     /// the window ends, so the next cut window doubles; a success clears it.
     pub window: Option<u32>,
+    /// The scheduler's generation when this bounded window opened or its probe was
+    /// reserved ([`Scheduler::reserve_probe`]). A lease picked before it holds an older
+    /// answer, which neither ends the window nor frees the reservation. Cost: four
+    /// bytes here and on each lease, one comparison per key a result touches.
+    pub generation: u32,
     /// The deadline is the bound's: a concurrent 429 inside it keeps it.
     pub bounded: bool,
     /// The upstream's stated reset behind a bounded deadline (Go's recovery time).
@@ -633,6 +638,14 @@ impl Cooldown {
         let live = (self.deadline > now).then_some(self.deadline);
         live.max(self.trust.probe.filter(|p| *p > now))
     }
+
+    /// A bounded window that opened, or had its probe reserved, after the lease picked
+    /// at generation `picked`: that lease's answer does not answer it.
+    fn newer_than(&self, picked: u32) -> bool {
+        // ponytail: a plain comparison, wrong for leases in flight when the counter wraps
+        // (after four billion windows and probes); serial-number arithmetic if it matters.
+        self.trust.bounded && self.trust.generation > picked
+    }
 }
 
 #[derive(Default)]
@@ -652,6 +665,9 @@ pub(crate) struct Scheduler {
     /// The live policy turned session affinity off: results of leases picked while it
     /// was on no longer bind anything (Go's replacement selector has no affinity).
     affinity_off: bool,
+    /// Bounded windows opened plus probes reserved; each lease carries the value at its
+    /// pick ([`Trust::generation`]).
+    generation: u32,
 }
 
 /// Go `cfg.OpenAICompatibility` for cooling: enabled entries with a base URL (Go
@@ -821,28 +837,39 @@ impl Scheduler {
         })
     }
 
-    /// The upstream accepted the attempt that probes `model` (a stream's first chunk):
-    /// the ended bounded window has its answer, so other picks may go through while
-    /// the stream runs. Only expired bounded entries change; their count stays until
-    /// the stream's own outcome is recorded. When the credential-wide window ended,
-    /// its copies on the credential's model keys are disarmed too. Cost: two lookups,
-    /// and a scan of the credential's keys only when its own window ended.
+    /// [`Self::accept_probe_picked`] for a lease picked just now.
+    #[cfg(test)]
     pub fn accept_probe(&mut self, c: &Credential, model: &str, now: Instant) {
+        self.accept_probe_picked(c, model, self.generation, now);
+    }
+
+    /// The upstream accepted the attempt that probes `model` (a stream's first chunk),
+    /// picked at generation `picked`: the ended bounded window has its answer, so other
+    /// picks may go through while the stream runs. Only expired bounded entries that
+    /// are not newer than the lease change; their count stays until the stream's own
+    /// outcome is recorded. When the credential-wide window ended, the model keys that
+    /// share its deadline (its copies) are disarmed too; a model's own window is not.
+    /// Cost: two lookups, and a scan of the cooldown table only when the credential-wide
+    /// window ended.
+    pub fn accept_probe_picked(&mut self, c: &Credential, model: &str, picked: u32, now: Instant) {
         let model = canonical_model(model);
-        let mut credential_wide = false;
+        let mut credential_window = None;
         for m in [model, ""] {
             if let Some(s) = self.cooldowns.get_mut(&(c.id.clone(), m.to_owned()))
                 && s.trust.bounded
                 && s.deadline <= now
+                && !s.newer_than(picked)
             {
                 s.trust.bounded = false;
                 s.trust.probe = None;
-                credential_wide |= m.is_empty();
+                if m.is_empty() {
+                    credential_window = Some(s.deadline);
+                }
             }
         }
-        if credential_wide {
+        if let Some(ended) = credential_window {
             for ((id, m), s) in &mut self.cooldowns {
-                if *id == c.id && !m.is_empty() && s.trust.bounded && s.deadline <= now {
+                if *id == c.id && !m.is_empty() && s.trust.bounded && s.deadline == ended {
                     s.trust.bounded = false;
                     s.trust.probe = None;
                 }
@@ -852,18 +879,23 @@ impl Scheduler {
 
     /// Reserves the probe of `c` for `model` when its pick ends a bounded window: until
     /// the probe's result is recorded (or [`PROBE_HOLD`] passes), the window's keys keep
-    /// cooling, so concurrent requests do not each go upstream. Cost per pick: two
-    /// lookups.
-    pub fn reserve_probe(&mut self, c: &Credential, model: &str, now: Instant) {
+    /// cooling, so concurrent requests do not each go upstream. Returns the generation
+    /// the pick's lease carries; a reservation takes a new one, so only its own lease's
+    /// result frees it. Cost per pick: two lookups.
+    pub fn reserve_probe(&mut self, c: &Credential, model: &str, now: Instant) -> u32 {
         let model = canonical_model(model);
+        let next = self.generation.wrapping_add(1);
         for m in [model, ""] {
             if let Some(s) = self.cooldowns.get_mut(&(c.id.clone(), m.to_owned()))
                 && s.trust.bounded
                 && s.deadline <= now
             {
                 s.trust.probe = now.checked_add(PROBE_HOLD);
+                s.trust.generation = next;
+                self.generation = next;
             }
         }
+        self.generation
     }
 
     /// Picks among ready candidates, each paired with its provider key (Go
@@ -1184,13 +1216,32 @@ impl Scheduler {
         policy.strategy != Strategy::WeightedRoundRobin || weight(c) > 0
     }
 
-    /// Applies one attempt's outcome (Go `MarkResult`).
+    /// [`Self::record_picked`] for an attempt picked just now.
+    #[cfg(test)]
     pub fn record(&mut self, c: &Credential, model: &str, outcome: &Outcome, policy: &Policy, now: Instant) {
+        self.record_picked(c, model, outcome, policy, self.generation, now);
+    }
+
+    /// Applies one attempt's outcome (Go `MarkResult`). `picked` is the generation its
+    /// lease was picked at ([`Self::reserve_probe`]): a bounded window or probe
+    /// reservation newer than that is not answered by it.
+    pub fn record_picked(
+        &mut self,
+        c: &Credential,
+        model: &str,
+        outcome: &Outcome,
+        policy: &Policy,
+        picked: u32,
+        now: Instant,
+    ) {
         let model = canonical_model(model);
         let key = (c.id.clone(), model.to_owned());
-        // Any answer ends a probe reservation on the keys it touches.
+        // Any answer ends a probe reservation on the keys it touches, except one taken
+        // after its lease was picked (a later probe's, once this one's hold lapsed).
         for m in [model, ""] {
-            if let Some(s) = self.cooldowns.get_mut(&(c.id.clone(), m.to_owned())) {
+            if let Some(s) = self.cooldowns.get_mut(&(c.id.clone(), m.to_owned()))
+                && !s.newer_than(picked)
+            {
                 s.trust.probe = None;
             }
         }
@@ -1201,17 +1252,27 @@ impl Scheduler {
                 if self.cooldowns.get(&global).is_some_and(|s| s.quota && s.deadline > now) {
                     return;
                 }
-                if self.cooldowns.get(&global).is_some_and(|s| s.deadline <= now) {
+                // A request that started before a bounded window opened leaves it for the
+                // window's own probe.
+                if let Some(ended) = self
+                    .cooldowns
+                    .get(&global)
+                    .filter(|s| s.deadline <= now && !s.newer_than(picked))
+                    .map(|s| s.deadline)
+                {
                     self.cooldowns.remove(&global);
                     // The credential recovered: model keys that a credential-wide window
-                    // escalated forget it too (their Go state is left as Go keeps it).
+                    // escalated forget it too (their Go state is left as Go keeps it). A
+                    // model's own ended bounded window still waits for its probe.
                     for ((id, _), s) in &mut self.cooldowns {
-                        if *id == c.id && s.deadline <= now {
+                        if *id == c.id && s.deadline <= now && (!s.trust.bounded || s.deadline == ended) {
                             s.trust = Trust::default();
                         }
                     }
                 }
-                self.cooldowns.remove(&key);
+                if !self.cooldowns.get(&key).is_some_and(|s| s.newer_than(picked)) {
+                    self.cooldowns.remove(&key);
+                }
                 return;
             }
             Outcome::Cancelled | Outcome::Neutral(_) => return,
@@ -1302,8 +1363,10 @@ impl Scheduler {
                         }
                         Some(match bound(stated, cap, prev_trust.window) {
                             Some((bound, window)) => {
+                                self.generation = self.generation.wrapping_add(1);
                                 trust = Trust {
                                     window: Some(window),
+                                    generation: self.generation,
                                     bounded: true,
                                     stated: now.checked_add(stated),
                                     probe: None,
@@ -1352,6 +1415,8 @@ impl Scheduler {
             && let Some(slot) = self.cooldowns.get_mut(&key).filter(|s| s.quota && s.trust.bounded)
         {
             slot.error = text;
+            // Go's level still counts a Cloudflare challenge (unchanged for other causes).
+            slot.level = level;
             return;
         }
         // Provenance follows the deadline: a longer earlier cooldown that stands keeps
@@ -1387,16 +1452,19 @@ impl Scheduler {
             // Go also records the failing model's own quota state (reason `quota`).
             if !model.is_empty() {
                 let own = (c.id.clone(), model.to_owned());
+                // `extend_siblings` above already took a live own key to the credential's
+                // deadline, unless it is longer or the model's own bounded window.
                 let own_deadline = self
                     .cooldowns
                     .get(&own)
                     .filter(|s| s.deadline > now)
-                    .map_or(deadline, |s| s.deadline.max(deadline));
+                    .map_or(deadline, |s| s.deadline);
                 let own_trust = self.cooldowns.get(&own).map(|s| s.trust).unwrap_or_default();
                 let own_window = own_trust.window;
                 let mut own_state = state(own_deadline);
                 if own_deadline != deadline {
-                    // The model's own longer deadline wins: its provenance goes with it.
+                    // The model's own window (longer, or bounded) wins: its provenance
+                    // goes with it.
                     own_state.trust = Trust {
                         probe: None,
                         ..own_trust
@@ -1411,7 +1479,11 @@ impl Scheduler {
     }
 
     /// Go's credential-scoped 429: live sibling model states become quota cooldowns
-    /// (`credential_quota`) lasting at least as long as the credential.
+    /// (`credential_quota`) lasting at least as long as the credential. A model's own
+    /// bounded window keeps its deadline: the credential's key holds the model until
+    /// the credential's probe anyway, and a copied deadline would follow the
+    /// credential's when an earlier reset moves it up, probing the model before its
+    /// own bound.
     fn extend_siblings(&mut self, c: &Credential, deadline: Instant, now: Instant) {
         let (level, trust) = self
             .cooldowns
@@ -1420,12 +1492,14 @@ impl Scheduler {
         for ((id, model), state) in &mut self.cooldowns {
             if *id == c.id && !model.is_empty() && state.deadline > now {
                 let window = state.trust.window.max(trust.window);
-                if deadline >= state.deadline {
-                    state.trust = Trust { probe: None, ..trust };
+                if !state.trust.bounded || state.deadline == deadline {
+                    if deadline >= state.deadline {
+                        state.trust = Trust { probe: None, ..trust };
+                    }
+                    state.deadline = state.deadline.max(deadline);
                 }
                 // A model further along its own escalation keeps its count.
                 state.trust.window = window;
-                state.deadline = state.deadline.max(deadline);
                 state.quota = true;
                 state.credential = true;
                 state.level = level;
@@ -1542,6 +1616,8 @@ impl Scheduler {
                 let stated = recover.filter(|r| *r > retry).map(|r| now + since(r));
                 let trust = Trust {
                     window: spent.checked_sub(1),
+                    // Older than any lease in flight: their answers still count.
+                    generation: 0,
                     bounded: stated.is_some(),
                     stated,
                     probe: None,
@@ -1557,6 +1633,7 @@ impl Scheduler {
                         bound,
                         Trust {
                             window: Some(window),
+                            generation: 0,
                             bounded: true,
                             stated: Some(now + since(at)),
                             probe: None,
@@ -2234,6 +2311,38 @@ mod tests {
         assert_eq!(entry(&s, &c, "a").trust.window, Some(0), "count kept");
     }
 
+    /// The credential's probe answers its window and the window's copies on model keys,
+    /// not a model's own window that ended unprobed before it: that model still gets a
+    /// probe of its own, after a streamed probe and after a plain success alike.
+    #[test]
+    fn a_credential_probe_leaves_a_models_own_ended_window() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        let start = Instant::now();
+        for streamed in [true, false] {
+            let mut s = Scheduler::default();
+            s.record(&c, "m", &hinted(FailureScope::Model, days), &p, start);
+            let opened = start + secs(H) + secs(MIN);
+            s.record(&c, "a", &hinted(FailureScope::Credential, days), &p, opened);
+            let end = opened + secs(H);
+            s.reserve_probe(&c, "b", end);
+            if streamed {
+                s.accept_probe(&c, "b", end);
+            } else {
+                s.record(&c, "b", &Outcome::Success, &p, end);
+            }
+            s.reserve_probe(&c, "a", end);
+            assert_eq!(s.wait(&c, "a", end), None, "streamed {streamed}: A's copy is answered");
+            s.reserve_probe(&c, "m", end);
+            assert_eq!(
+                s.wait(&c, "m", end),
+                Some(PROBE_HOLD),
+                "streamed {streamed}: m reserves its own probe"
+            );
+        }
+    }
+
     /// An earlier credential-wide reset moves up the model keys that inherited the
     /// window; an independent longer cooldown stands.
     #[test]
@@ -2252,6 +2361,38 @@ mod tests {
             assert_eq!(s.wait(&c, model, start), Some(secs(31 * MIN)), "{model}");
         }
         assert_eq!(s.wait(&c, "support", start), Some(secs(12 * H)));
+    }
+
+    /// A model's own bounded window that a credential-wide window covers keeps its own
+    /// probe time: an earlier credential reset moves the credential's probe up, never
+    /// the model's before its own bound, whether the credential's 429 came from another
+    /// model or from that one.
+    #[test]
+    fn an_earlier_credential_reset_never_moves_a_models_own_probe_earlier() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        let start = Instant::now();
+        let own_end = start + secs(H);
+        for failing in ["a", "m"] {
+            let mut s = Scheduler::default();
+            s.record(&c, "m", &hinted(FailureScope::Model, days), &p, start);
+            let opened = start + secs(30 * MIN);
+            s.record(&c, failing, &hinted(FailureScope::Credential, days), &p, opened);
+            let at = opened + secs(MIN);
+            s.record(&c, failing, &hinted(FailureScope::Credential, secs(10 * MIN)), &p, at);
+            let moved = at + secs(10 * MIN);
+            assert_eq!(
+                s.wait(&c, "other", moved),
+                None,
+                "{failing}: the credential's probe is due"
+            );
+            assert_eq!(
+                s.wait(&c, "m", moved),
+                Some(own_end - moved),
+                "{failing}: m waits for its own bound"
+            );
+        }
     }
 
     /// Provenance follows the winning deadline: the failing model's own longer bounded
@@ -2334,6 +2475,24 @@ mod tests {
         assert_eq!(saved.quota.next_recover_at, Some(wall + days));
         assert_eq!(saved.quota.trust_windows, Some(1));
         assert_eq!(saved.reason, "quota");
+    }
+
+    /// A Cloudflare challenge from a request already in flight inside a live bounded
+    /// window leaves the window as it is but still raises Go's level, as Go does.
+    #[test]
+    fn a_cloudflare_challenge_inside_a_bounded_window_raises_the_level() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let start = Instant::now();
+        let mut s = Scheduler::default();
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(6 * 24 * H)), &p, start);
+        let challenge = Outcome::Failure(ExecError::local(403, FailureScope::Model, "cloudflare challenge"));
+        for (n, level) in [(1, 1), (2, 2)] {
+            s.record(&c, "m", &challenge, &p, start + secs(n * MIN));
+            assert_eq!(entry(&s, &c, "m").level, level);
+            assert_eq!(s.wait(&c, "m", start), Some(secs(H)), "the window stands");
+            assert!(entry(&s, &c, "m").trust.bounded);
+        }
     }
 
     /// `.cds` records: the probe time is the retry, the stated reset Go's recovery time,
