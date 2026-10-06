@@ -334,15 +334,38 @@ function Get-CliproxyProbe($config) {
   [pscustomobject]@{ Address = $address; Port = $port; Tls = $tls; Base = "${scheme}://${urlHost}:$port" }
 }
 
-# True when the server answers: GET /healthz over HTTP, or a TCP connect with TLS on, because
-# Windows PowerShell 5.1 cannot skip certificate checks for one request.
+# Both schemes must answer GET /healthz. The certificate exception is confined
+# to this local HTTPS request, including on Windows PowerShell 5.1.
 function Test-CliproxyUp($probe) {
   if (-not $probe.Tls) {
     try { return (Invoke-WebRequest -Uri "$($probe.Base)/healthz" -UseBasicParsing -TimeoutSec 2).StatusCode -eq 200 } catch { return $false }
   }
-  $ip = $null
-  $client = if ([Net.IPAddress]::TryParse($probe.Address, [ref]$ip)) { New-Object Net.Sockets.TcpClient($ip.AddressFamily) } else { New-Object Net.Sockets.TcpClient }
-  try { return $client.ConnectAsync($probe.Address, $probe.Port).Wait(2000) -and $client.Connected } catch { return $false } finally { $client.Dispose() }
+  if (-not ('CliproxyInstallerLocalCertificate' -as [type])) {
+    # A PowerShell scriptblock delegate needs a runspace on the TLS callback
+    # thread. A managed delegate works on both Windows PowerShell and pwsh.
+    Add-Type @'
+using System.Net.Security;
+public static class CliproxyInstallerLocalCertificate {
+  public static readonly RemoteCertificateValidationCallback Accept = (sender, certificate, chain, errors) => true;
+}
+'@
+  }
+  $request = [Net.HttpWebRequest]::Create("$($probe.Base)/healthz")
+  $callback = $request.ServerCertificateValidationCallback
+  $response = $null
+  try {
+    $request.ServerCertificateValidationCallback = [CliproxyInstallerLocalCertificate]::Accept
+    $request.Timeout = 2000
+    $request.ReadWriteTimeout = 2000
+    $request.AllowAutoRedirect = $false
+    $request.KeepAlive = $false # do not reuse this certificate-exempt connection
+    $response = $request.GetResponse()
+    return [int]$response.StatusCode -eq 200
+  } catch { return $false } finally {
+    if ($response) { $response.Close() }
+    $request.ServerCertificateValidationCallback = $callback
+    $request.Abort()
+  }
 }
 
 # $null once the process answers and is still alive after about 20 s at most; otherwise why not.

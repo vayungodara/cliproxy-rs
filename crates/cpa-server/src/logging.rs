@@ -28,6 +28,8 @@ use tracing_subscriber::{EnvFilter, Layer, reload};
 
 /// lumberjack `MaxSize: 10` (megabytes of 1024 * 1024 bytes).
 const MAX_FILE_SIZE: u64 = 10 * 1024 * 1024;
+/// Only CLI process rotations are bounded when Go's directory budget is unlimited.
+const DEFAULT_PROCESS_ROTATIONS_SIZE: u64 = 32 * 1024 * 1024;
 const MAIN_LOG: &str = "main.log";
 const CLEANER_INTERVAL: Duration = Duration::from_secs(60);
 
@@ -211,6 +213,8 @@ pub fn set_log_file(path: PathBuf) -> io::Result<()> {
         path: path.clone(),
         file: None,
         size: 0,
+        // The loaded config chooses the budget, before any server/login runs.
+        rotation_budget: None,
     };
     file.open_existing_or_new(0, MAX_FILE_SIZE)?;
     LOG_FILE
@@ -222,6 +226,13 @@ pub fn set_log_file(path: PathBuf) -> io::Result<()> {
 
 fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
     let mut output = OUTPUT.lock().unwrap_or_else(PoisonError::into_inner);
+    let rotation_budget = (applied.max_total_mb <= 0).then_some(DEFAULT_PROCESS_ROTATIONS_SIZE);
+    if applied.logging_to_file
+        && let Some(path) = LOG_FILE.get()
+        && let Some(budget) = rotation_budget
+    {
+        prune_process_rotations(path, budget)?;
+    }
     let protected = if applied.logging_to_file {
         create_dir(dir)
             .map_err(|e| io::Error::new(e.kind(), format!("logging: failed to create log directory: {e}")))?;
@@ -230,6 +241,7 @@ fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
             path: path.clone(),
             file: None,
             size: 0,
+            rotation_budget: None,
         });
         Some(std::path::absolute(path)?)
     } else if let Some(path) = LOG_FILE.get() {
@@ -237,6 +249,7 @@ fn configure_output(dir: &Path, applied: Applied) -> io::Result<()> {
             path: path.clone(),
             file: None,
             size: 0,
+            rotation_budget,
         };
         file.open_existing_or_new(0, MAX_FILE_SIZE)?;
         *output = Output::ProcessFile(file);
@@ -379,16 +392,7 @@ pub(crate) fn enforce_size_limit(
                     return false;
                 }
                 let base = path.file_name().unwrap_or_default().to_string_lossy();
-                if name == base {
-                    return true;
-                }
-                let (stem, ext) = base.rfind('.').map_or((&*base, ""), |i| (&base[..i], &base[i..]));
-                name.strip_prefix(stem)
-                    .and_then(|v| v.strip_prefix('-'))
-                    .and_then(|v| v.strip_suffix(ext))
-                    .is_some_and(|timestamp| {
-                        chrono::NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%dT%H-%M-%S%.3f").is_ok()
-                    })
+                name == base || is_process_rotation(&name, &base)
             });
             if !normal_log && !process_file {
                 continue;
@@ -440,12 +444,13 @@ pub(crate) fn enforce_size_limit(
     Ok(deleted)
 }
 
-/// lumberjack.Logger with Go's settings: 10 MiB files, rotations kept forever,
-/// uncompressed, named in UTC.
+/// lumberjack.Logger with Go's settings, except the CLI process output can cap
+/// its rotations synchronously without starting another cleaner timer.
 pub(crate) struct RotatingFile {
     path: PathBuf,
     file: Option<File>,
     size: u64,
+    rotation_budget: Option<u64>,
 }
 
 impl RotatingFile {
@@ -455,6 +460,7 @@ impl RotatingFile {
             path,
             file: None,
             size: 0,
+            rotation_budget: None,
         }
     }
 
@@ -490,6 +496,9 @@ impl RotatingFile {
             Ok(file) => {
                 self.file = Some(file);
                 self.size = info.len();
+                if let Some(budget) = self.rotation_budget {
+                    prune_process_rotations(&self.path, budget)?;
+                }
                 Ok(())
             }
             // lumberjack: an existing file that cannot be opened is replaced.
@@ -525,8 +534,52 @@ impl RotatingFile {
             .map_err(|e| io::Error::new(e.kind(), format!("can't open new logfile: {e}")))?;
         self.file = Some(file);
         self.size = 0;
+        if let Some(budget) = self.rotation_budget {
+            prune_process_rotations(&self.path, budget)?;
+        }
         Ok(())
     }
+}
+
+fn is_process_rotation(name: &str, base: &str) -> bool {
+    let (stem, ext) = base.rfind('.').map_or((base, ""), |i| (&base[..i], &base[i..]));
+    name.strip_prefix(stem)
+        .and_then(|v| v.strip_prefix('-'))
+        .and_then(|v| v.strip_suffix(ext))
+        .is_some_and(|timestamp| chrono::NaiveDateTime::parse_from_str(timestamp, "%Y-%m-%dT%H-%M-%S%.3f").is_ok())
+}
+
+/// Runs only at startup/reconfiguration and rotation, under the writer's lock.
+/// Excluding the base filename keeps the open file out of both deletion and budget.
+fn prune_process_rotations(path: &Path, max_bytes: u64) -> io::Result<()> {
+    let entries = match std::fs::read_dir(path.parent().unwrap_or(Path::new("."))) {
+        Ok(entries) => entries,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(e),
+    };
+    let base = path.file_name().unwrap_or_default().to_string_lossy();
+    let mut files = Vec::new();
+    let mut total = 0u64;
+    for entry in entries.flatten() {
+        if !is_process_rotation(&entry.file_name().to_string_lossy(), &base) {
+            continue;
+        }
+        let info = entry.metadata()?;
+        if !info.is_file() {
+            continue;
+        }
+        total += info.len();
+        files.push((info.modified()?, info.len(), entry.path()));
+    }
+    files.sort_by_key(|(modified, _, _)| *modified);
+    for (_, size, path) in files {
+        if total <= max_bytes {
+            break;
+        }
+        std::fs::remove_file(path)?;
+        total -= size;
+    }
+    Ok(())
 }
 
 /// `os.MkdirAll(dir, 0755)`.
@@ -837,6 +890,61 @@ mod tests {
     }
 
     #[test]
+    fn process_rotations_prune_on_open_and_rotation_without_touching_active_or_other_logs() {
+        let dir = scratch("process-rotation-default");
+        create_dir(&dir).unwrap();
+        let path = dir.join("process.txt");
+        let older = dir.join("process-2001-09-09T01-46-40.000.txt");
+        let newer = dir.join("process-2001-09-09T01-46-41.000.txt");
+        for (file, contents, seconds) in [(&older, "123", 1_000_000_000), (&newer, "45", 1_000_000_001)] {
+            std::fs::write(file, contents).unwrap();
+            File::options()
+                .write(true)
+                .open(file)
+                .unwrap()
+                .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(seconds))
+                .unwrap();
+        }
+        let unrelated = dir.join("main.log");
+        let malformed = dir.join("process-not-a-timestamp.txt");
+        std::fs::write(&unrelated, b"unlimited Go logs").unwrap();
+        std::fs::write(&malformed, b"not a rotation").unwrap();
+        std::fs::write(&path, b"a").unwrap();
+        let mut file = RotatingFile::new(path.clone());
+        file.rotation_budget = Some(4);
+        file.write(b"b", 10).unwrap();
+        assert!(
+            !older.exists() && newer.exists(),
+            "startup must remove oldest rotations only"
+        );
+        file.write(b"123456789", 10).unwrap();
+        assert!(newer.exists(), "two 2-byte rotations fit the 4-byte budget exactly");
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            b"123456789",
+            "active file can exceed rotation budget"
+        );
+        // Distinct millisecond backup names, as in production's 10 MiB rotations.
+        std::thread::sleep(Duration::from_millis(2));
+        file.write(b"xy", 10).unwrap();
+        assert!(!newer.exists());
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            b"xy",
+            "the active writer must stay linked"
+        );
+        assert!(
+            std::fs::read_dir(&dir)
+                .unwrap()
+                .all(|entry| { !is_process_rotation(&entry.unwrap().file_name().to_string_lossy(), "process.txt") })
+        );
+        assert_eq!(std::fs::read(&unrelated).unwrap(), b"unlimited Go logs");
+        assert_eq!(std::fs::read(&malformed).unwrap(), b"not a rotation");
+        drop(file);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn backup_names_use_utc_milliseconds() {
         let at = chrono::DateTime::parse_from_rfc3339("2026-10-03T04:05:06.789Z")
             .unwrap()
@@ -957,6 +1065,17 @@ mod tests {
         emit("before-config\n");
         assert_eq!(read(&cli), "before-config\n");
 
+        configure_output(
+            &logs,
+            Applied {
+                logging_to_file: false,
+                max_total_mb: 0,
+                debug: false,
+            },
+        )
+        .unwrap();
+        assert!(matches!(&*OUTPUT.lock().unwrap(), Output::ProcessFile(file)
+            if file.rotation_budget == Some(32 * 1024 * 1024)));
         create_dir(&logs).unwrap();
         let old = stale("main-2001-09-09T01-46-40.000.log");
         let on = Applied {
@@ -979,6 +1098,10 @@ mod tests {
             },
         )
         .unwrap();
+        assert!(
+            matches!(&*OUTPUT.lock().unwrap(), Output::ProcessFile(file) if file.rotation_budget.is_none()),
+            "a configured positive budget must replace the rotation-only default"
+        );
         emit("to-cli\n");
         assert_eq!(read(&cli), "before-config\nto-cli\n");
         assert_eq!(read(&logs.join(MAIN_LOG)), "to-main\n");
