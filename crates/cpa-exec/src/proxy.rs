@@ -637,6 +637,13 @@ pub async fn send_request_raw(
     let mut strip_sensitive = false;
     let mut hop_headers = headers.clone();
     let mut sent = 0;
+    // Go's `Client.Timeout`: one deadline for every hop, taken before the first. Cost:
+    // one `Instant` per request and one clock read per hop.
+    // ponytail: wreq starts the body's share of a hop timeout afresh when the headers
+    // arrive, so the final body can take up to that hop's budget again (the whole
+    // exchange stays under twice `timeout`). Bounding it by the deadline needs a second
+    // timer per response; add one if a caller ever reads long bodies under a timeout.
+    let deadline = timeout.and_then(|t| std::time::Instant::now().checked_add(t));
     let (response, auto_gzip) = loop {
         // The URL Go's client reports for this hop.
         let hop_url = if sent == 0 { url.to_owned() } else { current.to_string() };
@@ -648,8 +655,10 @@ pub async fn send_request_raw(
                 exact.as_deref().filter(|_| sent == 0).unwrap_or(current.as_str()),
             )
             .redirect(wreq::redirect::Policy::none());
-        if let Some(timeout) = timeout {
-            builder = builder.timeout(timeout);
+        if let Some(deadline) = deadline {
+            // With nothing left the timeout is zero: the hop ends at the next timer tick
+            // (1 ms) with the transport's own timeout error, as a slow hop does.
+            builder = builder.timeout(deadline.saturating_duration_since(std::time::Instant::now()));
         }
         // Go's standard transport (no exact order) speaks HTTP/2 wherever ALPN picks it.
         let go_transport = hop.order.is_none();
@@ -1565,6 +1574,58 @@ mod tests {
                 })
                 .collect();
             assert_eq!(&got, case["hops"].as_array().unwrap(), "{name}");
+        }
+    }
+
+    /// Go's `Client.Timeout` bounds the whole exchange: redirect hops share one deadline
+    /// instead of each getting the full timeout.
+    #[tokio::test]
+    async fn timeout_bounds_all_redirect_hops_together() {
+        use axum::response::IntoResponse;
+        const TIMEOUT: std::time::Duration = std::time::Duration::from_millis(1000);
+        const HOP: std::time::Duration = std::time::Duration::from_millis(600);
+        async fn get(target: String) -> Result<RawUpstream, SendError> {
+            let client = default_client();
+            let route = |_: &url::Url| {
+                Ok(Route {
+                    client: client.clone(),
+                    order: None,
+                })
+            };
+            send_request_raw(
+                &route,
+                wreq::Method::GET,
+                &target,
+                GoHeaders::new(),
+                None,
+                Some(TIMEOUT),
+            )
+            .await
+        }
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = axum::Router::new().fallback(|uri: http::Uri| async move {
+            tokio::time::sleep(HOP).await;
+            match uri.path() {
+                "/1" => (http::StatusCode::FOUND, [(http::header::LOCATION, "/2")]).into_response(),
+                "/2" => (http::StatusCode::FOUND, [(http::header::LOCATION, "/3")]).into_response(),
+                _ => "done".into_response(),
+            }
+        });
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        // One slow hop within the timeout still succeeds, body included.
+        let upstream = get(format!("http://{addr}/3")).await.unwrap();
+        assert_eq!(upstream.status, 200);
+        let body: Vec<Bytes> = upstream.body.map(Result::unwrap).collect().await;
+        assert_eq!(body.concat(), b"done");
+        // Each hop is under the timeout, but the second ends past the shared deadline.
+        match get(format!("http://{addr}/1")).await {
+            Err(SendError::Transport { error, url }) => {
+                assert!(error.is_timeout(), "{error:?}");
+                assert_eq!(url, format!("http://{addr}/2"));
+            }
+            Err(other) => panic!("{other:?}"),
+            Ok(upstream) => panic!("followed both redirects: {}", upstream.status),
         }
     }
 
