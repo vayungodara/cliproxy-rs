@@ -1,6 +1,7 @@
 # Builds the Docker image, without pushing it, when a pull request or a push to master
 # changes what the image build depends on besides the source: the Dockerfile, the build
-# context filter, the manifests and the vendored crates. release.yml builds the same image
+# context filter, the manifests, the vendored crates and the dashboard that the binary
+# embeds (ui/dist, read by crates/cpa-server/build.rs). release.yml builds the same image
 # before every release; this catches a Dockerfile that misses a new input before a tag
 # does.
 # One run per change: pushes to master, and pull requests through `pull_request` only.
@@ -18,6 +19,7 @@ on:
       - Cargo.lock
       - crates/**/Cargo.toml
       - vendor/**
+      - ui/dist/**
       - .github/workflows/docker.yml
   pull_request:
     paths:
@@ -27,6 +29,7 @@ on:
       - Cargo.lock
       - crates/**/Cargo.toml
       - vendor/**
+      - ui/dist/**
       - .github/workflows/docker.yml
   workflow_dispatch:
 
