@@ -39,11 +39,16 @@ deps.x86_64-unknown-linux-gnu.duplicate_crates  11  0
 # runner measured 23,300 to 23,676 KB (1.6% apart); on a shared local VM the same binary
 # varied by up to 11% (bench/results/2026-10-06-idle.jsonl). Target RSS: 15 MB or less
 # with one file.
-idle.linux.1.wakeups          30   0
+# 2026-10-06: wakeups cut from 30 to 3 per 30 s. Every measurement so far is 0 (six CI
+# runs and three local rounds, each at 1 and at 2,000 files); master measured 2,901
+# (bench/results/2026-10-06-idle.jsonl). A ceiling of 30 would pass a new timer firing
+# about once a second, which this gate is there to stop; 3 leaves room for a stray
+# context switch on a shared runner and nothing more.
+idle.linux.1.wakeups           3   0
 idle.linux.1.cpu_ticks         1   0
 idle.linux.1.threads           6   0
 idle.linux.1.rss_kb       23_500  10
-idle.linux.2000.wakeups       30   0
+idle.linux.2000.wakeups        3   0
 idle.linux.2000.cpu_ticks      1   0
 idle.linux.2000.threads        6   0
 idle.linux.2000.rss_kb    71_000  10
@@ -53,12 +58,14 @@ idle.linux.2000.rss_kb    71_000  10
 # carry `uname -m`. RSS measured on 2026-10-05: 14,976 to 15,344 KB on macos-15 (Apple
 # silicon), 10,496 to 10,656 KB on macos-15-intel, 15,812 to 16,232 KB on windows-2025
 # (working set).
+# 2026-10-06: idle_wakeups cut from 30 to 3 per 60 s. Over four CI runs each, macos-15
+# measured 0, 0, 0 and 1, and macos-15-intel 0 every time; 3 sits just above the worst.
 idle.macos-arm64.1.cpu_ms           20   0
-idle.macos-arm64.1.idle_wakeups     30   0
+idle.macos-arm64.1.idle_wakeups      3   0
 idle.macos-arm64.1.threads           6   0
 idle.macos-arm64.1.rss_kb       15_400  10
 idle.macos-x86_64.1.cpu_ms          20   0
-idle.macos-x86_64.1.idle_wakeups    30   0
+idle.macos-x86_64.1.idle_wakeups     3   0
 idle.macos-x86_64.1.threads          6   0
 idle.macos-x86_64.1.rss_kb      10_700  10
 idle.windows.1.cpu_ms         20   0
