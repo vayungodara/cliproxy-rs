@@ -920,6 +920,13 @@ mod tests {
             !older.exists() && newer.exists(),
             "startup must remove oldest rotations only"
         );
+        // Filesystem mtimes can share a tick; give rotations distinct ages.
+        File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(1_000_000_002))
+            .unwrap();
         file.write(b"123456789", 10).unwrap();
         assert!(newer.exists(), "two 2-byte rotations fit the 4-byte budget exactly");
         assert_eq!(
@@ -927,6 +934,12 @@ mod tests {
             b"123456789",
             "active file can exceed rotation budget"
         );
+        File::options()
+            .write(true)
+            .open(&path)
+            .unwrap()
+            .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(1_000_000_003))
+            .unwrap();
         // Distinct millisecond backup names, as in production's 10 MiB rotations.
         std::thread::sleep(Duration::from_millis(2));
         file.write(b"xy", 10).unwrap();
