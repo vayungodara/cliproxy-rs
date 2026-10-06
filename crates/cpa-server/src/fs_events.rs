@@ -501,9 +501,17 @@ mod sys {
 
     pub struct Watch {
         kq: AsyncFd<OwnedFd>,
-        /// Each watched path (and whether it is a symlink watched as itself) with the
-        /// descriptor and the file identity it was opened at.
-        open: HashMap<(PathBuf, bool), (OwnedFd, (u64, u64))>,
+        /// Each watched path, and whether it is a symlink watched as itself.
+        open: HashMap<(PathBuf, bool), Registered>,
+    }
+
+    struct Registered {
+        /// Closing it drops the kqueue registration.
+        _fd: OwnedFd,
+        /// Device and inode it was opened at.
+        id: (u64, u64),
+        /// What it was registered for, which decides the filter.
+        kind: Kind,
     }
 
     #[derive(Clone, Copy, PartialEq, Eq)]
@@ -638,11 +646,13 @@ mod sys {
             if want.len() as libc::rlim_t > limit / 2 {
                 return Err(io::Error::from_raw_os_error(libc::EMFILE));
             }
-            let keys: Vec<(PathBuf, bool)> = want.iter().map(order).collect();
+            let kind_of = |k: &(PathBuf, bool)| want.binary_search_by(|w| order(w).cmp(k)).ok().map(|i| want[i].1);
             let before = self.open.len();
-            // Closing a descriptor drops its kqueue registration.
+            // Closing a descriptor drops its kqueue registration. A path whose role
+            // changed (a real folder that now waits for a dangling link's target, or the
+            // reverse) is registered again with the other filter.
             self.open
-                .retain(|k, (_, id)| keys.binary_search(k).is_ok() && identity(&k.0, k.1) == Some(*id));
+                .retain(|k, r| kind_of(k) == Some(r.kind) && identity(&k.0, k.1) == Some(r.id));
             let mut changed = self.open.len() != before;
             for (path, kind) in &want {
                 let link = *kind == Kind::Link;
@@ -703,7 +713,14 @@ mod sys {
                 if rc < 0 {
                     return Err(io::Error::last_os_error());
                 }
-                self.open.insert(k, (fd, id));
+                self.open.insert(
+                    k,
+                    Registered {
+                        _fd: fd,
+                        id,
+                        kind: *kind,
+                    },
+                );
                 changed = true;
             }
             // A required folder that vanished between listing and opening: look again,
@@ -1073,8 +1090,9 @@ mod sys {
                 // reopen notification triggers, watches its nearest ancestor instead.
                 Err(e) if e.kind() == io::ErrorKind::NotFound => {}
                 // Delete-pending (a legacy delete still held open elsewhere): the name
-                // still lists, so only the parent's event when it finally goes tells.
-                Err(e) if parent_armed && gone(&e) => {}
+                // still lists, so only the parent's event when it finally goes tells. A
+                // folder that merely denies listing stays an error (the 2-second poll).
+                Err(e) if parent_armed && gone(&e) && delete_pending(&dir.path) => {}
                 Err(e) => return Err(e),
             }
         }
@@ -1086,6 +1104,31 @@ mod sys {
     /// the name still lists until the last handle closes, so the path cannot tell.
     fn gone(e: &io::Error) -> bool {
         matches!(e.raw_os_error(), Some(c) if c == ERROR_ACCESS_DENIED as i32 || c == ERROR_DELETE_PENDING as i32)
+    }
+
+    /// Whether a folder that denied access is being deleted rather than unreadable: an
+    /// open asking for no access rights succeeds on a folder whose ACL denies reads, and
+    /// fails on a delete-pending one.
+    fn delete_pending(path: &std::path::Path) -> bool {
+        let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
+        // SAFETY: `wide` is NUL-terminated and outlives the call.
+        let handle = unsafe {
+            CreateFileW(
+                wide.as_ptr(),
+                0,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                std::ptr::null(),
+                OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS,
+                std::ptr::null_mut(),
+            )
+        };
+        if handle != INVALID_HANDLE_VALUE {
+            drop(Handle(handle));
+            return false;
+        }
+        let e = io::Error::last_os_error();
+        gone(&e) || e.kind() == io::ErrorKind::NotFound
     }
 
     fn fail(shared: &Shared, e: io::Error) {
@@ -1328,6 +1371,27 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
 
+    /// A symlinked auth file's target is deleted and recreated: its folder changes role
+    /// (it waits for the target, then only lies on the way again), and each change of
+    /// role takes effect, so the target's return wakes the watcher and an unrelated
+    /// file in the folder afterwards does not.
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[tokio::test]
+    async fn follows_a_linked_files_folder_changing_role() {
+        let (root, t) = linked_file_layout();
+        let mut events = native(&t);
+        settle(&mut events, &t).await;
+        std::fs::remove_file(root.join("real/x.json")).unwrap();
+        settle(&mut events, &t).await;
+        std::fs::write(root.join("real/x.json"), "{}").unwrap();
+        assert!(wake(&mut events, &t).await, "linked file's target recreated");
+        settle(&mut events, &t).await;
+        std::fs::write(root.join("real/notes.txt"), "x").unwrap();
+        assert!(!fires(&mut events).await, "unrelated file in the real folder");
+        drop(events);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     /// A real folder that cannot be listed (no read permission): the file itself is
     /// watched instead, so its in-place edits are still seen.
     #[cfg(target_os = "linux")]
@@ -1424,6 +1488,40 @@ mod tests {
         assert!(events.watch.is_some(), "notifications turned off");
         drop(events);
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// A config folder whose ACL denies listing (only config.yaml is readable) is not
+    /// mistaken for a delete-pending one: notifications cannot cover it, so setting
+    /// them up fails and the watcher polls instead of watching nothing.
+    #[cfg(windows)]
+    #[test]
+    fn an_unlistable_config_folder_is_an_error() {
+        let root = temp();
+        let conf = root.join("conf");
+        std::fs::create_dir(&conf).unwrap();
+        std::fs::write(conf.join("config.yaml"), "port: 1\n").unwrap();
+        // icacls does not take the `\\?\` form canonicalize returns.
+        let plain = conf.to_string_lossy().trim_start_matches(r"\\?\").to_owned();
+        let icacls = |args: &[&str]| {
+            let status = std::process::Command::new("icacls")
+                .arg(&plain)
+                .args(args)
+                .status()
+                .unwrap();
+            assert!(status.success(), "icacls {args:?}");
+        };
+        // Everyone: deny list folder / read data on the folder only.
+        icacls(&["/deny", "*S-1-1-0:(RD)"]);
+        let t = Targets {
+            config: conf.join("config.yaml"),
+            auth_dir: root.join("auth"),
+            files: Vec::new(),
+        };
+        let result = sys::Watch::new(&t).map(drop);
+        icacls(&["/remove:d", "*S-1-1-0"]);
+        std::fs::remove_dir_all(root).unwrap();
+        let e = result.expect_err("an unlistable folder was left unwatched");
+        assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied, "{e}");
     }
 
     #[cfg(windows)]
