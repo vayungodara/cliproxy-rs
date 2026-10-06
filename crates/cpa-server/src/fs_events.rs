@@ -785,7 +785,7 @@ mod sys {
     use tokio::sync::Notify;
     use windows_sys::Win32::Foundation::{
         CloseHandle, ERROR_ACCESS_DENIED, ERROR_DELETE_PENDING, ERROR_IO_PENDING, HANDLE, INVALID_HANDLE_VALUE,
-        WAIT_FAILED, WAIT_OBJECT_0,
+        NTSTATUS, STATUS_DELETE_PENDING, WAIT_FAILED, WAIT_OBJECT_0,
     };
     use windows_sys::Win32::Storage::FileSystem::{
         CreateFileW, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OVERLAPPED, FILE_LIST_DIRECTORY,
@@ -960,7 +960,7 @@ mod sys {
                 )
             };
             if handle == INVALID_HANDLE_VALUE {
-                return Err(io::Error::last_os_error());
+                return Err(open_error());
             }
             let handle = Handle(handle);
             let done = event()?;
@@ -1091,8 +1091,8 @@ mod sys {
                 Err(e) if e.kind() == io::ErrorKind::NotFound => {}
                 // Delete-pending (a legacy delete still held open elsewhere): the name
                 // still lists, so only the parent's event when it finally goes tells. A
-                // folder that merely denies listing stays an error (the 2-second poll).
-                Err(e) if parent_armed && gone(&e) && delete_pending(&dir.path) => {}
+                // folder that denies access stays an error (the 2-second poll).
+                Err(e) if parent_armed && e.raw_os_error() == Some(ERROR_DELETE_PENDING as i32) => {}
                 Err(e) => return Err(e),
             }
         }
@@ -1106,29 +1106,22 @@ mod sys {
         matches!(e.raw_os_error(), Some(c) if c == ERROR_ACCESS_DENIED as i32 || c == ERROR_DELETE_PENDING as i32)
     }
 
-    /// Whether a folder that denied access is being deleted rather than unreadable: an
-    /// open asking for no access rights succeeds on a folder whose ACL denies reads, and
-    /// fails on a delete-pending one.
-    fn delete_pending(path: &std::path::Path) -> bool {
-        let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
-        // SAFETY: `wide` is NUL-terminated and outlives the call.
-        let handle = unsafe {
-            CreateFileW(
-                wide.as_ptr(),
-                0,
-                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                std::ptr::null(),
-                OPEN_EXISTING,
-                FILE_FLAG_BACKUP_SEMANTICS,
-                std::ptr::null_mut(),
-            )
-        };
-        if handle != INVALID_HANDLE_VALUE {
-            drop(Handle(handle));
-            return false;
+    // Not in windows-sys. LLVM's Windows Path.inc reads it the same way.
+    #[link(name = "ntdll", kind = "raw-dylib")]
+    unsafe extern "system" {
+        fn RtlGetLastNtStatus() -> NTSTATUS;
+    }
+
+    /// The error of a CreateFileW that just failed. Win32 maps both a delete-pending
+    /// folder and one whose ACL denies the access asked for (CreateFileW always adds
+    /// SYNCHRONIZE and FILE_READ_ATTRIBUTES) to ERROR_ACCESS_DENIED; the NTSTATUS still
+    /// tells them apart. Call it before anything else can set the thread's last error.
+    fn open_error() -> io::Error {
+        // SAFETY: reads the calling thread's last NTSTATUS; no arguments.
+        if unsafe { RtlGetLastNtStatus() } == STATUS_DELETE_PENDING {
+            return io::Error::from_raw_os_error(ERROR_DELETE_PENDING as i32);
         }
-        let e = io::Error::last_os_error();
-        gone(&e) || e.kind() == io::ErrorKind::NotFound
+        io::Error::last_os_error()
     }
 
     fn fail(shared: &Shared, e: io::Error) {
@@ -1431,19 +1424,71 @@ mod tests {
         assert_eq!(follow_links(Path::new(r"C:\..\x"), &mut add), PathBuf::from(r"C:\x"));
     }
 
-    /// A legacy delete (FileDispositionInfo, the semantics of FAT, network shares and
-    /// older tools): the folder stays delete-pending while any handle, the watch's own
-    /// included, is open. The watch lets go, keeps running and follows the recreated
-    /// folder.
+    /// Opens `path` (file or folder) with `access`, sharing everything.
+    #[cfg(windows)]
+    fn open_raw(path: &Path, access: u32) -> std::io::Result<windows_sys::Win32::Foundation::HANDLE> {
+        use std::os::windows::ffi::OsStrExt as _;
+        use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+        use windows_sys::Win32::Storage::FileSystem::{
+            CreateFileW, FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_DELETE, FILE_SHARE_READ, FILE_SHARE_WRITE,
+            OPEN_EXISTING,
+        };
+        let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
+        // SAFETY: `wide` is NUL-terminated and outlives the call.
+        let h = unsafe {
+            CreateFileW(
+                wide.as_ptr(),
+                access,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                std::ptr::null(),
+                OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS,
+                std::ptr::null_mut(),
+            )
+        };
+        if h == INVALID_HANDLE_VALUE {
+            Err(std::io::Error::last_os_error())
+        } else {
+            Ok(h)
+        }
+    }
+
+    #[cfg(windows)]
+    fn close_raw(h: windows_sys::Win32::Foundation::HANDLE) {
+        // SAFETY: a handle from open_raw, closed once.
+        unsafe { windows_sys::Win32::Foundation::CloseHandle(h) };
+    }
+
+    /// Deletes an empty folder with legacy semantics (FileDispositionInfo, as on FAT,
+    /// network shares and older tools): it stays delete-pending while any handle to it
+    /// is open.
+    #[cfg(windows)]
+    fn legacy_delete(path: &Path) {
+        use windows_sys::Win32::Storage::FileSystem::{
+            DELETE, FILE_DISPOSITION_INFO, FileDispositionInfo, SetFileInformationByHandle,
+        };
+        let h = open_raw(path, DELETE).unwrap();
+        let info = FILE_DISPOSITION_INFO { DeleteFile: true };
+        // SAFETY: `info` outlives the call; `h` is open.
+        let ok = unsafe {
+            SetFileInformationByHandle(
+                h,
+                FileDispositionInfo,
+                (&raw const info).cast(),
+                std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32,
+            )
+        };
+        let e = std::io::Error::last_os_error();
+        close_raw(h);
+        assert_ne!(ok, 0, "{e}");
+    }
+
+    /// A legacy delete of the auth folder: the folder stays delete-pending while the
+    /// watch's own handle is open. The watch lets go (the failed read, in `run`), keeps
+    /// running and follows the recreated folder.
     #[cfg(windows)]
     #[tokio::test]
     async fn survives_a_legacy_delete_of_the_auth_folder() {
-        use std::os::windows::ffi::OsStrExt as _;
-        use windows_sys::Win32::Foundation::{CloseHandle, INVALID_HANDLE_VALUE};
-        use windows_sys::Win32::Storage::FileSystem::{
-            CreateFileW, DELETE, FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_SHARE_DELETE, FILE_SHARE_READ,
-            FILE_SHARE_WRITE, FileDispositionInfo, OPEN_EXISTING, SetFileInformationByHandle,
-        };
         let root = temp();
         let t = Targets {
             config: root.join("config.yaml"),
@@ -1453,30 +1498,7 @@ mod tests {
         std::fs::write(&t.config, "port: 1\n").unwrap();
         let mut events = native(&t);
         settle(&mut events, &t).await;
-        let wide: Vec<u16> = t.auth_dir.as_os_str().encode_wide().chain([0]).collect();
-        // SAFETY: `wide` is NUL-terminated; the handle is closed below.
-        unsafe {
-            let h = CreateFileW(
-                wide.as_ptr(),
-                DELETE,
-                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                std::ptr::null(),
-                OPEN_EXISTING,
-                FILE_FLAG_BACKUP_SEMANTICS,
-                std::ptr::null_mut(),
-            );
-            assert_ne!(h, INVALID_HANDLE_VALUE, "{}", std::io::Error::last_os_error());
-            let info = FILE_DISPOSITION_INFO { DeleteFile: true };
-            let ok = SetFileInformationByHandle(
-                h,
-                FileDispositionInfo,
-                (&raw const info).cast(),
-                std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32,
-            );
-            let e = std::io::Error::last_os_error();
-            CloseHandle(h);
-            assert_ne!(ok, 0, "{e}");
-        }
+        legacy_delete(&t.auth_dir);
         assert!(wake(&mut events, &t).await, "auth folder deleted");
         settle(&mut events, &t).await;
         assert!(events.watch.is_some(), "notifications turned off");
@@ -1490,13 +1512,56 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
 
-    /// A config folder whose ACL denies listing (only config.yaml is readable) is not
-    /// mistaken for a delete-pending one: either setting up notifications fails, so the
-    /// watcher polls, or the folder could be opened after all (an elevated token with
-    /// backup rights) and an edit wakes the watcher. Never watched-by-nobody.
+    /// The same, with another program still holding the deleted folder open, and a
+    /// reopen of every folder while it is delete-pending: `open_all` skips it (its
+    /// parent is watched) instead of turning notifications off, and its parent's event
+    /// when the last handle closes is followed.
     #[cfg(windows)]
     #[tokio::test]
-    async fn an_unlistable_config_folder_is_never_left_unwatched() {
+    async fn skips_an_auth_folder_held_delete_pending() {
+        let root = temp();
+        let t = Targets {
+            config: root.join("config.yaml"),
+            auth_dir: root.join("auth"),
+            files: Vec::new(),
+        };
+        std::fs::write(&t.config, "port: 1\n").unwrap();
+        let mut events = native(&t);
+        settle(&mut events, &t).await;
+        let holder = open_raw(&t.auth_dir, 0).unwrap();
+        legacy_delete(&t.auth_dir);
+        let _ = wake(&mut events, &t).await;
+        settle(&mut events, &t).await;
+        // A changed folder list makes the thread reopen every folder now.
+        let other = Targets {
+            config: root.join("other.yaml"),
+            ..t.clone()
+        };
+        // The delete-pending folder still lists, so it is among the folders reopened.
+        let listed = dirs(&other).iter().any(|d| d.path == t.auth_dir);
+        events.retarget(&other);
+        let skipped = events.watch.is_some();
+        close_raw(holder);
+        assert!(listed, "the delete-pending folder was not in the reopened list");
+        assert!(skipped, "a delete-pending folder turned notifications off");
+        assert!(wake(&mut events, &other).await, "the held folder finally went");
+        settle(&mut events, &other).await;
+        std::fs::create_dir(&t.auth_dir).unwrap();
+        settle(&mut events, &other).await;
+        std::fs::write(t.auth_dir.join("a.json"), "{}").unwrap();
+        assert!(wake(&mut events, &other).await, "login after the folder came back");
+        assert!(events.watch.is_some(), "notifications turned off");
+        drop(events);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// A config folder whose ACL denies Everyone `deny` (on the folder only, so
+    /// config.yaml stays readable) must not be mistaken for a delete-pending one: either
+    /// setting up notifications fails (the 2-second poll) or the folder could be opened
+    /// after all and an edit wakes the watcher. Never watched-by-nobody. Returns whether
+    /// a zero-access open of the folder failed with access denied.
+    #[cfg(windows)]
+    async fn unlistable_config_folder(deny: &str) -> bool {
         let root = temp();
         let conf = root.join("conf");
         std::fs::create_dir(&conf).unwrap();
@@ -1504,20 +1569,21 @@ mod tests {
         // icacls does not take the `\\?\` form canonicalize returns.
         let plain = conf.to_string_lossy().trim_start_matches(r"\\?\").to_owned();
         let icacls = |args: &[&str]| {
-            let status = std::process::Command::new("icacls")
+            std::process::Command::new("icacls")
                 .arg(&plain)
                 .args(args)
                 .status()
-                .unwrap();
-            assert!(status.success(), "icacls {args:?}");
+                .is_ok_and(|s| s.success())
         };
-        // Everyone: deny list folder / read data on the folder only.
-        icacls(&["/deny", "*S-1-1-0:(RD)"]);
+        assert!(icacls(&["/deny", &format!("*S-1-1-0:({deny})")]), "icacls /deny");
         let t = Targets {
             config: conf.join("config.yaml"),
             auth_dir: root.join("auth"),
             files: Vec::new(),
         };
+        // Nothing below panics until the ACL is restored.
+        let zero_access = open_raw(&conf, 0).map(close_raw);
+        let readable = std::fs::read(&t.config).is_ok();
         let outcome = match sys::Watch::new(&t) {
             Err(e) => Err(e),
             Ok(watch) => {
@@ -1526,16 +1592,32 @@ mod tests {
                     rearm: false,
                 };
                 settle(&mut events, &t).await;
-                std::fs::write(&t.config, "port: 2\n").unwrap();
-                Ok(wake(&mut events, &t).await)
+                let written = std::fs::write(&t.config, "port: 2\n").is_ok();
+                Ok(written && wake(&mut events, &t).await)
             }
         };
-        icacls(&["/remove:d", "*S-1-1-0"]);
+        let restored = icacls(&["/remove:d", "*S-1-1-0"]);
+        assert!(restored, "icacls /remove:d");
         std::fs::remove_dir_all(root).unwrap();
+        assert!(readable, "({deny}) made config.yaml unreadable");
         match outcome {
-            Err(e) => assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied, "{e}"),
-            Ok(woke) => assert!(woke, "an unlistable folder was left unwatched"),
+            Err(e) => assert_eq!(e.kind(), std::io::ErrorKind::PermissionDenied, "({deny}): {e}"),
+            Ok(woke) => assert!(woke, "({deny}): an unlistable folder was left unwatched"),
         }
+        zero_access.is_err_and(|e| e.kind() == std::io::ErrorKind::PermissionDenied)
+    }
+
+    #[cfg(windows)]
+    #[tokio::test]
+    async fn an_unlistable_config_folder_is_never_left_unwatched() {
+        // List folder / read data only: a zero-access open still succeeds.
+        unlistable_config_folder("RD").await;
+        // Generic read, SYNCHRONIZE included: CreateFileW adds SYNCHRONIZE to every open,
+        // so even a zero-access open is denied, as on a delete-pending folder.
+        assert!(
+            unlistable_config_folder("R").await,
+            "a zero-access open of a folder denying (R) succeeded"
+        );
     }
 
     #[cfg(windows)]
