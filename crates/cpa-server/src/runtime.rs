@@ -356,6 +356,7 @@ impl Runtime {
             attempt: self.store.attempts.fetch_add(1, Ordering::Relaxed),
             policy: self.policy(),
             reported: false,
+            picked: 0,
             remote: Some(crate::remote::RemoteEnd {
                 end: Some(grant.end),
                 releases: releases.clone(),
@@ -772,6 +773,9 @@ pub struct Lease {
     pub attempt: u64,
     policy: Arc<Policy>,
     reported: bool,
+    /// The scheduler generation at the pick (`Scheduler::reserve_probe`): bounded
+    /// windows opened or probes reserved after it are not answered by this attempt.
+    picked: u32,
     /// A credential from the remote dispatcher: its lease ends there, not in the local
     /// scheduler.
     remote: Option<crate::remote::RemoteEnd>,
@@ -1184,12 +1188,11 @@ impl CredentialStore {
             }
             let refs: Vec<(&Credential, &str)> = candidates.iter().map(|(c, p)| (*c, p.as_str())).collect();
             let (picked, lcp) = scheduler.pick_session(&refs, &selection, &policy, ranks, now).unwrap();
-            if let Some((c, m)) = eligible.iter().find(|(c, _)| c.id == picked.id) {
-                scheduler.reserve_probe(c, m, now);
-            }
-            (inner.creds.iter().find(|c| c.id == picked.id).unwrap().clone(), lcp)
+            let (c, m) = eligible.iter().find(|(c, _)| c.id == picked.id).unwrap();
+            let generation = scheduler.reserve_probe(c, m, now);
+            (Arc::clone(c), lcp, generation)
         };
-        let (credential, lcp) = credential;
+        let (credential, lcp, picked) = credential;
         let execution_model = admit(&credential).unwrap_or_else(|| selection.model.clone());
         Ok(Lease {
             store: self.clone(),
@@ -1199,6 +1202,7 @@ impl CredentialStore {
             attempt: self.attempts.fetch_add(1, Ordering::Relaxed),
             policy,
             reported: false,
+            picked,
             remote: None,
             lcp,
         })
@@ -1307,7 +1311,7 @@ impl CredentialStore {
         self.scheduler
             .lock()
             .unwrap_or_else(PoisonError::into_inner)
-            .accept_probe(&lease.credential, &lease.execution_model, Instant::now());
+            .accept_probe_picked(&lease.credential, &lease.execution_model, lease.picked, Instant::now());
     }
 
     fn record(&self, lease: &Lease, outcome: &Outcome) {
@@ -1340,7 +1344,7 @@ impl CredentialStore {
                 .is_some();
             let mut scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
             let before = persist.then(|| scheduler.records(&lease.credential, now, wall));
-            scheduler.record(&lease.credential, model, outcome, &lease.policy, now);
+            scheduler.record_picked(&lease.credential, model, outcome, &lease.policy, lease.picked, now);
             scheduler.session_result(
                 &lease.credential,
                 &lease.selection,
@@ -2244,6 +2248,88 @@ mod tests {
             store.retry_wait_at(&selection, &policy, 0, &tried, &admit_all, later),
             None
         );
+    }
+
+    /// A 429 with a reset six days away (`max-trusted-cooldown` bounds it).
+    fn weekly_limit(scope: FailureScope) -> Outcome {
+        let mut error = ExecError::local(429, scope, "usage_limit_reached");
+        error.retry_after = Some(Duration::from_secs(6 * 24 * 3600));
+        Outcome::Failure(error)
+    }
+
+    /// A probe whose hold lapsed was taken over by a later pick: the first probe's
+    /// cancellation leaves the account reserved for the second, whose own does not.
+    #[test]
+    fn a_stale_probe_cancellation_keeps_the_newer_reservation() {
+        let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
+        let selection = Selection::new("claude", "m");
+        let credential = store.get("a.json").unwrap();
+        // A bounded window of the 10 s minimum that ended a second ago.
+        let policy = Policy {
+            max_trusted_cooldown: Duration::from_secs(10),
+            ..Policy::default()
+        };
+        let opened = Instant::now().checked_sub(Duration::from_secs(11)).unwrap();
+        store
+            .scheduler
+            .lock()
+            .unwrap()
+            .record(&credential, "m", &weekly_limit(FailureScope::Model), &policy, opened);
+        let first = store.select(selection.clone()).expect("the probe");
+        assert_eq!(first.execution_model, "m");
+        assert!(store.select(selection.clone()).is_none(), "reserved");
+        // The first probe's hold lapses, and the next pick probes again.
+        let key = ("a.json".to_owned(), "m".to_owned());
+        store
+            .scheduler
+            .lock()
+            .unwrap()
+            .cooldowns
+            .get_mut(&key)
+            .unwrap()
+            .trust
+            .probe = Some(Instant::now());
+        let second = store.select(selection.clone()).expect("the second probe");
+        first.complete(Outcome::Cancelled);
+        assert!(store.select(selection.clone()).is_none(), "still reserved");
+        second.complete(Outcome::Cancelled);
+        assert!(store.select(selection).is_some(), "its own cancellation frees it");
+    }
+
+    /// A request picked before a bounded window opened succeeds after it (a stream that
+    /// outlived the 429): its answer is older than the window, which stays, live or
+    /// ended, until its own probe.
+    #[test]
+    fn a_late_success_keeps_a_newer_window() {
+        let selection = Selection::new("claude", "m");
+        // A model window, opened by a request picked after the stream.
+        let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
+        let stream = store.select(selection.clone()).unwrap();
+        let other = store.select(selection.clone()).unwrap();
+        other.complete(weekly_limit(FailureScope::Model));
+        assert!(store.select(selection.clone()).is_none(), "cooling");
+        stream.accepted();
+        stream.complete(Outcome::Success);
+        assert!(store.select(selection.clone()).is_none(), "the window stands");
+        // A credential-wide window that already ended keeps its probe.
+        let store = CredentialStore::new(vec![cred("a.json", "claude", false)]);
+        let stream = store.select(selection.clone()).unwrap();
+        let policy = Policy {
+            max_trusted_cooldown: Duration::from_secs(10),
+            ..Policy::default()
+        };
+        let opened = Instant::now().checked_sub(Duration::from_secs(11)).unwrap();
+        store.scheduler.lock().unwrap().record(
+            &store.get("a.json").unwrap(),
+            "m",
+            &weekly_limit(FailureScope::Credential),
+            &policy,
+            opened,
+        );
+        stream.accepted();
+        stream.complete(Outcome::Success);
+        let _probe = store.select(selection.clone()).expect("the window's probe");
+        assert!(store.select(selection).is_none(), "one probe");
     }
 
     #[test]
