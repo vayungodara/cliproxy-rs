@@ -16,11 +16,11 @@
 //! ponytail: tiktoken-rs's `CoreBPE` keeps every token three times to serve decoding,
 //! which these counts never do, and its regex once per thread slot. Of the 31.9 MB it
 //! allocates for o200k_base (heaptrack), the encoder map and its keys are 9.6 MB, a
-//! decoder map and its values 9.6 MB, a sorted token list 5.9 MB and the regexes 5.8 MB
-//! (128 per-thread clones); the 600,000 short token allocations at malloc's 32-byte
-//! minimum chunk bring that to 47 MB resident. An encode-only table with one regex would
-//! keep about a third of it; the upgrade is our own byte-pair merge over the encoder map,
-//! checked against `CoreBPE` on the Go fixtures.
+//! decoder map and its values 9.6 MB, a sorted token list 5.9 MB and the regexes 6.8 MB
+//! (5.9 MB of it 128 per-thread clones of the main one); the 600,000 short token
+//! allocations at malloc's 32-byte minimum chunk bring that to 47 MB resident. An
+//! encode-only table with one regex would keep about a third of it; the upgrade is our own
+//! byte-pair merge over the encoder map, checked against `CoreBPE` on the Go fixtures.
 
 use std::sync::OnceLock;
 
