@@ -154,7 +154,7 @@ Not in cliproxy-rs yet:
 
 ## Performance
 
-In the [Claude soak](docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory), cliproxy-rs held 29 MB 30 seconds after 3,000 requests averaging 306 KB, and 43 MB after 600 requests averaging 1.9 MB. A personal install in daily use ran at 75 to 101 MB RSS. That reading was unscripted; sample timing, workload and the exact build were not recorded.
+In the [Claude soak](docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory), cliproxy-rs held 29 MB 30 seconds after 3,000 requests averaging 306 KB, and 43 MB after 600 requests averaging 1.9 MB. In an hour of the [field mix](docs/BENCHMARKS.md#field-mix-claude-codex-and-count_tokens) (Claude, Codex and count_tokens requests averaging 1 MB from 4 sessions), its resting RSS stayed between 80.6 and 97.6 MB and it peaked at 169.0 MB, where 0.2.0 rested between 128.2 and 145.4 MB and peaked at 220.1 MB. A personal install in daily use ran at 75 to 101 MB RSS. That reading was unscripted; sample timing, workload and the exact build were not recorded.
 
 On the [small-request benchmark](docs/BENCHMARKS.md#setup), the launch build answered its first request in 15 to 46 ms over three rounds, and Go in 104 to 453 ms in the same run. Go took 45 to 98 ms in quieter runs. The launch build served 793 translated streams/s against Go's 564.
 
