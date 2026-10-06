@@ -303,8 +303,8 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/cliproxy.p
                 install()
                 health()
                 assert pid() != restarted, "a stopped current binary must start again"
-                # Minimal Linux and Seatbelt can refuse ps, but pid-file installs
-                # still start, stop and verify the managed process with kill -0.
+                # Linux uses procfs without procps; Seatbelt uses the Darwin-only
+                # kill -0 fallback when ps cannot even inspect its own shell.
                 shimdir = root / "no-ps"
                 shimdir.mkdir()
                 original_path = env["PATH"]
@@ -318,6 +318,19 @@ if($script:removed.Count -ne 1 -or $script:removed[0] -ne '/long/path/cliproxy.p
                         install()
                         health()
                         assert pid() != previous_pid, f"ps status {refused} must not skip stopping the old server"
+                    if platform.system() == "Linux":
+                        subprocess.run(["kill", str(pid())], check=True, timeout=10)
+                        time.sleep(2)
+                        unrelated = subprocess.Popen(["sleep", "120"], env=env)
+                        try:
+                            (home / "cliproxy.pid").write_text(str(unrelated.pid))
+                            os.utime(bindir / exe, None)
+                            install()
+                            health()
+                            assert unrelated.poll() is None, "no-procps install must never signal an unrelated stale PID"
+                        finally:
+                            unrelated.terminate()
+                            unrelated.wait(timeout=10)
                 finally:
                     env["PATH"] = original_path
             second = root / "second"

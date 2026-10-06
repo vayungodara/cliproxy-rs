@@ -372,22 +372,33 @@ managed_pid() {
   pid=$(cat "$pidfile" 2>/dev/null) || return 1
   case "$pid" in '' | *[!0-9]*) return 1 ;; esac
   [ "$pid" -gt 0 ] || return 1
-  # Seatbelt can refuse Darwin's setuid ps (reported as 1 or 126 by the shell),
-  # and minimal Linux images may lack ps. If inspection fails, retain kill -0.
-  field='comm'
-  [ "$os" != Darwin ] || field=ucomm
-  if command=$(ps -p "$pid" -o "$field=" 2>/dev/null); then
+  if [ "$os" = Linux ]; then
+    # procfs verifies ownership without procps; never signal an unknown stale PID.
+    command=$(cat "/proc/$pid/comm" 2>/dev/null) || return 1
+  elif [ "$os" = Darwin ]; then
+    # Seatbelt refuses setuid ps; bash 3.2's substitution status is not reliable.
+    if ! ps -p $$ -o pid= >/dev/null 2>&1; then
+      kill -0 "$pid" 2>/dev/null
+      return $?
+    fi
+    command=$(ps -p "$pid" -o ucomm= 2>/dev/null) || return 1
     command=$(printf '%s\n' "$command" | sed 's/^[ ]*//;s/[ ]*$//')
   else
-    kill -0 "$pid" 2>/dev/null
-    return $?
+    command=$(ps -p "$pid" -o comm= 2>/dev/null) || return 1
+    command=$(printf '%s\n' "$command" | sed 's/^[ ]*//;s/[ ]*$//')
   fi
-  case "$command" in *cliproxy | *cliproxy.prev) return 0 ;; *) return 1 ;; esac
+  case "$command" in cliproxy | cliproxy.prev) return 0 ;; *) return 1 ;; esac
 }
 
 pid_running() {
   kill -0 "$1" 2>/dev/null || return 1
-  if state=$(ps -p "$1" -o stat= 2>/dev/null); then
+  if [ "$os" = Linux ]; then
+    state=$(cat "/proc/$1/stat" 2>/dev/null) || return 1
+    state=${state##*) }
+    case "$state" in '' | Z\ *) return 1 ;; esac
+  else
+    if [ "$os" = Darwin ] && ! ps -p $$ -o pid= >/dev/null 2>&1; then return 0; fi
+    state=$(ps -p "$1" -o stat= 2>/dev/null) || return 1
     case "$state" in '' | *Z*) return 1 ;; esac
   fi
   return 0
