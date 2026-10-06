@@ -97,10 +97,10 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
   # Use that image for rollback, not the untested cliproxy.exe already on disk.
   $runningPrevious = $null
   if (-not $BinaryOnly) {
-    $runningPrevious = Get-CliproxyServers $dir $config | Where-Object {
-      $_.ExecutablePath -and [IO.Path]::GetDirectoryName($_.ExecutablePath) -eq $dir -and
-        [IO.Path]::GetFileName($_.ExecutablePath) -like 'cliproxy.prev-*.exe'
-    } | Select-Object -First 1 -ExpandProperty ExecutablePath
+    $runningPrevious = Get-CliproxyServers $dir $config | ForEach-Object {
+      $image = Get-CliproxyImage $_.ProcessId $dir
+      if ($image -and [IO.Path]::GetFileName($image) -like 'cliproxy.prev-*.exe') { $image }
+    } | Select-Object -First 1
   }
   # The previous image's flags decide how a rollback restarts it.
   $previousArguments = $null
@@ -383,6 +383,35 @@ function Remove-CliproxyImages($dir, $keep) {
   $keepName = if ($keep) { [IO.Path]::GetFileName($keep) } else { $null }
   Get-ChildItem -LiteralPath $dir -Filter 'cliproxy.prev-*.exe' | Where-Object { $_.Name -ne $keepName } |
     ForEach-Object { Remove-Item -LiteralPath $_.FullName -Force -ErrorAction SilentlyContinue }
+}
+
+# WMI retains the launch path after a running image is renamed. Query the actual
+# mapped file; only installer processes use this API.
+function Get-CliproxyImage([int]$id, $dir) {
+  $p = Get-Process -Id $id -ErrorAction SilentlyContinue
+  if (-not $p) { return $null }
+  try {
+    if (-not ('CliproxyInstallerMappedImage' -as [type])) {
+      Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class CliproxyInstallerMappedImage {
+  [DllImport("psapi.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+  public static extern uint GetMappedFileName(IntPtr process, IntPtr address, StringBuilder name, uint size);
+}
+'@
+    }
+    $name = New-Object Text.StringBuilder 32768
+    if ([CliproxyInstallerMappedImage]::GetMappedFileName($p.Handle, $p.MainModule.BaseAddress, $name, $name.Capacity) -eq 0) {
+      throw "install.ps1: could not read the running image for process $id (Windows error $([Runtime.InteropServices.Marshal]::GetLastWin32Error())); nothing was replaced"
+    }
+    # The API returns a device path. Process selection already checked the
+    # install directory, and joining its filename avoids drive/8.3 aliases.
+    $image = Join-Path $dir ([IO.Path]::GetFileName($name.ToString()))
+    if (-not (Test-Path -LiteralPath $image)) { throw "install.ps1: the running image $image is missing; nothing was replaced" }
+    $image
+  } finally { $p.Dispose() }
 }
 
 # Finds this install's server: a cliproxy image from the install directory started with this
