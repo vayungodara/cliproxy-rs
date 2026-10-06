@@ -650,6 +650,11 @@ impl Connection {
         // Go prepares multi-agent v2 tools and orphan delegation outputs here, before the
         // prewarm and dispatch decisions.
         let client = cpa_common::codex_client::Settings::for_responses_handler(&cfg);
+        // The spawn_agent model list comes from the Codex client catalog.
+        // Cost: one header check, then one `Once` check, per turn.
+        if cpa_common::codex_client::multi_agent_client(&self.headers, client.optimize_multi_agent_v2) {
+            crate::model_updater::codex_client_catalog_wanted(&self.rt);
+        }
         if client.optimize_multi_agent_v2 || client.orphan_delegation {
             let prepared =
                 cpa_common::codex_client::prepare_responses_request(&self.headers, request.as_bytes(), &client);
