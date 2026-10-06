@@ -72,6 +72,7 @@ mod replay;
 #[cfg(test)]
 mod test_tls;
 mod tls;
+mod tokenizer;
 mod tokens;
 mod translate;
 mod upstream;

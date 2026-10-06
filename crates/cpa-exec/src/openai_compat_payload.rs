@@ -1,7 +1,6 @@
 //! Pure request and response rewrites of the OpenAI-compatible executor, each a port of
 //! the Go helper named in its doc comment.
 
-use std::sync::OnceLock;
 use std::time::{Duration, SystemTime};
 
 use cpa_common::gostr::GoStr;
@@ -699,8 +698,7 @@ pub(crate) fn sanitize_reasoning_encrypted_content(body: Vec<u8>) -> Vec<u8> {
 
 /// Go `TokenizerForModel` + `CountOpenAIChatTokens`.
 pub(crate) fn count_chat_tokens(model: &str, payload: &[u8]) -> Result<i64, String> {
-    static O200K: OnceLock<Result<tiktoken_rs::CoreBPE, String>> = OnceLock::new();
-    static CL100K: OnceLock<Result<tiktoken_rs::CoreBPE, String>> = OnceLock::new();
+    use crate::tokenizer::Encoding;
     let m = model.trim().to_ascii_lowercase();
     let cl100k = !m.is_empty()
         && !m.starts_with("gpt-5")
@@ -708,12 +706,11 @@ pub(crate) fn count_chat_tokens(model: &str, payload: &[u8]) -> Result<i64, Stri
         && !m.starts_with("gpt-4o")
         && (m.starts_with("gpt-4") || m.starts_with("gpt-3"))
         || m.is_empty();
-    let encoder = if cl100k {
-        CL100K.get_or_init(|| tiktoken_rs::cl100k_base().map_err(|e| e.to_string()))
+    let encoder = crate::tokenizer::encoder(if cl100k {
+        Encoding::Cl100kBase
     } else {
-        O200K.get_or_init(|| tiktoken_rs::o200k_base().map_err(|e| e.to_string()))
-    };
-    let encoder = encoder.as_ref().map_err(Clone::clone)?;
+        Encoding::O200kBase
+    })?;
     if payload.is_empty() {
         return Ok(0);
     }

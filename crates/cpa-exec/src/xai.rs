@@ -1222,11 +1222,7 @@ pub(crate) fn compaction_frames(p: &Prepared, data: &[u8], now: SystemTime) -> V
 /// `countXAIInputTokens`: O200kBase over instructions, input, function tools and the
 /// text format, joined by newlines.
 fn count_input_tokens(body: &[u8]) -> Result<i64, String> {
-    static ENCODER: std::sync::OnceLock<Result<tiktoken_rs::CoreBPE, String>> = std::sync::OnceLock::new();
-    let encoder = ENCODER
-        .get_or_init(|| tiktoken_rs::o200k_base().map_err(|e| e.to_string()))
-        .as_ref()
-        .map_err(Clone::clone)?;
+    let encoder = crate::tokenizer::encoder(crate::tokenizer::Encoding::O200kBase)?;
     if body.is_empty() {
         return Ok(0);
     }
