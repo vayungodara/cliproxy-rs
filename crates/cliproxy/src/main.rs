@@ -351,13 +351,15 @@ fn argv_enables_bool_flag(args: &[String], name: &str) -> bool {
     enabled
 }
 
-/// The `-working-dir` value (`-working-dir D`, `--working-dir D`, `-working-dir=D`,
-/// `--working-dir=D`; the last one wins), read from the raw arguments so the directory
-/// changes before `.env`, the plugin bootstrap or any relative path is read. Like Go's
-/// parse it stops at the first operand or `--`, and built-in value flags take the next
-/// token. A flag the binary does not define may be a plugin flag: it is read as taking
-/// the next token unless that token is a flag; the full parse confirms the result.
-fn prescan_working_dir(args: &[String]) -> Option<String> {
+/// The value of the built-in flag `wanted` (`-flag V`, `--flag V`, `-flag=V`,
+/// `--flag=V`; the last one wins), read from the raw arguments for what must happen
+/// before the parse: `-working-dir` changes the directory before `.env`, the plugin
+/// bootstrap or any relative path is read, and `-log-file` opens before the runtime
+/// starts. Like Go's parse it stops at the first operand or `--`, and built-in value
+/// flags take the next token. A flag the binary does not define may be a plugin flag:
+/// it is read as taking the next token unless that token is a flag; the full parse
+/// confirms the result.
+fn prescan_value(args: &[String], wanted: &str) -> Option<String> {
     let mut found = None;
     let mut i = 0;
     while i < args.len() {
@@ -372,7 +374,7 @@ fn prescan_working_dir(args: &[String]) -> Option<String> {
             None => (bare, None),
         };
         if value.is_some() {
-            if name == "working-dir" {
+            if name == wanted {
                 found = value.map(str::to_owned);
             }
             continue;
@@ -383,7 +385,7 @@ fn prescan_working_dir(args: &[String]) -> Option<String> {
             None => !next.starts_with('-'),
         };
         if takes_value {
-            if name == "working-dir" {
+            if name == wanted {
                 found = Some(next.clone());
             }
             i += 1;
@@ -624,9 +626,16 @@ fn main() -> anyhow::Result<()> {
     cpa_server::logging::init();
     let raw: Vec<String> = std::env::args().collect();
     // First, so .env, plugins, the default config and relative paths resolve there.
-    let working_dir = prescan_working_dir(&raw[1..]);
+    let working_dir = prescan_value(&raw[1..], "working-dir");
     if let Some(dir) = &working_dir {
         std::env::set_current_dir(dir).with_context(|| format!("change to working directory {dir:?}"))?;
+    }
+    // Next, relative to that directory, so every line from here on reaches the file:
+    // sizing the runtime can warn, and stdout may be hidden (the Windows Run entry).
+    // An empty value is left for the parse to reject.
+    let log_file = prescan_value(&raw[1..], "log-file");
+    if let Some(path) = log_file.as_deref().filter(|p| !p.is_empty()) {
+        cpa_server::logging::set_log_file(path.into()).context("open process log")?;
     }
     if raw.get(1).map(String::as_str) == Some("discover") {
         let flags = go_flags(&DiscoverArgs::command(), raw.into_iter().skip(1), &())
@@ -679,8 +688,11 @@ fn main() -> anyhow::Result<()> {
             "-working-dir must come before any plugin flag that takes a value",
         );
     }
-    if let Some(path) = &args.log_file {
-        cpa_server::logging::set_log_file(path.clone()).context("open process log")?;
+    if args.log_file.as_deref() != log_file.as_deref().map(Path::new) {
+        flag_error(
+            &mut cmd,
+            "-log-file must come before any plugin flag that takes a value",
+        );
     }
     if args.discover || args.discover_json {
         let cli = (csv_flags(&args.discover_include), csv_flags(&args.discover_exclude));
@@ -1636,38 +1648,48 @@ mod tests {
     }
 
     #[test]
-    fn working_dir_prescan_reads_every_spelling() {
-        let scan = |a: &[&str]| prescan_working_dir(&a.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());
-        for spelling in [
-            &["-working-dir", "d"][..],
-            &["--working-dir", "d"],
-            &["-working-dir=d"],
-            &["--working-dir=d"],
-            &["-tui", "-config", "c.yaml", "--working-dir", "d", "-local-model"],
-            &["-working-dir", "x", "-working-dir=d"],
-            // An undefined (plugin) flag with a value, or a boolean one before a flag.
-            &["-plugin-mode", "fast", "-working-dir", "d"],
-            &["-plugin-verbose", "-working-dir", "d"],
-        ] {
-            assert_eq!(scan(spelling).as_deref(), Some("d"), "{spelling:?}");
+    fn prescan_reads_every_spelling() {
+        // The same table for each prescanned flag, written for -working-dir.
+        for flag in ["working-dir", "log-file"] {
+            let scan = |a: &[&str]| {
+                let args: Vec<String> = a.iter().map(|s| s.replace("working-dir", flag)).collect();
+                prescan_value(&args, flag)
+            };
+            for spelling in [
+                &["-working-dir", "d"][..],
+                &["--working-dir", "d"],
+                &["-working-dir=d"],
+                &["--working-dir=d"],
+                &["-tui", "-config", "c.yaml", "--working-dir", "d", "-local-model"],
+                &["-working-dir", "x", "-working-dir=d"],
+                // An undefined (plugin) flag with a value, or a boolean one before a flag.
+                &["-plugin-mode", "fast", "-working-dir", "d"],
+                &["-plugin-verbose", "-working-dir", "d"],
+            ] {
+                assert_eq!(scan(spelling).as_deref(), Some("d"), "{flag}: {spelling:?}");
+            }
+            // The value may start with a dash, as for every Go value flag.
+            assert_eq!(scan(&["-working-dir", "-d"]).as_deref(), Some("-d"), "{flag}");
+            assert_eq!(scan(&["-working-dir="]).as_deref(), Some(""), "{flag}");
+            // Values of other flags, operands, `--` and a missing value are not it.
+            assert_eq!(scan(&["-config", "-working-dir", "x"]), None, "{flag}");
+            assert_eq!(scan(&["-password", "--working-dir=x"]), None, "{flag}");
+            assert_eq!(scan(&["run", "-working-dir", "x"]), None, "{flag}");
+            assert_eq!(scan(&["--", "-working-dir", "x"]), None, "{flag}");
+            assert_eq!(scan(&["-working-dir"]), None, "{flag}");
+            assert_eq!(scan(&["discover", "-working-dir", "x"]), None, "{flag}");
         }
-        // The value may start with a dash, as for every Go value flag.
-        assert_eq!(scan(&["-working-dir", "-d"]).as_deref(), Some("-d"));
-        assert_eq!(scan(&["-working-dir="]).as_deref(), Some(""));
-        // Values of other flags, operands, `--` and a missing value are not it.
-        assert_eq!(scan(&["-config", "-working-dir", "x"]), None);
-        assert_eq!(scan(&["-password", "--working-dir=x"]), None);
-        assert_eq!(scan(&["run", "-working-dir", "x"]), None);
-        assert_eq!(scan(&["--", "-working-dir", "x"]), None);
-        assert_eq!(scan(&["-working-dir"]), None);
-        assert_eq!(scan(&["discover", "-working-dir", "x"]), None);
-        // The full parse agrees, and the flag is not passed to plugins.
+        let args = ["-working-dir", "-log-file", "l"].map(str::to_owned);
+        assert_eq!(prescan_value(&args, "log-file"), None);
+        // The full parse agrees, and neither flag is passed to plugins.
         let raw = ["cliproxy", "-tui", "--working-dir=d", "-log-file", "l"].map(str::to_owned);
         let cmd = Args::command();
         let matches = cmd.clone().get_matches_from(go_flags(&cmd, raw.clone(), &()).unwrap());
         let args = Args::from_arg_matches(&matches).unwrap();
         assert_eq!(args.working_dir.as_deref(), Some(Path::new("d")));
-        assert_eq!(prescan_working_dir(&raw[1..]).as_deref(), Some("d"));
+        assert_eq!(args.log_file.as_deref(), Some(Path::new("l")));
+        assert_eq!(prescan_value(&raw[1..], "working-dir").as_deref(), Some("d"));
+        assert_eq!(prescan_value(&raw[1..], "log-file").as_deref(), Some("l"));
         let builtin = plugin_cli::builtin_values(&cmd, &matches);
         assert!(builtin.iter().all(|(n, _)| n != "working-dir" && n != "log-file"));
         assert!(builtin.iter().any(|(n, v)| n == "tui" && v == "true"));
