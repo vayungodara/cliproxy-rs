@@ -171,6 +171,19 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $profiles = Get-NetFirewallProfile | Select-Object Name, DefaultOutboundAction
           $rulePrefix = "cliproxy-installer-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          function Measure-WindowsPowerShell($phase) {
+            $clock = [Diagnostics.Stopwatch]::StartNew()
+            $process = Start-Process powershell.exe -ArgumentList '-NoProfile -NonInteractive -Command 1' -NoNewWindow -PassThru
+            try {
+              $null = $process.Handle
+              if (-not $process.WaitForExit(120000)) {
+                $process.Kill()
+                throw "Bare Windows PowerShell exceeded 120 seconds ($phase)"
+              }
+              if ($process.ExitCode -ne 0) { throw "Bare Windows PowerShell failed ($phase): $($process.ExitCode)" }
+              Write-Host "Bare Windows PowerShell ($phase): $($clock.Elapsed.TotalSeconds.ToString('F1')) seconds"
+            } finally { $process.Dispose() }
+          }
           try {
             # Explicit block rules override allows. Use the profile default so
             # the runner can keep reporting while test programs use loopback.
@@ -187,7 +200,9 @@ jobs:
             # IPv6 loopback under this policy without an explicit address rule.
             New-NetFirewallRule -Name "$rulePrefix-loopback" -DisplayName "$rulePrefix-loopback" `
               -Direction Outbound -Action Allow -RemoteAddress '127.0.0.0/8' -Profile Any | Out-Null
+            Measure-WindowsPowerShell 'before outbound block'
             Set-NetFirewallProfile -Profile Domain, Private, Public -DefaultOutboundAction Block
+            Measure-WindowsPowerShell 'after outbound block'
             python .github/scripts/test-installers.py target/debug/cliproxy.exe
             if ($LASTEXITCODE -ne 0) { throw "Installer tests failed with exit $LASTEXITCODE" }
           } finally {

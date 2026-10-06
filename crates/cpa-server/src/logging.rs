@@ -328,6 +328,13 @@ fn start_cleaner(dir: &Path, max_total_mb: i64, protected: Option<PathBuf>) {
     }
 }
 
+fn canonical_log_path(path: &Path) -> io::Result<PathBuf> {
+    match std::fs::canonicalize(path) {
+        Err(error) if error.kind() == io::ErrorKind::NotFound => std::path::absolute(path),
+        result => result,
+    }
+}
+
 /// Go `enforceLogDirSizeLimit`: deletes the oldest `*.log` / `*.log.gz` files (by
 /// modification time, never `protected`) and the selected process-log family until
 /// their combined size is within `max_bytes`. No other files outside `dir` qualify.
@@ -337,10 +344,15 @@ pub(crate) fn enforce_size_limit(
     protected: Option<&Path>,
     process_log: Option<&Path>,
 ) -> io::Result<usize> {
-    let protected = protected.map(std::path::absolute).transpose()?;
-    let dir = std::path::absolute(dir)?;
-    let process_log = process_log.map(std::path::absolute).transpose()?;
-    let process_dir = process_log.as_deref().and_then(Path::parent);
+    let protected = protected.map(canonical_log_path).transpose()?;
+    let dir = canonical_log_path(dir)?;
+    let process_log = process_log.map(canonical_log_path).transpose()?;
+    let process_dir = process_log
+        .as_deref()
+        .and_then(Path::parent)
+        .map(canonical_log_path)
+        .transpose()?;
+    let process_dir = process_dir.as_deref();
     let mut dirs = vec![dir.clone()];
     if let Some(parent) = process_dir
         && parent != dir
@@ -386,7 +398,7 @@ pub(crate) fn enforce_size_limit(
                 continue;
             }
             total += info.len();
-            files.push((info.modified().ok(), info.len(), std::path::absolute(entry.path())?));
+            files.push((info.modified().ok(), info.len(), entry.path()));
         }
     }
     if total <= max_bytes {
@@ -398,7 +410,8 @@ pub(crate) fn enforce_size_limit(
         if total <= max_bytes {
             break;
         }
-        if protected.as_ref().is_some_and(|p| *p == path) {
+        let canonical = canonical_log_path(&path)?;
+        if protected.as_ref().is_some_and(|p| *p == canonical) {
             continue;
         }
         // Serialize deletion with rotation/reconfiguration only for --log-file.
@@ -408,9 +421,7 @@ pub(crate) fn enforce_size_limit(
             .map(|_| OUTPUT.lock().unwrap_or_else(PoisonError::into_inner));
         if output.as_ref().is_some_and(|output| match &**output {
             Output::ProcessFile(file) | Output::File(file) => {
-                std::path::absolute(&file.path).is_ok_and(|active| active == path)
-                    || std::fs::canonicalize(&file.path)
-                        .is_ok_and(|active| std::fs::canonicalize(&path).is_ok_and(|candidate| active == candidate))
+                canonical_log_path(&file.path).is_ok_and(|active| active == canonical)
             }
             Output::Stdout => false,
         }) {
@@ -1037,8 +1048,57 @@ mod tests {
             std::fs::remove_file(alias).unwrap();
         }
 
-        // Stop the cleaner and restore stdout for the rest of the process.
+        // Stop the asynchronous cleaner before checking exact deletion counts.
         configure_output(&logs, Applied { max_total_mb: 0, ..on }).unwrap();
+        let inside = logs.join("process.log");
+        let spelling = logs.join("..").join("logs").join("process.log");
+        *OUTPUT.lock().unwrap() = Output::ProcessFile(RotatingFile::new(spelling.clone()));
+        emit(&"a".repeat(600));
+        let older = logs.join("error-dedupe.log");
+        let rotation = backup_name(&inside, chrono::Utc::now());
+        std::fs::write(&older, vec![b'b'; 400]).unwrap();
+        std::fs::write(&rotation, vec![b'c'; 200]).unwrap();
+        for (path, seconds) in [
+            (&inside, 1_000_000_000),
+            (&older, 1_000_000_001),
+            (&rotation, 1_000_000_002),
+        ] {
+            File::options()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(std::time::UNIX_EPOCH + Duration::from_secs(seconds))
+                .unwrap();
+        }
+        // 1,200 bytes, not 2,000: the alias must not count the process family twice.
+        assert_eq!(
+            enforce_size_limit(&logs, 1_000, Some(&spelling), Some(&spelling)).unwrap(),
+            1
+        );
+        assert!(inside.exists() && rotation.exists() && !older.exists());
+        assert_eq!(
+            enforce_size_limit(&logs, 1, Some(&logs.join(MAIN_LOG)), Some(&spelling)).unwrap(),
+            1
+        );
+        emit("still-linked-inside\n");
+        assert!(read(&inside).ends_with("still-linked-inside\n"));
+        #[cfg(unix)]
+        {
+            let alias = dir.join("alias-logs");
+            std::os::unix::fs::symlink(&logs, &alias).unwrap();
+            assert_eq!(
+                enforce_size_limit(&alias, 1, Some(&alias.join("process.log")), Some(&spelling)).unwrap(),
+                0
+            );
+            std::fs::remove_file(alias).unwrap();
+        }
+        #[cfg(windows)]
+        assert_eq!(
+            enforce_size_limit(&logs, 1, Some(&logs.join("PROCESS.LOG")), Some(&spelling)).unwrap(),
+            0
+        );
+
+        // Restore stdout for the rest of the process.
         *OUTPUT.lock().unwrap() = Output::Stdout;
         let _ = std::fs::remove_dir_all(&dir);
     }
