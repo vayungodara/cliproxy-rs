@@ -642,9 +642,9 @@ impl Cooldown {
     /// A bounded window that opened, or had its probe reserved, after the lease picked
     /// at generation `picked`: that lease's answer does not answer it.
     fn newer_than(&self, picked: u32) -> bool {
-        // ponytail: a plain comparison, wrong for leases in flight when the counter wraps
-        // (after four billion windows and probes); serial-number arithmetic if it matters.
-        self.trust.bounded && self.trust.generation > picked
+        // Serial-number order, so the wrapping counter compares right while a lease is
+        // fewer than 2^31 generations old.
+        self.trust.bounded && (self.trust.generation.wrapping_sub(picked) as i32) > 0
     }
 }
 
@@ -1293,6 +1293,13 @@ impl Scheduler {
         let status = crate::classify::go_status(error);
         let text = crate::classify::error_text(error);
         let prev = self.cooldowns.get(&key);
+        // An ended bounded window that a newer probe took over, or that opened after this
+        // attempt was picked, waits for its own probe: this older answer neither renews
+        // nor replaces it. Inside a live window the handling below applies.
+        if prev.is_some_and(|s| s.deadline <= now && s.newer_than(picked)) {
+            return;
+        }
+        let prev_deadline = prev.map(|s| s.deadline);
         let prev_live = prev.filter(|s| s.deadline > now).map(|s| s.deadline);
         let prev_trust = prev.map(|s| s.trust).unwrap_or_default();
         let mut level = prev.filter(|s| s.quota).map(|s| s.level).unwrap_or(0);
@@ -1357,7 +1364,7 @@ impl Scheduler {
                                         state.trust.window = state.trust.window.max(window_trust.window);
                                     }
                                 }
-                                self.extend_siblings(c, deadline, now);
+                                self.extend_siblings(c, deadline, None, now);
                             }
                             return;
                         }
@@ -1383,7 +1390,7 @@ impl Scheduler {
                             slot.error = text;
                         }
                         if credential_quota {
-                            self.extend_siblings(c, deadline, now);
+                            self.extend_siblings(c, deadline, None, now);
                         }
                         return;
                     } else {
@@ -1448,7 +1455,7 @@ impl Scheduler {
         };
         self.cooldowns.insert(key, state(deadline));
         if credential_quota {
-            self.extend_siblings(c, deadline, now);
+            self.extend_siblings(c, deadline, prev_deadline, now);
             // Go also records the failing model's own quota state (reason `quota`).
             if !model.is_empty() {
                 let own = (c.id.clone(), model.to_owned());
@@ -1483,16 +1490,22 @@ impl Scheduler {
     /// bounded window keeps its deadline: the credential's key holds the model until
     /// the credential's probe anyway, and a copied deadline would follow the
     /// credential's when an earlier reset moves it up, probing the model before its
-    /// own bound.
-    fn extend_siblings(&mut self, c: &Credential, deadline: Instant, now: Instant) {
+    /// own bound. The copies of the window this one `renews` (the credential's previous
+    /// deadline) move onto it even when they ended, so no copy outlives the account's
+    /// recovery.
+    fn extend_siblings(&mut self, c: &Credential, deadline: Instant, renews: Option<Instant>, now: Instant) {
         let (level, trust) = self
             .cooldowns
             .get(&(c.id.clone(), String::new()))
             .map_or((0, Trust::default()), |s| (s.level, s.trust));
         for ((id, model), state) in &mut self.cooldowns {
-            if *id == c.id && !model.is_empty() && state.deadline > now {
+            if *id != c.id || model.is_empty() {
+                continue;
+            }
+            let copy = state.trust.bounded && (state.deadline == deadline || Some(state.deadline) == renews);
+            if state.deadline > now || copy {
                 let window = state.trust.window.max(trust.window);
-                if !state.trust.bounded || state.deadline == deadline {
+                if !state.trust.bounded || copy {
                     if deadline >= state.deadline {
                         state.trust = Trust { probe: None, ..trust };
                     }
@@ -1616,7 +1629,6 @@ impl Scheduler {
                 let stated = recover.filter(|r| *r > retry).map(|r| now + since(r));
                 let trust = Trust {
                     window: spent.checked_sub(1),
-                    // Older than any lease in flight: their answers still count.
                     generation: 0,
                     bounded: stated.is_some(),
                     stated,
@@ -1676,6 +1688,13 @@ impl Scheduler {
                 quota = (prev.quota, prev.status, prev.credential);
             }
             trust.window = window;
+        }
+        // A bounded window this restore installs is newer than every lease in flight (a
+        // restore also runs while serving, when `save-cooldown-status` turns on or its
+        // directory moves); a live window it keeps keeps its generation.
+        if trust.bounded && !prev_wins {
+            self.generation = self.generation.wrapping_add(1);
+            trust.generation = self.generation;
         }
         let (quota, status, credential) = quota;
         self.cooldowns.insert(
@@ -2343,6 +2362,88 @@ mod tests {
         }
     }
 
+    /// A probe whose hold lapsed was taken over by a later probe: its late 429 neither
+    /// opens the next window nor touches the later probe's reservation, so the later
+    /// probe's success frees the account.
+    #[test]
+    fn a_superseded_probes_429_leaves_the_window_to_the_current_probe() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        let start = Instant::now();
+        for scope in [FailureScope::Model, FailureScope::Credential] {
+            let mut s = Scheduler::default();
+            s.record(&c, "m", &hinted(scope, days), &p, start);
+            let end = start + secs(H);
+            let first = s.reserve_probe(&c, "m", end);
+            let lapsed = end + PROBE_HOLD + secs(1);
+            let second = s.reserve_probe(&c, "m", lapsed);
+            let late = lapsed + secs(1);
+            s.record_picked(&c, "m", &hinted(scope, days - secs(H)), &p, first, late);
+            assert_eq!(
+                s.wait(&c, "m", late),
+                Some(PROBE_HOLD - secs(1)),
+                "{scope:?}: still the second probe's"
+            );
+            s.record_picked(&c, "m", &Outcome::Success, &p, second, late + secs(1));
+            assert_eq!(s.wait(&c, "m", late + secs(1)), None, "{scope:?}: recovered");
+        }
+    }
+
+    /// A credential-wide window that its probe's 429 renews carries its copies on model
+    /// keys along, ended ones included: when the next probe recovers the account, no copy
+    /// is left to ask for a probe of its own or to keep the count.
+    #[test]
+    fn a_renewed_credential_window_carries_its_ended_copies() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let days = secs(6 * 24 * H);
+        let start = Instant::now();
+        for streamed in [true, false] {
+            let mut s = Scheduler::default();
+            s.record(&c, "a", &hinted(FailureScope::Credential, days), &p, start);
+            let first_end = start + secs(H);
+            s.reserve_probe(&c, "b", first_end);
+            let renewed = first_end + secs(1);
+            s.record(&c, "b", &hinted(FailureScope::Credential, days - secs(H)), &p, renewed);
+            let second_end = renewed + secs(2 * H);
+            s.reserve_probe(&c, "c", second_end);
+            if streamed {
+                s.accept_probe(&c, "c", second_end);
+            } else {
+                s.record(&c, "c", &Outcome::Success, &p, second_end);
+            }
+            s.reserve_probe(&c, "a", second_end);
+            assert_eq!(s.wait(&c, "a", second_end), None, "streamed {streamed}: no probe for A");
+            if !streamed {
+                s.record(&c, "a", &hinted(FailureScope::Model, days), &p, second_end);
+                assert_eq!(s.wait(&c, "a", second_end), Some(secs(H)), "the count is cleared");
+            }
+        }
+    }
+
+    /// Generations compare in serial-number order: a window opened just after the counter
+    /// wraps is newer than a lease picked just before, and older than one picked after.
+    #[test]
+    fn generations_compare_across_the_wrap() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let start = Instant::now();
+        let mut s = Scheduler {
+            generation: u32::MAX,
+            ..Scheduler::default()
+        };
+        let before = s.reserve_probe(&c, "m", start);
+        assert_eq!(before, u32::MAX);
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(6 * 24 * H)), &p, start);
+        assert_eq!(entry(&s, &c, "m").trust.generation, 0, "wrapped");
+        let at = start + secs(MIN);
+        s.record_picked(&c, "m", &Outcome::Success, &p, before, at);
+        assert_eq!(s.wait(&c, "m", at), Some(secs(H - MIN)), "an older success leaves it");
+        s.record_picked(&c, "m", &Outcome::Success, &p, 0, at);
+        assert_eq!(s.wait(&c, "m", at), None, "a newer success ends it");
+    }
+
     /// An earlier credential-wide reset moves up the model keys that inherited the
     /// window; an independent longer cooldown stands.
     #[test]
@@ -2455,6 +2556,26 @@ mod tests {
         assert_eq!(merged.deadline, now + secs(H));
         assert!(merged.trust.bounded && merged.trust.stated == live.stated);
         assert_eq!(merged.trust.window, Some(2), "counts merge");
+        assert_eq!(merged.trust.generation, live.generation, "the live window's generation");
+    }
+
+    /// A restore while serving (`save-cooldown-status` turned on) that reinstalls a
+    /// bounded window gives it a fresh generation: a stream picked before the window
+    /// opened still cannot end it.
+    #[test]
+    fn a_restore_while_serving_keeps_the_window_newer_than_older_leases() {
+        let c = cred("a", serde_json::json!({}));
+        let p = Policy::default();
+        let (now, wall) = (Instant::now(), SystemTime::now());
+        let mut s = Scheduler::default();
+        let stream = s.reserve_probe(&c, "m", now);
+        s.record(&c, "m", &hinted(FailureScope::Model, secs(6 * 24 * H)), &p, now);
+        let saved = s.records(&c, now, wall);
+        assert!(s.restore(&c, &saved[0], true, secs(H), now, wall));
+        assert!(entry(&s, &c, "m").trust.bounded);
+        let at = now + secs(MIN);
+        s.record_picked(&c, "m", &Outcome::Success, &p, stream, at);
+        assert_eq!(s.wait(&c, "m", at), Some(secs(H - MIN)), "the window stands");
     }
 
     /// A 503 from a request already in flight inside a live bounded window: the window
