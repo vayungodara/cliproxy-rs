@@ -4,8 +4,10 @@
 #
 #   bench/idle-other.sh <macos|windows> <server binary> [auth files] [seconds]
 #
-# Same config and credential files as bench/idle.sh. After WARMUP seconds (default 10)
-# without any request it samples for <seconds> (default 60) and prints one JSON line:
+# Same config and credential files as bench/idle.sh. After WARMUP seconds (default 30, as
+# in bench/idle.sh: there is no heap trim here, but the config watcher's first look runs
+# on the blocking pool at startup, and that thread exits after a 10 s keep-alive) without
+# any request it samples for <seconds> (default 60) and prints one JSON line:
 #
 #   cpu_ms        user + system CPU time in the window, in milliseconds
 #   idle_wakeups  (macOS) package idle exits caused by the process in the window,
@@ -20,7 +22,7 @@ OS=$1
 BIN=$2
 FILES=${3:-1}
 WINDOW=${4:-60}
-WARMUP=${WARMUP:-10}
+WARMUP=${WARMUP:-30}
 PORT=${PORT:-8341}
 KEY=sk-bench-client-key
 export HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 ALL_PROXY=http://127.0.0.1:9 \

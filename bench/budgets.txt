@@ -34,7 +34,7 @@ size.x86_64-unknown-linux-gnu.archive_bytes  17_102_342  2
 # getrandom, hashbrown (3), rand, rand_core, sha2, thiserror.
 deps.x86_64-unknown-linux-gnu.duplicate_crates  11  0
 
-# Idle, Linux (every pull request): 30 s without requests, after 10 s of warm-up,
+# Idle, Linux (every pull request): 30 s without requests, after 30 s of warm-up,
 # with 1 and with 2,000 auth files. RSS gets 10% of room: three 1-file runs on the Ubuntu
 # runner measured 23,300 to 23,676 KB (1.6% apart); on a shared local VM the same binary
 # varied by up to 11% (bench/results/2026-10-06-idle.jsonl). Target RSS: 15 MB or less
@@ -54,10 +54,10 @@ idle.linux.2000.threads        6   0
 idle.linux.2000.rss_kb    71_000  10
 
 # Idle, macOS and Windows (release builds and the weekly idle workflow): 60 s without
-# requests. Windows adds one parked thread for file change notifications. macOS keys
-# carry `uname -m`. RSS measured on 2026-10-05: 14,976 to 15,344 KB on macos-15 (Apple
-# silicon), 10,496 to 10,656 KB on macos-15-intel, 15,812 to 16,232 KB on windows-2025
-# (working set).
+# requests, after 30 s of warm-up (10 s for the measurements below). Windows adds one
+# parked thread for file change notifications. macOS keys carry `uname -m`. RSS measured
+# on 2026-10-05: 14,976 to 15,344 KB on macos-15 (Apple silicon), 10,496 to 10,656 KB on
+# macos-15-intel, 15,812 to 16,232 KB on windows-2025 (working set).
 # 2026-10-06: idle_wakeups cut from 30 to 3 per 60 s. Over four CI runs each, macos-15
 # measured 0, 0, 0 and 1, and macos-15-intel 0 every time; 3 sits just above the worst.
 idle.macos-arm64.1.cpu_ms           20   0
