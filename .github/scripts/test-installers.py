@@ -402,7 +402,7 @@ esac
                 selected = ps(f"$code=(Get-Content -Raw '{script}') -replace '(?m)^Install-CliproxyRs -Service.*$', ''; . ([scriptblock]::Create($code)); "
                               "$dir=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:CLIPROXY_INSTALL_DIR); "
                               "$data=$ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($env:CLIPROXY_HOME); "
-                              "Get-CliproxyServers $dir (Join-Path $data 'config.yaml') | ForEach-Object { [IO.Path]::GetFileName($_.ExecutablePath) }")
+                              "Get-CliproxyServers $dir (Join-Path $data 'config.yaml') | ForEach-Object { [IO.Path]::GetFileName((Get-CliproxyImage $_.ProcessId $dir)) }")
                 assert selected.startswith("cliproxy.prev-") and selected.endswith(".exe"), selected
             output = install(success=False)
             assert ("Rolled back" if windows else "verified it is healthy") in output, output
