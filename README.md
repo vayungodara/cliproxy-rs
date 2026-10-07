@@ -99,6 +99,7 @@ Use the same structure for any of these metered APIs. The base URL excludes `/ch
 | GLM (Z.ai) | `https://api.z.ai/api/paas/v4` | [Z.ai API docs](https://docs.z.ai/api-reference/introduction) |
 | Kimi (Moonshot) | `https://api.moonshot.ai/v1` | [Moonshot API docs](https://platform.moonshot.ai/docs) |
 | OpenRouter | `https://openrouter.ai/api/v1` | [OpenRouter API docs](https://openrouter.ai/docs/quickstart) |
+| OpenCode Go | `https://opencode.ai/zen/go/v1` | [OpenCode Go docs](https://opencode.ai/docs/go/); use its Chat Completions models, and add `headers:` with an `x-opencode-session` value to the entry, because Go rejects requests without one |
 
 Put this in `~/.codex/config.toml`:
 
@@ -122,7 +123,9 @@ Use the port and `CLIPROXY_CLIENT_KEY` from your installation's `keys.env`. Code
 
 For failover, give two provider entries the same model alias, or add another key to a provider's `keys` list. By default, a 429 cools that credential for the failing model, and the proxy tries another eligible credential for the alias, within the configured attempt limits and error rules. [MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md#cooldowns-and-limits) explains retries when none are ready.
 
-These examples haven't been run against the live providers. Multi-turn tool use with DeepSeek V4 is untested.
+<p align="center"><img src="docs/img/codex-deepseek.gif" alt="Codex CLI fixing a bug and running a check with DeepSeek V4.1 Flash through cliproxy-rs" width="880"></p>
+
+On 7 October 2026, Codex CLI 0.160 finished a task with a file edit and a shell command through cliproxy-rs 0.2.2, using DeepSeek V4.1 Flash on OpenCode Go's Chat Completions endpoint (above). The DeepSeek, GLM, Kimi and OpenRouter endpoints in the table haven't been run live.
 
 ## Accounts and provider terms
 
