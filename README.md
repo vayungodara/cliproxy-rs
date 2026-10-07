@@ -4,7 +4,7 @@
 [![Release](https://img.shields.io/github/v/release/vayungodara/cliproxy-rs)](https://github.com/vayungodara/cliproxy-rs/releases/latest)
 [![Homebrew](https://img.shields.io/badge/brew-vayungodara%2Ftap%2Fcliproxy--rs-orange)](https://github.com/vayungodara/homebrew-tap)
 
-One local endpoint so Codex CLI, Claude Code and Cursor can use DeepSeek, GLM, Kimi, OpenRouter or your own gateway, with your API keys or your own accounts. You can mix providers and translate between the OpenAI, Anthropic and Gemini APIs.
+One local endpoint so Codex CLI, Claude Code and other tools can use DeepSeek, GLM, Kimi, OpenRouter or your own gateway, with your API keys or your own accounts. You can mix providers and translate between the OpenAI, Anthropic and Gemini APIs.
 
 ## Quick start
 
@@ -20,14 +20,14 @@ One local endpoint so Codex CLI, Claude Code and Cursor can use DeepSeek, GLM, K
    irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1 | iex
    ```
 
-   Or with [Scoop](https://scoop.sh), which installs the binary only:
+   The installer checks the release checksum, writes `~/.cliproxy-rs/config.yaml`, starts the proxy and opens the dashboard. On Windows, the config is `%USERPROFILE%\.cliproxy-rs\config.yaml`. It saves new keys in `keys.env` without printing them.
+
+   On Windows you can also use [Scoop](https://scoop.sh). It installs the binary only, so create the config and keys as in [First run without the install script](docs/INSTALL.md#first-run-without-the-install-script):
 
    ```powershell
    scoop bucket add vayungodara https://github.com/vayungodara/scoop-bucket
    scoop install vayungodara/cliproxy-rs
    ```
-
-   The installer checks the release checksum, writes `~/.cliproxy-rs/config.yaml`, starts the proxy and opens the dashboard. On Windows, the config is `%USERPROFILE%\.cliproxy-rs\config.yaml`. It saves new keys in `keys.env` without printing them.
 
    Or, on macOS or Linux, with Homebrew:
 
