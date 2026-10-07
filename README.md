@@ -99,7 +99,7 @@ Use the same structure for any of these metered APIs. The base URL excludes `/ch
 | GLM (Z.ai) | `https://api.z.ai/api/paas/v4` | [Z.ai API docs](https://docs.z.ai/api-reference/introduction) |
 | Kimi (Moonshot) | `https://api.moonshot.ai/v1` | [Moonshot API docs](https://platform.moonshot.ai/docs) |
 | OpenRouter | `https://openrouter.ai/api/v1` | [OpenRouter API docs](https://openrouter.ai/docs/quickstart) |
-| OpenCode Go | `https://opencode.ai/zen/go/v1` | [OpenCode Go docs](https://opencode.ai/docs/go/); use its Chat Completions models, and add `headers: {x-opencode-session: $CPA-SESSION-ID}` to the entry, which sends each conversation's session ID; Go rejects requests without one |
+| OpenCode Go | `https://opencode.ai/zen/go/v1` | [OpenCode Go docs](https://opencode.ai/docs/go/); use its Chat Completions models, and add `headers: {x-opencode-session: $CPA-SESSION-ID}` to the entry, which sends each conversation's session ID; OpenCode Go rejects requests without one |
 
 Put this in `~/.codex/config.toml`:
 
