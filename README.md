@@ -1,8 +1,10 @@
 # cliproxy-rs
 
 [![CI](https://github.com/vayungodara/cliproxy-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/vayungodara/cliproxy-rs/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/vayungodara/cliproxy-rs)](https://github.com/vayungodara/cliproxy-rs/releases/latest)
+[![Homebrew](https://img.shields.io/badge/brew-vayungodara%2Ftap%2Fcliproxy--rs-orange)](https://github.com/vayungodara/homebrew-tap)
 
-One local endpoint for Codex CLI, Claude Code and other tools, using your own accounts or API keys. You can mix providers and translate between the OpenAI, Anthropic and Gemini APIs.
+One local endpoint so Codex CLI, Claude Code and Cursor can use DeepSeek, GLM, Kimi, OpenRouter or your own gateway, with your API keys or your own accounts. You can mix providers and translate between the OpenAI, Anthropic and Gemini APIs.
 
 ## Quick start
 
