@@ -20,6 +20,13 @@ One local endpoint so Codex CLI, Claude Code and Cursor can use DeepSeek, GLM, K
    irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1 | iex
    ```
 
+   Or with [Scoop](https://scoop.sh), which installs the binary only:
+
+   ```powershell
+   scoop bucket add vayungodara https://github.com/vayungodara/scoop-bucket
+   scoop install vayungodara/cliproxy-rs
+   ```
+
    The installer checks the release checksum, writes `~/.cliproxy-rs/config.yaml`, starts the proxy and opens the dashboard. On Windows, the config is `%USERPROFILE%\.cliproxy-rs\config.yaml`. It saves new keys in `keys.env` without printing them.
 
    Or, on macOS or Linux, with Homebrew:
