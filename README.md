@@ -70,6 +70,8 @@ The local OpenAI base URL is `http://127.0.0.1:8317/v1`. Claude Code and Gemini 
 
 ## API keys: Codex CLI and mixed providers
 
+Codex CLI only speaks the Responses API now. A provider entry with `wire_api = "chat"` stops Codex with "`wire_api = "chat"` is no longer supported", and many providers only offer Chat Completions. Point Codex at the proxy instead: it accepts Responses requests and sends Chat Completions upstream, tool calls included.
+
 You do not need a subscription login. Merge this provider block into `~/.cliproxy-rs/config.yaml`, or `%USERPROFILE%\.cliproxy-rs\config.yaml` on Windows. Keep `access.api-keys`, `management.secret-key` and the rest of your config. The proxy reloads the configuration on save. The upstream keys below are separate from your proxy's client key. Replace the key and upstream model placeholders with values from each provider.
 
 ```yaml
