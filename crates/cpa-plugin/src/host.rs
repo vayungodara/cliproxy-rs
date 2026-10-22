@@ -173,6 +173,9 @@ pub(crate) struct Inner {
     pub(crate) auth_parser_installed: std::sync::atomic::AtomicBool,
     /// What `auth_parser` hands out.
     pub(crate) auth_parser: std::sync::OnceLock<Arc<dyn cpa_core::config::credentials::PluginAuthParser>>,
+    /// The `NextRefreshAfter` of each auth the parser last returned, by auth ID, with
+    /// the path of the file it came from. A parse of that file replaces them.
+    pub(crate) parsed_refresh_after: Mutex<std::collections::HashMap<String, (chrono::DateTime<chrono::Utc>, String)>>,
 }
 
 /// The plugin host. Cheap to clone.
@@ -224,6 +227,7 @@ impl Host {
             hooks_installed: Default::default(),
             auth_parser_installed: Default::default(),
             auth_parser: Default::default(),
+            parsed_refresh_after: Default::default(),
         });
         Self { inner }
     }

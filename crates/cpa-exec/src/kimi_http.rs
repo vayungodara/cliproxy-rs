@@ -274,7 +274,7 @@ fn expiration_from_map(meta: &serde_json::Map<String, Value>) -> Option<DateTime
 }
 
 /// Go `Auth.ExpirationTime`: access-token JWT `exp`, then metadata expiry fields.
-pub(crate) fn expiration(credential: &Credential) -> Option<DateTime<Utc>> {
+pub fn expiration(credential: &Credential) -> Option<DateTime<Utc>> {
     let token = credential
         .str("access_token")
         .filter(|s| !s.is_empty())
@@ -283,7 +283,7 @@ pub(crate) fn expiration(credential: &Credential) -> Option<DateTime<Utc>> {
     jwt_exp(token).or_else(|| expiration_from_map(&credential.metadata))
 }
 
-pub(crate) fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
+pub fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
     ["last_refresh", "lastRefresh", "last_refreshed_at", "lastRefreshedAt"]
         .iter()
         .find_map(|k| credential.metadata.get(*k).and_then(parse_time))
@@ -299,7 +299,7 @@ pub(crate) fn last_refresh(credential: &Credential) -> Option<DateTime<Utc>> {
         })
 }
 
-pub(crate) fn preferred_interval(credential: &Credential) -> Option<chrono::Duration> {
+pub fn preferred_interval(credential: &Credential) -> Option<chrono::Duration> {
     const KEYS: [&str; 4] = [
         "refresh_interval_seconds",
         "refreshIntervalSeconds",

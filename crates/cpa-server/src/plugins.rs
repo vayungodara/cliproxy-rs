@@ -18,6 +18,7 @@ use crate::Runtime;
 pub(crate) mod execution;
 pub(crate) mod interceptors;
 pub(crate) mod model_callbacks;
+pub(crate) mod refresh;
 
 /// The host plus the config it should converge on.
 pub struct PluginRuntime {
@@ -29,6 +30,9 @@ pub struct PluginRuntime {
     access: RwLock<Arc<AccessRegistry>>,
     /// Go's executor table entries owned by plugins: provider to the registered executor.
     executors: RwLock<HashMap<String, cpa_plugin::executor::Adapter>>,
+    /// The refresh lifecycle of credentials a plugin refreshes (Go `LastRefreshedAt` and
+    /// `NextRefreshAfter`, which Go keeps in memory too).
+    schedules: refresh::Schedules,
 }
 
 impl Default for PluginRuntime {
@@ -47,6 +51,7 @@ impl PluginRuntime {
             applied: watch::Sender::new(0),
             access: RwLock::default(),
             executors: RwLock::default(),
+            schedules: refresh::Schedules::default(),
         }
     }
 
