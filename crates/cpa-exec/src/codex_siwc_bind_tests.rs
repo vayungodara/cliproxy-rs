@@ -10,7 +10,7 @@ fn temp_root() -> PathBuf {
     let root = std::env::temp_dir().join(format!("cpa-siwc-bind-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(root.join("auth")).unwrap();
     std::fs::create_dir_all(root.join("out")).unwrap();
-    std::fs::canonicalize(root).unwrap()
+    plain_path(std::fs::canonicalize(root).unwrap())
 }
 
 /// The Go recorder's file layout: `->target` is a symlink, `/` a directory. `false`
@@ -60,8 +60,7 @@ fn siwc_bind_matches_go() {
     for case in go["resolve"].as_array().unwrap() {
         let root = temp_root();
         let (dir, out) = (root.join("auth"), root.join("out"));
-        // The golden's `/` is Go's separator on Linux; on Windows the temporary root is a
-        // verbatim `\\?\` path, where only `\` separates.
+        // The golden's `/` is Go's separator on Linux; Windows paths use `\`.
         let expand = |s: &str| {
             let s = s
                 .replace("$DIR", &dir.to_string_lossy())
@@ -239,5 +238,23 @@ async fn bind_saves_the_issued_client_tokens() {
     assert_eq!(saved["siwc"]["access_token"], "siwc-at");
     assert_eq!(saved["siwc"]["client_id"], "oaiapp_issued");
     assert_eq!(saved["siwc"]["device_id"], "e61bbe28-07ef-466d-8e5d-a344f94ab305");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// Windows spells canonical paths the way Go's `EvalSymlinks` does.
+#[cfg(windows)]
+#[test]
+fn verbatim_paths_lose_their_prefix() {
+    for (path, want) in [
+        (r"\\?\C:\Users\a\c.json", r"C:\Users\a\c.json"),
+        (r"\\?\UNC\server\share\auth\c.json", r"\\server\share\auth\c.json"),
+        (r"\\?\GLOBALROOT\Device\x", r"\\?\GLOBALROOT\Device\x"),
+        (r"C:\Users\a\c.json", r"C:\Users\a\c.json"),
+    ] {
+        assert_eq!(plain_path(PathBuf::from(path)), PathBuf::from(want), "{path}");
+    }
+    // The temporary root is canonical and plain, so resolve() answers without the prefix.
+    let root = temp_root();
+    assert!(!root.to_string_lossy().starts_with(r"\\?\"), "{root:?}");
     let _ = std::fs::remove_dir_all(root);
 }

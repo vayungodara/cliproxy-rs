@@ -1168,8 +1168,10 @@ async fn persist_command(
 /// Saves the file `-siwc-bind` bound, under the store's spelling of the auth directory
 /// (the bound path has its symlinks resolved).
 async fn persist_bound(store: &cpa_store::Store, path: &Path) {
+    // resolve() spells the bound path without Windows' verbatim prefix; so does this.
     let path = std::fs::canonicalize(&store.auth_dir)
         .ok()
+        .map(cpa_exec::codex_siwc_bind::plain_path)
         .and_then(|dir| path.strip_prefix(dir).ok().map(|rel| store.auth_dir.join(rel)))
         .unwrap_or_else(|| path.to_owned());
     let name = path

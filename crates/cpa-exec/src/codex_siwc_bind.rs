@@ -79,6 +79,7 @@ pub fn resolve(auth_dir: &Path, target: &str) -> Result<PathBuf, String> {
     // parent of its target.
     let dir = go_abs(auth_dir)
         .and_then(std::fs::canonicalize)
+        .map(plain_path)
         .map_err(|e| format!("siwc-bind: failed to resolve real auth-dir: {e}"))?;
     let candidate = if Path::new(raw).is_absolute() {
         PathBuf::from(raw)
@@ -87,8 +88,9 @@ pub fn resolve(auth_dir: &Path, target: &str) -> Result<PathBuf, String> {
     } else {
         dir.join(raw)
     };
-    let candidate =
-        std::fs::canonicalize(candidate).map_err(|e| format!("siwc-bind: failed to resolve credential file: {e}"))?;
+    let candidate = std::fs::canonicalize(candidate)
+        .map(plain_path)
+        .map_err(|e| format!("siwc-bind: failed to resolve credential file: {e}"))?;
     if candidate
         .strip_prefix(&dir)
         .map_or(true, |rel| rel.as_os_str().is_empty())
@@ -229,6 +231,33 @@ fn go_clean(path: &Path) -> PathBuf {
         return PathBuf::from(".");
     }
     out.iter().collect()
+}
+
+/// A canonical path spelled as Go's `filepath.EvalSymlinks` spells it. On Windows,
+/// `std::fs::canonicalize` answers with a verbatim path: `\\?\C:\x` becomes `C:\x`
+/// and `\\?\UNC\server\share\x` becomes `\\server\share\x`; other verbatim
+/// forms stay. Other platforms return the path as it is.
+#[cfg(windows)]
+pub fn plain_path(path: PathBuf) -> PathBuf {
+    use std::os::windows::ffi::{OsStrExt, OsStringExt};
+    use std::path::{Component, Prefix};
+    let wide: Vec<u16> = path.as_os_str().encode_wide().collect();
+    let plain = match path.components().next() {
+        Some(Component::Prefix(p)) => match p.kind() {
+            // `\\?\` is four UTF-16 units, `\\?\UNC\` eight.
+            Prefix::VerbatimDisk(_) => wide[4..].to_vec(),
+            Prefix::VerbatimUNC(..) => [&[u16::from(b'\\'); 2][..], &wide[8..]].concat(),
+            _ => return path,
+        },
+        _ => return path,
+    };
+    PathBuf::from(std::ffi::OsString::from_wide(&plain))
+}
+
+/// The path as it is: only Windows spells canonical paths verbatim.
+#[cfg(not(windows))]
+pub fn plain_path(path: PathBuf) -> PathBuf {
+    path
 }
 
 /// Go `filepath.Abs` of a cleaned path: joined with the working directory, cleaned.
