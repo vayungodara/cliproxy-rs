@@ -55,10 +55,16 @@
 # the fields value decoder and the provenance kept through reads and refreshes. At
 # a721e3f, +67 KB .text (+73 KB binary, +25 KB archive) over master's build at 98ec7d6
 # in this job (29_110_775 to 29_177_463); the lines below are that job's measurements.
-size.x86_64-unknown-linux-gnu.binary_bytes   43_675_120  2
-size.x86_64-unknown-linux-gnu.text_bytes     29_177_463  2
-size.x86_64-unknown-linux-gnu.rodata_bytes    8_562_144  2
-size.x86_64-unknown-linux-gnu.archive_bytes  18_534_286  2
+# 2026-10-22: plugin credential refresh through auth providers (#150): the plugin and
+# compatible refresh routes, the per-credential refresh deadlines, the saved disabled
+# state and published proxy URL, and the wire test's API. At 6cf1ff1, +67 KB .text
+# (+77 KB binary, +34 KB archive, +4 KB .rodata) over master's build at 827445c in this
+# job (29_343_799 to 29_410_423); the lines below are that job's measurements. The rest
+# of the rise came with master's changes since #149's line.
+size.x86_64-unknown-linux-gnu.binary_bytes   43_934_576  2
+size.x86_64-unknown-linux-gnu.text_bytes     29_410_423  2
+size.x86_64-unknown-linux-gnu.rodata_bytes    8_566_240  2
+size.x86_64-unknown-linux-gnu.archive_bytes  18_648_051  2
 # Crates linked into the binary in two or more versions; a new one fails until it is
 # justified here. 2026-10-05: base64, block-buffer, cpufeatures, crypto-common, digest,
 # getrandom, hashbrown (3), rand, rand_core, sha2, thiserror.
