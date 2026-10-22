@@ -112,7 +112,8 @@ pub struct Spec {
 
 impl Spec {
     fn from_static(info: &ModelInfo) -> Self {
-        let mut spec = serde_json::from_value(Value::Object(info.raw.clone())).unwrap_or_else(|_| Self {
+        let raw = super::go_integers(&info.raw);
+        let mut spec = serde_json::from_value(Value::Object(raw)).unwrap_or_else(|_| Self {
             id: info.id.clone(),
             kind: info.kind.clone(),
             ..Self::default()

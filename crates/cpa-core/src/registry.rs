@@ -69,15 +69,6 @@ impl ModelInfo {
         self.raw.get("is_compat").and_then(Value::as_bool).unwrap_or(false)
     }
 
-    /// A catalog model: the typed fields as Go's typed decode reads them ([`go_model_json`]:
-    /// `-0` is 0, a null `type` is `""`, a null level is `""`), `raw` as published.
-    fn from_catalog(raw: Map<String, Value>) -> Result<Self, serde_json::Error> {
-        let typed = go_model_json(&raw).map_err(<serde_json::Error as serde::de::Error>::custom)?;
-        let mut info = Self::from_raw(serde_json::from_value(typed)?)?;
-        info.raw = raw;
-        Ok(info)
-    }
-
     pub fn from_raw(raw: Map<String, Value>) -> Result<Self, serde_json::Error> {
         #[derive(Deserialize)]
         struct Typed {
@@ -87,7 +78,7 @@ impl ModelInfo {
             #[serde(default)]
             thinking: Option<ThinkingSupport>,
         }
-        let typed: Typed = serde_json::from_value(Value::Object(raw.clone()))?;
+        let typed: Typed = serde_json::from_value(Value::Object(go_integers(&raw)))?;
         Ok(Self {
             id: typed.id,
             kind: typed.kind,
@@ -114,10 +105,7 @@ impl Catalog {
                 continue;
             }
             let models: Vec<Map<String, Value>> = serde_json::from_value(models)?;
-            let models = models
-                .into_iter()
-                .map(ModelInfo::from_catalog)
-                .collect::<Result<_, _>>()?;
+            let models = models.into_iter().map(ModelInfo::from_raw).collect::<Result<_, _>>()?;
             channels.push((name, models));
         }
         Ok(Self { channels })
@@ -199,6 +187,26 @@ const THINKING: [(&str, Kind, bool); 6] = [
     ("disable_type", Text, true),
     ("levels", List, true),
 ];
+
+/// `raw` for typed deserialisation, with `-0` as 0 in its integer fields and `thinking`'s:
+/// Go reads that integer literal as 0, serde as the float `-0.0`. `raw` itself keeps it.
+/// A refresh refuses `-0.0` itself by its text (`check_catalog_members`).
+pub(crate) fn go_integers(raw: &Map<String, Value>) -> Map<String, Value> {
+    fn zero(obj: &mut Map<String, Value>, fields: &[(&'static str, Kind, bool)]) {
+        for (name, kind, _) in fields {
+            let negative_zero = |v: &Value| v.as_f64().is_some_and(|f| f == 0.0 && f.is_sign_negative());
+            if *kind == Int && obj.get(*name).is_some_and(negative_zero) {
+                obj.insert((*name).into(), Value::from(0));
+            }
+        }
+    }
+    let mut out = raw.clone();
+    zero(&mut out, &MODEL);
+    if let Some(Value::Object(thinking)) = out.get_mut("thinking") {
+        zero(thinking, &THINKING);
+    }
+    out
+}
 
 /// A catalog model as Go's typed decode reads it into `registry.ModelInfo` and
 /// `json.Marshal` writes it back (model_registry.go): members match fields exactly, else

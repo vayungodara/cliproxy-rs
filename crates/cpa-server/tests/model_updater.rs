@@ -29,8 +29,9 @@ const TYPED_GEMINI_GO: &str = r#"{"id":"gemini-typed","object":"","created":0,"o
 /// text: a parsed `Value` cannot hold repeated members. Each adds one Gemini model (or a
 /// section) to the otherwise acceptable refreshed catalog. Go refuses the integer-field
 /// fractions, `"bad"` then `123` (also as a repeated header name), and the empty decoded
-/// ID; it merges the others differently from the decoded map.
-const REFUSED: [(&str, &str); 15] = [
+/// ID; it serves `""` for a null `type` and level and merges the others differently from
+/// the decoded map.
+const REFUSED: [(&str, &str); 17] = [
     (
         "repeated_header_bad_first",
         r#"{"id":"g","config":{"override_header":{"X-Test":123,"X-Test":"ok"}}}"#,
@@ -61,14 +62,16 @@ const REFUSED: [(&str, &str); 15] = [
         r#"{"id":"g","native_capabilities":{"web_search":"x","web_search":true}}"#,
     ),
     ("thinking_member_case", r#"{"id":"g","thinking":{"Min":1}}"#),
+    ("type_null", r#"{"id":"g","type":null}"#),
+    ("levels_null", r#"{"id":"g","thinking":{"levels":[null]}}"#),
     ("empty_decoded_id", r#"{"id":"g","ID":""}"#),
     ("section_in_two_cases", r#"SECTION"GEMINI":[{"id":"b"}]"#),
     ("section_in_another_case", r#"LONE"GEMINI":[{"id":"b"}]"#),
 ];
 
-/// An accepted model only Go's typed decode reads as intended: `-0` in thinking's integer
-/// fields, a null `type` and level, and a repeated header name.
-const LENIENT: &str = r#"{"id":"g-lenient","type":null,"thinking":{"min":-0,"max":-0,"levels":[null]},"config":{"override_header":{"X-Test":"a","X-Test":"ok","x-test":null}}}"#;
+/// An accepted Gemini model with `-0` in an integer field (Go's 0, serde's `-0.0`) and a
+/// repeated header name (Go keeps the last value).
+const LENIENT: &str = r#"{"id":"g-lenient","type":"gemini","owned_by":"google","context_length":4096,"thinking":{"min":-0,"max":1024},"config":{"override_header":{"X-Test":"a","X-Test":"ok","x-test":null}}}"#;
 
 /// The refreshed catalog with `case` from [`REFUSED`] added, its model ID made unique so
 /// that one wrongly accepted case cannot hide the next.
@@ -170,6 +173,16 @@ async fn refresh_skips_failing_sources_and_swaps_a_changed_catalog() {
         metadata,
     )
     .unwrap();
+    let mut metadata = serde_json::Map::new();
+    metadata.insert("type".into(), "gemini".into());
+    metadata.insert("access_token".into(), "fake-gemini-token".into());
+    let gemini = cpa_core::credential::Credential::from_file(
+        std::path::Path::new("/auth"),
+        std::path::Path::new("/auth/g.json"),
+        metadata,
+    )
+    .unwrap();
+    let gemini_id = gemini.id.clone();
     let executors = cpa_exec::Executors {
         claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:9").unwrap(),
         codex: Default::default(),
@@ -182,19 +195,19 @@ async fn refresh_skips_failing_sources_and_swaps_a_changed_catalog() {
     let config = auth.join("config.yaml");
     let hash = bcrypt::hash("fake-management-only", 4).unwrap();
     let yaml = format!(
-        "management:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+        "api-keys:\n  - fake-client-key\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
         auth.display()
     );
     std::fs::write(&config, yaml).unwrap();
     let rt = Arc::new(cpa_server::testing::runtime(
         cpa_core::config::Config::load(&config).unwrap(),
-        vec![credential],
+        vec![credential, gemini],
         executors,
     ));
     let registered = |rt: &cpa_server::Runtime| rt.registry().ids().any(|id| id == "claude-refreshed-1");
     assert!(!registered(&rt));
     let management = cpa_server::management::Management::new(rt.clone(), config);
-    let app = cpa_server::management::router(management);
+    let app = cpa_server::app(rt.clone(), cpa_server::management::router(management));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();
     tokio::spawn(async move {
@@ -258,19 +271,42 @@ async fn refresh_skips_failing_sources_and_swaps_a_changed_catalog() {
     assert_eq!(catalog_generation(), generation + 1, "identical once meta is kept");
     assert_eq!(pinned().channel("meta").len(), meta_before);
 
-    // Go's typed decode reads `-0` as 0 and nulls as empty strings, in the typed fields
-    // and the rendering, and takes the last of repeated header names.
+    // `-0` is Go's 0 in the static catalog, the Gemini credential's registration, the
+    // client model list and the management rendering; the last of repeated header names
+    // wins.
     cpa_server::model_updater::refresh(&urls(&["lenient"]), "test").await;
     assert_eq!(catalog_generation(), generation + 2);
+    let thinking = |min, max| {
+        Some(cpa_core::registry::ThinkingSupport {
+            min,
+            max,
+            ..Default::default()
+        })
+    };
     let model = pinned().lookup("g-lenient").unwrap();
-    assert_eq!(model.kind, "");
-    let thinking = model.thinking.as_ref().unwrap();
+    assert_eq!(model.thinking, thinking(0, 1024));
+    let spec = rt.registry().client_model(&gemini_id, "g-lenient").expect("registered");
     assert_eq!(
-        (thinking.min, thinking.max, thinking.levels.as_slice()),
-        (0, 0, [String::new()].as_slice())
+        (spec.owned_by.as_str(), spec.context_length, spec.thinking.clone()),
+        ("google", 4096, thinking(0, 1024))
     );
+    let models: serde_json::Value = wreq::Client::new()
+        .get(format!("http://{addr}/v1/models"))
+        .bearer_auth("fake-client-key")
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let listed = models["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["id"] == "g-lenient");
+    assert_eq!(listed.expect("listed")["owned_by"], "google", "{models}");
     // Go 1.26.4 json.Marshal of LENIENT decoded into registry.ModelInfo.
-    let go = r#"{"id":"g-lenient","object":"","created":0,"owned_by":"","type":"","thinking":{"levels":[""]},"config":{"override_header":{"X-Test":"ok","x-test":""}}}"#;
+    let go = r#"{"id":"g-lenient","object":"","created":0,"owned_by":"google","type":"gemini","context_length":4096,"thinking":{"max":1024},"config":{"override_header":{"X-Test":"ok","x-test":""}}}"#;
     let body = served(addr).await;
     assert!(body.contains(go), "{body}");
 }
