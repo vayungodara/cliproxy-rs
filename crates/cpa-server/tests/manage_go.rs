@@ -1192,7 +1192,7 @@ mod creds {
         }
         assert_eq!(compared, 219);
         eprintln!("credentials: {bytes_compared} of {compared} steps compared byte for byte");
-        assert_eq!(bytes_compared, 168, "steps compared byte for byte");
+        assert_eq!(bytes_compared, 171, "steps compared byte for byte");
     }
 
     /// Pending v8.0.35 drift outside the config saver. Each pin names its scenario and
@@ -1221,7 +1221,6 @@ mod creds {
             (true, 88) => request("GET", "/credentials", None),
             (true, 0) => request("GET", "/credentials", None),
             (true, 1) => request("GET", "/credentials?name=claude-a.json", None),
-            (true, 82) => request("GET", "/routing/model-definitions/claude", None),
             _ => {}
         }
         match (name, i) {
@@ -1252,58 +1251,6 @@ mod creds {
                 assert_eq!(files.remove(lock), Some(json!("raw:")), "{at}: {lock}");
             }
         }
-        let mut response = step["response"].take();
-        let response = &mut response;
-        match (name, i) {
-            // Go f62d4d28 and a19a8ecd: the Claude catalog adds claude-haiku-5-5 and
-            // changes six models' thinking metadata. Models catalog owner.
-            ("credential_inventory_and_edits", 82) => {
-                let models = response["models"].as_array_mut().unwrap();
-                let at_haiku = models
-                    .iter()
-                    .position(|m| m["id"] == "claude-haiku-5-5")
-                    .expect("Go adds it");
-                assert_eq!(models[at_haiku - 1]["id"], "claude-sonnet-5-5", "{at}");
-                models.remove(at_haiku);
-                let levels = json!(["low", "medium", "high", "xhigh", "max"]);
-                let budget = json!({"levels": levels, "max": 128000, "min": 1024, "zero_allowed": true});
-                let dynamic = json!({"dynamic_allowed": true, "levels": levels, "zero_allowed": true});
-                let fable = json!({"dynamic_allowed": true, "levels": levels});
-                for (id, go, old) in [
-                    ("claude-opus-4-7", &dynamic, &budget),
-                    ("claude-opus-4-8", &dynamic, &budget),
-                    ("claude-fable-5", &fable, &budget),
-                    ("claude-fable-5-1", &fable, &budget),
-                    ("claude-opus-5-5", &fable, &dynamic),
-                ] {
-                    let model = models.iter_mut().find(|m| m["id"] == id).unwrap();
-                    assert_eq!(&model["thinking"], go, "{at}: {id}");
-                    model["thinking"] = old.clone();
-                }
-                let sonnet = models.iter_mut().find(|m| m["id"] == "claude-sonnet-5-5").unwrap();
-                let thinking = sonnet["thinking"].as_object_mut().unwrap();
-                assert_eq!(thinking.remove("disable_type"), Some(json!("between_tools")), "{at}");
-                assert_eq!(Value::Object(thinking.clone()), dynamic, "{at}");
-                step.as_object_mut().unwrap().remove("raw_json");
-            }
-            // Go f62d4d28 and a19a8ecd: AI Studio drops gemini-3.7-flash, the 15th
-            // model. Models catalog owner.
-            ("runtime_credentials", 4 | 6) => {
-                let models = response["models"].as_array_mut().unwrap();
-                let id = |m: &Value| m.get("id").unwrap_or(m).clone();
-                assert!(models.iter().all(|m| id(m) != "gemini-3.7-flash"), "{at}");
-                assert_eq!(id(&models[13]), "gemini-3.6-flash", "{at}");
-                let old = if i == 4 {
-                    json!({"display_name": "Gemini 3.7 Flash", "id": "gemini-3.7-flash", "owned_by": "google", "type": "gemini"})
-                } else {
-                    json!("gemini-3.7-flash")
-                };
-                models.insert(14, old);
-                step.as_object_mut().unwrap().remove("raw_json");
-            }
-            _ => {}
-        }
-        step["response"] = response.take();
         step
     }
 

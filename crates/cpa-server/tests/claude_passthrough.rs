@@ -336,12 +336,26 @@ async fn unregistered_and_unserved_models_follow_go_error_contracts() {
     // An Antigravity credential without a project or refresh token: Go's
     // PrepareRequestAuth fails in ensureAccessToken (`missing refresh token`, 401)
     // before any request leaves, and the conductor answers that last error.
-    let res = post(r#"{"model":"gemini-pro-agent"}"#).await.unwrap();
+    let res = post(r#"{"model":"gemini-3-flash"}"#).await.unwrap();
     assert_eq!(res.status().as_u16(), 401);
     assert_eq!(
         res.text().await.unwrap(),
         r#"{"type":"error","error":{"type":"authentication_error","message":"missing refresh token"}}"#
     );
+    // Go v8.0.35 (f62d4d28) dropped these Antigravity models from the catalog, so the
+    // credential no longer registers them and they have no provider.
+    for model in ["gemini-pro-agent", "gemini-3.1-pro-low", "gemini-3.7-flash-high"] {
+        let res = post(Box::leak(format!(r#"{{"model":"{model}"}}"#).into_boxed_str()))
+            .await
+            .unwrap();
+        assert_eq!(res.status().as_u16(), 400, "{model}");
+        assert_eq!(
+            res.text().await.unwrap(),
+            format!(
+                r#"{{"type":"error","error":{{"type":"invalid_request_error","message":"unknown provider for model {model}"}}}}"#
+            )
+        );
+    }
     std::fs::remove_dir_all(dir).unwrap();
 }
 

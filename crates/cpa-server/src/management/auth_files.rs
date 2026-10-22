@@ -25,8 +25,6 @@ use super::{Management, json as respond, multipart};
 use crate::body_limit::FirstJson;
 use crate::runtime::{Commit, PatchError};
 
-const MODEL_DEFINITIONS: &str = include_str!("model_definitions.json");
-
 /// `url.ParseQuery` pairs in order: names and values decoded, malformed pairs skipped.
 pub(super) struct Query(Vec<(String, String)>);
 
@@ -2295,21 +2293,11 @@ fn merge_headers(meta: &mut Map<String, Value>, value: &Value) -> bool {
 // ---------------------------------------------------------------------------
 // Models, cooldowns, refresh
 
-fn definitions() -> &'static Map<String, Value> {
-    static DEFS: std::sync::LazyLock<Map<String, Value>> =
-        std::sync::LazyLock::new(|| serde_json::from_str(MODEL_DEFINITIONS).expect("embedded model definitions"));
-    &DEFS
-}
-
-/// Go `GetStaticModelDefinitionsByChannel`.
-fn channel_models(channel: &str) -> Option<&'static Vec<Value>> {
-    let key = match channel.trim().go_lower().as_str() {
-        "kimi-ai" | "kimi.ai" | "kimi.com" => "kimi".to_owned(),
-        "x-ai" | "grok" => "xai".to_owned(),
-        "muse" => "meta".to_owned(),
-        other => other.to_owned(),
-    };
-    definitions().get(&key)?.as_array()
+/// A model as Go's `registry.ModelInfo` decodes and encodes it
+/// ([`cpa_core::registry::go_model_json`]). Catalog refreshes refuse a catalog Go's
+/// decode refuses, and registered models are typed, so nothing is dropped here.
+fn go_model_info(raw: &Map<String, Value>) -> Option<Value> {
+    cpa_core::registry::go_model_json(raw).ok()
 }
 
 /// Go `GetStaticModelDefinitions`: the built-in catalog for `channel`, else (v8.0.35,
@@ -2323,8 +2311,8 @@ pub(crate) async fn model_definitions(
     if channel.is_empty() {
         return fail(StatusCode::BAD_REQUEST, "channel is required");
     }
-    let models = match channel_models(&channel) {
-        Some(models) if !models.is_empty() => models.clone(),
+    let models = match cpa_core::registry::dynamic::static_definitions(&channel) {
+        Some(models) if !models.is_empty() => models.iter().filter_map(|m| go_model_info(&m.raw)).collect(),
         _ => dynamic_definitions(&state, &channel),
     };
     if models.is_empty() {
@@ -2353,21 +2341,7 @@ fn dynamic_definitions(state: &Management, channel: &str) -> Vec<Value> {
         .map(|spec| spec.to_info().raw)
         .collect();
     models.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
-    models
-        .into_iter()
-        .map(|mut raw| {
-            // `json:"-"` fields of Go's ModelInfo.
-            for internal in [
-                "max_context_length",
-                "support_configuration_update",
-                "is_compat",
-                "user_defined",
-            ] {
-                raw.remove(internal);
-            }
-            Value::Object(raw)
-        })
-        .collect()
+    models.iter().filter_map(go_model_info).collect()
 }
 
 /// Go `pluginModelInfoToRegistryModelInfo` then `json.Marshal`: struct order, with
