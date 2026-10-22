@@ -103,6 +103,10 @@ put("requests.tls-handshake-timeout-seconds", "int")
 put("server.max-request-body-bytes", "int")
 # v8.0.35 7c41cd05 (Config.GitHubToken), legacy root spelling in buildV8Paths.
 put("server.github-token", "string")
+# v8.0.35 CatalogSources (internal/registry/catalog_config.go), Config.Models: the
+# root `models` in both layouts.
+for name in ["catalog", "codex-catalog", "devin-catalog"]:
+    put("models." + name, "string")
 # cliproxy-rs additions (docs/DIFFERENCES-FROM-GO.md). Go starts with them and ignores
 # them; a config edit through its v8 Management API moves them into comments.
 put("oauth.providers.codex.chatgpt-keep-alive", "bool")
