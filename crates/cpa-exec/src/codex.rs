@@ -439,11 +439,12 @@ impl CodexExecutor {
         let request::Shaped {
             body,
             optimized: restore,
+            finalize,
             ..
         } = request::shape(&req, view, settings, Call::Stream)?;
         let (body, scope) = crate::codex_replay::apply(&self.replay, &req, body).await;
         let (body, cache) = request::prompt_cache(&req, body, ws_session, false);
-        let body = request::sanitize_input_ids(body);
+        let body = finalize.apply(&req, settings, request::sanitize_input_ids(body));
         report_request(&req, Format::Codex, &body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), true);
         let url = format!("{}/responses", view.base_url);
@@ -505,11 +506,12 @@ impl CodexExecutor {
         let request::Shaped {
             body,
             optimized: restore,
+            finalize,
             ..
         } = request::shape(&req, view, settings, Call::NonStream)?;
         let (body, scope) = crate::codex_replay::apply(&self.replay, &req, body).await;
         let (body, cache) = request::prompt_cache(&req, body, None, false);
-        let body = request::sanitize_input_ids(body);
+        let body = finalize.apply(&req, settings, request::sanitize_input_ids(body));
         report_request(&req, Format::Codex, &body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), true);
         let url = format!("{}/responses", view.base_url);
@@ -570,10 +572,11 @@ impl CodexExecutor {
         let request::Shaped {
             body,
             optimized: restore,
+            finalize,
             ..
         } = request::shape(&req, view, settings, Call::Compact)?;
         let (body, cache) = request::prompt_cache(&req, body, None, false);
-        let body = request::sanitize_input_ids(body);
+        let body = finalize.apply(&req, settings, request::sanitize_input_ids(body));
         report_request(&req, Format::OpenAIResponse, &body);
         let headers = request::http_headers(view, settings, &req.headers, &body, &model, cache.as_deref(), false);
         let url = format!("{}/responses/compact", view.base_url);
@@ -777,6 +780,15 @@ fn count_tokens(req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecErr
     };
     let translated = crate::codex_client::translate_request(req.source_format, Format::Codex, &ctx, &req.body, &client)
         .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
+    // The rule baseline: the translated original, else the translated body before
+    // thinking. Go counts with a failed translation's partial body; this refuses.
+    let original = if req.original_body.is_empty() {
+        translated.body.clone()
+    } else {
+        crate::codex_client::translate_request(req.source_format, Format::Codex, &ctx, &req.original_body, &client)
+            .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?
+            .body
+    };
     let body = cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
         body: &translated.body,
         payload: &req.body,
@@ -808,8 +820,16 @@ fn count_tokens(req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecErr
             body = set_str(&body, "instructions", "");
         }
     }
+    let body = crate::payload_barrier::Barrier {
+        executor: "codex",
+        model: &model,
+        protocol: Format::Codex.as_str(),
+        root: "",
+        original: &original,
+    }
+    .apply(cfg, req, body.into_bytes());
     let encoding = crate::codex_tokens::encoding_for_model(&model);
-    let count = crate::codex_tokens::count_input_tokens(encoding, body.as_bytes()).map_err(|e| {
+    let count = crate::codex_tokens::count_input_tokens(encoding, &body).map_err(|e| {
         ExecError::local(
             500,
             FailureScope::Request,

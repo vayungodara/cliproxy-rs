@@ -26,6 +26,7 @@ use serde_json::{Map, Value};
 
 use crate::gemini::{self as g, Emit, LineState, Output};
 use crate::gemini_payload as payload;
+use crate::payload_barrier::Barrier;
 use crate::proxy::{self, GoClients, GoHeaders, Hooks, Proxy};
 use crate::vertex_auth;
 
@@ -402,21 +403,24 @@ impl VertexExecutor {
         Ok(headers)
     }
 
-    /// The translated body through Go's Vertex request edits, before the boundary turns.
-    fn prepared_body(&self, req: &ExecRequest, cfg: &Config, base_model: &str) -> Result<Vec<u8>, ExecError> {
+    /// The translated original (the payload-rule baseline) and the translated body
+    /// through Go's Vertex request edits, before the boundary turns.
+    fn prepared_body(
+        &self,
+        req: &ExecRequest,
+        cfg: &Config,
+        base_model: &str,
+    ) -> Result<(Vec<u8>, Vec<u8>), ExecError> {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = g::resolved(req);
         let original = g::translate(req, cfg, to, base_model, g::original_request(req), req.stream, false)?;
         let body = g::translate(req, cfg, to, base_model, &req.body, req.stream, false)?;
         let mut body = g::apply_thinking(req, body, from, to, PROVIDER, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(base_model, body);
-        let rules = cpa_common::payload::Rules::from_config(cfg);
-        body = g::apply_payload_rules(&rules, base_model, to.as_str(), body, &original, req);
         body = payload::set_str_if_different(body, "model", base_model);
         body = strip_tool_call_ids(body, from);
-        Ok(cpa_common::signature::sanitize_gemini_request_thought_signatures(
-            &body, "contents",
-        ))
+        let body = cpa_common::signature::sanitize_gemini_request_thought_signatures(&body, "contents");
+        Ok((original, body))
     }
 
     async fn generate(
@@ -430,8 +434,14 @@ impl VertexExecutor {
         let imagen = is_imagen(&base_model);
         // Only the service-account Execute path speaks Imagen's own request format.
         let imagen_wire = imagen && !req.stream && matches!(auth, Auth::ServiceAccount { .. });
-        let mut body = if imagen_wire {
-            imagen_request(&req.body)?
+        let (original, mut body) = if imagen_wire {
+            let body = imagen_request(&req.body)?;
+            let original = if req.original_body.is_empty() {
+                body.clone()
+            } else {
+                imagen_request(&req.original_body)?
+            };
+            (original, body)
         } else {
             self.prepared_body(req, cfg, &base_model)?
         };
@@ -451,6 +461,14 @@ impl VertexExecutor {
         }
         body = payload::delete(body, "session_id");
         req.usage.request(Format::Gemini, &body);
+        body = Barrier {
+            executor: "",
+            model: &base_model,
+            protocol: Format::Gemini.as_str(),
+            root: "",
+            original: &original,
+        }
+        .apply(cfg, req, body);
         check_url(&url)?;
         let headers = self.headers(credential, req, cfg, auth).await?;
         let capture = req.capture();
@@ -511,6 +529,7 @@ impl VertexExecutor {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = g::resolved(req);
         let body = g::translate(req, cfg, to, &base_model, &req.body, false, false)?;
+        let original = g::count_original(req, cfg, to, &base_model, false, &body)?;
         let mut body = g::apply_thinking(req, body, from, to, PROVIDER, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         body = gj::try_set_str(&body, "model", &base_model).unwrap_or(body);
@@ -520,6 +539,14 @@ impl VertexExecutor {
         }
         body = cpa_common::signature::sanitize_gemini_request_thought_signatures(&body, "contents");
         body = payload::ensure_leading_user_content(body, "contents");
+        body = Barrier {
+            executor: PROVIDER,
+            model: &base_model,
+            protocol: to.as_str(),
+            root: "",
+            original: &original,
+        }
+        .apply(cfg, req, body);
         let url = endpoint(&auth, &base_model, "countTokens");
         check_url(&url)?;
         let headers = self.headers(credential, req, cfg, &auth).await?;

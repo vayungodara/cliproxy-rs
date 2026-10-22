@@ -38,6 +38,7 @@ use crate::antigravity_request as ag;
 use crate::devin_wire::SensitiveWords;
 use crate::gemini::{self, Output};
 use crate::gemini_stream as sse;
+use crate::payload_barrier::Barrier;
 use crate::proxy::{self, GoClients, GoHeaders, Hooks, Proxy, Upstream};
 
 pub const PROVIDER: &str = auth::PROVIDER;
@@ -208,9 +209,22 @@ pub(crate) fn upstream_error(status: u16, body: Bytes) -> ExecError {
 
 /// What one attempt sends: the translated request Go hands its response translator,
 /// and the body actually posted.
+/// Go's Antigravity payload finalizer: rules relative to the `request` envelope.
+fn barrier<'a>(model: &'a str, original: &'a [u8]) -> Barrier<'a> {
+    Barrier {
+        executor: PROVIDER,
+        model,
+        protocol: Format::Antigravity.as_str(),
+        root: "request",
+        original,
+    }
+}
+
 struct Prepared {
     translated: Vec<u8>,
     body: Vec<u8>,
+    /// The payload-rule baseline: the translated original request.
+    rule_original: Vec<u8>,
     /// The replay ledger entry the request read (`antigravityReasoningReplayScope`).
     replay: replay::Scope,
 }
@@ -503,7 +517,7 @@ impl AntigravityExecutor {
 
     /// The request side shared by every generate attempt: signature cleanup of the
     /// original request (which also becomes the working payload), translation with the
-    /// attempt's model info, thinking, payload rules, sensitive words, Gemini signature
+    /// attempt's model info, thinking, sensitive words, Gemini signature
     /// cleanup, the replay-history checks and the boundary user turns.
     fn prepare_request(
         &self,
@@ -522,25 +536,6 @@ impl AntigravityExecutor {
         let original_translated = self.translate(req, cfg, model, envelope_stream)?;
         let mut translated =
             gemini::apply_thinking(req, original_translated.clone(), from, to, PROVIDER, resolved.as_ref())?;
-        let requested = match req.requested_model.trim() {
-            "" => req.model.trim(),
-            requested => requested,
-        };
-        translated = cpa_common::payload::apply(
-            &cpa_common::payload::Rules::of(cfg),
-            &cpa_common::payload::Request {
-                target_executor: "",
-                model,
-                requested_model: requested,
-                protocol: to.as_str(),
-                from_protocol: from.as_str(),
-                root: "request",
-                original: &original_translated,
-                request_path: &req.request_path,
-                headers: Some(&req.headers),
-            },
-            translated,
-        );
         if let Some(matcher) = self.matcher(cfg) {
             translated = ag::obfuscate_system_instruction(translated, |text| matcher.obfuscate(text));
         }
@@ -560,6 +555,7 @@ impl AntigravityExecutor {
         Ok(Prepared {
             translated,
             body,
+            rule_original: original_translated,
             replay,
         })
     }
@@ -582,8 +578,10 @@ impl AntigravityExecutor {
         .map_err(|e| ExecError::local(400, cpa_core::exec::FailureScope::Request, e.to_string()))
     }
 
-    /// `buildRequest` and the send: the envelope, the endpoint and Antigravity's
-    /// headers, captured as one attempt.
+    /// `buildRequest` and the send: the envelope, the payload rules on the finished
+    /// body (`rule_original` their baseline), the endpoint and Antigravity's headers,
+    /// captured as one attempt.
+    #[allow(clippy::too_many_arguments)]
     async fn send(
         &self,
         credential: &Credential,
@@ -591,6 +589,7 @@ impl AntigravityExecutor {
         cfg: &Config,
         model: &str,
         body: Vec<u8>,
+        rule_original: &[u8],
         stream: bool,
     ) -> Result<Upstream, ExecError> {
         let token = credential.str("access_token").map(str::trim).unwrap_or_default();
@@ -611,6 +610,7 @@ impl AntigravityExecutor {
         let derived = ag::derived_session_id(req.derived_session.as_deref());
         let body = ag::gemini_to_antigravity(model, body, project, &derived);
         let body = ag::finish_request(model, body);
+        let body = barrier(model, rule_original).apply(cfg, req, body);
         let mut headers = GoHeaders::new();
         headers.set("Content-Type", "application/json");
         headers.set("Authorization", format!("Bearer {token}"));
@@ -640,7 +640,17 @@ impl AntigravityExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let prepared = self.prepare_request(credential, &mut req, cfg, model, false)?;
         let accumulator = replay::Accumulator::new(&prepared.replay, &prepared.body);
-        let upstream = self.send(credential, &req, cfg, model, prepared.body, false).await?;
+        let upstream = self
+            .send(
+                credential,
+                &req,
+                cfg,
+                model,
+                prepared.body,
+                &prepared.rule_original,
+                false,
+            )
+            .await?;
         let (status, headers) = (upstream.status, upstream.headers.clone());
         let ok = (200..300).contains(&status);
         let limit = if ok { usize::MAX } else { proxy::MAX_ERROR_BODY };
@@ -687,7 +697,17 @@ impl AntigravityExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let prepared = self.prepare_request(credential, &mut req, cfg, model, true)?;
         let mut accumulator = replay::Accumulator::new(&prepared.replay, &prepared.body);
-        let upstream = self.send(credential, &req, cfg, model, prepared.body, true).await?;
+        let upstream = self
+            .send(
+                credential,
+                &req,
+                cfg,
+                model,
+                prepared.body,
+                &prepared.rule_original,
+                true,
+            )
+            .await?;
         let (status, headers) = (upstream.status, upstream.headers.clone());
         if !(200..300).contains(&status) {
             let data = gemini::read_captured(req.capture(), upstream, proxy::MAX_ERROR_BODY).await?;
@@ -734,7 +754,17 @@ impl AntigravityExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let prepared = self.prepare_request(credential, &mut req, cfg, model, true)?;
         let accumulator = replay::Accumulator::new(&prepared.replay, &prepared.body);
-        let upstream = self.send(credential, &req, cfg, model, prepared.body, true).await?;
+        let upstream = self
+            .send(
+                credential,
+                &req,
+                cfg,
+                model,
+                prepared.body,
+                &prepared.rule_original,
+                true,
+            )
+            .await?;
         let (status, headers) = (upstream.status, upstream.headers.clone());
         if !(200..300).contains(&status) {
             let data = gemini::read_captured(req.capture(), upstream, proxy::MAX_ERROR_BODY).await?;
@@ -876,6 +906,7 @@ impl AntigravityExecutor {
         }
         let resolved = gemini::resolved(&req);
         let body = self.translate(&req, cfg, &model, false)?;
+        let original = body.clone();
         let mut body = gemini::apply_thinking(&req, body, from, to, PROVIDER, resolved.as_ref())?;
         if let Some(matcher) = self.matcher(cfg) {
             body = ag::obfuscate_system_instruction(body, |text| matcher.obfuscate(text));
@@ -895,6 +926,7 @@ impl AntigravityExecutor {
         ] {
             gj::delete(&mut body, path);
         }
+        let body = barrier(&model, &original).apply(cfg, &req, body);
         let mut url = format!("{}{}", ag::base_url(credential), ag::COUNT_TOKENS_PATH);
         if let Some(alt) = gemini::alt(&req) {
             url.push_str(&format!("?$alt={}", cpa_common::gostr::query_escape(alt)));

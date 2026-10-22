@@ -209,13 +209,33 @@ impl CodexExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let prepared = prepare(&req, path)?;
         let main_model = main_model(&settings.image_base_model);
-        let body = tool_body(&prepared.body, &req, settings, path, main_model, view.siwc)?;
+        let body = tool_body(&prepared.body, main_model, view.siwc)?;
         let cache = request::session_uuid(&req, None);
         let body = match &cache {
             Some(id) => set_str_if_different(body, "prompt_cache_key", id),
             None => body,
         };
         let body = request::sanitize_input_ids(body);
+        // The payload rules run last (868e137), as the codex executor, on the
+        // prepared image request.
+        let requested = if req.requested_model.trim().is_empty() {
+            req.model.trim()
+        } else {
+            req.requested_model.trim()
+        };
+        let rules = cpa_common::payload::Request {
+            target_executor: "codex",
+            model: main_model,
+            requested_model: requested,
+            protocol: "codex",
+            from_protocol: SOURCE,
+            root: "",
+            original: prepared.body.as_bytes(),
+            request_path: path,
+            headers: Some(&req.headers),
+        };
+        let body = cpa_common::payload::apply(&settings.payload, &rules, body.into_bytes());
+        let body = String::from_utf8(body).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned());
         report_request(&req, Format::Codex, &body);
         let headers = request::image_headers(view, settings, &req.headers, main_model, cache.as_deref(), true);
         let url = format!("{}/responses", view.base_url);
@@ -804,15 +824,8 @@ fn responses_request(prompt: &str, images: &[String], tool: &str) -> String {
     set_raw(&req, "input", &input)
 }
 
-/// `prepareCodexOpenAIImageBody`: thinking, payload rules, then the Codex request rules.
-fn tool_body(
-    body: &str,
-    req: &ExecRequest,
-    settings: &Settings,
-    path: &str,
-    main_model: &str,
-    siwc: bool,
-) -> Result<String, ExecError> {
+/// `prepareCodexOpenAIImageBody`: thinking, then the Codex request rules.
+fn tool_body(body: &str, main_model: &str, siwc: bool) -> Result<String, ExecError> {
     let thought = cpa_common::thinking::apply_thinking_with_source_payload(
         body.as_bytes(),
         body.as_bytes(),
@@ -824,24 +837,7 @@ fn tool_body(
         false,
     )
     .map_err(|e| ExecError::local(e.status(), cpa_core::exec::FailureScope::Request, e.message))?;
-    let requested = if req.requested_model.trim().is_empty() {
-        req.model.trim()
-    } else {
-        req.requested_model.trim()
-    };
-    let rules = cpa_common::payload::Request {
-        target_executor: "",
-        model: main_model,
-        requested_model: requested,
-        protocol: "codex",
-        from_protocol: SOURCE,
-        root: "",
-        original: body.as_bytes(),
-        request_path: path,
-        headers: Some(&req.headers),
-    };
-    let out = cpa_common::payload::apply(&settings.payload, &rules, thought);
-    let mut out = String::from_utf8_lossy(&out).into_owned();
+    let mut out = String::from_utf8_lossy(&thought).into_owned();
     out = set_str_if_different(out, "model", main_model);
     out = set_bool_if_different(out, "stream", true);
     for key in [

@@ -41,6 +41,19 @@ Go writes time-dependent values in two places; tests treat them as shapes: refre
 model's override headers carry a Mac OS User-Agent. Go streams one chunk per SSE line while
 the Rust executor yields whole events, so stream outputs are compared event by event.
 
+## v8.0.35 recordings
+
+`../../fixtures/codex_go_v8.0.35.json` holds the executor cases whose answers changed when Go moved the payload
+rules to the end of the pipeline (`868e137`), recorded from v8.0.35
+(`ae3ee3be303fb07fb8173279923413005bf32177`, clean worktree) with the generator above;
+the Rust test replaces the `6fecc6e` recordings of the same names with them. Today:
+`apikey_payload_rules_and_session_headers`. Every case still runs; `RSFIX_ONLY` (a Go regexp on the name) selects the
+ones written:
+
+```sh
+RSFIX_ONLY='^apikey_payload_rules_and_session_headers$' go run . "$crate/tests/fixtures/codex_go_v8.0.35.json"
+```
+
 ## WebSocket error frames
 
 `../../fixtures/codex_ws_errors.json` holds `parseCodexWebsocketErrorWithCooling` results

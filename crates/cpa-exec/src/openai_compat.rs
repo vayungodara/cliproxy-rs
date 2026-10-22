@@ -283,7 +283,6 @@ impl OpenAICompatExecutor {
         )?;
         let mut body = translate_body(&req, cfg, target, &base_model, req.stream, &req.body, is_compat)?;
         body = apply_thinking(body, &req, target, &credential.provider, caps.as_ref())?;
-        body = apply_payload_rules(cfg, &req, &base_model, target, &original, body);
         let requested = route_model(&req);
         if payload::excludes_images(compat.as_ref(), &base_model, requested) {
             body = payload::normalize_tool_results_text_only(body);
@@ -303,6 +302,8 @@ impl OpenAICompatExecutor {
         if req.usage.enabled() {
             req.usage.request(target, &body);
         }
+        // The payload rules are the last change to the body (868e137).
+        body = apply_payload_rules(cfg, &req, &base_model, target, &original, body);
         let mut headers = base_headers(&api_key, "application/json");
         apply_custom(&mut headers, credential, &req);
         if req.stream {
@@ -599,7 +600,30 @@ fn count_tokens(credential: &Credential, req: &ExecRequest, cfg: &Config) -> Res
     let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
     let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
     let body = translate_body(req, cfg, Format::OpenAI, &base_model, false, &req.body, is_compat)?;
+    // The rule baseline: the translated original, else the translated body before
+    // thinking. Go counts with a failed translation's partial body; this refuses.
+    let original = if req.original_body.is_empty() {
+        body.clone()
+    } else {
+        translate_body(
+            req,
+            cfg,
+            Format::OpenAI,
+            &base_model,
+            false,
+            &req.original_body,
+            is_compat,
+        )?
+    };
     let body = apply_thinking(body, req, Format::OpenAI, &credential.provider, caps.as_ref())?;
+    let body = crate::payload_barrier::Barrier {
+        executor: &credential.provider,
+        model: &base_model,
+        protocol: Format::OpenAI.as_str(),
+        root: "",
+        original: &original,
+    }
+    .apply(cfg, req, body);
     let count = payload::count_chat_tokens(&base_model, &body).map_err(|e| {
         ExecError::local(
             500,

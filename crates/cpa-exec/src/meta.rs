@@ -409,7 +409,6 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
     })
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))?;
     body = thinking;
-    body = payload_rules(cfg, req, &base_model, PROVIDER, body, &original_translated);
     set_string_if_different(&mut body, "model", &base_model);
     set_bool_if_different(&mut body, "stream", stream);
     for key in [
@@ -428,6 +427,8 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
     body = sanitize_reasoning_encrypted_content(body);
     sanitize_web_search_tools(&mut body);
     body = cpa_common::payload::normalize_codex_tool_integer_types(&body, &req.headers);
+    // The payload rules are the last change to the body (868e137).
+    body = payload_rules(cfg, req, &base_model, PROVIDER, body, &original_translated);
     Ok(Prepared {
         body,
         response,

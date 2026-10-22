@@ -515,8 +515,9 @@ fn ws_url(http_url: &str) -> Result<String, ExecError> {
     Ok(format!("{scheme}:{rest}"))
 }
 
-/// `buildXAIWebsocketRequestBody`: every turn is a stored `response.create`.
-fn request_frame(body: &[u8]) -> Vec<u8> {
+/// `buildXAIWebsocketRequestBody`: every turn is a stored `response.create`; the
+/// payload rules (`finalize`) see the WebSocket fields, then the type is fixed again.
+fn request_frame(body: &[u8], finalize: impl FnOnce(Vec<u8>) -> Vec<u8>) -> Vec<u8> {
     if body.is_empty() {
         return Vec::new();
     }
@@ -529,6 +530,8 @@ fn request_frame(body: &[u8]) -> Vec<u8> {
     if !text(&gj::get(&out, "previous_response_id")).trim().is_empty() {
         gj::delete(&mut out, "instructions");
     }
+    let mut out = finalize(out);
+    gj::set_str(&mut out, "type", "response.create");
     out
 }
 
@@ -1162,7 +1165,7 @@ impl XaiExecutor {
         req.usage.usage_required();
         req.usage.request_for(crate::xai::PROVIDER, &prepared.body);
         let headers = handshake_headers(credential, &token, &prepared.session_id, &req);
-        let frame = request_frame(&prepared.body);
+        let frame = request_frame(&prepared.body, |b| prepared.finalize(cfg, &req, b));
         let request_type = text(&gj::get(&req.body, "type"));
         let transcript_reset = text(&gj::get(&frame, "previous_response_id")).trim().is_empty()
             && (request_type.trim() != "response.append" || mapper.as_ref().is_some_and(|m| m.replayed_compacted));

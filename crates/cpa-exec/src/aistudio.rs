@@ -25,6 +25,7 @@ use futures_util::StreamExt;
 
 use crate::gemini::{self as g, Emit, Output};
 use crate::gemini_payload as payload;
+use crate::payload_barrier::Barrier;
 use crate::wsrelay::{self, HttpRequest, Relay, StreamEvent};
 
 pub const PROVIDER: &str = "aistudio";
@@ -150,8 +151,6 @@ fn translate(req: &ExecRequest, cfg: &Config, count: bool) -> Result<(Vec<u8>, &
     )
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))?;
     let mut body = payload::fix_image_aspect_ratio(&base_model, body);
-    let rules = cpa_common::payload::Rules::from_config(cfg);
-    body = g::apply_payload_rules(&rules, &base_model, to.as_str(), body, &original_translated, req);
     for path in [
         "generationConfig.maxOutputTokens",
         "generationConfig.responseMimeType",
@@ -169,7 +168,21 @@ fn translate(req: &ExecRequest, cfg: &Config, count: bool) -> Result<(Vec<u8>, &
     if !count {
         body = payload::ensure_trailing_user_content(body, "contents");
     }
-    Ok((normalize_thinking_level(body), action))
+    body = normalize_thinking_level(body);
+    if count {
+        for path in ["generationConfig", "tools", "safetySettings"] {
+            body = payload::delete(body, path);
+        }
+    }
+    let body = Barrier {
+        executor: "",
+        model: &base_model,
+        protocol: to.as_str(),
+        root: "",
+        original: &original_translated,
+    }
+    .apply(cfg, req, body);
+    Ok((body, action))
 }
 
 /// The relayed request: JSON content type and, except for countTokens, the
@@ -371,10 +384,7 @@ impl AiStudioExecutor {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         let base_model = parse_suffix(&req.model).model_name;
-        let (mut body, _) = translate(req, cfg, true)?;
-        for path in ["generationConfig", "tools", "safetySettings"] {
-            body = payload::delete(body, path);
-        }
+        let (body, _) = translate(req, cfg, true)?;
         let relayed = http_request(endpoint(&base_model, "countTokens", ""), body.into(), Vec::new());
         let resp = non_stream_captured(&self.relay, req.capture(), credential, &relayed).await?;
         if !(200..300).contains(&resp.status) {

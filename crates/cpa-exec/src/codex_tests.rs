@@ -1665,7 +1665,7 @@ async fn siwc_requests_match_go() {
             let settings = Settings::scoped(&cfg, &view);
             let shaped = request::shape(&req, &view, &settings, Call::Websocket).unwrap();
             let (body, cache) = request::prompt_cache(&req, shaped.body, Some("exec-session"), true);
-            let body = crate::codex_ws::siwc_turn_body(&view, &req, body);
+            let body = crate::codex_ws::turn_body(&view, &req, &settings, &shaped.finalize, body);
             assert_eq!(body, case["body"].as_str().unwrap(), "{name}: body");
             let headers = request::ws_headers(
                 &view,
@@ -1906,4 +1906,73 @@ async fn siwc_partition_refreshes_like_go() {
     mock.take();
     mock.script(SIWC, vec![json(500, "{}"); 3]);
     assert!(executor.prepare(&cred("j", true, &at(-1)), &cfg).await.is_err());
+}
+
+/// TestPayloadBarrierCodexImageFilter, HTTP half (868e137): a filter removes what the
+/// executor adds late (the image tool, the empty instructions, the prompt cache key).
+#[tokio::test]
+async fn payload_filters_remove_late_codex_additions() {
+    let executor = executor();
+    let cfg = Config::parse(
+        "payload:\n  filter:\n    - models: [{name: gpt-5.6-sol}]\n      params: ['tools.#(type==\"image_generation\")#', instructions, prompt_cache_key]\n",
+    )
+    .unwrap();
+    for stream in [false, true] {
+        for model in ["gpt-5.6-sol", "gpt-5.6-luna"] {
+            let mock = Mock::start().await;
+            mock.script(
+                "/responses",
+                vec![Reply {
+                    status: 200,
+                    headers: vec![("content-type".into(), "text/event-stream".into())],
+                    body: "data: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_barrier\",\"status\":\"completed\",\"output\":[],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}}\n\n".into(),
+                }],
+            );
+            let mut credential = oauth_credential(&mock.url);
+            credential.attributes.insert("api_key".into(), "test".into());
+            credential.attributes.insert("plan_type".into(), "pro".into());
+            let mut req = plain_request(stream, None);
+            req.source_format = Format::OpenAIResponse;
+            req.response_format = Format::OpenAIResponse;
+            req.model = model.into();
+            req.requested_model = model.into();
+            req.body = Bytes::from_static(br#"{"input":"hello","prompt_cache_key":"injected-cache"}"#);
+            req.original_body = req.body.clone();
+            match executor.execute(&credential, req, &cfg).await.unwrap().body {
+                ResponseBody::Stream(mut stream) => while stream.next().await.is_some() {},
+                ResponseBody::Buffered(_) => {}
+            }
+            let sent = String::from_utf8(mock.take().pop().unwrap().body.to_vec()).unwrap();
+            let image = gjson::get(&sent, r#"tools.#(type=="image_generation")"#).exists();
+            assert_eq!(image, model == "gpt-5.6-luna", "{model} stream={stream}: {sent}");
+            if model == "gpt-5.6-sol" {
+                assert!(!gjson::get(&sent, "instructions").exists(), "{sent}");
+                assert!(!gjson::get(&sent, "prompt_cache_key").exists(), "{sent}");
+            }
+        }
+    }
+}
+
+/// Go 868e137 gives CountTokens the payload barrier: the rules run on the shaped body
+/// before the tokenizer, so a configured `input` changes the count.
+#[test]
+fn count_tokens_sees_the_payload_rules() {
+    let count = |config: &str| {
+        let mut req = plain_request(false, None);
+        req.operation = Operation::CountTokens;
+        req.body = Bytes::from_static(br#"{"model":"gpt-5.4","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}]}"#);
+        req.original_body = req.body.clone();
+        let out = super::count_tokens(&req, &Config::parse(config).unwrap()).unwrap();
+        let ResponseBody::Buffered(bytes) = out.body else {
+            panic!("count answers are buffered")
+        };
+        let text = String::from_utf8(bytes.to_vec()).unwrap();
+        gjson::get(&text, "response.usage.input_tokens").i64()
+    };
+    let plain = count("");
+    let configured = count(
+        "payload:\n  override:\n    - models: [{name: gpt-5.4}]\n      params: {input.0.content.0.text: one two three four five six seven eight nine ten}\n",
+    );
+    assert!(plain > 0);
+    assert!(configured > plain + 5, "{plain} -> {configured}");
 }

@@ -42,6 +42,13 @@ RSFIX_OUT=/tmp/rsfix go test -count=1 -run 'TestRSFixResponsesFrames' ./sdk/api/
 cp -r /tmp/rsfix/* <cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/
 ```
 
+These files come from v8.0.35 (`ae3ee3be`) instead, after Go moved the payload rules
+to the end of the pipeline (`868e137`): `meta/payload-rules-and-headers.json` (re-recorded:
+the rules now run after the instructions default) and
+`kimi/{chat,responses}-payload-override-after-normalize.json` (a configured temperature
+survives the temperature normalization). Record them the same way from a v8.0.35
+checkout and copy only those files.
+
 The generator pins `buildinfo.Version` to `0.1.0`, and the fixture loader puts the running
 crate version in its place, so `User-Agent` and `X-Msh-Version` still compare exactly after a
 release bump. Values that depend on the machine (Host port, hostname,

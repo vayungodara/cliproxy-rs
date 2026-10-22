@@ -78,6 +78,7 @@ pub mod openai_compat_multipart;
 mod openai_compat_payload;
 #[cfg(test)]
 mod openai_compat_usage;
+mod payload_barrier;
 pub mod proxy;
 mod quota;
 mod rawjson;

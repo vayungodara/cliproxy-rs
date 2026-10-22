@@ -1,0 +1,43 @@
+{
+  "scenarios": [
+    {
+      "name": "payload_override_stop_dropped",
+      "config": "payload:\n  override:\n    - models:\n        - name: grok-4.3\n      params:\n        stop: [\"X\"]\n        temperature: 0.3\n",
+      "config_auth": -1,
+      "attributes": {
+        "api_key": "sk-fake-xai"
+      },
+      "model": "grok-4.3",
+      "payload": "{\"model\":\"grok-4.3\",\"input\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ],
+          [
+            "X-Request-Id",
+            "req-1"
+          ]
+        ],
+        "body": "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":0,\"response\":{\"id\":\"resp_x1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"in_progress\",\"model\":\"grok-4.3\",\"output\":[]}}\n\nevent: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":1,\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"msg_1\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]}}\n\nevent: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":2,\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"text\":\"\"}}\n\nevent: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":3,\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"delta\":\"hello there\"}\n\nevent: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":4,\"item_id\":\"msg_1\",\"output_index\":0,\"content_index\":0,\"text\":\"hello there\"}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":5,\"output_index\":0,\"item\":{\"type\":\"message\",\"id\":\"msg_1\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello there\",\"annotations\":[]}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"resp_x1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[],\"usage\":{\"input_tokens\":12,\"input_tokens_details\":{\"cached_tokens\":3},\"output_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":2},\"total_tokens\":17}}}\n\n"
+      },
+      "usage": {
+        "input": 12,
+        "output": 5,
+        "reasoning": 2,
+        "cached": 3,
+        "total": 17,
+        "effort": "",
+        "response_model": "grok-4.3",
+        "failed": false
+      },
+      "url": "https://api.x.ai/v1/responses",
+      "request": "POST /v1/responses HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 183\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-xai\r\nConnection: Keep-Alive\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"grok-4.3\",\"input\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"],\"instructions\":\"\",\"stop\":[\"X\"],\"temperature\":0.3}",
+      "output": "{\"id\":\"resp_x1\",\"object\":\"response\",\"created_at\":1700000000,\"status\":\"completed\",\"model\":\"grok-4.3\",\"output\":[{\"type\":\"message\",\"id\":\"msg_1\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello there\",\"annotations\":[]}]}],\"usage\":{\"input_tokens\":12,\"input_tokens_details\":{\"cached_tokens\":3},\"output_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":2},\"total_tokens\":17}}"
+    }
+  ]
+}

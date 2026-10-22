@@ -440,12 +440,13 @@ async fn execute_chat(
         body = gj::try_set_raw(&body, "stream_options.include_usage", "true")
             .map_err(|e| internal_error(format!("kimi executor: failed to set stream_options in payload: {e}")))?;
     }
-    body = payload_rules(cfg, &req, &base_model, "openai", body, &original_translated);
     body = normalize_tool_message_links(body)?;
     body = normalize_tools(body);
     body = normalize_temperature(body);
     req.usage.upstream_model(&upstream_model);
     req.usage.request_for("kimi", &body);
+    // The payload rules are the last change to the body (868e137).
+    body = payload_rules(cfg, &req, &base_model, "openai", body, &original_translated);
     if req.stream {
         // Go's stream publishes only through its usage buffer (no EnsurePublished).
         req.usage.usage_required();
@@ -765,14 +766,15 @@ async fn execute_responses(
         .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;
     body = set_bool_if_different(body, "stream", req.stream);
     body = thinking(&body, &req, "codex")?;
-    // Go passes req.Payload as the original here, not OriginalRequest.
-    body = payload_rules(cfg, &req, &base_model, "openai-response", body, &req.body);
     body = apply_patch_responses::normalize_executor_request(&body, None).map_err(internal_error)?;
     body = normalize_responses_input(body);
     body = normalize_tools(body);
     body = normalize_temperature(body);
     req.usage.upstream_model(&upstream_model);
     req.usage.request_for("kimi", &body);
+    // The payload rules are the last change (868e137). Go passes req.Payload as the
+    // original here, not OriginalRequest.
+    body = payload_rules(cfg, &req, &base_model, "openai-response", body, &req.body);
     // Go publishes native Responses usage only when it has tokens (stream buffer, or the
     // non-stream Codex/OpenAI usage check); there is no EnsurePublished.
     req.usage.usage_required();

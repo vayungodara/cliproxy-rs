@@ -190,6 +190,17 @@ func TestRSFixKimi(t *testing.T) {
 			responses: []rsfixResponse{sseResp("data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k3\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n")},
 		},
 		{
+			// v8.0.35 (868e137): the rules run after the temperature normalization.
+			name: "chat-payload-override-after-normalize", source: sdktranslator.FormatOpenAI, model: "kimi-k3", meta: kimiMeta, cfg: "payload:\n  override:\n    - models: [{name: \"kimi-*\"}]\n      params: {temperature: 0.3}\n",
+			body:      `{"model":"kimi-k3","messages":[{"role":"user","content":"hi"}],"temperature":0.3}`,
+			responses: []rsfixResponse{jsonResp(200, `{"id":"c","object":"chat.completion","created":1,"model":"k3","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}`)},
+		},
+		{
+			name: "responses-payload-override-after-normalize", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", meta: kimiMeta, cfg: "payload:\n  override:\n    - models: [{name: \"kimi-*\"}]\n      params: {temperature: 0.4}\n",
+			body:      `{"model":"kimi-k3","input":"hi","temperature":0.4}`,
+			responses: []rsfixResponse{jsonResp(200, `{"id":"resp_1","object":"response","status":"completed","model":"k3","output":[{"type":"message","id":"m1","role":"assistant","status":"completed","content":[{"type":"output_text","text":"ok"}]}],"usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2}}`)},
+		},
+		{
 			name: "responses-payload-rules", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3(high)", meta: kimiMeta, cfg: "payload:\n  default:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: {temperature: 1.0, n: 1, user: \"default-user\"}\n    - models: [{name: \"kimi-*\", protocol: openai-response}]\n      params: {store: true, parallel_tool_calls: false}\n  override:\n    - models: [{name: \"kimi-k3(high)\"}]\n      params: {requested_hit: true}\n    - models: [{name: \"kimi-*\", protocol: codex}]\n      params: {wrong_protocol: true}\n    - models: [{name: \"kimi-*\", from-protocol: openai}]\n      params: {from_openai: true}\n  filter:\n    - models: [{name: \"kimi-*\", protocol: openai}]\n      params: [max_tokens]\n",
 			body:      `{"model":"kimi-k3(high)","input":"hi","store":false}`,
 			responses: []rsfixResponse{jsonResp(200, `{"id":"r","object":"response","status":"completed","output":[]}`)},

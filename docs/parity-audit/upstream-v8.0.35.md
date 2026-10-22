@@ -134,7 +134,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 
 | Commit | Subject | User-visible | This PR | Size | Notes |
 |---|---|---|---|---|---|
-| [`868e137f`](https://github.com/router-for-me/CLIProxyAPI/commit/868e137f) | feat(payload): introduce payload finalizer for protobuf and multipart requests | yes | to port | L (+585 −222) | payload rules move to a final barrier for every executor; Claude's post-rule repairs go. Until this lands, Codex tool schema normalization and the pattern and int64-bound strip run after payload rules, so they can remove a bound or pattern a payload rule configured, and e7d4c731's `web_search` injection runs after payload rules, so a payload filter on `tools` does not remove it |
+| [`868e137f`](https://github.com/router-for-me/CLIProxyAPI/commit/868e137f) | feat(payload): introduce payload finalizer for protobuf and multipart requests | yes | to port | L (+585 −222) | payload rules move to a final barrier for every executor; Claude's post-rule repairs go. Partly ported: Codex (HTTP, compact, WebSocket turns, duplex steers, the Images tool path and CountTokens), Gemini, Vertex, AI Studio, Antigravity, Kimi, Meta, OpenAI-compatible chat and CountTokens, and xAI (including compact, CountTokens, WebSocket frames, images and videos) apply the rules last. Still to port: Claude (Messages and count_tokens, with the reconcile repairs removed and CCH signing split), Devin's protobuf view, and the multipart media barrier for OpenAI-compatible and Codex direct images |
 
 ## Codex
 

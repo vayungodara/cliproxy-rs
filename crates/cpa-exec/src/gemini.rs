@@ -28,6 +28,7 @@ use futures_util::StreamExt;
 
 use crate::gemini_payload as payload;
 use crate::gemini_stream::{self as sse, ClaudeInputTokens};
+use crate::payload_barrier::Barrier;
 use crate::proxy::{self, GoClients, GoHeaders, Hooks, Proxy, Upstream};
 
 /// Providers this executor serves (`NewGeminiExecutor`, `NewGeminiInteractionsExecutor`).
@@ -241,35 +242,21 @@ pub(crate) fn apply_thinking(
     .map_err(|e| ExecError::local(e.status(), FailureScope::Request, e.message))
 }
 
-/// `helps.ApplyPayloadConfigWithRequest`: config payload rules on the final body, with
-/// the translated original request as the baseline for `default` rules.
-pub(crate) fn apply_payload_rules(
-    rules: &cpa_common::payload::Rules,
-    model: &str,
-    protocol: &str,
-    body: Vec<u8>,
-    original_translated: &[u8],
+/// The token-count baseline for `default` rules: the client's original request
+/// translated without stream, else the translated body before thinking. Go counts with
+/// a failed translation's partial body; this refuses with its error instead.
+pub(crate) fn count_original(
     req: &ExecRequest,
-) -> Vec<u8> {
-    let requested = match req.requested_model.trim() {
-        "" => req.model.trim(),
-        requested => requested,
-    };
-    cpa_common::payload::apply(
-        rules,
-        &cpa_common::payload::Request {
-            target_executor: "",
-            model,
-            requested_model: requested,
-            protocol,
-            from_protocol: req.source_format.as_str(),
-            root: "",
-            original: original_translated,
-            request_path: &req.request_path,
-            headers: Some(&req.headers),
-        },
-        body,
-    )
+    cfg: &Config,
+    target: Format,
+    model: &str,
+    compat: bool,
+    translated: &[u8],
+) -> Result<Vec<u8>, ExecError> {
+    if req.original_body.is_empty() {
+        return Ok(translated.to_vec());
+    }
+    translate(req, cfg, target, model, &req.original_body, false, compat)
 }
 
 /// Content-Type, the API key and the credential's custom headers (`applyGeminiHeaders`).
@@ -516,8 +503,6 @@ impl GeminiExecutor {
         let (original_translated, body) = translate_pair(req, cfg, to, &base_model, compat)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
-        let rules = cpa_common::payload::Rules::from_config(cfg);
-        body = apply_payload_rules(&rules, &base_model, to.as_str(), body, &original_translated, req);
         body = payload::set_str_if_different(body, "model", &base_model);
         body = payload::cap_max_output_tokens(body, &base_model);
         body = cpa_common::signature::sanitize_gemini_request_thought_signatures(&body, "contents");
@@ -536,6 +521,15 @@ impl GeminiExecutor {
         }
         body = payload::delete(body, "session_id");
         req.usage.request(to, &body);
+        // The payload rules are the last change to the body (868e137).
+        body = Barrier {
+            executor: "",
+            model: &base_model,
+            protocol: to.as_str(),
+            root: "",
+            original: &original_translated,
+        }
+        .apply(cfg, req, body);
         let headers = request_headers(credential, req);
         let capture = req.capture();
         let client = self.client(credential, cfg);
@@ -598,12 +592,18 @@ impl GeminiExecutor {
         }
         // applyGeminiInteractionsThinking: the Gemini applier family for the target.
         body = apply_thinking(req, body, from, to, "gemini", resolved.as_ref())?;
-        let rules = cpa_common::payload::Rules::from_config(cfg);
-        body = apply_payload_rules(&rules, &target, "interactions", body, &original_translated, req);
         body = payload::sanitize_interactions_input_ids(body);
         if req.stream {
             body = payload::set_bool_if_different(body, "stream", true);
         }
+        body = Barrier {
+            executor: "",
+            model: &target,
+            protocol: "interactions",
+            root: "",
+            original: &original_translated,
+        }
+        .apply(cfg, req, body);
         let url = format!("{}/{API_VERSION}/interactions", base_url(credential));
         let mut headers = request_headers(credential, req);
         // applyGeminiInteractionsRequestHeaders, then applyGeminiInteractionsRevisionHeader.
@@ -671,6 +671,7 @@ impl GeminiExecutor {
         let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
         let body = translate(req, cfg, to, &base_model, &req.body, false, compat)?;
+        let original = count_original(req, cfg, to, &base_model, compat, &body)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         for path in ["tools", "generationConfig", "safetySettings"] {
@@ -679,6 +680,14 @@ impl GeminiExecutor {
         body = payload::set_str_if_different(body, "model", &base_model);
         body = cpa_common::signature::sanitize_gemini_request_thought_signatures(&body, "contents");
         body = payload::ensure_leading_user_content(body, "contents");
+        body = Barrier {
+            executor: "gemini",
+            model: &base_model,
+            protocol: to.as_str(),
+            root: "",
+            original: &original,
+        }
+        .apply(cfg, req, body);
         let url = format!("{}/{API_VERSION}/models/{base_model}:countTokens", base_url(credential));
         let headers = request_headers(credential, req);
         let capture = req.capture();
