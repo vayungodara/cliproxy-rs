@@ -1,0 +1,95 @@
+{
+  "name": "chat-payload-rules",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:39049",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"swe-2\",\"messages\":[{\"role\":\"system\",\"content\":\"You are helpful.\\nYou are Claude Code, Anthropic's official CLI for Claude.\\nKeep it short.\"},{\"role\":\"user\",\"content\":\"What's the weather in Paris? chat-payload-rules\"},{\"role\":\"assistant\",\"content\":\"Checking.\",\"tool_calls\":[{\"id\":\"call_a\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"{\\\"city\\\":\\\"Paris\\\"}\"}}]},{\"role\":\"tool\",\"tool_call_id\":\"call_a\",\"content\":\"sunny\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Thanks \u003cb\u003e\u0026\u003c/b\u003e\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:image/webp;base64,UklGRg==\"}}]}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"description\":\"Get weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"exec_command\",\"description\":\"Runs a command, returning output or a session ID for ongoing interaction.\",\"parameters\":{\"type\":\"object\"}}}],\"temperature\":0.3,\"max_tokens\":500}",
+    "config": "payload:\n  default:\n    - models: [{name: swe-2, protocol: devin}]\n      params: {\"completion_config.top_k\": 10, \"completion_config.temperature\": 0.9, \"model\": \"other-model\"}\n  override:\n    - models: [{name: swe-2, protocol: devin}]\n      params: {\"prompts.0.content\": \"configured \u003cb\u003e\", \"system_prompt\": \"Configured system\"}\n  filter:\n    - models: [{name: swe-2, protocol: devin}]\n      params: [\"prompts.1.tool_calls\"]\n",
+    "model": "swe-2",
+    "source": "openai",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAAAAQaAm9rAAAAAAcaBSBtb3JlAAAAACs6JxAFGAIgACgAQhsKDHgtcmVxdWVzdC1pZBILcmVxX2ZpeHR1cmVKACgCAgAAAAJ7fQ=="
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/exa.api_server_pb.ApiServerService/GetChatMessage",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:39049"
+        ],
+        [
+          "Content-Length",
+          "1455"
+        ],
+        [
+          "Accept",
+          "*/*"
+        ],
+        [
+          "Authorization",
+          "Basic devin-session-token$fixture-devin-session-token$fixture"
+        ],
+        [
+          "Connect-Protocol-Version",
+          "1"
+        ],
+        [
+          "Content-Type",
+          "application/connect+proto"
+        ],
+        [
+          "Sentry-Trace",
+          "03b8846b5b5ce0f7111b5d78d20c4d92-072a45b0086af4da-1"
+        ]
+      ],
+      "body": "",
+      "body_b64": "AAAABaoKsAYKBmNoaXNlbBIKMzAwMC4xMC4yMRobZGV2aW4tc2Vzc2lvbi10b2tlbiRmaXh0dXJlIgJlbioFbGludXg6CjMwMDAuMTAuMjFiBmNoaXNlbPoB3AVkMzU3MTg4YTU3NGM3MmVjMjZhYWU3ODVhZjJhZDhhMjMzZWQzYjAzYjEyNDI1MTljOWFhMTZkOTg2ZjA3NWY3ZjdkMTA4NTk3MmM4MGMzOTVhMWUwYWFjYmYyYjM3Y2ZkMDkzYTQ1M2M0YWU4ZDczYTM5NDUxZjNhMzliZjk0NmM1YTJmMDI4NTBhYmUwOGE1NTYwNWEwY2Q3MzJhYWZjNTg0ZmYzOTA3NjkyM2MxYzQ4ZjIyMzZmMTRlMzg0Yzk0YmUyZjA0NDc5NGEyYzc5MGQ5ZTA4ZTY3NmU0NTExYzdlMzJjMWMzODI3ZjNiNDI2MmY5YTJhNzliZGU5Y2UyMmEwMjBjOWY3MTgxM2Q2OGQ1YTA1MjZjMTdiZDEyZWRmYTY4Y2FiNzA4NjYyMjI1YTVhMTEzZTMyNTVkYzdjYmNkNDJkOGE3Njg0NjM4ZTRkM2ZhNTBhMGVjNTJiNGQ2NTE5N2U3YzdmYzdjNjE4OWVkY2YzNWRkOWI0ZDQzODYyOWVkODYzZGM4NDllNDAyNjExMGEwZGY2MTI1ZDU0MmM0ODMxNDRiZTgzN2VjZjgyMDE2ZjFhYTc1ZTM5YmFlNWRjMGMwMWUyMjJkMGUwNjU1NTdmMWVlZTc3ZWEwMmU1NDBiZjM0ZmYyOWMxNWQ1MjkzYzA0ZmVmNTJhOGVjZjI5N2RjMDNkNGVmOGM5YWRlYmJhMTIxZWM4Nzg1MGU2MzA4OWE4ZGI0NjczNzNjMjNhZmZiMWM0MzU5MGZjNTVlMzFlNDA2Y2M4ZmE2ZDgyZjM5ZGIxZDE0NzU4ZDU2OWYyNjM4YTQ0MTE5YTNhZGZlYTU0YmRkOWE2MDljMTc4OWQwOTNjODU3MDc3ZTQwYzkyZmNlYTFlNGIwYzhhYzRiNjk1MmYxODUzNTY0ZjM5ODc4YzdmYmU2YWExMmM4OTllNTYxMzRhYTBlMTgzYmY2NTgwZGI5OTQ5NGU4BXoqCiQ5Mzc1MzZjNi0wNWJhLTU3NDctYTZjMS05MDIzZGNiZmVjMmQYBCAOoAEBEhFDb25maWd1cmVkIHN5c3RlbRo4CiQyZGZiZmZkMi1iMjg3LTQ3YTQtODA2OS03NDQ4YmYzNDJmZmEQARoOY29uZmlndXJlZCA8Yj4aMwokNTU0NjIxNjgtNjI0NS00ZTU3LTljMDYtZjYxYTdmZjI3OTdkEAIaCUNoZWNraW5nLho3CiRmNjAwNmJmNS0yYTM2LTQ4NGMtOTU5MS0xODBiMDk5MTMxMWYQBBoFc3Vubnk6BmNhbGxfYRpxCiQzNjg3NmQ4OS01NDUxLTQ5OTctYjE0ZS03ZmYwNDc3ZjBhYTkQARovW0ltYWdlIDE6IHBhc3RlZF9pbWFnZV8xLndlYnBdCgpUaGFua3MgPGI+JjwvYj5SFgoIVWtsR1JnPT0SCmltYWdlL3dlYnBCHAgBEPQDGJADKTMzMzMzM9M/OApBAAAAYGZm7j9SVQoLZ2V0X3dlYXRoZXISC0dldCB3ZWF0aGVyGjl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImNpdHkiOnsidHlwZSI6InN0cmluZyJ9fX1SbQoMZXhlY19jb21tYW5kEkpSdW5zIGEgY29tbWFuZCwgcmV0dXJuaW5nIG91dHB1dCBvciBhbiBzZXNzaW9uIElEIGZvciBvbmdvaW5nIGludGVyYWN0aW9uLhoReyJ0eXBlIjoib2JqZWN0In2CASQ5Mzc1MzZjNi0wNWJhLTU3NDctYTZjMS05MDIzZGNiZmVjMmSqAQpzd2UtMi1oaWdo"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"interaction_ec974448-302\",\"object\":\"chat.completion\",\"created\":1792709566,\"model\":\"swe-2\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok more\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7,\"prompt_tokens_details\":{\"cached_tokens\":0}}}"
+  },
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:39049",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:39049/exa.api_server_pb.ApiServerService/GetChatMessage\nHTTP Method: POST\nAuth: provider=devin, auth_id=devin-fixture.json, label=devin, type=devin value=devi...ture\n\nHeaders:\nAccept: */*\nAuthorization: Basic devi...ture\nConnect-Protocol-Version: 1\nContent-Type: application/connect+proto\nSentry-Trace: 03b8846b5b5ce0f7111b5d78d20c4d92-072a45b0086af4da-1\nUser-Agent: \n\nBody:\n{\"cascade_id\":\"937536c6-05ba-5747-a6c1-9023dcbfec2d\",\"completion_config\":{\"enabled\":1,\"max_tokens\":500,\"parameter_3\":400,\"temperature\":0.3,\"top_k\":10,\"top_p\":0.949999988079071},\"model\":\"swe-2-high\",\"prompts\":[{\"content\":\"configured \u003cb\u003e\",\"id\":\"2dfbffd2-b287-47a4-8069-7448bf342ffa\",\"source\":1},{\"content\":\"Checking.\",\"id\":\"55462168-6245-4e57-9c06-f61a7ff2797d\",\"source\":2},{\"content\":\"sunny\",\"id\":\"f6006bf5-2a36-484c-9591-180b0991311f\",\"source\":4,\"tool_call_id\":\"call_a\"},{\"content\":\"[Image 1: pasted_image_1.webp]\\n\\nThanks \\u003cb\\u003e\\u0026\\u003c/b\\u003e\",\"id\":\"36876d89-5451-4997-b14e-7ff0477f0aa9\",\"images\":[{\"data\":\"UklGRg==\",\"mime_type\":\"image/webp\"}],\"source\":1}],\"system_prompt\":\"Configured system\",\"tools\":[{\"description\":\"Get weather\",\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\",\"properties\":{\"city\":{\"type\":\"string\"}}}},{\"description\":\"Runs a command, returning output or an session ID for ongoing interaction.\",\"name\":\"exec_command\",\"parameters\":{\"type\":\"object\"}}]}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 76\nContent-Type: application/connect+proto\n\nBody:\n=== DEVIN UPSTREAM RESPONSE ===\n{\n  \"status\": \"completed\",\n  \"frames_count\": 4,\n  \"content\": \"ok more\",\n  \"usage\": {\n    \"prompt_tokens\": 5,\n    \"completion_tokens\": 2,\n    \"cached_tokens\": 0,\n    \"request_id\": \"req_fixture\",\n    \"headers\": {\n      \"x-request-id\": \"req_fixture\"\n    }\n  }\n}\n\n=== INTERMEDIATE INTERACTIONS ===\n{\n  \"id\": \"interaction_ec974448-302\",\n  \"model\": \"swe-2\",\n  \"status\": \"completed\",\n  \"steps\": [\n    {\n      \"type\": \"model_output\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"ok more\"\n        }\n      ]\n    }\n  ],\n  \"usage\": {\n    \"total_input_tokens\": 5,\n    \"total_output_tokens\": 2,\n    \"total_cached_tokens\": 0,\n    \"total_tokens\": 7\n  }\n}\n"
+    },
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "fail_body": "",
+        "fail_status": 0,
+        "failed": false,
+        "input_tokens": 5,
+        "model": "swe-2",
+        "output_tokens": 2,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "service_tier": "",
+        "total_tokens": 7,
+        "ttft_set": true
+      }
+    ]
+  }
+}

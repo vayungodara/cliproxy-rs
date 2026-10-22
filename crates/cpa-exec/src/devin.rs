@@ -35,9 +35,9 @@ use crate::devin_auth::DevinAuth;
 use crate::devin_models::resolve_chat_model_uid;
 use crate::devin_request::parse_interactions;
 use crate::devin_wire::{
-    CHAT_PATH, ChatRequest, DEFAULT_BASE_URL, FLAG_END_STREAM, FrameError, FrameReader, RequestLog, ResponseLog,
-    SensitiveWords, ToolCall, ToolCallDelta, Usage, Utf8Split, build_chat_request, parse_dimension_groups, parse_frame,
-    parse_trailer_error, request_log_body, response_log_body, sanitize_system_prompt, sentry_trace, wrap_envelope,
+    CHAT_PATH, ChatRequest, DEFAULT_BASE_URL, FLAG_END_STREAM, FrameError, FrameReader, ResponseLog, SensitiveWords,
+    ToolCall, ToolCallDelta, Usage, Utf8Split, build_chat_request, parse_dimension_groups, parse_frame,
+    parse_trailer_error, response_log_body, sentry_trace, wrap_envelope,
 };
 use crate::gemini_stream::ClaudeInputTokens;
 use crate::kimi_http::{capture_chunk, capture_error, capture_metadata, capture_request};
@@ -244,8 +244,8 @@ struct Prepared {
     body: Bytes,
     /// The chat model UID (Go `SetUpstreamModel` when non-empty).
     model_uid: String,
-    /// `BuildDevinUpstreamLogBody`: what request logging records instead of the
-    /// protobuf (built only when capture is on).
+    /// The payload rules' JSON view of the protobuf, which request logging records
+    /// instead of it (`FinalizeDevinPayload`).
     log_body: Vec<u8>,
     /// `devinAuthLogFields`' value: the key's first and last four bytes.
     auth_value: String,
@@ -462,23 +462,23 @@ impl DevinExecutor {
             cascade_id: &cascade_id,
             matcher: matcher.as_deref(),
         });
-        let log_body = if req.capture().enabled() {
-            let system = sanitize_system_prompt(&parsed.system, matcher.as_deref());
-            request_log_body(&RequestLog {
-                interactions: &payload,
-                interactions_source: req.source_format == Format::Interactions,
-                model_uid: &model_uid,
-                system_prompt: &system,
-                prompts: &parsed.prompts,
-                tools: &parsed.tools,
-                temperature: parsed.temperature,
-                max_tokens,
-                session_id: &session_id,
-                cascade_id: &cascade_id,
-            })
-        } else {
-            Vec::new()
-        };
+        // 868e137: the payload rules edit the protobuf's business fields last, and Go logs
+        // that JSON view in place of the protobuf.
+        let (proto, log_body) = crate::devin_payload::finalize(&proto, |view| {
+            let original = crate::devin_payload::defaults_source(view, &payload);
+            crate::payload_barrier::Barrier {
+                executor: PROVIDER,
+                model: &base_model,
+                protocol: "devin",
+                root: "",
+                original: &original,
+            }
+            .apply(cfg, req, view.to_vec())
+        })
+        .map_err(|message| {
+            req.usage.publish_failure(0, &message);
+            plain_error(message)
+        })?;
         Ok(Prepared {
             url: format!("{}{CHAT_PATH}", base.trim_end_matches('/')),
             headers: headers(credential, req, &key),
