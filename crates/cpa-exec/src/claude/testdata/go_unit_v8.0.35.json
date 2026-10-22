@@ -1,0 +1,158 @@
+{
+ "files": {
+  "claude_executor_test.go": {
+   "TestClaudeExecutor_DisabledThinkingStripsDisplayBeta": [
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "sk-ant-oat-disabled-thinking-beta-test",
+       "base_url": "http://127.0.0.1:44919"
+      },
+      "disabled": false,
+      "id": "auth-disabled-thinking-beta-test",
+      "label": "",
+      "metadata": {
+       "account_uuid": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+       "claude_device_ids": [
+        "0000000000000000000000000000000000000000000000000000000000000000"
+       ]
+      },
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude-api-key:\n    - api-key: sk-ant-oat-disabled-thinking-beta-test\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-21",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\n\t\t\"model\": \"claude-sonnet-5\",\n\t\t\"thinking\": {\"type\":\"disabled\"},\n\t\t\"messages\": [{\n\t\t\t\"role\": \"user\",\n\t\t\t\"content\": [{\"type\":\"text\",\"text\":\"<system-reminder>\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-21.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n</system-reminder>\\n\\n\"},{\"type\":\"text\",\"text\":\"hello\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]\n\t\t}]\n\t,\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.790; cc_entrypoint=cli; cch=182c3; cc_prompt_id=2c8d5c35-fcec-4fd1-a4d2-c8e2d930415e; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"stream\":false,\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0000000000000000000000000000000000000000000000000000000000000000\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\\\",\\\"session_id\\\":\\\"cab68bed-5fc5-509e-b580-03a203006f7a\\\"}\"}}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Anthropic-Beta": [
+          "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,mid-conversation-system-2026-04-07,mid-conversation-system-clear-at-2026-08-21,extended-cache-ttl-2025-04-11"
+         ],
+         "Anthropic-Dangerous-Direct-Browser-Access": [
+          "true"
+         ],
+         "Anthropic-Version": [
+          "2023-06-01"
+         ],
+         "Authorization": [
+          "Bearer sk-ant-oat-disabled-thinking-beta-test"
+         ],
+         "Connection": [
+          "keep-alive"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "claude-cli/2.1.280 (external, cli)"
+         ],
+         "X-App": [
+          "cli"
+         ],
+         "X-Claude-Code-Session-Id": [
+          "cab68bed-5fc5-509e-b580-03a203006f7a"
+         ],
+         "X-Stainless-Arch": [
+          "arm64"
+         ],
+         "X-Stainless-Lang": [
+          "js"
+         ],
+         "X-Stainless-Os": [
+          "MacOS"
+         ],
+         "X-Stainless-Package-Version": [
+          "0.112.1"
+         ],
+         "X-Stainless-Retry-Count": [
+          "0"
+         ],
+         "X-Stainless-Runtime": [
+          "node"
+         ],
+         "X-Stainless-Runtime-Version": [
+          "v26.3.0"
+         ],
+         "X-Stainless-Timeout": [
+          "600"
+         ]
+        },
+        "host": "127.0.0.1:44919",
+        "method": "POST",
+        "response_body": "{\"id\":\"msg_1\",\"type\":\"message\",\"model\":\"claude-sonnet-5\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}",
+        "response_headers": {
+         "Content-Length": [
+          "116"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "Date": [
+          "Wed, 21 Oct 2026 04:03:19 GMT"
+         ]
+        },
+        "status": 200,
+        "url": "http://127.0.0.1:44919/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {
+      "Anthropic-Beta": [
+       "thinking-display-updates-2026-08-18,effort-2025-11-24"
+      ]
+     },
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "claude",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-5",
+      "payload": "{\n\t\t\"model\": \"claude-sonnet-5\",\n\t\t\"thinking\": {\"type\": \"disabled\"},\n\t\t\"messages\": [{\n\t\t\t\"role\": \"user\",\n\t\t\t\"content\": \"hello\"\n\t\t}]\n\t}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Length": [
+        "116"
+       ],
+       "Content-Type": [
+        "application/json"
+       ],
+       "Date": [
+        "Wed, 21 Oct 2026 04:03:19 GMT"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"type\":\"message\",\"model\":\"claude-sonnet-5\",\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]}"
+     },
+     "test_helper": null
+    }
+   ]
+  }
+ },
+ "go_failures": [],
+ "source": "CLIProxyAPI v8.0.35 (ae3ee3be303fb07fb8173279923413005bf32177), Go's own tests in internal/runtime/executor"
+}

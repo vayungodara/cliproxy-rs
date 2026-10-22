@@ -50,10 +50,15 @@
 # +30 KB archive) over master's build at 0805c43 (29_042_103 to 29_102_199); the lines
 # below are that job's measurements. The rest of the rise came with master's changes
 # since 2026-10-21.
-size.x86_64-unknown-linux-gnu.binary_bytes   43_592_784  2
-size.x86_64-unknown-linux-gnu.text_bytes     29_102_199  2
+# 2026-10-22: Management auth file saves write Go's bytes (#149): Go's json.Marshal of
+# the metadata with float64 numbers read from the file's text, the equal-document check,
+# the fields value decoder and the provenance kept through reads and refreshes. At
+# a721e3f, +67 KB .text (+73 KB binary, +25 KB archive) over master's build at 98ec7d6
+# in this job (29_110_775 to 29_177_463); the lines below are that job's measurements.
+size.x86_64-unknown-linux-gnu.binary_bytes   43_675_120  2
+size.x86_64-unknown-linux-gnu.text_bytes     29_177_463  2
 size.x86_64-unknown-linux-gnu.rodata_bytes    8_562_144  2
-size.x86_64-unknown-linux-gnu.archive_bytes  18_504_245  2
+size.x86_64-unknown-linux-gnu.archive_bytes  18_534_286  2
 # Crates linked into the binary in two or more versions; a new one fails until it is
 # justified here. 2026-10-05: base64, block-buffer, cpufeatures, crypto-common, digest,
 # getrandom, hashbrown (3), rand, rand_core, sha2, thiserror.

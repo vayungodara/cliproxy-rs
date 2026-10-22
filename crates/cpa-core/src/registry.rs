@@ -1,6 +1,10 @@
 //! Pinned static model catalog: `internal/registry/models/models.json` from CLIProxyAPI
 //! v8.0.27, embedded verbatim. It is 6fecc6e's catalog plus the Antigravity Claude 5.5
-//! models (`claude-opus-5-5-high`, `claude-sonnet-5-5-high`).
+//! models (`claude-opus-5-5-high`, `claude-sonnet-5-5-high`), with v8.0.35's Claude
+//! thinking entries from Go ad9e456d: `disable_type: between_tools` on
+//! `claude-sonnet-5-5`, adaptive-only Opus 5.5 and Fable 5 and 5.1, and adaptive
+//! Opus 4.7 and 4.8, plus `claude-haiku-5-5` (Go f62d4d28): the `claude` section equals
+//! v8.0.35's.
 //!
 //! This is the static layer only. Go overlays a dynamic registry (per-credential
 //! registrations, config model definitions, remote catalog refresh) and consults it before
@@ -46,6 +50,10 @@ pub struct ThinkingSupport {
     pub zero_allowed: bool,
     #[serde(alias = "dynamic-allowed")]
     pub dynamic_allowed: bool,
+    /// The Claude `thinking.type` that turns thinking off (`disable-type` in config
+    /// YAML). Empty means `disabled`; claude-sonnet-5-5 needs `between_tools`.
+    #[serde(alias = "disable-type")]
+    pub disable_type: String,
     /// Discrete effort levels; empty means budget-based thinking.
     pub levels: Vec<String>,
 }
@@ -136,7 +144,34 @@ impl Catalog {
                 self.channel(channel).iter().chain(statics)
             })
             .find(|m| m.id == id)
+            .or_else(|| {
+                let claude = self.channel("claude");
+                claude_family_ids(id)
+                    .into_iter()
+                    .find_map(|family| claude.iter().find(|m| m.id == family))
+            })
     }
+}
+
+/// Dated and bracketed Claude variants (`claude-sonnet-5-5-20261001`,
+/// `claude-opus-5-5[1m]`) share their catalog entry's capabilities (Go
+/// `claudeFamilyModelIDs`): the ID without a `[...]` suffix, then also without a
+/// `-YYYYMMDD` date.
+pub(crate) fn claude_family_ids(id: &str) -> Vec<&str> {
+    let mut candidates = Vec::new();
+    if !id.starts_with("claude-") {
+        return candidates;
+    }
+    let mut base = id;
+    if let Some(i) = base.find('[').filter(|&i| i > 0 && base.ends_with(']')) {
+        base = &base[..i];
+        candidates.push(base);
+    }
+    let n = base.len();
+    if n > 9 && base.as_bytes()[n - 9] == b'-' && base.as_bytes()[n - 8..].iter().all(u8::is_ascii_digit) {
+        candidates.push(&base[..n - 9]);
+    }
+    candidates
 }
 
 /// The static catalog in effect (Go `getModels()`): the embedded models.json until a
@@ -354,6 +389,42 @@ mod tests {
         Catalog::parse(json).unwrap()
     }
 
+    /// Go TestLookupStaticModelInfoClaudeVariantsUseCatalogEntry (claude_family_lookup_test.go).
+    #[test]
+    fn claude_variants_use_their_catalog_entry() {
+        let c = catalog(MODELS_JSON);
+        for (id, family) in [
+            ("claude-opus-5-5[1m]", "claude-opus-5-5"),
+            ("claude-opus-5-5-20261001", "claude-opus-5-5"),
+            ("claude-opus-5-5-20261001[1m]", "claude-opus-5-5"),
+            ("claude-sonnet-5-5[1m]", "claude-sonnet-5-5"),
+            ("claude-sonnet-5-5-20261001", "claude-sonnet-5-5"),
+            ("claude-fable-5[1m]", "claude-fable-5"),
+            ("claude-fable-5-1[1m]", "claude-fable-5-1"),
+            ("claude-haiku-4-5-20251001[1m]", "claude-haiku-4-5-20251001"),
+        ] {
+            assert_eq!(c.lookup(id).map(|m| m.id.as_str()), Some(family), "{id}");
+        }
+        assert_eq!(
+            c.lookup("claude-haiku-4-5-20251001").map(|m| m.id.as_str()),
+            Some("claude-haiku-4-5-20251001")
+        );
+        for id in [
+            "claude-unknown-20261001",
+            "claude-opus-5-5-2026",
+            "claude-opus-5-5[1m",
+            "gpt-5[1m]",
+        ] {
+            assert!(c.lookup(id).is_none(), "{id}");
+        }
+        assert_eq!(
+            c.lookup("claude-sonnet-5-5")
+                .and_then(|m| m.thinking.as_ref())
+                .map(|t| t.disable_type.as_str()),
+            Some("between_tools")
+        );
+    }
+
     /// Go TestDetectChangedProviders_CodexConfigurationUpdate: an internal-field-only
     /// change in a Codex tier reports `codex`.
     #[test]
@@ -403,7 +474,7 @@ mod tests {
         assert_eq!(
             sizes,
             [
-                ("claude", 18),
+                ("claude", 19),
                 ("gemini", 14),
                 ("vertex", 21),
                 ("gemini-cli", 7),

@@ -146,9 +146,12 @@ impl Fixture {
         let hash = bcrypt::hash("fake-management-only", 4).unwrap();
         std::fs::write(&path, yaml(&dir.join("auth"), &hash)).unwrap();
         let cfg = Config::load(&path).unwrap();
+        let scan = cpa_core::config::credentials::scan_auth_dir(&cfg);
+        let mut loaded = scan.credentials;
+        loaded.extend(cpa_core::config::credentials::from_config(&cfg));
         let rt = Arc::new(cpa_server::testing::runtime(
             cfg.clone(),
-            cpa_core::config::credentials::load(&cfg),
+            loaded,
             Executors {
                 claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                 codex,
@@ -157,6 +160,8 @@ impl Fixture {
                 google: Default::default(),
             },
         ));
+        // As the binary records what it loaded.
+        rt.store().note_loaded(&scan.read);
         let state = Management::new(rt.clone(), path);
         Self { dir, state, rt }
     }
@@ -1346,6 +1351,108 @@ async fn excluded_models_writes_are_validated() {
 
 /// `/credentials/models` reports what the credential registers in the dynamic
 /// registry (Go `GetModelsForClient`): config aliases here, nothing once disabled.
+#[tokio::test]
+async fn fields_refuses_values_its_auth_loader_cannot_read() {
+    // Go writes these values (DIFFERENCES-FROM-GO.md): serde holds the file, so a
+    // number past f64 or nesting past its 127 levels, counted from the file's root
+    // object, is refused before anything is written.
+    let f = Fixture::from_yaml("fields-limits", |auth, hash| {
+        std::fs::write(auth.join("credential.json"), r#"{"type":"claude"}"#).unwrap();
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            auth.display()
+        )
+    });
+    let auth = f.dir.join("auth");
+    let (base, server) = f.server().await;
+    let client = wreq::Client::new();
+    let nested = |n: usize| format!("{}{}", "[".repeat(n), "]".repeat(n));
+    let deep = ["q"; 128].join(".");
+    let deep_error = format!("invalid field {deep}");
+    for (fields, want) in [
+        (format!(r#""x":{}"#, nested(126)), None),
+        (format!(r#""x":{}"#, nested(127)), Some("invalid field x")),
+        (format!(r#""a.b":{}"#, nested(125)), None),
+        (format!(r#""a.b":{}"#, nested(126)), Some("invalid field a.b")),
+        // A dotted path's objects count too, around a scalar as around a container.
+        (format!(r#""{}":1"#, ["p"; 127].join(".")), None),
+        (format!(r#""{deep}":1"#), Some(deep_error.as_str())),
+        (r#""note":1e400"#.to_owned(), Some("invalid field note")),
+        (r#""note":1e308"#.to_owned(), None),
+    ] {
+        let before = std::fs::read(auth.join("credential.json")).unwrap();
+        let r = client
+            .patch(format!("{base}/v8/management/credentials/fields"))
+            .bearer_auth("fake-management-only")
+            .body(format!(r#"{{"name":"credential.json",{fields}}}"#))
+            .send()
+            .await
+            .unwrap();
+        let status = r.status().as_u16();
+        let body: Value = r.json().await.unwrap();
+        let label = &fields[..fields.len().min(12)];
+        match want {
+            Some(message) => {
+                assert_eq!((status, body), (400, json!({ "error": message })), "{label}");
+                assert_eq!(std::fs::read(auth.join("credential.json")).unwrap(), before, "{label}");
+            }
+            None => {
+                assert_eq!((status, body), (200, json!({ "status": "ok" })), "{label}");
+                assert!(f.rt.store().get("credential.json").is_some(), "{label}: reloads");
+            }
+        }
+    }
+    server.abort();
+}
+
+/// Go's `PersistCodexAuthFile` keeps the disk's `siwc` subtree, and Go saves it at any
+/// depth its decoder reads. A subtree added behind the watcher's back deeper than the
+/// auth loader reads (127 levels) would make the saved file unreadable here, so the save
+/// is refused (DIFFERENCES-FROM-GO.md, "Auth file saves") and nothing changes.
+#[tokio::test]
+async fn a_codex_save_refuses_a_disk_subtree_its_loader_cannot_read() {
+    let f = Fixture::from_yaml("codex-deep", |auth, hash| {
+        std::fs::write(auth.join("codex.json"), r#"{"type":"codex","access_token":"fake-a"}"#).unwrap();
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            auth.display()
+        )
+    });
+    let file = f.dir.join("auth").join("codex.json");
+    let nested = |n: usize| format!("{}{}", "[".repeat(n), "]".repeat(n));
+    let before = f.rt.store().get("codex.json").unwrap();
+    let (base, server) = f.server().await;
+    // As edited, and already in the bytes the save would write (an equal save, which
+    // writes nothing but would still publish what the bytes synthesize).
+    let edited = format!(
+        r#"{{"type":"codex","access_token":"fake-a","siwc":{{"x":{}}}}}"#,
+        nested(200)
+    );
+    let canonical = format!(
+        r#"{{"access_token":"fake-a","disabled":false,"siwc":{{"x":{}}},"type":"codex"}}"#,
+        nested(200)
+    );
+    for (disk, disabled) in [(&edited, true), (&canonical, false)] {
+        std::fs::write(&file, disk).unwrap();
+        let r = wreq::Client::new()
+            .patch(format!("{base}/v8/management/credentials/status"))
+            .bearer_auth("fake-management-only")
+            .body(format!(r#"{{"name":"codex.json","disabled":{disabled}}}"#))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(r.status().as_u16(), 500, "disabled {disabled}");
+        assert_eq!(
+            r.json::<Value>().await.unwrap(),
+            json!({"error": "failed to update auth: Io(\"the saved auth file could not be read back\")"})
+        );
+        assert_eq!(&std::fs::read_to_string(&file).unwrap(), disk);
+        let after = f.rt.store().get("codex.json").unwrap();
+        assert_eq!((after.revision, after.disabled), (before.revision, false));
+    }
+    server.abort();
+}
+
 #[tokio::test]
 async fn credential_models_come_from_registrations() {
     let f = Fixture::from_yaml("models", |auth, hash| {

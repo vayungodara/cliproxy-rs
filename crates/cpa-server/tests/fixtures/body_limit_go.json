@@ -344,7 +344,7 @@
     "body_b64": "eyJtb2RlbCI6ImdwdC01IiwibWVzc2FnZXMiOlt7InJvbGUiOiJ1c2VyIiwiY29udGVudCI6Inh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4In1dfQ==",
     "chunked": true,
     "status": 413,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_139008f83e77483abbb0e95a0df84e80\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: request body too large\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_38834934145444c78036ac5e17e313d5\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: request body too large\"}}",
     "content_type": "application/json",
     "read": 65
   },
@@ -376,7 +376,7 @@
     "body_b64": "LS1CT1VOREFSWTAxMjM0NTY3ODkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibW9kZWwiDQoNCmdwdC1pbWFnZS0xDQotLUJPVU5EQVJZMDEyMzQ1Njc4OQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJwcm9tcHQiDQoNCnBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwDQotLUJPVU5EQVJZMDEyMzQ1Njc4OS0tDQo=",
     "chunked": true,
     "status": 413,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_7a39f2cd6a0c41b79003998d963d5563\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: request body too large\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_8afd337454d7463a8c57fbff2a013ccf\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: request body too large\"}}",
     "content_type": "application/json",
     "read": 65
   },
@@ -392,7 +392,7 @@
     "body_b64": "cHJvbXB0PXBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBw",
     "chunked": true,
     "status": 413,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_2b337307c4b042dba8109db84ad9d517\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: request body too large\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_9d7c50e620c54cc1bc3b9a478f06876c\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: request body too large\"}}",
     "content_type": "application/json",
     "read": 65
   },
@@ -579,7 +579,7 @@
     "body_b64": "KLUv/UQAHAE1AQDUAXsibW9kZWwiOiJncHQtNSIsImlucHV0IjoieiJ9AVQUAizzE0X1dxM=",
     "chunked": false,
     "status": 413,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_2a0eb62fc5454b93989c7b3409ea3ed1\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: request body too large\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_9de93a21c9cd4839bdf1235bffba9e03\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: request body too large\"}}",
     "content_type": "application/json",
     "read": 53
   },
@@ -1300,7 +1300,7 @@
     "body_b64": "ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg",
     "chunked": true,
     "status": 200,
-    "response": "{\"config-version\":8,\"management\":{\"allow-remote\":true,\"secret-key\":\"$2a$10$o3/qkoDHysWRaiO9vPXdxuDdCLgN/KeIotIQLEMZ6vRDo659jl.hG\"},\"oauth\":{\"auth-dir\":\"/tmp/cpa-body-limit-4049459880/auth\"},\"server\":{\"max-request-body-bytes\":32}}",
+    "response": "{\"config-version\":8,\"management\":{\"allow-remote\":true,\"secret-key\":\"$2a$10$LkK5sTAvg3dAkdklZeIADOSdCs7QDCsC/SbbltK6P5to2cMhINxtK\"},\"oauth\":{\"auth-dir\":\"/tmp/cpa-body-limit-3713280111/auth\"},\"server\":{\"max-request-body-bytes\":32}}",
     "content_type": "application/json; charset=utf-8",
     "read": 0
   },
@@ -1732,7 +1732,7 @@
     "body_b64": "LS1CT1VOREFSWTAxMjM0NTY3ODkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibW9kZWwiDQoNCmdwdC1pbWFnZS0xDQotLUJPVU5EQVJZMDEyMzQ1Njc4OQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJwcm9tcHQiDQoNCnANCi0tQk9VTkRBUlkwMTIzNDU2Nzg5LS0NCg==",
     "chunked": true,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_27c7bb27015045b4a753918381209a6c\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: malformed MIME header: missing colon: \\\"Content-\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_7d554ab912134381a5ba87a3a72f0a0f\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: malformed MIME header: missing colon: \\\"Content-\\\"\"}}",
     "content_type": "application/json",
     "read": 31
   },
@@ -2121,6 +2121,54 @@
     "read": 4
   },
   {
+    "name": "json_bind_no_limit fields_value_invalid_utf8 PATCH /v8/management/credentials/fields",
+    "yaml": "config-version: 8\nserver:\n  max-request-body-bytes: 0\nmanagement:\n  allow-remote: true\n  secret-key: mgmt-secret\n",
+    "method": "PATCH",
+    "path": "/v8/management/credentials/fields",
+    "headers": {
+      "Authorization": "Bearer mgmt-secret",
+      "Content-Type": "application/json"
+    },
+    "body_b64": "eyJuYW1lIjoieC5qc29uIiwibm90ZSI6Iv/+In0=",
+    "chunked": false,
+    "status": 404,
+    "response": "{\"error\":\"auth file not found\"}",
+    "content_type": "application/json; charset=utf-8",
+    "read": 29
+  },
+  {
+    "name": "json_bind_no_limit fields_value_lone_surrogate PATCH /v8/management/credentials/fields",
+    "yaml": "config-version: 8\nserver:\n  max-request-body-bytes: 0\nmanagement:\n  allow-remote: true\n  secret-key: mgmt-secret\n",
+    "method": "PATCH",
+    "path": "/v8/management/credentials/fields",
+    "headers": {
+      "Authorization": "Bearer mgmt-secret",
+      "Content-Type": "application/json"
+    },
+    "body_b64": "eyJuYW1lIjoieC5qc29uIiwibm90ZSI6Ilx1ZDgwMCJ9",
+    "chunked": false,
+    "status": 404,
+    "response": "{\"error\":\"auth file not found\"}",
+    "content_type": "application/json; charset=utf-8",
+    "read": 33
+  },
+  {
+    "name": "json_bind_no_limit fields_value_huge_integer PATCH /v0/management/auth-files/fields",
+    "yaml": "config-version: 8\nserver:\n  max-request-body-bytes: 0\nmanagement:\n  allow-remote: true\n  secret-key: mgmt-secret\n",
+    "method": "PATCH",
+    "path": "/v0/management/auth-files/fields",
+    "headers": {
+      "Authorization": "Bearer mgmt-secret",
+      "Content-Type": "application/json"
+    },
+    "body_b64": "eyJuYW1lIjoieC5qc29uIiwibm90ZSI6MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwfQ==",
+    "chunked": false,
+    "status": 404,
+    "response": "{\"error\":\"auth file not found\"}",
+    "content_type": "application/json; charset=utf-8",
+    "read": 55
+  },
+  {
     "name": "json_bind_no_limit unknown_huge_number PATCH /v0/management/auth-files/status",
     "yaml": "config-version: 8\nserver:\n  max-request-body-bytes: 0\nmanagement:\n  allow-remote: true\n  secret-key: mgmt-secret\n",
     "method": "PATCH",
@@ -2484,7 +2532,7 @@
     "body_b64": "LS1CT1VOREFSWTAxMjM0NTY3ODkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibW9kZWwiDQoNCmdwdC1pbWFnZS0xDQotLUJPVU5EQVJZMDEyMzQ1Njc4OQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJwcm9tcHQiDQoNCnANCi0tQk9VTkRBUlkwMTIzNDU2Nzg5LS0NCmVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVlZWVl",
     "chunked": true,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_7910043c1be54d4eb3fdf5a7f069ab93\",\"model\":\"gpt-image-1\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Model gpt-image-1 is not supported on /openai/v1/videos. Use sora-2.\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_fab1b460cd8345ad87d2fc39aef620e2\",\"model\":\"gpt-image-1\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Model gpt-image-1 is not supported on /openai/v1/videos. Use sora-2.\"}}",
     "content_type": "application/json",
     "read": 1025
   },
@@ -2500,7 +2548,7 @@
     "body_b64": "LS1CT1VOREFSWTAxMjM0NTY3ODkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibW9kZWwiDQoNCmdwdC1pbWFnZS0xDQotLUJPVU5EQVJZMDEyMzQ1Njc4OQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJwcm9tcHQiDQoNCnANCi0tQk9VTkRBUlkwMTIzNDU2Nzg5LS0NCg==",
     "chunked": true,
     "status": 413,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_df99629fba7a4fea878579681351c731\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: multipart: NextPart: http: request body too large\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_b2470d8f848c4406ae9d67101894f7ad\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: multipart: NextPart: http: request body too large\"}}",
     "content_type": "application/json",
     "read": 180
   },
@@ -2547,7 +2595,7 @@
     "body_b64": "",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_7b55714b228b4e369534b02843111605\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: no multipart boundary param in Content-Type\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_45d37a2c29a1409aa2ff32fd04c06471\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: no multipart boundary param in Content-Type\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2563,7 +2611,7 @@
     "body_b64": "",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_38d470785d4f4f46923a78dc8cf38d47\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: no multipart boundary param in Content-Type\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_7cf9578be8454f54bd5c79177ee08459\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: no multipart boundary param in Content-Type\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2579,7 +2627,7 @@
     "body_b64": "cHJvbXB0PXAmaWdub3JlZD0lWlo=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_9afbc0fed2fc41c5b6551746fadf0005\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_352881c5a439431588f69b25a2e680f5\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
     "content_type": "application/json",
     "read": 20
   },
@@ -2595,7 +2643,7 @@
     "body_b64": "cHJvbXB0PXAmaWdub3JlZD0lWlo=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_8dd099423b2948928ecdc5c266a23316\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_8bb8f9e45ef54569bb6563dc7794eae5\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
     "content_type": "application/json",
     "read": 20
   },
@@ -2611,7 +2659,7 @@
     "body_b64": "cHJvbXB0PXAmaWdub3JlZD0lWg==",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_36fc9f8fa5c14c2ba380d64a616b5fa7\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%Z\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_694aeab88b8c4c1c86c971727a112e7e\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%Z\\\"\"}}",
     "content_type": "application/json",
     "read": 19
   },
@@ -2627,7 +2675,7 @@
     "body_b64": "cHJvbXB0PXAmaWdub3JlZD0lWg==",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_3e40d7af94c24151b44e567063a4012e\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%Z\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_c8c755e2f0294db9ba8e720d419ff45a\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%Z\\\"\"}}",
     "content_type": "application/json",
     "read": 19
   },
@@ -2643,7 +2691,7 @@
     "body_b64": "cHJvbXB0PXAmYT0lWlomYj0xO2M9Mg==",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_2a92390d1c9f45faa10eba0ec443fa62\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid semicolon separator in query\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_01724ab2a211494eb8a4a5be334330ff\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid semicolon separator in query\"}}",
     "content_type": "application/json",
     "read": 22
   },
@@ -2659,7 +2707,7 @@
     "body_b64": "cHJvbXB0PXAmYT0lWlomYj0xO2M9Mg==",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_735814d40f004b0f9d8977d7af5d858c\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid semicolon separator in query\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_b09b85c596c34197a149da516a827d6b\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid semicolon separator in query\"}}",
     "content_type": "application/json",
     "read": 22
   },
@@ -2675,7 +2723,7 @@
     "body_b64": "cHJvbXB0PXA=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_f4cfed162a2d4fb2a05e81ed78c812e9\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_650ae5881eec408b9b43531b3e4b5aee\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
     "content_type": "application/json",
     "read": 8
   },
@@ -2691,7 +2739,7 @@
     "body_b64": "cHJvbXB0PXA=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_14fdf68bf96f4b28ace5d35c2f552f41\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_55083343589d486cb749a51502ff902b\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
     "content_type": "application/json",
     "read": 8
   },
@@ -2707,7 +2755,7 @@
     "body_b64": "LS1CT1VOREFSWTAxMjM0NTY3ODkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQpwDQotLUJPVU5EQVJZMDEyMzQ1Njc4OS0tDQo=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_57066eb04a004472aba63d8fc4462a89\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_aeb29b0531414041ba332d3b43c34d71\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
     "content_type": "application/json",
     "read": 98
   },
@@ -2723,7 +2771,7 @@
     "body_b64": "LS1CT1VOREFSWTAxMjM0NTY3ODkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQpwDQotLUJPVU5EQVJZMDEyMzQ1Njc4OS0tDQo=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_91a1e4bab738492681372a1ca0dadbc5\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_163ff5822bd54f2a955ac889dc1bddbe\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: invalid URL escape \\\"%ZZ\\\"\"}}",
     "content_type": "application/json",
     "read": 98
   },
@@ -2739,7 +2787,7 @@
     "body_b64": "cHJvbXB0PXA=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_2d67090ac2094d26b2f52ffafdfa4595\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: invalid media parameter\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_337c3acc53f448dfb2b3a0b6f2e202e3\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: invalid media parameter\"}}",
     "content_type": "application/json",
     "read": 8
   },
@@ -2755,7 +2803,7 @@
     "body_b64": "cHJvbXB0PXA=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_961fefedff32479aaec1b78d6a6aecb9\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: invalid media parameter\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_6279eabb62784ad08364b7bd26587bd2\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: invalid media parameter\"}}",
     "content_type": "application/json",
     "read": 8
   },
@@ -2771,7 +2819,7 @@
     "body_b64": "cHJvbXB0PXA=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_7e62ace6772a408fa45351b7a103ca46\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: unexpected content after media subtype\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_7a3dceda39a4404d90f71d538f9e9649\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: unexpected content after media subtype\"}}",
     "content_type": "application/json",
     "read": 8
   },
@@ -2787,7 +2835,7 @@
     "body_b64": "cHJvbXB0PXA=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_b989430543d841039cd5ece691d1e3c9\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: unexpected content after media subtype\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_731e6037a718491da5b30fa6bae7a88b\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: unexpected content after media subtype\"}}",
     "content_type": "application/json",
     "read": 8
   },
@@ -2803,7 +2851,7 @@
     "body_b64": "cHJvbXB0PXA=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_3b661009c0404a658e64b84361443309\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: duplicate parameter name\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_f28f0935c9934db5898068d641fbf84d\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: duplicate parameter name\"}}",
     "content_type": "application/json",
     "read": 8
   },
@@ -2819,7 +2867,7 @@
     "body_b64": "cHJvbXB0PXA=",
     "chunked": false,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_400a6903ef3d4e47b0b13ba7db7ac0e2\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: duplicate parameter name\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_51b9170ca56c485eb2551350162724ea\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: duplicate parameter name\"}}",
     "content_type": "application/json",
     "read": 8
   },
@@ -2835,7 +2883,7 @@
     "body_b64": "cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHA=",
     "chunked": true,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_427a37e97f16454fb0017c07e127b9e9\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: request Content-Type isn't multipart/form-data\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_9969ba5bf2f04bb0882e7615692be410\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: request Content-Type isn't multipart/form-data\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2851,7 +2899,7 @@
     "body_b64": "cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHA=",
     "chunked": true,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_affa02aaafb847d5863e3bcc6add322c\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: request Content-Type isn't multipart/form-data\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_396aa71c1fe24b699e23227fd30813f0\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: request Content-Type isn't multipart/form-data\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2867,7 +2915,7 @@
     "body_b64": "cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHA=",
     "chunked": true,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_56a68e8bbdb04e9f9297fc787c03f680\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: request Content-Type isn't multipart/form-data\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_4b960944469a4986ad370a5bc12a934d\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: request Content-Type isn't multipart/form-data\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2883,7 +2931,7 @@
     "body_b64": "cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHA=",
     "chunked": true,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_bdfcf0c3d46a4a56b5bca3c208b6777b\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: no multipart boundary param in Content-Type\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_bfb7837fc0564a44b60b9723fd8a91b9\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: no multipart boundary param in Content-Type\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2899,7 +2947,7 @@
     "body_b64": "cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHA=",
     "chunked": true,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_19c4521a0a1b4979972c851286706e88\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: multipart: boundary is empty\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_5b9958788d4f46f5889a1b14739e24b1\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: multipart: boundary is empty\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2915,7 +2963,7 @@
     "body_b64": "cHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHA=",
     "chunked": true,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_ecd3dad5939546b7b96f03c956ea1168\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: duplicate parameter name\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_31a5f33e1ae8414cabbf62f538be1475\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: duplicate parameter name\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2964,7 +3012,7 @@
     "chunked": false,
     "pad_to": 10485761,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_92de23f04035427fac568035abd0663e\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: unexpected content after media subtype\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_492ed72133eb47969d433ba0bd12c171\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: mime: unexpected content after media subtype\"}}",
     "content_type": "application/json",
     "read": 0
   },
@@ -2981,7 +3029,7 @@
     "chunked": false,
     "pad_to": 10485761,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_82682f4a96a540e89d11793c1388a537\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: POST too large\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_2b4453a5ab6549bca4e6fd8c10f257db\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: POST too large\"}}",
     "content_type": "application/json",
     "read": 10485761
   },
@@ -2998,7 +3046,7 @@
     "chunked": false,
     "pad_to": 10485761,
     "status": 400,
-    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_90fb550337294ac1a4d4fc80b22c918b\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: POST too large\"}}",
+    "response": "{\"object\":\"video\",\"status\":\"failed\",\"progress\":0,\"id\":\"video_a745dfddeba143bb98a759932fafb604\",\"model\":\"grok-imagine-video\",\"error\":{\"code\":\"invalid_request_error\",\"message\":\"Invalid request: http: POST too large\"}}",
     "content_type": "application/json",
     "read": 10485761
   }

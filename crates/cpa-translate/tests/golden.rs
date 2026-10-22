@@ -128,16 +128,6 @@ fn request_output(result: Result<Vec<u8>, cpa_translate::Error>) -> Vec<u8> {
 /// shrinks as ports land and a listed fixture cannot hide a passing neighbour's regression.
 const PENDING: &[(&str, &str, &str)] = &[
     (
-        "openai-response->claude",
-        "TestConvertOpenAIResponsesRequestToClaude_UnsupportedPrefillModelsStripTrailingAssistant:2154#14",
-        "registry: dated Claude IDs share their family's limits (ad9e456d)",
-    ),
-    (
-        "openai-response->claude",
-        "TestConvertOpenAIResponsesRequestToClaude_UnsupportedPrefillModelsStripTrailingAssistant:2154#16",
-        "registry: claude-haiku-5-5 (f62d4d28)",
-    ),
-    (
         "claude->codex",
         "TestConvertClaudeRequestToCodex_AssistantMetaSignatureToReasoningItem:731",
         "signature replay: Meta Muse envelopes (7a0b7563, cc5682c5, 674dbe8f, a68c7d8e)",

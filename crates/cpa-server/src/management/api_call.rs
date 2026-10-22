@@ -81,11 +81,6 @@ pub(super) fn bind_struct(body: &[u8], fields: &[&str]) -> Option<Vec<(usize, Va
     first_members(body, |key| go_field(fields, key))
 }
 
-/// `json.Decoder.Decode` into a map: every member of the first JSON value, in order.
-pub(super) fn first_map(body: &[u8]) -> Option<Vec<(String, Value)>> {
-    first_members(body, |key| Some(key.to_owned()))
-}
-
 /// The struct field `key` decodes into (`encoding/json`): an exact name first, else
 /// the first name equal under Unicode case folding.
 pub(super) fn go_field(fields: &[&str], key: &str) -> Option<usize> {

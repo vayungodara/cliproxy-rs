@@ -93,6 +93,7 @@ fn pasted_callbacks_parse_like_go() {
                     state: s("state"),
                     error: s("error"),
                     description: s("desc"),
+                    client_id: String::new(),
                 },
                 "{input}"
             ),

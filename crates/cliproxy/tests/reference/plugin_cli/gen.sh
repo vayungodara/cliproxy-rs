@@ -1,6 +1,6 @@
 #!/bin/sh
 # Regenerates ../../fixtures/plugin_cli_go.json from Go's server binary.
-# Usage: gen.sh /absolute/path/to/CLIProxyAPI   (checkout at 6fecc6e; not modified)
+# Usage: gen.sh /absolute/path/to/CLIProxyAPI   (checkout at ae3ee3be, v8.0.35; not modified)
 set -eu
 # Offline: no toolchain download, modules from the local cache only.
 export GOTOOLCHAIN=local GOPROXY=off GONOPROXY=none GOPRIVATE= GOSUMDB=off

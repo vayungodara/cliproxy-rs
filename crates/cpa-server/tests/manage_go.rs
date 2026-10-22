@@ -940,9 +940,12 @@ mod creds {
                 .replace("$AUTH", &auth.display().to_string());
             std::fs::write(&path, yaml).unwrap();
             let cfg = Config::load(&path).unwrap();
+            let scan = credentials::scan_auth_dir(&cfg);
+            let mut loaded = scan.credentials;
+            loaded.extend(credentials::from_config(&cfg));
             let rt = Arc::new(cpa_server::testing::runtime(
                 cfg.clone(),
-                credentials::load(&cfg),
+                loaded,
                 Executors {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                     codex: Default::default(),
@@ -951,6 +954,8 @@ mod creds {
                     google: Default::default(),
                 },
             ));
+            // As the binary records what it loaded.
+            rt.store().note_loaded(&scan.read);
             // Runtime-only credentials, registered as the `/v1/ws` relay does.
             for id in scenario["runtime_auths"].as_array().into_iter().flatten() {
                 let id = id.as_str().unwrap();
@@ -1139,13 +1144,15 @@ mod creds {
                     }
                     assert_eq!(got, want, "{at}");
                 }
-                // Auth dir contents, as JSON values.
+                // Auth dir contents, as JSON values read the way Go's snapshot reads them
+                // (float64, correctly rounded; serde's default parse is not).
                 let mut files = serde_json::Map::new();
                 for entry in std::fs::read_dir(&auth).unwrap() {
                     let entry = entry.unwrap();
                     let data = std::fs::read(entry.path()).unwrap();
-                    let v = serde_json::from_slice::<Value>(&data)
-                        .unwrap_or_else(|_| json!(format!("raw:{}", String::from_utf8_lossy(&data))));
+                    let v = cpa_common::json::GoValue::parse_f64(&data)
+                        .and_then(|v| serde_json::from_slice::<Value>(&v.marshal()).ok())
+                        .unwrap_or_else(|| json!(format!("raw:{}", String::from_utf8_lossy(&data))));
                     files.insert(entry.file_name().to_string_lossy().into_owned(), v);
                 }
                 assert_eq!(
@@ -1183,9 +1190,9 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 199);
+        assert_eq!(compared, 219);
         eprintln!("credentials: {bytes_compared} of {compared} steps compared byte for byte");
-        assert_eq!(bytes_compared, 149, "steps compared byte for byte");
+        assert_eq!(bytes_compared, 168, "steps compared byte for byte");
     }
 
     /// Pending v8.0.35 drift outside the config saver. Each pin names its scenario and
@@ -1231,6 +1238,12 @@ mod creds {
             }
             if inventory && (73..=88).contains(&i) {
                 locks.push("retype.json.lock");
+            }
+            if name == "save_bytes" && i >= 5 {
+                locks.push("raw-codex-blank.json.lock");
+            }
+            if name == "save_bytes" && i >= 3 {
+                locks.push("raw-codex.json.lock");
             }
             let mut recorded: Vec<String> = files.keys().filter(|f| f.ends_with(".lock")).cloned().collect();
             recorded.sort();

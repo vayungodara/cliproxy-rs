@@ -11,7 +11,10 @@ line and compare outputs exactly.
 signatures (Go 9b9c2bdf and 174248ca). Between `6fecc6e` and v8.0.27, `internal/signature`
 changed only by those two commits, and `internal/thinking` and
 `helps.translatedRequestSummaryConfig` did not change, so every other recorded function
-behaves as at `6fecc6e`. `go_thinking_matrix.jsonl.gz` is still recorded at `6fecc6e`.
+behaves as at `6fecc6e`. `go_thinking_matrix.jsonl.gz` is recorded at v8.0.35
+(`ae3ee3be303fb07fb8173279923413005bf32177`) for the Claude `DisableType` change (Go
+ad9e456d): it adds claude-sonnet-5-5 (`between_tools`), the adaptive-only Claude models
+and a body carrying `thinking.block_binding`, and records each model's `disable_type`.
 
 - `go_calls.jsonl.gz`: every call made while Go's own suites ran:
   `./internal/thinking/...`, `./internal/signature/...`,
@@ -29,10 +32,11 @@ Recording runs on a throwaway copy, never on the reference checkout. No network 
 is needed beyond the Go module cache.
 
 ```sh
-reference=/absolute/path/to/CLIProxyAPI      # at v8.0.27 (6fecc6e for the thinking matrix)
+reference=/absolute/path/to/CLIProxyAPI      # at v8.0.27 (v8.0.35 for the thinking matrix)
 here=$(pwd)                                   # this directory
 copy=$(mktemp -d)
 tar -C "$reference" --exclude=.git -cf - . | tar -C "$copy" -xf -
+chmod -R u+w "$copy"                          # a read-only reference stays read-only in the copy
 mkdir -p "$copy/internal/recorder"
 cp recorder.go.txt "$copy/internal/recorder/recorder.go"
 python3 patch.py "$copy"
