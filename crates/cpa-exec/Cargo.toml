@@ -36,6 +36,8 @@ regex = "1"
 serde_yaml_ng.workspace = true
 tracing.workspace = true
 libc.workspace = true
+# Dual-stack OAuth callback listeners (Go `net.Listen(":port")`); already in the graph.
+socket2.workspace = true
 # Vertex: RS256 service-account JWTs with the BoringSSL bindings wreq already uses.
 btls = "0.5.6"
 # Codex: brotli certificate decompression for the Chrome TLS profile (already in the graph).

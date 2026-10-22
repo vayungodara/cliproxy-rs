@@ -237,13 +237,29 @@ async fn bind(port: u16) -> Result<tokio::net::TcpListener, ExecError> {
             "{PORT_IN_USE}: OAuth callback port is already in use (caused by: port {port} is already in use)"
         ))
     };
-    match tokio::net::TcpListener::bind(("::", port)).await {
+    match listen_any(port) {
         Ok(listener) => Ok(listener),
         Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => Err(in_use()),
         Err(_) => tokio::net::TcpListener::bind(("0.0.0.0", port))
             .await
             .map_err(|_| in_use()),
     }
+}
+
+/// Go `net.Listen("tcp", ":port")`: one socket on `[::]` that also takes IPv4
+/// (`IPV6_V6ONLY` cleared; Windows sets it by default, so a plain `[::]` bind there
+/// misses `127.0.0.1`, the address Go's SSH tunnel instructions forward to).
+pub(crate) fn listen_any(port: u16) -> std::io::Result<tokio::net::TcpListener> {
+    use socket2::{Domain, Socket, Type};
+    let socket = Socket::new(Domain::IPV6, Type::STREAM, None)?;
+    socket.set_only_v6(false)?;
+    // Go sets SO_REUSEADDR except on Windows (net/sockopt_windows.go).
+    #[cfg(not(windows))]
+    socket.set_reuse_address(true)?;
+    socket.bind(&std::net::SocketAddr::from((std::net::Ipv6Addr::UNSPECIFIED, port)).into())?;
+    socket.listen(1024)?;
+    socket.set_nonblocking(true)?;
+    tokio::net::TcpListener::from_std(socket.into())
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
@@ -714,7 +730,10 @@ fn publish(directory: &Path, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
         file.write_all(bytes)?;
         file.sync_all()?;
         std::fs::rename(&temporary, path)?;
-        std::fs::File::open(directory)?.sync_all()
+        // Go never syncs the folder, and Windows cannot open one as a file.
+        #[cfg(unix)]
+        std::fs::File::open(directory)?.sync_all()?;
+        Ok(())
     })();
     if result.is_err() {
         let _ = std::fs::remove_file(&temporary);

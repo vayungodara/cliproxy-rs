@@ -459,6 +459,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sha2",
+ "socket2",
  "tiktoken-rs",
  "tokio",
  "tokio-tungstenite",

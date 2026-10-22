@@ -10,7 +10,7 @@ fn temp_root() -> PathBuf {
     let root = std::env::temp_dir().join(format!("cpa-siwc-bind-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(root.join("auth")).unwrap();
     std::fs::create_dir_all(root.join("out")).unwrap();
-    std::fs::canonicalize(root).unwrap()
+    plain_path(std::fs::canonicalize(root).unwrap())
 }
 
 /// The Go recorder's file layout: `->target` is a symlink, `/` a directory. `false`
@@ -60,9 +60,12 @@ fn siwc_bind_matches_go() {
     for case in go["resolve"].as_array().unwrap() {
         let root = temp_root();
         let (dir, out) = (root.join("auth"), root.join("out"));
+        // The golden's `/` is Go's separator on Linux; Windows paths use `\`.
         let expand = |s: &str| {
-            s.replace("$DIR", &dir.to_string_lossy())
-                .replace("$OUT", &out.to_string_lossy())
+            let s = s
+                .replace("$DIR", &dir.to_string_lossy())
+                .replace("$OUT", &out.to_string_lossy());
+            if cfg!(windows) { s.replace('/', "\\") } else { s }
         };
         if write_files(&out, &case["outside"], &expand) && write_files(&dir, &case["files"], &expand) {
             let auth_dir = expand(case["auth_dir"].as_str().unwrap());
@@ -130,7 +133,14 @@ fn siwc_bind_matches_go() {
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
         listing.sort();
-        assert_eq!(serde_json::json!(listing), case["listing"], "{}", case["name"]);
+        let mut want: Vec<String> = serde_json::from_value(case["listing"].clone()).unwrap();
+        // Win32 path normalisation drops a name's trailing spaces and dots; Go, which
+        // prefixes `\\?\` only to long paths, creates the same trimmed file there.
+        if cfg!(windows) {
+            want = want.iter().map(|n| n.trim_end_matches([' ', '.']).to_owned()).collect();
+            want.sort();
+        }
+        assert_eq!(listing, want, "{}", case["name"]);
         let _ = std::fs::remove_dir_all(root);
     }
 
@@ -218,7 +228,7 @@ async fn bind_saves_the_issued_client_tokens() {
     assert_eq!(std::fs::read_to_string(dir.join("c.json")).unwrap(), original);
 
     let (port, bound) = run("code=the-code&state={state}&client_id=%20oaiapp_issued%20").await;
-    let real = std::fs::canonicalize(dir.join("c.json")).unwrap();
+    let real = plain_path(std::fs::canonicalize(dir.join("c.json")).unwrap());
     assert_eq!(bound, Ok(real.clone()));
     let sent = mock.take();
     assert_eq!(sent.len(), 1);
@@ -235,5 +245,23 @@ async fn bind_saves_the_issued_client_tokens() {
     assert_eq!(saved["siwc"]["access_token"], "siwc-at");
     assert_eq!(saved["siwc"]["client_id"], "oaiapp_issued");
     assert_eq!(saved["siwc"]["device_id"], "e61bbe28-07ef-466d-8e5d-a344f94ab305");
+    let _ = std::fs::remove_dir_all(root);
+}
+
+/// Windows spells canonical paths the way Go's `EvalSymlinks` does.
+#[cfg(windows)]
+#[test]
+fn verbatim_paths_lose_their_prefix() {
+    for (path, want) in [
+        (r"\\?\C:\Users\a\c.json", r"C:\Users\a\c.json"),
+        (r"\\?\UNC\server\share\auth\c.json", r"\\server\share\auth\c.json"),
+        (r"\\?\GLOBALROOT\Device\x", r"\\?\GLOBALROOT\Device\x"),
+        (r"C:\Users\a\c.json", r"C:\Users\a\c.json"),
+    ] {
+        assert_eq!(plain_path(PathBuf::from(path)), PathBuf::from(want), "{path}");
+    }
+    // The temporary root is canonical and plain, so resolve() answers without the prefix.
+    let root = temp_root();
+    assert!(!root.to_string_lossy().starts_with(r"\\?\"), "{root:?}");
     let _ = std::fs::remove_dir_all(root);
 }

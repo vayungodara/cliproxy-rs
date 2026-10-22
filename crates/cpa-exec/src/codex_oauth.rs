@@ -908,7 +908,10 @@ pub(crate) fn publish(dir: &Path, path: &Path, bytes: &[u8]) -> std::io::Result<
         file.write_all(bytes)?;
         file.sync_all()?;
         std::fs::rename(&temp, path)?;
-        std::fs::File::open(dir)?.sync_all()
+        // Go never syncs the folder, and Windows cannot open one as a file.
+        #[cfg(unix)]
+        std::fs::File::open(dir)?.sync_all()?;
+        Ok(())
     })();
     if result.is_err() {
         let _ = std::fs::remove_file(&temp);

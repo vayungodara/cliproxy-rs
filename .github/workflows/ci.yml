@@ -1,7 +1,7 @@
 # Formatting, lints, the full test suite and the harness build on every pull request and
-# push to master, plus clippy on Windows and the Linux size and idle gates. release.yml
-# calls this workflow too, so a tagged release runs the same checks before it builds
-# anything.
+# push to master, plus clippy and the file writer tests on Windows and the Linux size and
+# idle gates. release.yml calls this workflow too, so a tagged release runs the same checks
+# before it builds anything.
 # One run per change: pushes to master, and pull requests through `pull_request` only. A
 # branch push used to start a second run of every job for the same commit. Runs are
 # grouped per pull request (or per ref outside one), and a newer push cancels the older
@@ -246,3 +246,9 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/master' }}
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked --target x86_64-pc-windows-msvc -- -D warnings
+      # The credential and config file writers on Windows, against loopback mocks only.
+      - name: File writer tests
+        run: >-
+          cargo test --locked --target x86_64-pc-windows-msvc -p cpa-exec -p cpa-store --lib --
+          browser_login_writes_go_file a_busy_port_is_go_port_in_use existing_file_keeps_user_fields codex_siwc_bind::
+          seed_config_copies_the_template

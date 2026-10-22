@@ -336,8 +336,24 @@ async fn an_empty_paste_keeps_waiting_for_the_browser() {
 
 #[tokio::test]
 async fn a_busy_port_is_go_port_in_use() {
-    let holder = tokio::net::TcpListener::bind(("::", 0)).await.unwrap();
+    // The realistic holder: another Go or cliproxy login's dual-stack listener.
+    let holder = listen_any(0).unwrap();
     let port = holder.local_addr().unwrap().port();
     let error = bind(port).await.unwrap_err();
     assert!(String::from_utf8_lossy(&error.body).starts_with(PORT_IN_USE));
+    // A holder on one family: on Unix the dual-stack socket conflicts with it. Windows
+    // CI binds next to an IPv6-only `[::]` or a 127.0.0.1 holder (Go's listener is the
+    // same socket, so Go binds too).
+    for host in ["::", "127.0.0.1"] {
+        let holder = tokio::net::TcpListener::bind((host, 0)).await.unwrap();
+        let port = holder.local_addr().unwrap().port();
+        let result = bind(port).await;
+        #[cfg(not(windows))]
+        assert!(
+            String::from_utf8_lossy(&result.unwrap_err().body).starts_with(PORT_IN_USE),
+            "{host}"
+        );
+        #[cfg(windows)]
+        assert!(result.is_ok(), "{host}");
+    }
 }
