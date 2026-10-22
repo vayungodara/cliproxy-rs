@@ -60,9 +60,13 @@ fn siwc_bind_matches_go() {
     for case in go["resolve"].as_array().unwrap() {
         let root = temp_root();
         let (dir, out) = (root.join("auth"), root.join("out"));
+        // The golden's `/` is Go's separator on Linux; on Windows the temporary root is a
+        // verbatim `\\?\` path, where only `\` separates.
         let expand = |s: &str| {
-            s.replace("$DIR", &dir.to_string_lossy())
-                .replace("$OUT", &out.to_string_lossy())
+            let s = s
+                .replace("$DIR", &dir.to_string_lossy())
+                .replace("$OUT", &out.to_string_lossy());
+            if cfg!(windows) { s.replace('/', "\\") } else { s }
         };
         if write_files(&out, &case["outside"], &expand) && write_files(&dir, &case["files"], &expand) {
             let auth_dir = expand(case["auth_dir"].as_str().unwrap());
