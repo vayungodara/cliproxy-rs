@@ -74,14 +74,24 @@ deps.x86_64-unknown-linux-gnu.duplicate_crates  11  0
 # (bench/results/2026-10-06-idle.jsonl). A ceiling of 30 would pass a new timer firing
 # about once a second, which this gate is there to stop; 3 leaves room for a stray
 # context switch on a shared runner and nothing more.
+# 2026-10-22: both RSS budgets re-measured at master. 1 file: master's CI read 25,360
+# (98ec7d6), 25,844 (85c7cf3), 25,436 (81afb74), 25,820 (c9e34d6) and 25,516 (827445c)
+# against a ceiling of 25,850, so the budget is their median rounded, 25,500. 2,000
+# files: #87 added claude-haiku-5-5 and the thinking objects to the Claude catalog, and
+# every Claude credential registers its own copy of each catalog model, as Go's
+# RegisterClient keeps a cloned ModelInfo per client. Five alternating bench/idle.sh runs
+# per build on one VM put c9e34d6 at a median of 52,224 KB RssAnon and 19,272 KB RssFile
+# and 827445c at 55,464 and 20,264: +3,240 KB of heap, 1.6 KB per credential, and +1 MB
+# of mapped binary pages. CI read 77,420 (eb800dc), 77,548 (827445c) and 77,492 (#152 on
+# 827445c) after #87, against 73,320 to 74,172 before it; the budget is their median.
 idle.linux.1.wakeups           3   0
 idle.linux.1.cpu_ticks         1   0
 idle.linux.1.threads           6   0
-idle.linux.1.rss_kb       23_500  10
+idle.linux.1.rss_kb       25_500  10
 idle.linux.2000.wakeups        3   0
 idle.linux.2000.cpu_ticks      1   0
 idle.linux.2000.threads        6   0
-idle.linux.2000.rss_kb    71_000  10
+idle.linux.2000.rss_kb    77_492  10
 
 # Idle, macOS and Windows (release builds and the weekly idle workflow): 60 s without
 # requests, after 30 s of warm-up (10 s for the measurements below). Windows adds one
