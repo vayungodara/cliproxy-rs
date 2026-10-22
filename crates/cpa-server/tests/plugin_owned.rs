@@ -2903,15 +2903,13 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
 /// the shared 5 min backoff of built-in refreshes.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_failed_background_plugin_refresh_retries_when_the_token_expires() {
-    // Far enough out for the plugins to start before it.
-    let expiry = (chrono::Utc::now() + chrono::Duration::seconds(6)).to_rfc3339();
     let Some(env) = env(
         "plugin-owned-refresh-expiry",
         &[("acme", "auth_provider")],
         "",
         &[(
             "e.json",
-            &format!(r#"{{"type":"acme","access_token":"e","refresh_interval":"1h","expired":"{expiry}"}}"#),
+            r#"{"type":"acme","access_token":"e","refresh_interval":"1h"}"#,
         )],
         |records| {
             canned(
@@ -2933,9 +2931,18 @@ async fn a_failed_background_plugin_refresh_retries_when_the_token_expires() {
     else {
         return;
     };
+    // The token expires 3 s from now; the first refresh fails at once, before that.
+    let expiry = chrono::Utc::now() + chrono::Duration::seconds(3);
+    let store = env.rt.store();
+    let mut patch = cpa_core::credential::MetadataPatch::default();
+    patch.set.insert("expired".into(), expiry.to_rfc3339().into());
+    store
+        .apply_patch("e.json", store.get("e.json").unwrap().revision, &patch)
+        .unwrap();
     let refreshes = || calls(&env.records, "acme", "auth.refresh").len();
     env.rt.start_auto_refresh();
     eventually("the failing refresh", || refreshes() >= 1).await;
+    assert!(chrono::Utc::now() < expiry, "the first refresh ran before the expiry");
     eventually("the retry at the expiry", || refreshes() >= 2).await;
     eventually("the retry's commit", || {
         env.rt.store().get("e.json").unwrap().metadata["access_token"] == "e2"
