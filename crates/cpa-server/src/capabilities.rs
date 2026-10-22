@@ -415,7 +415,14 @@ fn resolve_model_info(name: &str, kind: &str, thinking: Option<ThinkingSupport>)
     info.kind = kind.trim().to_owned();
     info.raw.insert("type".into(), info.kind.clone().into());
     if let Some(support) = thinking {
-        let support = dynamic::normalize_thinking(support);
+        let mut support = dynamic::normalize_thinking(support);
+        // Configured levels replace the catalog's, but how a known model turns thinking
+        // off is an upstream fact (Go ad9e456d).
+        if support.disable_type.is_empty()
+            && let Some(catalog) = &info.thinking
+        {
+            support.disable_type.clone_from(&catalog.disable_type);
+        }
         info.raw.insert("thinking".into(), dynamic::thinking_value(&support));
         info.thinking = Some(support);
     }
@@ -494,6 +501,16 @@ mod tests {
             };
             assert_eq!(source, case["source"].as_str().unwrap(), "{name}: source");
             let Some(got) = got else { continue };
+            let mut want = case["info"].clone();
+            if want["id"] == "claude-opus-4-7" {
+                // Recorded before Go ad9e456d made Opus 4.7 adaptive-only in the v8.0.35
+                // catalog (internal/registry/models/models.json).
+                want["thinking"] = serde_json::json!({
+                    "zero_allowed": true,
+                    "dynamic_allowed": true,
+                    "levels": ["low", "medium", "high", "xhigh", "max"]
+                });
+            }
             bound += 1;
             codex_oauth += usize::from(got.source == ResolvedSource::CodexOAuth);
             // Go's JSON drops internal fields; compare everything else, ignoring zero
@@ -513,11 +530,11 @@ mod tests {
             };
             assert_eq!(
                 Value::Object(visible(&got.info.raw)),
-                Value::Object(visible(case["info"].as_object().unwrap())),
+                Value::Object(visible(want.as_object().unwrap())),
                 "{name}: info"
             );
-            assert_eq!(got.info.id, case["info"]["id"].as_str().unwrap(), "{name}: id");
-            assert_eq!(got.info.kind, case["info"]["type"].as_str().unwrap(), "{name}: type");
+            assert_eq!(got.info.id, want["id"].as_str().unwrap(), "{name}: id");
+            assert_eq!(got.info.kind, want["type"].as_str().unwrap(), "{name}: type");
             assert_eq!(
                 got.is_compat(),
                 case["is_compat"].as_bool().unwrap(),
@@ -536,10 +553,63 @@ mod tests {
             );
             assert_eq!(
                 got.info.thinking.as_ref().map(dynamic::thinking_value),
-                case["info"].get("thinking").cloned(),
+                want.get("thinking").cloned(),
                 "{name}: typed thinking"
             );
         }
         assert_eq!((bound, codex_oauth), (25, 4));
+    }
+
+    /// Go `TestResolveModelInfoConfiguredThinkingKeepsCatalogDisableType`: configured levels
+    /// replace the catalog's, but an empty `disable-type` keeps the catalog's way of turning
+    /// thinking off; an explicit one wins.
+    #[test]
+    fn configured_thinking_keeps_the_catalog_disable_type() {
+        let support = |yaml: &str| serde_yaml_ng::from_str::<ThinkingSupport>(yaml).unwrap();
+        let configured = support("levels: [low, medium, high, none]");
+        let info = resolve_model_info("claude-sonnet-5-5", "claude", Some(configured.clone()));
+        let thinking = info.thinking.as_ref().unwrap();
+        assert_eq!(thinking.disable_type, "between_tools");
+        assert_eq!(thinking.levels, ["low", "medium", "high", "none"]);
+        let body = br#"{"model":"claude-sonnet-5-5","messages":[{"role":"user","content":"hi"}],"thinking":{"type":"disabled"}}"#;
+        let caps = cpa_common::thinking::ModelCaps::from(&info);
+        let out = cpa_common::thinking::apply_thinking_with_model_info(
+            body,
+            &[],
+            "claude-sonnet-5-5",
+            "claude",
+            "claude",
+            "claude",
+            Some(&caps),
+        )
+        .unwrap();
+        let out: Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(out["thinking"], serde_json::json!({"type": "between_tools"}), "{out}");
+
+        // Configured capabilities are authoritative: a model the proxy knows refuses
+        // `disabled` still gets it once its configuration allows turning thinking off.
+        let opus = resolve_model_info("claude-opus-5-5", "claude", Some(support("levels: [low, none]")));
+        let body = br#"{"model":"claude-opus-5-5","messages":[{"role":"user","content":"hi"}],"thinking":{"type":"disabled"}}"#;
+        let caps = cpa_common::thinking::ModelCaps::from(&opus);
+        let out = cpa_common::thinking::apply_thinking_with_model_info(
+            body,
+            &[],
+            "claude-opus-5-5",
+            "claude",
+            "claude",
+            "claude",
+            Some(&caps),
+        )
+        .unwrap();
+        let out: Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(out["thinking"], serde_json::json!({"type": "disabled"}), "{out}");
+
+        let explicit = support("levels: [low]\ndisable-type: disabled");
+        let explicit = resolve_model_info("claude-sonnet-5-5", "claude", Some(explicit));
+        assert_eq!(explicit.thinking.unwrap().disable_type, "disabled");
+        let other = resolve_model_info("claude-opus-5", "claude", Some(configured.clone()));
+        assert_eq!(other.thinking.unwrap().disable_type, "");
+        let variant = resolve_model_info("claude-sonnet-5-5[1m]", "claude", Some(configured));
+        assert_eq!(variant.thinking.unwrap().disable_type, "between_tools");
     }
 }

@@ -2427,6 +2427,9 @@ fn plugin_model_json(m: &cpa_plugin::api::ModelInfo) -> Value {
         if t.dynamic_allowed {
             thinking.insert("dynamic_allowed".into(), true.into());
         }
+        if !t.disable_type.is_empty() {
+            thinking.insert("disable_type".into(), t.disable_type.clone().into());
+        }
         list(&mut thinking, "levels", &t.levels);
         out.insert("thinking".into(), Value::Object(thinking));
     }

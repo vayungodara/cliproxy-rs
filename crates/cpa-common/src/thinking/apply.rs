@@ -355,13 +355,26 @@ fn run(
         config.level = map_configured_high_intent(&config.level, info);
     }
 
+    let requested_off = config.mode == Mode::None || (config.mode == Mode::Budget && config.budget == 0);
     let validated = validate_config(config, Some(info), &from, &target, suffix.has_suffix).map_err(|mut e| {
         e.body = Some(body.clone());
         e
     })?;
-    let applied = apply_fn.apply(&body, &validated, Some(info))?;
+    let mut applied = apply_fn.apply(&body, &validated, Some(info))?;
     if fully_disabled(&validated) || native_responses {
         return Ok(applied);
+    }
+    let mut summary = summary;
+    if target == "claude" && requested_off {
+        // The model cannot turn thinking off, so validation fell back to its lowest
+        // level: drop a stale block_binding and keep the caller's intent of seeing no
+        // thinking, since without an explicit omitted display cloaking would add
+        // progress updates (Go ad9e456d).
+        applied = super::without(&applied, "thinking.block_binding");
+        summary = SummaryConfig {
+            mode: SummaryMode::Disabled,
+            ..Default::default()
+        };
     }
     Ok(apply_summary_config_for_provider(
         &applied,
@@ -561,6 +574,8 @@ pub fn extract_translated_reasoning_effort(body: &[u8], provider: &str) -> Strin
 fn extract_for_usage(body: &[u8], provider: &str) -> Config {
     match provider.trim().go_lower().as_str() {
         "codex" | "xai" | "openai-response" => extract_codex_usage_config(body),
+        // between_tools is how claude-sonnet-5-5 turns thinking off.
+        "claude" if json::get(body, "thinking.type").str() == "between_tools" => Config::none(),
         p => extract_thinking_config(body, p),
     }
 }

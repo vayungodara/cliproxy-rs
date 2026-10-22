@@ -149,3 +149,22 @@ payload rules to the end of the pipeline (`868e137`), which is not ported yet. O
 them, `TestClaudeCloakedDateReminderProbeOverrideDoesNotReinitializeSessionDate`, also
 checks the date a probe keeps when a payload rule makes it an ordinary request;
 `claude::tests::declassified_probes_keep_their_own_date` checks that date instead.
+
+## v8.0.35 recordings
+
+`../../../src/claude/testdata/go_unit_v8.0.35.json` holds Go's own v8.0.35 tests whose
+answers changed with a v8.0.35 behaviour the executor follows. It is replayed by
+`claude::go_unit::v8_0_35_executor`, and the 6fecc6e recordings of the same tests are
+skipped (`SUPERSEDED` in `claude/go_unit.rs`). Today it has one test:
+`TestClaudeExecutor_DisabledThinkingStripsDisplayBeta`, whose `thinking` object Go
+ad9e456d (`disableThinking`) now replaces whole.
+
+The recording's `source` names the checkout's full commit (`git rev-parse HEAD` in the
+reference, `ae3ee3be303fb07fb8173279923413005bf32177`, with a clean worktree).
+
+```sh
+reference=/absolute/path/to/CLIProxyAPI   # at v8.0.35
+RSFIX_REFERENCE="v8.0.35 ($(git -C "$reference" rev-parse HEAD))" RSFIX_FILES=claude_executor_test.go \
+RSFIX_ONLY='^TestClaudeExecutor_DisabledThinkingStripsDisplayBeta$' \
+  python3 "$crate/tests/reference/claude/unit/record.py" "$reference" "$crate/src/claude/testdata/go_unit_v8.0.35.json"
+```

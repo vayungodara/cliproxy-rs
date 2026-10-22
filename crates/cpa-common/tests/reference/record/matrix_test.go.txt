@@ -23,6 +23,10 @@ func TestRecordThinkingMatrix(t *testing.T) {
 		{ID: "claude-opus-x", Type: "antigravity", Thinking: &registry.ThinkingSupport{Min: 1024, Max: 64000, ZeroAllowed: true, DynamicAllowed: true}, MaxCompletionTokens: 32000},
 		{ID: "plain", Type: "openai"},
 		{ID: "upd", Type: "codex", SupportConfigurationUpdate: true, Thinking: &registry.ThinkingSupport{Levels: []string{"low", "medium", "high", "xhigh"}}},
+		// v8.0.35 (Go ad9e456d): a model that turns thinking off with between_tools, and
+		// an adaptive-only model that cannot turn it off.
+		{ID: "claude-sonnet-5-5", Type: "claude", Thinking: &registry.ThinkingSupport{ZeroAllowed: true, DynamicAllowed: true, DisableType: "between_tools", Levels: []string{"low", "medium", "high", "xhigh", "max"}}, MaxCompletionTokens: 128000},
+		{ID: "adaptive-only", Type: "claude", Thinking: &registry.ThinkingSupport{DynamicAllowed: true, Levels: []string{"auto", "medium", "low", "max"}}, MaxCompletionTokens: 128000},
 	}
 	configs := []thinking.ThinkingConfig{
 		{Mode: thinking.ModeAuto, Budget: -1},
@@ -44,6 +48,7 @@ func TestRecordThinkingMatrix(t *testing.T) {
 		`{"generation_config":{"thinking_summaries":"AUTO","thinking_config":{"include_thoughts":false},"thinkingBudget":9}}`,
 		`{"max_tokens":1000,"thinking":{"type":"enabled","budget_tokens":2048,"display":"summarized"},"output_config":{"effort":"low"}}`,
 		`{"reasoning_effort":"low","reasoning":{"effort":"high","summary":"auto"},"thinking":{"type":"enabled","effort":"high"}}`,
+		`{"thinking":{"type":"disabled","block_binding":"strict","display":"omitted"},"output_config":{"effort":"high","format":"x"}}`,
 	}
 	for _, name := range []string{"gemini", "antigravity", "interactions", "claude", "openai", "codex", "xai", "kimi"} {
 		applier := thinking.GetProviderApplier(name)

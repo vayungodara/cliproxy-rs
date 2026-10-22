@@ -37,7 +37,11 @@ func Caps(info *registry.ModelInfo) any {
 		if levels == nil {
 			levels = []string{}
 		}
-		out["thinking"] = map[string]any{"min": t.Min, "max": t.Max, "zero_allowed": t.ZeroAllowed, "dynamic_allowed": t.DynamicAllowed, "levels": levels}
+		thinking := map[string]any{"min": t.Min, "max": t.Max, "zero_allowed": t.ZeroAllowed, "dynamic_allowed": t.DynamicAllowed, "levels": levels}
+		if t.DisableType != "" {
+			thinking["disable_type"] = t.DisableType
+		}
+		out["thinking"] = thinking
 	}
 	return out
 }
