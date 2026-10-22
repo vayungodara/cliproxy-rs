@@ -106,14 +106,23 @@ idle.linux.2000.rss_kb    77_492  10
 # macos-15-intel, 15,812 to 16,232 KB on windows-2025 (working set).
 # 2026-10-06: idle_wakeups cut from 30 to 3 per 60 s. Over four CI runs each, macos-15
 # measured 0, 0, 0 and 1, and macos-15-intel 0 every time; 3 sits just above the worst.
+# 2026-10-22: both macOS RSS budgets re-measured at master. Master 22abc036's idle run
+# read 11,772 KB on macos-15-intel, over the ceiling of 11,770. The last five idle runs
+# (master 22abc036, master f1fbe526, #150, #155, #153) read 11,772, 11,336, 11,448,
+# 11,288 and 11,288 KB on macos-15-intel and 16,704, 16,592, 16,272, 16,304 and
+# 16,608 KB on macos-15, against 10,496 to 10,656 and 14,976 to 15,344 KB on
+# 2026-10-05; each budget is the median. The cause is the one #155 measured on Linux:
+# the binary grew, which adds mapped binary pages (RssFile), and the catalog data each
+# credential registers grew. Windows (16,744 to 16,872 KB, one outlier at 8,208) is
+# still inside its ceiling of 17,930 and keeps its budget.
 idle.macos-arm64.1.cpu_ms           20   0
 idle.macos-arm64.1.idle_wakeups      3   0
 idle.macos-arm64.1.threads           6   0
-idle.macos-arm64.1.rss_kb       15_400  10
+idle.macos-arm64.1.rss_kb       16_592  10
 idle.macos-x86_64.1.cpu_ms          20   0
 idle.macos-x86_64.1.idle_wakeups     3   0
 idle.macos-x86_64.1.threads          6   0
-idle.macos-x86_64.1.rss_kb      10_700  10
+idle.macos-x86_64.1.rss_kb      11_336  10
 idle.windows.1.cpu_ms         20   0
 idle.windows.1.threads         7   0
 idle.windows.1.rss_kb     16_300  10
