@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -410,6 +411,17 @@ func main() {
 			all[i].Upstream.Body = blobs.Replace(all[i].Upstream.Body)
 		}
 		run(&all[i])
+	}
+	if only := os.Getenv("RSFIX_ONLY"); only != "" {
+		// A partial recording: every scenario runs, the matching ones are written.
+		pattern := regexp.MustCompile(only)
+		var kept []scenario
+		for _, s := range all {
+			if pattern.MatchString(s.Name) {
+				kept = append(kept, s)
+			}
+		}
+		all = kept
 	}
 	data, err := json.MarshalIndent(map[string]any{"scenarios": all}, "", "  ")
 	if err != nil {

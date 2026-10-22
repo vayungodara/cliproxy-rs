@@ -1,0 +1,113 @@
+{
+  "name": "responses-payload-override-after-normalize",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:43229/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k3\",\"input\":\"hi\",\"temperature\":0.4}",
+    "config": "payload:\n  override:\n    - models: [{name: \"kimi-*\"}]\n      params: {temperature: 0.4}\n",
+    "model": "kimi-k3",
+    "source": "openai-response",
+    "stream": false
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "application/json"
+        ]
+      ],
+      "body": "{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"k3\",\"output\":[{\"type\":\"message\",\"id\":\"m1\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/responses",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:43229"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "60"
+        ],
+        [
+          "Accept",
+          "application/json"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k3\",\"input\":\"hi\",\"stream\":false,\"temperature\":0.4}"
+    }
+  ],
+  "downstream": {
+    "body": "{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"k3\",\"output\":[{\"type\":\"message\",\"id\":\"m1\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}"
+  },
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:43229",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:43229/coding/v1/responses\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: application/json\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\nX-Msh-Device-Id: dev-fixture-1\nX-Msh-Device-Model: linux amd64\nX-Msh-Device-Name: e2b.local\nX-Msh-Platform: CLIProxyAPI\nX-Msh-Version: 0.1.0\n\nBody:\n{\"model\":\"k3\",\"input\":\"hi\",\"stream\":false,\"temperature\":0.4}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 258\nContent-Type: application/json\n\nBody:\n{\"id\":\"resp_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"k3\",\"output\":[{\"type\":\"message\",\"id\":\"m1\",\"role\":\"assistant\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":1,\"total_tokens\":2}}\n"
+    },
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "fail_body": "",
+        "fail_status": 0,
+        "failed": false,
+        "input_tokens": 1,
+        "model": "kimi-k3",
+        "output_tokens": 1,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "k3",
+        "service_tier": "",
+        "total_tokens": 2,
+        "ttft_set": true
+      }
+    ]
+  }
+}

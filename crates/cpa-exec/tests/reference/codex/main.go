@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -1096,6 +1097,17 @@ func main() {
 	}
 	out := map[string]any{"sjson": sjsonCases(), "oauth": oauthCases(), "executor": cases,
 		"alpha_search": alphaCases(), "quota": quotaCases(), "replay": replays, "images": images}
+	if only := os.Getenv("RSFIX_ONLY"); only != "" {
+		// A partial recording: every executor case runs, the matching ones are written.
+		pattern := regexp.MustCompile(only)
+		var kept []execCase
+		for _, c := range cases {
+			if pattern.MatchString(c.Name) {
+				kept = append(kept, c)
+			}
+		}
+		out = map[string]any{"executor": kept}
+	}
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetEscapeHTML(false)
