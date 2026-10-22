@@ -482,6 +482,19 @@ fn missing(s: &Value) -> Vec<String> {
         .collect()
 }
 
+/// Go v8.0.35 (f62d4d28) dropped `gemini-3.7-flash`: with no registry entry
+/// `capGeminiMaxOutputTokens` leaves the request's limit alone, while the
+/// `gemini-3.8-flash` the historical golden now uses is capped at its completion limit.
+#[test]
+fn a_removed_model_has_no_output_cap() {
+    let body = br#"{"generationConfig":{"maxOutputTokens":70000}}"#.to_vec();
+    assert_eq!(payload::cap_max_output_tokens(body.clone(), "gemini-3.7-flash"), body);
+    assert_eq!(
+        payload::cap_max_output_tokens(body, "gemini-3.8-flash"),
+        br#"{"generationConfig":{"maxOutputTokens":65536}}"#
+    );
+}
+
 #[tokio::test]
 async fn go_reference_scenarios() {
     let scenarios = fixture()["scenarios"].as_array().unwrap();
@@ -496,6 +509,17 @@ async fn go_reference_scenarios() {
     let unix = regex::Regex::new(r#"\"created\":1[0-9]{9}([,}])"#).unwrap();
     for s in scenarios {
         let name = s["name"].as_str().unwrap();
+        // Recorded with 6fecc6e's catalog, where gemini-3.7-flash had a completion limit
+        // and no output limit. Go v8.0.35 (f62d4d28) drops that model; gemini-3.8-flash
+        // has the same limits and an ID of the same length, so the recorded bytes hold
+        // with the name swapped.
+        let swapped: Value;
+        let s = if name == "gen_cap_uses_max_completion_tokens" {
+            swapped = serde_json::from_str(&s.to_string().replace("gemini-3.7-flash", "gemini-3.8-flash")).unwrap();
+            &swapped
+        } else {
+            s
+        };
         let missing = missing(s);
         if !missing.is_empty() {
             skipped.push(format!("{name} ({})", missing.join(", ")));

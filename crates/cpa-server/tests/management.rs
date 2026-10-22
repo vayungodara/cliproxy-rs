@@ -1554,6 +1554,52 @@ async fn model_definitions_fall_back_to_registered_models_by_channel() {
     server.abort();
 }
 
+/// Go v8.0.35 `GetStaticModelDefinitionsByChannel` renders the live static catalog with
+/// the Codex, xAI and Devin built-ins. Every channel answers Go's bytes, recorded by
+/// `reference/manage` (its second output).
+#[tokio::test]
+async fn model_definitions_match_go_by_channel() {
+    let go: serde_json::Map<String, Value> =
+        serde_json::from_str(include_str!("fixtures/model_definitions_go.json")).unwrap();
+    let f = Fixture::from_yaml("definitions-go", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            auth.display()
+        )
+    });
+    let (base, server) = f.server().await;
+    let get = |channel: String| {
+        wreq::Client::new()
+            .get(format!("{base}/v8/management/routing/model-definitions/{channel}"))
+            .bearer_auth("fake-management-only")
+            .send()
+    };
+    // Aliases answer their canonical section under the requested (lowercased) name.
+    let aliases = [
+        ("kimi-ai", "kimi"),
+        ("Kimi.AI", "kimi"),
+        ("kimi.com", "kimi"),
+        ("x-ai", "xai"),
+        ("GROK", "xai"),
+        ("muse", "meta"),
+    ];
+    let requests = go.keys().map(|c| (c.as_str(), c.as_str())).chain(aliases);
+    let mut compared = 0;
+    for (channel, section) in requests {
+        let r = get(channel.to_owned()).await.unwrap();
+        assert_eq!(r.status(), 200, "{channel}");
+        let want = format!(
+            r#"{{"channel":{},"models":{}}}"#,
+            Value::from(channel.go_lower()),
+            serde_json::to_string(&go[section]).unwrap()
+        );
+        assert_eq!(r.text().await.unwrap(), want, "{channel}");
+        compared += 1;
+    }
+    assert_eq!(compared, 17);
+    server.abort();
+}
+
 /// Go v8.0.35 `TestGetStaticModelDefinitions_FallsBackToPluginStaticModels`: a plugin
 /// channel lists the plugin's static models in plugin order. The plugin is the Go
 /// recorder test plugin.

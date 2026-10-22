@@ -2,8 +2,8 @@
 
 `../../fixtures/manage_go.json` holds outputs of CLIProxyAPI v8.0.35 (`ae3ee3be`),
 produced in-process by `main.go`. Its second argument receives Go's static model
-definitions by channel, which `src/management/model_definitions.json` copies; update
-that file only together with the model catalog. It runs real Go code only: gin `ClientIP`, the management
+definitions by channel, `../../fixtures/model_definitions_go.json`, which
+`tests/management.rs` compares with the endpoint served from the embedded catalog. It runs real Go code only: gin `ClientIP`, the management
 middleware, `config.LoadConfig`, the config/file credential synthesizers and a
 complete `api.NewServer` driven through `httptest`. It opens no sockets and calls no
 provider, GitHub or OAuth endpoint. Secrets are `fake-*` strings; bcrypt hashes are
@@ -27,7 +27,7 @@ cp "$crate/tests/reference/manage/main.go" "$tmp/main.go"
   go mod edit -replace=github.com/router-for-me/CLIProxyAPI/v8="$reference"
   cp "$reference/go.sum" .
   go mod tidy
-  TZ=UTC GOFLAGS=-mod=mod GOTOOLCHAIN=local /path/to/go1.26.4/bin/go run . "$crate/tests/fixtures/manage_go.json" /tmp/model_definitions.json
+  TZ=UTC GOFLAGS=-mod=mod GOTOOLCHAIN=local /path/to/go1.26.4/bin/go run . "$crate/tests/fixtures/manage_go.json" "$crate/tests/fixtures/model_definitions_go.json"
 )
 rm -rf "$tmp"
 ```

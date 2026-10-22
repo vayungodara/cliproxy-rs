@@ -17,7 +17,7 @@ bytes.workspace = true
 futures-util.workspace = true
 http.workspace = true
 serde.workspace = true
-serde_json.workspace = true
+serde_json = { workspace = true, features = ["raw_value"] }
 serde_yaml_ng.workspace = true
 # serde_yaml_ng's parser; its events carry the resolved tags that serde drops.
 unsafe-libyaml = "0.2.11"

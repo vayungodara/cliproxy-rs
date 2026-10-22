@@ -112,7 +112,8 @@ pub struct Spec {
 
 impl Spec {
     fn from_static(info: &ModelInfo) -> Self {
-        let mut spec = serde_json::from_value(Value::Object(info.raw.clone())).unwrap_or_else(|_| Self {
+        let raw = super::go_integers(&info.raw);
+        let mut spec = serde_json::from_value(Value::Object(raw)).unwrap_or_else(|_| Self {
             id: info.id.clone(),
             kind: info.kind.clone(),
             ..Self::default()
@@ -580,34 +581,70 @@ const CODEX_BUILTIN_IMAGES: [(&str, &str); 5] = [
     ("gpt-image-2.5", "GPT Image 2.5"),
 ];
 
-/// Go `GetCodex*Models`: a plan catalog `WithCodexBuiltins` (`upsertModelInfos`), where
-/// the built-ins replace same-ID models (case-insensitive) and come last.
+/// Go `GetCodex*Models`: a plan catalog `WithCodexBuiltins`.
 fn codex_channel(name: &str) -> Vec<Spec> {
-    let builtins = CODEX_BUILTIN_IMAGES.map(|(id, display_name)| Spec {
-        id: id.into(),
-        object: "model".into(),
-        // 2024-01-01.
-        created: 1_704_067_200,
-        owned_by: "openai".into(),
-        kind: "openai".into(),
-        display_name: display_name.into(),
-        version: id.into(),
-        ..Spec::default()
-    });
-    let mut models: Vec<Spec> = channel(name)
-        .into_iter()
-        .filter(|m| {
-            let id = m.id.trim().go_lower();
-            !id.is_empty() && !builtins.iter().any(|b| b.id == id)
-        })
-        .collect();
-    models.extend(builtins);
-    models
+    upsert(channel(name), codex_builtins(), |m| &m.id)
 }
 
-/// Go `WithXAIBuiltins` (`upsertModelInfos`): the hard-coded image, video and speech
-/// models, appended after the channel's models and replacing any with the same ID.
+/// Go `WithCodexBuiltins`' models.
+fn codex_builtins() -> Vec<Spec> {
+    CODEX_BUILTIN_IMAGES
+        .map(|(id, display_name)| Spec {
+            id: id.into(),
+            object: "model".into(),
+            // 2024-01-01.
+            created: 1_704_067_200,
+            owned_by: "openai".into(),
+            kind: "openai".into(),
+            display_name: display_name.into(),
+            version: id.into(),
+            ..Spec::default()
+        })
+        .into()
+}
+
+/// Go `upsertModelInfos`: `extras` replace same-ID models (trimmed, case-insensitive)
+/// and come last; models with an empty ID are dropped.
+fn upsert<T>(models: Vec<T>, extras: Vec<T>, id: impl Fn(&T) -> &str) -> Vec<T> {
+    let keys: Vec<String> = extras.iter().map(|e| id(e).trim().go_lower()).collect();
+    let mut out: Vec<T> = models
+        .into_iter()
+        .filter(|m| {
+            let key = id(m).trim().go_lower();
+            !key.is_empty() && !keys.contains(&key)
+        })
+        .collect();
+    out.extend(extras);
+    out
+}
+
+/// Go `GetStaticModelDefinitionsByChannel`: one channel of the current static catalog
+/// with Go's built-ins; `None` for an unknown channel.
+pub fn static_definitions(channel: &str) -> Option<Vec<ModelInfo>> {
+    let section = |name: &str| pinned().channel(name).to_vec();
+    let info = |specs: Vec<Spec>| specs.iter().map(Spec::to_info).collect();
+    Some(match channel.trim().go_lower().as_str() {
+        "claude" => section("claude"),
+        "gemini" | "gemini-interactions" => section("gemini"),
+        "vertex" => section("vertex"),
+        "aistudio" => section("aistudio"),
+        "codex" => upsert(section("codex-pro"), info(codex_builtins()), |m| &m.id),
+        "kimi" | "kimi-ai" | "kimi.ai" | "kimi.com" => section("kimi"),
+        "antigravity" => section("antigravity"),
+        "xai" | "x-ai" | "grok" => upsert(section("xai"), info(xai_builtins()), |m| &m.id),
+        "devin" => super::devin::models(),
+        "meta" | "muse" => section("meta"),
+        _ => return None,
+    })
+}
+
+/// Go `WithXAIBuiltins`: the hard-coded image, video and speech models, appended after
+/// the channel's models and replacing any with the same ID.
 fn with_xai_builtins(models: Vec<Spec>) -> Vec<Spec> {
+    upsert(models, xai_builtins(), |m| &m.id)
+}
+
+fn xai_builtins() -> Vec<Spec> {
     const BUILTINS: [(&str, i64, &str, &str); 8] = [
         (
             "grok-imagine-image",
@@ -658,26 +695,20 @@ fn with_xai_builtins(models: Vec<Spec>) -> Vec<Spec> {
             "xAI Grok unary text-to-speech model.",
         ),
     ];
-    let mut out: Vec<Spec> = models
-        .into_iter()
-        .filter(|m| {
-            // Go `upsertModelInfos` compares `strings.ToLower` keys.
-            let id = m.id.trim().go_lower();
-            !id.is_empty() && !BUILTINS.iter().any(|(b, ..)| b.go_lower() == id)
+    BUILTINS
+        .iter()
+        .map(|(id, created, display, description)| Spec {
+            id: (*id).into(),
+            object: "model".into(),
+            created: *created,
+            owned_by: "xai".into(),
+            kind: "xai".into(),
+            display_name: (*display).into(),
+            name: (*id).into(),
+            description: (*description).into(),
+            ..Spec::default()
         })
-        .collect();
-    out.extend(BUILTINS.iter().map(|(id, created, display, description)| Spec {
-        id: (*id).into(),
-        object: "model".into(),
-        created: *created,
-        owned_by: "xai".into(),
-        kind: "xai".into(),
-        display_name: (*display).into(),
-        name: (*id).into(),
-        description: (*description).into(),
-        ..Spec::default()
-    }));
-    out
+        .collect()
 }
 
 /// Go `buildConfigModels`; `metadata_channel` is the static channel whose native

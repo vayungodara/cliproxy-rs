@@ -1,10 +1,5 @@
 //! Pinned static model catalog: `internal/registry/models/models.json` from CLIProxyAPI
-//! v8.0.27, embedded verbatim. It is 6fecc6e's catalog plus the Antigravity Claude 5.5
-//! models (`claude-opus-5-5-high`, `claude-sonnet-5-5-high`), with v8.0.35's Claude
-//! thinking entries from Go ad9e456d: `disable_type: between_tools` on
-//! `claude-sonnet-5-5`, adaptive-only Opus 5.5 and Fable 5 and 5.1, and adaptive
-//! Opus 4.7 and 4.8, plus `claude-haiku-5-5` (Go f62d4d28): the `claude` section equals
-//! v8.0.35's.
+//! v8.0.35, byte for byte.
 //!
 //! This is the static layer only. Go overlays a dynamic registry (per-credential
 //! registrations, config model definitions, remote catalog refresh) and consults it before
@@ -85,7 +80,7 @@ impl ModelInfo {
             #[serde(default)]
             thinking: Option<ThinkingSupport>,
         }
-        let typed: Typed = serde_json::from_value(Value::Object(raw.clone()))?;
+        let typed: Typed = serde_json::from_value(Value::Object(go_integers(&raw)))?;
         Ok(Self {
             id: typed.id,
             kind: typed.kind,
@@ -151,6 +146,386 @@ impl Catalog {
                     .find_map(|family| claude.iter().find(|m| m.id == family))
             })
     }
+}
+
+/// How Go's `ModelInfo` and `ThinkingSupport` fields decode.
+#[derive(Clone, Copy, PartialEq)]
+enum Kind {
+    Text,
+    Int,
+    Flag,
+    List,
+    Thinking,
+    Config,
+    Native,
+}
+use Kind::*;
+/// `ModelInfo`'s JSON fields: name, kind, `omitempty`.
+const MODEL: [(&str, Kind, bool); 22] = [
+    ("id", Text, false),
+    ("object", Text, false),
+    ("created", Int, false),
+    ("owned_by", Text, false),
+    ("type", Text, false),
+    ("display_name", Text, true),
+    ("name", Text, true),
+    ("version", Text, true),
+    ("description", Text, true),
+    ("inputTokenLimit", Int, true),
+    ("outputTokenLimit", Int, true),
+    ("supportedGenerationMethods", List, true),
+    ("context_length", Int, true),
+    ("max_completion_tokens", Int, true),
+    ("supported_parameters", List, true),
+    ("supportedInputModalities", List, true),
+    ("supportedOutputModalities", List, true),
+    ("supports_web_search", Flag, true),
+    ("thinking", Thinking, true),
+    ("config", Config, true),
+    // Decoded (and type-checked) only.
+    ("native_capabilities", Native, true),
+    ("support_configuration_update", Flag, true),
+];
+/// `ThinkingSupport`'s JSON fields.
+const THINKING: [(&str, Kind, bool); 6] = [
+    ("min", Int, true),
+    ("max", Int, true),
+    ("zero_allowed", Flag, true),
+    ("dynamic_allowed", Flag, true),
+    ("disable_type", Text, true),
+    ("levels", List, true),
+];
+
+/// `raw` for typed deserialisation, with `-0` as 0 in its integer fields and `thinking`'s:
+/// Go reads that integer literal as 0, serde as the float `-0.0`. `raw` itself keeps it.
+/// A refresh refuses `-0.0` itself by its text (`check_catalog_members`).
+pub(crate) fn go_integers(raw: &Map<String, Value>) -> Map<String, Value> {
+    fn zero(obj: &mut Map<String, Value>, fields: &[(&'static str, Kind, bool)]) {
+        for (name, kind, _) in fields {
+            let negative_zero = |v: &Value| v.as_f64().is_some_and(|f| f == 0.0 && f.is_sign_negative());
+            if *kind == Int && obj.get(*name).is_some_and(negative_zero) {
+                obj.insert((*name).into(), Value::from(0));
+            }
+        }
+    }
+    let mut out = raw.clone();
+    zero(&mut out, &MODEL);
+    if let Some(Value::Object(thinking)) = out.get_mut("thinking") {
+        zero(thinking, &THINKING);
+    }
+    out
+}
+
+/// A catalog model as Go's typed decode reads it into `registry.ModelInfo` and
+/// `json.Marshal` writes it back (model_registry.go): members match fields exactly, else
+/// case-insensitively; null leaves a field at its zero value (and is `""` inside string
+/// lists and header maps); integer fields take integer literals only; unknown members
+/// are skipped; `json:"-"` fields are left out of the result. `Err` is the decode error
+/// that makes Go refuse the whole catalog. `raw` itself is left as it is.
+pub fn go_model_json(raw: &Map<String, Value>) -> Result<Value, String> {
+    use crate::gostr::GoStr;
+    fn field(fields: &[(&'static str, Kind, bool)], key: &str) -> Option<usize> {
+        fields
+            .iter()
+            .position(|f| f.0 == key)
+            .or_else(|| fields.iter().position(|f| f.0.go_eq_fold(key)))
+    }
+    fn err(key: &str, v: &Value) -> String {
+        format!("cannot unmarshal {v} into field {key}")
+    }
+    fn string(key: &str, v: &Value) -> Result<String, String> {
+        match v {
+            Value::Null => Ok(String::new()),
+            Value::String(s) => Ok(s.clone()),
+            _ => Err(err(key, v)),
+        }
+    }
+    /// Decodes `obj` into `out` (Go's struct, held as the fields set so far).
+    fn decode(
+        fields: &[(&'static str, Kind, bool)],
+        obj: &Map<String, Value>,
+        out: &mut [Option<Value>],
+    ) -> Result<(), String> {
+        for (key, v) in obj {
+            let Some(i) = field(fields, key) else { continue };
+            let (name, kind, _) = fields[i];
+            if v.is_null() {
+                // Null clears a pointer, slice or map; other fields keep their value.
+                if matches!(kind, List | Thinking | Config | Native) {
+                    out[i] = None;
+                }
+                continue;
+            }
+            out[i] = Some(match kind {
+                Text => Value::String(string(name, v)?),
+                Int => match v {
+                    Value::Number(n) if n.is_i64() => Value::from(n.as_i64().unwrap_or_default()),
+                    // `-0`, an integer literal, which serde reads as a float. A refresh
+                    // refuses `-0.0` and other fractions by their text before this runs
+                    // (`check_catalog_members`).
+                    Value::Number(n) if n.as_f64().is_some_and(|f| f == 0.0 && f.is_sign_negative()) => Value::from(0),
+                    _ => return Err(err(name, v)),
+                },
+                Flag => match v {
+                    Value::Bool(b) => Value::Bool(*b),
+                    _ => return Err(err(name, v)),
+                },
+                List => match v {
+                    Value::Array(items) => Value::Array(
+                        items
+                            .iter()
+                            .map(|item| string(name, item).map(Value::String))
+                            .collect::<Result<_, _>>()?,
+                    ),
+                    _ => return Err(err(name, v)),
+                },
+                Thinking => {
+                    let Value::Object(t) = v else { return Err(err(name, v)) };
+                    // Decoding into a set pointer updates the struct it points to.
+                    let mut inner = match out[i].take() {
+                        Some(Value::Array(prev)) => prev.into_iter().map(|v| (!v.is_null()).then_some(v)).collect(),
+                        _ => vec![None; THINKING.len()],
+                    };
+                    decode(&THINKING, t, &mut inner)?;
+                    Value::Array(inner.into_iter().map(|v| v.unwrap_or(Value::Null)).collect())
+                }
+                Config => {
+                    let Value::Object(c) = v else { return Err(err(name, v)) };
+                    // The header map; nil and empty both marshal as absent (`omitempty`).
+                    let mut headers = match out[i].take() {
+                        Some(Value::Object(prev)) => prev,
+                        _ => Map::new(),
+                    };
+                    for (k, h) in c {
+                        if !k.as_str().go_eq_fold("override_header") {
+                            continue;
+                        }
+                        match h {
+                            Value::Null => headers.clear(),
+                            // A map decode adds to the map already there.
+                            Value::Object(m) => {
+                                for (hk, hv) in m {
+                                    headers.insert(hk.clone(), Value::String(string("override_header", hv)?));
+                                }
+                            }
+                            _ => return Err(err("override_header", h)),
+                        }
+                    }
+                    Value::Object(headers)
+                }
+                Native => {
+                    let Value::Object(n) = v else { return Err(err(name, v)) };
+                    for (k, b) in n {
+                        let known = ["web_search", "tool_search"].iter().any(|f| *f == k || f.go_eq_fold(k));
+                        if known && !matches!(b, Value::Null | Value::Bool(_)) {
+                            return Err(err(k, b));
+                        }
+                    }
+                    Value::Null
+                }
+            });
+        }
+        Ok(())
+    }
+    fn encode(fields: &[(&'static str, Kind, bool)], vals: Vec<Option<Value>>) -> Map<String, Value> {
+        let mut out = Map::new();
+        for ((name, kind, omit), v) in fields.iter().zip(vals) {
+            let v = match (kind, v) {
+                (Native, _) => continue,
+                (_, None) if matches!(kind, List | Thinking | Config) => continue,
+                (Text, None) => Value::from(""),
+                (Int, None) => Value::from(0),
+                (Flag, None) => Value::from(false),
+                (Thinking, Some(Value::Array(t))) => {
+                    let t = t.into_iter().map(|v| (!v.is_null()).then_some(v)).collect();
+                    out.insert((*name).into(), Value::Object(encode(&THINKING, t)));
+                    continue;
+                }
+                (Config, Some(Value::Object(h))) => {
+                    let mut config = Map::new();
+                    if !h.is_empty() {
+                        // A Go map: keys sorted.
+                        let sorted: std::collections::BTreeMap<String, Value> = h.into_iter().collect();
+                        config.insert("override_header".into(), Value::Object(sorted.into_iter().collect()));
+                    }
+                    out.insert((*name).into(), Value::Object(config));
+                    continue;
+                }
+                (_, Some(v)) => v,
+                (_, None) => continue,
+            };
+            let empty = match &v {
+                Value::String(s) => s.is_empty(),
+                Value::Number(n) => n.as_i64() == Some(0),
+                Value::Bool(b) => !b,
+                Value::Array(a) => a.is_empty(),
+                _ => false,
+            };
+            if !(*omit && empty) {
+                out.insert((*name).into(), v);
+            }
+        }
+        out
+    }
+    let mut vals = vec![None; MODEL.len()];
+    decode(&MODEL, raw, &mut vals)?;
+    // `support_configuration_update` is `json:"-"`.
+    vals.truncate(MODEL.len() - 1);
+    Ok(Value::Object(encode(&MODEL[..MODEL.len() - 1], vals)))
+}
+
+/// `staticModelsJSON`'s sections.
+const SECTIONS: [&str; 13] = [
+    "claude",
+    "gemini",
+    "vertex",
+    "aistudio",
+    "codex-free",
+    "codex-team",
+    "codex-plus",
+    "codex-pro",
+    "kimi",
+    "antigravity",
+    "xai",
+    "devin",
+    "meta",
+];
+
+/// An object's members in order, repeats included, each value as its JSON text.
+struct Members<'a>(Vec<(String, &'a serde_json::value::RawValue)>);
+
+impl<'de> Deserialize<'de> for Members<'de> {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        struct Visit;
+        impl<'de> serde::de::Visitor<'de> for Visit {
+            type Value = Members<'de>;
+            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+                f.write_str("an object")
+            }
+            fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut out = Vec::new();
+                while let Some(member) = map.next_entry()? {
+                    out.push(member);
+                }
+                Ok(Members(out))
+            }
+        }
+        d.deserialize_map(Visit)
+    }
+}
+
+/// Where Go's typed decode of a catalog would differ from the decoded `Map` the refresh
+/// keeps (docs/DIFFERENCES-FROM-GO.md, remote model catalogs): a known section or field
+/// named in another case (Go matches it case-insensitively) or repeated (Go decodes each
+/// occurrence in turn into the same field), and an integer field holding anything but an
+/// integer literal (serde reads `-0.0` and `1e-400` as zero).
+fn check_catalog_members(json: &str) -> Result<(), String> {
+    use crate::gostr::GoStr;
+    use serde_json::value::RawValue;
+    fn known<'a>(names: &[&'static str], obj: &Members<'a>, at: &str) -> Result<Vec<(usize, &'a RawValue)>, String> {
+        let mut seen = vec![false; names.len()];
+        let mut out = Vec::new();
+        for (key, v) in &obj.0 {
+            let Some(i) = names.iter().position(|n| n.go_eq_fold(key)) else {
+                continue;
+            };
+            if key != names[i] {
+                return Err(format!("{at}: member {key:?} is {:?} in another case", names[i]));
+            }
+            if std::mem::replace(&mut seen[i], true) {
+                return Err(format!("{at}: member {key:?} is repeated"));
+            }
+            out.push((i, *v));
+        }
+        Ok(out)
+    }
+    fn object(v: &RawValue) -> Option<Result<Members<'_>, String>> {
+        v.get()
+            .starts_with('{')
+            .then(|| serde_json::from_str(v.get()).map_err(|e| e.to_string()))
+    }
+    fn integer(v: &RawValue) -> bool {
+        let text = v.get();
+        let digits = text.strip_prefix('-').unwrap_or(text);
+        text == "null"
+            || (!digits.is_empty()
+                && digits.bytes().all(|b| b.is_ascii_digit())
+                && (digits == "0" || !digits.starts_with('0')))
+    }
+    fn fields(table: &[(&'static str, Kind, bool)], obj: &Members, at: &str) -> Result<(), String> {
+        let names: Vec<&'static str> = table.iter().map(|f| f.0).collect();
+        for (i, v) in known(&names, obj, at)? {
+            let (name, kind, _) = table[i];
+            let at = format!("{at}.{name}");
+            match kind {
+                Int if !integer(v) => return Err(format!("{at}: {} is not an integer", v.get())),
+                Thinking => {
+                    if let Some(t) = object(v) {
+                        fields(&THINKING, &t?, &at)?;
+                    }
+                }
+                Config => {
+                    if let Some(c) = object(v) {
+                        for (_, headers) in known(&["override_header"], &c?, &at)? {
+                            // Go records a type error even when a repeated key's later value
+                            // would replace it; header names are matched as written.
+                            let Some(headers) = object(headers) else { continue };
+                            for (name, value) in headers?.0 {
+                                if !(value.get().starts_with('"') || value.get() == "null") {
+                                    return Err(format!(
+                                        "{at}.override_header.{name}: {} is not a string",
+                                        value.get()
+                                    ));
+                                }
+                            }
+                        }
+                    }
+                }
+                Native => {
+                    if let Some(n) = object(v) {
+                        known(&["web_search", "tool_search"], &n?, &at)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+    let root: Members = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    for (i, models) in known(&SECTIONS, &root, "catalog")? {
+        let section = SECTIONS[i];
+        let Ok(models) = serde_json::from_str::<Vec<&RawValue>>(models.get()) else {
+            continue;
+        };
+        for (n, model) in models.into_iter().enumerate() {
+            if let Some(model) = object(model) {
+                fields(&MODEL, &model?, &format!("{section}[{n}]"))?;
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Go `json.Unmarshal` into `staticModelsJSON`: every model of its sections decodes.
+fn decode_catalog(root: &Map<String, Value>) -> Result<(), String> {
+    for section in SECTIONS {
+        match root.get(section) {
+            None | Some(Value::Null) => {}
+            Some(Value::Array(models)) => {
+                for model in models {
+                    match model {
+                        Value::Null => {}
+                        Value::Object(m) => {
+                            go_model_json(m).map_err(|e| format!("decode models catalog: {section}: {e}"))?;
+                        }
+                        other => return Err(format!("decode models catalog: {section}: cannot unmarshal {other}")),
+                    }
+                }
+            }
+            Some(other) => return Err(format!("decode models catalog: {section}: cannot unmarshal {other}")),
+        }
+    }
+    Ok(())
 }
 
 /// Dated and bracketed Claude variants (`claude-sonnet-5-5-20261001`,
@@ -226,7 +601,9 @@ fn validate_catalog(root: &Map<String, Value>) -> Result<(), String> {
             let Some(model) = model.as_object() else {
                 return Err(format!("{section}[{i}] is null"));
             };
-            let id = model.get("id").and_then(Value::as_str).unwrap_or_default().trim();
+            // The ID Go's typed decode reads.
+            let decoded = go_model_json(model).map_err(|e| format!("{section}[{i}]: {e}"))?;
+            let id = decoded.get("id").and_then(Value::as_str).unwrap_or_default().trim();
             if id.is_empty() {
                 return Err(format!("{section}[{i}] has empty id"));
             }
@@ -278,6 +655,8 @@ fn changed_providers(old: &Catalog, new: &Catalog) -> Vec<String> {
 /// it differs. Returns the changed providers (Go's refresh callback argument).
 pub fn refresh_catalog(json: &str) -> Result<Vec<String>, String> {
     let mut root: Map<String, Value> = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    check_catalog_members(json)?;
+    decode_catalog(&root)?;
     validate_catalog(&root)?;
     let old = pinned();
     if root.get("meta").and_then(Value::as_array).is_none_or(Vec::is_empty) && !old.channel("meta").is_empty() {
@@ -467,6 +846,48 @@ mod tests {
         );
     }
 
+    /// Go 1.26.4 `json.Unmarshal` into `registry.ModelInfo`, then `json.Marshal`
+    /// (recorded from the v8.0.35 reference); `None` where Go's decode fails.
+    #[test]
+    fn models_decode_like_go_model_info() {
+        let cases: [(&str, Option<&str>); 11] = [
+            (
+                r#"{"id":"gemini-typed","InputTokenLimit":123,"supportedInputModalities":[null,"text"],"config":{"override_header":{"X-Test":null,"b":"<v>"}},"THINKING":{"Min":1,"levels":[null],"DISABLE_TYPE":"x"},"Display_Name":"D","created":-0,"native_capabilities":{"web_search":true},"unknown":{"a":[1.5]}}"#,
+                Some(
+                    r#"{"id":"gemini-typed","object":"","created":0,"owned_by":"","type":"","display_name":"D","inputTokenLimit":123,"supportedInputModalities":["","text"],"thinking":{"min":1,"disable_type":"x","levels":[""]},"config":{"override_header":{"X-Test":"","b":"<v>"}}}"#,
+                ),
+            ),
+            (
+                r#"{"id":"n","display_name":null,"thinking":null,"config":{},"supportedOutputModalities":[],"supports_web_search":true}"#,
+                Some(
+                    r#"{"id":"n","object":"","created":0,"owned_by":"","type":"","supports_web_search":true,"config":{}}"#,
+                ),
+            ),
+            (r#"{"id":"bad","inputTokenLimit":1.5}"#, None),
+            (r#"{"id":"bad","inputTokenLimit":1e2}"#, None),
+            (r#"{"id":"bad","inputTokenLimit":"5"}"#, None),
+            (r#"{"id":"bad","created":9223372036854775808}"#, None),
+            (r#"{"id":"bad","supportedInputModalities":[1]}"#, None),
+            (r#"{"id":"bad","config":{"override_header":{"a":1}}}"#, None),
+            (r#"{"id":"bad","native_capabilities":{"web_search":"yes"}}"#, None),
+            (r#"{"id":"bad","support_configuration_update":1}"#, None),
+            (r#"{"id":"bad","thinking":[]}"#, None),
+        ];
+        for (input, want) in cases {
+            let got = go_model_json(&serde_json::from_str(input).unwrap()).ok();
+            // Go escapes `<` and `>`; the management writer does too, serde does not.
+            let want: Option<Value> = want.map(|w| serde_json::from_str(w).unwrap());
+            assert_eq!(
+                got.as_ref().map(Value::to_string),
+                want.as_ref().map(Value::to_string),
+                "{input}"
+            );
+        }
+        // The embedded catalog decodes as Go's does.
+        decode_catalog(&serde_json::from_str(MODELS_JSON).unwrap()).unwrap();
+        check_catalog_members(MODELS_JSON).unwrap();
+    }
+
     #[test]
     fn embedded_catalog_matches_go_channel_sizes() {
         let catalog = pinned();
@@ -478,15 +899,15 @@ mod tests {
                 ("gemini", 14),
                 ("vertex", 21),
                 ("gemini-cli", 7),
-                ("aistudio", 16),
+                ("aistudio", 15),
                 ("codex-free", 5),
                 ("codex-team", 9),
                 ("codex-plus", 9),
                 ("codex-pro", 9),
                 ("kimi", 10),
-                ("antigravity", 14),
+                ("antigravity", 11),
                 ("xai", 12),
-                ("meta", 5),
+                ("meta", 9),
             ]
         );
     }

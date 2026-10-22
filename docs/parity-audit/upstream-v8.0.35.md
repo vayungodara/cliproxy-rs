@@ -27,7 +27,7 @@ Columns:
 | OpenAI-compatible and Responses translation | 6 | 0 | 6 | 0 | 0 | 0 |
 | Devin and Meta | 8 | 0 | 8 | 0 | 0 | 0 |
 | Credentials, selection and cooldowns | 22 | 9 | 11 | 0 | 2 | 0 |
-| Model registry and catalogs | 11 | 0 | 10 | 0 | 1 | 0 |
+| Model registry and catalogs | 11 | 7 | 3 | 0 | 1 | 0 |
 | Config and Management API | 15 | 11 | 4 | 0 | 0 | 0 |
 | Plugins | 12 | 0 | 12 | 0 | 0 | 0 |
 | Server, handlers and streaming | 12 | 4 | 8 | 0 | 0 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **81** | **141** | **0** | **63** | **3** |
+| **All** | **288** | **88** | **134** | **0** | **63** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -257,13 +257,13 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`01e28567`](https://github.com/router-for-me/CLIProxyAPI/commit/01e28567) | fix(registry): disable Devin catalog for home builds | yes | to port | S (+3 −1) | no Devin catalog in Home builds |
 | [`18b6cc8a`](https://github.com/router-for-me/CLIProxyAPI/commit/18b6cc8a) | refactor(registry): use model getters for Devin and Meta | no | nothing to port | S (+2 −3) | Go refactor |
 | [`bbcd5734`](https://github.com/router-for-me/CLIProxyAPI/commit/bbcd5734) | fix(registry): treat credential_quota as quota cooldown in model availability | yes | to port | S (+23 −13) | `credential_quota` counts as a quota cooldown in availability |
-| [`4c159069`](https://github.com/router-for-me/CLIProxyAPI/commit/4c159069) | feat(registry): add muse-wonder-1.0 models | yes | to port | M (+62 −0) | add muse-wonder-1.0 models |
-| [`4f9630df`](https://github.com/router-for-me/CLIProxyAPI/commit/4f9630df) | feat(registry): add web_search native capability | yes | to port | S (+4 −1) | add web_search native capability |
-| [`f62d4d28`](https://github.com/router-for-me/CLIProxyAPI/commit/f62d4d28) | feat(registry): add claude-haiku-5-5 and remove legacy gemini models | yes | to port | M (+32 −238) | add claude-haiku-5-5 and remove legacy gemini models |
-| [`866d84d0`](https://github.com/router-for-me/CLIProxyAPI/commit/866d84d0) | feat(registry): add gemini-4-argon-high model | yes | to port | S (+34 −0) | add gemini-4-argon-high model |
-| [`6143cc11`](https://github.com/router-for-me/CLIProxyAPI/commit/6143cc11) | feat(registry): add gemini-4-argon model | yes | to port | S (+33 −0) | add gemini-4-argon model |
-| [`f9ac397b`](https://github.com/router-for-me/CLIProxyAPI/commit/f9ac397b) | feat(registry): add muse-wonder-full-1.0 model variants and update context limits | yes | to port | M (+66 −4) | add muse-wonder-full-1.0 model variants and update context limits |
-| [`74592556`](https://github.com/router-for-me/CLIProxyAPI/commit/74592556) | feat(registry): add gemini-4-argon model definition | yes | to port | S (+33 −0) | add gemini-4-argon model definition |
+| [`4c159069`](https://github.com/router-for-me/CLIProxyAPI/commit/4c159069) | feat(registry): add muse-wonder-1.0 models | yes | ported here | M (+62 −0) | ported: the Meta section carries `muse-wonder-1.0` and its contributor variant (catalog synced to v8.0.35) |
+| [`4f9630df`](https://github.com/router-for-me/CLIProxyAPI/commit/4f9630df) | feat(registry): add web_search native capability | yes | ported here | S (+4 −1) | ported: xAI's `grok-4.7` carries `native_capabilities.web_search` (catalog synced to v8.0.35) |
+| [`f62d4d28`](https://github.com/router-for-me/CLIProxyAPI/commit/f62d4d28) | feat(registry): add claude-haiku-5-5 and remove legacy gemini models | yes | ported here | M (+32 −238) | the embedded catalog is v8.0.35's models.json byte for byte: `claude-haiku-5-5` added, the legacy Gemini models gone |
+| [`866d84d0`](https://github.com/router-for-me/CLIProxyAPI/commit/866d84d0) | feat(registry): add gemini-4-argon-high model | yes | ported here | S (+34 −0) | ported: Antigravity lists `gemini-4-argon-high` (catalog synced to v8.0.35) |
+| [`6143cc11`](https://github.com/router-for-me/CLIProxyAPI/commit/6143cc11) | feat(registry): add gemini-4-argon model | yes | ported here | S (+33 −0) | ported: Vertex lists `gemini-4-argon` (catalog synced to v8.0.35) |
+| [`f9ac397b`](https://github.com/router-for-me/CLIProxyAPI/commit/f9ac397b) | feat(registry): add muse-wonder-full-1.0 model variants and update context limits | yes | ported here | M (+66 −4) | ported: the Meta section carries the `muse-wonder-full-1.0` variants and the new context limits (catalog synced to v8.0.35) |
+| [`74592556`](https://github.com/router-for-me/CLIProxyAPI/commit/74592556) | feat(registry): add gemini-4-argon model definition | yes | ported here | S (+33 −0) | ported: Gemini lists `gemini-4-argon` (catalog synced to v8.0.35) |
 
 ## Config and Management API
 
