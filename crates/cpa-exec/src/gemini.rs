@@ -243,8 +243,8 @@ pub(crate) fn apply_thinking(
 }
 
 /// The token-count baseline for `default` rules: the client's original request
-/// translated without stream (its translation error ignored, as Go does), else the
-/// translated body before thinking.
+/// translated without stream, else the translated body before thinking. Go counts with
+/// a failed translation's partial body; this refuses with its error instead.
 pub(crate) fn count_original(
     req: &ExecRequest,
     cfg: &Config,
@@ -252,11 +252,11 @@ pub(crate) fn count_original(
     model: &str,
     compat: bool,
     translated: &[u8],
-) -> Vec<u8> {
+) -> Result<Vec<u8>, ExecError> {
     if req.original_body.is_empty() {
-        return translated.to_vec();
+        return Ok(translated.to_vec());
     }
-    translate(req, cfg, target, model, &req.original_body, false, compat).unwrap_or_default()
+    translate(req, cfg, target, model, &req.original_body, false, compat)
 }
 
 /// Content-Type, the API key and the credential's custom headers (`applyGeminiHeaders`).
@@ -671,7 +671,7 @@ impl GeminiExecutor {
         let resolved = resolved(req);
         let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
         let body = translate(req, cfg, to, &base_model, &req.body, false, compat)?;
-        let original = count_original(req, cfg, to, &base_model, compat, &body);
+        let original = count_original(req, cfg, to, &base_model, compat, &body)?;
         let mut body = apply_thinking(req, body, from, to, &credential.provider, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         for path in ["tools", "generationConfig", "safetySettings"] {

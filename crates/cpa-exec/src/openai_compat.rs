@@ -600,8 +600,8 @@ fn count_tokens(credential: &Credential, req: &ExecRequest, cfg: &Config) -> Res
     let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
     let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
     let body = translate_body(req, cfg, Format::OpenAI, &base_model, false, &req.body, is_compat)?;
-    // The rule baseline: the translated original (its error ignored, as Go does), else
-    // the translated body before thinking.
+    // The rule baseline: the translated original, else the translated body before
+    // thinking. Go counts with a failed translation's partial body; this refuses.
     let original = if req.original_body.is_empty() {
         body.clone()
     } else {
@@ -613,8 +613,7 @@ fn count_tokens(credential: &Credential, req: &ExecRequest, cfg: &Config) -> Res
             false,
             &req.original_body,
             is_compat,
-        )
-        .unwrap_or_default()
+        )?
     };
     let body = apply_thinking(body, req, Format::OpenAI, &credential.provider, caps.as_ref())?;
     let body = crate::payload_barrier::Barrier {

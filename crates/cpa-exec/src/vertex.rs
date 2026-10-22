@@ -529,7 +529,7 @@ impl VertexExecutor {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = g::resolved(req);
         let body = g::translate(req, cfg, to, &base_model, &req.body, false, false)?;
-        let original = g::count_original(req, cfg, to, &base_model, false, &body);
+        let original = g::count_original(req, cfg, to, &base_model, false, &body)?;
         let mut body = g::apply_thinking(req, body, from, to, PROVIDER, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(&base_model, body);
         body = gj::try_set_str(&body, "model", &base_model).unwrap_or(body);

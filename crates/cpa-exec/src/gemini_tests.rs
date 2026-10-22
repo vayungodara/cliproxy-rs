@@ -932,3 +932,35 @@ payload:
         "{wire}"
     );
 }
+
+/// A count whose original request fails to translate refuses rather than checking
+/// `default` rules against an empty baseline: Go's partial translation keeps the
+/// client's temperature, so no default would apply (DIFFERENCES-FROM-GO.md).
+#[tokio::test]
+async fn count_refuses_when_the_original_does_not_translate() {
+    let reply = serde_json::json!({
+        "status": 200,
+        "headers": [["Content-Type", "application/json"]],
+        "body": r#"{"totalTokens":3}"#,
+    });
+    let mock = Mock::start(&reply).await;
+    let cfg = Config::parse(
+        r#"
+payload:
+  default:
+    - models: [{name: gemini-3.7-flash, protocol: gemini}]
+      params: {"generationConfig.temperature": 0.9}
+"#,
+    )
+    .unwrap();
+    let s = serde_json::json!({
+        "provider": "gemini", "config_auth": -1, "op": "count", "source": "claude", "model": "gemini-3.7-flash",
+        "attributes": {"api_key": "test-key", "base_url": "http://UPSTREAM"},
+        "payload": r#"{"model":"gemini-3.7-flash","max_tokens":16,"temperature":0.2,"messages":[{"role":"user","content":[{"type":"text","text":"hi"}]}]}"#,
+        "original": r#"{"model":"gemini-3.7-flash","max_tokens":16,"temperature":0.2,"messages":[{"role":"user","content":[{"type":"container_upload","source":{"type":"file","file_id":"f1"}}]}]}"#,
+    });
+    let cred = credential(&s, &cfg, mock.addr());
+    let got = GeminiExecutor::default().execute(&cred, request(&s), &cfg).await;
+    assert!(got.is_err(), "{:?}", mock.request());
+    assert_eq!(mock.request(), None);
+}

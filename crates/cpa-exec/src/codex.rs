@@ -780,14 +780,14 @@ fn count_tokens(req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecErr
     };
     let translated = crate::codex_client::translate_request(req.source_format, Format::Codex, &ctx, &req.body, &client)
         .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
-    // The rule baseline: the translated original (its error ignored, as Go does), else
-    // the translated body before thinking.
+    // The rule baseline: the translated original, else the translated body before
+    // thinking. Go counts with a failed translation's partial body; this refuses.
     let original = if req.original_body.is_empty() {
         translated.body.clone()
     } else {
         crate::codex_client::translate_request(req.source_format, Format::Codex, &ctx, &req.original_body, &client)
-            .map(|t| t.body)
-            .unwrap_or_default()
+            .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?
+            .body
     };
     let body = cpa_common::thinking::apply_request_thinking(&cpa_common::thinking::RequestThinking {
         body: &translated.body,
