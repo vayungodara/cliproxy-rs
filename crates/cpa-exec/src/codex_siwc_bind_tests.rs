@@ -133,7 +133,14 @@ fn siwc_bind_matches_go() {
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
         listing.sort();
-        assert_eq!(serde_json::json!(listing), case["listing"], "{}", case["name"]);
+        let mut want: Vec<String> = serde_json::from_value(case["listing"].clone()).unwrap();
+        // Win32 path normalisation drops a name's trailing spaces and dots; Go, which
+        // prefixes `\\?\` only to long paths, creates the same trimmed file there.
+        if cfg!(windows) {
+            want = want.iter().map(|n| n.trim_end_matches([' ', '.']).to_owned()).collect();
+            want.sort();
+        }
+        assert_eq!(listing, want, "{}", case["name"]);
         let _ = std::fs::remove_dir_all(root);
     }
 
@@ -221,7 +228,7 @@ async fn bind_saves_the_issued_client_tokens() {
     assert_eq!(std::fs::read_to_string(dir.join("c.json")).unwrap(), original);
 
     let (port, bound) = run("code=the-code&state={state}&client_id=%20oaiapp_issued%20").await;
-    let real = std::fs::canonicalize(dir.join("c.json")).unwrap();
+    let real = plain_path(std::fs::canonicalize(dir.join("c.json")).unwrap());
     assert_eq!(bound, Ok(real.clone()));
     let sent = mock.take();
     assert_eq!(sent.len(), 1);
