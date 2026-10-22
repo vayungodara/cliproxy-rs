@@ -7,6 +7,7 @@ use cpa_common::gostr::GoStr;
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
 use cpa_core::exec::{ExecError, FailureScope};
+use cpa_plugin::hostauth::SavedRefresh;
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -140,9 +141,43 @@ pub(crate) fn schedules(rt: &Runtime) -> Schedules {
 /// Forgets the schedules of credentials that are gone: Go registers them afresh, without
 /// the previous `LastRefreshedAt` and `NextRefreshAfter`. A disabled credential keeps
 /// its schedule (Go's disable edits the registered auth and keeps both fields).
-pub(crate) fn reconcile(rt: &Runtime, snapshot: &[Arc<Credential>]) {
+pub(crate) fn reconcile(rt: &Runtime) {
+    let mut schedules = lock(&rt.plugin_runtime().schedules);
+    // Read under the lock, so a credential a save registers with its schedule
+    // ([`register_saved`]) is never taken for gone.
+    let snapshot = rt.store().snapshot();
     let live: std::collections::HashSet<&str> = snapshot.iter().map(|c| c.id.as_str()).collect();
-    lock(&rt.plugin_runtime().schedules).retain(|id, _| live.contains(id.as_str()));
+    schedules.retain(|id, _| live.contains(id.as_str()));
+}
+
+/// Registers the credentials of a plugin auth save (`register`) with their refresh
+/// deadlines (Go `preserveExistingAuthState`, then `upsertAuthRecordsForPath`): an auth
+/// replacing a registered one under another ID takes that one's schedule, unset fields
+/// included; one replacing itself keeps its own; a new one starts from the
+/// `NextRefreshAfter` its plugin parsed. The schedules stay locked across the
+/// registration, so the refresh loop never sees a saved credential without its own.
+pub(crate) fn register_saved(rt: &Runtime, saved: &[SavedRefresh], register: impl FnOnce()) {
+    let mut schedules = lock(&rt.plugin_runtime().schedules);
+    let entries: Vec<(String, Schedule)> = saved
+        .iter()
+        .filter_map(|s| {
+            let schedule = match s.donor.as_deref() {
+                Some(donor) if donor == s.id => return None,
+                // A donor not scheduled yet still has the deadline it was registered with.
+                Some(donor) => schedules.get(donor).copied().unwrap_or(Schedule {
+                    last: None,
+                    next_after: rt.plugins().parsed_next_refresh_after(donor),
+                }),
+                None => Schedule {
+                    last: None,
+                    next_after: s.next_refresh_after,
+                },
+            };
+            Some((s.id.clone(), schedule))
+        })
+        .collect();
+    register();
+    schedules.extend(entries);
 }
 
 /// Records a committed plugin refresh of `c` (Go `refreshAuth` on success): the refresh

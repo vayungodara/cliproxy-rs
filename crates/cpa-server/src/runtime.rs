@@ -667,7 +667,7 @@ impl Runtime {
                 let jobs: Vec<_> = {
                     let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
                     state.reconcile(&snapshot);
-                    crate::plugins::refresh::reconcile(&rt, &snapshot);
+                    crate::plugins::refresh::reconcile(&rt);
                     let mut jobs = Vec::new();
                     rt.store.forget_stale_unauthorized(&rejected, &snapshot);
                     // Far enough ahead that any expiry has passed, near enough for chrono.

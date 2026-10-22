@@ -67,10 +67,23 @@ pub enum SavedAuths {
         path: PathBuf,
         credentials: Vec<cpa_core::credential::Credential>,
         persist: bool,
+        refresh: Vec<SavedRefresh>,
     },
     /// Nothing yet: the saving plugin is parsing this file, and the file's credentials
     /// come from that parse. `data` is what the save writes.
     Written { path: PathBuf, data: Vec<u8> },
+}
+
+/// Where a saved plugin auth's refresh deadlines come from (Go `preserveExistingAuthState`
+/// in `buildAuthsFromFileData`): the registered auth it replaces (`donor`, Go
+/// `findExistingAuthForSave`), whose `LastRefreshedAt` and `NextRefreshAfter` it takes,
+/// unset ones included; without one, the `NextRefreshAfter` its plugin parsed. The
+/// manager applies them only once it registers the auth.
+#[derive(Clone, Debug)]
+pub struct SavedRefresh {
+    pub id: String,
+    pub donor: Option<String>,
+    pub next_refresh_after: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// The server's credential manager as the plugin host uses it.
@@ -410,6 +423,7 @@ impl Host {
             .unwrap_or_default();
         let mut persist = single;
         let mut auths = Vec::with_capacity(parsed.auths.len());
+        let mut refresh = Vec::with_capacity(parsed.auths.len());
         for mut auth in parsed.auths {
             validate_parsed_weight(&auth)?;
             // Normalized before the one auth inherits the file's other fields, so the
@@ -450,15 +464,17 @@ impl Host {
             if auth.id.trim().is_empty() {
                 auth.id = default_id.clone();
             }
-            // Go registers a new auth with the `NextRefreshAfter` its plugin parsed, and
-            // one that replaces a registered auth with that auth's own deadlines
-            // (`preserveExistingAuthState`), which the refresh schedule keeps by ID.
-            if let Some(at) = auth.next_refresh_after.0
-                && self.auth_manager().is_none_or(|m| m.get_by_id(&auth.id).is_none())
-            {
-                crate::host::lock(&self.inner.parsed_refresh_after)
-                    .insert(auth.id.clone(), (at.to_utc(), path_text.clone()));
-            }
+            // Go `findExistingAuthForSave(auth.ID, path, len(out) == 1)`.
+            let donor = if single {
+                self.existing_auth_for_save(&auth.id, &path_text, &default_id)
+            } else {
+                self.auth_manager().and_then(|m| m.get_by_id(auth.id.trim()))
+            };
+            refresh.push(SavedRefresh {
+                id: auth.id.clone(),
+                donor: donor.map(|d| d.id),
+                next_refresh_after: auth.next_refresh_after.0.map(|at| at.to_utc()),
+            });
             if file_disabled {
                 auth.disabled = true;
                 auth.metadata.insert("disabled".into(), true.into());
@@ -489,6 +505,7 @@ impl Host {
             path: path.to_owned(),
             credentials,
             persist,
+            refresh,
         })
     }
 

@@ -745,6 +745,13 @@ impl Host {
             .map(|(at, _)| at)
     }
 
+    /// The `NextRefreshAfter` the plugin parser returned for auth `id`, left in place.
+    pub fn parsed_next_refresh_after(&self, id: &str) -> Option<chrono::DateTime<chrono::Utc>> {
+        crate::host::lock(&self.inner.parsed_refresh_after)
+            .get(id)
+            .map(|(at, _)| *at)
+    }
+
     /// Go `RegisterFrontendAuthProviders`: `(access provider key, plugin ID)` for each
     /// active frontend auth provider in order, and the exclusive key (highest priority,
     /// then lowest ID) if any. Keys are `plugin:<id>:<identifier>`; identifiers are asked

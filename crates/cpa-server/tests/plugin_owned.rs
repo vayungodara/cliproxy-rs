@@ -2526,6 +2526,184 @@ async fn a_saved_auth_waits_for_its_parsed_refresh_deadline() {
     env.finish().await;
 }
 
+/// A save registers its refresh deadlines with its credentials (Go
+/// `preserveExistingAuthState`, then `upsertAuthRecordsForPath`): a save without an auth
+/// manager or one refused after its parse leaves nothing for a later save of that ID; an
+/// auth replacing the file's credential under a new ID takes that one's deadlines, unset
+/// ones too, over its parsed one; and a save replacing an auth keeps its deadline.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_saved_auth_takes_its_refresh_deadline_only_when_registered() {
+    let Some(env) = env(
+        "plugin-owned-auth-save-deadline-registered",
+        &[("acme", "auth_provider,management_api")],
+        "",
+        &[],
+        |records| {
+            canned(
+                records,
+                "acme",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"acme","access_token":"r","refresh_interval":"1h"}}}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let auth = |id: &str, deadline: Option<&str>| {
+        let mut auth = json!({"Provider":"acme","ID":id,
+            "Metadata":{"type":"acme","access_token":"t","refresh_interval":"1h"}});
+        if let Some(at) = deadline {
+            auth["NextRefreshAfter"] = at.into();
+        }
+        auth
+    };
+    let answer = |auths: Vec<Value>| {
+        canned(
+            &env.records,
+            "acme",
+            "auth.parse",
+            json!({"Handled":true,"Auths":auths}),
+        )
+    };
+    let save = |name: &'static str| host_save(&env, "acme", name, json!({"type":"acme"}));
+    let later = Some("2099-01-01T00:00:00Z");
+
+    // No auth manager: the file is written and nothing is registered.
+    answer(vec![auth("orphan", later)]);
+    assert_eq!(save("orphan.json").await["ok"], true);
+    let path = env.dir.join("config.yaml");
+    std::fs::write(&path, &env.yaml).unwrap();
+    let management = cpa_server::management::Management::new(env.rt.clone(), path);
+    answer(vec![auth("orphan", None)]);
+    assert_eq!(save("orphan.json").await["ok"], true);
+
+    // The second auth names another file, which refuses the save after the first parsed.
+    answer(vec![
+        auth("refused", later),
+        json!({"Provider":"acme","ID":"refused-2","FileName":"elsewhere.json","Metadata":{"type":"acme"}}),
+    ]);
+    assert_eq!(save("refused.json").await["ok"], false);
+    answer(vec![auth("refused", None)]);
+    assert_eq!(save("refused.json").await["ok"], true);
+
+    // A new ID at the same path takes the file's credential's deadlines.
+    answer(vec![auth("old", later)]);
+    assert_eq!(save("moved.json").await["ok"], true);
+    answer(vec![auth("new", None)]);
+    assert_eq!(save("moved.json").await["ok"], true);
+    answer(vec![auth("plain", None)]);
+    assert_eq!(save("swapped.json").await["ok"], true);
+    answer(vec![auth("swapped", later)]);
+    assert_eq!(save("swapped.json").await["ok"], true);
+
+    // The same ID again keeps its own.
+    answer(vec![auth("again", later)]);
+    assert_eq!(save("again.json").await["ok"], true);
+    answer(vec![auth("again", None)]);
+    assert_eq!(save("again.json").await["ok"], true);
+
+    let store = env.rt.store();
+    for id in ["orphan", "refused", "new", "swapped", "again"] {
+        assert!(store.get(id).is_some(), "{id} was not registered");
+    }
+    assert!(store.get("old").is_none() && store.get("plain").is_none());
+    let refreshed = |id: &str| {
+        calls(&env.records, "acme", "auth.refresh")
+            .iter()
+            .filter(|r| r["AuthID"] == id)
+            .count()
+    };
+    let (due, waiting) = (["orphan", "refused", "swapped"], ["new", "again"]);
+    env.rt.start_auto_refresh();
+    // Bounded, so a credential that never comes due is reported with the others.
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !due.iter().all(|id| refreshed(id) >= 1) && std::time::Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    env.rt.stop_auto_refresh();
+    let wrong: Vec<_> = due
+        .iter()
+        .filter(|id| refreshed(id) == 0)
+        .chain(waiting.iter().filter(|id| refreshed(id) != 0))
+        .collect();
+    assert!(wrong.is_empty(), "wrong refresh deadlines: {wrong:?}");
+    drop(management);
+    env.finish().await;
+}
+
+/// A reload that parses a saved file again keeps the saved auth's deadline (Go keeps the
+/// registered auth's `NextRefreshAfter` when it registers it again): the parsed one
+/// seeds a credential's schedule only with its first registration.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_reload_keeps_a_saved_auths_refresh_deadline() {
+    let Some(env) = env(
+        "plugin-owned-auth-save-deadline-reload",
+        &[("acme", "auth_provider,management_api"), ("pp", "auth_provider")],
+        "",
+        &[("p.json", r#"{"type":"pp"}"#)],
+        |records| {
+            for label in ["acme", "pp"] {
+                canned(
+                    records,
+                    label,
+                    "auth.refresh",
+                    json!({"Auth":{"Metadata":{"access_token":"r","refresh_interval":"1h"}}}),
+                );
+            }
+            canned(
+                records,
+                "pp",
+                "auth.parse",
+                json!({"Handled":true,"Auths":[{"Provider":"pp","ID":"p-1",
+                    "Metadata":{"type":"pp","access_token":"p","refresh_interval":"1h"}}]}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let answer = |deadline: Option<&str>| {
+        let mut auth = json!({"Provider":"acme","ID":"kept",
+            "Metadata":{"type":"acme","access_token":"t","refresh_interval":"1h"}});
+        if let Some(at) = deadline {
+            auth["NextRefreshAfter"] = at.into();
+        }
+        canned(
+            &env.records,
+            "acme",
+            "auth.parse",
+            json!({"Handled":true,"Auths":[auth]}),
+        )
+    };
+    let path = env.dir.join("config.yaml");
+    std::fs::write(&path, &env.yaml).unwrap();
+    let management = cpa_server::management::Management::new(env.rt.clone(), path);
+    answer(Some("2099-01-01T00:00:00Z"));
+    let saved = host_save(&env, "acme", "kept.json", json!({"type":"acme"})).await;
+    assert_eq!(saved["ok"], true, "{saved}");
+    answer(None);
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    let store = env.rt.store();
+    assert!(store.get("kept").is_some() && store.get("p-1").is_some());
+    let refreshed = |label: &str, id: &str| {
+        calls(&env.records, label, "auth.refresh")
+            .iter()
+            .filter(|r| r["AuthID"] == id)
+            .count()
+    };
+    env.rt.start_auto_refresh();
+    eventually("the other plugin's refresh", || refreshed("pp", "p-1") >= 1).await;
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    env.rt.stop_auto_refresh();
+    assert_eq!(refreshed("acme", "kept"), 0, "the saved NextRefreshAfter was lost");
+    drop(management);
+    env.finish().await;
+}
+
 /// A save the auth provider's parse of the saved file answers by saving that file again,
 /// from inside the parse: Go parses the data before writing it, which recurses through
 /// the plugin without bound. The inner save writes without parsing again, so the save

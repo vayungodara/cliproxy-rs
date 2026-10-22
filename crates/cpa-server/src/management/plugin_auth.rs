@@ -66,7 +66,7 @@ impl AuthManager for PluginAuthManager {
         let _disk = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
         write()?;
         let fallbacks = || state.fallbacks.lock().unwrap_or_else(PoisonError::into_inner);
-        let (path, credentials) = match auths {
+        let (path, credentials, refresh) = match auths {
             SavedAuths::Written { path, data } => {
                 credentials::note_plugin_auth_write(&path, &data);
                 return Ok(());
@@ -96,12 +96,13 @@ impl AuthManager for PluginAuthManager {
                 if !auth.id.is_empty() {
                     credential.id = auth.id.clone();
                 }
-                (path, vec![credential])
+                (path, vec![credential], Vec::new())
             }
             SavedAuths::Plugin {
                 path,
                 mut credentials,
                 persist: rewrite,
+                refresh,
             } => {
                 // Go persists the one auth, its metadata taking `disabled`; otherwise the
                 // file keeps what the plugin saved.
@@ -114,10 +115,12 @@ impl AuthManager for PluginAuthManager {
                 };
                 credentials::note_plugin_auth_write(&path, &bytes);
                 fallbacks().remove(&path);
-                (path, credentials)
+                (path, credentials, refresh)
             }
         };
-        state.rt.store().upsert_file(Some(&path), credentials);
+        crate::plugins::refresh::register_saved(&state.rt, &refresh, || {
+            state.rt.store().upsert_file(Some(&path), credentials)
+        });
         Ok(())
     }
 
