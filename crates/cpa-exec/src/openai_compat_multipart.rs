@@ -626,7 +626,7 @@ pub fn format_media_type(media: &str, params: &BTreeMap<&str, &[u8]>) -> Option<
         // `needsEncoding` ranges over runes: invalid UTF-8 decodes as U+FFFD.
         let encode = String::from_utf8_lossy(value)
             .chars()
-            .any(|c| (c < ' ' || c > '~') && c != '\t');
+            .any(|c| !(' '..='~').contains(&c) && c != '\t');
         if encode {
             out.push_str("*=utf-8''");
             for &c in value.iter() {
