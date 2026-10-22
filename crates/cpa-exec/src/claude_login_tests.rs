@@ -339,39 +339,21 @@ async fn a_busy_port_is_go_port_in_use() {
     // The realistic holder: another Go or cliproxy login's dual-stack listener.
     let holder = listen_any(0).unwrap();
     let port = holder.local_addr().unwrap().port();
-    #[cfg(unix)]
-    {
-        let error = bind(port).await.unwrap_err();
-        assert!(String::from_utf8_lossy(&error.body).starts_with(PORT_IN_USE));
-        // Holders on one family: the dual-stack socket covers both.
-        for host in ["::", "127.0.0.1"] {
-            let holder = tokio::net::TcpListener::bind((host, 0)).await.unwrap();
-            let port = holder.local_addr().unwrap().port();
-            let error = bind(port).await.unwrap_err();
-            assert!(String::from_utf8_lossy(&error.body).starts_with(PORT_IN_USE), "{host}");
-        }
-    }
-    #[cfg(windows)]
-    {
-        // Diagnostic: report what Windows does for each holder.
-        let mut seen = vec![format!(
-            "dual-stack: {:?}",
-            bind(port)
-                .await
-                .map(|_| ())
-                .map_err(|e| String::from_utf8_lossy(&e.body).into_owned())
-        )];
-        for host in ["::", "127.0.0.1"] {
-            let holder = tokio::net::TcpListener::bind((host, 0)).await.unwrap();
-            let port = holder.local_addr().unwrap().port();
-            seen.push(format!(
-                "{host}: {:?}",
-                bind(port)
-                    .await
-                    .map(|_| ())
-                    .map_err(|e| String::from_utf8_lossy(&e.body).into_owned())
-            ));
-        }
-        panic!("windows bind diagnostic: {seen:?}");
+    let error = bind(port).await.unwrap_err();
+    assert!(String::from_utf8_lossy(&error.body).starts_with(PORT_IN_USE));
+    // A holder on one family: on Unix the dual-stack socket conflicts with it. Windows
+    // CI binds next to an IPv6-only `[::]` or a 127.0.0.1 holder (Go's listener is the
+    // same socket, so Go binds too).
+    for host in ["::", "127.0.0.1"] {
+        let holder = tokio::net::TcpListener::bind((host, 0)).await.unwrap();
+        let port = holder.local_addr().unwrap().port();
+        let result = bind(port).await;
+        #[cfg(not(windows))]
+        assert!(
+            String::from_utf8_lossy(&result.unwrap_err().body).starts_with(PORT_IN_USE),
+            "{host}"
+        );
+        #[cfg(windows)]
+        assert!(result.is_ok(), "{host}");
     }
 }
