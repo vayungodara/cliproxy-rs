@@ -15,6 +15,9 @@ use super::*;
 use crate::openai_compat_usage::{HttpAttempt, Logged, http_capture_problems, published};
 
 const FIXTURE: &str = include_str!("../tests/fixtures/xai_go.json");
+/// The scenarios the payload barrier changed, recorded at v8.0.35; they replace their
+/// 6fecc6e recordings.
+const FIXTURE_V8_0_35: &str = include_str!("../tests/fixtures/xai_go_v8.0.35.json");
 
 /// Shared helpers whose real port has not landed: scenarios that need them are skipped
 /// and listed, so integration can remove an entry and see the scenario run.
@@ -203,7 +206,7 @@ fn redirect(url: &str, addr: &str) -> String {
 
 #[tokio::test]
 async fn go_reference_scenarios() {
-    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    let fixture = crate::payload_barrier::with_v8_0_35(FIXTURE, FIXTURE_V8_0_35, "scenarios");
     let scenarios = fixture["scenarios"].as_array().unwrap();
     assert!(scenarios.len() >= 80, "fixture lost scenarios");
     // One executor for all scenarios: Go's replay cache is process-wide.
@@ -511,5 +514,34 @@ async fn speech_errors_keep_go_scope() {
         );
         let request_scoped = error.scope == FailureScope::Request && error.headers.is_empty();
         assert_eq!(request_scoped, scoped, "{status} {body}");
+    }
+}
+
+/// TestXAIExecutorCompactUsesCompactEndpoint (868e137): compact's deletes run before the
+/// payload rules, so a configured `top_k` survives while the deleted fields stay gone.
+#[tokio::test]
+async fn compact_keeps_a_configured_top_k() {
+    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    let s = fixture["scenarios"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == "compact_oauth_uses_official_api")
+        .unwrap();
+    let mock = Mock::start(&s["upstream"]).await;
+    let addr = mock.addr.clone();
+    let executor = XaiExecutor::default().with_url_rewrite(move |url| redirect(url, &addr));
+    let cfg =
+        Config::parse("payload:\n  override:\n    - models: [{name: \"*\"}]\n      params: {top_k: 10}\n").unwrap();
+    let cred = credential(s, &cfg);
+    executor
+        .execute(&cred, request(s, Default::default()), &cfg, false)
+        .await
+        .unwrap();
+    let wire = mock.request().unwrap();
+    let body = wire.split_once("\r\n\r\n").unwrap().1.as_bytes().to_vec();
+    assert_eq!(gj::get(&body, "top_k").int(), 10, "{wire}");
+    for absent in ["stream", "tools", "max_output_tokens", "temperature", "top_p", "stop"] {
+        assert!(!gj::get(&body, absent).exists(), "{absent}: {wire}");
     }
 }

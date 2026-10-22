@@ -138,6 +138,17 @@ impl Client {
         source: Format,
         usage: cpa_core::exec::UsageSink,
     ) -> BoxStream<'static, Result<Bytes, ExecError>> {
+        self.start_config(url, body, source, usage, STEERING).await
+    }
+
+    async fn start_config(
+        &self,
+        url: &str,
+        body: &str,
+        source: Format,
+        usage: cpa_core::exec::UsageSink,
+        config: &str,
+    ) -> BoxStream<'static, Result<Bytes, ExecError>> {
         let mut req = request(body);
         req.usage = usage;
         req.model = MODEL.into();
@@ -150,7 +161,7 @@ impl Client {
             continuation: false,
             lease: None,
         };
-        let cfg = Config::parse(STEERING).unwrap();
+        let cfg = Config::parse(config).unwrap();
         let response = self
             .executor
             .execute_in_session(&credential(url), req, &cfg, &session)
@@ -1458,4 +1469,44 @@ async fn siwc_creates_and_steers_drop_configuration_updates() {
     }
     drop(stream);
     up.finish().await;
+}
+
+/// `TestCodexDuplexSteerPayloadBarrier` (868e137): a steer frame passes the payload
+/// rules (here gated on its own `type`) and keeps `type` `response.steer`.
+#[tokio::test]
+async fn steer_frames_pass_the_payload_rules() {
+    for filter in [false, true] {
+        let up = Scripted::start(move |mut c: Peer| async move {
+            c.read().await;
+            c.write(r#"{"type":"response.created","response":{"id":"parent","output":[]}}"#)
+                .await;
+            let got = c.read().await;
+            if get(&got, "type") != "response.steer" || get(&got, "previous_response_id") != "parent" {
+                c.error(format!("steer framing changed: {got}"));
+            }
+            let input = gjson::get(&got, "input");
+            if filter && input.exists() || !filter && input.str() != "configured" {
+                c.error(format!("steer payload bypassed config: {got}"));
+            }
+            c.idle().await;
+        })
+        .await;
+        let rule = if filter {
+            "  filter:\n    - models: [{name: \"*\", match: [{type: response.steer}]}]\n      params: [input, type]\n"
+        } else {
+            "  override:\n    - models: [{name: \"*\", match: [{type: response.steer}]}]\n      params: {input: configured, type: response.create}\n"
+        };
+        let config = format!("{STEERING}payload:\n{rule}");
+        let client = Client::new(&format!("duplex-steer-rules-{filter}"));
+        let mut stream = client
+            .start_config(&up.url, r#"{"input":[]}"#, Format::Codex, Default::default(), &config)
+            .await;
+        let created = next(&mut stream).await.unwrap().unwrap();
+        assert_eq!(get(&created, "type"), "response.created", "{created}");
+        client
+            .send(r#"{"type":"response.steer","previous_response_id":"parent","input":"original"}"#)
+            .await;
+        drop(stream);
+        up.finish().await;
+    }
 }

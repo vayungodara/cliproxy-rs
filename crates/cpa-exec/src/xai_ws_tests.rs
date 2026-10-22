@@ -1059,7 +1059,7 @@ fn validate_compaction_response_follows_go() {
 /// TestBuildXAIWebsocketRequestBodySetsStoreAndKeepsPromptCacheKey.
 #[test]
 fn request_frame_sets_store_and_keeps_prompt_cache_key() {
-    let frame = request_frame(br#"{"model":"grok-4.3","stream":true,"stream_options":{"include_usage":true},"background":true,"prompt_cache_key":"cache-1","previous_response_id":"resp-prev","instructions":"system prompt","input":[{"type":"message","role":"user","content":"hello"}]}"#);
+    let frame = request_frame(br#"{"model":"grok-4.3","stream":true,"stream_options":{"include_usage":true},"background":true,"prompt_cache_key":"cache-1","previous_response_id":"resp-prev","instructions":"system prompt","input":[{"type":"message","role":"user","content":"hello"}]}"#, |b| b);
     assert_eq!(gj::get(&frame, "type").str(), "response.create");
     for absent in ["stream", "stream_options", "background", "instructions"] {
         assert!(
@@ -1305,4 +1305,47 @@ async fn a_removal_during_a_turn_keeps_the_replacement_sessions_ids() {
     assert_eq!(upstream_previous(&shared), ["", "resp-1", "resp-1"]);
     executor.close_session(session);
     server.abort();
+}
+
+/// TestPayloadBarrierXAIWebsocketRetry (868e137): the rules run on the WebSocket frame,
+/// after `store=true` and the instructions drop, and only the frame type is set after
+/// them; a retry builds the same frame.
+#[test]
+fn request_frame_runs_the_payload_rules_last() {
+    let cfg = Config::parse(
+        r#"
+payload:
+  override:
+    - models: [{name: "*"}]
+      params: {store: false, instructions: configured}
+  filter:
+    - models: [{name: "*"}]
+      params: ["input.0", "previous_response_id", "type"]
+"#,
+    )
+    .unwrap();
+    let body = br#"{"previous_response_id":"previous","input":[{"content":"first"},{"content":"second"}]}"#;
+    let req = request(
+        &serde_json::json!({"payload": std::str::from_utf8(body).unwrap()}),
+        "s",
+        Default::default(),
+    );
+    let finalize = |b| {
+        crate::payload_barrier::Barrier {
+            executor: crate::xai::PROVIDER,
+            model: "grok-4.3",
+            protocol: "codex",
+            root: "",
+            original: body,
+        }
+        .apply(&cfg, &req, b)
+    };
+    let first = request_frame(body, finalize);
+    assert_eq!(first, request_frame(body, finalize));
+    let text = String::from_utf8_lossy(&first);
+    assert!(!gj::get(&first, "store").bool(), "{text}");
+    assert_eq!(gj::get(&first, "instructions").str(), "configured", "{text}");
+    assert!(!gj::get(&first, "previous_response_id").exists(), "{text}");
+    assert_eq!(gj::get(&first, "input.#").int(), 1, "{text}");
+    assert_eq!(gj::get(&first, "type").str(), "response.create", "{text}");
 }

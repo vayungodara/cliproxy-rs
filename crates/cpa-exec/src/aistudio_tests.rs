@@ -285,3 +285,50 @@ fn colon_spacing_matches_go_rules() {
     assert_eq!(ensure_colon_spaced_json(b"data: {\"a\":1}"), b"data: {\"a\":1}");
     assert_eq!(ensure_colon_spaced_json(b"  "), b"  ");
 }
+
+/// TestPayloadBarrierAIStudio, TestAIStudioTranslateRequestPayloadOverrideWinsThinkingNormalization
+/// and TestAIStudioCountPayloadAfterCleanup (868e137): the rules run after the
+/// `generationConfig` cleanup, the boundary turns and the thinking-level normalization,
+/// and after the count request's deletes.
+#[test]
+fn payload_rules_run_after_the_cleanup() {
+    let cfg = Config::parse(
+        r#"
+payload:
+  override:
+    - models: [{name: "*"}]
+      params:
+        "generationConfig.maxOutputTokens": 900000
+        "generationConfig.thinkingConfig.thinkingLevel": low
+        "safetySettings": [{category: configured}]
+  filter:
+    - models: [{name: "*"}]
+      params: ["contents"]
+"#,
+    )
+    .unwrap();
+    let payload = r#"{"contents":[{"role":"model","parts":[{"text":"hi"}]}]}"#;
+    for op in ["execute", "stream", "count"] {
+        let req = request(&serde_json::json!({
+            "op": op, "source": "gemini", "model": "gemini-3.1-pro-preview", "payload": payload,
+        }));
+        let (body, _) = translate(&req, &cfg, op == "count").unwrap();
+        let text = String::from_utf8_lossy(&body);
+        assert!(!gj::get(&body, "contents").exists(), "{op}: {text}");
+        assert_eq!(
+            gj::get(&body, "generationConfig.maxOutputTokens").int(),
+            900000,
+            "{op}: {text}"
+        );
+        assert_eq!(
+            gj::get(&body, "generationConfig.thinkingConfig.thinkingLevel").str(),
+            "low",
+            "{op}: {text}"
+        );
+        assert_eq!(
+            gj::get(&body, "safetySettings.0.category").str(),
+            "configured",
+            "{op}: {text}"
+        );
+    }
+}

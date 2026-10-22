@@ -651,3 +651,60 @@ async fn terminal_errors_flush_pending_frames_first() {
         assert_eq!(out[1].as_ref().unwrap_err().status, status);
     }
 }
+
+/// Go 868e137 gives CountTokens the payload barrier: the rules run after thinking,
+/// before the local tokenizer, so a configured message changes the count.
+#[test]
+fn count_tokens_sees_the_payload_rules() {
+    let s = serde_json::json!({
+        "op": "count", "source": "openai", "model": "gpt-4o", "provider": "openai-compatibility", "config_auth": -1,
+        "payload": r#"{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}"#,
+    });
+    let count = |config: &str| {
+        let cfg = Config::parse(config).unwrap();
+        let (req, _) = request(&s, Default::default());
+        let out = super::count_tokens(&credential(&s, &cfg, "127.0.0.1:9"), &req, &cfg).unwrap();
+        let ResponseBody::Buffered(bytes) = out.body else {
+            panic!("count answers are buffered")
+        };
+        gj::get(&bytes, "usage.prompt_tokens").int()
+    };
+    let plain = count("");
+    let configured = count(
+        "payload:\n  override:\n    - models: [{name: gpt-4o}]\n      params: {messages.0.content: one two three four five six seven eight nine ten}\n",
+    );
+    assert!(plain > 0);
+    assert!(configured > plain + 5, "{plain} -> {configured}");
+}
+
+/// Go 868e137: the chat rules run after the built-in stream options, so a filter on
+/// `stream_options` removes the `include_usage` the executor sets.
+#[tokio::test]
+async fn chat_payload_rules_run_after_the_stream_options() {
+    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    let mut s = fixture["scenarios"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == "stream_basic")
+        .unwrap()
+        .clone();
+    let rule = "\npayload:\n  filter:\n    - models: [{name: acme-chat}]\n      params: [stream_options]\n";
+    s["config"] = Value::String(format!("{}{rule}", s["config"].as_str().unwrap()));
+    let mock = Mock::start(&s["upstream"]).await;
+    let cfg = Config::parse(&s["config"].as_str().unwrap().replace("UPSTREAM", &mock.addr)).unwrap();
+    let cred = credential(&s, &cfg, &mock.addr);
+    let (req, _) = request(&s, Default::default());
+    let ResponseBody::Stream(mut stream) = OpenAICompatExecutor::default()
+        .execute(&cred, req, &cfg)
+        .await
+        .unwrap()
+        .body
+    else {
+        panic!("a stream")
+    };
+    while stream.next().await.is_some() {}
+    let wire = String::from_utf8(mock.request().unwrap()).unwrap();
+    assert!(wire.contains("\r\n\r\n{"), "{wire}");
+    assert!(!wire.contains("stream_options"), "{wire}");
+}

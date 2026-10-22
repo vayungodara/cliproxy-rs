@@ -9,8 +9,15 @@ use axum::http::{HeaderMap, Method, StatusCode, Uri};
 use axum::response::IntoResponse;
 use serde_json::Value;
 
-pub(crate) static GO: LazyLock<Value> =
-    LazyLock::new(|| serde_json::from_str(include_str!("../tests/fixtures/codex_go.json")).expect("fixture JSON"));
+/// `codex_go.json` (6fecc6e) with the executor cases the payload barrier changed taken
+/// from their v8.0.35 recording.
+pub(crate) static GO: LazyLock<Value> = LazyLock::new(|| {
+    crate::payload_barrier::with_v8_0_35(
+        include_str!("../tests/fixtures/codex_go.json"),
+        include_str!("../tests/fixtures/codex_go_v8.0.35.json"),
+        "executor",
+    )
+});
 
 #[derive(Debug, Clone)]
 pub(crate) struct Captured {

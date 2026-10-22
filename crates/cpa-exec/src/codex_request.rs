@@ -444,6 +444,35 @@ fn translate_request(req: &ExecRequest, call: Call, is_compat: bool) -> Result<(
     Ok((body, original))
 }
 
+/// Go's Codex payload finalizer: the payload rules on the finished body, after the
+/// prompt cache key, the input id sanitizing and the SIWC WebSocket rules (868e137).
+pub(crate) struct Finalizer {
+    call: Call,
+    /// The translated original request, the baseline for `default` rules.
+    original: Vec<u8>,
+}
+
+impl Finalizer {
+    pub(crate) fn apply(&self, req: &ExecRequest, settings: &Settings, body: String) -> String {
+        apply_payload(req, settings, self.call, &base_model(&req.model), body, &self.original)
+    }
+}
+
+/// The payload rules on a `response.steer` frame: the frame is its own baseline, and
+/// its `type` stays `response.steer`.
+pub(crate) fn steer_rules(req: &ExecRequest, settings: &Settings, payload: String) -> String {
+    let original = payload.clone().into_bytes();
+    let out = apply_payload(
+        req,
+        settings,
+        Call::Websocket,
+        &base_model(&req.model),
+        payload,
+        &original,
+    );
+    set_str(&out, "type", "response.steer")
+}
+
 /// `helps.ApplyPayloadConfigWithRequestForExecutor` for the Codex executors.
 fn apply_payload(
     req: &ExecRequest,
@@ -486,6 +515,8 @@ pub(crate) struct Shaped {
     /// `HasCodexMultiAgentV2NamespaceConflict` before the optimization: the client already
     /// uses the optimized name, so nothing may be restored.
     pub conflict: bool,
+    /// The payload rules, which callers run last.
+    pub finalize: Finalizer,
 }
 
 /// Applies the Codex body rules for `call`.
@@ -503,8 +534,7 @@ pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, cal
     let model = base_model(&req.model);
     let model = model.as_str();
     let is_compat = settings.is_compat(req);
-    let (body, original) = translate_request(req, call, is_compat)?;
-    let mut body = apply_payload(req, settings, call, model, body, &original);
+    let (mut body, original) = translate_request(req, call, is_compat)?;
     match call {
         Call::NonStream => {
             body = set_str_if_different(body, "model", model);
@@ -600,6 +630,7 @@ pub(crate) fn shape(req: &ExecRequest, view: &View<'_>, settings: &Settings, cal
         body,
         optimized,
         conflict,
+        finalize: Finalizer { call, original },
     })
 }
 

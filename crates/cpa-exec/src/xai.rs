@@ -65,6 +65,23 @@ pub struct XaiExecutor {
     pub(crate) ws: Arc<crate::xai_ws::Ws>,
 }
 
+/// The payload rules on an image or video body (Go's media finalizer: the body's
+/// model, else the routed one; protocol `openai`; the client body as the baseline).
+fn media_rules(req: &ExecRequest, cfg: &Config, payload: Vec<u8>) -> Vec<u8> {
+    let mut model = text(&gj::get(&req.body, "model")).trim().to_owned();
+    if model.is_empty() {
+        model = req.model.trim().to_owned();
+    }
+    crate::payload_barrier::Barrier {
+        executor: PROVIDER,
+        model: &model,
+        protocol: "openai",
+        root: "",
+        original: &req.body,
+    }
+    .apply(cfg, req, payload)
+}
+
 pub(crate) fn apply_patch_error() -> ExecError {
     status_err(502, cpa_translate::APPLY_PATCH_UPSTREAM_ERROR)
 }
@@ -458,13 +475,14 @@ impl XaiExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let (token, _) = creds(credential);
         let base = chat_base_url(credential);
-        let prepared = before_reporter(
+        let mut prepared = before_reporter(
             &req.usage,
             request::prepare(&req, cfg, true, Format::Codex, &self.replay, downstream_websocket).await,
         )?;
         // Execute and ExecuteStream publish only usage they parsed (no EnsurePublished).
         req.usage.usage_required();
         req.usage.request_for(PROVIDER, &prepared.body);
+        prepared.finalize_body(cfg, &req);
         let headers = chat_headers(credential, &token, true, &prepared.session_id, &req);
         let client = self.clients.for_credential(credential, cfg);
         let url = self.url(endpoint(&base, "/responses"));
@@ -533,8 +551,8 @@ impl XaiExecutor {
         if !previous.is_empty() {
             gj::set_str(&mut body, "previous_response_id", previous);
         }
-        p.body = body;
-        req.usage.request_for(PROVIDER, &p.body);
+        req.usage.request_for(PROVIDER, &body);
+        p.body = p.finalize(cfg, req, body);
         let headers = plain_headers(credential, &token, false, &p.session_id, req);
         let client = self.clients.for_credential(credential, cfg);
         let url = self.url(endpoint(&base, "/responses/compact"));
@@ -613,7 +631,8 @@ impl XaiExecutor {
 
     /// CountTokens: O200kBase estimate of the prepared body, no upstream call.
     async fn count_tokens(&self, req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
-        let p = request::prepare(req, cfg, false, Format::Codex, &self.replay, false).await?;
+        let mut p = request::prepare(req, cfg, false, Format::Codex, &self.replay, false).await?;
+        p.finalize_body(cfg, req);
         let count = count_input_tokens(&p.body).map_err(|e| {
             ExecError::local(
                 500,
@@ -647,7 +666,7 @@ impl XaiExecutor {
         } else {
             IMAGES_GENERATIONS
         };
-        let payload = request::normalize_image_refs(req.body.to_vec());
+        let payload = media_rules(&req, cfg.as_ref(), request::normalize_image_refs(req.body.to_vec()));
         self.media(credential, &req, cfg.as_ref(), wreq::Method::POST, path, payload, false)
             .await
     }
@@ -662,7 +681,7 @@ impl XaiExecutor {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         let cfg = scoped(credential, cfg);
-        let payload = request::normalize_image_refs(req.body.to_vec());
+        let payload = media_rules(&req, cfg.as_ref(), request::normalize_image_refs(req.body.to_vec()));
         let route = [VIDEOS_EDITS, VIDEOS_EXTENSIONS, VIDEOS_GENERATIONS]
             .into_iter()
             .find(|p| request_path.ends_with(p));

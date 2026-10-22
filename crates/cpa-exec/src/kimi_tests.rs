@@ -67,6 +67,8 @@ async fn upstream_requests_match_go_byte_for_byte() {
         "chat-stream-usage-then-model",
         "chat-payload-rules",
         "responses-payload-rules",
+        "chat-payload-override-after-normalize",
+        "responses-payload-override-after-normalize",
         "responses-compact-rejected",
         "transport-custom-headers",
         "transport-redirect-307",

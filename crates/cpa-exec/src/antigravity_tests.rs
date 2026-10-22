@@ -933,3 +933,49 @@ async fn bound_level_model_keeps_the_thinking_level() {
     assert_eq!(thinking.get("thinkingLevel").str(), "medium", "{wire}");
     assert!(!thinking.get("thinkingBudget").exists(), "{wire}");
 }
+
+/// TestPayloadBarrierAntigravityRebuiltAttempts (868e137): the payload rules run on the
+/// finished envelope, so the built-in `maxOutputTokens` cleanup and the session ID
+/// cannot undo them, and a filter applies once.
+#[tokio::test]
+async fn payload_rules_run_after_the_envelope() {
+    let answer = serde_json::json!({
+        "status": 200,
+        "headers": [["Content-Type", "application/json"]],
+        "body": r#"{"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP"}]}}"#,
+    });
+    let cfg = Config::parse(
+        r#"
+payload:
+  override:
+    - models: [{name: "gemini-*"}]
+      params: {"generationConfig.maxOutputTokens": 123}
+  filter:
+    - models: [{name: "gemini-*"}]
+      params: ["sessionId", "contents.0"]
+"#,
+    )
+    .unwrap();
+    let mock = Mock::start(&answer).await;
+    let cred = credential(scenario("gemini_execute_basic"), mock.addr());
+    let payload =
+        r#"{"contents":[{"role":"user","parts":[{"text":"first"}]},{"role":"user","parts":[{"text":"second"}]}]}"#;
+    let req = request(&serde_json::json!({
+        "op": "execute", "source": "gemini", "model": "gemini-3.1-pro-preview", "payload": payload,
+    }));
+    AntigravityExecutor::default().execute(&cred, req, &cfg).await.unwrap();
+    let wire = mock.request().unwrap();
+    let body = wire.split_once("\r\n\r\n").unwrap().1.as_bytes().to_vec();
+    assert_eq!(
+        gj::get(&body, "request.generationConfig.maxOutputTokens").int(),
+        123,
+        "{wire}"
+    );
+    assert!(!gj::get(&body, "request.sessionId").exists(), "{wire}");
+    assert_eq!(gj::get(&body, "request.contents.#").int(), 1, "{wire}");
+    assert_eq!(
+        gj::get(&body, "request.contents.0.parts.0.text").str(),
+        "second",
+        "{wire}"
+    );
+}
