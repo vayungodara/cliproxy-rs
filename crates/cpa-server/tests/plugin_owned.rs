@@ -2530,7 +2530,8 @@ async fn a_saved_auth_waits_for_its_parsed_refresh_deadline() {
 /// `preserveExistingAuthState`, then `upsertAuthRecordsForPath`): a save without an auth
 /// manager or one refused after its parse leaves nothing for a later save of that ID; an
 /// auth replacing the file's credential under a new ID takes that one's deadlines, unset
-/// ones too, over its parsed one; and a save replacing an auth keeps its deadline.
+/// ones too, over its parsed one, and the one it replaced loses them; and a save
+/// replacing an auth keeps its deadline.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_saved_auth_takes_its_refresh_deadline_only_when_registered() {
     let Some(env) = env(
@@ -2604,8 +2605,26 @@ async fn a_saved_auth_takes_its_refresh_deadline_only_when_registered() {
     answer(vec![auth("again", None)]);
     assert_eq!(save("again.json").await["ok"], true);
 
+    // A credential a save removes takes its deadlines along (Go `Manager.Remove`): the
+    // built-in credential of another file registered under its ID starts without them.
+    answer(vec![auth("reused.json", later)]);
+    assert_eq!(save("first.json").await["ok"], true);
+    answer(vec![auth("moved-on", None)]);
+    assert_eq!(save("first.json").await["ok"], true);
+    canned(&env.records, "acme", "auth.parse", json!({"Handled":false}));
+    let built_in = json!({"type":"acme","access_token":"t","refresh_interval":"1h"});
+    assert_eq!(host_save(&env, "acme", "reused.json", built_in).await["ok"], true);
+
     let store = env.rt.store();
-    for id in ["orphan", "refused", "new", "swapped", "again"] {
+    for id in [
+        "orphan",
+        "refused",
+        "new",
+        "swapped",
+        "again",
+        "moved-on",
+        "reused.json",
+    ] {
         assert!(store.get(id).is_some(), "{id} was not registered");
     }
     assert!(store.get("old").is_none() && store.get("plain").is_none());
@@ -2615,7 +2634,10 @@ async fn a_saved_auth_takes_its_refresh_deadline_only_when_registered() {
             .filter(|r| r["AuthID"] == id)
             .count()
     };
-    let (due, waiting) = (["orphan", "refused", "swapped"], ["new", "again"]);
+    let (due, waiting) = (
+        ["orphan", "refused", "swapped", "reused.json"],
+        ["new", "again", "moved-on"],
+    );
     env.rt.start_auto_refresh();
     // Bounded, so a credential that never comes due is reported with the others.
     let deadline = std::time::Instant::now() + Duration::from_secs(10);
