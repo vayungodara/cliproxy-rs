@@ -1901,3 +1901,48 @@ impl GoStream for ToInteractions {
         Ok(out)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Two client tools whose Antigravity upstream names overlap the other's client name
+    /// round-trip to their own names (interactionsToolIdentityMap keys only upstream names).
+    #[test]
+    fn antigravity_prefixed_tool_names_round_trip() {
+        let original = br#"{"tools":[{"type":"function","name":"external_read_file","parameters":{"type":"object"}},{"type":"function","name":"external_external_read_file","parameters":{"type":"object"}}]}"#;
+        let ctx = ResponseCtx {
+            model: "gemini-antigravity-1",
+            original_request: original,
+            translated_request: b"",
+        };
+        let calls = [
+            ("external_external_read_file", "external_read_file"),
+            ("external_external_external_read_file", "external_external_read_file"),
+        ];
+        let body = format!(
+            r#"{{"id":"i","status":"completed","model":"gemini-antigravity-1","steps":[{{"type":"function_call","name":"{}","call_id":"c1","arguments":{{}}}},{{"type":"function_call","name":"{}","call_id":"c2","arguments":{{}}}}]}}"#,
+            calls[0].0, calls[1].0
+        );
+        let out = interactions_to_responses_non_stream(&ctx, body.as_bytes()).unwrap();
+        let names: Vec<_> = gj::get(&out, "output.#.name")
+            .array()
+            .iter()
+            .map(|n| n.str().into_owned())
+            .collect();
+        assert_eq!(names, [calls[0].1, calls[1].1], "non-stream");
+
+        for (upstream, client) in calls {
+            let mut stream = interactions_to_responses_stream(&ctx);
+            let start = format!(
+                r#"{{"event_type":"step.start","index":0,"step":{{"type":"function_call","name":"{upstream}","id":"r0"}}}}"#
+            );
+            let out: Vec<u8> = stream.line(start.as_bytes()).unwrap().concat();
+            let text = String::from_utf8_lossy(&out);
+            assert!(
+                text.contains(&format!(r#""name":"{client}""#)),
+                "stream {upstream}: {text}"
+            );
+        }
+    }
+}

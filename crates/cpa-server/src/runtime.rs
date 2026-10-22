@@ -490,16 +490,35 @@ impl Runtime {
         match failed {
             Some(revision) if current.revision != revision => return Ok(current),
             Some(_) => {}
-            None if self.executors.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
+            None if self.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
             None => {}
         }
         let view = self.for_executor(&current);
-        let patch = match failed {
-            Some(_) if management => self.executors.prepare_management(&view, cfg).await?,
-            Some(_) => self.executors.prepare_forced(&view, cfg).await?,
-            None => self.executors.prepare(&view, cfg).await?,
+        let plugin = crate::plugins::refresh::route(self, &current, cfg);
+        // A plugin answer also publishes the committed document's proxy URL (the merged
+        // one, or a concurrent edit's when that wins the merge) as the credential's.
+        let (patch, publish_proxy) = match (&plugin, failed) {
+            (Some(route), _) => {
+                let refreshed = crate::plugins::refresh::refresh(self, route, &view, &current).await?;
+                (refreshed.patch, refreshed.answered)
+            }
+            (None, Some(_)) if management => (self.executors.prepare_management(&view, cfg).await?, false),
+            (None, Some(_)) => (self.executors.prepare_forced(&view, cfg).await?, false),
+            (None, None) => (self.executors.prepare(&view, cfg).await?, false),
+        };
+        let publish_proxy = move |c: &mut Credential| {
+            if publish_proxy {
+                match c.str("proxy_url").map(str::trim).filter(|p| !p.is_empty()) {
+                    Some(proxy) => {
+                        let proxy = proxy.to_owned();
+                        c.attributes.insert("proxy_url".into(), proxy)
+                    }
+                    None => c.attributes.remove("proxy_url"),
+                };
+            }
         };
         let store = self.store.clone();
+        let plugin_schedules = plugin.as_ref().map(|_| crate::plugins::refresh::schedules(self));
         let committed = tokio::task::spawn_blocking({
             let id = id.to_owned();
             move || {
@@ -507,7 +526,9 @@ impl Runtime {
                 let mut revision = current.revision;
                 let mut attempt = patch.clone();
                 loop {
-                    match store.apply_refresh(&id, revision, &attempt, |c| credentials_changed(&current, c)) {
+                    match store.apply_refresh(&id, revision, &attempt, publish_proxy, |c| {
+                        credentials_changed(&current, c)
+                    }) {
                         // Edited since the snapshot (the prepare lock does not hold off other
                         // writers). Go 935aa6e3: an edit that changed the credentials wins and
                         // this refresh is dropped; any other edit is merged with it (Go
@@ -530,6 +551,11 @@ impl Runtime {
                             }
                             attempt = rebased;
                             if attempt.set.is_empty() && attempt.remove.is_empty() {
+                                // Nothing left to write, but the refresh happened (Go
+                                // records `LastRefreshedAt` whatever the merge changes).
+                                if let Some(schedules) = &plugin_schedules {
+                                    crate::plugins::refresh::committed(schedules, &latest, chrono::Utc::now());
+                                }
                                 return Ok(latest);
                             }
                             revision = latest.revision;
@@ -542,6 +568,10 @@ impl Runtime {
                             if rotated {
                                 store.recover_unauthorized(&id);
                             }
+                            // Go `LastRefreshedAt`, recorded with the commit.
+                            if let Some(schedules) = &plugin_schedules {
+                                crate::plugins::refresh::committed(schedules, &committed, chrono::Utc::now());
+                            }
                             return Ok(committed);
                         }
                     }
@@ -552,6 +582,10 @@ impl Runtime {
         .map_err(|e| PatchError::Io(e.to_string()))
         .and_then(|r| r)
         .map_err(|e| {
+            // The plugin refreshed but nothing was saved: back off as for a failed refresh.
+            if plugin.is_some() {
+                crate::plugins::refresh::failed(self, &view, chrono::Utc::now());
+            }
             ExecError::local(
                 500,
                 FailureScope::Request,
@@ -559,6 +593,20 @@ impl Runtime {
             )
         })?;
         Ok(committed)
+    }
+
+    /// [`Executors::readiness`], plus the schedule of credentials a plugin refreshes
+    /// ([`crate::plugins::refresh`]), which never holds a request. Built-in providers
+    /// read their executor alone.
+    fn readiness(&self, c: &Credential, cfg: &Config) -> Readiness {
+        match self.executors.readiness(c, cfg) {
+            Readiness::Ready if self.plugin_refresh_due(c, cfg, chrono::Utc::now()) => Readiness::RefreshSoon,
+            readiness => readiness,
+        }
+    }
+
+    fn plugin_refresh_due(&self, c: &Credential, cfg: &Config, now: chrono::DateTime<chrono::Utc>) -> bool {
+        crate::plugins::refresh::due_at(self, c, cfg).is_some_and(|at| at <= now)
     }
 
     /// Go `tryRefreshAfterUnauthorized`: after an upstream 401 on a credential whose
@@ -619,6 +667,7 @@ impl Runtime {
                 let jobs: Vec<_> = {
                     let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
                     state.reconcile(&snapshot);
+                    crate::plugins::refresh::reconcile(&rt, &snapshot);
                     let mut jobs = Vec::new();
                     rt.store.forget_stale_unauthorized(&rejected, &snapshot);
                     // Far enough ahead that any expiry has passed, near enough for chrono.
@@ -647,10 +696,15 @@ impl Runtime {
                             }
                             continue;
                         }
-                        if rt.executors.needs_prepare_at(c, &cfg, eventually) {
+                        let plugin_due = crate::plugins::refresh::due_at(&rt, c, &cfg);
+                        if rt.executors.needs_prepare_at(c, &cfg, eventually) || plugin_due.is_some() {
                             soonest(now + HORIZON);
                         }
-                        match rt.executors.prepare_due(c, &cfg, wall, horizon) {
+                        let due = rt
+                            .executors
+                            .prepare_due(c, &cfg, wall, horizon)
+                            .or_else(|| plugin_due.filter(|at| *at <= wall + horizon).map(|at| at.max(wall)));
+                        match due {
                             Some(at) if at > wall => soonest(now + (at - wall).to_std().unwrap_or_default()),
                             Some(_) if state.reserve(c, now) => jobs.push((c.clone(), false)),
                             // Reserved or backing off: look again when that ends.
@@ -691,11 +745,14 @@ impl Runtime {
                             {
                                 return;
                             }
+                            // A plugin refresh keeps its own deadlines (Go `NextRefreshAfter`,
+                            // `crate::plugins::refresh`): release the reservation only.
+                            let plugin = crate::plugins::refresh::route(&rt, &current, &cfg).is_some();
                             let ineffective =
-                                result.is_ok() && rt.executors.readiness(&current, &cfg) != Readiness::Ready;
+                                !plugin && result.is_ok() && rt.readiness(&current, &cfg) != Readiness::Ready;
                             rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner).finish(
                                 &current,
-                                result.as_ref().err(),
+                                result.as_ref().err().filter(|_| !plugin),
                                 ineffective,
                                 Instant::now(),
                             );
@@ -1185,6 +1242,8 @@ pub struct CredentialStore {
     activity: Mutex<HashMap<String, CredentialActivity>>,
     /// Credential revisions whose file already holds Go's persisted form.
     persisted: Mutex<HashMap<String, u64>>,
+    /// What each file credential's metadata was built from, by ID ([`Provenance`]).
+    provenance: Mutex<HashMap<String, Provenance>>,
     /// Where failed attempts publish Go's error events (set by the runtime).
     error_events: std::sync::OnceLock<Arc<crate::usage::UsageQueue>>,
     /// Marked on every epoch bump, so background loops sleep until the set changes.
@@ -1221,6 +1280,63 @@ fn marked(credential: &Credential, key: &str) -> bool {
         .is_some_and(|v| v.trim().eq_ignore_ascii_case("true"))
 }
 
+/// What a file credential's metadata was built from at one revision. Go holds a loaded
+/// file's numbers as float64 read from its text, and a saved record's numbers as that
+/// save held them; a management save reproduces them only from this, never from the
+/// file as it is now, which may have changed since without a reload.
+#[derive(Clone)]
+pub struct Provenance {
+    pub revision: u64,
+    /// SHA-256 of the file bytes the revision was loaded from or committed as.
+    pub sha256: [u8; 32],
+    /// The document a management save committed (Go's metadata after that save); `None`
+    /// for a load, where Go's metadata is the float64 reading of those bytes.
+    pub doc: Option<Arc<cpa_common::json::GoValue>>,
+    /// `doc` is the text of the bytes the record was loaded from (numbers as written,
+    /// read as float64 by a save) with a refresh's values in place, not Go's metadata.
+    pub loaded: bool,
+}
+
+/// How [`CredentialStore::commit_file_backed`] commits a management save.
+pub struct Commit {
+    /// The bytes the file holds after the save (and the re-synthesized `next` read).
+    pub bytes: Vec<u8>,
+    /// `false` when the file already holds an equal document: nothing is written, but
+    /// the credential is published from `bytes` all the same (Go's store skips the
+    /// write, its manager still publishes the auth).
+    pub write: bool,
+    /// What the file must still hold under the write lock, else `Stale`: `Some(None)`
+    /// for no file, `Some(Some(hash))` for those bytes; `None` skips the check.
+    pub disk: Option<Option<[u8; 32]>>,
+    /// Go's metadata after the save, recorded as the new revision's [`Provenance`].
+    pub doc: Option<Arc<cpa_common::json::GoValue>>,
+}
+
+/// A value a refresh set, as Go holds it (integers exact, other numbers float64), or
+/// with `literal` its number text as written.
+fn go_typed(v: &Value, literal: bool) -> cpa_common::json::GoValue {
+    use cpa_common::json::GoValue;
+    match v {
+        Value::Null => GoValue::Null,
+        Value::Bool(b) => GoValue::Bool(*b),
+        Value::Number(n) if literal || n.is_i64() || n.is_u64() => GoValue::Number(n.to_string()),
+        Value::Number(n) => {
+            let text = n.to_string();
+            GoValue::Number(
+                cpa_common::json::json_float(cpa_common::json::parse_float(text.as_bytes())).unwrap_or(text),
+            )
+        }
+        Value::String(s) => GoValue::String(s.clone()),
+        Value::Array(items) => GoValue::Array(items.iter().map(|v| go_typed(v, literal)).collect()),
+        Value::Object(map) => GoValue::Object(map.iter().map(|(k, v)| (k.clone(), go_typed(v, literal))).collect()),
+    }
+}
+
+fn sha256(bytes: &[u8]) -> [u8; 32] {
+    use sha2::{Digest, Sha256};
+    Sha256::digest(bytes).into()
+}
+
 impl CredentialStore {
     pub fn new(credentials: Vec<Credential>) -> Arc<Self> {
         let mut inner = Inner {
@@ -1247,6 +1363,7 @@ impl CredentialStore {
             cooldown_write: Mutex::default(),
             activity: Mutex::default(),
             persisted: Mutex::default(),
+            provenance: Mutex::default(),
             error_events: std::sync::OnceLock::new(),
             changed: tokio::sync::watch::Sender::new(()),
             unauthorized: Mutex::default(),
@@ -1390,7 +1507,7 @@ impl CredentialStore {
                 if go(&existing).as_ref() == Some(&target) {
                     return Ok(None);
                 }
-                Ok(Some((path.clone(), target.marshal(), ())))
+                Ok(Some((Some(path.clone()), target.marshal(), ())))
             },
             |inner, index, bytes, ()| {
                 // Same revision: the file now says what memory already meant (absent
@@ -1400,6 +1517,18 @@ impl CredentialStore {
                     let mut next = Credential::clone(&inner.creds[index]);
                     next.metadata = written;
                     inner.creds[index] = Arc::new(next);
+                }
+                // A save's document stays Go's metadata, now held by these bytes. A load's
+                // float64 reading is not provably these bytes' (they come from serde's
+                // values), so it is forgotten.
+                let id = &inner.creds[index].id;
+                let mut provenance = self.provenance.lock().unwrap_or_else(PoisonError::into_inner);
+                match provenance.get_mut(id) {
+                    Some(p) if p.doc.is_some() => p.sha256 = sha256(bytes),
+                    Some(_) => {
+                        provenance.remove(id);
+                    }
+                    None => {}
                 }
             },
         );
@@ -1800,10 +1929,11 @@ impl CredentialStore {
         id: &str,
         expected_revision: u64,
         patch: &MetadataPatch,
+        edit: impl FnOnce(&mut Credential),
         rotated: impl FnOnce(&Credential) -> bool,
     ) -> Result<(Arc<Credential>, bool), PatchError> {
         let mut state = self.unauthorized.lock().unwrap_or_else(PoisonError::into_inner);
-        let committed = self.apply_patch(id, expected_revision, patch)?;
+        let committed = self.apply_patch_with(id, expected_revision, patch, edit)?;
         let rotated = rotated(&committed);
         if rotated {
             state
@@ -1848,6 +1978,18 @@ impl CredentialStore {
         expected_revision: u64,
         patch: &MetadataPatch,
     ) -> Result<Arc<Credential>, PatchError> {
+        self.apply_patch_with(id, expected_revision, patch, |_| {})
+    }
+
+    /// [`Self::apply_patch`], with `edit` applied to the credential before it is
+    /// published (fields outside the document, such as a plugin refresh's proxy URL).
+    fn apply_patch_with(
+        &self,
+        id: &str,
+        expected_revision: u64,
+        patch: &MetadataPatch,
+        edit: impl FnOnce(&mut Credential),
+    ) -> Result<Arc<Credential>, PatchError> {
         let committed = self.write_unlocked(
             id,
             expected_revision,
@@ -1867,16 +2009,40 @@ impl CredentialStore {
                 let mut next = Credential::clone(current);
                 patch.apply(&mut next.metadata);
                 next.refresh_derived();
+                edit(&mut next);
                 // Go `FileTokenStore.Save` always records the disabled state.
                 next.metadata.insert("disabled".into(), Value::Bool(next.disabled));
                 // Go's `json.NewEncoder(f).Encode`: compact JSON and a newline.
                 let mut bytes = serde_json::to_vec(&next.metadata).map_err(|e| PatchError::Io(e.to_string()))?;
                 bytes.push(b'\n');
-                Ok(Some((path.clone(), bytes, next)))
+                let basis = self.patched_doc(current, path, patch, next.disabled);
+                Ok(Some((Some(path.clone()), bytes, (next, basis))))
             },
-            |inner, index, _, mut next| {
+            |inner, index, bytes, (mut next, basis)| {
                 inner.generation += 1;
                 next.revision = inner.generation;
+                // The written bytes are serde's, not Go's: a later management save takes
+                // its numbers from `doc`, Go's metadata after the refresh, or refuses.
+                match basis {
+                    Some((doc, loaded)) => {
+                        let provenance = Provenance {
+                            revision: next.revision,
+                            sha256: sha256(bytes),
+                            doc: Some(Arc::new(doc)),
+                            loaded,
+                        };
+                        self.provenance
+                            .lock()
+                            .unwrap_or_else(PoisonError::into_inner)
+                            .insert(next.id.clone(), provenance);
+                    }
+                    None => {
+                        self.provenance
+                            .lock()
+                            .unwrap_or_else(PoisonError::into_inner)
+                            .remove(&next.id);
+                    }
+                }
                 inner.creds[index] = Arc::new(next);
                 inner.epoch += 1;
                 self.changed.send_replace(());
@@ -1889,7 +2055,8 @@ impl CredentialStore {
     /// Go 8a01bc02 (`persistLocked`): writes a file-backed credential with `inner`
     /// unlocked, so a slow disk never stalls selection or reads of other credentials.
     /// `prepare` sees the credential at `expected_revision` (`Stale` otherwise) and
-    /// returns the file and bytes to write, or `None` for nothing to do; `publish` then
+    /// returns the file to write (`None` to write nothing) and the bytes, or `None` for
+    /// nothing to do; `publish` then
     /// puts the result in place under the write lock. The credential's write lock and
     /// the reload gate (shared) are held throughout, so neither another write of it nor
     /// a set replacement can land between the write and its publication. A publication
@@ -1900,7 +2067,7 @@ impl CredentialStore {
         id: &str,
         expected_revision: u64,
         exclusive: bool,
-        prepare: impl FnOnce(&Arc<Credential>) -> Result<Option<(std::path::PathBuf, Vec<u8>, T)>, PatchError>,
+        prepare: impl FnOnce(&Arc<Credential>) -> Result<Option<(Option<std::path::PathBuf>, Vec<u8>, T)>, PatchError>,
         publish: impl FnOnce(&mut Inner, usize, &[u8], T) -> R,
     ) -> Result<Option<R>, PatchError> {
         // Acquired once, before the check and the write: re-taking the gate while holding
@@ -1933,7 +2100,7 @@ impl CredentialStore {
         // Go `Manager.persist` never writes a plugin-virtual credential (one of several a
         // plugin parsed from one file): its document is not the file's. A refresh or
         // patch of one is kept in memory.
-        if !marked(&current, "plugin_virtual") {
+        if let Some(path) = path.filter(|_| !marked(&current, "plugin_virtual")) {
             write_bytes_atomic(&path, &bytes).map_err(|e| PatchError::Io(e.to_string()))?;
         }
         let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
@@ -1995,6 +2162,31 @@ impl CredentialStore {
         bytes: &[u8],
         next: Option<Credential>,
     ) -> Result<(), PatchError> {
+        let commit = Commit {
+            bytes: bytes.to_vec(),
+            write: true,
+            disk: None,
+            doc: None,
+        };
+        self.commit_file_backed(id, expected_revision, commit, next)
+    }
+
+    /// [`Self::replace_file_backed`] for a management save ([`Commit`]): the file check
+    /// and the optional write run under the same lock and revision check, and the new
+    /// revision records the save's [`Provenance`].
+    pub fn commit_file_backed(
+        &self,
+        id: &str,
+        expected_revision: u64,
+        commit: Commit,
+        next: Option<Credential>,
+    ) -> Result<(), PatchError> {
+        let Commit {
+            bytes,
+            write,
+            disk,
+            doc,
+        } = commit;
         // A new ID can replace another credential, whose own write lock is not held here.
         let exclusive = next.as_ref().is_some_and(|n| n.id != id);
         let removed = self.write_unlocked(
@@ -2005,13 +2197,30 @@ impl CredentialStore {
                 let Source::File(path) = &current.source else {
                     return Err(PatchError::ConfigBacked);
                 };
-                Ok(Some((path.clone(), bytes.to_vec(), next)))
+                if let Some(want) = disk {
+                    let now = std::fs::read(path).ok().map(|b| sha256(&b));
+                    if now != want {
+                        return Err(PatchError::Stale {
+                            current: current.revision,
+                        });
+                    }
+                }
+                // The file's hash after the commit.
+                let held = if write { Some(sha256(&bytes)) } else { disk.flatten() };
+                Ok(Some((write.then(|| path.clone()), bytes, (next, held))))
             },
-            |inner, index, _, next| {
+            |inner, index, _, (next, held)| {
                 let previous = inner.creds.remove(index);
+                self.provenance
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .remove(&previous.id);
                 if let Some(mut next) = next {
                     inner.generation += 1;
                     next.revision = inner.generation;
+                    if let Some(held) = held {
+                        self.note_provenance(&next.id, next.revision, held, doc);
+                    }
                     inner.creds.retain(|c| c.id != next.id);
                     let at = index.min(inner.creds.len());
                     inner.creds.insert(at, Arc::new(next));
@@ -2029,6 +2238,90 @@ impl CredentialStore {
         self.clear_disabled_cooldowns();
         self.persist_cooldowns();
         Ok(())
+    }
+
+    /// Go's metadata after `patch` (a token refresh) lands on `current`: Go's refresh
+    /// changes only the patched keys of the auth it holds. From a save, that is the saved
+    /// document with the patched values as Go holds them; from a load, the loaded text
+    /// (while `path` still holds it) with the patched values as written, `true`. `None`
+    /// when neither is known.
+    fn patched_doc(
+        &self,
+        current: &Credential,
+        path: &std::path::Path,
+        patch: &MetadataPatch,
+        disabled: bool,
+    ) -> Option<(cpa_common::json::GoValue, bool)> {
+        use cpa_common::json::GoValue;
+        let prior = self
+            .provenance(&current.id)
+            .filter(|p| p.revision == current.revision)?;
+        let (base, loaded) = match prior.doc {
+            Some(doc) => (GoValue::clone(&doc), prior.loaded),
+            None => {
+                let bytes = std::fs::read(path).ok().filter(|b| sha256(b) == prior.sha256)?;
+                (GoValue::parse(&bytes)?, true)
+            }
+        };
+        let mut doc = base.into_object().ok()?;
+        for key in &patch.remove {
+            doc.remove(key);
+        }
+        for (key, value) in &patch.set {
+            doc.insert(key.clone(), go_typed(value, loaded));
+        }
+        doc.insert("disabled".into(), GoValue::Bool(disabled));
+        Some((GoValue::Object(doc), loaded))
+    }
+
+    /// The [`Provenance`] of credential `id`, if one is known.
+    pub fn provenance(&self, id: &str) -> Option<Provenance> {
+        self.provenance
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .get(id)
+            .cloned()
+    }
+
+    fn note_provenance(&self, id: &str, revision: u64, sha256: [u8; 32], doc: Option<Arc<cpa_common::json::GoValue>>) {
+        self.provenance.lock().unwrap_or_else(PoisonError::into_inner).insert(
+            id.to_owned(),
+            Provenance {
+                revision,
+                sha256,
+                doc,
+                loaded: false,
+            },
+        );
+    }
+
+    /// Records that the current file credentials were loaded from the bytes `read`
+    /// hashed (an auth-folder scan's [`AuthScan::read`]). A credential whose recorded
+    /// save already holds those bytes at its revision keeps that save's document.
+    ///
+    /// [`AuthScan::read`]: cpa_core::config::credentials::AuthScan
+    pub fn note_loaded(&self, read: &std::collections::BTreeMap<std::path::PathBuf, [u8; 32]>) {
+        let creds = self.snapshot();
+        let mut provenance = self.provenance.lock().unwrap_or_else(PoisonError::into_inner);
+        provenance.retain(|id, _| creds.iter().any(|c| c.id == *id));
+        for c in creds.iter() {
+            let Source::File(path) = &c.source else { continue };
+            let Some(&hash) = read.get(path) else { continue };
+            let same = provenance
+                .get(&c.id)
+                .is_some_and(|p| p.revision == c.revision && p.sha256 == hash);
+            if !same {
+                provenance.insert(
+                    c.id.clone(),
+                    Provenance {
+                        revision: c.revision,
+                        sha256: hash,
+                        doc: None,
+                        loaded: false,
+                    },
+                );
+            }
+        }
     }
 
     /// Go `Service.removeAuth` (1e37b52b): a credential that left the set ends only the
@@ -2077,6 +2370,16 @@ impl CredentialStore {
         let reload = self.reload.write().unwrap_or_else(PoisonError::into_inner);
         let mut credentials = credentials;
         keep(&self.snapshot(), &mut credentials);
+        // A credential this scan synthesized has no revision yet; one kept for an
+        // incomplete or deferred file is the store's own record, not built from `read`.
+        let built: std::collections::HashSet<std::path::PathBuf> = credentials
+            .iter()
+            .filter(|c| c.revision == 0)
+            .filter_map(|c| match &c.source {
+                Source::File(path) => Some(path.clone()),
+                _ => None,
+            })
+            .collect();
         let mut rejected = Vec::new();
         if !read.is_empty() {
             let current = self.snapshot();
@@ -2136,6 +2439,10 @@ impl CredentialStore {
             .unwrap_or_else(PoisonError::into_inner)
             .reconcile(&inner.creds);
         drop(guard);
+        // Under the gate still: no save lands between the scan's publication and this.
+        let mut loaded = read.clone();
+        loaded.retain(|path, _| built.contains(path) && !rejected.contains(path));
+        self.note_loaded(&loaded);
         drop(reload);
         self.close_sessions(removed);
         self.clear_disabled_cooldowns();

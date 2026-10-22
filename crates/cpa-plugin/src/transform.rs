@@ -442,6 +442,7 @@ fn plugin_model_info(info: Option<&cpa_common::thinking::ModelCaps>) -> ModelInf
             max: t.max,
             zero_allowed: t.zero_allowed,
             dynamic_allowed: t.dynamic_allowed,
+            disable_type: t.disable_type.clone(),
             levels: t.levels.clone(),
         }),
         user_defined: info.user_defined,
@@ -452,6 +453,23 @@ fn plugin_model_info(info: Option<&cpa_common::thinking::ModelCaps>) -> ModelInf
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Go TestPluginThinkingSupportCarriesDisableTypeBothWays, registry to plugin: a
+    /// plugin thinking applier sees the model's `DisableType`.
+    #[test]
+    fn plugin_model_info_keeps_the_disable_type() {
+        let caps = cpa_common::thinking::ModelCaps {
+            id: "m".into(),
+            thinking: Some(cpa_core::registry::ThinkingSupport {
+                levels: vec!["low".into()],
+                disable_type: "between_tools".into(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let got = plugin_model_info(Some(&caps)).thinking.unwrap();
+        assert_eq!(got.disable_type, "between_tools");
+    }
 
     #[test]
     fn usage_sessions_follow_the_go_adapter() {

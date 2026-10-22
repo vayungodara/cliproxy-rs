@@ -276,7 +276,7 @@ func main() {
 			"ObfuscateExecCommandDescription", "ObfuscateWriteStdinDescription", "IsDevinCodexAppAutomationUpdate",
 			"MergeAdjacentGeminiContents", "ContentHasGeminiFunctionResponse", "ReorderGeminiUserParts", "MergeAdjacentGeminiUserContents",
 			"SplitGeminiFunctionResponseTurns", "SetGeminiFunctionResponseResult", "AlignOpenAIToolCallMessages"},
-		"internal/util":                                           {"NormalizeClaudeToolInputSchema", "HasUnsupportedUnicodePropertyEscape", "GeminiClaudeToolUseID", "IsClaudeCodeAttributionSystemText"},
+		"internal/util":                                           {"NormalizeClaudeToolInputSchema", "HasUnsupportedUnicodePropertyEscape", "GeminiClaudeToolUseID", "IsClaudeCodeAttributionSystemText", "CleanClaudeToolArgumentsWithTranslated"},
 		"internal/translator/antigravity/gemini":                  {"fixCLIToolResponse", "removeEmptyGeminiFunctionTools", "rewriteGeminiFunctionNames", "restoreUsageMetadata"},
 		"internal/translator/antigravity/interactions":            {"rewriteInteractionsFunctionNames"},
 		"internal/translator/antigravity/openai/chat-completions": {"normalizeAntigravityOpenAIThinkingConfig"},

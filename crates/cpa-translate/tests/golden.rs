@@ -128,16 +128,6 @@ fn request_output(result: Result<Vec<u8>, cpa_translate::Error>) -> Vec<u8> {
 /// shrinks as ports land and a listed fixture cannot hide a passing neighbour's regression.
 const PENDING: &[(&str, &str, &str)] = &[
     (
-        "openai-response->claude",
-        "TestConvertOpenAIResponsesRequestToClaude_UnsupportedPrefillModelsStripTrailingAssistant:2154#14",
-        "registry: dated Claude IDs share their family's limits (ad9e456d)",
-    ),
-    (
-        "openai-response->claude",
-        "TestConvertOpenAIResponsesRequestToClaude_UnsupportedPrefillModelsStripTrailingAssistant:2154#16",
-        "registry: claude-haiku-5-5 (f62d4d28)",
-    ),
-    (
         "claude->codex",
         "TestConvertClaudeRequestToCodex_AssistantMetaSignatureToReasoningItem:731",
         "signature replay: Meta Muse envelopes (7a0b7563, cc5682c5, 674dbe8f, a68c7d8e)",
@@ -159,90 +149,64 @@ const PENDING: &[(&str, &str, &str)] = &[
     ),
     (
         "claude->gemini",
+        "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:630",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:630#2",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:literal",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallAfterThinkingEmitsError:429:stream",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallAfterThinkingEmitsError:calls",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallWithoutUsageAndDuplicateTerminalChunk:470:stream",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallWithoutUsageAndDuplicateTerminalChunk:calls",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "TestConvertGeminiResponseToClaudeStream_PartlessMalformedFunctionCallClosesMessage:368:stream",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "TestConvertGeminiResponseToClaudeStream_PartlessMalformedFunctionCallClosesMessage:calls",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
+        "gemini-up/finish-reasons",
+        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
+    ),
+    (
+        "claude->gemini",
         "tools/schema/11",
         "Gemini schema cleaners: dependent keywords and multi-branch unions (9126772d, a0fd8448)",
     ),
 ];
 
-/// claude->gemini response fixtures that fail until the Gemini to Claude response port
-/// lands (a0d31924, 68ea171d, 58257007, 7f2f17d7, 202b8b8c). Exact fixture names; every
-/// other stream and non-stream fixture of the pair must match Go.
-const PENDING_GEMINI_CLAUDE_RESPONSES: &[&str] = &[
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_ConsecutiveSignedVisibleTexts:748",
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_ConsecutiveSignedVisibleTexts:748#2",
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_ConsecutiveSignedVisibleTexts:literal",
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_SignedVisibleText:668",
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_SignedVisibleText:668#2",
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_SignedVisibleText:literal#2",
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_ThinkingFollowedBySignedVisibleText:711",
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_ThinkingFollowedBySignedVisibleText:711#2",
-    "TestConvertGeminiResponseToClaudeNonStream_Issue6409_ThinkingFollowedBySignedVisibleText:literal",
-    "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:630",
-    "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:630#2",
-    "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:literal",
-    "TestConvertGeminiResponseToClaudeNonStream_PartWithThoughtSignatureWithoutThoughtBool:135",
-    "TestConvertGeminiResponseToClaudeNonStream_PartWithThoughtSignatureWithoutThoughtBool:literal",
-    "TestConvertGeminiResponseToClaudeNonStream_SafetyAndMalformedFunctionCallRefusal:605",
-    "TestConvertGeminiResponseToClaudeNonStream_SafetyAndMalformedFunctionCallRefusal:605#2",
-    "TestConvertGeminiResponseToClaudeNonStream_SafetyAndMalformedFunctionCallRefusal:605#3",
-    "TestConvertGeminiResponseToClaudeNonStream_SafetyAndMalformedFunctionCallRefusal:605#4",
-    "TestConvertGeminiResponseToClaudeNonStream_SafetyAndMalformedFunctionCallRefusal:605#5",
-    "TestConvertGeminiResponseToClaudeNonStream_SafetyAndMalformedFunctionCallRefusal:605#6",
-    "TestConvertGeminiResponseToClaudeNonStream_UniqueToolUseIDsAcrossTurns:1049:stream",
-    "TestConvertGeminiResponseToClaudeNonStream_UniqueToolUseIDsAcrossTurns:calls",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_FunctionCallContinuationSignature:957:stream",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_FunctionCallContinuationSignature:calls",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_SignedFunctionCall:905:stream",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_SignedFunctionCall:calls",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_SignedVisibleText:793:stream",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_SignedVisibleText:calls",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_SplitTrailingSignature:852:stream",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_SplitTrailingSignature:calls",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_ThinkingFollowedBySignedVisibleText:998:stream",
-    "TestConvertGeminiResponseToClaudeStream_Issue6409_ThinkingFollowedBySignedVisibleText:calls",
-    "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallAfterThinkingEmitsError:429:stream",
-    "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallAfterThinkingEmitsError:calls",
-    "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallWithoutUsageAndDuplicateTerminalChunk:470:stream",
-    "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallWithoutUsageAndDuplicateTerminalChunk:calls",
-    "TestConvertGeminiResponseToClaudeStream_PartlessMalformedFunctionCallClosesMessage:368:stream",
-    "TestConvertGeminiResponseToClaudeStream_PartlessMalformedFunctionCallClosesMessage:calls",
-    "TestConvertGeminiResponseToClaudeStream_PartlessSafetyClosesMessageWithRefusal:313:stream",
-    "TestConvertGeminiResponseToClaudeStream_PartlessSafetyClosesMessageWithRefusal:calls",
-    "TestConvertGeminiResponseToClaude_AmbiguousCanonicalNameKeepsUpstreamNameAndArguments:1146",
-    "TestConvertGeminiResponseToClaude_AmbiguousCanonicalNameKeepsUpstreamNameAndArguments:1146#2",
-    "TestConvertGeminiResponseToClaude_CanonicalNameCollisionKeepsExactToolArguments:1122",
-    "TestConvertGeminiResponseToClaude_CanonicalNameCollisionKeepsExactToolArguments:1122#2",
-    "TestConvertGeminiResponseToClaude_CanonicalNameCollisionKeepsExactToolArguments:1131:stream",
-    "TestConvertGeminiResponseToClaude_CanonicalNameCollisionKeepsExactToolArguments:1136",
-    "TestConvertGeminiResponseToClaude_CanonicalNameCollisionKeepsExactToolArguments:1136#2",
-    "TestConvertGeminiResponseToClaude_KeepsReasonWhenTranslatedSchemaHasNoPlaceholder:1164",
-    "TestConvertGeminiResponseToClaude_MalformedFunctionCallWithToolUsePreservesToolUse:506",
-    "TestConvertGeminiResponseToClaude_MalformedFunctionCallWithToolUsePreservesToolUse:506#2",
-    "TestConvertGeminiResponseToClaude_MalformedFunctionCallWithToolUsePreservesToolUse:513:stream",
-    "TestConvertGeminiResponseToClaude_ParameterlessToolContinuationDoesNotDuplicateEmptyObject:1177:stream",
-    "TestConvertGeminiResponseToClaude_SanitizesParameterlessToolArguments:1103",
-    "TestConvertGeminiResponseToClaude_SanitizesParameterlessToolArguments:1103#2",
-    "TestConvertGeminiResponseToClaude_SanitizesParameterlessToolArguments:1109:stream",
-    "gemini-up/create-time",
-    "gemini-up/finish-reasons",
-    "gemini-up/function-calls",
-    "gemini-up/non-stream/1",
-    "gemini-up/non-stream/2",
-];
-
-/// The pending entry covering a fixture: an index into PENDING, then into
-/// PENDING_GEMINI_CLAUDE_RESPONSES.
 fn pending(pair: &str, fixture: &Value) -> Option<usize> {
     let name = fixture["name"].as_str().unwrap_or_default();
-    PENDING
-        .iter()
-        .position(|(p, key, _)| *p == pair && name == *key)
-        .or_else(|| {
-            (pair == "claude->gemini")
-                .then(|| PENDING_GEMINI_CLAUDE_RESPONSES.iter().position(|n| *n == name))
-                .flatten()
-                .map(|i| PENDING.len() + i)
-        })
+    PENDING.iter().position(|(p, key, _)| *p == pair && name == *key)
 }
 
 fn run(client: Format, upstream: Format, f: &Value, bytes: bool) -> Vec<Vec<u8>> {
@@ -346,10 +310,9 @@ fn reference_goldens() {
     assert!(!files.is_empty());
     let mut failures = vec![];
     let mut total = 0;
-    let pending_len = PENDING.len() + PENDING_GEMINI_CLAUDE_RESPONSES.len();
     // Per pending entry: fixtures matched, and how many of them failed.
-    let mut pending_matched = vec![0; pending_len];
-    let mut pending_failed = vec![0; pending_len];
+    let mut pending_matched = vec![0; PENDING.len()];
+    let mut pending_failed = vec![0; PENDING.len()];
     for file in files {
         let doc: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
         let client = Format::parse(doc["client"].as_str().unwrap()).unwrap();
@@ -505,11 +468,7 @@ fn reference_goldens() {
             }
         }
     }
-    let keys = PENDING.iter().map(|(pair, key, _)| format!("{pair} {key}")).chain(
-        PENDING_GEMINI_CLAUDE_RESPONSES
-            .iter()
-            .map(|n| format!("claude->gemini {n}")),
-    );
+    let keys = PENDING.iter().map(|(pair, key, _)| format!("{pair} {key}"));
     for ((key, matched), failed) in keys.zip(&pending_matched).zip(&pending_failed) {
         if *matched == 0 {
             failures.push(format!("{key}: pending entry matches no fixture"));

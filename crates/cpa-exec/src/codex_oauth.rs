@@ -880,7 +880,7 @@ pub fn write_login(auth_dir: &Path, tokens: &Tokens) -> Result<PathBuf, ExecErro
     Ok(path)
 }
 
-fn publish(dir: &Path, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+pub(crate) fn publish(dir: &Path, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     use std::io::Write;
     let mut builder = std::fs::DirBuilder::new();
     builder.recursive(true);
@@ -908,7 +908,10 @@ fn publish(dir: &Path, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
         file.write_all(bytes)?;
         file.sync_all()?;
         std::fs::rename(&temp, path)?;
-        std::fs::File::open(dir)?.sync_all()
+        // Go never syncs the folder, and Windows cannot open one as a file.
+        #[cfg(unix)]
+        std::fs::File::open(dir)?.sync_all()?;
+        Ok(())
     })();
     if result.is_err() {
         let _ = std::fs::remove_file(&temp);
@@ -1058,7 +1061,7 @@ pub async fn device_login(auth_dir: &Path, options: &LoginOptions) -> Result<Pat
         .map_err(|_| oauth_error(500, "credential publication failed"))?
 }
 
-fn plain_client() -> Result<wreq::Client, ExecError> {
+pub(crate) fn plain_client() -> Result<wreq::Client, ExecError> {
     wreq::Client::builder()
         .redirect(wreq::redirect::Policy::none())
         .build()
@@ -1066,10 +1069,12 @@ fn plain_client() -> Result<wreq::Client, ExecError> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct Callback {
-    code: String,
-    state: String,
-    error: Option<String>,
+pub(crate) struct Callback {
+    pub code: String,
+    pub state: String,
+    pub error: Option<String>,
+    /// The client ID Sign in with ChatGPT issued (Go `OAuthResult.ClientID`).
+    pub client_id: String,
 }
 
 /// `misc.ParseOAuthCallback` for a pasted URL or query string.
@@ -1122,6 +1127,7 @@ fn parse_manual_callback(input: &str) -> Result<Callback, ExecError> {
         code,
         state,
         error: (!error.is_empty()).then_some(error),
+        client_id: String::new(),
     })
 }
 
@@ -1131,7 +1137,7 @@ const SUCCESS_HTML: &str = "<!DOCTYPE html><html lang=\"en\"><head><meta charset
 /// connection; anything else gets 404.
 // ponytail: bounded HTTP/1 parser, not a general server; Go's styled success page with the
 // platform setup notice is reduced to a short page.
-async fn callback(listener: &tokio::net::TcpListener) -> Result<Callback, ExecError> {
+pub(crate) async fn callback(listener: &tokio::net::TcpListener) -> Result<Callback, ExecError> {
     loop {
         let (mut socket, _) = listener
             .accept()
@@ -1204,6 +1210,7 @@ fn route_callback(head: &[u8]) -> (String, Option<Callback>) {
                         code: String::new(),
                         state: String::new(),
                         error: Some(error.to_owned()),
+                        client_id: String::new(),
                     }),
                 )
             };
@@ -1223,6 +1230,7 @@ fn route_callback(head: &[u8]) -> (String, Option<Callback>) {
                     code: get("code"),
                     state: get("state"),
                     error: None,
+                    client_id: get("client_id").trim().to_owned(),
                 }),
             )
         }

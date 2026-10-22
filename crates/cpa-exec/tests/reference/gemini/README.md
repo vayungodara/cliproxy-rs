@@ -1,7 +1,9 @@
 # Gemini and Interactions executor goldens
 
-`../../fixtures/gemini_go.json` holds outputs of the unmodified Go `GeminiExecutor`
-(`NewGeminiExecutor` and `NewGeminiInteractionsExecutor`, CLIProxyAPI `6fecc6e`). For
+`../../fixtures/gemini_go.json` holds outputs of the Go `GeminiExecutor`
+(`NewGeminiExecutor` and `NewGeminiInteractionsExecutor`) at CLIProxyAPI `6fecc6e`, with
+the Gemini to Claude response commits the Rust translator follows (see
+[below](#translator-commits-in-the-recorded-tree)). For
 every scenario the generator parses the scenario config with `config.ParseConfigBytes`,
 synthesizes credentials with the real config synthesizer (or uses explicit attributes),
 binds the model info the conductor would bind for configured models
@@ -34,11 +36,14 @@ ones still waiting.
 (`helps.TranslateStreamWithClaudeInputTokens` with an upstream format that has no stream
 transform, so chunks reach the estimator unchanged).
 
-Regenerate with a temporary module inside the reference module's internal-package
-boundary (the reference checkout is not modified):
+Regenerate from the patched tree described in
+[Translator commits in the recorded tree](#translator-commits-in-the-recorded-tree), not
+from plain `6fecc6e`, which would record stale Gemini to Claude expectations. Use a
+temporary module inside the reference module's internal-package boundary (the reference
+checkout is not modified):
 
 ```sh
-reference=/absolute/path/to/CLIProxyAPI   # at 6fecc6e
+reference=/absolute/path/to/CLIProxyAPI   # the patched tree below (tree cc013917), not plain 6fecc6e
 crate=/absolute/path/to/cliproxy-rs/crates/cpa-exec
 tmp=$(mktemp -d)
 cp "$crate"/tests/reference/gemini/*.go "$tmp/"
@@ -50,6 +55,24 @@ cp "$crate"/tests/reference/gemini/*.go "$tmp/"
   go mod tidy
   go run . "$crate/tests/fixtures/gemini_go.json"
 )
+```
+
+## Translator commits in the recorded tree
+
+The Gemini to Claude response translator follows v8.0.35 without `7f2f17d7`, whose
+executor half (a 502 for `MALFORMED_FUNCTION_CALL`) is not ported yet. The recorded tree is
+`6fecc6e` with `a0d31924`, `68ea171d`, `58257007` and `202b8b8c` cherry-picked, which
+apply cleanly. One Go test in that package calls the later two-value
+`ConvertClaudeRequestToGemini`; [`6fecc6e-gemini-claude-test.patch`](6fecc6e-gemini-claude-test.patch)
+adapts it, and `go test ./internal/translator/gemini/claude/ ./internal/util/` passes.
+Re-recording changed only `usage_claude_stream_non_terminal_usage` (`[DONE]` now closes
+the open block and sends `message_delta` before `message_stop`, `a0d31924`) and values
+the test already normalizes.
+
+```sh
+git checkout 6fecc6e && git cherry-pick a0d31924 68ea171d 58257007 202b8b8c \
+  && git am /absolute/path/to/cliproxy-rs/crates/cpa-exec/tests/reference/gemini/6fecc6e-gemini-claude-test.patch
+git rev-parse 'HEAD^{tree}'   # cc01391700b600815d1a342bc4b8190a206b7e94
 ```
 
 Go stream chunks are what the executor hands the route handler. The Rust executor

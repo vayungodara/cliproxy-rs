@@ -232,6 +232,17 @@ fn first_value(prefix: &[u8]) -> Option<&[u8]> {
     }
 }
 
+/// The first JSON value of a body read whole, as Go's `Decoder.Decode` takes it: a
+/// top-level scalar ends at the end of the body. `None` when it is cut off or invalid.
+pub(crate) fn whole_first_value(body: &[u8]) -> Option<&[u8]> {
+    let mut scan = GoScan::default();
+    match scan.first_value(body) {
+        Scanned::Complete(end) => Some(&body[..end]),
+        Scanned::Cut if matches!(scan.step(b' '), Step::Ended) => Some(body),
+        _ => None,
+    }
+}
+
 enum Scanned {
     /// The first value is `prefix[..end]`.
     Complete(usize),

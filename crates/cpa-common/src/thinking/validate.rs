@@ -123,13 +123,26 @@ pub fn validate_config(
     if config.mode == Mode::None && to == "claude" {
         config.budget = 0;
         config.level.clear();
+        // Adaptive-only Claude models reject thinking off: like other models that
+        // cannot be disabled, they fall back to their lowest level (Go ad9e456d). With
+        // ZeroAllowed, Budget stays 0 so the applier omits budget_tokens.
+        if !support.zero_allowed
+            && let Some(lowest) = lowest_supported_level(&support.levels)
+        {
+            config.mode = Mode::Level;
+            config.level = lowest.into();
+        }
     } else {
         if matches!(config.mode, Mode::Budget | Mode::Auto | Mode::None) {
             config.budget = clamp_budget(config.budget, support);
         }
         let cannot_disable = !support.zero_allowed && !is_level_supported(LEVEL_NONE, &support.levels);
-        if config.mode == Mode::None && !support.levels.is_empty() && (config.budget > 0 || cannot_disable) {
-            config.level.clone_from(&support.levels[0]);
+        if config.mode == Mode::None
+            && !support.levels.is_empty()
+            && (config.budget > 0 || cannot_disable)
+            && let Some(lowest) = lowest_supported_level(&support.levels)
+        {
+            config.level = lowest.into();
         }
     }
     Ok(config)
@@ -184,6 +197,16 @@ fn clamp_level(level: &str, info: Option<&ModelCaps>) -> String {
         }
     }
     best.map_or(level.to_owned(), |(idx, _)| STANDARD_LEVELS[idx].to_owned())
+}
+
+/// `lowestSupportedLevel`: the lowest standard effort level in `supported`, ignoring
+/// mode markers such as `none` and `auto`.
+fn lowest_supported_level(supported: &[String]) -> Option<&'static str> {
+    supported
+        .iter()
+        .filter_map(|s| level_index(s.trim()))
+        .min()
+        .map(|idx| STANDARD_LEVELS[idx])
 }
 
 fn clamp_budget(value: i64, support: &ThinkingSupport) -> i64 {

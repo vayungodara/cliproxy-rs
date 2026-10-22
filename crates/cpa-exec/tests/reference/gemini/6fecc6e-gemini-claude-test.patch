@@ -1,0 +1,27 @@
+From c25a592a48f849765ca2afd0d33819350adbaf1a Mon Sep 17 00:00:00 2001
+From: x <x@x>
+Date: Tue, 20 Oct 2026 22:25:16 +0000
+Subject: [PATCH] test: 6fecc6e's single-value ConvertClaudeRequestToGemini
+
+Amp-Thread-ID: https://ampcode.com/threads/T-01a15a6b-dbe7-72db-ac65-6b896ff6e21e
+Co-authored-by: Amp <amp@ampcode.com>
+---
+ .../translator/gemini/claude/gemini_claude_response_test.go  | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/internal/translator/gemini/claude/gemini_claude_response_test.go b/internal/translator/gemini/claude/gemini_claude_response_test.go
+index cc148649..5b56aa50 100644
+--- a/internal/translator/gemini/claude/gemini_claude_response_test.go
++++ b/internal/translator/gemini/claude/gemini_claude_response_test.go
+@@ -993,10 +993,7 @@ func TestConvertGeminiResponseToClaude_AmbiguousCanonicalNameKeepsUpstreamNameAn
+ func TestConvertGeminiResponseToClaude_KeepsReasonWhenTranslatedSchemaHasNoPlaceholder(t *testing.T) {
+ 	origRequest := []byte(`{"model":"gemini-3-flash","tools":[{"name":"Bash","input_schema":{"type":"object","properties":{"command":{"type":"string"}},"required":["command"]}}]}`)
+ 	ctx := context.Background()
+-	translatedRequest, errConvert := ConvertClaudeRequestToGemini("gemini-3-flash", origRequest, false)
+-	if errConvert != nil {
+-		t.Fatalf("ConvertClaudeRequestToGemini error: %v", errConvert)
+-	}
++	translatedRequest := ConvertClaudeRequestToGemini("gemini-3-flash", origRequest, false)
+ 	rawResponse := []byte(`{"candidates":[{"content":{"parts":[{"functionCall":{"name":"Bash","args":{"command":"ls","reason":"why"}}}],"role":"model"},"finishReason":"STOP"}],"modelVersion":"gemini-3-flash","responseId":"resp-bash-reason"}`)
+ 
+ 	nonStream := ConvertGeminiResponseToClaudeNonStream(ctx, "gemini-3-flash", origRequest, translatedRequest, rawResponse, nil)

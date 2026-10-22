@@ -891,6 +891,7 @@ dependencies = [
  "serde_json",
  "serde_yaml_ng",
  "sha2 0.10.9",
+ "socket2",
  "tiktoken-rs",
  "tokio",
  "tokio-btls",
@@ -900,6 +901,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+ "windows-sys 0.61.2",
  "wreq",
 ]
 

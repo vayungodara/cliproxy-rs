@@ -160,6 +160,10 @@ fn replay(fun: &str, a: &[Value], r: &[Value]) -> Option<(Vec<u8>, Vec<u8>)> {
             crate::antigravity_claude_response::gemini_claude_tool_use_id(&arg(0), &arg(1), &arg(2)),
             want(),
         ),
+        "CleanClaudeToolArgumentsWithTranslated" => (
+            crate::claude_tool_args::clean_claude_tool_arguments_with_translated(&arg(0), &arg(1), &arg(2), &arg(3)),
+            want(),
+        ),
         "IsClaudeCodeAttributionSystemText" => (
             bool_out(crate::common::is_claude_code_attribution_text(&arg(0))),
             flag(&r[0]),

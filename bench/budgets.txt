@@ -50,10 +50,21 @@
 # +30 KB archive) over master's build at 0805c43 (29_042_103 to 29_102_199); the lines
 # below are that job's measurements. The rest of the rise came with master's changes
 # since 2026-10-21.
-size.x86_64-unknown-linux-gnu.binary_bytes   43_592_784  2
-size.x86_64-unknown-linux-gnu.text_bytes     29_102_199  2
-size.x86_64-unknown-linux-gnu.rodata_bytes    8_562_144  2
-size.x86_64-unknown-linux-gnu.archive_bytes  18_504_245  2
+# 2026-10-22: Management auth file saves write Go's bytes (#149): Go's json.Marshal of
+# the metadata with float64 numbers read from the file's text, the equal-document check,
+# the fields value decoder and the provenance kept through reads and refreshes. At
+# a721e3f, +67 KB .text (+73 KB binary, +25 KB archive) over master's build at 98ec7d6
+# in this job (29_110_775 to 29_177_463); the lines below are that job's measurements.
+# 2026-10-22: plugin credential refresh through auth providers (#150): the plugin and
+# compatible refresh routes, the per-credential refresh deadlines, the saved disabled
+# state and published proxy URL, and the wire test's API. At 6cf1ff1, +67 KB .text
+# (+77 KB binary, +34 KB archive, +4 KB .rodata) over master's build at 827445c in this
+# job (29_343_799 to 29_410_423); the lines below are that job's measurements. The rest
+# of the rise came with master's changes since #149's line.
+size.x86_64-unknown-linux-gnu.binary_bytes   43_934_576  2
+size.x86_64-unknown-linux-gnu.text_bytes     29_410_423  2
+size.x86_64-unknown-linux-gnu.rodata_bytes    8_566_240  2
+size.x86_64-unknown-linux-gnu.archive_bytes  18_648_051  2
 # Crates linked into the binary in two or more versions; a new one fails until it is
 # justified here. 2026-10-05: base64, block-buffer, cpufeatures, crypto-common, digest,
 # getrandom, hashbrown (3), rand, rand_core, sha2, thiserror.
@@ -69,14 +80,24 @@ deps.x86_64-unknown-linux-gnu.duplicate_crates  11  0
 # (bench/results/2026-10-06-idle.jsonl). A ceiling of 30 would pass a new timer firing
 # about once a second, which this gate is there to stop; 3 leaves room for a stray
 # context switch on a shared runner and nothing more.
+# 2026-10-22: both RSS budgets re-measured at master. 1 file: master's CI read 25,360
+# (98ec7d6), 25,844 (85c7cf3), 25,436 (81afb74), 25,820 (c9e34d6) and 25,516 (827445c)
+# against a ceiling of 25,850, so the budget is their median rounded, 25,500. 2,000
+# files: #87 added claude-haiku-5-5 and the thinking objects to the Claude catalog, and
+# every Claude credential registers its own copy of each catalog model, as Go's
+# RegisterClient keeps a cloned ModelInfo per client. Five alternating bench/idle.sh runs
+# per build on one VM put c9e34d6 at a median of 52,224 KB RssAnon and 19,272 KB RssFile
+# and 827445c at 55,464 and 20,264: +3,240 KB of heap, 1.6 KB per credential, and +1 MB
+# of mapped binary pages. CI read 77,420 (eb800dc), 77,548 (827445c) and 77,492 (#152 on
+# 827445c) after #87, against 73,320 to 74,172 before it; the budget is their median.
 idle.linux.1.wakeups           3   0
 idle.linux.1.cpu_ticks         1   0
 idle.linux.1.threads           6   0
-idle.linux.1.rss_kb       23_500  10
+idle.linux.1.rss_kb       25_500  10
 idle.linux.2000.wakeups        3   0
 idle.linux.2000.cpu_ticks      1   0
 idle.linux.2000.threads        6   0
-idle.linux.2000.rss_kb    71_000  10
+idle.linux.2000.rss_kb    77_492  10
 
 # Idle, macOS and Windows (release builds and the weekly idle workflow): 60 s without
 # requests, after 30 s of warm-up (10 s for the measurements below). Windows adds one

@@ -1620,6 +1620,50 @@ func credScenarios() []credScenario {
 			get("/credentials"),
 		},
 	}, {
+		// Go's store rewrites a saved auth file as json.Marshal of its metadata: keys
+		// sorted at every level, HTML escaped, numbers from the file as float64 and
+		// patched ones as written; an equal document leaves the file alone. Codex saves
+		// keep the disk's credentials when it holds a login.
+		Name: "save_bytes",
+		YAML: "remote-management:\n  secret-key: '$HASH'\nauth-dir: $AUTH\n",
+		Files: map[string]string{
+			"raw-plain.json":       "{\"type\":\"claude\",\"email\":\"p@example.invalid\",\"z\":{\"b\":1.50,\"a\":\"<x&y>\"},\"n\":1e2,\"big\":12345678901234567890123,\"sep\":\"\u2028\",\"proxy-url\":\"http://p.example.invalid\",\"disabled\":false}\n",
+			"raw-same.json":        "{\n  \"type\": \"claude\",\n  \"disabled\": false,\n  \"n\": 1.0\n}\n",
+			"raw-codex.json":       `{"type":"codex","email":"c@example.invalid","refresh_token":"fake-rt","access_token":"fake-at","account_id":"acc","note":"x"}`,
+			"raw-codex-blank.json": `{"type":"codex","email":"d@example.invalid","access_token":"","note":"x"}`,
+			// Loaded at startup: Go holds these numbers as float64, correctly rounded.
+			"raw-reload.json": `{"type":"claude","disabled":false,"big":18446744073709553665,"request_retry":9007199254740993,"x":0}`,
+		},
+		Steps: []credStep{
+			call(http.MethodPatch, "/credentials/status", `{"name":"raw-same.json","disabled":false}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"raw-plain.json","disabled":true}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-plain.json","obj":{"z":1,"a":{"y":"<&>","b":2.50}},"num":1e2,"dec":1.50,"huge":123456789012345678901234567890,"neg":-0,"meta.inner":"\u2028\ud800","priority":5}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-codex.json","note":"n2","access_token":"fake-changed","plan_type":"pro"}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"raw-codex.json","disabled":true}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-codex-blank.json","access_token":"fake-new","id_token":"fake-id","note":"y"}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"raw-same.json","disabled":true}`),
+			// The record's flag is what the file gets, whatever the patch sent.
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-plain.json","disabled":"false"}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-same.json","disabled":null}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-codex-blank.json","disabled.x":1}`),
+			// Patched numbers keep the form they were sent in through later saves, until
+			// a new patch sends the same value in another form.
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-plain.json","num":100}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"raw-plain.json","disabled":true}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"raw-reload.json","disabled":true}`),
+			// 0 and -0 are equal documents, so the file is left alone; Go's metadata now
+			// holds -0, which the next save writes.
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-reload.json","x":-0}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"raw-reload.json","disabled":false}`),
+			// Handler-owned values: a non-string headers value as decoded, request_retry
+			// as the decoded int.
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-reload.json","headers":{"x":1e2}}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-reload.json","request_retry":9007199254740993}`),
+			call(http.MethodPatch, "/credentials/status", `{"name":"raw-reload.json","disabled":true}`),
+			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-codex-blank.json","disabled":"true"}`),
+			get("/credentials?name=raw-codex-blank.json"),
+		},
+	}, {
 		Name: "api_call_and_usage", Echo: true,
 		Files: map[string]string{
 			"claude-a.json": files["claude-a.json"],

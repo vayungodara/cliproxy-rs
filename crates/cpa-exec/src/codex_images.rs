@@ -578,9 +578,10 @@ fn image_files(form: &Form) -> &[Part] {
 
 /// `codexMultipartFileToDataURL`: the part's Content-Type, else the sniffed type.
 fn data_url(part: &Part) -> String {
-    let media = part
-        .header("Content-Type")
-        .map(str::trim)
+    // ponytail: a Content-Type that is not UTF-8 reaches the data URL lossily (image
+    // clients send ASCII media types); building the URL as bytes would keep it.
+    let header = String::from_utf8_lossy(part.header("Content-Type").unwrap_or_default());
+    let media = Some(header.trim())
         .filter(|m| !m.is_empty())
         .unwrap_or_else(|| detect_content_type(&part.body));
     format!(

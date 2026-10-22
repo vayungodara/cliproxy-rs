@@ -356,6 +356,16 @@ func scenarios() []scenario {
 		add(scenario{Name: "json_bind_no_limit " + c.name + " " + c.method + " " + c.path, YAML: limited(mgmtYAML, 0), Method: c.method,
 			Path: c.path, Headers: mgmt, Body: c.body})
 	}
+	// fields decodes each value into any with UseNumber: invalid UTF-8 and a lone
+	// surrogate become U+FFFD, and an integer past 64 bits stays as written.
+	for _, c := range []struct{ name, path, body string }{
+		{"invalid_utf8", "/v8/management/credentials/fields", "{\"name\":\"x.json\",\"note\":\"\xff\xfe\"}"},
+		{"lone_surrogate", "/v8/management/credentials/fields", `{"name":"x.json","note":"\ud800"}`},
+		{"huge_integer", "/v0/management/auth-files/fields", `{"name":"x.json","note":123456789012345678901234567890}`},
+	} {
+		add(scenario{Name: "json_bind_no_limit fields_value_" + c.name + " PATCH " + c.path, YAML: limited(mgmtYAML, 0), Method: "PATCH",
+			Path: c.path, Headers: mgmt, Body: c.body})
+	}
 	// Unknown members are skipped unconverted: an out-of-range number, nesting deeper
 	// than serde's 128 levels, invalid UTF-8 and a lone surrogate all bind.
 	for _, u := range []struct{ name, value string }{

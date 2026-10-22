@@ -958,8 +958,8 @@ fn tool_to_responses(tool: &Res<'_>, antigravity: bool) -> Option<Vec<u8>> {
     Some(out)
 }
 
-/// interactionsToolIdentityMap: the client identity of every winning Responses tool,
-/// plus (for antigravity) its renamed upstream name.
+/// interactionsToolIdentityMap: the client identity of every winning Responses tool, keyed
+/// by the name sent upstream (the Antigravity-renamed name when `antigravity`).
 pub(crate) fn tool_identity_map(raw: &[u8], antigravity: bool) -> HashMap<Vec<u8>, Identity> {
     let mut root = gj::parse(raw);
     let request = root.get("request");
@@ -967,28 +967,24 @@ pub(crate) fn tool_identity_map(raw: &[u8], antigravity: bool) -> HashMap<Vec<u8
         root = request;
     }
     let descriptors = tools::descriptors(&root);
-    let winners = tools::winners(&descriptors);
-    let identity = |order: usize| {
-        let d = &descriptors[order];
-        Identity {
-            name: d.local_name.clone(),
-            namespace: d.namespace.clone(),
-            custom: d.custom,
-            apply_patch: apply_patch::is_custom_tool(&d.tool),
-        }
-    };
-    let mut identities: HashMap<Vec<u8>, Identity> = winners
+    tools::winners(&descriptors)
         .iter()
-        .map(|(name, &order)| (name.clone(), identity(order)))
-        .collect();
-    if antigravity {
-        for (name, &order) in &winners {
-            identities
-                .entry(antigravity_name_to_upstream(name))
-                .or_insert_with(|| identity(order));
-        }
-    }
-    identities
+        .map(|(name, &order)| {
+            let d = &descriptors[order];
+            let key = if antigravity {
+                antigravity_name_to_upstream(name)
+            } else {
+                name.clone()
+            };
+            let identity = Identity {
+                name: d.local_name.clone(),
+                namespace: d.namespace.clone(),
+                custom: d.custom,
+                apply_patch: apply_patch::is_custom_tool(&d.tool),
+            };
+            (key, identity)
+        })
+        .collect()
 }
 
 #[cfg(test)]

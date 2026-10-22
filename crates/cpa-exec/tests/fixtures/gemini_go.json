@@ -3477,13 +3477,13 @@
       },
       "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 81\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
       "chunks": [
-        "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791017635743242823\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-        "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791017635743242823\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+        "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792535080672902172\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+        "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792535080672902172\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
         "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
         "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"he\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
         "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"llo\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
         "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-        "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1791017635743242823\",\"status\":\"completed\",\"usage\":{\"total_tokens\":5,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T08:53:55Z\",\"updated\":\"2026-10-03T08:53:55Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
+        "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1792535080672902172\",\"status\":\"completed\",\"usage\":{\"total_tokens\":5,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":2,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-20T22:24:40Z\",\"updated\":\"2026-10-20T22:24:40Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
         "event: done\ndata: [DONE]\n\n"
       ],
       "usage": {
@@ -4673,7 +4673,7 @@
         "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 104\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}]}",
-      "output": "{\"id\":\"int_1\",\"object\":\"chat.completion\",\"created\":1791017636,\"model\":\"gemini-3-pro-preview\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}",
+      "output": "{\"id\":\"int_1\",\"object\":\"chat.completion\",\"created\":1792535081,\"model\":\"gemini-3-pro-preview\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}",
       "usage": {
         "input_tokens": 3,
         "output_tokens": 1,
@@ -5221,7 +5221,7 @@
       "chunks": [
         "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1nZdL29xx5MUA1yADyHTEsnR8uuvGzszyY\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash-003\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
         "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n\n",
-        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
       ],
       "usage": {
         "input_tokens": 0,
@@ -5379,9 +5379,9 @@
       },
       "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 192\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-usage-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]}],\"stream\":true,\"generation_config\":{\"thinking_level\":\"high\",\"thinking_summaries\":\"auto\"}}",
       "chunks": [
-        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1791017636,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
-        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1791017636,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}",
-        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1791017636,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":22,\"total_tokens\":39,\"prompt_tokens_details\":{\"cached_tokens\":2},\"completion_tokens_details\":{\"reasoning_tokens\":4}}}"
+        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1792535081,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":null}]}",
+        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1792535081,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"},\"finish_reason\":null}]}",
+        "{\"id\":\"int_9\",\"object\":\"chat.completion.chunk\",\"created\":1792535081,\"model\":\"gemini-3-pro-preview-0901\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":11,\"completion_tokens\":22,\"total_tokens\":39,\"prompt_tokens_details\":{\"cached_tokens\":2},\"completion_tokens_details\":{\"reasoning_tokens\":4}}}"
       ],
       "usage": {
         "input_tokens": 11,

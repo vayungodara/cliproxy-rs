@@ -41,6 +41,7 @@ pub(crate) fn caps(v: &Value) -> Option<ModelCaps> {
         max: t["max"].as_i64().unwrap(),
         zero_allowed: t["zero_allowed"].as_bool().unwrap(),
         dynamic_allowed: t["dynamic_allowed"].as_bool().unwrap(),
+        disable_type: t.get("disable_type").and_then(Value::as_str).unwrap_or_default().into(),
         levels: t["levels"]
             .as_array()
             .unwrap()
@@ -238,8 +239,8 @@ fn replays_go_thinking_matrix() {
     let gz = include_bytes!("../../tests/fixtures/go_thinking_matrix.jsonl.gz");
     let lines = std::io::BufReader::new(flate2::read::GzDecoder::new(&gz[..])).lines();
     let ran = replay_all(lines.map(Result::unwrap));
-    assert_eq!(ran["applier"], 13291, "{ran:?}");
-    assert_eq!(ran["apply_thinking"], 6720, "{ran:?}");
+    assert_eq!(ran["applier"], 17868, "{ran:?}");
+    assert_eq!(ran["apply_thinking"], 8064, "{ran:?}");
 }
 
 fn replay_all(lines: impl Iterator<Item = String>) -> std::collections::BTreeMap<String, usize> {
@@ -337,49 +338,171 @@ fn suffix_and_conversion_edges() {
     assert_eq!(map_to_claude_effort("", true), None);
 }
 
-/// `reasoning_effort: "none"` (thinking off) on models that refuse
-/// `thinking: {"type": "disabled"}` becomes the lowest effort; other models keep
-/// Go's `disabled` (docs/DIFFERENCES-FROM-GO.md).
+/// Thinking off on Claude models that refuse `disabled` (Go ad9e456d,
+/// internal/thinking/claude_issue_6698_test.go): Sonnet 5.5 takes its catalog's
+/// `between_tools` with no other thinking fields, adaptive-only models fall back to
+/// effort `low` with the summary omitted, other models keep `disabled`. Mythos, which
+/// the catalog lacks, keeps the effort `low` fallback (docs/DIFFERENCES-FROM-GO.md).
 #[test]
-fn thinking_off_uses_the_lowest_effort_where_disabled_is_refused() {
-    let off = |model: &str, body: &str| {
+fn thinking_off_on_claude_models_that_refuse_disabled() {
+    let apply = |model: &str, body: &str| -> Value {
         let out = apply_thinking(body.as_bytes(), model, "claude", "claude", "claude").unwrap();
-        let out: Value = serde_json::from_slice(&out).unwrap();
-        (out["thinking"].clone(), out["output_config"].clone())
+        serde_json::from_slice(&out).unwrap()
     };
-    let disabled = |model: &str| {
-        format!(r#"{{"model":"{model}","max_tokens":64,"thinking":{{"type":"disabled"}},"messages":[]}}"#)
-    };
-    for model in ["claude-opus-5-5", "claude-fable-5-1", "claude-sonnet-5-5"] {
-        assert_eq!(
-            off(model, &disabled(model)),
-            (
-                serde_json::json!({"type": "adaptive"}),
-                serde_json::json!({"effort": "low"})
+    let msgs = r#""messages":[{"role":"user","content":"hi"}]"#;
+    let extras =
+        r#""budget_tokens":8000,"display":"summarized","block_binding":{"prefix_mismatch_behavior":"drop_block"}"#;
+    for (model, body) in [
+        (
+            "claude-sonnet-5-5",
+            format!(r#"{{"model":"claude-sonnet-5-5",{msgs},"thinking":{{"type":"disabled"}}}}"#),
+        ),
+        (
+            "claude-sonnet-5-5",
+            format!(
+                r#"{{"model":"claude-sonnet-5-5",{msgs},"thinking":{{"type":"disabled",{extras}}},"output_config":{{"effort":"xhigh"}}}}"#
             ),
-            "{model}"
+        ),
+        (
+            "claude-sonnet-5-5(none)",
+            format!(
+                r#"{{"model":"claude-sonnet-5-5",{msgs},"thinking":{{"type":"adaptive"}},"output_config":{{"effort":"max"}}}}"#
+            ),
+        ),
+        (
+            "claude-sonnet-5-5(0)",
+            format!(r#"{{"model":"claude-sonnet-5-5",{msgs},"thinking":{{"type":"adaptive"}}}}"#),
+        ),
+        (
+            "claude-sonnet-5-5",
+            format!(r#"{{"model":"claude-sonnet-5-5",{msgs},"thinking":{{"type":"enabled","budget_tokens":0}}}}"#),
+        ),
+        (
+            "claude-sonnet-5-5[1m]",
+            format!(r#"{{"model":"claude-sonnet-5-5[1m]",{msgs},"thinking":{{"type":"disabled"}}}}"#),
+        ),
+        (
+            "claude-sonnet-5-5-20261001",
+            format!(r#"{{"model":"claude-sonnet-5-5-20261001",{msgs},"thinking":{{"type":"disabled"}}}}"#),
+        ),
+    ] {
+        let out = apply(model, &body);
+        assert_eq!(
+            out["thinking"],
+            serde_json::json!({"type": "between_tools"}),
+            "{model}: {out}"
+        );
+        assert!(out.get("output_config").is_none(), "{model}: {out}");
+        let raw = serde_json::to_vec(&out).unwrap();
+        assert_eq!(extract_translated_reasoning_effort(&raw, "claude"), "none", "{model}");
+    }
+    for (model, fallback) in [
+        ("claude-opus-5-5", "low"),
+        ("claude-opus-5-5[1m]", "low"),
+        ("claude-opus-5-5-20261001", "low"),
+        ("claude-fable-5", "low"),
+        ("claude-fable-5-1[1m]", "low"),
+        ("claude-opus-5", ""),
+        ("claude-sonnet-5", ""),
+        ("claude-opus-4-8", ""),
+        ("claude-haiku-4-5-20251001", ""),
+    ] {
+        let out = apply(
+            model,
+            &format!(r#"{{"model":"{model}",{msgs},"thinking":{{"type":"disabled",{extras}}}}}"#),
+        );
+        if fallback.is_empty() {
+            assert_eq!(
+                out["thinking"],
+                serde_json::json!({"type": "disabled"}),
+                "{model}: {out}"
+            );
+            assert!(out.get("output_config").is_none(), "{model}: {out}");
+        } else {
+            assert_eq!(
+                out["thinking"],
+                serde_json::json!({"type": "adaptive", "display": "omitted"}),
+                "{model}: {out}"
+            );
+            assert_eq!(
+                out["output_config"],
+                serde_json::json!({"effort": fallback}),
+                "{model}: {out}"
+            );
+        }
+    }
+    // Configured levels in any order, or with `auto`, still fall back to `low`.
+    for levels in [["high", "medium", "low"], ["auto", "high", "low"]] {
+        let info = ModelCaps {
+            id: "claude-opus-5-5".into(),
+            kind: "claude".into(),
+            thinking: Some(ThinkingSupport {
+                dynamic_allowed: true,
+                levels: levels.map(String::from).to_vec(),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        let body = format!(r#"{{"model":"claude-opus-5-5",{msgs},"thinking":{{"type":"disabled"}}}}"#);
+        let out = apply_thinking_with_model_info(
+            body.as_bytes(),
+            b"",
+            "claude-opus-5-5",
+            "claude",
+            "claude",
+            "claude",
+            Some(&info),
+        )
+        .unwrap();
+        let out: Value = serde_json::from_slice(&out).unwrap();
+        assert_eq!(
+            out["output_config"],
+            serde_json::json!({"effort": "low"}),
+            "{levels:?}: {out}"
         );
     }
-    // An OpenAI Chat `reasoning_effort: "none"`, as the executor applies it: the
-    // translated body carries `disabled`, the source carries the effort.
-    let source = br#"{"model":"claude-opus-5-5","reasoning_effort":"none","messages":[]}"#;
-    let out = apply_thinking_with_source_and_summary(
-        disabled("claude-opus-5-5").as_bytes(),
-        source,
-        "claude-opus-5-5",
-        "openai",
-        "claude",
-        "claude",
-        SummaryConfig::default(),
-        false,
-    )
-    .unwrap();
-    let out: Value = serde_json::from_slice(&out).unwrap();
+    // Adaptive-only models map budgets to the nearest effort and keep auto plain
+    // adaptive; Opus 4.6 still takes a budget.
+    for model in [
+        "claude-opus-4-7",
+        "claude-opus-4-8",
+        "claude-fable-5",
+        "claude-fable-5-1",
+    ] {
+        let base = format!(r#"{{"model":"{model}","max_tokens":32000,{msgs}}}"#);
+        let budget = format!(
+            r#"{{"model":"{model}","max_tokens":32000,{msgs},"thinking":{{"type":"enabled","budget_tokens":16384}}}}"#
+        );
+        for (suffixed, body, effort) in [
+            (model.to_owned(), &budget, serde_json::json!("high")),
+            (format!("{model}(64000)"), &base, serde_json::json!("xhigh")),
+            (format!("{model}(auto)"), &base, Value::Null),
+        ] {
+            let out = apply(&suffixed, body);
+            assert_eq!(
+                out["thinking"],
+                serde_json::json!({"type": "adaptive"}),
+                "{suffixed}: {out}"
+            );
+            assert_eq!(out["output_config"]["effort"], effort, "{suffixed}: {out}");
+        }
+    }
+    let out = apply(
+        "claude-opus-4-6",
+        &format!(
+            r#"{{"model":"claude-opus-4-6","max_tokens":32000,{msgs},"thinking":{{"type":"enabled","budget_tokens":16384}}}}"#
+        ),
+    );
+    assert_eq!(
+        out["thinking"],
+        serde_json::json!({"type": "enabled", "budget_tokens": 16384}),
+        "{out}"
+    );
+    // Not in the catalog: the fixed list keeps effort `low` where Go sends `disabled`.
+    let out = apply(
+        "claude-mythos-5",
+        &format!(r#"{{"model":"claude-mythos-5",{msgs},"thinking":{{"type":"disabled"}}}}"#),
+    );
     assert_eq!(out["thinking"], serde_json::json!({"type": "adaptive"}), "{out}");
     assert_eq!(out["output_config"], serde_json::json!({"effort": "low"}), "{out}");
-    for model in ["claude-opus-4-8", "claude-sonnet-5"] {
-        let (thinking, output) = off(model, &disabled(model));
-        assert_eq!(thinking, serde_json::json!({"type": "disabled"}), "{model}");
-        assert!(output.is_null(), "{model}");
-    }
 }

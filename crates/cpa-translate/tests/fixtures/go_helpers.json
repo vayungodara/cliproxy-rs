@@ -1,7 +1,7 @@
 {
  "calls": [
   {
-   "name": "TestConvertAntigravityResponseToClaudeUsesStableGeminiToolProvenanceID:1370",
+   "name": "TestConvertAntigravityResponseToClaudeUsesStableGeminiToolProvenanceID:1422",
    "fn": "internal/util.GeminiClaudeToolUseID",
    "args": [
     {
@@ -543,7 +543,7 @@
    ]
   },
   {
-   "name": "TestNormalizeToolParameters_StripsNestedSchemaAndId:974",
+   "name": "TestNormalizeToolParameters_StripsNestedSchemaAndId:1089",
    "fn": "internal/translator/codex/claude.normalizeToolParameters",
    "args": [
     {
@@ -557,7 +557,7 @@
    ]
   },
   {
-   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1027",
+   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1142",
    "fn": "internal/translator/codex/claude.normalizeToolParameters",
    "args": [
     {
@@ -571,7 +571,7 @@
    ]
   },
   {
-   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1047",
+   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1162",
    "fn": "internal/translator/codex/claude.normalizeToolParameters",
    "args": [
     {
@@ -585,7 +585,7 @@
    ]
   },
   {
-   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1050",
+   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1165",
    "fn": "internal/translator/codex/claude.normalizeToolParameters",
    "args": [
     {
@@ -599,7 +599,7 @@
    ]
   },
   {
-   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1056",
+   "name": "TestNormalizeToolParameters_PreservesPropertyNamesAndLiteralData:1171",
    "fn": "internal/translator/codex/claude.normalizeToolParameters",
    "args": [
     {
@@ -688,6 +688,230 @@
     {
      "b": "eyJ0b29sX2Nob2ljZSI6ImF1dG8iLCJpbnB1dCI6W119",
      "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:8",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "read_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_read_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:13",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_read_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "read_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:8",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "external_read_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_external_read_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:13",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_external_read_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_read_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:8",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "external_external_read_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_external_external_read_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:13",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_external_external_read_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_external_read_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:8",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "write_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_write_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:13",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_write_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "write_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:8",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "external_write_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_external_write_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:13",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_external_write_file"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_write_file"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:8",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "execute_code"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_execute_code"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:13",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_execute_code"
+    }
+   ],
+   "results": [
+    {
+     "s": "execute_code"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:8",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "external_execute_code"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_external_execute_code"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:13",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_external_execute_code"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_execute_code"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:8",
+   "fn": "internal/translator/common.AntigravityToolNameToUpstream",
+   "args": [
+    {
+     "s": "external_lookup"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_lookup"
+    }
+   ]
+  },
+  {
+   "name": "TestIssue5190AntigravityToolNamesAreInjective:13",
+   "fn": "internal/translator/common.AntigravityUpstreamToolNameToClient",
+   "args": [
+    {
+     "s": "external_lookup"
+    }
+   ],
+   "results": [
+    {
+     "s": "external_lookup"
     }
    ]
   },
@@ -1032,20 +1256,6 @@
    "fn": "internal/client/codex/apply-patch.WrapInput",
    "args": [
     {
-     "s": "*** Begin Patch\n+  call 9 中文😀  \n*** End Patch\n"
-    }
-   ],
-   "results": [
-    {
-     "s": "{\"input\":\"*** Begin Patch\\n+  call 9 中文😀  \\n*** End Patch\\n\"}"
-    }
-   ]
-  },
-  {
-   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
-   "fn": "internal/client/codex/apply-patch.WrapInput",
-   "args": [
-    {
      "s": "*** Begin Patch\n+  call 10 中文😀  \n*** End Patch\n"
     }
    ],
@@ -1094,6 +1304,20 @@
    "results": [
     {
      "s": "{\"input\":\"*** Begin Patch\\n+  call 13 中文😀  \\n*** End Patch\\n\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestApplyPatchCallStateConcurrentIndependentCalls:70",
+   "fn": "internal/client/codex/apply-patch.WrapInput",
+   "args": [
+    {
+     "s": "*** Begin Patch\n+  call 9 中文😀  \n*** End Patch\n"
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"input\":\"*** Begin Patch\\n+  call 9 中文😀  \\n*** End Patch\\n\"}"
     }
    ]
   },
@@ -4364,464 +4588,6 @@
    ]
   },
   {
-   "name": "TestIsClaudeCodeAttributionSystemText:40",
-   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
-   "args": [
-    {
-     "s": "x-anthropic-billing-header: cc_version=2.1.63.abc; cc_entrypoint=cli; cch=12345;"
-    }
-   ],
-   "results": [
-    {
-     "bool": true
-    }
-   ]
-  },
-  {
-   "name": "TestIsClaudeCodeAttributionSystemText:40",
-   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
-   "args": [
-    {
-     "s": "\n\t x-anthropic-billing-header: cc_version=2.1.63.abc; cch=12345;"
-    }
-   ],
-   "results": [
-    {
-     "bool": true
-    }
-   ]
-  },
-  {
-   "name": "TestIsClaudeCodeAttributionSystemText:40",
-   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
-   "args": [
-    {
-     "s": "You are helpful."
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestIsClaudeCodeAttributionSystemText:40",
-   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
-   "args": [
-    {
-     "s": ""
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestNormalizeClaudeToolInputSchema:110",
-   "fn": "internal/util.NormalizeClaudeToolInputSchema",
-   "args": [
-    {
-     "b": "ewoJCQkJImFueU9mIjogWwoJCQkJCXsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsiYSI6eyJ0eXBlIjoic3RyaW5nIn19fSwKCQkJCQl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImIiOnsidHlwZSI6ImludGVnZXIifX19CgkJCQldCgkJCX0=",
-     "nil": false
-    }
-   ],
-   "results": [
-    {
-     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJpbnRlZ2VyIn19LCJ0eXBlIjoib2JqZWN0In0=",
-     "nil": false
-    }
-   ]
-  },
-  {
-   "name": "TestNormalizeClaudeToolInputSchema:110",
-   "fn": "internal/util.NormalizeClaudeToolInputSchema",
-   "args": [
-    {
-     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsKCQkJCQkibmVzdGVkIjp7Im9uZU9mIjpbeyJ0eXBlIjoic3RyaW5nIn0seyJ0eXBlIjoibnVtYmVyIn1dfQoJCQkJfSwKCQkJCSJvbmVPZiI6WwoJCQkJCXsicHJvcGVydGllcyI6eyJhIjp7InR5cGUiOiJzdHJpbmcifX0sInJlcXVpcmVkIjpbImEiXX0sCgkJCQkJeyJwcm9wZXJ0aWVzIjp7ImIiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsiYiJdfQoJCQkJXQoJCQl9",
-     "nil": false
-    }
-   ],
-   "results": [
-    {
-     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJzdHJpbmcifSwibmVzdGVkIjp7Im9uZU9mIjpbeyJ0eXBlIjoic3RyaW5nIn0seyJ0eXBlIjoibnVtYmVyIn1dfX0sInR5cGUiOiJvYmplY3QifQ==",
-     "nil": false
-    }
-   ]
-  },
-  {
-   "name": "TestNormalizeClaudeToolInputSchema:110",
-   "fn": "internal/util.NormalizeClaudeToolInputSchema",
-   "args": [
-    {
-     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsiYSI6eyJ0eXBlIjoic3RyaW5nIn0sImIiOnsidHlwZSI6InN0cmluZyJ9fSwKCQkJCSJhbnlPZiI6W3sicmVxdWlyZWQiOlsiYSJdfSx7InJlcXVpcmVkIjpbImIiXX1dCgkJCX0=",
-     "nil": false
-    }
-   ],
-   "results": [
-    {
-     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJzdHJpbmcifX0sInR5cGUiOiJvYmplY3QifQ==",
-     "nil": false
-    }
-   ]
-  },
-  {
-   "name": "TestNormalizeClaudeToolInputSchema:110",
-   "fn": "internal/util.NormalizeClaudeToolInputSchema",
-   "args": [
-    {
-     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsiYmFzZSI6eyJ0eXBlIjoiYm9vbGVhbiJ9fSwKCQkJCSJyZXF1aXJlZCI6WyJiYXNlIl0sCgkJCQkiYWxsT2YiOlsKCQkJCQl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsiYSJdfSwKCQkJCQl7InByb3BlcnRpZXMiOnsiYiI6eyJ0eXBlIjoiaW50ZWdlciJ9fSwicmVxdWlyZWQiOlsiYSIsImIiXX0KCQkJCV0KCQkJfQ==",
-     "nil": false
-    }
-   ],
-   "results": [
-    {
-     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJpbnRlZ2VyIn0sImJhc2UiOnsidHlwZSI6ImJvb2xlYW4ifX0sInJlcXVpcmVkIjpbImJhc2UiLCJhIiwiYiJdLCJ0eXBlIjoib2JqZWN0In0=",
-     "nil": false
-    }
-   ]
-  },
-  {
-   "name": "TestNormalizeClaudeToolInputSchema:110",
-   "fn": "internal/util.NormalizeClaudeToolInputSchema",
-   "args": [
-    {
-     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsicXVlcnkiOnsidHlwZSI6InN0cmluZyJ9fSwKCQkJCSJyZXF1aXJlZCI6WyJxdWVyeSJdLAoJCQkJImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjpmYWxzZQoJCQl9",
-     "nil": false
-    }
-   ],
-   "results": [
-    {
-     "b": "eyJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2UsInByb3BlcnRpZXMiOnsicXVlcnkiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsicXVlcnkiXSwidHlwZSI6Im9iamVjdCJ9",
-     "nil": false
-    }
-   ]
-  },
-  {
-   "name": "TestNormalizeClaudeToolInputSchema:110",
-   "fn": "internal/util.NormalizeClaudeToolInputSchema",
-   "args": [
-    {
-     "b": "eyJ0eXBlIjo=",
-     "nil": false
-    }
-   ],
-   "results": [
-    {
-     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6e319",
-     "nil": false
-    }
-   ]
-  },
-  {
-   "name": "TestNormalizeClaudeToolInputSchema:110",
-   "fn": "internal/util.NormalizeClaudeToolInputSchema",
-   "args": [
-    {
-     "b": "dHJ1ZQ==",
-     "nil": false
-    }
-   ],
-   "results": [
-    {
-     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6e319",
-     "nil": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^(?!__.*__$)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\"\\./[\\]]{1,200}$"
-    }
-   ],
-   "results": [
-    {
-     "bool": true
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^\\P{L}+$"
-    }
-   ],
-   "results": [
-    {
-     "bool": true
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^\\\\p{Cc}$"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^\\\\\\p{Cc}$"
-    }
-   ],
-   "results": [
-    {
-     "bool": true
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^\\\\\\\\p{Cc}$"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^[0-9a-f]{32}$"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^(?!__.*__$).{1,200}$"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^(a)\\1$"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^[^\\0]*$"
-    }
-   ],
-   "results": [
-    {
-     "bool": true
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^[^\\x00]*$"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "^\\\\0$"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "abc\\"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "\\p"
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": "\\p{"
-    }
-   ],
-   "results": [
-    {
-     "bool": true
-    }
-   ]
-  },
-  {
-   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
-   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
-   "args": [
-    {
-     "s": ""
-    }
-   ],
-   "results": [
-    {
-     "bool": false
-    }
-   ]
-  },
-  {
-   "name": "TestGeminiClaudeToolUseIDStableAndBound:7",
-   "fn": "internal/util.GeminiClaudeToolUseID",
-   "args": [
-    {
-     "s": "native-call-1"
-    },
-    {
-     "s": "Edit"
-    },
-    {
-     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"y\"}"
-    }
-   ],
-   "results": [
-    {
-     "s": "cpa_gemini_1bf997c3599657d6c97d05664d116e18"
-    }
-   ]
-  },
-  {
-   "name": "TestGeminiClaudeToolUseIDStableAndBound:8",
-   "fn": "internal/util.GeminiClaudeToolUseID",
-   "args": [
-    {
-     "s": "native-call-1"
-    },
-    {
-     "s": "Edit"
-    },
-    {
-     "s": "{\"new_string\":\"y\",\"old_string\":\"x\",\"file_path\":\"/tmp/a\"}"
-    }
-   ],
-   "results": [
-    {
-     "s": "cpa_gemini_1bf997c3599657d6c97d05664d116e18"
-    }
-   ]
-  },
-  {
-   "name": "TestGeminiClaudeToolUseIDStableAndBound:12",
-   "fn": "internal/util.GeminiClaudeToolUseID",
-   "args": [
-    {
-     "s": "native-call-1"
-    },
-    {
-     "s": "Edit"
-    },
-    {
-     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"z\"}"
-    }
-   ],
-   "results": [
-    {
-     "s": "cpa_gemini_15a28b6f64ce0270add76903c16eaacd"
-    }
-   ]
-  },
-  {
-   "name": "TestGeminiClaudeToolUseIDStableAndBound:15",
-   "fn": "internal/util.GeminiClaudeToolUseID",
-   "args": [
-    {
-     "s": ""
-    },
-    {
-     "s": "Edit"
-    },
-    {
-     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"y\"}"
-    }
-   ],
-   "results": [
-    {
-     "s": ""
-    }
-   ]
-  },
-  {
    "name": "TestApplyPatchToolContract:13",
    "fn": "internal/client/codex/apply-patch.IsCustomTool",
    "args": [
@@ -6420,6 +6186,2239 @@
     },
     {
      "err": "decode apply_patch input value: invalid character 'x' in string escape code"
+    }
+   ]
+  },
+  {
+   "name": "TestIsClaudeCodeAttributionSystemText:40",
+   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
+   "args": [
+    {
+     "s": "x-anthropic-billing-header: cc_version=2.1.63.abc; cc_entrypoint=cli; cch=12345;"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestIsClaudeCodeAttributionSystemText:40",
+   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
+   "args": [
+    {
+     "s": "\n\t x-anthropic-billing-header: cc_version=2.1.63.abc; cch=12345;"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestIsClaudeCodeAttributionSystemText:40",
+   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
+   "args": [
+    {
+     "s": "You are helpful."
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestIsClaudeCodeAttributionSystemText:40",
+   "fn": "internal/util.IsClaudeCodeAttributionSystemText",
+   "args": [
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJImFueU9mIjogWwoJCQkJCXsidHlwZSI6Im9iamVjdCIsInByb3BlcnRpZXMiOnsiYSI6eyJ0eXBlIjoic3RyaW5nIn19fSwKCQkJCQl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImIiOnsidHlwZSI6ImludGVnZXIifX19CgkJCQldCgkJCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJpbnRlZ2VyIn19LCJ0eXBlIjoib2JqZWN0In0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsKCQkJCQkibmVzdGVkIjp7Im9uZU9mIjpbeyJ0eXBlIjoic3RyaW5nIn0seyJ0eXBlIjoibnVtYmVyIn1dfQoJCQkJfSwKCQkJCSJvbmVPZiI6WwoJCQkJCXsicHJvcGVydGllcyI6eyJhIjp7InR5cGUiOiJzdHJpbmcifX0sInJlcXVpcmVkIjpbImEiXX0sCgkJCQkJeyJwcm9wZXJ0aWVzIjp7ImIiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsiYiJdfQoJCQkJXQoJCQl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJzdHJpbmcifSwibmVzdGVkIjp7Im9uZU9mIjpbeyJ0eXBlIjoic3RyaW5nIn0seyJ0eXBlIjoibnVtYmVyIn1dfX0sInR5cGUiOiJvYmplY3QifQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsiYSI6eyJ0eXBlIjoic3RyaW5nIn0sImIiOnsidHlwZSI6InN0cmluZyJ9fSwKCQkJCSJhbnlPZiI6W3sicmVxdWlyZWQiOlsiYSJdfSx7InJlcXVpcmVkIjpbImIiXX1dCgkJCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJzdHJpbmcifX0sInR5cGUiOiJvYmplY3QifQ==",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsiYmFzZSI6eyJ0eXBlIjoiYm9vbGVhbiJ9fSwKCQkJCSJyZXF1aXJlZCI6WyJiYXNlIl0sCgkJCQkiYWxsT2YiOlsKCQkJCQl7InR5cGUiOiJvYmplY3QiLCJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsiYSJdfSwKCQkJCQl7InByb3BlcnRpZXMiOnsiYiI6eyJ0eXBlIjoiaW50ZWdlciJ9fSwicmVxdWlyZWQiOlsiYSIsImIiXX0KCQkJCV0KCQkJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJwcm9wZXJ0aWVzIjp7ImEiOnsidHlwZSI6InN0cmluZyJ9LCJiIjp7InR5cGUiOiJpbnRlZ2VyIn0sImJhc2UiOnsidHlwZSI6ImJvb2xlYW4ifX0sInJlcXVpcmVkIjpbImJhc2UiLCJhIiwiYiJdLCJ0eXBlIjoib2JqZWN0In0=",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "ewoJCQkJInR5cGUiOiJvYmplY3QiLAoJCQkJInByb3BlcnRpZXMiOnsicXVlcnkiOnsidHlwZSI6InN0cmluZyJ9fSwKCQkJCSJyZXF1aXJlZCI6WyJxdWVyeSJdLAoJCQkJImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjpmYWxzZQoJCQl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJhZGRpdGlvbmFsUHJvcGVydGllcyI6ZmFsc2UsInByb3BlcnRpZXMiOnsicXVlcnkiOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsicXVlcnkiXSwidHlwZSI6Im9iamVjdCJ9",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "eyJ0eXBlIjo=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6e319",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestNormalizeClaudeToolInputSchema:110",
+   "fn": "internal/util.NormalizeClaudeToolInputSchema",
+   "args": [
+    {
+     "b": "dHJ1ZQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "b": "eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6e319",
+     "nil": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^(?!__.*__$)[^\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\"\\./[\\]]{1,200}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\P{L}+$"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\\\p{Cc}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\\\\\p{Cc}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\\\\\\\p{Cc}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^[0-9a-f]{32}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^(?!__.*__$).{1,200}$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^(a)\\1$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^[^\\0]*$"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^[^\\x00]*$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "^\\\\0$"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "abc\\"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "\\p"
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": "\\p{"
+    }
+   ],
+   "results": [
+    {
+     "bool": true
+    }
+   ]
+  },
+  {
+   "name": "TestHasUnsupportedUnicodePropertyEscape:201",
+   "fn": "internal/util.HasUnsupportedUnicodePropertyEscape",
+   "args": [
+    {
+     "s": ""
+    }
+   ],
+   "results": [
+    {
+     "bool": false
+    }
+   ]
+  },
+  {
+   "name": "TestGeminiClaudeToolUseIDStableAndBound:7",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": "native-call-1"
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"y\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "cpa_gemini_1bf997c3599657d6c97d05664d116e18"
+    }
+   ]
+  },
+  {
+   "name": "TestGeminiClaudeToolUseIDStableAndBound:8",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": "native-call-1"
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"new_string\":\"y\",\"old_string\":\"x\",\"file_path\":\"/tmp/a\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "cpa_gemini_1bf997c3599657d6c97d05664d116e18"
+    }
+   ]
+  },
+  {
+   "name": "TestGeminiClaudeToolUseIDStableAndBound:12",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": "native-call-1"
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"z\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": "cpa_gemini_15a28b6f64ce0270add76903c16eaacd"
+    }
+   ]
+  },
+  {
+   "name": "TestGeminiClaudeToolUseIDStableAndBound:15",
+   "fn": "internal/util.GeminiClaudeToolUseID",
+   "args": [
+    {
+     "s": ""
+    },
+    {
+     "s": "Edit"
+    },
+    {
+     "s": "{\"file_path\":\"/tmp/a\",\"old_string\":\"x\",\"new_string\":\"y\"}"
+    }
+   ],
+   "results": [
+    {
+     "s": ""
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"Entering plan mode\"}"
+    },
+    {
+     "s": "EnterPlanMode"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"List jobs\"}"
+    },
+    {
+     "s": "CronList"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"command\":\"ls -la\"}"
+    },
+    {
+     "s": "Bash"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"command\":\"ls -la\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"command\":\"ls -la\",\"reason\":\"why\"}"
+    },
+    {
+     "s": "Bash"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"command\":\"ls -la\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"command\":\"ls -la\",\"reason\":\"why\"}"
+    },
+    {
+     "s": "Bash"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJyZXF1ZXN0IjogeyJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogW3sibmFtZSI6ICJCYXNoIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjb21tYW5kIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJjb21tYW5kIl19fV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"command\":\"ls -la\",\"reason\":\"why\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"command\":\"ls -la\",\"reason\":\"why\"}"
+    },
+    {
+     "s": "Bash"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJyZXF1ZXN0IjogeyJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogW3sibmFtZSI6ICJCYXNoIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjb21tYW5kIjogeyJ0eXBlIjogInN0cmluZyJ9LCAicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJjb21tYW5kIiwgInJlYXNvbiJdfX1dfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"command\":\"ls -la\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"command\":\"ls -la\",\"_\":true}"
+    },
+    {
+     "s": "Bash"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"command\":\"ls -la\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"valid\"}"
+    },
+    {
+     "s": "CustomToolWithReason"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"valid\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"name\":\"x\",\"reason\":\"dynamic\"}"
+    },
+    {
+     "s": "DynamicTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"name\":\"x\",\"reason\":\"dynamic\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "UnionTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "EnterPlanMode"
+    },
+    {
+     "b": "",
+     "nil": true
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": ""
+    },
+    {
+     "s": "EnterPlanMode"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{}"
+    },
+    {
+     "s": "EnterPlanMode"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkVudGVyUGxhbk1vZGUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogIkNyb25MaXN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QifX0sCgkJCXsibmFtZSI6ICJCYXNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY29tbWFuZCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsiY29tbWFuZCJdfX0sCgkJCXsibmFtZSI6ICJDdXN0b21Ub29sV2l0aFJlYXNvbiIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwKCQkJeyJuYW1lIjogIkR5bmFtaWNUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibmFtZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlVuaW9uVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"key\":\"value\"}"
+    },
+    {
+     "s": "MapTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIk1hcFRvb2wiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlR5cGVkTWFwVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogeyJ0eXBlIjogInN0cmluZyJ9fX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"key\":\"value\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"key\":\"value\"}"
+    },
+    {
+     "s": "TypedMapTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIk1hcFRvb2wiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlR5cGVkTWFwVG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogeyJ0eXBlIjogInN0cmluZyJ9fX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"key\":\"value\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"path\":\"/tmp/a\"}"
+    },
+    {
+     "s": "read"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlJlYWQiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogInJlYWQiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"path\":\"/tmp/a\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "Read"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlJlYWQiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwKCQkJeyJuYW1lIjogInJlYWQiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "AllOfEmpty"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJBbGxPZkFyZ3MiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InBhdGgiOiB7InR5cGUiOiAic3RyaW5nIn19fV19fSwKCQkJeyJuYW1lIjogIlJlZkVtcHR5IiwgImlucHV0X3NjaGVtYSI6IHsiJHJlZiI6ICIjLyRkZWZzL2VtcHR5IiwgIiRkZWZzIjogeyJlbXB0eSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX19fSwKCQkJeyJuYW1lIjogIk5lc3RlZFRvb2wiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319LCAiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"path\":\"/tmp/a\"}"
+    },
+    {
+     "s": "AllOfArgs"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJBbGxPZkFyZ3MiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InBhdGgiOiB7InR5cGUiOiAic3RyaW5nIn19fV19fSwKCQkJeyJuYW1lIjogIlJlZkVtcHR5IiwgImlucHV0X3NjaGVtYSI6IHsiJHJlZiI6ICIjLyRkZWZzL2VtcHR5IiwgIiRkZWZzIjogeyJlbXB0eSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX19fSwKCQkJeyJuYW1lIjogIk5lc3RlZFRvb2wiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319LCAiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"path\":\"/tmp/a\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "RefEmpty"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJBbGxPZkFyZ3MiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InBhdGgiOiB7InR5cGUiOiAic3RyaW5nIn19fV19fSwKCQkJeyJuYW1lIjogIlJlZkVtcHR5IiwgImlucHV0X3NjaGVtYSI6IHsiJHJlZiI6ICIjLyRkZWZzL2VtcHR5IiwgIiRkZWZzIjogeyJlbXB0eSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX19fSwKCQkJeyJuYW1lIjogIk5lc3RlZFRvb2wiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319LCAiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"opts\":{\"reason\":\"x\"},\"cfg\":{\"mode\":\"fast\",\"_\":true}}"
+    },
+    {
+     "s": "NestedTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJBbGxPZkFyZ3MiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InBhdGgiOiB7InR5cGUiOiAic3RyaW5nIn19fV19fSwKCQkJeyJuYW1lIjogIlJlZkVtcHR5IiwgImlucHV0X3NjaGVtYSI6IHsiJHJlZiI6ICIjLyRkZWZzL2VtcHR5IiwgIiRkZWZzIjogeyJlbXB0eSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX19fSwKCQkJeyJuYW1lIjogIk5lc3RlZFRvb2wiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319LCAiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"opts\":{},\"cfg\":{\"mode\":\"fast\"}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"payload\":{\"value\":1}}"
+    },
+    {
+     "s": "FreeFormNested"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkZyZWVGb3JtTmVzdGVkIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicGF5bG9hZCI6IHt9fSwgInJlcXVpcmVkIjogWyJwYXlsb2FkIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mTWVyZ2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im1vZGUiOiB7InR5cGUiOiAic3RyaW5nIn19fX0sICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fV19fSwKCQkJeyJuYW1lIjogIlNpbmdsZVVuaW9uRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJEeW5hbWljUGFyZW50IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlJlZkFycmF5IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiaXRlbXMiOiB7IiRyZWYiOiAiIy8kZGVmcy9saXN0In19LCAiJGRlZnMiOiB7Imxpc3QiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InYiOiB7InR5cGUiOiAic3RyaW5nIn19fX19fX0sCgkJCXsibmFtZSI6ICJQcm9wUmVmIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGVtcGxhdGUiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX0sICJjb3B5IjogeyIkcmVmIjogIiMvcHJvcGVydGllcy90ZW1wbGF0ZSJ9fX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"payload\":{\"value\":1}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"cfg\":{\"mode\":\"a\",\"reason\":\"b\"}}"
+    },
+    {
+     "s": "AllOfMerge"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkZyZWVGb3JtTmVzdGVkIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicGF5bG9hZCI6IHt9fSwgInJlcXVpcmVkIjogWyJwYXlsb2FkIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mTWVyZ2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im1vZGUiOiB7InR5cGUiOiAic3RyaW5nIn19fX0sICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fV19fSwKCQkJeyJuYW1lIjogIlNpbmdsZVVuaW9uRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJEeW5hbWljUGFyZW50IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlJlZkFycmF5IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiaXRlbXMiOiB7IiRyZWYiOiAiIy8kZGVmcy9saXN0In19LCAiJGRlZnMiOiB7Imxpc3QiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InYiOiB7InR5cGUiOiAic3RyaW5nIn19fX19fX0sCgkJCXsibmFtZSI6ICJQcm9wUmVmIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGVtcGxhdGUiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX0sICJjb3B5IjogeyIkcmVmIjogIiMvcHJvcGVydGllcy90ZW1wbGF0ZSJ9fX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"cfg\":{\"mode\":\"a\",\"reason\":\"b\"}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "SingleUnionEmpty"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkZyZWVGb3JtTmVzdGVkIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicGF5bG9hZCI6IHt9fSwgInJlcXVpcmVkIjogWyJwYXlsb2FkIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mTWVyZ2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im1vZGUiOiB7InR5cGUiOiAic3RyaW5nIn19fX0sICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fV19fSwKCQkJeyJuYW1lIjogIlNpbmdsZVVuaW9uRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJEeW5hbWljUGFyZW50IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlJlZkFycmF5IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiaXRlbXMiOiB7IiRyZWYiOiAiIy8kZGVmcy9saXN0In19LCAiJGRlZnMiOiB7Imxpc3QiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InYiOiB7InR5cGUiOiAic3RyaW5nIn19fX19fX0sCgkJCXsibmFtZSI6ICJQcm9wUmVmIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGVtcGxhdGUiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX0sICJjb3B5IjogeyIkcmVmIjogIiMvcHJvcGVydGllcy90ZW1wbGF0ZSJ9fX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"extra\":1,\"opts\":{\"reason\":\"x\"}}"
+    },
+    {
+     "s": "DynamicParent"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkZyZWVGb3JtTmVzdGVkIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicGF5bG9hZCI6IHt9fSwgInJlcXVpcmVkIjogWyJwYXlsb2FkIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mTWVyZ2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im1vZGUiOiB7InR5cGUiOiAic3RyaW5nIn19fX0sICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fV19fSwKCQkJeyJuYW1lIjogIlNpbmdsZVVuaW9uRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJEeW5hbWljUGFyZW50IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlJlZkFycmF5IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiaXRlbXMiOiB7IiRyZWYiOiAiIy8kZGVmcy9saXN0In19LCAiJGRlZnMiOiB7Imxpc3QiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InYiOiB7InR5cGUiOiAic3RyaW5nIn19fX19fX0sCgkJCXsibmFtZSI6ICJQcm9wUmVmIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGVtcGxhdGUiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX0sICJjb3B5IjogeyIkcmVmIjogIiMvcHJvcGVydGllcy90ZW1wbGF0ZSJ9fX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"extra\":1,\"opts\":{}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"items\":[{\"v\":\"a\",\"_\":true}]}"
+    },
+    {
+     "s": "RefArray"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkZyZWVGb3JtTmVzdGVkIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicGF5bG9hZCI6IHt9fSwgInJlcXVpcmVkIjogWyJwYXlsb2FkIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mTWVyZ2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im1vZGUiOiB7InR5cGUiOiAic3RyaW5nIn19fX0sICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fV19fSwKCQkJeyJuYW1lIjogIlNpbmdsZVVuaW9uRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJEeW5hbWljUGFyZW50IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlJlZkFycmF5IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiaXRlbXMiOiB7IiRyZWYiOiAiIy8kZGVmcy9saXN0In19LCAiJGRlZnMiOiB7Imxpc3QiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InYiOiB7InR5cGUiOiAic3RyaW5nIn19fX19fX0sCgkJCXsibmFtZSI6ICJQcm9wUmVmIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGVtcGxhdGUiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX0sICJjb3B5IjogeyIkcmVmIjogIiMvcHJvcGVydGllcy90ZW1wbGF0ZSJ9fX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"items\":[{\"v\":\"a\"}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"copy\":{\"reason\":\"x\"},\"template\":{}}"
+    },
+    {
+     "s": "PropRef"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkZyZWVGb3JtTmVzdGVkIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicGF5bG9hZCI6IHt9fSwgInJlcXVpcmVkIjogWyJwYXlsb2FkIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mTWVyZ2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im1vZGUiOiB7InR5cGUiOiAic3RyaW5nIn19fX0sICJhbGxPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fV19fSwKCQkJeyJuYW1lIjogIlNpbmdsZVVuaW9uRW1wdHkiLCAiaW5wdXRfc2NoZW1hIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0sCgkJCXsibmFtZSI6ICJEeW5hbWljUGFyZW50IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIlJlZkFycmF5IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiaXRlbXMiOiB7IiRyZWYiOiAiIy8kZGVmcy9saXN0In19LCAiJGRlZnMiOiB7Imxpc3QiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InYiOiB7InR5cGUiOiAic3RyaW5nIn19fX19fX0sCgkJCXsibmFtZSI6ICJQcm9wUmVmIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGVtcGxhdGUiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX0sICJjb3B5IjogeyIkcmVmIjogIiMvcHJvcGVydGllcy90ZW1wbGF0ZSJ9fX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"copy\":{},\"template\":{}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "AllOfDynamicConflict"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRHluYW1pY0NvbmZsaWN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZSwgImFsbE9mIjogW3siYWRkaXRpb25hbFByb3BlcnRpZXMiOiB0cnVlfV19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsieCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsieCJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJDb25mbGljdGluZ0R1cCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19LAoJCQl7Im5hbWUiOiAiQ29uZmxpY3RpbmdEdXAiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19fX19fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJyZXF1ZXN0IjogeyJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiQWxsT2ZEeW5hbWljQ29uZmxpY3QiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJ4IjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJ4Il19XX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicm93cyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19fX19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "MultiUnionEmpty"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRHluYW1pY0NvbmZsaWN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZSwgImFsbE9mIjogW3siYWRkaXRpb25hbFByb3BlcnRpZXMiOiB0cnVlfV19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsieCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsieCJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJDb25mbGljdGluZ0R1cCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19LAoJCQl7Im5hbWUiOiAiQ29uZmxpY3RpbmdEdXAiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19fX19fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJyZXF1ZXN0IjogeyJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiQWxsT2ZEeW5hbWljQ29uZmxpY3QiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJ4IjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJ4Il19XX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicm93cyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19fX19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "DupTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRHluYW1pY0NvbmZsaWN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZSwgImFsbE9mIjogW3siYWRkaXRpb25hbFByb3BlcnRpZXMiOiB0cnVlfV19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsieCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsieCJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJDb25mbGljdGluZ0R1cCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19LAoJCQl7Im5hbWUiOiAiQ29uZmxpY3RpbmdEdXAiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19fX19fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"path\":\"/tmp/a\"}"
+    },
+    {
+     "s": "ConflictingDup"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRHluYW1pY0NvbmZsaWN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZSwgImFsbE9mIjogW3siYWRkaXRpb25hbFByb3BlcnRpZXMiOiB0cnVlfV19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsieCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsieCJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJDb25mbGljdGluZ0R1cCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19LAoJCQl7Im5hbWUiOiAiQ29uZmxpY3RpbmdEdXAiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19fX19fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"path\":\"/tmp/a\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    },
+    {
+     "s": "ConflictingDup"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRHluYW1pY0NvbmZsaWN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZSwgImFsbE9mIjogW3siYWRkaXRpb25hbFByb3BlcnRpZXMiOiB0cnVlfV19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsieCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsieCJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJDb25mbGljdGluZ0R1cCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19LAoJCQl7Im5hbWUiOiAiQ29uZmxpY3RpbmdEdXAiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19fX19fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"x\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[[{\"reason\":\"x\"}]]}"
+    },
+    {
+     "s": "MatrixTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkFsbE9mRHluYW1pY0NvbmZsaWN0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZSwgImFsbE9mIjogW3siYWRkaXRpb25hbFByb3BlcnRpZXMiOiB0cnVlfV19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJpbnB1dF9zY2hlbWEiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsieCI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsieCJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJEdXBUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sCgkJCXsibmFtZSI6ICJDb25mbGljdGluZ0R1cCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19LAoJCQl7Im5hbWUiOiAiQ29uZmxpY3RpbmdEdXAiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX19fX19fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJyZXF1ZXN0IjogeyJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiQWxsT2ZEeW5hbWljQ29uZmxpY3QiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwKCQkJeyJuYW1lIjogIk11bHRpVW5pb25FbXB0eSIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJ4IjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJ4Il19XX19LAoJCQl7Im5hbWUiOiAiTWF0cml4VG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicm93cyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19fX19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[[{}]]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"reason\":\"maintenance\"}}"
+    },
+    {
+     "s": "UnionChoice"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlVuaW9uQ2hvaWNlIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InBhdGgiOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInBhdGgiXX1dfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mQ2hpbGRNZXJnZSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwgImFsbE9mIjogW3sicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fX1dfX0sCgkJCXsibmFtZSI6ICJOZXN0ZWRSZWZUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsiJHJlZiI6ICIjLyRkZWZzL0VtcHR5In19LCAiJGRlZnMiOiB7IkVtcHR5IjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX19fSwKCQkJeyJuYW1lIjogIldyYXBwZWRQbGFjZWhvbGRlciIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJyZXF1ZXN0IjogeyJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiVW5pb25DaG9pY2UiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJwYXRoIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0sCgkJCXsibmFtZSI6ICJBbGxPZkNoaWxkTWVyZ2UiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX19fX19LAoJCQl7Im5hbWUiOiAiTmVzdGVkUmVmVG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19fX0sCgkJCXsibmFtZSI6ICJXcmFwcGVkUGxhY2Vob2xkZXIiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0KCQldfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"reason\":\"maintenance\"}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"cfg\":{\"mode\":\"fast\"}}"
+    },
+    {
+     "s": "AllOfChildMerge"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlVuaW9uQ2hvaWNlIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InBhdGgiOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInBhdGgiXX1dfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mQ2hpbGRNZXJnZSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwgImFsbE9mIjogW3sicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fX1dfX0sCgkJCXsibmFtZSI6ICJOZXN0ZWRSZWZUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsiJHJlZiI6ICIjLyRkZWZzL0VtcHR5In19LCAiJGRlZnMiOiB7IkVtcHR5IjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX19fSwKCQkJeyJuYW1lIjogIldyYXBwZWRQbGFjZWhvbGRlciIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJyZXF1ZXN0IjogeyJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiVW5pb25DaG9pY2UiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJwYXRoIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0sCgkJCXsibmFtZSI6ICJBbGxPZkNoaWxkTWVyZ2UiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX19fX19LAoJCQl7Im5hbWUiOiAiTmVzdGVkUmVmVG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19fX0sCgkJCXsibmFtZSI6ICJXcmFwcGVkUGxhY2Vob2xkZXIiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0KCQldfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"cfg\":{\"mode\":\"fast\"}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"opts\":{\"reason\":\"initialize\"}}"
+    },
+    {
+     "s": "NestedRefTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlVuaW9uQ2hvaWNlIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InBhdGgiOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInBhdGgiXX1dfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fSwKCQkJeyJuYW1lIjogIkFsbE9mQ2hpbGRNZXJnZSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX19fSwgImFsbE9mIjogW3sicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fX1dfX0sCgkJCXsibmFtZSI6ICJOZXN0ZWRSZWZUb29sIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsiJHJlZiI6ICIjLyRkZWZzL0VtcHR5In19LCAiJGRlZnMiOiB7IkVtcHR5IjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX19fSwKCQkJeyJuYW1lIjogIldyYXBwZWRQbGFjZWhvbGRlciIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJyZXF1ZXN0IjogeyJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiVW5pb25DaG9pY2UiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJwYXRoIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0sCgkJCXsibmFtZSI6ICJBbGxPZkNoaWxkTWVyZ2UiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX19fX19LAoJCQl7Im5hbWUiOiAiTmVzdGVkUmVmVG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19fX0sCgkJCXsibmFtZSI6ICJXcmFwcGVkUGxhY2Vob2xkZXIiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0KCQldfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"opts\":{}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"maintenance\"}"
+    },
+    {
+     "s": "Explain"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW4iLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJyZXF1aXJlZCI6IFsicmVhc29uIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIkNob29zZSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsib3B0cyJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJwYXRoIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0sCgkJCXsibmFtZSI6ICJPcHRpb25zIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiRXhwbGFpbiIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19LAoJCQl7Im5hbWUiOiAiQ2hvb3NlIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im9wdHMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwgInJlcXVpcmVkIjogWyJvcHRzIl19fSwgInJlcXVpcmVkIjogWyJjaG9pY2UiXX19LAoJCQl7Im5hbWUiOiAiT3B0aW9ucyIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fQoJCV19XQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"maintenance\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"opts\":{\"reason\":\"initialize\"}}}"
+    },
+    {
+     "s": "Choose"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW4iLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJyZXF1aXJlZCI6IFsicmVhc29uIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIkNob29zZSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsib3B0cyJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJwYXRoIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0sCgkJCXsibmFtZSI6ICJPcHRpb25zIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiRXhwbGFpbiIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19LAoJCQl7Im5hbWUiOiAiQ2hvb3NlIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im9wdHMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwgInJlcXVpcmVkIjogWyJvcHRzIl19fSwgInJlcXVpcmVkIjogWyJjaG9pY2UiXX19LAoJCQl7Im5hbWUiOiAiT3B0aW9ucyIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fQoJCV19XQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"opts\":{}}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"flag\":\"x\",\"_\":true}"
+    },
+    {
+     "s": "Options"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW4iLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJyZXF1aXJlZCI6IFsicmVhc29uIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwKCQkJeyJuYW1lIjogIkNob29zZSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsib3B0cyJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJwYXRoIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJwYXRoIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0sCgkJCXsibmFtZSI6ICJPcHRpb25zIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy44LWZsYXNoLWhpZ2giLAoJCSJ0b29scyI6IFt7ImZ1bmN0aW9uRGVjbGFyYXRpb25zIjogWwoJCQl7Im5hbWUiOiAiRXhwbGFpbiIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19LAoJCQl7Im5hbWUiOiAiQ2hvb3NlIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im9wdHMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwgInJlcXVpcmVkIjogWyJvcHRzIl19fSwgInJlcXVpcmVkIjogWyJjaG9pY2UiXX19LAoJCQl7Im5hbWUiOiAiT3B0aW9ucyIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fQoJCV19XQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"flag\":\"x\",\"_\":true}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"flag\":\"x\",\"_\":true}"
+    },
+    {
+     "s": "PlainOptions"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlBsYWluT3B0aW9ucyIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0sCgkJCXsibmFtZSI6ICJTdHJpY3RPcHRpb25zIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sCgkJCXsibmFtZSI6ICJCcmFuY2hDaG9pY2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwgInJlcXVpcmVkIjogWyJjZmciXX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMi41LXBybyIsCgkJInRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJQbGFpbk9wdGlvbnMiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0sCgkJCXsibmFtZSI6ICJTdHJpY3RPcHRpb25zIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJmbGFnIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiQnJhbmNoQ2hvaWNlIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwgInJlcXVpcmVkIjogWyJjZmciXX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwgInJlcXVpcmVkIjogWyJjZmciXX1dfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fQoJCV19XQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"flag\":\"x\",\"_\":true}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"flag\":\"x\",\"_\":true}"
+    },
+    {
+     "s": "StrictOptions"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlBsYWluT3B0aW9ucyIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0sCgkJCXsibmFtZSI6ICJTdHJpY3RPcHRpb25zIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sCgkJCXsibmFtZSI6ICJCcmFuY2hDaG9pY2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwgInJlcXVpcmVkIjogWyJjZmciXX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMi41LXBybyIsCgkJInRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJQbGFpbk9wdGlvbnMiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0sCgkJCXsibmFtZSI6ICJTdHJpY3RPcHRpb25zIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJmbGFnIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiQnJhbmNoQ2hvaWNlIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwgInJlcXVpcmVkIjogWyJjZmciXX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwgInJlcXVpcmVkIjogWyJjZmciXX1dfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fQoJCV19XQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"flag\":\"x\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"value\":1}}}"
+    },
+    {
+     "s": "BranchChoice"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlBsYWluT3B0aW9ucyIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0sCgkJCXsibmFtZSI6ICJTdHJpY3RPcHRpb25zIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiZmxhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sCgkJCXsibmFtZSI6ICJCcmFuY2hDaG9pY2UiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwgInJlcXVpcmVkIjogWyJjZmciXX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMi41LXBybyIsCgkJInRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJQbGFpbk9wdGlvbnMiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImZsYWciOiB7InR5cGUiOiAic3RyaW5nIn19fX0sCgkJCXsibmFtZSI6ICJTdHJpY3RPcHRpb25zIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJmbGFnIjogeyJ0eXBlIjogInN0cmluZyJ9fX19LAoJCQl7Im5hbWUiOiAiQnJhbmNoQ2hvaWNlIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwgInJlcXVpcmVkIjogWyJjZmciXX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fSwgInJlcXVpcmVkIjogWyJjZmciXX1dfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fQoJCV19XQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"value\":1}}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"cfg\":{\"reason\":\"business\"}}"
+    },
+    {
+     "s": "Configure"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkNvbmZpZ3VyZSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfSwgeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9XX19LCAicmVxdWlyZWQiOiBbImNmZyJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy4xLXBybyIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJDb25maWd1cmUiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfV19fSwgInJlcXVpcmVkIjogWyJjZmciXX19CgkJXX1dfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"cfg\":{\"reason\":\"business\"}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    },
+    {
+     "s": "ExplainPattern"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW5QYXR0ZXJuIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAicGF0dGVyblByb3BlcnRpZXMiOiB7Il5yZWFzb24kIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fSwKCQkJeyJuYW1lIjogIlBhdHRlcm5EYXRhIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAicGF0dGVyblByb3BlcnRpZXMiOiB7Il54LSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy4xLXBybyIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJFeHBsYWluUGF0dGVybiIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19LAoJCQl7Im5hbWUiOiAiUGF0dGVybkRhdGEiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"x-note\":\"keep\"}"
+    },
+    {
+     "s": "PatternData"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW5QYXR0ZXJuIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAicGF0dGVyblByb3BlcnRpZXMiOiB7Il5yZWFzb24kIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fSwKCQkJeyJuYW1lIjogIlBhdHRlcm5EYXRhIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAicGF0dGVyblByb3BlcnRpZXMiOiB7Il54LSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy4xLXBybyIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJFeHBsYWluUGF0dGVybiIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19LAoJCQl7Im5hbWUiOiAiUGF0dGVybkRhdGEiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"x-note\":\"keep\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"mode\":\"fast\",\"_\":true}}}"
+    },
+    {
+     "s": "ConfigureNested"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkNvbmZpZ3VyZU5lc3RlZCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im1vZGUiOiB7InR5cGUiOiAic3RyaW5nIn19LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19LCAicmVxdWlyZWQiOiBbImNmZyJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX0sIHsidHlwZSI6ICJvYmplY3QiLCAicGF0dGVyblByb3BlcnRpZXMiOiB7Il5jZmckIjogeyJ0eXBlIjogIm9iamVjdCIsICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IHRydWV9fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy4xLXBybyIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJDb25maWd1cmVOZXN0ZWQiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9LCAiXyI6IHsidHlwZSI6ICJib29sZWFuIn19LCAicmVxdWlyZWQiOiBbIl8iXX19LCAicmVxdWlyZWQiOiBbImNmZyJdfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"mode\":\"fast\",\"_\":true}}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"tag\":\"keep\",\"cfg\":{\"mode\":\"fast\",\"_\":true}}}"
+    },
+    {
+     "s": "ImplicitBranch"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkltcGxpY2l0QnJhbmNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJ0YWciOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInRhZyJdfV19fSwgInJlcXVpcmVkIjogWyJjaG9pY2UiXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy4xLXBybyIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJJbXBsaWNpdEJyYW5jaCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7Im1vZGUiOiB7InR5cGUiOiAic3RyaW5nIn0sICJfIjogeyJ0eXBlIjogImJvb2xlYW4ifX0sICJyZXF1aXJlZCI6IFsiXyJdfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl19fSwgInJlcXVpcmVkIjogWyJjaG9pY2UiXX19CgkJXX1dfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"tag\":\"keep\",\"cfg\":{\"mode\":\"fast\",\"_\":true}}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"tag\":\"keep\",\"reason\":\"business\"}}"
+    },
+    {
+     "s": "ChooseImplicit"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkNob29zZUltcGxpY2l0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InRhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsidGFnIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8taGlnaCIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJDaG9vc2VJbXBsaWNpdCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InRhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsidGFnIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"tag\":\"keep\",\"reason\":\"business\"}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"reason\":\"x\"}}"
+    },
+    {
+     "s": "ChooseImplicit"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkNob29zZUltcGxpY2l0IiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InRhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsidGFnIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8taGlnaCIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJDaG9vc2VJbXBsaWNpdCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2hvaWNlIjogeyJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InRhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsidGFnIl19XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"mode\":\"fast\",\"reason\":\"business\"}}}"
+    },
+    {
+     "s": "ConfigureAlt"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkNvbmZpZ3VyZUFsdCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fSwgInJlcXVpcmVkIjogWyJjZmciXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsibW9kZSJdfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfV19fSwgInJlcXVpcmVkIjogWyJjaG9pY2UiXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8taGlnaCIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJDb25maWd1cmVBbHQiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwgInJlcXVpcmVkIjogWyJjZmciXX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJtb2RlIl19fSwgInJlcXVpcmVkIjogWyJjZmciXX1dfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"mode\":\"fast\",\"reason\":\"business\"}}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"reason\":\"x\"}}}"
+    },
+    {
+     "s": "ConfigureAlt"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkNvbmZpZ3VyZUFsdCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fSwgInJlcXVpcmVkIjogWyJjZmciXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsibW9kZSJdfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfV19fSwgInJlcXVpcmVkIjogWyJjaG9pY2UiXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fQoJCV0KCX0=",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8taGlnaCIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJDb25maWd1cmVBbHQiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNob2ljZSI6IHsiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwgInJlcXVpcmVkIjogWyJjZmciXX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJtb2RlIl19fSwgInJlcXVpcmVkIjogWyJjZmciXX1dfX0sICJyZXF1aXJlZCI6IFsiY2hvaWNlIl19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"cfg\":{}}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"tag\":\"keep\",\"opts\":{\"mode\":\"fast\",\"_\":true}}}}"
+    },
+    {
+     "s": "DeepAlt"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkRlZXBBbHQiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fSwgInJlcXVpcmVkIjogWyJvcHRzIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InRhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsidGFnIl19fSwgInJlcXVpcmVkIjogWyJjZmciXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8taGlnaCIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJEZWVwQWx0IiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifSwgIl8iOiB7InR5cGUiOiAiYm9vbGVhbiJ9fSwgInJlcXVpcmVkIjogWyJfIl19fSwgInJlcXVpcmVkIjogWyJvcHRzIl19fSwgInJlcXVpcmVkIjogWyJjZmciXX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"tag\":\"keep\",\"opts\":{\"mode\":\"fast\",\"_\":true}}}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"opts\":{\"mode\":\"fast\",\"_\":true}}}}"
+    },
+    {
+     "s": "DeepAlt"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkRlZXBBbHQiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7ImFueU9mIjogW3sidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvcHRzIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJtb2RlIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fSwgInJlcXVpcmVkIjogWyJvcHRzIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0sICJyZXF1aXJlZCI6IFsiY2ZnIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InRhZyI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsidGFnIl19fSwgInJlcXVpcmVkIjogWyJjZmciXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9XX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMy1wcm8taGlnaCIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJEZWVwQWx0IiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjaG9pY2UiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsib3B0cyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsibW9kZSI6IHsidHlwZSI6ICJzdHJpbmcifSwgIl8iOiB7InR5cGUiOiAiYm9vbGVhbiJ9fSwgInJlcXVpcmVkIjogWyJfIl19fSwgInJlcXVpcmVkIjogWyJvcHRzIl19fSwgInJlcXVpcmVkIjogWyJjZmciXX19LCAicmVxdWlyZWQiOiBbImNob2ljZSJdfX0KCQldfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"choice\":{\"cfg\":{\"opts\":{\"mode\":\"fast\"}}}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"cfg\":{\"reason\":\"business\",\"value\":1}}"
+    },
+    {
+     "s": "ConfigureAltFree"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkNvbmZpZ3VyZUFsdEZyZWUiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9LCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19LCAicmVxdWlyZWQiOiBbImNmZyJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX0sIHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsiY2ZnIjoge319LCAicmVxdWlyZWQiOiBbImNmZyJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMi41LXBybyIsCgkJInRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJDb25maWd1cmVBbHRGcmVlIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sICJyZXF1aXJlZCI6IFsiY2ZnIl19LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHt9fSwgInJlcXVpcmVkIjogWyJjZmciXX1dfX0KCQldfV0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"cfg\":{\"reason\":\"business\",\"value\":1}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[{\"value\":1}]}"
+    },
+    {
+     "s": "Batch"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkJhdGNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjogeyJ0eXBlIjogImFycmF5IiwgIml0ZW1zIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX19LCAicmVxdWlyZWQiOiBbInJvd3MiXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7fX0sICJyZXF1aXJlZCI6IFsicm93cyJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0sCgkJCXsibmFtZSI6ICJCYXRjaFN0cmljdCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fX0sICJyZXF1aXJlZCI6IFsicm93cyJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMi41LXBybyIsCgkJInRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJCYXRjaCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjogeyJ0eXBlIjogImFycmF5IiwgIml0ZW1zIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fX0sICJyZXF1aXJlZCI6IFsicm93cyJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjoge319LCAicmVxdWlyZWQiOiBbInJvd3MiXX1dfX0sCgkJCXsibmFtZSI6ICJCYXRjaFN0cmljdCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicm93cyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19fSwgInJlcXVpcmVkIjogWyJyb3dzIl19fQoJCV19XQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[{\"value\":1}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"x\"}]}"
+    },
+    {
+     "s": "BatchStrict"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkJhdGNoIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjogeyJ0eXBlIjogImFycmF5IiwgIml0ZW1zIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX19LCAicmVxdWlyZWQiOiBbInJvd3MiXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9LCB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7fX0sICJyZXF1aXJlZCI6IFsicm93cyJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX1dfX0sCgkJCXsibmFtZSI6ICJCYXRjaFN0cmljdCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9fX0sICJyZXF1aXJlZCI6IFsicm93cyJdfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMi41LXBybyIsCgkJInRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJCYXRjaCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAiYW55T2YiOiBbeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjogeyJ0eXBlIjogImFycmF5IiwgIml0ZW1zIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319fX0sICJyZXF1aXJlZCI6IFsicm93cyJdfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjoge319LCAicmVxdWlyZWQiOiBbInJvd3MiXX1dfX0sCgkJCXsibmFtZSI6ICJCYXRjaFN0cmljdCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicm93cyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19fSwgInJlcXVpcmVkIjogWyJyb3dzIl19fQoJCV19XQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[{}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    },
+    {
+     "s": "1"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIjEiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwKCQkJeyJuYW1lIjogIl8xIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    },
+    {
+     "s": "ExplainFixed"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW5GaXhlZCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgImVudW0iOiBbeyJyZWFzb24iOiAiYnVzaW5lc3MifV19fSwKCQkJeyJuYW1lIjogIkNvbnN0VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgImNvbnN0IjogeyJyZWFzb24iOiAiZml4ZWQifX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtc29ubmV0LTQtNiIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJFeHBsYWluRml4ZWQiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwKCQkJeyJuYW1lIjogIkNvbnN0VG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19CgkJXX1dfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    },
+    {
+     "s": "ExplainFixed"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW5GaXhlZCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgImVudW0iOiBbeyJyZWFzb24iOiAiYnVzaW5lc3MifV0sICJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX1dfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtc29ubmV0LTQtNiIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJFeHBsYWluRml4ZWQiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwKCQkJeyJuYW1lIjogIkNvbnN0VG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19CgkJXX1dfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"business\"}]}"
+    },
+    {
+     "s": "BatchEnum"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkJhdGNoRW51bSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX0sICJlbnVtIjogW1t7InJlYXNvbiI6ICJidXNpbmVzcyJ9XV19fSwgInJlcXVpcmVkIjogWyJyb3dzIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtc29ubmV0LTQtNiIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJCYXRjaEVudW0iLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fX0sICJyZXF1aXJlZCI6IFsicm93cyJdfX0KCQldfV19Cgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"business\"}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"business\"}]}"
+    },
+    {
+     "s": "BatchEnum"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkJhdGNoRW51bSIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJvd3MiOiB7InR5cGUiOiAiYXJyYXkiLCAiaXRlbXMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7fX0sICJlbnVtIjogW1t7InJlYXNvbiI6ICJidXNpbmVzcyJ9XV19fSwgInJlcXVpcmVkIjogWyJyb3dzIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"business\"}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"business\"}]}"
+    },
+    {
+     "s": "BatchContains"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkJhdGNoQ29udGFpbnMiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjogeyJ0eXBlIjogImFycmF5IiwgIml0ZW1zIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319LCAiY29udGFpbnMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fX0sICJyZXF1aXJlZCI6IFsicm93cyJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtc29ubmV0LTQtNiIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJCYXRjaENvbnRhaW5zIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjogeyJ0eXBlIjogImFycmF5IiwgIml0ZW1zIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfX19LCAicmVxdWlyZWQiOiBbInJvd3MiXX19CgkJXX1dfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"business\"}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"business\"}]}"
+    },
+    {
+     "s": "BatchContains"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkJhdGNoQ29udGFpbnMiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyb3dzIjogeyJ0eXBlIjogImFycmF5IiwgIml0ZW1zIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge319LCAiY29udGFpbnMiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fX0sICJyZXF1aXJlZCI6IFsicm93cyJdLCAiYWRkaXRpb25hbFByb3BlcnRpZXMiOiBmYWxzZX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[{\"reason\":\"business\"}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"cfg\":{\"reason\":\"business\"}}"
+    },
+    {
+     "s": "ConfigureSibling"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkNvbmZpZ3VyZVNpYmxpbmciLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJyZXF1aXJlZCI6IFsiY2ZnIl0sICJhbnlPZiI6IFt7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7ImNmZyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0sICJyZXF1aXJlZCI6IFsiY2ZnIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfSwgeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJvdGhlciI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsib3RoZXIiXSwgImFkZGl0aW9uYWxQcm9wZXJ0aWVzIjogZmFsc2V9XSwgImFsbE9mIjogW3sicHJvcGVydGllcyI6IHsiY2ZnIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdfX19XX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJnZW1pbmktMi41LXBybyIsCgkJInRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJDb25maWd1cmVTaWJsaW5nIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJjZmciOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwgInJlcXVpcmVkIjogWyJjZmciXX19CgkJXX1dCgl9",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"cfg\":{\"reason\":\"business\"}}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"store\",\"label\":\"keep\"}"
+    },
+    {
+     "s": "StoreMetadata"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlN0b3JlTWV0YWRhdGEiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJtaW5Qcm9wZXJ0aWVzIjogMX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtc29ubmV0LTQtNiIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJTdG9yZU1ldGFkYXRhIiwgInBhcmFtZXRlcnNKc29uU2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjogeyJyZWFzb24iOiB7InR5cGUiOiAic3RyaW5nIn19LCAicmVxdWlyZWQiOiBbInJlYXNvbiJdLCAibWluUHJvcGVydGllcyI6IDF9fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"store\",\"label\":\"keep\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"store\",\"label\":\"keep\"}"
+    },
+    {
+     "s": "StoreMetadata"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIlN0b3JlTWV0YWRhdGEiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJtaW5Qcm9wZXJ0aWVzIjogMX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"store\",\"label\":\"keep\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[{\"tag\":\"same\",\"_\":true},{\"tag\":\"same\",\"_\":false}]}"
+    },
+    {
+     "s": "BatchUnique"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkJhdGNoVW5pcXVlIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicm93cyI6IHsidHlwZSI6ICJhcnJheSIsICJ1bmlxdWVJdGVtcyI6IHRydWUsICJpdGVtcyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGFnIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fSwgInJlcXVpcmVkIjogWyJyb3dzIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtc29ubmV0LTQtNiIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJCYXRjaFVuaXF1ZSIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicm93cyI6IHsidHlwZSI6ICJhcnJheSIsICJpdGVtcyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGFnIjogeyJ0eXBlIjogInN0cmluZyJ9LCAiXyI6IHsidHlwZSI6ICJib29sZWFuIn19LCAicmVxdWlyZWQiOiBbIl8iXX19fSwgInJlcXVpcmVkIjogWyJyb3dzIl19fQoJCV19XX0KCX0=",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[{\"tag\":\"same\",\"_\":true},{\"tag\":\"same\",\"_\":false}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"rows\":[{\"tag\":\"same\",\"_\":true},{\"tag\":\"same\",\"_\":false}]}"
+    },
+    {
+     "s": "BatchUnique"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkJhdGNoVW5pcXVlIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicm93cyI6IHsidHlwZSI6ICJhcnJheSIsICJ1bmlxdWVJdGVtcyI6IHRydWUsICJpdGVtcyI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsidGFnIjogeyJ0eXBlIjogInN0cmluZyJ9fX19fSwgInJlcXVpcmVkIjogWyJyb3dzIl0sICJhZGRpdGlvbmFsUHJvcGVydGllcyI6IGZhbHNlfX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"rows\":[{\"tag\":\"same\",\"_\":true},{\"tag\":\"same\",\"_\":false}]}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    },
+    {
+     "s": "ExplainFixed"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW5GaXhlZCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgImVudW0iOiBbeyJyZWFzb24iOiAiYnVzaW5lc3MifV19fSwKCQkJeyJuYW1lIjogIkNvbnN0VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgImNvbnN0IjogeyJyZWFzb24iOiAiZml4ZWQifX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "",
+     "nil": true
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"fixed\"}"
+    },
+    {
+     "s": "ConstTool"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIkV4cGxhaW5GaXhlZCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgImVudW0iOiBbeyJyZWFzb24iOiAiYnVzaW5lc3MifV19fSwKCQkJeyJuYW1lIjogIkNvbnN0VG9vbCIsICJpbnB1dF9zY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgImNvbnN0IjogeyJyZWFzb24iOiAiZml4ZWQifX19CgkJXQoJfQ==",
+     "nil": false
+    },
+    {
+     "b": "ewoJCSJtb2RlbCI6ICJjbGF1ZGUtc29ubmV0LTQtNiIsCgkJInJlcXVlc3QiOiB7InRvb2xzIjogW3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOiBbCgkJCXsibmFtZSI6ICJFeHBsYWluRml4ZWQiLCAicGFyYW1ldGVyc0pzb25TY2hlbWEiOiB7InR5cGUiOiAib2JqZWN0IiwgInByb3BlcnRpZXMiOiB7InJlYXNvbiI6IHsidHlwZSI6ICJzdHJpbmcifX0sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwKCQkJeyJuYW1lIjogIkNvbnN0VG9vbCIsICJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHsicmVhc29uIjogeyJ0eXBlIjogInN0cmluZyJ9fSwgInJlcXVpcmVkIjogWyJyZWFzb24iXX19CgkJXX1dfQoJfQ==",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"fixed\"}"
+    }
+   ]
+  },
+  {
+   "name": "TestCleanClaudeToolArguments:641",
+   "fn": "internal/util.CleanClaudeToolArgumentsWithTranslated",
+   "args": [
+    {
+     "s": "{\"reason\":\"business\"}"
+    },
+    {
+     "s": "1"
+    },
+    {
+     "b": "ewoJCSJ0b29scyI6IFsKCQkJeyJuYW1lIjogIjEiLCAiaW5wdXRfc2NoZW1hIjogeyJ0eXBlIjogIm9iamVjdCIsICJwcm9wZXJ0aWVzIjoge30sICJyZXF1aXJlZCI6IFsicmVhc29uIl19fSwKCQkJeyJuYW1lIjogIl8xIiwgImlucHV0X3NjaGVtYSI6IHsidHlwZSI6ICJvYmplY3QiLCAicHJvcGVydGllcyI6IHt9fX0KCQldCgl9",
+     "nil": false
+    },
+    {
+     "b": "eyJtb2RlbCI6ImNsYXVkZS1zb25uZXQtNC02IiwicmVxdWVzdCI6eyJ0b29scyI6W3siZnVuY3Rpb25EZWNsYXJhdGlvbnMiOlt7Im5hbWUiOiJfMV9lZTNkOTZjMzNlYTkiLCJwYXJhbWV0ZXJzSnNvblNjaGVtYSI6eyJ0eXBlIjoib2JqZWN0IiwicHJvcGVydGllcyI6eyJyZWFzb24iOnsidHlwZSI6InN0cmluZyJ9fSwicmVxdWlyZWQiOlsicmVhc29uIl19fV19XX19",
+     "nil": false
+    }
+   ],
+   "results": [
+    {
+     "s": "{\"reason\":\"business\"}"
     }
    ]
   }

@@ -47,12 +47,18 @@ pub(crate) fn is_antigravity(model: &[u8]) -> bool {
 
 const EXTERNAL_TOOL_PREFIX: &[u8] = b"external_";
 
-fn antigravity_collides(name: &[u8]) -> bool {
+/// antigravityIntrinsicBase: the name, with every leading `external_` removed, is one
+/// of the agent's sandbox tools.
+fn antigravity_collides(mut name: &[u8]) -> bool {
+    while let Some(base) = name.strip_prefix(EXTERNAL_TOOL_PREFIX) {
+        name = base;
+    }
     matches!(name, b"read_file" | b"write_file" | b"execute_code")
 }
 
-/// common.AntigravityToolNameToUpstream: client tools that collide with the agent's
-/// sandbox tools get the `external_` prefix.
+/// common.AntigravityToolNameToUpstream: a client tool whose prefix chain ends in a
+/// sandbox tool name gets one more `external_`, so the mapping stays injective and real
+/// `external_` names remain distinguishable.
 pub(crate) fn antigravity_name_to_upstream(name: &[u8]) -> Vec<u8> {
     if antigravity_collides(name) {
         [EXTERNAL_TOOL_PREFIX, name].concat()
@@ -61,7 +67,8 @@ pub(crate) fn antigravity_name_to_upstream(name: &[u8]) -> Vec<u8> {
     }
 }
 
-/// common.AntigravityUpstreamToolNameToClient.
+/// common.AntigravityUpstreamToolNameToClient: strips the one `external_` the upstream
+/// mapping added.
 pub(crate) fn antigravity_name_to_client(name: &[u8]) -> Vec<u8> {
     match name.strip_prefix(EXTERNAL_TOOL_PREFIX) {
         Some(base) if antigravity_collides(base) => base.to_vec(),

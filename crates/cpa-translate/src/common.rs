@@ -808,7 +808,7 @@ pub fn fix_json(input: &[u8]) -> Vec<u8> {
 }
 
 /// util.CanonicalToolName: trimmed, leading underscores dropped, lowercased.
-fn canonical_tool_name(name: &[u8]) -> Vec<u8> {
+pub(crate) fn canonical_tool_name(name: &[u8]) -> Vec<u8> {
     let trimmed = trim_space(name);
     let start = trimmed.iter().position(|&c| c != b'_').unwrap_or(trimmed.len());
     go_lower(&trimmed[start..])

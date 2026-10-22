@@ -297,7 +297,11 @@ fn mime_from_output_format(format: &str) -> String {
 
 /// `multipartFileToDataURL`.
 fn data_url(part: &multipart::Part) -> String {
-    let mut media = part.header("Content-Type").unwrap_or_default().trim().to_owned();
+    // ponytail: a Content-Type that is not UTF-8 reaches the data URL lossily (image
+    // clients send ASCII media types); building the URL as bytes would keep it.
+    let mut media = String::from_utf8_lossy(part.header("Content-Type").unwrap_or_default())
+        .trim()
+        .to_owned();
     if media.is_empty() {
         media = detect_content_type(&part.body).to_owned();
     }

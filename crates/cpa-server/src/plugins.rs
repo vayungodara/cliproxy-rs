@@ -18,6 +18,7 @@ use crate::Runtime;
 pub(crate) mod execution;
 pub(crate) mod interceptors;
 pub(crate) mod model_callbacks;
+pub(crate) mod refresh;
 
 /// The host plus the config it should converge on.
 pub struct PluginRuntime {
@@ -29,6 +30,9 @@ pub struct PluginRuntime {
     access: RwLock<Arc<AccessRegistry>>,
     /// Go's executor table entries owned by plugins: provider to the registered executor.
     executors: RwLock<HashMap<String, cpa_plugin::executor::Adapter>>,
+    /// The refresh lifecycle of credentials a plugin refreshes (Go `LastRefreshedAt` and
+    /// `NextRefreshAfter`, which Go keeps in memory too).
+    schedules: refresh::Schedules,
 }
 
 impl Default for PluginRuntime {
@@ -47,6 +51,7 @@ impl PluginRuntime {
             applied: watch::Sender::new(0),
             access: RwLock::default(),
             executors: RwLock::default(),
+            schedules: refresh::Schedules::default(),
         }
     }
 
@@ -514,6 +519,7 @@ fn model_spec(m: &cpa_plugin::api::ModelInfo) -> cpa_core::registry::dynamic::Sp
             max: t.max,
             zero_allowed: t.zero_allowed,
             dynamic_allowed: t.dynamic_allowed,
+            disable_type: t.disable_type.clone(),
             levels: t.levels.clone(),
         }),
         user_defined: m.user_defined,
@@ -1011,5 +1017,47 @@ mod tests {
         let (_, result) = authenticate(&rt, request(Some("client-key"), Body::from("{}"))).await;
         assert_eq!(outcome(&result), (200, ""));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Go `TestPluginRegisteredSonnet55TurnsThinkingOffWithBetweenTools`: a plugin model's
+    /// `DisableType` reaches the Claude applier through the registry conversion. An older
+    /// plugin's payload without it turns thinking off with `disabled`, even on a model the
+    /// proxy knows refuses it: plugin capabilities are authoritative, as in Go.
+    #[test]
+    fn plugin_registered_sonnet_5_5_turns_thinking_off_with_between_tools() {
+        let thinking_off = |model: &str, thinking: &[u8]| {
+            let info = model_spec(&cpa_plugin::api::ModelInfo {
+                id: model.into(),
+                model_type: "claude".into(),
+                thinking: Some(cpa_plugin::gojson::from_slice(thinking).unwrap()),
+                ..Default::default()
+            })
+            .to_info();
+            let body = format!(
+                r#"{{"model":"{model}","messages":[{{"role":"user","content":"hi"}}],"thinking":{{"type":"disabled"}}}}"#
+            );
+            let caps = cpa_common::thinking::ModelCaps::from(&info);
+            let out = cpa_common::thinking::apply_thinking_with_model_info(
+                body.as_bytes(),
+                &[],
+                model,
+                "claude",
+                "claude",
+                "claude",
+                Some(&caps),
+            )
+            .unwrap();
+            serde_json::from_slice::<serde_json::Value>(&out).unwrap()["thinking"].clone()
+        };
+        let current = br#"{"ZeroAllowed":true,"Levels":["low","medium","high"],"DisableType":"between_tools"}"#;
+        assert_eq!(
+            thinking_off("claude-sonnet-5-5", current),
+            serde_json::json!({"type": "between_tools"})
+        );
+        let older = br#"{"ZeroAllowed":true,"Levels":["low","medium","high"]}"#;
+        assert_eq!(
+            thinking_off("claude-opus-5-5", older),
+            serde_json::json!({"type": "disabled"})
+        );
     }
 }

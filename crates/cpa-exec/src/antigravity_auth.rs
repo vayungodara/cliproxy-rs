@@ -928,7 +928,7 @@ pub async fn login(auth_dir: &Path, cfg: &Config, options: &LoginOptions) -> Res
         options.callback_port
     };
     let state = crate::oauth::random_hex(16).map_err(|e| transport_text(&e))?;
-    let listener = match tokio::net::TcpListener::bind(("::", port)).await {
+    let listener = match crate::claude_login::listen_any(port) {
         Ok(listener) => listener,
         Err(_) => tokio::net::TcpListener::bind(("0.0.0.0", port))
             .await

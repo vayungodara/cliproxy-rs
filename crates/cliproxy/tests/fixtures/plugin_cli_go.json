@@ -186,6 +186,12 @@
               "Type": "float64",
               "Value": "0.25"
             },
+            "siwc-bind": {
+              "Name": "siwc-bind",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
             "standalone": {
               "Name": "standalone",
               "Set": false,
@@ -450,6 +456,12 @@
               "Set": true,
               "Type": "float64",
               "Value": "1000"
+            },
+            "siwc-bind": {
+              "Name": "siwc-bind",
+              "Set": false,
+              "Type": "",
+              "Value": ""
             },
             "standalone": {
               "Name": "standalone",
@@ -727,6 +739,12 @@
               "Set": false,
               "Type": "float64",
               "Value": "0.25"
+            },
+            "siwc-bind": {
+              "Name": "siwc-bind",
+              "Set": false,
+              "Type": "",
+              "Value": ""
             },
             "standalone": {
               "Name": "standalone",
@@ -1073,6 +1091,12 @@
               "Type": "float64",
               "Value": "0.25"
             },
+            "siwc-bind": {
+              "Name": "siwc-bind",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
             "standalone": {
               "Name": "standalone",
               "Set": false,
@@ -1323,6 +1347,12 @@
               "Type": "float64",
               "Value": "0.25"
             },
+            "siwc-bind": {
+              "Name": "siwc-bind",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
             "standalone": {
               "Name": "standalone",
               "Set": false,
@@ -1571,6 +1601,12 @@
               "Type": "float64",
               "Value": "0.25"
             },
+            "siwc-bind": {
+              "Name": "siwc-bind",
+              "Set": false,
+              "Type": "",
+              "Value": ""
+            },
             "standalone": {
               "Name": "standalone",
               "Set": false,
@@ -1817,6 +1853,12 @@
               "Set": false,
               "Type": "float64",
               "Value": "0.25"
+            },
+            "siwc-bind": {
+              "Name": "siwc-bind",
+              "Set": false,
+              "Type": "",
+              "Value": ""
             },
             "standalone": {
               "Name": "standalone",

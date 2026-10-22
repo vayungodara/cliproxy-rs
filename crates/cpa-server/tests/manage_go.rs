@@ -940,9 +940,12 @@ mod creds {
                 .replace("$AUTH", &auth.display().to_string());
             std::fs::write(&path, yaml).unwrap();
             let cfg = Config::load(&path).unwrap();
+            let scan = credentials::scan_auth_dir(&cfg);
+            let mut loaded = scan.credentials;
+            loaded.extend(credentials::from_config(&cfg));
             let rt = Arc::new(cpa_server::testing::runtime(
                 cfg.clone(),
-                credentials::load(&cfg),
+                loaded,
                 Executors {
                     claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
                     codex: Default::default(),
@@ -951,6 +954,8 @@ mod creds {
                     google: Default::default(),
                 },
             ));
+            // As the binary records what it loaded.
+            rt.store().note_loaded(&scan.read);
             // Runtime-only credentials, registered as the `/v1/ws` relay does.
             for id in scenario["runtime_auths"].as_array().into_iter().flatten() {
                 let id = id.as_str().unwrap();
@@ -1139,13 +1144,15 @@ mod creds {
                     }
                     assert_eq!(got, want, "{at}");
                 }
-                // Auth dir contents, as JSON values.
+                // Auth dir contents, as JSON values read the way Go's snapshot reads them
+                // (float64, correctly rounded; serde's default parse is not).
                 let mut files = serde_json::Map::new();
                 for entry in std::fs::read_dir(&auth).unwrap() {
                     let entry = entry.unwrap();
                     let data = std::fs::read(entry.path()).unwrap();
-                    let v = serde_json::from_slice::<Value>(&data)
-                        .unwrap_or_else(|_| json!(format!("raw:{}", String::from_utf8_lossy(&data))));
+                    let v = cpa_common::json::GoValue::parse_f64(&data)
+                        .and_then(|v| serde_json::from_slice::<Value>(&v.marshal()).ok())
+                        .unwrap_or_else(|| json!(format!("raw:{}", String::from_utf8_lossy(&data))));
                     files.insert(entry.file_name().to_string_lossy().into_owned(), v);
                 }
                 assert_eq!(
@@ -1183,9 +1190,9 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 199);
+        assert_eq!(compared, 219);
         eprintln!("credentials: {bytes_compared} of {compared} steps compared byte for byte");
-        assert_eq!(bytes_compared, 151, "steps compared byte for byte");
+        assert_eq!(bytes_compared, 171, "steps compared byte for byte");
     }
 
     /// Pending v8.0.35 drift outside the config saver. Each pin names its scenario and
@@ -1214,7 +1221,6 @@ mod creds {
             (true, 88) => request("GET", "/credentials", None),
             (true, 0) => request("GET", "/credentials", None),
             (true, 1) => request("GET", "/credentials?name=claude-a.json", None),
-            (true, 82) => request("GET", "/routing/model-definitions/claude", None),
             _ => {}
         }
         match (name, i) {
@@ -1232,6 +1238,12 @@ mod creds {
             if inventory && (73..=88).contains(&i) {
                 locks.push("retype.json.lock");
             }
+            if name == "save_bytes" && i >= 5 {
+                locks.push("raw-codex-blank.json.lock");
+            }
+            if name == "save_bytes" && i >= 3 {
+                locks.push("raw-codex.json.lock");
+            }
             let mut recorded: Vec<String> = files.keys().filter(|f| f.ends_with(".lock")).cloned().collect();
             recorded.sort();
             assert_eq!(recorded, locks, "{at}: Go's lock files");
@@ -1239,40 +1251,6 @@ mod creds {
                 assert_eq!(files.remove(lock), Some(json!("raw:")), "{at}: {lock}");
             }
         }
-        let mut response = step["response"].take();
-        let response = &mut response;
-        // Go f62d4d28 and a19a8ecd: the Claude catalog adds claude-haiku-5-5 and changes
-        // six models' thinking metadata. Models catalog owner.
-        if (name, i) == ("credential_inventory_and_edits", 82) {
-            let models = response["models"].as_array_mut().unwrap();
-            let at_haiku = models
-                .iter()
-                .position(|m| m["id"] == "claude-haiku-5-5")
-                .expect("Go adds it");
-            assert_eq!(models[at_haiku - 1]["id"], "claude-sonnet-5-5", "{at}");
-            models.remove(at_haiku);
-            let levels = json!(["low", "medium", "high", "xhigh", "max"]);
-            let budget = json!({"levels": levels, "max": 128000, "min": 1024, "zero_allowed": true});
-            let dynamic = json!({"dynamic_allowed": true, "levels": levels, "zero_allowed": true});
-            let fable = json!({"dynamic_allowed": true, "levels": levels});
-            for (id, go, old) in [
-                ("claude-opus-4-7", &dynamic, &budget),
-                ("claude-opus-4-8", &dynamic, &budget),
-                ("claude-fable-5", &fable, &budget),
-                ("claude-fable-5-1", &fable, &budget),
-                ("claude-opus-5-5", &fable, &dynamic),
-            ] {
-                let model = models.iter_mut().find(|m| m["id"] == id).unwrap();
-                assert_eq!(&model["thinking"], go, "{at}: {id}");
-                model["thinking"] = old.clone();
-            }
-            let sonnet = models.iter_mut().find(|m| m["id"] == "claude-sonnet-5-5").unwrap();
-            let thinking = sonnet["thinking"].as_object_mut().unwrap();
-            assert_eq!(thinking.remove("disable_type"), Some(json!("between_tools")), "{at}");
-            assert_eq!(Value::Object(thinking.clone()), dynamic, "{at}");
-            step.as_object_mut().unwrap().remove("raw_json");
-        }
-        step["response"] = response.take();
         step
     }
 
