@@ -332,14 +332,17 @@ fn refresh_due_uses_jwt_exp_before_metadata_and_a_96h_lead() {
 
 #[test]
 fn callback_routes_match_go_listener() {
-    let (response, result) = route_callback(b"GET /auth/callback?code=c1&state=s1 HTTP/1.1\r\n\r\n");
+    // Go's handler trims the issued SIWC client ID, not the code or state.
+    let (response, result) =
+        route_callback(b"GET /auth/callback?code=c1&state=s1&client_id=%20cid%20 HTTP/1.1\r\n\r\n");
     assert!(response.starts_with("HTTP/1.1 302 Found") && response.contains("Location: /success"));
     assert_eq!(
         result,
         Some(Callback {
             code: "c1".into(),
             state: "s1".into(),
-            error: None
+            error: None,
+            client_id: "cid".into(),
         })
     );
     let (response, result) = route_callback(b"GET /auth/callback?error=access_denied HTTP/1.1\r\n\r\n");

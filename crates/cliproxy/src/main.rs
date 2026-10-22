@@ -105,6 +105,9 @@ struct Args {
     /// Prefix for Vertex model namespacing (use with -vertex-import)
     #[arg(long, default_value = "")]
     vertex_import_prefix: String,
+    /// Bind Sign in with ChatGPT (SIWC) credentials to a Codex credential file
+    #[arg(long, default_value = "")]
+    siwc_bind: String,
     /// Management password accepted from loopback clients only.
     #[arg(long, hide = true, default_value = "")]
     password: String,
@@ -872,9 +875,9 @@ async fn run(args: Args, plugins: cpa_plugin::Host, builtin: Vec<(String, String
         return Ok(());
     }
     let ran = command(&args, &config).await;
-    if !matches!(ran, Ok(false)) {
+    if !matches!(ran, Ok(Ran::Nothing)) {
         if let (Some(store), Some(before)) = (&store, &before) {
-            persist_login(store, before).await;
+            persist_command(store, before, &ran).await;
         }
         return ran.map(|_| ());
     }
@@ -941,6 +944,7 @@ fn free_console() {
 /// Go's `commandMode`: a login or import flag is set.
 fn command_mode(args: &Args) -> bool {
     !args.vertex_import.is_empty()
+        || !args.siwc_bind.is_empty()
         || args.antigravity_login
         || args.codex_login
         || args.codex_device_login
@@ -1136,15 +1140,84 @@ async fn persist_login(store: &cpa_store::Store, before: &std::collections::BTre
     }
 }
 
-/// Go's command modes, in Go's order; `Ok(false)` when no command flag is set.
-async fn command(args: &Args, config: &Config) -> anyhow::Result<bool> {
+/// What a command flag did, for the remote token store.
+enum Ran {
+    /// No command flag is set.
+    Nothing,
+    /// A login or import: what it wrote into the auth directory is saved.
+    Login,
+    /// `-siwc-bind`: only the file it bound is saved, and nothing when it failed.
+    Bound(Option<PathBuf>),
+}
+
+/// Go's token store `Save` after a command: a login's or import's changes in the auth
+/// directory (even when it failed), only the file a `-siwc-bind` bound, and nothing for
+/// a failed one.
+async fn persist_command(
+    store: &cpa_store::Store,
+    before: &std::collections::BTreeMap<PathBuf, Vec<u8>>,
+    ran: &anyhow::Result<Ran>,
+) {
+    match ran {
+        Ok(Ran::Nothing | Ran::Bound(None)) => {}
+        Ok(Ran::Bound(Some(path))) => persist_bound(store, path).await,
+        Ok(Ran::Login) | Err(_) => persist_login(store, before).await,
+    }
+}
+
+/// Saves the file `-siwc-bind` bound, under the store's spelling of the auth directory
+/// (the bound path has its symlinks resolved).
+async fn persist_bound(store: &cpa_store::Store, path: &Path) {
+    let path = std::fs::canonicalize(&store.auth_dir)
+        .ok()
+        .and_then(|dir| path.strip_prefix(dir).ok().map(|rel| store.auth_dir.join(rel)))
+        .unwrap_or_else(|| path.to_owned());
+    let name = path
+        .file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if let Err(error) = store
+        .persister
+        .persist_auth_files(format!("Update auth {name}"), vec![path])
+        .await
+    {
+        tracing::error!("failed to save auth {name} to the token store: {error:#}");
+    }
+}
+
+/// Go's command modes, in Go's order.
+async fn command(args: &Args, config: &Config) -> anyhow::Result<Ran> {
     // Go DoVertexImport: failures are logged and the command still exits normally.
     if !args.vertex_import.is_empty() {
         match cpa_exec::vertex_auth::import(&config.auth_dir, &args.vertex_import, &args.vertex_import_prefix) {
             Ok(path) => println!("Vertex credentials imported: {}", path.display()),
             Err(error) => tracing::error!("{error}"),
         }
-        return Ok(true);
+        return Ok(Ran::Login);
+    }
+    if !args.siwc_bind.is_empty() {
+        // Go DoSIWCBind: failures are reported and the command still exits normally,
+        // except a busy callback port (ErrPortInUse's code 13).
+        let options = cpa_exec::codex_oauth::LoginOptions {
+            no_browser: args.no_browser,
+            callback_port: args.oauth_callback_port,
+        };
+        match cpa_exec::codex_siwc_bind::bind(config, &args.siwc_bind, &options).await {
+            Ok(path) => {
+                println!("SIWC credentials bound and saved to {}", path.display());
+                println!("Sign in with ChatGPT authentication successful!");
+                return Ok(Ran::Bound(Some(path)));
+            }
+            Err(cpa_exec::codex_siwc_bind::BindError::Log(line)) => tracing::error!("{line}"),
+            Err(cpa_exec::codex_siwc_bind::BindError::Print(line)) => println!("{line}"),
+            Err(cpa_exec::codex_siwc_bind::BindError::PortInUse) => {
+                tracing::error!(
+                    "The required port is already in use. Please close any applications using port 3000 and try again."
+                );
+                std::process::exit(13);
+            }
+        }
+        return Ok(Ran::Bound(None));
     }
     if args.antigravity_login {
         // Go DoAntigravityLogin: a failure is logged and the command still exits normally.
@@ -1162,7 +1235,7 @@ async fn command(args: &Args, config: &Config) -> anyhow::Result<bool> {
             }
             Err(error) => tracing::error!("Antigravity authentication failed: {error}"),
         }
-        return Ok(true);
+        return Ok(Ran::Login);
     }
     if args.codex_login || args.codex_device_login {
         let options = cpa_exec::codex_oauth::LoginOptions {
@@ -1179,7 +1252,7 @@ async fn command(args: &Args, config: &Config) -> anyhow::Result<bool> {
         };
         println!("Authentication saved to {}", path.display());
         println!("Codex authentication successful!");
-        return Ok(true);
+        return Ok(Ran::Login);
     }
     if args.claude_login {
         let options = cpa_exec::claude_login::LoginOptions {
@@ -1200,30 +1273,30 @@ async fn command(args: &Args, config: &Config) -> anyhow::Result<bool> {
             }
             println!("Claude authentication failed: {message}");
         }
-        return Ok(true);
+        return Ok(Ran::Login);
     }
     if args.kimi_login || args.kimi_ai_login {
         let provider = if args.kimi_login { "kimi" } else { "kimi-ai" };
         cpa_exec::kimi_auth::login(provider, config, args.no_browser).await?;
-        return Ok(true);
+        return Ok(Ran::Login);
     }
     if args.xai_login {
         // Go DoXAILogin: a failure is logged and the command still exits normally.
         if let Err(error) = cpa_exec::xai_auth::login(config, args.no_browser).await {
             tracing::error!("xAI authentication failed: {}", String::from_utf8_lossy(&error.body));
         }
-        return Ok(true);
+        return Ok(Ran::Login);
     }
     if args.devin_login {
         // Go DoDevinLogin: a failure is logged and the command still exits normally.
         cpa_exec::devin_auth::login(config, args.no_browser, args.oauth_callback_port).await;
-        return Ok(true);
+        return Ok(Ran::Login);
     }
     if args.meta_login {
         cpa_exec::meta_auth::login(config, args.no_browser).await?;
-        return Ok(true);
+        return Ok(Ran::Login);
     }
-    Ok(false)
+    Ok(Ran::Nothing)
 }
 
 /// The standalone TUI's server address: the bound one, or loopback for a wildcard bind.
@@ -1448,6 +1521,72 @@ async fn serve(
 mod tests {
     use super::*;
 
+    /// After `-siwc-bind`, the remote store gets only the bound file, under the store's
+    /// spelling of the auth directory, and nothing when the bind failed; a login still
+    /// saves every file it changed. Another file written meanwhile is never uploaded
+    /// for a bind.
+    #[tokio::test]
+    async fn siwc_bind_saves_only_the_bound_file() {
+        struct Recorder(std::sync::Mutex<Vec<Vec<PathBuf>>>, PathBuf);
+        impl cpa_server::persist::StorePersister for Recorder {
+            fn persist_config(&self) -> futures_util::future::BoxFuture<'_, anyhow::Result<()>> {
+                Box::pin(async { Ok(()) })
+            }
+            fn persist_auth_files(
+                &self,
+                _: String,
+                paths: Vec<PathBuf>,
+            ) -> futures_util::future::BoxFuture<'_, anyhow::Result<()>> {
+                self.0.lock().unwrap().push(paths);
+                Box::pin(async { Ok(()) })
+            }
+            fn delete_auth(&self, _: PathBuf) -> anyhow::Result<()> {
+                Ok(())
+            }
+            fn auth_dir(&self) -> PathBuf {
+                self.1.clone()
+            }
+        }
+        let root = std::env::temp_dir().join(format!(
+            "cliproxy-siwc-store-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(root.join("real")).unwrap();
+        // The store names the auth directory through a link; the bound path is real.
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(root.join("real"), root.join("auth")).unwrap();
+        #[cfg(not(unix))]
+        std::fs::create_dir_all(root.join("auth")).unwrap();
+        let auth = root.join("auth");
+        std::fs::write(auth.join("c.json"), "{}").unwrap();
+        let before = auth_files(&auth);
+        std::fs::write(auth.join("c.json"), r#"{"use_siwc":true}"#).unwrap();
+        std::fs::write(auth.join("other.json"), "{}").unwrap();
+        let recorder = Arc::new(Recorder(Default::default(), auth.clone()));
+        let store = cpa_store::Store {
+            config_path: root.join("config.yaml"),
+            auth_dir: auth.clone(),
+            persister: recorder.clone(),
+            cooldown: None,
+            enabled: String::new(),
+        };
+        let real = std::fs::canonicalize(auth.join("c.json")).unwrap();
+        persist_command(&store, &before, &Ok(Ran::Bound(Some(real)))).await;
+        assert_eq!(*recorder.0.lock().unwrap(), vec![vec![auth.join("c.json")]]);
+        recorder.0.lock().unwrap().clear();
+        persist_command(&store, &before, &Ok(Ran::Bound(None))).await;
+        assert!(recorder.0.lock().unwrap().is_empty());
+        persist_command(&store, &before, &Ok(Ran::Login)).await;
+        let mut saved: Vec<PathBuf> = recorder.0.lock().unwrap().concat();
+        saved.sort();
+        assert_eq!(saved, vec![auth.join("c.json"), auth.join("other.json")]);
+        let _ = std::fs::remove_dir_all(root);
+    }
+
     /// `worker-threads` from the config file; anything but a positive number, or no
     /// file, falls back to min(CPUs, 2). (`TOKIO_WORKER_THREADS` is not set in tests.)
     #[test]
@@ -1588,6 +1727,8 @@ mod tests {
             "k.json",
             "-vertex-import-prefix",
             "p",
+            "-siwc-bind",
+            "codex-a.json",
             "-home-jwt",
             "j",
             "-home-disable-cluster-discovery",
@@ -1609,6 +1750,7 @@ mod tests {
         assert_eq!(args.discover_timeout, -2);
         assert_eq!(csv_flags(&args.discover_include), ["eth0", "en0", "wl*"]);
         assert_eq!(args.management_base_url, "https://x");
+        assert_eq!(args.siwc_bind, "codex-a.json");
         let sub = |a: &[&str]| {
             DiscoverArgs::try_parse_from(
                 go_flags(

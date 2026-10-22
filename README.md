@@ -46,7 +46,7 @@ Run the install command again to upgrade, or `brew upgrade cliproxy-rs` with Hom
 
 ## What is this?
 
-cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), with the compatibility target frozen at Go v8.0.35. It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. Parity is incomplete: the audit has 1,951 items, with 1,007 covered, 897 partial and 47 missing. [PARITY.md](docs/PARITY.md) defines those counts.
+cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), with the compatibility target frozen at Go v8.0.35. It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. Parity is incomplete: the audit has 1,951 items, with 1,009 covered, 897 partial and 45 missing. [PARITY.md](docs/PARITY.md) defines those counts.
 
 The dashboard shows accounts, provider limits, request history and tool settings.
 
@@ -164,7 +164,6 @@ Not in cliproxy-rs yet:
 
 - An AUR package.
 - Per-credential plugin model discovery (`model.for_auth`) and plugin response hooks on a Claude client's buffered Claude answer. Existing plugins can load, serve routes and quotas, install from the store, parse the credential files of their provider (`auth.parse`) and participate in frontend auth, model routing, credential scheduling, interceptors, request and response translation, thinking and usage hooks. Plugin catalogs bind their models to credentials of the plugin's provider, and plugin executors serve those credentials without a model router. Unix plugins load from content-addressed shadow copies, so their source libraries remain replaceable during reload.
-- The `--siwc-bind` command, which binds Sign in with ChatGPT tokens from the command line. The Management API binding and requests through the bound tokens (`use_siwc`) already work.
 - Sending `server.github-token` on plugin store requests to the GitHub API that no `plugins.store-auth` rule covers. The setting is already accepted and kept.
 - The remaining parity gaps and Go test cases, listed in [PARITY.md](docs/PARITY.md).
 
