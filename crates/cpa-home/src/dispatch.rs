@@ -297,6 +297,7 @@ fn is_thinking(v: &Value) -> bool {
                 ("max", is_int),
                 ("zero_allowed", Value::is_boolean),
                 ("dynamic_allowed", Value::is_boolean),
+                ("disable_type", Value::is_string),
                 ("levels", is_strings),
             ],
         )
