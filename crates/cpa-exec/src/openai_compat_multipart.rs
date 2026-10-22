@@ -596,6 +596,63 @@ pub fn read_form(body: &[u8], boundary: &str) -> Result<Form, String> {
     Ok(form)
 }
 
+/// `NextPart` until `io.EOF`: every part, unnamed ones included.
+pub fn parts(body: &[u8], boundary: &str) -> Result<Vec<Part>, String> {
+    let mut reader = Reader {
+        body,
+        pos: 0,
+        nl: b"\r\n",
+        dash_boundary: format!("--{boundary}").into_bytes(),
+        parts_read: 0,
+    };
+    let mut parts = Vec::new();
+    while let Some(part) = reader.next_part()? {
+        parts.push(part);
+    }
+    Ok(parts)
+}
+
+/// `mime.FormatMediaType` for a valid type: parameters sorted, tokens bare, other values
+/// quoted, and values outside printable ASCII RFC 2231-encoded. `None` where Go returns "".
+pub fn format_media_type(media: &str, params: &BTreeMap<&str, &[u8]>) -> Option<String> {
+    let token = |v: &[u8]| !v.is_empty() && v.iter().all(|&c| token_char(c));
+    let mut out = media.to_ascii_lowercase();
+    for (key, value) in params {
+        if !token(key.as_bytes()) {
+            return None;
+        }
+        out.push_str("; ");
+        out.push_str(&key.to_ascii_lowercase());
+        // `needsEncoding` ranges over runes: invalid UTF-8 decodes as U+FFFD.
+        let encode = String::from_utf8_lossy(value)
+            .chars()
+            .any(|c| (c < ' ' || c > '~') && c != '\t');
+        if encode {
+            out.push_str("*=utf-8''");
+            for &c in value.iter() {
+                if c <= b' ' || c >= 0x7f || b"*'%".contains(&c) || tspecial(c) {
+                    out.push_str(&format!("%{c:02X}"));
+                } else {
+                    out.push(char::from(c));
+                }
+            }
+        } else if token(value) {
+            out.push('=');
+            out.push_str(&String::from_utf8_lossy(value));
+        } else {
+            out.push_str("=\"");
+            for &c in value.iter() {
+                if c == b'"' || c == b'\\' {
+                    out.push('\\');
+                }
+                out.push(char::from(c));
+            }
+            out.push('"');
+        }
+    }
+    Some(out)
+}
+
 fn push<T>(list: &mut Vec<(String, Vec<T>)>, key: String, value: T) {
     match list.iter_mut().find(|(k, _)| *k == key) {
         Some((_, values)) => values.push(value),
