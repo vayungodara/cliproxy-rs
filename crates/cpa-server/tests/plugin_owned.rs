@@ -54,17 +54,29 @@ async fn env(
     auths: &[(&str, &str)],
     prepare: impl FnOnce(&Path),
 ) -> Option<Env> {
-    env_with(name, plugins, extra_yaml, auths, prepare, Default::default()).await
+    env_with(name, plugins, extra_yaml, auths, prepare, executors()).await
 }
 
-/// [`env`] with a Codex executor (for Codex live endpoints on a local mock).
+/// Executors whose built-in upstreams are dead local ports.
+fn executors() -> Executors {
+    Executors {
+        claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    }
+}
+
+/// [`env`] with these executors (for Codex live endpoints or Claude OAuth on a local
+/// mock).
 async fn env_with(
     name: &str,
     plugins: &[(&str, &str)],
     extra_yaml: &str,
     auths: &[(&str, &str)],
     prepare: impl FnOnce(&Path),
-    codex: cpa_exec::codex::CodexExecutor,
+    executors: Executors,
 ) -> Option<Env> {
     static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
     let serial = SERIAL.lock().await;
@@ -93,17 +105,7 @@ async fn env_with(
     prepare(&records);
     let cfg = Config::parse(&yaml).unwrap();
     let credentials = cpa_core::config::credentials::load(&cfg);
-    let rt = Arc::new(cpa_server::testing::runtime(
-        cfg,
-        credentials,
-        Executors {
-            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
-            codex,
-            devices: Default::default(),
-            openai: Default::default(),
-            google: Default::default(),
-        },
-    ));
+    let rt = Arc::new(cpa_server::testing::runtime(cfg, credentials, executors));
     cpa_server::plugins::start(&rt).await;
     let proxy = {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -641,7 +643,7 @@ async fn a_plugin_scheduler_picks_rejects_or_delegates() {
                 r#"{"type":"codex","access_token":"at-FAKE","account_id":"acct-FAKE"}"#,
             )],
             |_| {},
-            codex,
+            Executors { codex, ..executors() },
         )
         .await
         else {
@@ -2608,5 +2610,753 @@ async fn a_refresh_committed_during_the_startup_reload_survives_it() {
         store.get("a-claude.json").unwrap().metadata["access_token"],
         "refreshed"
     );
+    env.finish().await;
+}
+
+/// The auth file `name` as JSON.
+fn auth_file(env: &Env, name: &str) -> Value {
+    serde_json::from_slice(&std::fs::read(env.rt.config().auth_dir.join(name)).unwrap()).unwrap()
+}
+
+/// Go `executorAdapter.Refresh` through `tryRefreshAfterUnauthorized`: a 401 from a
+/// plugin executor refreshes its credential through the plugin's auth provider, which
+/// sees the stored document, and the retry carries the refreshed token. The refreshed
+/// metadata overlays the stored document, which keeps the keys the plugin left out.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_401_from_a_plugin_executor_refreshes_through_its_auth_provider() {
+    let Some(env) = env(
+        "plugin-owned-refresh-401",
+        &[("catalog", "model_provider"), ("acme", "auth_provider,executor")],
+        "",
+        &[(
+            "acme.json",
+            r#"{"type":"acme","access_token":"old","refresh_token":"r1","keep":"x"}"#,
+        )],
+        |records| {
+            canned(
+                records,
+                "catalog",
+                "model.static",
+                json!({"Provider":"acme","Models":[{"ID":"acme-1"}]}),
+            );
+            canned(
+                records,
+                "acme",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"acme","access_token":"new","refresh_token":"r2"}}}),
+            );
+            std::fs::write(
+                records.join("respond/acme/executor.execute.once.json"),
+                json!({"ok":false,"error":{"code":"unauthorized","message":"token expired","http_status":401}})
+                    .to_string(),
+            )
+            .unwrap();
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let (status, body) = env.chat("acme-1").await;
+    assert_eq!(status, 200, "{body}");
+    let refreshes = calls(&env.records, "acme", "auth.refresh");
+    assert_eq!(refreshes.len(), 1, "{refreshes:?}");
+    assert_eq!(refreshes[0]["AuthID"], "acme.json");
+    assert_eq!(refreshes[0]["AuthProvider"], "acme");
+    assert_eq!(refreshes[0]["Metadata"]["refresh_token"], "r1");
+    let executed = calls(&env.records, "acme", "executor.execute");
+    assert_eq!(executed.len(), 2, "one retry after the refresh");
+    assert_eq!(executed[0]["AuthMetadata"]["access_token"], "old");
+    assert_eq!(executed[1]["AuthMetadata"]["access_token"], "new");
+    assert_eq!(
+        auth_file(&env, "acme.json"),
+        json!({"type":"acme","access_token":"new","refresh_token":"r2","keep":"x","disabled":false})
+    );
+    env.finish().await;
+}
+
+/// Go `pluginRefreshCompatExecutor`: a credential with no plugin executor refreshes
+/// through the auth provider of its provider. When only its `compat_name` matched an
+/// auth provider, no plugin answers for its provider, and with a refresh token the
+/// refresh fails with Go's error instead of keeping the credential.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_compatible_credential_refreshes_through_its_providers_auth_provider() {
+    let Some(env) = env(
+        "plugin-owned-refresh-compat",
+        &[("acme", "auth_provider"), ("pool", "auth_provider")],
+        "",
+        &[
+            (
+                "acme.json",
+                r#"{"type":"acme","access_token":"old","refresh_token":"r1"}"#,
+            ),
+            ("pool.json", r#"{"type":"pool","wrapped":"material"}"#),
+        ],
+        |records| {
+            canned(
+                records,
+                "acme",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"acme","access_token":"new"}}}),
+            );
+            canned(
+                records,
+                "pool",
+                "auth.parse",
+                json!({"Handled":true,"Auths":[{"Provider":"zeta","ID":"zeta-1",
+                    "Attributes":{"compat_name":"pool"},
+                    "Metadata":{"type":"zeta","access_token":"z","refresh_token":"rz"}}]}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    // Storage that does not decode as an object fails the refresh (Go cannot persist it)
+    // and leaves the stored document alone.
+    std::fs::write(
+        env.records.join("respond/acme/auth.refresh.once.json"),
+        json!({"ok":true,"result":{"Auth":{"StorageJSON":"W10=","Metadata":{"type":"acme","access_token":"bad"}}}})
+            .to_string(),
+    )
+    .unwrap();
+    let error = env.rt.refresh_credential("acme.json").await.unwrap_err();
+    assert!(
+        String::from_utf8_lossy(&error.body).contains("persist refreshed auth"),
+        "{error:?}"
+    );
+    assert_eq!(
+        auth_file(&env, "acme.json"),
+        json!({"type":"acme","access_token":"old","refresh_token":"r1"})
+    );
+    let refreshed = env.rt.refresh_credential("acme.json").await.unwrap();
+    assert_eq!(refreshed.metadata["access_token"], "new");
+    assert_eq!(
+        refreshed.metadata["refresh_token"], "r1",
+        "kept from the stored document"
+    );
+    assert_eq!(calls(&env.records, "acme", "auth.refresh").len(), 2);
+    let before = env.rt.store().get("zeta-1").expect("the parsed credential");
+    let error = env.rt.refresh_credential("zeta-1").await.unwrap_err();
+    assert!(
+        String::from_utf8_lossy(&error.body)
+            .contains("plugin auth provider refresh is unavailable for provider openai-compatible-pool"),
+        "{error:?}"
+    );
+    assert!(calls(&env.records, "pool", "auth.refresh").is_empty());
+    assert_eq!(env.rt.store().get("zeta-1").unwrap().revision, before.revision);
+    env.finish().await;
+}
+
+/// Go `shouldRefresh` for a plugin-refreshed credential: only `refresh_interval`
+/// schedules a refresh. A credential never refreshed is due at once; after a refresh the
+/// next one waits the interval from it (Go `LastRefreshedAt`), whatever
+/// `NextRefreshAfter` the plugin answered (Go clears it when it commits the refresh).
+/// A recent `last_refresh` holds the refresh off, and no interval never schedules one.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_plugin_refresh_interval_schedules_background_refreshes() {
+    let recent = (chrono::Utc::now() - chrono::Duration::minutes(10)).to_rfc3339();
+    let held = format!(r#"{{"type":"acme","access_token":"h","refresh_interval":"1h","last_refresh":"{recent}"}}"#);
+    let Some(env) = env(
+        "plugin-owned-refresh-interval",
+        &[("acme", "auth_provider")],
+        "",
+        &[
+            (
+                "due.json",
+                r#"{"type":"acme","access_token":"old","refresh_interval":"2s"}"#,
+            ),
+            ("held.json", &held),
+            (
+                "never.json",
+                r#"{"type":"acme","access_token":"n","refresh_token":"rn"}"#,
+            ),
+        ],
+        |records| {
+            canned(
+                records,
+                "acme",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"acme","access_token":"new"}},
+                    "NextRefreshAfter":"2099-01-01T00:00:00Z"}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    env.rt.start_auto_refresh();
+    let refreshed = || {
+        calls(&env.records, "acme", "auth.refresh")
+            .iter()
+            .map(|r| r["AuthID"].as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    };
+    eventually("the first refresh", || !refreshed().is_empty()).await;
+    let first = std::time::Instant::now();
+    eventually("the second refresh", || refreshed().len() >= 2).await;
+    assert!(
+        first.elapsed() >= Duration::from_millis(1500),
+        "the second refresh waits the interval: {:?}",
+        first.elapsed()
+    );
+    assert_eq!(refreshed(), ["due.json", "due.json"]);
+    assert_eq!(env.rt.store().get("due.json").unwrap().metadata["access_token"], "new");
+    env.rt.stop_auto_refresh();
+    env.finish().await;
+}
+
+/// Go's `NextRefreshAfter` and `LastRefreshedAt` for plugin-refreshed credentials,
+/// each due by its `refresh_interval` at once (as the control `c.json` is): a parsed
+/// auth waits for the `NextRefreshAfter` its plugin parsed, a failed management refresh
+/// holds the next one off for 5 min, and a refresh whose result an unrelated edit made
+/// a no-op still counts as the last refresh.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
+    let Some(env) = env(
+        "plugin-owned-refresh-deadlines",
+        &[("acme", "auth_provider"), ("pp", "auth_provider")],
+        "",
+        &[
+            (
+                "c.json",
+                r#"{"type":"acme","access_token":"c","refresh_interval":"1h"}"#,
+            ),
+            (
+                "f.json",
+                r#"{"type":"acme","access_token":"f","refresh_interval":"1h"}"#,
+            ),
+            (
+                "s.json",
+                r#"{"type":"acme","access_token":"s","refresh_interval":"1h","disabled":false}"#,
+            ),
+            ("p.json", r#"{"type":"pp","wrapped":"material"}"#),
+        ],
+        |records| {
+            // An answer without auth fields keeps the credential as it was.
+            canned(records, "acme", "auth.refresh", json!({"Auth":{}}));
+            canned(
+                records,
+                "pp",
+                "auth.parse",
+                json!({"Handled":true,"Auths":[{"Provider":"pp","ID":"p-1",
+                    "Metadata":{"type":"pp","access_token":"p","refresh_interval":"1h"},
+                    "NextRefreshAfter":"2099-01-01T00:00:00Z"}]}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    assert!(env.rt.store().get("p-1").is_some());
+    let refreshed = |id: &str| {
+        calls(&env.records, "acme", "auth.refresh")
+            .iter()
+            .filter(|r| r["AuthID"] == id)
+            .count()
+    };
+    std::fs::write(
+        env.records.join("respond/acme/auth.refresh.once.json"),
+        json!({"ok":false,"error":{"code":"upstream","message":"refresh failed","http_status":502}}).to_string(),
+    )
+    .unwrap();
+    env.rt.refresh_credential("f.json").await.unwrap_err();
+    // An edit of other fields lands while the plugin refreshes `s.json`.
+    let release = Release(env.records.join("respond/acme/auth.refresh.hold"));
+    std::fs::write(&release.0, "").unwrap();
+    let pending = tokio::spawn({
+        let rt = env.rt.clone();
+        async move { rt.refresh_credential("s.json").await }
+    });
+    eventually("the refresh of s.json", || refreshed("s.json") == 1).await;
+    let store = env.rt.store();
+    let mut edit = cpa_core::credential::MetadataPatch::default();
+    edit.set.insert("note".into(), "edited".into());
+    store
+        .apply_patch("s.json", store.get("s.json").unwrap().revision, &edit)
+        .unwrap();
+    drop(release);
+    pending.await.unwrap().unwrap();
+    assert_eq!(store.get("s.json").unwrap().metadata["note"], "edited");
+
+    env.rt.start_auto_refresh();
+    eventually("the control refresh", || refreshed("c.json") >= 1).await;
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    assert_eq!(refreshed("f.json"), 1, "backing off after the failed refresh");
+    assert_eq!(refreshed("s.json"), 1, "the no-op refresh counts as the last one");
+    assert!(
+        calls(&env.records, "pp", "auth.refresh").is_empty(),
+        "waiting for the parsed NextRefreshAfter"
+    );
+    env.rt.stop_auto_refresh();
+    env.finish().await;
+}
+
+/// Go `refreshAuth` after a failed refresh while the access token is still valid: the
+/// next one waits 5 min or until the token expires, whichever comes first. A
+/// background refresh that fails seconds before expiry retries at the expiry, not after
+/// the shared 5 min backoff of built-in refreshes.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_failed_background_plugin_refresh_retries_when_the_token_expires() {
+    let Some(env) = env(
+        "plugin-owned-refresh-expiry",
+        &[("acme", "auth_provider")],
+        "",
+        &[(
+            "e.json",
+            r#"{"type":"acme","access_token":"e","refresh_interval":"1h"}"#,
+        )],
+        |records| {
+            canned(
+                records,
+                "acme",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"acme","access_token":"e2","refresh_interval":"1h",
+                    "expired":"2099-01-01T00:00:00Z"}}}),
+            );
+            std::fs::write(
+                records.join("respond/acme/auth.refresh.once.json"),
+                json!({"ok":false,"error":{"code":"upstream","message":"refresh failed","http_status":502}})
+                    .to_string(),
+            )
+            .unwrap();
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    // The token expires 3 s from now; the first refresh fails at once, before that.
+    let expiry = chrono::Utc::now() + chrono::Duration::seconds(3);
+    let store = env.rt.store();
+    let mut patch = cpa_core::credential::MetadataPatch::default();
+    patch.set.insert("expired".into(), expiry.to_rfc3339().into());
+    store
+        .apply_patch("e.json", store.get("e.json").unwrap().revision, &patch)
+        .unwrap();
+    let refreshes = || calls(&env.records, "acme", "auth.refresh").len();
+    env.rt.start_auto_refresh();
+    eventually("the failing refresh", || refreshes() >= 1).await;
+    assert!(chrono::Utc::now() < expiry, "the first refresh ran before the expiry");
+    eventually("the retry at the expiry", || refreshes() >= 2).await;
+    eventually("the retry's commit", || {
+        env.rt.store().get("e.json").unwrap().metadata["access_token"] == "e2"
+    })
+    .await;
+    env.rt.stop_auto_refresh();
+    env.finish().await;
+}
+
+/// A plugin refresh whose result cannot be saved backs off like a failed refresh,
+/// instead of refreshing again at once on every pass of the refresh loop.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_plugin_refresh_that_cannot_be_saved_backs_off() {
+    use std::os::unix::fs::PermissionsExt;
+    let Some(env) = env(
+        "plugin-owned-refresh-unsaved",
+        &[("acme", "auth_provider")],
+        "",
+        &[(
+            "u.json",
+            r#"{"type":"acme","access_token":"u","refresh_interval":"1h"}"#,
+        )],
+        |records| {
+            canned(
+                records,
+                "acme",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"acme","access_token":"u2","refresh_interval":"1h"}}}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let auth_dir = env.rt.config().auth_dir.clone();
+    let mode = |m: u32| std::fs::set_permissions(&auth_dir, std::fs::Permissions::from_mode(m)).unwrap();
+    // A read-only auth dir: the atomic write of the refreshed file fails.
+    mode(0o555);
+    if std::fs::write(auth_dir.join("probe"), "").is_ok() {
+        // Running as root: permissions do not stop the write.
+        mode(0o755);
+        return;
+    }
+    let refreshes = || calls(&env.records, "acme", "auth.refresh").len();
+    env.rt.start_auto_refresh();
+    eventually("the refresh", || refreshes() >= 1).await;
+    tokio::time::sleep(Duration::from_millis(3000)).await;
+    env.rt.stop_auto_refresh();
+    mode(0o755);
+    assert_eq!(refreshes(), 1, "backing off after the unsaved refresh");
+    assert_eq!(auth_file(&env, "u.json")["access_token"], "u");
+    env.finish().await;
+}
+
+/// A parsed `NextRefreshAfter` seeds the registration it came with only. A credential
+/// registered afresh is due by its interval at once, as Go registers it: after its
+/// file is deleted and created again as an ordinary credential the parser no longer
+/// handles (whether or not the refresh loop saw the parsed one). A credential disabled
+/// and enabled again is not registered afresh: it keeps the parsed deadline.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadline() {
+    let parsed = |id: &str| {
+        json!({"Handled":true,"Auths":[{"Provider":"pp","ID":id,
+            "Metadata":{"type":"pp","access_token":"p","refresh_interval":"1h"},
+            "NextRefreshAfter":"2099-01-01T00:00:00Z"}]})
+    };
+    let Some(env) = env(
+        "plugin-owned-refresh-seed",
+        &[("pp", "auth_provider")],
+        "",
+        &[],
+        |records| {
+            canned(
+                records,
+                "pp",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"pp","access_token":"p2","refresh_interval":"1h"}}}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let auth_dir = env.rt.config().auth_dir.clone();
+    let refreshes = |id: &str| {
+        calls(&env.records, "pp", "auth.refresh")
+            .iter()
+            .filter(|r| r["AuthID"] == id)
+            .count()
+    };
+    let write = |name: &str, body: &str| std::fs::write(auth_dir.join(name), body).unwrap();
+    let wrapped = r#"{"type":"pp","wrapped":"material"}"#;
+    let ordinary = r#"{"type":"pp","access_token":"q","refresh_interval":"1h"}"#;
+    // The refresh loop coalesces store changes for 1 s.
+    let settle = || tokio::time::sleep(Duration::from_millis(2000));
+
+    // Seen by the refresh loop, deleted, then created again.
+    canned(&env.records, "pp", "auth.parse", parsed("a.json"));
+    write("a.json", wrapped);
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    env.rt.start_auto_refresh();
+    settle().await;
+    assert_eq!(refreshes("a.json"), 0, "waiting for the parsed NextRefreshAfter");
+    std::fs::remove_file(auth_dir.join("a.json")).unwrap();
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    assert!(env.rt.store().get("a.json").is_none());
+    settle().await;
+    canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
+    write("a.json", ordinary);
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    assert_eq!(env.rt.store().get("a.json").unwrap().metadata["access_token"], "q");
+    eventually("a.json's refresh", || refreshes("a.json") >= 1).await;
+    env.rt.stop_auto_refresh();
+    std::fs::remove_file(auth_dir.join("a.json")).unwrap();
+
+    // Parsed, deleted and created again before the refresh loop runs.
+    canned(&env.records, "pp", "auth.parse", parsed("b.json"));
+    write("b.json", wrapped);
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    std::fs::remove_file(auth_dir.join("b.json")).unwrap();
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
+    write("b.json", ordinary);
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    env.rt.start_auto_refresh();
+    eventually("b.json's refresh", || refreshes("b.json") >= 1).await;
+    env.rt.stop_auto_refresh();
+    std::fs::remove_file(auth_dir.join("b.json")).unwrap();
+
+    // Disabled and enabled again.
+    canned(&env.records, "pp", "auth.parse", parsed("c.json"));
+    write("c.json", wrapped);
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    env.rt.start_auto_refresh();
+    settle().await;
+    assert_eq!(refreshes("c.json"), 0, "waiting for the parsed NextRefreshAfter");
+    let store = env.rt.store();
+    for disabled in [true, false] {
+        let mut patch = cpa_core::credential::MetadataPatch::default();
+        patch.set.insert("disabled".into(), disabled.into());
+        store
+            .apply_patch("c.json", store.get("c.json").unwrap().revision, &patch)
+            .unwrap();
+        settle().await;
+    }
+    assert_eq!(refreshes("c.json"), 0, "still waiting for the parsed NextRefreshAfter");
+    env.rt.stop_auto_refresh();
+    env.finish().await;
+}
+
+/// What a plugin refresh response saves (Go `MergeRefreshedAuth`, then the store): its
+/// `disabled` state and the merged proxy URL reach the document, and the proxy URL the
+/// running credential, so the next refresh starts from it. A response that moves the
+/// credential to another provider or ID is refused; attribute changes are not applied,
+/// and the refreshed tokens are saved anyway.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_plugin_refresh_saves_its_tokens_disabled_state_and_proxy_url() {
+    let Some(env) = env(
+        "plugin-owned-refresh-fields",
+        &[("acme", "auth_provider")],
+        "",
+        &[
+            ("d.json", r#"{"type":"acme","access_token":"d"}"#),
+            (
+                "x.json",
+                r#"{"type":"acme","access_token":"x","proxy_url":"socks5://old:1"}"#,
+            ),
+            ("o.json", r#"{"type":"acme","access_token":"o"}"#),
+            (
+                "y.json",
+                r#"{"type":"acme","access_token":"y","proxy_url":"socks5://a:1"}"#,
+            ),
+        ],
+        |_| {},
+    )
+    .await
+    else {
+        return;
+    };
+    let respond = |auth: Value| {
+        std::fs::write(
+            env.records.join("respond/acme/auth.refresh.once.json"),
+            json!({"ok":true,"result":{"Auth":auth}}).to_string(),
+        )
+        .unwrap();
+    };
+    std::fs::create_dir_all(env.records.join("respond/acme")).unwrap();
+    let store = env.rt.store();
+
+    respond(json!({"Disabled":true,"Metadata":{"type":"acme","access_token":"d2"}}));
+    env.rt.refresh_credential("d.json").await.unwrap();
+    assert!(store.get("d.json").unwrap().disabled);
+    assert_eq!(
+        auth_file(&env, "d.json"),
+        json!({"type":"acme","access_token":"d2","disabled":true})
+    );
+
+    // Only the field changed, so the field's proxy URL wins.
+    respond(json!({"ProxyURL":"socks5://new:2",
+        "Metadata":{"type":"acme","access_token":"x2","proxy_url":"socks5://old:1"}}));
+    env.rt.refresh_credential("x.json").await.unwrap();
+    assert_eq!(
+        auth_file(&env, "x.json"),
+        json!({"type":"acme","access_token":"x2","proxy_url":"socks5://new:2","disabled":false})
+    );
+    assert_eq!(store.get("x.json").unwrap().attributes["proxy_url"], "socks5://new:2");
+    // The next refresh, with no reload between, echoes the metadata and leaves the
+    // field out: nothing changed, so the proxy URL stays the one the last refresh set.
+    respond(json!({"Metadata":{"type":"acme","access_token":"x3","proxy_url":"socks5://new:2"}}));
+    env.rt.refresh_credential("x.json").await.unwrap();
+    assert_eq!(
+        auth_file(&env, "x.json"),
+        json!({"type":"acme","access_token":"x3","proxy_url":"socks5://new:2","disabled":false})
+    );
+
+    // A management edit of the proxy URL lands while the plugin refreshes and answers
+    // another one: the edit wins in the document and the running credential alike.
+    respond(json!({"ProxyURL":"socks5://b:2",
+        "Metadata":{"type":"acme","access_token":"y2","proxy_url":"socks5://a:1"}}));
+    let release = Release(env.records.join("respond/acme/auth.refresh.hold"));
+    std::fs::write(&release.0, "").unwrap();
+    let pending = tokio::spawn({
+        let rt = env.rt.clone();
+        async move { rt.refresh_credential("y.json").await }
+    });
+    eventually("the refresh of y.json", || {
+        calls(&env.records, "acme", "auth.refresh")
+            .iter()
+            .any(|r| r["AuthID"] == "y.json")
+    })
+    .await;
+    let mut edit = cpa_core::credential::MetadataPatch::default();
+    edit.set.insert("proxy_url".into(), "socks5://c:3".into());
+    store
+        .apply_patch("y.json", store.get("y.json").unwrap().revision, &edit)
+        .unwrap();
+    drop(release);
+    pending.await.unwrap().unwrap();
+    let proxies = || {
+        (
+            auth_file(&env, "y.json")["proxy_url"].clone(),
+            store.get("y.json").unwrap().attributes.get("proxy_url").cloned(),
+        )
+    };
+    assert_eq!(proxies(), (json!("socks5://c:3"), Some("socks5://c:3".into())));
+    // The next refresh, with no reload between, echoes its input.
+    respond(json!({"Metadata":{"type":"acme","access_token":"y3","proxy_url":"socks5://c:3"}}));
+    env.rt.refresh_credential("y.json").await.unwrap();
+    assert_eq!(proxies(), (json!("socks5://c:3"), Some("socks5://c:3".into())));
+    assert_eq!(auth_file(&env, "y.json")["access_token"], "y3");
+
+    for (change, auth) in [
+        (
+            "provider from acme to other",
+            json!({"Provider":"other","Metadata":{"type":"other","access_token":"o2"}}),
+        ),
+        (
+            "ID to elsewhere",
+            json!({"ID":"elsewhere","Metadata":{"type":"acme","access_token":"o2"}}),
+        ),
+    ] {
+        respond(auth);
+        let error = env.rt.refresh_credential("o.json").await.unwrap_err();
+        assert!(
+            String::from_utf8_lossy(&error.body)
+                .contains(&format!("plugin auth refresh changed the credential's {change}")),
+            "{error:?}"
+        );
+        assert_eq!(auth_file(&env, "o.json"), json!({"type":"acme","access_token":"o"}));
+    }
+    assert!(store.get("elsewhere").is_none());
+    respond(json!({"Attributes":{"tier":"gold"},"Metadata":{"type":"acme","access_token":"o2"}}));
+    let o = env.rt.refresh_credential("o.json").await.unwrap();
+    assert_eq!(o.metadata["access_token"], "o2");
+    assert!(!o.attributes.contains_key("tier"));
+    assert_eq!(
+        auth_file(&env, "o.json"),
+        json!({"type":"acme","access_token":"o2","disabled":false})
+    );
+    env.finish().await;
+}
+
+/// Built-in providers keep their own refresh: a plugin auth provider registered for
+/// `claude` never refreshes a Claude credential, even one with a `base_url`. A 401 and a
+/// management refresh each reach Claude's token endpoint once, as without the plugin.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_claude_credential_keeps_its_builtin_refresh_beside_a_claude_auth_provider() {
+    let tokens = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let token_url = {
+        let tokens = tokens.clone();
+        let app = axum::Router::new().route(
+            "/token",
+            axum::routing::post(move || {
+                let n = tokens.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                async move {
+                    axum::Json(
+                        json!({"access_token":format!("plain-new-{n}"),"refresh_token":format!("r{}", n + 1),
+                        "expires_in":3600,"account":{"uuid":"acct-fake","email_address":"a@example.invalid"}}),
+                    )
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        format!("http://{addr}/token")
+    };
+    let oauth = cpa_exec::oauth::OAuth::with_endpoints(wreq::Client::new(), &token_url, &token_url, &token_url);
+    let Some(env) = env_with(
+        "plugin-owned-refresh-claude",
+        &[("claude", "auth_provider")],
+        "",
+        &[(
+            "claude.json",
+            r#"{"type":"claude","access_token":"plain-old","refresh_token":"r1","base_url":"http://127.0.0.1:1","expired":"2099-01-01T00:00:00Z"}"#,
+        )],
+        |records| {
+            canned(
+                records,
+                "claude",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"claude","access_token":"from-plugin"}}}),
+            );
+        },
+        Executors {
+            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1")
+                .unwrap()
+                .with_oauth(oauth),
+            ..executors()
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    let cfg = env.rt.config();
+    let credential = env.rt.store().get("claude.json").unwrap();
+    let retried = env
+        .rt
+        .refresh_after_unauthorized(&credential, &cfg)
+        .await
+        .expect("refreshed");
+    assert_eq!(retried.metadata["access_token"], "plain-new-1");
+    assert_eq!(tokens.load(std::sync::atomic::Ordering::SeqCst), 1);
+    let forced = env.rt.refresh_credential("claude.json").await.unwrap();
+    assert_eq!(forced.metadata["access_token"], "plain-new-2");
+    assert_eq!(tokens.load(std::sync::atomic::Ordering::SeqCst), 2);
+    assert!(calls(&env.records, "claude", "auth.refresh").is_empty());
+    env.finish().await;
+}
+
+/// `executor.http_request` (M6-0114): the request goes over the wire in Go's
+/// `rpcExecutorHTTPRequest` encoding (fields in declaration order, bytes as base64, the
+/// callback ID last) and the plugin's `ExecutorHTTPResponse` decodes back. Go's server
+/// never calls it for a plugin executor (only Codex credentials use `HttpRequest`).
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn executor_http_request_crosses_the_wire_as_go_encodes_it() {
+    let Some(env) = env(
+        "plugin-owned-http-request",
+        &[("acme", "executor")],
+        "",
+        &[],
+        |records| {
+            canned(
+                records,
+                "acme",
+                "executor.http_request",
+                json!({"StatusCode":201,"Headers":{"X-Up":["a","b"]},"Body":"aGk="}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let host = env.rt.plugins();
+    let adapter = host.executor_adapter("acme").await.unwrap();
+    let req = cpa_plugin::api::ExecutorHttpRequest {
+        auth_id: "a1".into(),
+        auth_provider: "acme".into(),
+        method: "POST".into(),
+        url: "https://up.invalid/v1/x?q=1".into(),
+        headers: [("X-Test".to_owned(), vec!["1".to_owned()])].into(),
+        body: bytes::Bytes::from_static(b"hello"),
+        storage_json: bytes::Bytes::from_static(b"{}"),
+        metadata: [("k".to_owned(), json!(1.5))].into(),
+        attributes: [("path".to_owned(), "/p".to_owned())].into(),
+    };
+    let resp = host
+        .executor_http_request(&adapter, &req, &Default::default())
+        .await
+        .unwrap();
+    assert_eq!(resp.status_code, 201);
+    assert_eq!(resp.headers["X-Up"], ["a", "b"]);
+    assert_eq!(&resp.body[..], b"hi");
+    let raw = std::fs::read_to_string(env.records.join("acme.jsonl")).unwrap();
+    let line: Value = raw
+        .lines()
+        .map(|l| serde_json::from_str::<Value>(l).unwrap())
+        .find(|r| r["method"] == "executor.http_request")
+        .unwrap();
+    let sent = line["request"].as_str().unwrap();
+    let want = concat!(
+        r#"{"AuthID":"a1","AuthProvider":"acme","Method":"POST","URL":"https://up.invalid/v1/x?q=1","#,
+        r#""Headers":{"X-Test":["1"]},"Body":"aGVsbG8=","StorageJSON":"e30=","Metadata":{"k":1.5},"#,
+        r#""Attributes":{"path":"/p"},"host_callback_id":""#
+    );
+    let id = sent
+        .strip_prefix(want)
+        .and_then(|rest| rest.strip_suffix(r#""}"#))
+        .unwrap_or_else(|| panic!("{sent}"));
+    assert!(!id.is_empty() && !id.contains('"'), "{sent}");
     env.finish().await;
 }
