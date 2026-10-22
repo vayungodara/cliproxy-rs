@@ -502,6 +502,8 @@ fn intersect_thinking(a: &ThinkingSupport, b: &ThinkingSupport) -> ThinkingSuppo
         max,
         zero_allowed: a.zero_allowed && b.zero_allowed,
         dynamic_allowed: a.dynamic_allowed && b.dynamic_allowed,
+        // Go leaves DisableType out of the intersection.
+        disable_type: String::new(),
         levels: intersect(&a.levels, &b.levels),
     }
 }

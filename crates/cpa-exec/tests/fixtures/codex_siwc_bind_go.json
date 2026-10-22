@@ -1,0 +1,474 @@
+{
+  "callback": [
+    {
+      "client_id": "cid",
+      "code": "c",
+      "desc": "",
+      "error": "",
+      "input": "http://127.0.0.1:1455/auth/callback?code=c\u0026state=s\u0026client_id=%20cid%20",
+      "state": "s"
+    },
+    {
+      "client_id": "frag",
+      "code": "c",
+      "desc": "",
+      "error": "",
+      "input": "?code=c\u0026state=s#client_id=frag",
+      "state": "s"
+    },
+    {
+      "err": "callback URL missing code",
+      "input": "code=c\u0026state=s\u0026client_id=q#client_id=frag"
+    },
+    {
+      "client_id": "f",
+      "code": "c",
+      "desc": "",
+      "error": "",
+      "input": "http://x/cb#code=c\u0026state=s\u0026client_id=f",
+      "state": "s"
+    },
+    {
+      "client_id": "c",
+      "code": "",
+      "desc": "nope",
+      "error": "access_denied",
+      "input": "?error=access_denied\u0026error_description=nope\u0026client_id=c",
+      "state": ""
+    },
+    {
+      "client_id": "c",
+      "code": "",
+      "desc": "",
+      "error": "only",
+      "input": "?error_description=only\u0026client_id=c",
+      "state": ""
+    },
+    {
+      "client_id": "",
+      "code": "c",
+      "desc": "",
+      "error": "",
+      "input": "?code=c%23s\u0026client_id=",
+      "state": "s"
+    }
+  ],
+  "device": [
+    {
+      "name": "kept_lowered",
+      "files": {
+        "c.json": "{\"siwc\":{\"device_id\":\" E61BBE28-07EF-466D-8E5D-A344F94AB305 \"}}"
+      },
+      "auth_dir": "",
+      "target": "",
+      "device": "e61bbe28-07ef-466d-8e5d-a344f94ab305"
+    },
+    {
+      "name": "invalid",
+      "files": {
+        "c.json": "{\"siwc\":{\"device_id\":\"e61bbe28-07ef-466d-8e5d-a344f94ab30\"}}"
+      },
+      "auth_dir": "",
+      "target": "",
+      "device": "generated"
+    },
+    {
+      "name": "number",
+      "files": {
+        "c.json": "{\"siwc\":{\"device_id\":7}}"
+      },
+      "auth_dir": "",
+      "target": "",
+      "device": "generated"
+    },
+    {
+      "name": "siwc_empty",
+      "files": {
+        "c.json": "{\"siwc\":{}}"
+      },
+      "auth_dir": "",
+      "target": "",
+      "device": "generated"
+    },
+    {
+      "name": "siwc_string",
+      "files": {
+        "c.json": "{\"siwc\":\"x\"}"
+      },
+      "auth_dir": "",
+      "target": "",
+      "device": "generated"
+    },
+    {
+      "name": "none",
+      "files": {
+        "c.json": "{}"
+      },
+      "auth_dir": "",
+      "target": "",
+      "device": "generated"
+    },
+    {
+      "name": "invalid_json",
+      "files": {
+        "c.json": "{"
+      },
+      "auth_dir": "",
+      "target": "",
+      "error": "invalid credential JSON",
+      "cause": true
+    }
+  ],
+  "resolve": [
+    {
+      "name": "bare_name",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": " c.json ",
+      "result": "$DIR/c.json"
+    },
+    {
+      "name": "absolute",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "$DIR/c.json",
+      "result": "$DIR/c.json"
+    },
+    {
+      "name": "auth_dir_dotdot",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "auth_dir": "$DIR/../auth",
+      "target": "c.json",
+      "result": "$DIR/c.json"
+    },
+    {
+      "name": "symlink_inside",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}",
+        "l.json": "-\u003e$DIR/c.json"
+      },
+      "auth_dir": "$DIR",
+      "target": "l.json",
+      "result": "$DIR/c.json"
+    },
+    {
+      "name": "auth_dir_alias_bare",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "outside": {
+        "alias": "-\u003e$DIR"
+      },
+      "auth_dir": "$OUT/alias",
+      "target": "c.json",
+      "result": "$DIR/c.json"
+    },
+    {
+      "name": "auth_dir_alias_absolute",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "outside": {
+        "alias": "-\u003e$DIR"
+      },
+      "auth_dir": "$OUT/alias",
+      "target": "$OUT/alias/c.json",
+      "result": "$DIR/c.json"
+    },
+    {
+      "name": "auth_dir_lexical_dotdot",
+      "files": {
+        "auth/c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}",
+        "sub": "/"
+      },
+      "outside": {
+        "auth/c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}",
+        "link": "-\u003e$DIR/sub"
+      },
+      "auth_dir": "$OUT/link/../auth",
+      "target": "c.json",
+      "result": "$OUT/auth/c.json"
+    },
+    {
+      "name": "traversal",
+      "outside": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "../out/c.json",
+      "error": "siwc-bind: expected an absolute path or bare filename"
+    },
+    {
+      "name": "no_type",
+      "files": {
+        "c.json": "{\"hello\":\"world\",\"access_token\":\"a\",\"refresh_token\":\"r\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: credential type must be codex"
+    },
+    {
+      "name": "empty",
+      "auth_dir": "$DIR",
+      "target": "  ",
+      "error": "siwc-bind: missing codex credential file path"
+    },
+    {
+      "name": "no_auth_dir",
+      "auth_dir": " ",
+      "target": "c.json",
+      "error": "siwc-bind: auth-dir is not configured"
+    },
+    {
+      "name": "auth_dir_missing",
+      "auth_dir": "$DIR/nope",
+      "target": "c.json",
+      "error": "siwc-bind: failed to resolve real auth-dir",
+      "cause": true
+    },
+    {
+      "name": "relative_path",
+      "files": {
+        "s": "/"
+      },
+      "auth_dir": "$DIR",
+      "target": "s/c.json",
+      "error": "siwc-bind: expected an absolute path or bare filename"
+    },
+    {
+      "name": "backslash",
+      "auth_dir": "$DIR",
+      "target": "s\\c.json",
+      "error": "siwc-bind: expected an absolute path or bare filename"
+    },
+    {
+      "name": "dot",
+      "auth_dir": "$DIR",
+      "target": ".",
+      "error": "siwc-bind: expected an absolute path or bare filename"
+    },
+    {
+      "name": "dotdot",
+      "auth_dir": "$DIR",
+      "target": "..",
+      "error": "siwc-bind: expected an absolute path or bare filename"
+    },
+    {
+      "name": "missing",
+      "auth_dir": "$DIR",
+      "target": "missing.json",
+      "error": "siwc-bind: failed to resolve credential file",
+      "cause": true
+    },
+    {
+      "name": "outside_absolute",
+      "outside": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "$OUT/c.json",
+      "error": "siwc-bind: credential file must belong to auth-dir"
+    },
+    {
+      "name": "symlink_outside",
+      "files": {
+        "l.json": "-\u003e$OUT/c.json"
+      },
+      "outside": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "l.json",
+      "error": "siwc-bind: credential file must belong to auth-dir"
+    },
+    {
+      "name": "auth_dir_itself",
+      "auth_dir": "$DIR",
+      "target": "$DIR",
+      "error": "siwc-bind: credential file must belong to auth-dir"
+    },
+    {
+      "name": "directory",
+      "files": {
+        "d.json": "/"
+      },
+      "auth_dir": "$DIR",
+      "target": "d.json",
+      "error": "siwc-bind: credential target must be an existing regular file"
+    },
+    {
+      "name": "invalid_json",
+      "files": {
+        "c.json": "{\"type\":"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: invalid credential JSON in $DIR/c.json"
+    },
+    {
+      "name": "array",
+      "files": {
+        "c.json": "[]"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: invalid credential JSON in $DIR/c.json"
+    },
+    {
+      "name": "null",
+      "files": {
+        "c.json": "null"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: credential type must be codex"
+    },
+    {
+      "name": "type_spaced_upper",
+      "files": {
+        "c.json": "{\"type\":\" CODEX \",\"access_token\":\"a\",\"refresh_token\":\"r\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "result": "$DIR/c.json"
+    },
+    {
+      "name": "type_claude",
+      "files": {
+        "c.json": "{\"type\":\"claude\",\"access_token\":\"a\",\"refresh_token\":\"r\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: credential type must be codex"
+    },
+    {
+      "name": "type_number",
+      "files": {
+        "c.json": "{\"type\":5,\"access_token\":\"a\",\"refresh_token\":\"r\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: credential type must be codex"
+    },
+    {
+      "name": "no_access",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"refresh_token\":\"r\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: codex credential requires a non-empty access_token"
+    },
+    {
+      "name": "blank_refresh",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":\"a\",\"refresh_token\":\" \\t\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: codex credential requires a non-empty refresh_token"
+    },
+    {
+      "name": "numeric_access",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"access_token\":1,\"refresh_token\":\"r\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: codex credential requires a non-empty access_token"
+    },
+    {
+      "name": "duplicate_type",
+      "files": {
+        "c.json": "{\"type\":\"codex\",\"type\":\"claude\",\"access_token\":\"a\",\"refresh_token\":\"r\"}"
+      },
+      "auth_dir": "$DIR",
+      "target": "c.json",
+      "error": "siwc-bind: credential type must be codex"
+    }
+  ],
+  "save": [
+    {
+      "name": "replaces_siwc",
+      "files": {
+        "c.json": "{\n  \"type\": \"codex\", \"access_token\": \"at\", \"refresh_token\": \"rt\",\n  \"use_siwc\": false, \"siwc\": {\"access_token\": \"old\", \"extra\": 1},\n  \"email\": \"a\u003cb\u003e\u0026c@x.io\", \"line\": \"\\u2028\",\n  \"n_big\": 12345678901234567890, \"n_exp\": 1e3, \"n_frac\": 1.50, \"n_neg\": -0.0, \"n_tiny\": 1e-7, \"n_huge\": 1e21,\n  \"nested\": {\"z\": 1, \"a\": [true, null, {\"y\": \"2\", \"b\": 3.0}]},\n  \"dup\": 1, \"dup\": 2\n}"
+      },
+      "auth_dir": "",
+      "target": "",
+      "result": "{\"access_token\":\"at\",\"dup\":2,\"email\":\"a\\u003cb\\u003e\\u0026c@x.io\",\"line\":\"\\u2028\",\"n_big\":12345678901234567000,\"n_exp\":1000,\"n_frac\":1.5,\"n_huge\":1e+21,\"n_neg\":-0,\"n_tiny\":1e-7,\"nested\":{\"a\":[true,null,{\"b\":3,\"y\":\"2\"}],\"z\":1},\"refresh_token\":\"rt\",\"siwc\":{\"access_token\":\"siwc-at\",\"client_id\":\"issued-client\",\"device_id\":\"e61bbe28-07ef-466d-8e5d-a344f94ab305\",\"expired\":\"2026-10-22T18:00:00Z\",\"id_token\":\"siwc-id\",\"last_refresh\":\"2026-10-22T17:00:00Z\",\"refresh_token\":\"siwc-rt\",\"scope\":\"openid chatgpt.tokens.use.direct\",\"scopes\":[\"openid\",\"chatgpt.tokens.use.direct\"]},\"type\":\"codex\",\"use_siwc\":true}",
+      "listing": [
+        "c.json",
+        "c.json.lock"
+      ]
+    },
+    {
+      "name": "invalid_json",
+      "files": {
+        "c.json": "{\"type\":\"codex\""
+      },
+      "auth_dir": "",
+      "target": "",
+      "error": "failed to parse existing credential file",
+      "cause": true,
+      "listing": [
+        "c.json",
+        "c.json.lock"
+      ]
+    },
+    {
+      "name": "not_codex",
+      "files": {
+        "c.json": "{\"type\":\"gemini\",\"access_token\":\"a\",\"refresh_token\":\"r\"}"
+      },
+      "auth_dir": "",
+      "target": "",
+      "error": "siwc-bind: credential type must be codex",
+      "listing": [
+        "c.json",
+        "c.json.lock"
+      ]
+    },
+    {
+      "name": "null",
+      "files": {
+        "c.json": "null"
+      },
+      "auth_dir": "",
+      "target": "",
+      "error": "siwc-bind: credential type must be codex",
+      "listing": [
+        "c.json",
+        "c.json.lock"
+      ]
+    },
+    {
+      "name": "missing",
+      "auth_dir": "",
+      "target": "",
+      "error": "failed to read existing credential file",
+      "cause": true,
+      "listing": [
+        "c.json.lock"
+      ]
+    },
+    {
+      "name": "trailing_space",
+      "files": {
+        "c.json ": "{\"type\":\"codex\",\"access_token\":\"at\",\"refresh_token\":\"rt\"}"
+      },
+      "auth_dir": "",
+      "target": "c.json ",
+      "result": "{\"access_token\":\"at\",\"refresh_token\":\"rt\",\"siwc\":{\"access_token\":\"siwc-at\",\"client_id\":\"issued-client\",\"device_id\":\"e61bbe28-07ef-466d-8e5d-a344f94ab305\",\"expired\":\"2026-10-22T18:00:00Z\",\"id_token\":\"siwc-id\",\"last_refresh\":\"2026-10-22T17:00:00Z\",\"refresh_token\":\"siwc-rt\",\"scope\":\"openid chatgpt.tokens.use.direct\",\"scopes\":[\"openid\",\"chatgpt.tokens.use.direct\"]},\"type\":\"codex\",\"use_siwc\":true}",
+      "listing": [
+        "c.json ",
+        "c.json.lock"
+      ]
+    }
+  ]
+}

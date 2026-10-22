@@ -4,17 +4,21 @@
 //!
 //! ponytail: quoted-printable parts are not decoded (Go's `NextPart` does) and ReadForm's
 //! part, header and memory limits are not enforced beyond the route's body cap; image
-//! clients send binary parts. Field and file order follow first appearance, one of the
+//! clients send binary parts. Lines are read as Go reads them from an in-memory body
+//! (docs/DIFFERENCES-FROM-GO.md, images multipart forms). Field and file order follow first appearance, one of the
 //! orders Go's map iteration can produce.
 
 use cpa_common::gostr::quote;
 use std::collections::BTreeMap;
 
+/// MIME header names in arrival order, with their values' bytes.
+pub type Headers = Vec<(String, Vec<u8>)>;
+
 /// One parsed form part.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Part {
-    /// Canonical header names in arrival order, with values.
-    pub headers: Vec<(String, String)>,
+    /// Canonical header names (names with a space as sent).
+    pub headers: Headers,
     /// `Part.FormName()`.
     pub name: String,
     /// `Part.FileName()`: `filepath.Base` of the filename parameter, empty for fields.
@@ -24,9 +28,9 @@ pub struct Part {
 
 impl Part {
     /// `textproto.MIMEHeader.Get`.
-    pub fn header(&self, name: &str) -> Option<&str> {
+    pub fn header(&self, name: &str) -> Option<&[u8]> {
         let name = crate::proxy::canonical_header(name);
-        self.headers.iter().find(|(n, _)| *n == name).map(|(_, v)| v.as_str())
+        self.headers.iter().find(|(n, _)| *n == name).map(|(_, v)| v.as_slice())
     }
 }
 
@@ -277,28 +281,96 @@ fn skip_lwsp(b: &[u8]) -> &[u8] {
     &b[n..]
 }
 
-/// `matchAfterPrefix` with the whole body available (a read error always follows).
-fn match_after_prefix(buf: &[u8], prefix_len: usize) -> bool {
-    match buf.get(prefix_len) {
-        None | Some(b' ' | b'\t' | b'\r' | b'\n') => true,
-        Some(b'-') => buf.get(prefix_len + 1) == Some(&b'-'),
-        Some(_) => false,
+/// What `partReader` makes of a delimiter prefix at the start of `rest`.
+enum Delimiter {
+    Match,
+    Data,
+    /// The part fails with `ErrBufferFull` once the bytes before this one are read.
+    BufferFull,
+}
+
+/// `matchAfterPrefix` as `partReader` reaches it: from the prefix on it sees at most
+/// the 4096-byte bufio buffer. When the buffer is full and still undecided, `Peek`
+/// fails with `ErrBufferFull`, which counts as the end of input and then fails the part.
+fn delimiter(rest: &[u8], prefix_len: usize) -> Delimiter {
+    let window = &rest[..rest.len().min(PEEK_BUFFER_SIZE)];
+    match window.get(prefix_len) {
+        None | Some(b' ' | b'\t' | b'\r' | b'\n') => Delimiter::Match,
+        Some(b'-') => match window.get(prefix_len + 1) {
+            Some(b'-') => Delimiter::Match,
+            None if window.len() == PEEK_BUFFER_SIZE => Delimiter::BufferFull,
+            _ => Delimiter::Data,
+        },
+        Some(_) => Delimiter::Data,
     }
 }
 
-impl Reader<'_> {
-    fn read_line(&mut self) -> (Vec<u8>, bool) {
-        let rest = &self.body[self.pos..];
-        match rest.iter().position(|b| *b == b'\n') {
-            Some(i) => {
-                self.pos += i + 1;
-                (rest[..=i].to_vec(), false)
-            }
-            None => {
-                self.pos = self.body.len();
-                (rest.to_vec(), true)
-            }
+/// Why a part's body has no end.
+enum BodyError {
+    UnexpectedEof,
+    /// `ErrBufferFull`, with where draining the part stops.
+    BufferFull(usize),
+}
+
+/// `multipart.peekBufferSize`: `NextPart` reads its lines with a bufio buffer this size.
+const PEEK_BUFFER_SIZE: usize = 4096;
+
+/// textproto's `trim`: SP and HTAB only.
+fn trim_sp_tab(b: &[u8]) -> &[u8] {
+    let mut b = skip_lwsp(b);
+    while let [rest @ .., b' ' | b'\t'] = b {
+        b = rest;
+    }
+    b
+}
+
+/// textproto's `validHeaderValueByte`: HTAB, SP, VCHAR and obs-text.
+fn header_value_byte(c: u8) -> bool {
+    c == b'\t' || (0x20..0x7f).contains(&c) || c >= 0x80
+}
+
+impl<'a> Reader<'a> {
+    /// `bufio.Reader.ReadSlice('\n')` over the rest of the body: the line with its
+    /// ending, `bufio: buffer full` when no newline falls within the buffer, and
+    /// `EOF` (with what is left) when the body ends first.
+    fn read_slice(&mut self) -> Result<&'a [u8], (&'static str, &'a [u8])> {
+        let body: &'a [u8] = self.body;
+        let rest = &body[self.pos..];
+        let window = &rest[..rest.len().min(PEEK_BUFFER_SIZE)];
+        if let Some(i) = window.iter().position(|b| *b == b'\n') {
+            self.pos += i + 1;
+            return Ok(&rest[..=i]);
         }
+        if rest.len() >= PEEK_BUFFER_SIZE {
+            self.pos += PEEK_BUFFER_SIZE;
+            return Err(("bufio: buffer full", window));
+        }
+        self.pos = body.len();
+        Err(("EOF", rest))
+    }
+
+    /// textproto's `readLineSlice` (`bufio.Reader.ReadLine` joined): the line without
+    /// `\n` or `\r\n`, a bare CR at the end of the body kept; `None` at EOF.
+    fn text_line(&mut self) -> Option<&'a [u8]> {
+        let body: &'a [u8] = self.body;
+        let rest = &body[self.pos..];
+        if rest.is_empty() {
+            return None;
+        }
+        let Some(i) = rest.iter().position(|b| *b == b'\n') else {
+            self.pos = body.len();
+            // ReadLine hands an unterminated line out in buffer-sized fragments, one
+            // byte shorter when the fragment would end in CR. When the last fragment
+            // ends the body, the next ReadLine's io.EOF drops the whole line.
+            let mut at = 0;
+            while rest.len() - at >= PEEK_BUFFER_SIZE {
+                at += PEEK_BUFFER_SIZE - usize::from(rest[at + PEEK_BUFFER_SIZE - 1] == b'\r');
+            }
+            return (at < rest.len()).then_some(rest);
+        };
+        self.pos += i + 1;
+        let line = &rest[..i];
+        Some(line.strip_suffix(b"\r").unwrap_or(line))
     }
 
     fn is_final(&self, line: &[u8]) -> bool {
@@ -322,26 +394,25 @@ impl Reader<'_> {
         rest == self.nl
     }
 
-    /// `nextPart`; `Ok(None)` is EOF.
+    /// `nextPart`; `Ok(None)` is `io.EOF`, which also ends the form when the body
+    /// ends inside a part's headers.
     fn next_part(&mut self) -> Result<Option<Part>, String> {
         let mut expect_new = false;
         loop {
-            let (line, eof) = self.read_line();
-            if eof && self.is_final(&line) {
-                return Ok(None);
-            }
-            if eof {
-                return Err("multipart: NextPart: EOF".into());
-            }
-            if self.is_delimiter(&line) {
+            let line = match self.read_slice() {
+                Ok(line) => line,
+                Err(("EOF", line)) if self.is_final(line) => return Ok(None),
+                Err((e, _)) => return Err(format!("multipart: NextPart: {e}")),
+            };
+            if self.is_delimiter(line) {
                 self.parts_read += 1;
-                return self.part().map(Some);
+                return self.part();
             }
-            if self.is_final(&line) {
+            if self.is_final(line) {
                 return Ok(None);
             }
             if expect_new {
-                return Err(format!("multipart: expecting a new Part; got line {}", quote(&line)));
+                return Err(format!("multipart: expecting a new Part; got line {}", quote(line)));
             }
             if self.parts_read == 0 {
                 continue;
@@ -350,75 +421,86 @@ impl Reader<'_> {
                 expect_new = true;
                 continue;
             }
-            return Err(format!("multipart: unexpected line in Next(): {}", quote(&line)));
+            return Err(format!("multipart: unexpected line in Next(): {}", quote(line)));
         }
     }
 
-    /// `textproto.ReadMIMEHeader`, then the body up to the next boundary.
-    fn part(&mut self) -> Result<Part, String> {
+    /// textproto's `readMIMEHeader`; `Ok(None)` is its `io.EOF`.
+    fn headers(&mut self) -> Result<Option<Headers>, String> {
         // Go 1.26.4, v8.0.35's release toolchain, quotes these lines with %q.
-        let malformed = |line: &[u8]| format!("malformed MIME header line: {}", quote(line));
-        let mut headers: Vec<(String, String)> = Vec::new();
-        let mut first = true;
+        if matches!(self.body.get(self.pos), Some(b' ' | b'\t')) {
+            let body: &'a [u8] = self.body;
+            let start = self.pos;
+            // A dropped line is at least 4095 bytes, so the limit refuses it first.
+            let line = self.text_line().unwrap_or(&body[start..]);
+            // readLineSlice(80): the diagnostic reads at most 80 bytes of the line.
+            if line.len() > 80 {
+                return Err("multipart: message too large".into());
+            }
+            return Err(format!("malformed MIME header initial line: {}", quote(line)));
+        }
+        let mut headers = Vec::new();
         loop {
-            let (raw, eof) = self.read_line();
-            let line = raw.strip_suffix(b"\n").unwrap_or(&raw);
-            let line = line.strip_suffix(b"\r").unwrap_or(line);
-            if first && matches!(line.first(), Some(b' ' | b'\t')) {
-                return Err(format!("malformed MIME header initial line: {}", quote(line)));
-            }
-            first = false;
-            if line.is_empty() {
-                if eof {
-                    return Err("unexpected EOF".into());
-                }
-                break;
-            }
-            let trimmed = line.trim_ascii();
-            if matches!(line.first(), Some(b' ' | b'\t')) {
-                // A continuation line folds into the previous value.
-                match headers.last_mut() {
-                    Some((_, v)) => {
-                        v.push(' ');
-                        v.push_str(&String::from_utf8_lossy(trimmed));
-                        continue;
-                    }
-                    None => return Err(malformed(line)),
-                }
-            }
-            let Some(colon) = trimmed.iter().position(|b| *b == b':') else {
-                return Err(format!("malformed MIME header: missing colon: {}", quote(line)));
+            // readContinuedLineSlice: the first line must hold the colon; lines that
+            // start with SP or HTAB join it after one space.
+            let Some(first) = self.text_line() else {
+                return Ok(None);
             };
-            let (key, value) = (&trimmed[..colon], &trimmed[colon + 1..]);
+            if first.is_empty() {
+                return Ok(Some(headers));
+            }
+            if !first.contains(&b':') {
+                return Err(format!("malformed MIME header: missing colon: {}", quote(first)));
+            }
+            let mut kv = trim_sp_tab(first).to_vec();
+            loop {
+                let spaces = self.body[self.pos..]
+                    .iter()
+                    .take_while(|c| matches!(c, b' ' | b'\t'))
+                    .count();
+                if spaces == 0 {
+                    break;
+                }
+                self.pos += spaces;
+                kv.push(b' ');
+                let Some(line) = self.text_line() else {
+                    break;
+                };
+                kv.extend_from_slice(trim_sp_tab(line));
+            }
+            let malformed = || format!("malformed MIME header line: {}", quote(&kv));
+            let colon = kv.iter().position(|b| *b == b':').unwrap_or_default();
+            let (key, value) = (&kv[..colon], &kv[colon + 1..]);
             // canonicalMIMEHeaderKey: token bytes are canonicalized; keys with spaces are
             // accepted as they are; anything else is malformed.
             let key = if key.is_empty() || !key.iter().all(|c| token_char(*c) || *c == b' ') {
-                return Err(malformed(trimmed));
+                return Err(malformed());
             } else if key.contains(&b' ') {
                 String::from_utf8_lossy(key).into_owned()
             } else {
                 crate::proxy::canonical_header(&String::from_utf8_lossy(key))
             };
-            if value.iter().any(|c| *c < 0x20 && *c != b'\t' || *c == 0x7f) {
-                return Err(malformed(trimmed));
+            if !value.iter().all(|c| header_value_byte(*c)) {
+                // canonicalMIMEHeaderKey rewrote the key inside kv before this check.
+                let line = [key.as_bytes(), b":", value].concat();
+                return Err(format!("malformed MIME header line: {}", quote(line)));
             }
-            let value = value
-                .iter()
-                .skip_while(|c| matches!(c, b' ' | b'\t'))
-                .copied()
-                .collect::<Vec<u8>>();
-            headers.push((key, String::from_utf8_lossy(&value).into_owned()));
-            if eof {
-                return Err("unexpected EOF".into());
-            }
+            headers.push((key, skip_lwsp(value).to_vec()));
         }
-        let body = self.part_body()?;
+    }
+
+    /// `newPart`, then what `ReadForm` does with its body.
+    fn part(&mut self) -> Result<Option<Part>, String> {
+        let Some(headers) = self.headers()? else {
+            return Ok(None);
+        };
+        let body = self.part_body();
         let disposition = headers
             .iter()
             .find(|(n, _)| n == "Content-Disposition")
-            .map(|(_, v)| v.as_str())
+            .map(|(_, v)| String::from_utf8_lossy(v))
             .unwrap_or_default();
-        let (kind, params) = match parse_media_type(disposition) {
+        let (kind, params) = match parse_media_type(&disposition) {
             MediaType::Ok(kind, params) => (kind, params),
             MediaType::BadParams(kind) => (kind, BTreeMap::new()),
             MediaType::Invalid(_) => (String::new(), BTreeMap::new()),
@@ -428,25 +510,42 @@ impl Reader<'_> {
         } else {
             String::new()
         };
+        // ReadForm skips a nameless part; the next NextPart drains it, ignoring the
+        // missing boundary, and then reads only what is left of a partial "\r\n--b".
+        let body = match body {
+            Ok(body) => body,
+            Err(BodyError::UnexpectedEof) if name.is_empty() => return Err("multipart: NextPart: EOF".into()),
+            Err(BodyError::UnexpectedEof) => return Err("unexpected EOF".into()),
+            // Draining a nameless part stops at the error; NextPart reads on from there.
+            Err(BodyError::BufferFull(end)) if name.is_empty() => {
+                self.pos = end;
+                Vec::new()
+            }
+            Err(BodyError::BufferFull(_)) => return Err("bufio: buffer full".into()),
+        };
         let filename = params
             .get("filename")
             .filter(|f| !f.is_empty())
             .map(|f| base_name(f))
             .unwrap_or_default();
-        Ok(Part {
+        Ok(Some(Part {
             headers,
             name,
             filename,
             body,
-        })
+        }))
     }
 
     /// `partReader` with `scanUntilBoundary`: the body ends before `nl--boundary`
     /// followed by `--`, whitespace or the end of input.
-    fn part_body(&mut self) -> Result<Vec<u8>, String> {
+    fn part_body(&mut self) -> Result<Vec<u8>, BodyError> {
         let buf = &self.body[self.pos..];
-        if buf.starts_with(&self.dash_boundary) && match_after_prefix(buf, self.dash_boundary.len()) {
-            return Ok(Vec::new());
+        if buf.starts_with(&self.dash_boundary) {
+            match delimiter(buf, self.dash_boundary.len()) {
+                Delimiter::Match => return Ok(Vec::new()),
+                Delimiter::Data => {}
+                Delimiter::BufferFull => return Err(BodyError::BufferFull(self.pos + PEEK_BUFFER_SIZE)),
+            }
         }
         let mut nl_dash = self.nl.to_vec();
         nl_dash.extend_from_slice(&self.dash_boundary);
@@ -456,14 +555,17 @@ impl Reader<'_> {
             .and_then(|b| b.windows(nl_dash.len()).position(|w| w == nl_dash.as_slice()))
             .map(|i| i + from)
         {
-            if match_after_prefix(&buf[i..], nl_dash.len()) {
-                let body = buf[..i].to_vec();
-                self.pos += i;
-                return Ok(body);
+            match delimiter(&buf[i..], nl_dash.len()) {
+                Delimiter::Match => {
+                    let body = buf[..i].to_vec();
+                    self.pos += i;
+                    return Ok(body);
+                }
+                Delimiter::Data => from = i + nl_dash.len(),
+                Delimiter::BufferFull => return Err(BodyError::BufferFull(self.pos + i + PEEK_BUFFER_SIZE)),
             }
-            from = i + nl_dash.len();
         }
-        Err("unexpected EOF".into())
+        Err(BodyError::UnexpectedEof)
     }
 }
 
@@ -538,17 +640,20 @@ impl Writer {
     }
 
     /// `CreatePart`: headers sorted by name, each value on its own line.
-    pub fn part(&mut self, headers: &[(String, String)], body: &[u8]) {
+    pub fn part(&mut self, headers: &[(String, Vec<u8>)], body: &[u8]) {
         if self.parts > 0 {
             self.out.extend_from_slice(b"\r\n");
         }
         self.parts += 1;
         self.out
             .extend_from_slice(format!("--{}\r\n", self.boundary).as_bytes());
-        let mut sorted: Vec<&(String, String)> = headers.iter().collect();
+        let mut sorted: Vec<&(String, Vec<u8>)> = headers.iter().collect();
         sorted.sort_by(|a, b| a.0.cmp(&b.0));
         for (name, value) in sorted {
-            self.out.extend_from_slice(format!("{name}: {value}\r\n").as_bytes());
+            self.out.extend_from_slice(name.as_bytes());
+            self.out.extend_from_slice(b": ");
+            self.out.extend_from_slice(value);
+            self.out.extend_from_slice(b"\r\n");
         }
         self.out.extend_from_slice(b"\r\n");
         self.out.extend_from_slice(body);
@@ -557,13 +662,13 @@ impl Writer {
     /// `WriteField`.
     pub fn field(&mut self, name: &str, value: &[u8]) {
         let disposition = format!(r#"form-data; name="{}""#, escape_quotes(name));
-        self.part(&[("Content-Disposition".into(), disposition)], value);
+        self.part(&[("Content-Disposition".into(), disposition.into_bytes())], value);
     }
 
     /// A file part re-emitted under `field` the way the images paths do: the original
     /// part headers, a fresh Content-Disposition, and a default Content-Type.
     pub fn file(&mut self, field: &str, part: &Part) {
-        let mut headers: Vec<(String, String)> = part
+        let mut headers: Headers = part
             .headers
             .iter()
             .filter(|(n, _)| n != "Content-Disposition")
@@ -571,11 +676,11 @@ impl Writer {
             .collect();
         headers.push((
             "Content-Disposition".into(),
-            file_content_disposition(field, &part.filename),
+            file_content_disposition(field, &part.filename).into_bytes(),
         ));
-        if part.header("Content-Type").is_none_or(str::is_empty) {
+        if part.header("Content-Type").is_none_or(<[u8]>::is_empty) {
             headers.retain(|(n, _)| n != "Content-Type");
-            headers.push(("Content-Type".into(), "application/octet-stream".into()));
+            headers.push(("Content-Type".into(), b"application/octet-stream".to_vec()));
         }
         self.part(&headers, &part.body);
     }
@@ -663,7 +768,7 @@ mod tests {
         let body = b"--b\r\nContent-Disposition: form-data; name=\"image\"; filename=\"x\"\r\nX Note: ok\r\n\r\nx\r\n--b--\r\n";
         let parsed = form(body).unwrap();
         let part = &parsed.files("image")[0];
-        assert!(part.headers.contains(&("X Note".into(), "ok".into())));
+        assert!(part.headers.contains(&("X Note".into(), b"ok".to_vec())));
         let bad = b"--b\r\nContent-Disposition: form-data; name=\"p\"\r\nX-A: a\x01\r\n\r\nx\r\n--b--\r\n";
         assert!(form(bad).is_err());
         let split = b"--b\r\nContent-Disposition: form-data; name=\"image\"; filename*0*=utf-8''%C3; filename*1*=%A9.png\r\n\r\nx\r\n--b--\r\n";
@@ -703,6 +808,61 @@ mod tests {
                 String::from_utf8_lossy(body)
             );
         }
+    }
+
+    /// `tests/fixtures/multipart_form_go.json`: Go 1.26.4 `ReadForm` on header, line and
+    /// boundary edge cases (`tests/reference/multipart_form`).
+    #[test]
+    fn reads_forms_as_go_does() {
+        use base64::Engine;
+        use serde_json::{Map, Value, json};
+        let doc: Value = serde_json::from_str(include_str!("../tests/fixtures/multipart_form_go.json")).unwrap();
+        let b64 = |b: &[u8]| json!(base64::engine::general_purpose::STANDARD.encode(b));
+        let mut checked = 0;
+        for case in doc["cases"].as_array().unwrap() {
+            let name = case["name"].as_str().unwrap();
+            let body = base64::engine::general_purpose::STANDARD
+                .decode(case["body"].as_str().unwrap())
+                .unwrap();
+            let boundary = case.get("boundary").and_then(Value::as_str).unwrap_or("b");
+            let got = match read_form(&body, boundary) {
+                Err(e) => json!({ "error": e }),
+                Ok(form) => {
+                    let values: Map<String, Value> = form
+                        .values
+                        .iter()
+                        .map(|(k, vs)| (k.clone(), vs.iter().map(|v| b64(v)).collect()))
+                        .collect();
+                    let files: Map<String, Value> = form
+                        .files
+                        .iter()
+                        .map(|(k, parts)| {
+                            let parts = parts.iter().map(|p| {
+                                let mut header = Map::new();
+                                for (n, v) in &p.headers {
+                                    let list = header.entry(n.clone()).or_insert_with(|| json!([]));
+                                    list.as_array_mut().unwrap().push(b64(v));
+                                }
+                                json!({ "filename": p.filename, "header": header, "body": b64(&p.body) })
+                            });
+                            (k.clone(), parts.collect())
+                        })
+                        .collect();
+                    json!({ "values": values, "files": files })
+                }
+            };
+            let want = match case.get("error") {
+                Some(e) => json!({ "error": e }),
+                // Go omits an empty map.
+                None => json!({
+                    "values": case.get("values").cloned().unwrap_or(json!({})),
+                    "files": case.get("files").cloned().unwrap_or(json!({})),
+                }),
+            };
+            assert_eq!(got, want, "{name}");
+            checked += 1;
+        }
+        assert_eq!(checked, 65);
     }
 
     #[test]

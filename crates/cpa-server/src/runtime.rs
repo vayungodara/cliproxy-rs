@@ -490,16 +490,35 @@ impl Runtime {
         match failed {
             Some(revision) if current.revision != revision => return Ok(current),
             Some(_) => {}
-            None if self.executors.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
+            None if self.readiness(&current, cfg) == Readiness::Ready => return Ok(current),
             None => {}
         }
         let view = self.for_executor(&current);
-        let patch = match failed {
-            Some(_) if management => self.executors.prepare_management(&view, cfg).await?,
-            Some(_) => self.executors.prepare_forced(&view, cfg).await?,
-            None => self.executors.prepare(&view, cfg).await?,
+        let plugin = crate::plugins::refresh::route(self, &current, cfg);
+        // A plugin answer also publishes the committed document's proxy URL (the merged
+        // one, or a concurrent edit's when that wins the merge) as the credential's.
+        let (patch, publish_proxy) = match (&plugin, failed) {
+            (Some(route), _) => {
+                let refreshed = crate::plugins::refresh::refresh(self, route, &view, &current).await?;
+                (refreshed.patch, refreshed.answered)
+            }
+            (None, Some(_)) if management => (self.executors.prepare_management(&view, cfg).await?, false),
+            (None, Some(_)) => (self.executors.prepare_forced(&view, cfg).await?, false),
+            (None, None) => (self.executors.prepare(&view, cfg).await?, false),
+        };
+        let publish_proxy = move |c: &mut Credential| {
+            if publish_proxy {
+                match c.str("proxy_url").map(str::trim).filter(|p| !p.is_empty()) {
+                    Some(proxy) => {
+                        let proxy = proxy.to_owned();
+                        c.attributes.insert("proxy_url".into(), proxy)
+                    }
+                    None => c.attributes.remove("proxy_url"),
+                };
+            }
         };
         let store = self.store.clone();
+        let plugin_schedules = plugin.as_ref().map(|_| crate::plugins::refresh::schedules(self));
         let committed = tokio::task::spawn_blocking({
             let id = id.to_owned();
             move || {
@@ -507,7 +526,9 @@ impl Runtime {
                 let mut revision = current.revision;
                 let mut attempt = patch.clone();
                 loop {
-                    match store.apply_refresh(&id, revision, &attempt, |c| credentials_changed(&current, c)) {
+                    match store.apply_refresh(&id, revision, &attempt, publish_proxy, |c| {
+                        credentials_changed(&current, c)
+                    }) {
                         // Edited since the snapshot (the prepare lock does not hold off other
                         // writers). Go 935aa6e3: an edit that changed the credentials wins and
                         // this refresh is dropped; any other edit is merged with it (Go
@@ -530,6 +551,11 @@ impl Runtime {
                             }
                             attempt = rebased;
                             if attempt.set.is_empty() && attempt.remove.is_empty() {
+                                // Nothing left to write, but the refresh happened (Go
+                                // records `LastRefreshedAt` whatever the merge changes).
+                                if let Some(schedules) = &plugin_schedules {
+                                    crate::plugins::refresh::committed(schedules, &latest, chrono::Utc::now());
+                                }
                                 return Ok(latest);
                             }
                             revision = latest.revision;
@@ -542,6 +568,10 @@ impl Runtime {
                             if rotated {
                                 store.recover_unauthorized(&id);
                             }
+                            // Go `LastRefreshedAt`, recorded with the commit.
+                            if let Some(schedules) = &plugin_schedules {
+                                crate::plugins::refresh::committed(schedules, &committed, chrono::Utc::now());
+                            }
                             return Ok(committed);
                         }
                     }
@@ -552,6 +582,10 @@ impl Runtime {
         .map_err(|e| PatchError::Io(e.to_string()))
         .and_then(|r| r)
         .map_err(|e| {
+            // The plugin refreshed but nothing was saved: back off as for a failed refresh.
+            if plugin.is_some() {
+                crate::plugins::refresh::failed(self, &view, chrono::Utc::now());
+            }
             ExecError::local(
                 500,
                 FailureScope::Request,
@@ -559,6 +593,20 @@ impl Runtime {
             )
         })?;
         Ok(committed)
+    }
+
+    /// [`Executors::readiness`], plus the schedule of credentials a plugin refreshes
+    /// ([`crate::plugins::refresh`]), which never holds a request. Built-in providers
+    /// read their executor alone.
+    fn readiness(&self, c: &Credential, cfg: &Config) -> Readiness {
+        match self.executors.readiness(c, cfg) {
+            Readiness::Ready if self.plugin_refresh_due(c, cfg, chrono::Utc::now()) => Readiness::RefreshSoon,
+            readiness => readiness,
+        }
+    }
+
+    fn plugin_refresh_due(&self, c: &Credential, cfg: &Config, now: chrono::DateTime<chrono::Utc>) -> bool {
+        crate::plugins::refresh::due_at(self, c, cfg).is_some_and(|at| at <= now)
     }
 
     /// Go `tryRefreshAfterUnauthorized`: after an upstream 401 on a credential whose
@@ -619,6 +667,7 @@ impl Runtime {
                 let jobs: Vec<_> = {
                     let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
                     state.reconcile(&snapshot);
+                    crate::plugins::refresh::reconcile(&rt, &snapshot);
                     let mut jobs = Vec::new();
                     rt.store.forget_stale_unauthorized(&rejected, &snapshot);
                     // Far enough ahead that any expiry has passed, near enough for chrono.
@@ -647,10 +696,15 @@ impl Runtime {
                             }
                             continue;
                         }
-                        if rt.executors.needs_prepare_at(c, &cfg, eventually) {
+                        let plugin_due = crate::plugins::refresh::due_at(&rt, c, &cfg);
+                        if rt.executors.needs_prepare_at(c, &cfg, eventually) || plugin_due.is_some() {
                             soonest(now + HORIZON);
                         }
-                        match rt.executors.prepare_due(c, &cfg, wall, horizon) {
+                        let due = rt
+                            .executors
+                            .prepare_due(c, &cfg, wall, horizon)
+                            .or_else(|| plugin_due.filter(|at| *at <= wall + horizon).map(|at| at.max(wall)));
+                        match due {
                             Some(at) if at > wall => soonest(now + (at - wall).to_std().unwrap_or_default()),
                             Some(_) if state.reserve(c, now) => jobs.push((c.clone(), false)),
                             // Reserved or backing off: look again when that ends.
@@ -691,11 +745,14 @@ impl Runtime {
                             {
                                 return;
                             }
+                            // A plugin refresh keeps its own deadlines (Go `NextRefreshAfter`,
+                            // `crate::plugins::refresh`): release the reservation only.
+                            let plugin = crate::plugins::refresh::route(&rt, &current, &cfg).is_some();
                             let ineffective =
-                                result.is_ok() && rt.executors.readiness(&current, &cfg) != Readiness::Ready;
+                                !plugin && result.is_ok() && rt.readiness(&current, &cfg) != Readiness::Ready;
                             rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner).finish(
                                 &current,
-                                result.as_ref().err(),
+                                result.as_ref().err().filter(|_| !plugin),
                                 ineffective,
                                 Instant::now(),
                             );
@@ -1872,10 +1929,11 @@ impl CredentialStore {
         id: &str,
         expected_revision: u64,
         patch: &MetadataPatch,
+        edit: impl FnOnce(&mut Credential),
         rotated: impl FnOnce(&Credential) -> bool,
     ) -> Result<(Arc<Credential>, bool), PatchError> {
         let mut state = self.unauthorized.lock().unwrap_or_else(PoisonError::into_inner);
-        let committed = self.apply_patch(id, expected_revision, patch)?;
+        let committed = self.apply_patch_with(id, expected_revision, patch, edit)?;
         let rotated = rotated(&committed);
         if rotated {
             state
@@ -1920,6 +1978,18 @@ impl CredentialStore {
         expected_revision: u64,
         patch: &MetadataPatch,
     ) -> Result<Arc<Credential>, PatchError> {
+        self.apply_patch_with(id, expected_revision, patch, |_| {})
+    }
+
+    /// [`Self::apply_patch`], with `edit` applied to the credential before it is
+    /// published (fields outside the document, such as a plugin refresh's proxy URL).
+    fn apply_patch_with(
+        &self,
+        id: &str,
+        expected_revision: u64,
+        patch: &MetadataPatch,
+        edit: impl FnOnce(&mut Credential),
+    ) -> Result<Arc<Credential>, PatchError> {
         let committed = self.write_unlocked(
             id,
             expected_revision,
@@ -1939,6 +2009,7 @@ impl CredentialStore {
                 let mut next = Credential::clone(current);
                 patch.apply(&mut next.metadata);
                 next.refresh_derived();
+                edit(&mut next);
                 // Go `FileTokenStore.Save` always records the disabled state.
                 next.metadata.insert("disabled".into(), Value::Bool(next.disabled));
                 // Go's `json.NewEncoder(f).Encode`: compact JSON and a newline.

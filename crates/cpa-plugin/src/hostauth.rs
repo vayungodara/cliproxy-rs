@@ -450,6 +450,15 @@ impl Host {
             if auth.id.trim().is_empty() {
                 auth.id = default_id.clone();
             }
+            // Go registers a new auth with the `NextRefreshAfter` its plugin parsed, and
+            // one that replaces a registered auth with that auth's own deadlines
+            // (`preserveExistingAuthState`), which the refresh schedule keeps by ID.
+            if let Some(at) = auth.next_refresh_after.0
+                && self.auth_manager().is_none_or(|m| m.get_by_id(&auth.id).is_none())
+            {
+                crate::host::lock(&self.inner.parsed_refresh_after)
+                    .insert(auth.id.clone(), (at.to_utc(), path_text.clone()));
+            }
             if file_disabled {
                 auth.disabled = true;
                 auth.metadata.insert("disabled".into(), true.into());
