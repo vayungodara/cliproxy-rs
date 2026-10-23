@@ -1,0 +1,80 @@
+{
+  "cases": [
+    {
+      "name": "compat-name",
+      "provider": "openai-compatibility",
+      "label": "",
+      "attributes": {
+        "compat_name": "Acme"
+      },
+      "registered": [
+        "openai-compatible-acme"
+      ]
+    },
+    {
+      "name": "compat-name-other-provider",
+      "provider": "zed",
+      "label": "",
+      "attributes": {
+        "compat_name": " Acme "
+      },
+      "registered": [
+        "openai-compatible-acme"
+      ]
+    },
+    {
+      "name": "compat-name-home-provider",
+      "provider": "openai-compatible-acme",
+      "label": "",
+      "attributes": {
+        "compat_name": "acme"
+      },
+      "registered": [
+        "openai-compatible-acme"
+      ]
+    },
+    {
+      "name": "unprefixed-provider-key",
+      "provider": "openai-compatibility",
+      "label": "",
+      "attributes": {
+        "compat_name": "Acme",
+        "provider_key": "Acme"
+      },
+      "registered": [
+        "acme"
+      ]
+    },
+    {
+      "name": "prefixed-provider-key",
+      "provider": "openai-compatibility",
+      "label": "",
+      "attributes": {
+        "compat_name": "Acme",
+        "provider_key": "openai-compatible-ACME"
+      },
+      "registered": [
+        "openai-compatible-acme"
+      ]
+    },
+    {
+      "name": "label",
+      "provider": "openai-compatibility",
+      "label": "Acme",
+      "attributes": {},
+      "registered": [
+        "openai-compatible-acme"
+      ]
+    },
+    {
+      "name": "label-other-case",
+      "provider": "OpenAI-Compatibility",
+      "label": "ACME",
+      "attributes": {},
+      "registered": [
+        "openai-compatible-acme"
+      ]
+    }
+  ],
+  "yaml": "openai-compatibility:\n  - name: Acme\n    base-url: http://127.0.0.1:1\n    api-key-entries: [{api-key: k}]\n    models: [{name: m-acme}]\n"
+}
