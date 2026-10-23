@@ -4205,13 +4205,18 @@ async fn a_failed_refresh_backs_off_to_the_current_expiry() {
     });
     eventually("the held refresh", || refreshes("e.json") == 1).await;
     let revision = env.rt.store().get("e.json").unwrap().revision;
-    write(chrono::Duration::seconds(4));
+    write(chrono::Duration::seconds(8));
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
     assert_ne!(env.rt.store().get("e.json").unwrap().revision, revision);
     release(hold, since, &pending);
     assert!(pending.await.unwrap().is_err());
     env.rt.start_auto_refresh();
-    eventually("the refresh at the new expiry", || refreshes("e.json") == 2).await;
+    // Due at the new expiry, about 8 s after the edit; 5 min on without it.
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
+    while refreshes("e.json") < 2 {
+        assert!(std::time::Instant::now() < deadline, "the refresh at the new expiry");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
     env.finish().await;
 }
 

@@ -531,64 +531,7 @@ impl Runtime {
             let id = id.to_owned();
             move || {
                 let _guard = guard;
-                let mut revision = current.revision;
-                let mut attempt = patch.clone();
-                loop {
-                    match store.apply_refresh(&id, revision, fence, &attempt, publish_proxy, |c| {
-                        credentials_changed(&current, c)
-                    }) {
-                        // Edited since the snapshot (the prepare lock does not hold off other
-                        // writers), within the refresh's registration: the writer refuses a
-                        // re-registered ID first (Go "stale registration epoch"), here and on
-                        // every retry. Go 935aa6e3: an edit that changed the credentials wins
-                        // and this refresh is dropped; any other edit is merged with it (Go
-                        // `MergeRefreshedAuth`), so a rotated refresh token is not lost.
-                        // ponytail: Go also drops a refresh whose CredentialVersion moved,
-                        // which covers an A→B→A token replacement within one registration;
-                        // here tokens put back to the snapshot's take the merged refresh
-                        // (DIFFERENCES-FROM-GO.md). Upgrade: a credential version on
-                        // `Credential`, bumped by every token change.
-                        Err(PatchError::Stale { .. }) => {
-                            let latest = store.get(&id).ok_or(PatchError::NotFound)?;
-                            let (rebased, partition_applies) =
-                                rebase_patch(&current.provider, &current.metadata, &latest.metadata, &patch);
-                            // Go 7b0319fb: a Codex token partition the refresh still matches
-                            // applies even when the other partition changed meanwhile
-                            // (`CredentialRefreshPatch.CanApplyTo`).
-                            if credentials_changed(&current, &latest) && !partition_applies {
-                                return Ok(latest);
-                            }
-                            attempt = rebased;
-                            revision = latest.revision;
-                            if attempt.set.is_empty() && attempt.remove.is_empty() {
-                                // Nothing left to write, but the refresh happened (Go
-                                // records `LastRefreshedAt` whatever the merge changes),
-                                // recorded while the credential is still `latest` under the
-                                // refresh's registration. An edit since goes round again: its
-                                // newer revision fails the writer's check, as revisions are
-                                // never reused, so the empty patch is never written.
-                                match store.record_refresh(&id, registration, Some(revision), |c, s| {
-                                    if fence.plugin {
-                                        crate::plugins::refresh::committed(c, s, chrono::Utc::now());
-                                    }
-                                }) {
-                                    Err(PatchError::Stale { .. }) => continue,
-                                    recorded => return recorded,
-                                }
-                            }
-                        }
-                        other => {
-                            let (committed, rotated) = other?;
-                            // Go `updateInternal` after a refresh: new tokens clear the
-                            // credential's unauthorized cooldowns, keeping live quota
-                            // blocks (50d5fe18). Here, so a cancelled caller still does.
-                            if rotated {
-                                store.recover_unauthorized(&id);
-                            }
-                            return Ok(committed);
-                        }
-                    }
-                }
+                commit_refresh(&store, &id, &current, fence, &patch, publish_proxy)
             }
         })
         .await
@@ -2850,6 +2793,86 @@ impl Runtime {
     }
 }
 
+/// Commits a token refresh of credential `id` that started from `current` under
+/// `fence`'s registration: `patch` is what the refresh changed, merged with any edit
+/// committed since (Go `UpdateRefreshedAuth`). Blocking.
+fn commit_refresh(
+    store: &CredentialStore,
+    id: &str,
+    current: &Credential,
+    fence: RefreshFence,
+    patch: &MetadataPatch,
+    publish_proxy: impl Fn(&mut Credential) + Copy,
+) -> Result<Arc<Credential>, PatchError> {
+    let mut revision = current.revision;
+    let mut attempt = patch.clone();
+    loop {
+        match store.apply_refresh(id, revision, fence, &attempt, publish_proxy, |c| {
+            credentials_changed(current, c)
+        }) {
+            // Edited since the snapshot (the prepare lock does not hold off other writers),
+            // within the refresh's registration: the writer refuses a re-registered ID
+            // first (Go "stale registration epoch"), on every retry. Go 935aa6e3: an edit
+            // that changed the credentials wins and this refresh is dropped; any other edit
+            // is merged with it (Go `MergeRefreshedAuth`), so a rotated refresh token is
+            // not lost.
+            // ponytail: Go also drops a refresh whose CredentialVersion moved, which covers
+            // an A→B→A token replacement within one registration; here tokens put back to
+            // the snapshot's take the merged refresh (DIFFERENCES-FROM-GO.md). Upgrade: a
+            // credential version on `Credential`, bumped by every token change.
+            Err(PatchError::Stale { .. }) => {
+                #[cfg(test)]
+                if let Some(hook) = tests::AFTER_STALE.with(std::cell::Cell::take) {
+                    hook();
+                }
+                // The writer's check, before anything here returns: an ID registered
+                // again since then fails as Go's "stale registration epoch" does,
+                // whatever its credentials.
+                let (latest, now_under) = store.get_registered(id).ok_or(PatchError::NotFound)?;
+                if now_under != fence.registration {
+                    return Err(PatchError::NotFound);
+                }
+                let (rebased, partition_applies) =
+                    rebase_patch(&current.provider, &current.metadata, &latest.metadata, patch);
+                // Go 7b0319fb: a Codex token partition the refresh still matches
+                // applies even when the other partition changed meanwhile
+                // (`CredentialRefreshPatch.CanApplyTo`).
+                if credentials_changed(current, &latest) && !partition_applies {
+                    return Ok(latest);
+                }
+                attempt = rebased;
+                revision = latest.revision;
+                if attempt.set.is_empty() && attempt.remove.is_empty() {
+                    // Nothing left to write, but the refresh happened (Go records
+                    // `LastRefreshedAt` whatever the merge changes), recorded while the
+                    // credential is still `latest` under the refresh's registration. An
+                    // edit since goes round again: its newer revision fails the writer's
+                    // check, as revisions are never reused, so the empty patch is never
+                    // written.
+                    match store.record_refresh(id, fence.registration, Some(revision), |c, s| {
+                        if fence.plugin {
+                            crate::plugins::refresh::committed(c, s, chrono::Utc::now());
+                        }
+                    }) {
+                        Err(PatchError::Stale { .. }) => continue,
+                        recorded => return recorded,
+                    }
+                }
+            }
+            other => {
+                let (committed, rotated) = other?;
+                // Go `updateInternal` after a refresh: new tokens clear the credential's
+                // unauthorized cooldowns, keeping live quota blocks (50d5fe18). Here, so a
+                // cancelled caller still does.
+                if rotated {
+                    store.recover_unauthorized(id);
+                }
+                return Ok(committed);
+            }
+        }
+    }
+}
+
 /// Go `mergeAuthContent` for a prepare patch computed from `base` (the snapshot) that
 /// lost the race to another edit, `user` being the stored metadata now: the part of
 /// `patch` to apply on top of `user`. A value the patch did not change keeps the edit;
@@ -3205,6 +3228,57 @@ mod tests {
     use super::*;
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
+
+    thread_local! {
+        /// Runs once where [`commit_refresh`] meets an edit made since its snapshot,
+        /// before it reads the credential again.
+        pub(super) static AFTER_STALE: std::cell::Cell<Option<Box<dyn FnOnce()>>> = const { std::cell::Cell::new(None) };
+    }
+
+    /// Go checks a refresh's `RegistrationEpoch` before anything else in
+    /// `updateInternal`: a refresh that meets an edit, after which its ID is registered
+    /// again with other tokens, fails as a stale registration, not as a refresh dropped
+    /// for changed credentials (which hands the caller the new credential).
+    #[test]
+    fn a_refresh_meeting_an_edit_then_a_new_registration_fails_as_stale() {
+        let dir = std::env::temp_dir().join(format!("cpa-refresh-stale-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let credential = {
+            let dir = dir.clone();
+            move |token: &str| {
+                let metadata = serde_json::json!({"type":"pp","access_token":token});
+                let path = dir.join("a.json");
+                std::fs::write(&path, metadata.to_string()).unwrap();
+                Credential::from_file(&dir, &path, metadata.as_object().cloned().unwrap()).unwrap()
+            }
+        };
+        let store = Arc::new(CredentialStore::new(vec![credential("a")]));
+        let (current, registration) = store.get_registered("a.json").unwrap();
+        // An unrelated edit under the same registration: the refresh meets it as stale.
+        let mut note = MetadataPatch::default();
+        note.set.insert("note".into(), "edited".into());
+        store.apply_patch("a.json", current.revision, &note).unwrap();
+        AFTER_STALE.with(|hook| {
+            hook.set(Some(Box::new({
+                let (store, credential) = (store.clone(), credential.clone());
+                move || {
+                    store.reconcile(vec![]);
+                    store.reconcile(vec![credential("b")]);
+                }
+            })))
+        });
+        let mut patch = MetadataPatch::default();
+        patch.set.insert("access_token".into(), "p2".into());
+        let fence = RefreshFence {
+            registration,
+            plugin: false,
+        };
+        let committed = commit_refresh(&store, "a.json", &current, fence, &patch, |_| {});
+        assert!(AFTER_STALE.with(|hook| hook.take()).is_none(), "the hook ran");
+        assert!(matches!(committed, Err(PatchError::NotFound)), "{committed:?}");
+        assert_eq!(store.get("a.json").unwrap().metadata["access_token"], "b");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     /// Go `nextRefreshCheckAt` skips `AuthKind() == apikey` for every provider. The
     /// kinds are Go's `AuthKind` goldens (tests/fixtures/server_go.json `auth_kind`).
