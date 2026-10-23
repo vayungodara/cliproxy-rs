@@ -18,7 +18,7 @@ use std::time::SystemTime;
 use cpa_core::config::credentials;
 use cpa_core::credential::Credential;
 use cpa_plugin::gojson::GoTime;
-use cpa_plugin::hostauth::{AuthManager, HostAuth};
+use cpa_plugin::hostauth::{AuthManager, HostAuth, SavedAuths};
 use serde_json::Value;
 
 use super::Management;
@@ -55,44 +55,72 @@ impl AuthManager for PluginAuthManager {
     }
 
     /// Under the disk lock (the auth-file writes and reloads lock): the host writes the
-    /// file, the file store rewrites it in its canonical form, and the credential is
-    /// registered or replaced alone, keeping its runtime state by ID. Nothing else is
-    /// reloaded and the config is not republished.
-    fn save(&self, auth: HostAuth, write: &mut dyn FnMut() -> Result<(), String>) -> Result<(), String> {
+    /// file, the file store rewrites it in its canonical form, and the file's
+    /// credentials are registered or replaced alone, keeping their runtime state by ID;
+    /// the file's other credentials go. Nothing else is reloaded and the config is not
+    /// republished.
+    fn save(&self, auths: SavedAuths, write: &mut dyn FnMut() -> Result<(), String>) -> Result<(), String> {
         let Some(state) = self.0.upgrade() else {
             return write();
         };
         let _disk = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
         write()?;
-        let path = PathBuf::from(auth.attributes.get("path").cloned().unwrap_or_default());
-        let bytes = persist(&path, &auth)?;
-        credentials::note_plugin_auth_write(&path, &bytes);
-        let cfg = state.rt.config();
-        let credential = match credentials::from_file(&cfg, &cfg.auth_dir, &path, &bytes) {
-            Ok(Some(c)) => {
-                state
-                    .fallbacks
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .remove(&path);
-                c
+        let fallbacks = || state.fallbacks.lock().unwrap_or_else(PoisonError::into_inner);
+        let (path, credentials, refresh) = match auths {
+            SavedAuths::Written { path, data } => {
+                credentials::note_plugin_auth_write(&path, &data);
+                return Ok(());
             }
-            // Go registers what its synthesizer would skip; uploads keep such files the
-            // same way (see `credentials::upload_fallback`).
-            Ok(None) => match credentials::upload_fallback(&cfg.auth_dir, &path, &bytes) {
-                Some(c) => {
-                    state
-                        .fallbacks
-                        .lock()
-                        .unwrap_or_else(PoisonError::into_inner)
-                        .insert(path.clone());
-                    c
+            SavedAuths::BuiltIn(auth) => {
+                let path = PathBuf::from(auth.attributes.get("path").cloned().unwrap_or_default());
+                let bytes = persist(&path, &auth.metadata, auth.disabled)?;
+                credentials::note_plugin_auth_write(&path, &bytes);
+                let cfg = state.rt.config();
+                let mut credential = match credentials::from_file(&cfg, &cfg.auth_dir, &path, &bytes) {
+                    Ok(Some(c)) => {
+                        fallbacks().remove(&path);
+                        c
+                    }
+                    // Go registers what its synthesizer would skip; uploads keep such
+                    // files the same way (see `credentials::upload_fallback`).
+                    Ok(None) => match credentials::upload_fallback(&cfg.auth_dir, &path, &bytes) {
+                        Some(c) => {
+                            fallbacks().insert(path.clone());
+                            c
+                        }
+                        None => return Ok(()),
+                    },
+                    Err(e) => return Err(format!("register auth: {e}")),
+                };
+                // Go keeps the ID of the credential the file already has.
+                if !auth.id.is_empty() {
+                    credential.id = auth.id.clone();
                 }
-                None => return Ok(()),
-            },
-            Err(e) => return Err(format!("register auth: {e}")),
+                (path, vec![credential], Vec::new())
+            }
+            SavedAuths::Plugin {
+                path,
+                mut credentials,
+                persist: rewrite,
+                refresh,
+            } => {
+                // Go persists the one auth, its metadata taking `disabled`; otherwise the
+                // file keeps what the plugin saved.
+                let bytes = match (rewrite, credentials.as_mut_slice()) {
+                    (true, [one]) => {
+                        one.metadata.insert("disabled".into(), one.disabled.into());
+                        persist(&path, &one.metadata, one.disabled)?
+                    }
+                    _ => std::fs::read(&path).map_err(|e| format!("auth filestore: read existing failed: {e}"))?,
+                };
+                credentials::note_plugin_auth_write(&path, &bytes);
+                fallbacks().remove(&path);
+                (path, credentials, refresh)
+            }
         };
-        state.rt.store().upsert(credential);
+        crate::plugins::refresh::register_saved(&state.rt, &refresh, || {
+            state.rt.store().upsert_file(Some(&path), credentials)
+        });
         Ok(())
     }
 
@@ -107,9 +135,9 @@ impl AuthManager for PluginAuthManager {
 /// Go `FileTokenStore.Save` for a saved auth: the metadata with the auth's `disabled`
 /// flag, marshalled, replacing the file unless it already holds the same JSON.
 /// Returns what the file holds.
-fn persist(path: &Path, auth: &HostAuth) -> Result<Vec<u8>, String> {
-    let mut meta: BTreeMap<String, Value> = auth.metadata.clone().into_iter().collect();
-    meta.insert("disabled".into(), auth.disabled.into());
+fn persist(path: &Path, metadata: &serde_json::Map<String, Value>, disabled: bool) -> Result<Vec<u8>, String> {
+    let mut meta: BTreeMap<String, Value> = metadata.clone().into_iter().collect();
+    meta.insert("disabled".into(), disabled.into());
     let raw = cpa_plugin::gojson::to_vec(&meta);
     let existing = std::fs::read(path).map_err(|e| format!("auth filestore: read existing failed: {e}"))?;
     if json_equal(&existing, &raw) {
@@ -275,7 +303,7 @@ mod tests {
         let save = std::thread::spawn({
             let file = file.clone();
             move || {
-                manager.save(auth, &mut || {
+                manager.save(SavedAuths::BuiltIn(Box::new(auth)), &mut || {
                     wrote.send(()).unwrap();
                     std::fs::write(&file, r#"{"type":"claude","access_token":"saved"}"#).map_err(|e| e.to_string())
                 })

@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::Mutex;
 
 use cpa_plugin::gojson::GoTime;
-use cpa_plugin::hostauth::{AuthManager, HostAuth};
+use cpa_plugin::hostauth::{AuthManager, HostAuth, SavedAuths};
 use serde_json::Value;
 
 pub struct GoldenManager(Mutex<Vec<HostAuth>>);
@@ -61,7 +61,12 @@ impl AuthManager for GoldenManager {
 
     /// The file is written as is (no store, so no rewrite); `Update` keeps the index
     /// and request counts of the credential it replaces.
-    fn save(&self, mut auth: HostAuth, write: &mut dyn FnMut() -> Result<(), String>) -> Result<(), String> {
+    fn save(&self, auths: SavedAuths, write: &mut dyn FnMut() -> Result<(), String>) -> Result<(), String> {
+        // The goldens load no auth provider.
+        let SavedAuths::BuiltIn(auth) = auths else {
+            return Err("unexpected plugin-parsed save".into());
+        };
+        let mut auth = *auth;
         write()?;
         let mut auths = self.0.lock().unwrap();
         match auths.iter_mut().find(|a| a.id == auth.id) {
