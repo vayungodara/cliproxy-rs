@@ -66,7 +66,15 @@ payload:
       params: {"-1.#(k==1)#.d": 2}
     - models: [{name: "lnx-*", exist: ["items.#(k==1)#.z"]}]
       params: {z_seen: true}
+    - models: [{name: "subc-*", exist: ["{a}"]}]
+      params: {sub_seen: true}
+    - models: [{name: "subn-*", not-exist: ["{a}"]}]
+      params: {subn_seen: true}
+    - models: [{name: "esc-*", exist: ["k\\|@reverse"]}]
+      params: {esc_seen: true}
   default-raw:
+    - models: [{name: "rawd-*"}]
+      params: {"@reverse": '{', x: '9'}
     - models: [{name: "gpt-*"}]
       params: {response_format: '{"type":"json_object"}'}
     - models: [{name: "gpt-*"}]
@@ -118,9 +126,33 @@ payload:
       params: {"g.#(k==1)#.m.#(k==2)#.x": 9}
     - models: [{name: "lns-*"}]
       params: {"-1.#(k==1)#.s": 1}
+    - models: [{name: "sub-*"}]
+      params: {"[a].#(k==1)#.x": 9}
+    - models: [{name: "mod-*"}]
+      params: {"@reverse": 1}
+    - models: [{name: "ne0-*", not-exist: ["@this:{}"]}]
+      params: {hit: 9}
+    - models: [{name: "ne1-*", not-exist: ["a|!true"]}]
+      params: {hit: 9}
+    - models: [{name: "ne2-*", not-exist: ["a|..#"]}]
+      params: {hit: 9}
+    - models: [{name: "ne3-*", not-exist: ["a.#(k==1)|@reverse"]}]
+      params: {hit: 9}
+    - models: [{name: "ne4-*", not-exist: ["a.#(@keys)"]}]
+      params: {hit: 9}
+    - models: [{name: "ne5-*", not-exist: ["a.#[k==1]"]}]
+      params: {hit: 9}
+    - models: [{name: "ne6-*", not-exist: ["a|#(k==1)"]}]
+      params: {hit: 9}
+    - models: [{name: "ne7-*", not-exist: ["a(|@reverse"]}]
+      params: {hit: 9}
     - models: [{name: "lnw-*"}]
       params: {"a.18446744073709551616.#(k==1)#.x": 9}
   override-raw:
+    - models: [{name: "rawo-*"}]
+      params: {"@reverse": '{', x: '9'}
+    - models: [{name: "rawk-*"}]
+      params: {"@reverse": '1', x: '9'}
     - models: [{name: "gpt-*"}]
       params: {logit_bias: '{"1": -100}'}
     - models: [{name: "wild-*"}]
@@ -241,6 +273,29 @@ var payloadInputs = []payloadCase{
 	// gjson's parseUint wraps: 2^64 indexes element 0.
 	{Name: "wrapped_index", Model: "lnw-1", Protocol: "openai",
 		Payload: `{"a":[[{"k":1},{"k":1}]]}`, Tracked: []string{"a"}},
+	// gjson syntax the port does not read: cliproxy-rs ignores these rules
+	// (REFUSED in tests/payload.rs).
+	{Name: "subselector_override", Model: "sub-1", Protocol: "openai",
+		Payload: `{"[a]":[{"k":1},{"k":1}],"a":[{"k":1}]}`, Tracked: []string{"[a]", "a"}},
+	{Name: "modifier_override", Model: "mod-1", Protocol: "openai", Payload: `{"a":1}`, Tracked: []string{"@reverse"}},
+	// An escaped pipe is part of the key, so @reverse is not a modifier here.
+	{Name: "escaped_pipe_key", Model: "esc-1", Protocol: "openai", Payload: `{"k|@reverse":1}`},
+	// Read contexts the port does not implement, under not-exist: Go reads each as
+	// present, so the rule does not apply.
+	{Name: "unported_not_exist_0", Model: "ne0-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	{Name: "unported_not_exist_1", Model: "ne1-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	{Name: "unported_not_exist_2", Model: "ne2-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	{Name: "unported_not_exist_3", Model: "ne3-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	{Name: "unported_not_exist_4", Model: "ne4-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	{Name: "unported_not_exist_5", Model: "ne5-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	{Name: "unported_not_exist_6", Model: "ne6-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	{Name: "unported_not_exist_7", Model: "ne7-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	// A raw rule with an invalid value is dropped whole, unported parameters included.
+	{Name: "raw_override_invalid_with_unported", Model: "rawo-1", Protocol: "openai", Payload: `{}`, Tracked: []string{"x"}},
+	{Name: "raw_default_invalid_with_unported", Model: "rawd-1", Protocol: "openai", Payload: `{}`, Tracked: []string{"x"}},
+	{Name: "raw_override_valid_with_unported", Model: "rawk-1", Protocol: "openai", Payload: `{}`, Tracked: []string{"x"}},
+	{Name: "subselector_condition", Model: "subc-1", Protocol: "openai", Payload: `{"b":1}`},
+	{Name: "subselector_not_exist", Model: "subn-1", Protocol: "openai", Payload: `{"b":1}`},
 	{Name: "set_under_minus_one", Model: "lns-1", Protocol: "openai",
 		Payload: `{"#":1,"0":[{"k":1}],"-1":[{"k":1},{"k":1}]}`, Tracked: []string{"-1", "0"}},
 	{Name: "original_lacks_array", Model: "lno-1", Protocol: "openai", Payload: lno, Original: `{"pad":"pp"}`, Tracked: []string{"items", "whole"}},
