@@ -2703,7 +2703,7 @@ mod tests {
         assert_eq!(next_after("a.json"), Some((false, Some(parsed))));
         let now = chrono::Utc::now();
         for id in ["a.json", "b.json"] {
-            let (_, registration) = store.get_registered(id).unwrap();
+            let registration = store.get_registered(id).unwrap().1.registration;
             store
                 .record_refresh(id, registration, None, |c, s| {
                     crate::plugins::refresh::committed(c, s, now)

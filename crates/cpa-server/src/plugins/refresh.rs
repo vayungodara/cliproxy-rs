@@ -128,6 +128,18 @@ pub(crate) struct Schedule {
     /// it is registered again. A refresh records its outcome only for the registration
     /// it started under ([`committed`], [`failed`]).
     pub registration: u64,
+    /// Go `CredentialVersion`: bumped by every registration that changes the
+    /// credential's tokens or keys. A refresh that meets another version drops its
+    /// result, as Go's does, unless a Codex token partition it refreshed still applies.
+    pub credential_version: u64,
+}
+
+/// What a refresh of a credential started under: its [`Schedule::registration`] and
+/// [`Schedule::credential_version`].
+#[derive(Clone, Copy, Default, Debug, PartialEq, Eq)]
+pub(crate) struct Registered {
+    pub registration: u64,
+    pub credential_version: u64,
 }
 
 /// The source of [`Schedule::registration`] numbers.
@@ -172,16 +184,22 @@ pub(crate) fn register(
             continue;
         }
         // Go `Register` gives an auth new to the manager the next epoch for its ID;
-        // `Update` keeps it.
-        let registration = match previous.and_then(|_| schedules.get(&c.id)) {
-            Some(kept) => kept.registration,
-            None => REGISTRATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+        // `Update` keeps it, and bumps its credential version when its credentials
+        // changed (`updateInternal`, `CredentialsChanged`).
+        let kept = previous.and_then(|_| schedules.get(&c.id).copied());
+        let (registration, credential_version) = match (kept, previous) {
+            (Some(kept), Some(previous)) => (
+                kept.registration,
+                kept.credential_version + u64::from(crate::runtime::credentials_changed(previous, c)),
+            ),
+            _ => (REGISTRATIONS.fetch_add(1, std::sync::atomic::Ordering::Relaxed), 1),
         };
         let own = Schedule {
             last: None,
             next_after: c.next_refresh_after.map(DateTime::<Utc>::from),
             provisional: false,
             registration,
+            credential_version,
         };
         let schedule = match saved.iter().find(|s| s.id == c.id) {
             // Go's watcher registers the written file again right after the save, which
@@ -189,15 +207,17 @@ pub(crate) fn register(
             Some(SavedRefresh { donor: Some(donor), .. }) if !c.disabled => Schedule {
                 provisional: false,
                 registration,
+                credential_version,
                 ..schedules.get(donor).copied().unwrap_or_default()
             },
             Some(_) => own,
-            None if previous.is_some_and(|p| !p.disabled && !c.disabled)
-                && !schedules.get(&c.id).is_some_and(|s| s.provisional) =>
-            {
-                continue;
-            }
-            None => own,
+            None => match kept {
+                Some(kept) if previous.is_some_and(|p| !p.disabled && !c.disabled) && !kept.provisional => Schedule {
+                    credential_version,
+                    ..kept
+                },
+                _ => own,
+            },
         };
         registered.push((c.id.clone(), schedule));
     }
@@ -234,10 +254,12 @@ pub(crate) fn provisional(schedules: &Schedules) -> std::collections::HashSet<St
         .collect()
 }
 
-/// The registration `id` is current under ([`Schedule::registration`]), which a refresh
-/// of it records its outcome for.
-pub(crate) fn registration(schedules: &Schedules, id: &str) -> Option<u64> {
-    lock(schedules).get(id).map(|s| s.registration)
+/// What a refresh of `id` starts under ([`Registered`]).
+pub(crate) fn registered(schedules: &Schedules, id: &str) -> Option<Registered> {
+    lock(schedules).get(id).map(|s| Registered {
+        registration: s.registration,
+        credential_version: s.credential_version,
+    })
 }
 
 /// Runs `record` on the schedule of `c`, the store's current credential, for a refresh
@@ -506,7 +528,7 @@ mod tests {
             let _ = store.record_refresh("a.json", registration, None, |c, s| committed(c, s, now));
         };
         for round in 0..3 {
-            let (_, registration) = store.get_registered("a.json").unwrap();
+            let registration = store.get_registered("a.json").unwrap().1.registration;
             store.reconcile(vec![credential(&format!("b{round}.json"))]);
             commit(registration);
             failed(&store, "a.json", registration, now);
@@ -526,7 +548,7 @@ mod tests {
         // A result for the current registration is recorded, also after reloads that
         // register the credential again under it (Go `Update` keeps the epoch), one of
         // them disabling it, which replaces its fields.
-        let (_, registration) = store.get_registered("a.json").unwrap();
+        let registration = store.get_registered("a.json").unwrap().1.registration;
         for disabled in [false, true] {
             let mut edited = credential("a.json");
             edited
@@ -561,9 +583,9 @@ mod tests {
         let schedule = || lock(store.refresh_schedules()).get("a.json").copied().unwrap();
         let mut patch = MetadataPatch::default();
         patch.set.insert("access_token".into(), "p2".into());
-        let (current, registration) = store.get_registered("a.json").unwrap();
+        let (current, registered) = store.get_registered("a.json").unwrap();
         let fence = crate::runtime::RefreshFence {
-            registration,
+            registered,
             plugin: true,
         };
         let (committed, _) = store
