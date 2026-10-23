@@ -1284,7 +1284,10 @@ fn query_matches(item: &Res<'_>, query: &str) -> bool {
                 }
                 let wrapped = format!("[{}]", String::from_utf8_lossy(item.raw()));
                 // ponytail: gjson queries come from the `gjson` crate (tidwall's own Rust
-                // port); `crate::json` does not implement `#(...)`.
+                // port); `crate::json` does not implement `#(...)`. The crate's predicates
+                // differ from Go gjson 1.18.0 (`""` unquoting, `~null`, `?` per byte), as
+                // docs/DIFFERENCES-FROM-GO.md says; upgrade: port Go's parseQuery and
+                // queryMatches into `crate::json`.
                 gjson::get(&wrapped, &format!("#({term})")).exists()
             })
     })
