@@ -131,6 +131,31 @@ impl<'a> Value<'a> {
         });
         out
     }
+
+    /// `if v.IsArray() { range v.Array() }`: the elements of an array, else nothing.
+    pub(crate) fn items(&self) -> Vec<Value<'a>> {
+        if self.kind() == Kind::Array {
+            self.array()
+        } else {
+            Vec::new()
+        }
+    }
+
+    /// The values `Result.ForEach` visits: array elements, an object's member values
+    /// (duplicates included), a scalar itself, nothing when missing.
+    pub(crate) fn values(&self) -> Vec<Value<'a>> {
+        let mut out = Vec::new();
+        self.each(|_, v| {
+            out.push(v);
+            true
+        });
+        out
+    }
+
+    /// `len(Result.Map())`: distinct member keys of an object, else 0.
+    pub(crate) fn map_len(&self) -> usize {
+        self.res.map().len()
+    }
 }
 
 /// `gjson.Get`.

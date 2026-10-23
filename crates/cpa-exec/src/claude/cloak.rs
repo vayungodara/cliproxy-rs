@@ -138,7 +138,7 @@ pub(crate) fn billing_header(b: &Billing<'_>) -> String {
 
 pub(crate) fn first_user_index(body: &str) -> Option<usize> {
     rawjson::get(body, "messages")
-        .array()
+        .items()
         .iter()
         .position(|m| m.get("role").str() == "user")
 }
@@ -155,10 +155,7 @@ pub(crate) fn fingerprint_message(body: &str) -> String {
     let Some(idx) = first_user_index(body) else {
         return String::new();
     };
-    let content = rawjson::get(body, "messages").array()[idx]
-        .get("content")
-        .json()
-        .to_owned();
+    let content = rawjson::get(body, &format!("messages.{idx}.content")).json().to_owned();
     let content = rawjson::parse(&content);
     match content.kind() {
         gjson::Kind::String => content.str().to_owned(),
@@ -398,7 +395,7 @@ pub(crate) fn insert_mid_system(body: &str, blocks: &[Forwarded], explicit: bool
 
 /// Advisor results are bound to message positions; splicing would break them.
 pub(crate) fn has_advisor_history(body: &str) -> bool {
-    rawjson::get(body, "messages").array().iter().any(|msg| {
+    rawjson::get(body, "messages").items().iter().any(|msg| {
         let content = msg.get("content");
         match content.kind() {
             gjson::Kind::Array => content.array().iter().any(|b| match b.get("type").str() {
@@ -942,7 +939,7 @@ impl SensitiveWords {
             }
             _ => {}
         }
-        let count = rawjson::get(&body, "messages").array().len();
+        let count = rawjson::get(&body, "messages").items().len();
         for m in 0..count {
             let path = format!("messages.{m}.content");
             let content = rawjson::get(&body, &path).json().to_owned();

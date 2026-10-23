@@ -583,6 +583,19 @@ const NO_RULES_V8_0_35: &[&str] = &[
     "noroles-duplicate-tool-choice",
     "noroles-duplicate-cache-control",
     "noroles-duplicate-metadata",
+    // Go's IsArray guards and ForEach walks on non-array messages, content and tools.
+    "noroles-object-messages-system",
+    "noroles-object-messages-user",
+    "noroles-object-messages-foreach",
+    "noroles-object-messages-timing",
+    "noroles-object-messages-title-schema",
+    "noroles-object-messages-advisor",
+    "noroles-object-content-inline-tools",
+    "noroles-object-tools-advisor",
+    // strings.EqualFold(strings.TrimSpace(role), "system"), len(props.Map()), EqualFold.
+    "noroles-mid-system-spaced-role",
+    "noroles-title-duplicate-props",
+    "noroles-fold-speed-display",
 ];
 
 /// 868e137 through Go v8.0.35's executor (scenarios-v8.0.35.json): payload rules see

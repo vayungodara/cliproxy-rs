@@ -108,24 +108,19 @@ fn title_helper(body: &str) -> bool {
     };
     let props = rawjson::get(body, "output_config.format.schema.properties");
     if props.exists() {
-        let mut count = 0;
-        props.each(|_, _| {
-            count += 1;
-            true
-        });
-        if !(props.get("title").exists() && count == 1) {
+        if !(props.get("title").exists() && props.map_len() == 1) {
             return false;
         }
         let prompt = |t: &str| system_title(t) || t.contains("<session>");
         let messages = rawjson::get(body, "messages");
         return any_text(&rawjson::get(body, "system"), prompt)
-            || messages.array().iter().any(|m| any_text(&m.get("content"), prompt));
+            || messages.items().iter().any(|m| any_text(&m.get("content"), prompt));
     }
     if any_text(&rawjson::get(body, "system"), system_title) {
         return true;
     }
     rawjson::get(body, "messages")
-        .array()
+        .items()
         .iter()
         .filter(|m| m.get("role").str() == "system")
         .any(|m| any_text(&m.get("content"), system_title))

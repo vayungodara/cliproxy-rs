@@ -984,7 +984,7 @@ fn sanitize_for_upstream(mut body: String, base_model: &str, preserve_empty_thin
     }
     // sanitizeClaudeWebSearchDomains: one pass over the tools, then the deletes.
     let mut empty = Vec::new();
-    for (t, tool) in rawjson::get(&body, "tools").array().iter().enumerate() {
+    for (t, tool) in rawjson::get(&body, "tools").items().iter().enumerate() {
         if !tool.get("type").str().starts_with("web_search_") {
             continue;
         }
@@ -1938,9 +1938,9 @@ fn normalize_sampling(mut body: String, native: bool) -> String {
 
 fn has_mid_system(body: &str) -> bool {
     rawjson::get(body, "messages")
-        .array()
+        .items()
         .iter()
-        .any(|m| m.get("role").str() == "system")
+        .any(|m| m.get("role").str().trim().go_eq_fold("system"))
 }
 
 /// `validateClaudeMidSystemMessageModel`.
@@ -1968,7 +1968,7 @@ fn rebuild_mid_system(body: &str) -> String {
     let mut moved = Vec::new();
     let mut kept = Vec::new();
     for m in messages.array() {
-        if m.get("role").str().trim().eq_ignore_ascii_case("system") {
+        if m.get("role").str().trim().go_eq_fold("system") {
             moved.extend(system_text_parts(&m.get("content")));
         } else {
             kept.push(m.json().to_owned());
