@@ -254,6 +254,10 @@ impl Management {
         files: Option<credentials::AuthScan>,
         upload: Option<(Credential, [u8; 32])>,
     ) {
+        // Nothing below is applied for a config the runtime would refuse to publish.
+        if !Runtime::accepts_config(&cfg) {
+            return;
+        }
         let mut cfg = cfg;
         self.lock_auth_dir(&mut cfg);
         use sha2::{Digest, Sha256};
