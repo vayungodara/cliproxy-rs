@@ -54,6 +54,7 @@ mod codex_ws;
 pub mod devin;
 pub mod devin_auth;
 pub mod devin_models;
+mod devin_payload;
 mod devin_request;
 mod devin_wire;
 pub mod gemini;
