@@ -253,8 +253,8 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 
 | Commit | Subject | User-visible | This PR | Size | Notes |
 |---|---|---|---|---|---|
-| [`1672be5d`](https://github.com/router-for-me/CLIProxyAPI/commit/1672be5d) | feat(registry): support custom model catalog sources and dynamic reload | yes | ported here | L (+361 −287) | custom model catalog sources and reload (catalog runtime PR) |
-| [`01e28567`](https://github.com/router-for-me/CLIProxyAPI/commit/01e28567) | fix(registry): disable Devin catalog for home builds | yes | ported here | S (+3 −1) | no Devin catalog in Home builds (catalog runtime PR) |
+| [`1672be5d`](https://github.com/router-for-me/CLIProxyAPI/commit/1672be5d) | feat(registry): support custom model catalog sources and dynamic reload | yes | ported here | L (+361 −287) | custom model catalog sources and reload (#180) |
+| [`01e28567`](https://github.com/router-for-me/CLIProxyAPI/commit/01e28567) | fix(registry): disable Devin catalog for home builds | yes | ported here | S (+3 −1) | no Devin catalog in Home builds (#180) |
 | [`18b6cc8a`](https://github.com/router-for-me/CLIProxyAPI/commit/18b6cc8a) | refactor(registry): use model getters for Devin and Meta | no | nothing to port | S (+2 −3) | Go refactor |
 | [`bbcd5734`](https://github.com/router-for-me/CLIProxyAPI/commit/bbcd5734) | fix(registry): treat credential_quota as quota cooldown in model availability | yes | to port | S (+23 −13) | `credential_quota` counts as a quota cooldown in availability |
 | [`4c159069`](https://github.com/router-for-me/CLIProxyAPI/commit/4c159069) | feat(registry): add muse-wonder-1.0 models | yes | ported here | M (+62 −0) | ported: the Meta section carries `muse-wonder-1.0` and its contributor variant (catalog synced to v8.0.35) |
