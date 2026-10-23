@@ -11,5 +11,9 @@ timestamps in saved files become `TIME`. Go waits its real 5 s poll interval, so
 generation takes about 20 s; the Rust tests use the `minPollInterval` knob instead,
 which changes timing only.
 
+The `validate` vectors were re-run with Go 1.26.4 against v8.0.35 (`ae3ee3be`): only
+`https://attacker.example\[::1%25.x.ai]/oauth2/token` changed, because Go 1.26.4's
+`url.Parse` refuses a host whose last `[` does not start it (`invalid IP-literal`).
+
 Regenerate like the OpenAI-compatible goldens (see ../openai_compat/README.md), with
 this directory's `main.go` and output `xai_auth_go.json`.
