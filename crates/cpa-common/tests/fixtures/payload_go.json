@@ -1,5 +1,5 @@
 {
-  "config": "\ndisable-image-generation: chat\npayload:\n  default:\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.5}\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.9}\n    - models: [{name: \"gpt-*\", protocol: openai}]\n      params: {metadata.tags: [\"a\", \"b\"]}\n    - models: [{name: \"gpt-*\", from-protocol: openai-response}]\n      params: {reasoning.effort: \"high\"}\n    - models: [{name: \"claude-*\", headers: {X-Team: \"red-*\"}}]\n      params: {top_k: 40}\n    - models: [{name: \"*-thinking\"}]\n      params: {suffix_hit: true}\n    - models: [{name: \"gpt-*\", match: [{stream: true}]}]\n      params: {stream_options: {include_usage: true, \"\u003ctag\u003e\": 1.25e1}}\n    - models: [{name: \"gpt-*\", not-match: [{n: 2}]}]\n      params: {n_checked: 1}\n    - models: [{name: \"gpt-*\", exist: [user]}]\n      params: {user_seen: \"yes\"}\n    - models: [{name: \"gpt-*\", not-exist: [seed]}]\n      params: {seed: 7}\n    - models: [{name: \"img-*\"}]\n      params: {tool_choice: image_generation}\n  default-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {response_format: '{\"type\":\"json_object\"}'}\n    - models: [{name: \"gpt-*\"}]\n      params: {broken: '{\"type\":'}\n  override:\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 100}\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 200}\n    - models: [{name: \"gpt-*\"}]\n      params: {model_label: \"\u003cb\u003e\u0026\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {big: 1e21}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"messages.#(role==\\\"system\\\").content\": \"rewritten\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"tools.#(type==\\\"function\\\")#.strict\": true}\n    - models: [{name: \"gemini-*\"}]\n      params: {generationConfig.maxOutputTokens: 64}\n    - models: [{name: \"gpt-*\"}]\n      params: {nullable: null}\n    - models: [{name: \"uni-*\"}]\n      params: {\"items.#(é==1)#.x\": true}\n  override-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {logit_bias: '{\"1\": -100}'}\n  filter:\n    - models: [{name: \"gpt-*\"}]\n      params: [frequency_penalty, \"messages.#(role==\\\"developer\\\")#\"]\n",
+  "config": "\ndisable-image-generation: chat\npayload:\n  default:\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.5}\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.9}\n    - models: [{name: \"gpt-*\", protocol: openai}]\n      params: {metadata.tags: [\"a\", \"b\"]}\n    - models: [{name: \"gpt-*\", from-protocol: openai-response}]\n      params: {reasoning.effort: \"high\"}\n    - models: [{name: \"claude-*\", headers: {X-Team: \"red-*\"}}]\n      params: {top_k: 40}\n    - models: [{name: \"*-thinking\"}]\n      params: {suffix_hit: true}\n    - models: [{name: \"gpt-*\", match: [{stream: true}]}]\n      params: {stream_options: {include_usage: true, \"\u003ctag\u003e\": 1.25e1}}\n    - models: [{name: \"gpt-*\", not-match: [{n: 2}]}]\n      params: {n_checked: 1}\n    - models: [{name: \"gpt-*\", exist: [user]}]\n      params: {user_seen: \"yes\"}\n    - models: [{name: \"gpt-*\", not-exist: [seed]}]\n      params: {seed: 7}\n    - models: [{name: \"img-*\"}]\n      params: {tool_choice: image_generation}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==1)#.d\": \"dv\"}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==1)#.n.m\": 5}\n    - models: [{name: \"wild-*\"}]\n      params: {\"strs.#(==\\\"[1,2]\\\")#.0\": \"scalar\"}\n    - models: [{name: \"lin-*\"}]\n      params: {\"items.#(k==1)#.0\": 9}\n    - models: [{name: \"lin-*\"}]\n      params: {\"whole.#(k==2)#\": 5}\n    - models: [{name: \"lin-*\", exist: [\"whole.#(k==1)#\"]}]\n      params: {whole_seen: true}\n    - models: [{name: \"lin-*\", match: [{\"nums.#(\u003e5)#\": 7}]}]\n      params: {nums_matched: true}\n    - models: [{name: \"wild-*\", exist: [\"strs.#(==\\\"[1,2]\\\")#.0\"]}]\n      params: {scalar_exists: true}\n    - models: [{name: \"lno-*\"}]\n      params: {\"items.#(k==1)#.x\": 9}\n    - models: [{name: \"lno-*\"}]\n      params: {\"whole.#(k==2)#\": 5}\n    - models: [{name: \"lns-*\"}]\n      params: {\"-1.#(k==1)#.d\": 2}\n    - models: [{name: \"lnx-*\", exist: [\"items.#(k==1)#.z\"]}]\n      params: {z_seen: true}\n  default-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {response_format: '{\"type\":\"json_object\"}'}\n    - models: [{name: \"gpt-*\"}]\n      params: {broken: '{\"type\":'}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==2)#.r\": '{\"x\":1}'}\n    - models: [{name: \"lin-*\"}]\n      params: {\"multi.#(k==1)#.r\": '{\"y\":2}'}\n    - models: [{name: \"lno-*\"}]\n      params: {\"items.#(k==1)#.y\": '{\"a\":1}'}\n  override:\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 100}\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 200}\n    - models: [{name: \"gpt-*\"}]\n      params: {model_label: \"\u003cb\u003e\u0026\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {big: 1e21}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"messages.#(role==\\\"system\\\").content\": \"rewritten\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"tools.#(type==\\\"function\\\")#.strict\": true}\n    - models: [{name: \"gemini-*\"}]\n      params: {generationConfig.maxOutputTokens: 64}\n    - models: [{name: \"gpt-*\"}]\n      params: {nullable: null}\n    - models: [{name: \"uni-*\"}]\n      params: {\"items.#(é==1)#.x\": true}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==1)#.o\": \"ov\"}\n    - models: [{name: \"wild-*\"}]\n      params: {\"groups.#(g==1)#.members.#(m==1)#.flag\": true}\n    - models: [{name: \"wild-*\"}]\n      params: {\"i*.#(k==1)#.new\": \"complex\"}\n    - models: [{name: \"lin-*\"}]\n      params: {\"whole.#(k==1)#\": \"replaced\"}\n    - models: [{name: \"lin-*\"}]\n      params: {\"lap.#(k==1)#.b\": 2}\n    - models: [{name: \"lin-*\"}]\n      params: {\"arr.#(k==1)#.list.-1\": \"app\"}\n    - models: [{name: \"lin-*\"}]\n      params: {\"eq.#(k==1)#.v\": 1}\n    - models: [{name: \"lin-*\"}]\n      params: {\"a*.#(k==1)#.new\": \"complex\"}\n    - models: [{name: \"lnc-*\"}]\n      params: {\"a*.#(k==1)#.b.#(k==2)#.x\": 9}\n    - models: [{name: \"lng-*\"}]\n      params: {\"g.#(k==1)#.m.#(k==2)#.x\": 9}\n    - models: [{name: \"lns-*\"}]\n      params: {\"-1.#(k==1)#.s\": 1}\n    - models: [{name: \"lnw-*\"}]\n      params: {\"a.18446744073709551616.#(k==1)#.x\": 9}\n  override-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {logit_bias: '{\"1\": -100}'}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==1)#.raw\": '[1, 2]'}\n    - models: [{name: \"lin-*\"}]\n      params: {\"lap.#(k==1)#\": '{\"k\":1,\"z\":true}'}\n    - models: [{name: \"lin-*\"}]\n      params: {\"eq.#(k==1)#.w\": '[1, 2]'}\n  filter:\n    - models: [{name: \"gpt-*\"}]\n      params: [frequency_penalty, \"messages.#(role==\\\"developer\\\")#\"]\n    - models: [{name: \"wild-*\"}]\n      params: [\"items.#(k==1)#.drop\"]\n    - models: [{name: \"wild-*\"}]\n      params: [\"list.#(t==\\\"x\\\")#\"]\n    - models: [{name: \"wild-*\"}]\n      params: [\"nested.#(a==1)#.inner.#(b==1)#\"]\n    - models: [{name: \"wild-*\"}]\n      params: [\"i*.#(k==1)#.x\"]\n    - models: [{name: \"lin-*\"}]\n      params: [\"diagnostics.a*.#(k==1)#\"]\n    - models: [{name: \"lin-*\"}]\n      params: [\":a.#(k==1)#.x\"]\n    - models: [{name: \"lin-*\"}]\n      params: [\"neg.#(k==1)#.list.-1\"]\n    - models: [{name: \"lnm-*\"}]\n      params: [\"-1.#(k==1)#\"]\n    - models: [{name: \"lnf-*\"}]\n      params: [\"-1.#(k==1)#.y\"]\n",
   "headers": [
     {
       "name": "mixed",
@@ -314,6 +314,451 @@
       "tracked": null,
       "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"integer\"},\"cmd\":{\"type\":\"string\"},\"yield_time_ms\":{\"type\":[\"integer\",\"null\"]}}}},{\"type\":\"function\",\"name\":\"other\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}},{\"type\":\"namespace\",\"tools\":[{\"name\":\"collab__wait_agent\",\"input_schema\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"function\":{\"name\":\"functions__sleep\",\"parameters\":{\"properties\":{\"duration_ms\":{\"type\":\"integer\"}}}}}]}]}",
       "touched": []
+    },
+    {
+      "name": "wildcards",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[ {\"k\":1,\"d\":\"have\",\"o\":\"ov\",\"drop\":1} , {\"k\":2} ,{\"k\":1,\"drop\":2,\"o\":\"old\"},{\"k\":3}],\"list\":[ {\"t\":\"x\"} ,{\"t\":\"x\"},  {\"t\":\"y\"} , {\"t\":\"x\"}],\"groups\":[{\"g\":1,\"members\":[{\"m\":1},{\"m\":2},{\"m\":1,\"flag\":false}]},{\"g\":2,\"members\":[{\"m\":1}]},{\"g\":1,\"members\":[ {\"m\":1} ]}],\"nested\":[{\"a\":1,\"inner\":[{\"b\":1},{\"b\":2},{\"b\":1}]},{\"a\":2,\"inner\":[{\"b\":1}]},{\"a\":1,\"inner\":[{\"b\":1}]}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "items.2",
+        "list",
+        "groups.0.members.2.flag",
+        "nested.2",
+        "items.1.r"
+      ],
+      "out": "{\"items\":[ {\"k\":1,\"d\":\"have\",\"o\":\"ov\",\"n\":{\"m\":5},\"raw\":[1, 2]} , {\"k\":2,\"r\":{\"x\":1}} ,{\"k\":1,\"o\":\"ov\",\"d\":\"dv\",\"n\":{\"m\":5},\"raw\":[1, 2]},{\"k\":3}],\"list\":[   {\"t\":\"y\"} ],\"groups\":[{\"g\":1,\"members\":[{\"m\":1,\"flag\":true},{\"m\":2},{\"m\":1,\"flag\":true}]},{\"g\":2,\"members\":[{\"m\":1}]},{\"g\":1,\"members\":[ {\"m\":1,\"flag\":true} ]}],\"nested\":[{\"a\":1,\"inner\":[{\"b\":2}]},{\"a\":2,\"inner\":[{\"b\":1}]},{\"a\":1,\"inner\":[]}]}",
+      "touched": [
+        "groups.0.members.2.flag",
+        "items.1.r",
+        "items.2",
+        "list",
+        "nested.2"
+      ]
+    },
+    {
+      "name": "wildcards_all_deleted",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"list\":[ {\"t\":\"x\"} ,\n {\"t\":\"x\"}\t]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"list\":[  \t]}",
+      "touched": []
+    },
+    {
+      "name": "wildcards_first_two_deleted",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"list\": [\n  {\"t\":\"x\"},\n  {\"t\":\"x\"} ,\n  {\"t\":\"y\"}  ,{\"t\":\"x\"},{\"t\":\"y\"}\n]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"list\": [\n  \n  {\"t\":\"y\"}  ,{\"t\":\"y\"}\n]}",
+      "touched": []
+    },
+    {
+      "name": "wildcards_middle_deleted",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"list\":[{\"t\":\"y\"} , {\"t\":\"x\"},{\"t\":\"x\"} ,  {\"t\":\"y\"}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"list\":[{\"t\":\"y\"}  ,  {\"t\":\"y\"}]}",
+      "touched": []
+    },
+    {
+      "name": "wildcards_scalars_and_complex_base",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"strs\":[\"[1,2]\",\"[1,2]\"],\"items\":[{\"k\":1,\"x\":1},{\"k\":2,\"x\":2},{\"k\":1,\"x\":3}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "strs",
+        "items.0.x",
+        "items.2.new"
+      ],
+      "out": "{\"strs\":[\"[\"scalar[\"scalar\"],\"[1,2]\"],\"items\":[{\"k\":1,\"x\":1,\"d\":\"dv\",\"n\":{\"m\":5},\"o\":\"ov\",\"raw\":[1, 2]},{\"k\":2,\"x\":2,\"r\":{\"x\":1}},{\"k\":1,\"x\":3,\"d\":\"dv\",\"n\":{\"m\":5},\"o\":\"ov\",\"raw\":[1, 2]}]}",
+      "touched": [
+        "strs"
+      ]
+    },
+    {
+      "name": "linear_targets",
+      "target": "",
+      "model": "lin-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"diagnostics\":{\"ab\":[{\"k\":1},{\"k\":1}]},\":a\":[{\"k\":1,\"x\":1},{\"k\":1,\"x\":2}],\"a\":[{\"k\":1,\"x\":3},{\"k\":1}],\"whole\":[{\"k\":1},{\"k\":2},{\"k\":1},{\"k\":2}],\"lap\":[{\"k\":1,\"b\":0},{\"k\":2},{\"k\":1}],\"arr\":[{\"k\":2,\"list\":[1]},{\"k\":1,\"list\":[1,2]},{\"k\":1,\"list\":[]}],\"neg\":[{\"k\":1,\"list\":[1,2,3]},{\"k\":1,\"list\":[4]}],\"multi\":[{\"k\":1},{\"k\":1,\"r\":{\"old\":1}},{\"k\":1}],\"eq\":[{\"k\":1,\"v\":1,\"w\":[1, 2]},{\"k\":1,\"v\":2,\"w\":[1,2]}],\"nums\":[3,7,9]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "diagnostics",
+        ":a",
+        "a",
+        "whole",
+        "lap.0",
+        "lap.2.b",
+        "arr.1.list",
+        "neg",
+        "multi",
+        "eq.0.v",
+        "eq.1.w"
+      ],
+      "out": "{\"diagnostics\":{\"ab\":[{\"k\":1},{\"k\":1}]},\":a\":[{\"k\":1,\"x\":1},{\"k\":1,\"x\":2}],\"a\":[{\"k\":1},{\"k\":1}],\"whole\":[\"replaced\",{\"k\":2},\"replaced\",{\"k\":2}],\"lap\":[{\"k\":1,\"z\":true},{\"k\":2},{\"k\":1,\"z\":true}],\"arr\":[{\"k\":2,\"list\":[1]},{\"k\":1,\"list\":[1,2,\"app\"]},{\"k\":1,\"list\":[\"app\"]}],\"neg\":[{\"k\":1,\"list\":[1,2]},{\"k\":1,\"list\":[]}],\"multi\":[{\"k\":1,\"r\":{\"y\":2}},{\"k\":1,\"r\":{\"old\":1}},{\"k\":1,\"r\":{\"y\":2}}],\"eq\":[{\"k\":1,\"v\":1,\"w\":[1, 2]},{\"k\":1,\"v\":1,\"w\":[1, 2]}],\"nums\":[3,7,9],\"whole_seen\":true,\"nums_matched\":true}",
+      "touched": [
+        ":a",
+        "arr.1.list",
+        "eq.0.v",
+        "eq.1.w",
+        "lap.0",
+        "lap.2.b",
+        "multi",
+        "neg",
+        "whole"
+      ]
+    },
+    {
+      "name": "linear_whole_defaults",
+      "target": "",
+      "model": "lin-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"whole\":[{\"k\":2},{\"k\":2}]}",
+      "original": "{\"whole\":[]}",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "whole"
+      ],
+      "out": "{\"whole\":[5,5]}",
+      "touched": [
+        "whole"
+      ]
+    },
+    {
+      "name": "linear_scalar_original",
+      "target": "",
+      "model": "lin-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":1}]}",
+      "original": "{\"items\":[\"[1,2]\",\"[1,2]\"]}",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "items.0.0",
+        "items.1.0"
+      ],
+      "out": "{\"items\":[{\"k\":1,\"0\":9},{\"k\":1,\"0\":9}]}",
+      "touched": [
+        "items.0.0",
+        "items.1.0"
+      ]
+    },
+    {
+      "name": "wildcards_defaults_read_original",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":2},{\"k\":1}]}",
+      "original": "{\"items\":[{\"k\":1},{\"k\":2},{\"k\":1,\"d\":\"orig\",\"n\":{\"m\":1}}]}",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"items\":[{\"k\":1,\"d\":\"dv\",\"n\":{\"m\":5},\"o\":\"ov\",\"raw\":[1, 2]},{\"k\":2,\"r\":{\"x\":1}},{\"k\":1,\"o\":\"ov\",\"raw\":[1, 2]}]}",
+      "touched": []
+    },
+    {
+      "name": "nested_complex_prefix",
+      "target": "",
+      "model": "lnc-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"aa\":[{\"k\":0},{\"k\":1}],\"ab\":[{},{\"b\":[{\"k\":2,\"x\":0}]}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "a*.1.b.0.x"
+      ],
+      "out": "{\"aa\":[{\"k\":0},{\"k\":1}],\"ab\":[{},{\"b\":[{\"k\":2,\"x\":9}]}]}",
+      "touched": [
+        "a*.1.b.0.x"
+      ]
+    },
+    {
+      "name": "nested_duplicate_key",
+      "target": "",
+      "model": "lng-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"g\":[{\"k\":1}],\"g\":[{\"k\":1,\"m\":[{\"k\":2}]}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "g"
+      ],
+      "out": "{\"g\":[{\"k\":1,\"m\":[{\"x\":9}]}],\"g\":[{\"k\":1,\"m\":[{\"k\":2}]}]}",
+      "touched": [
+        "g"
+      ]
+    },
+    {
+      "name": "condition_duplicate_key",
+      "target": "",
+      "model": "lnx-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":1}],\"items\":[{\"z\":1},{\"z\":1}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"items\":[{\"k\":1},{\"k\":1}],\"items\":[{\"z\":1},{\"z\":1}],\"z_seen\":true}",
+      "touched": []
+    },
+    {
+      "name": "delete_under_minus_one",
+      "target": "",
+      "model": "lnm-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"#\":1,\"0\":[{\"k\":1},{\"k\":1}],\"-1\":[{\"k\":1},{\"k\":1}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "-1.0",
+        "-1.1",
+        "0"
+      ],
+      "out": "{\"#\":1,\"0\":[],\"-1\":[{\"k\":1},{\"k\":1}]}",
+      "touched": [
+        "-1.0",
+        "-1.1"
+      ]
+    },
+    {
+      "name": "delete_fields_under_minus_one",
+      "target": "",
+      "model": "lnf-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"#\":1,\"0\":[{\"k\":1,\"y\":1},{\"k\":1,\"y\":2}],\"-1\":[{\"k\":1,\"y\":3},{\"k\":1,\"y\":4}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "-1",
+        "0"
+      ],
+      "out": "{\"#\":1,\"0\":[{\"k\":1},{\"k\":1}],\"-1\":[{\"k\":1,\"y\":3},{\"k\":1,\"y\":4}]}",
+      "touched": [
+        "-1"
+      ]
+    },
+    {
+      "name": "wrapped_index",
+      "target": "",
+      "model": "lnw-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"a\":[[{\"k\":1},{\"k\":1}]]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "a"
+      ],
+      "out": "{\"a\":[[{\"k\":1,\"x\":9},{\"k\":1,\"x\":9}]]}",
+      "touched": [
+        "a"
+      ]
+    },
+    {
+      "name": "set_under_minus_one",
+      "target": "",
+      "model": "lns-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"#\":1,\"0\":[{\"k\":1}],\"-1\":[{\"k\":1},{\"k\":1}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "-1",
+        "0"
+      ],
+      "out": "{\"#\":1,\"0\":[{\"k\":1}],\"-1\":[{\"k\":1,\"d\":2,\"s\":1},{\"k\":1,\"d\":2,\"s\":1}]}",
+      "touched": [
+        "-1"
+      ]
+    },
+    {
+      "name": "original_lacks_array",
+      "target": "",
+      "model": "lno-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":1},{\"k\":1}],\"whole\":[{\"k\":2},{\"k\":2}]}",
+      "original": "{\"pad\":\"pp\"}",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "items",
+        "whole"
+      ],
+      "out": "{\"items\":[{\"k\":1,\"x\":9,\"y\":{\"a\":1}},{\"k\":1,\"x\":9,\"y\":{\"a\":1}},{\"k\":1,\"x\":9,\"y\":{\"a\":1}}],\"whole\":[5,5]}",
+      "touched": [
+        "items",
+        "whole"
+      ]
+    },
+    {
+      "name": "original_scalar_base",
+      "target": "",
+      "model": "lno-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":1},{\"k\":1}],\"whole\":[{\"k\":2},{\"k\":2}]}",
+      "original": "{\"items\":\"[{\\\"x\\\":1}]\",\"whole\":7}",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "items",
+        "whole"
+      ],
+      "out": "{\"items\":[{\"k\":1,\"x\":9,\"y\":{\"a\":1}},{\"k\":1,\"x\":9,\"y\":{\"a\":1}},{\"k\":1,\"x\":9,\"y\":{\"a\":1}}],\"whole\":[5,5]}",
+      "touched": [
+        "items",
+        "whole"
+      ]
+    },
+    {
+      "name": "original_object_base",
+      "target": "",
+      "model": "lno-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":1},{\"k\":1}],\"whole\":[{\"k\":2},{\"k\":2}]}",
+      "original": "{\"items\":{\"0\":{\"x\":1},\"1\":\"s\",\"2\":{\"y\":0}},\"whole\":{\"1\":0}}",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "items",
+        "whole"
+      ],
+      "out": "{\"items\":[{\"k\":1,\"y\":{\"a\":1}},{\"k\":1,\"x\":9,\"y\":{\"a\":1}},{\"k\":1,\"x\":9}],\"whole\":[5,{\"k\":2}]}",
+      "touched": [
+        "items",
+        "whole"
+      ]
+    },
+    {
+      "name": "original_object_duplicate_keys",
+      "target": "",
+      "model": "lno-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":1},{\"k\":1}],\"whole\":[{\"k\":2},{\"k\":2}]}",
+      "original": "{\"items\":{\"0\":\"s\",\"0\":{\"x\":1},\"2\":{\"y\":1},\"2\":\"t\"},\"whole\":{\"0\":\"a\",\"0\":\"b\"}}",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "items",
+        "whole"
+      ],
+      "out": "{\"items\":[{\"k\":1,\"y\":{\"a\":1}},{\"k\":1,\"x\":9,\"y\":{\"a\":1}},{\"k\":1,\"x\":9}],\"whole\":[{\"k\":2},5]}",
+      "touched": [
+        "items",
+        "whole"
+      ]
+    },
+    {
+      "name": "original_duplicate_base",
+      "target": "",
+      "model": "lno-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":1},{\"k\":1}],\"whole\":[{\"k\":2},{\"k\":2}]}",
+      "original": "{\"items\":[{}],\"items\":[{\"x\":1},{\"y\":1},{}]}",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "items",
+        "whole"
+      ],
+      "out": "{\"items\":[{\"k\":1,\"y\":{\"a\":1}},{\"k\":1,\"x\":9},{\"k\":1,\"x\":9,\"y\":{\"a\":1}}],\"whole\":[5,5]}",
+      "touched": [
+        "items",
+        "whole"
+      ]
     },
     {
       "name": "codex_target_skips_integer_tools",
