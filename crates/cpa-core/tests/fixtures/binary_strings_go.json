@@ -479,6 +479,42 @@
     "api_keys": null
   },
   {
+    "name": "merge of a locally tagged sequence",
+    "yaml": "\u003c\u003c: !keep [{port: 1}]\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 1,
+    "api_keys": null
+  },
+  {
+    "name": "nested locally tagged merge",
+    "yaml": "inner: \u0026i !keep {port: 1}\nouter: \u0026o !keep {\u003c\u003c: *i}\n\u003c\u003c: *o\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 1,
+    "api_keys": null
+  },
+  {
+    "name": "binary secret through a tagged merge source",
+    "yaml": "base: \u0026b !keep {secret-key: !!binary c2VjcmV0}\nmanagement:\n  \u003c\u003c: *b\n",
+    "error": "",
+    "secret_key": "secret",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
+  },
+  {
+    "name": "binary plugin pin through a tagged merge source",
+    "yaml": "base: \u0026b !keep {version: !!binary MS4yLjM=}\nplugins:\n  configs:\n    x:\n      store:\n        \u003c\u003c: *b\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
+  },
+  {
     "name": "merge key inside a collection key",
     "yaml": "extra:\n  ? {\"\u003c\u003c\": {port: 1}}\n  : ignored\nport: 2\n",
     "error": "yaml: invalid map key: map[string]interface {}{\"\u003c\u003c\":map[string]interface {}{\"port\":1}}",
