@@ -226,6 +226,8 @@ func main() {
 		{"legacy weight above the limit", "gemini-api-key: [{api-key: fake, weight: 1000001}]\n", ""},
 		{"compatible weight above the limit", "openai-compatibility: [{name: x, base-url: https://x.invalid, api-key-entries: [{api-key: fake, weight: 1000001}]}]\n", ""},
 		{"null group weight", "api-keys: {gemini: [{keys: [{api-key: fake, weight: null}]}]}\n", ""},
+		{"non-integer legacy weight", "gemini-api-key: [{api-key: fake, weight: heavy}]\n", ""},
+		{"group weight above the limit", "api-keys: {gemini: [{keys: [{api-key: fake, weight: 1000001}]}]}\n", ""},
 	}
 	dir, err := os.MkdirTemp("", "cpa-prepare-")
 	must(err)
