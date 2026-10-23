@@ -384,8 +384,8 @@
     ],
     [
       "https://attacker.example\\[::1%25.x.ai]/oauth2/token",
-      true,
-      "https://attacker.example\\[::1%25.x.ai]/oauth2/token"
+      false,
+      "xai discovery token_endpoint is invalid: parse \"https://attacker.example\\\\[::1%25.x.ai]/oauth2/token\": invalid IP-literal"
     ]
   ],
   "file_names": [

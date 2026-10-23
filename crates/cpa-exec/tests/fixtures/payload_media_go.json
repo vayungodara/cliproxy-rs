@@ -1,0 +1,236 @@
+{
+  "cases": [
+    {
+      "body_b64": "eyJtb2RlbCI6ImdwdC1pbWFnZS0yIiwicHJvbXB0IjoieCJ9",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"size\": \"1024x1024\"}\n",
+      "content_type": "application/json",
+      "name": "json_override",
+      "original_b64": "eyJtb2RlbCI6ImdwdC1pbWFnZS0yIiwicHJvbXB0IjoieCJ9",
+      "out_b64": "eyJtb2RlbCI6ImdwdC1pbWFnZS0yIiwicHJvbXB0IjoieCIsInNpemUiOiIxMDI0eDEwMjQifQ==",
+      "out_content_type": "application/json",
+      "view": "{\"model\":\"gpt-image-2\",\"prompt\":\"x\"}"
+    },
+    {
+      "body_b64": "eyJtb2RlbCI6ImdwdC1pbWFnZS0yIiwicHJvbXB0IjoieCJ9",
+      "config": "payload:\n  default:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"prompt\": \"default\"}\n",
+      "content_type": "application/json",
+      "name": "json_default_kept",
+      "original_b64": "eyJtb2RlbCI6ImdwdC1pbWFnZS0yIiwicHJvbXB0IjoieCJ9",
+      "out_content_type": "application/json",
+      "unchanged": true,
+      "view": "{\"model\":\"gpt-image-2\",\"prompt\":\"x\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  override:\n    - models: [{name: other, protocol: openai}]\n      params: {\"size\": \"1\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_unmatched",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "out_content_type": "multipart/form-data; boundary=b0undary",
+      "unchanged": true,
+      "view": "{\"image\":{\"content_type\":\"image/png\",\"data\":\"AP8NColQTkc=\",\"filename\":\"input.png\"},\"model\":\"gpt-image-2\",\"prompt\":\"a \\u003ccat\\u003e \\u0026 \\ufffd\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  default:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"prompt\": \"default\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_no_change",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "out_content_type": "multipart/form-data; boundary=b0undary",
+      "unchanged": true,
+      "view": "{\"image\":{\"content_type\":\"image/png\",\"data\":\"AP8NColQTkc=\",\"filename\":\"input.png\"},\"model\":\"gpt-image-2\",\"prompt\":\"a \\u003ccat\\u003e \\u0026 \\ufffd\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"model\": \"configured\", \"size\": \"auto\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_override",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "out_media": "multipart/form-data",
+      "out_order": {},
+      "out_parts": [
+        "Content-Disposition: form-data; filename=input.png; name=image\nContent-Type: image/png\n\nAP8NColQTkc=",
+        "Content-Disposition: form-data; name=\"model\"\n\nY29uZmlndXJlZA==",
+        "Content-Disposition: form-data; name=\"prompt\"\n\nYSA8Y2F0PiAmIO+/vQ==",
+        "Content-Disposition: form-data; name=\"size\"\n\nYXV0bw=="
+      ],
+      "view": "{\"image\":{\"content_type\":\"image/png\",\"data\":\"AP8NColQTkc=\",\"filename\":\"input.png\"},\"model\":\"gpt-image-2\",\"prompt\":\"a \\u003ccat\\u003e \\u0026 \\ufffd\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  filter:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: [\"prompt\"]\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_filter",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "out_media": "multipart/form-data",
+      "out_order": {},
+      "out_parts": [
+        "Content-Disposition: form-data; filename=input.png; name=image\nContent-Type: image/png\n\nAP8NColQTkc=",
+        "Content-Disposition: form-data; name=\"model\"\n\nZ3B0LWltYWdlLTI="
+      ],
+      "view": "{\"image\":{\"content_type\":\"image/png\",\"data\":\"AP8NColQTkc=\",\"filename\":\"input.png\"},\"model\":\"gpt-image-2\",\"prompt\":\"a \\u003ccat\\u003e \\u0026 \\ufffd\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iaW1hZ2VbXSI7IGZpbGVuYW1lPSJhLnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNCkENCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iaW1hZ2VbXSI7IGZpbGVuYW1lPSJiLmpwZyINCg0KQg0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJ0YWciDQoNCjENCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0idGFnIg0KDQoyDQotLWIwdW5kYXJ5LS0NCg==",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"n\": 2}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_repeated",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iaW1hZ2VbXSI7IGZpbGVuYW1lPSJhLnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNCkENCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iaW1hZ2VbXSI7IGZpbGVuYW1lPSJiLmpwZyINCg0KQg0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJ0YWciDQoNCjENCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0idGFnIg0KDQoyDQotLWIwdW5kYXJ5LS0NCg==",
+      "out_media": "multipart/form-data",
+      "out_order": {
+        "image[]": [
+          "QQ==",
+          "Qg=="
+        ],
+        "tag": [
+          "MQ==",
+          "Mg=="
+        ]
+      },
+      "out_parts": [
+        "Content-Disposition: form-data; filename=a.png; name=\"image[]\"\nContent-Type: image/png\n\nQQ==",
+        "Content-Disposition: form-data; filename=b.jpg; name=\"image[]\"\nContent-Type: \n\nQg==",
+        "Content-Disposition: form-data; name=\"model\"\n\nZ3B0LWltYWdlLTI=",
+        "Content-Disposition: form-data; name=\"n\"\n\nMg==",
+        "Content-Disposition: form-data; name=\"tag\"\n\nMQ==",
+        "Content-Disposition: form-data; name=\"tag\"\n\nMg=="
+      ],
+      "view": "{\"image[]\":[{\"content_type\":\"image/png\",\"data\":\"QQ==\",\"filename\":\"a.png\"},{\"content_type\":\"\",\"data\":\"Qg==\",\"filename\":\"b.jpg\"}],\"model\":\"gpt-image-2\",\"tag\":[\"1\",\"2\"]}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibXkgaW1hZ2UiOyBmaWxlbmFtZT0iY2Fmw6kgXCIxXCIucG5nIg0KQ29udGVudC1UeXBlOiBpbWFnZS9wbmcNCg0KQw0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJwbGFpbiI7IGZpbGVuYW1lPSJ4LnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNCkQNCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iIg0KDQp1bm5hbWVkDQotLWIwdW5kYXJ5LS0NCg==",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"quality\": \"high\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_names",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibXkgaW1hZ2UiOyBmaWxlbmFtZT0iY2Fmw6kgXCIxXCIucG5nIg0KQ29udGVudC1UeXBlOiBpbWFnZS9wbmcNCg0KQw0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJwbGFpbiI7IGZpbGVuYW1lPSJ4LnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNCkQNCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0iIg0KDQp1bm5hbWVkDQotLWIwdW5kYXJ5LS0NCg==",
+      "out_media": "multipart/form-data",
+      "out_order": {},
+      "out_parts": [
+        "Content-Disposition: form-data; filename*=utf-8''caf%C3%A9%20%221%22.png; name=\"my image\"\nContent-Type: image/png\n\nQw==",
+        "Content-Disposition: form-data; filename=x.png; name=plain\nContent-Type: image/png\n\nRA==",
+        "Content-Disposition: form-data; name=\"\"\n\ndW5uYW1lZA==",
+        "Content-Disposition: form-data; name=\"model\"\n\nZ3B0LWltYWdlLTI=",
+        "Content-Disposition: form-data; name=\"quality\"\n\naGlnaA=="
+      ],
+      "view": "{\"\":\"unnamed\",\"model\":\"gpt-image-2\",\"my image\":{\"content_type\":\"image/png\",\"data\":\"Qw==\",\"filename\":\"café \\\"1\\\".png\"},\"plain\":{\"content_type\":\"image/png\",\"data\":\"RA==\",\"filename\":\"x.png\"}}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibXkgaW1hZ2UiOyBmaWxlbmFtZT0iY2Fmw6kgIjEiLnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNCkMNCi0tYjB1bmRhcnktLQ0K",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"quality\": \"high\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_broken_disposition",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ibXkgaW1hZ2UiOyBmaWxlbmFtZT0iY2Fmw6kgIjEiLnBuZyINCkNvbnRlbnQtVHlwZTogaW1hZ2UvcG5nDQoNCkMNCi0tYjB1bmRhcnktLQ0K",
+      "out_media": "multipart/form-data",
+      "out_order": {},
+      "out_parts": [
+        "Content-Disposition: form-data; name=\"\"\n\nQw==",
+        "Content-Disposition: form-data; name=\"model\"\n\nZ3B0LWltYWdlLTI=",
+        "Content-Disposition: form-data; name=\"quality\"\n\naGlnaA=="
+      ],
+      "view": "{\"\":\"C\",\"model\":\"gpt-image-2\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQpwDQotLWIwdW5kYXJ5LS0NCg==",
+      "config": "payload:\n  default:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"size\": \"256x256\", \"quality\": \"low\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_default_from_original",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0ic2l6ZSINCg0KNTEyeDUxMg0KLS1iMHVuZGFyeS0tDQo=",
+      "out_media": "multipart/form-data",
+      "out_order": {},
+      "out_parts": [
+        "Content-Disposition: form-data; name=\"model\"\n\nZ3B0LWltYWdlLTI=",
+        "Content-Disposition: form-data; name=\"prompt\"\n\ncA==",
+        "Content-Disposition: form-data; name=\"quality\"\n\nbG93"
+      ],
+      "view": "{\"model\":\"gpt-image-2\",\"prompt\":\"p\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"image.data\": \"%%\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "error": "multipart payload image: illegal base64 data at input byte 0",
+      "name": "form_bad_base64",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "view": "{\"image\":{\"content_type\":\"image/png\",\"data\":\"AP8NColQTkc=\",\"filename\":\"input.png\"},\"model\":\"gpt-image-2\",\"prompt\":\"a \\u003ccat\\u003e \\u0026 \\ufffd\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"image\": \"replaced\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_file_to_field",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "out_media": "multipart/form-data",
+      "out_order": {},
+      "out_parts": [
+        "Content-Disposition: form-data; name=\"image\"\n\ncmVwbGFjZWQ=",
+        "Content-Disposition: form-data; name=\"model\"\n\nZ3B0LWltYWdlLTI=",
+        "Content-Disposition: form-data; name=\"prompt\"\n\nYSA8Y2F0PiAmIO+/vQ=="
+      ],
+      "view": "{\"image\":{\"content_type\":\"image/png\",\"data\":\"AP8NColQTkc=\",\"filename\":\"input.png\"},\"model\":\"gpt-image-2\",\"prompt\":\"a \\u003ccat\\u003e \\u0026 \\ufffd\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  default-raw:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"n\": \"3\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_raw_number",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "out_media": "multipart/form-data",
+      "out_order": {},
+      "out_parts": [
+        "Content-Disposition: form-data; filename=input.png; name=image\nContent-Type: image/png\n\nAP8NColQTkc=",
+        "Content-Disposition: form-data; name=\"model\"\n\nZ3B0LWltYWdlLTI=",
+        "Content-Disposition: form-data; name=\"n\"\n\nMw==",
+        "Content-Disposition: form-data; name=\"prompt\"\n\nYSA8Y2F0PiAmIO+/vQ=="
+      ],
+      "view": "{\"image\":{\"content_type\":\"image/png\",\"data\":\"AP8NColQTkc=\",\"filename\":\"input.png\"},\"model\":\"gpt-image-2\",\"prompt\":\"a \\u003ccat\\u003e \\u0026 \\ufffd\"}"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTI=",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"n\": 2}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "error": "unexpected EOF",
+      "name": "form_truncated",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTI="
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSIiDQoNCmdwdC1pbWFnZS0y",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"n\": 2}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "error": "unexpected EOF",
+      "name": "form_truncated_unnamed",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSIiDQoNCmdwdC1pbWFnZS0y"
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"n\": 2}\n",
+      "content_type": "multipart/form-data",
+      "error": "multipart: boundary is empty",
+      "name": "form_empty_boundary",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo="
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo=",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"n\": 2}\n",
+      "content_type": "multipart/form-data; boundary=\"\"",
+      "error": "multipart: boundary is empty",
+      "name": "form_empty_boundary_param",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZT0icHJvbXB0Ig0KDQphIDxjYXQ+ICYg/w0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJpbWFnZSI7IGZpbGVuYW1lPSJpbnB1dC5wbmciDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQoA/w0KiVBORw0KLS1iMHVuZGFyeS0tDQo="
+    },
+    {
+      "body_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZSo9VVRGLTgnJ2ElMEQlMEFiDQoNCmNsaWVudA0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lKj1VVEYtOCcnZiUwRCUwQWc7IGZpbGVuYW1lKj1VVEYtOCcneCUwQXklMEQucG5nDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQpFDQotLWIwdW5kYXJ5LS0NCg==",
+      "config": "payload:\n  override:\n    - models: [{name: gpt-image-2, protocol: openai}]\n      params: {\"c\\r\\nd\": \"rule\"}\n",
+      "content_type": "multipart/form-data; boundary=b0undary",
+      "name": "form_crlf_names",
+      "original_b64": "LS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJtb2RlbCINCg0KZ3B0LWltYWdlLTINCi0tYjB1bmRhcnkNCkNvbnRlbnQtRGlzcG9zaXRpb246IGZvcm0tZGF0YTsgbmFtZSo9VVRGLTgnJ2ElMEQlMEFiDQoNCmNsaWVudA0KLS1iMHVuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lKj1VVEYtOCcnZiUwRCUwQWc7IGZpbGVuYW1lKj1VVEYtOCcneCUwQXklMEQucG5nDQpDb250ZW50LVR5cGU6IGltYWdlL3BuZw0KDQpFDQotLWIwdW5kYXJ5LS0NCg==",
+      "out_media": "multipart/form-data",
+      "out_order": {},
+      "out_parts": [
+        "Content-Disposition: form-data; filename*=utf-8''x%0Ay%0D.png; name*=utf-8''f%0D%0Ag\nContent-Type: image/png\n\nRQ==",
+        "Content-Disposition: form-data; name=\"a%0D%0Ab\"\n\nY2xpZW50",
+        "Content-Disposition: form-data; name=\"c%0D%0Ad\"\n\ncnVsZQ==",
+        "Content-Disposition: form-data; name=\"model\"\n\nZ3B0LWltYWdlLTI="
+      ],
+      "view": "{\"a\\r\\nb\":\"client\",\"f\\r\\ng\":{\"content_type\":\"image/png\",\"data\":\"RQ==\",\"filename\":\"x\\ny\\r.png\"},\"model\":\"gpt-image-2\"}"
+    }
+  ]
+}

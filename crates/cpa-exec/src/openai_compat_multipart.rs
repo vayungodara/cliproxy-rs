@@ -274,6 +274,21 @@ struct Reader<'a> {
     nl: &'static [u8],
     dash_boundary: Vec<u8>,
     parts_read: usize,
+    /// `ReadForm` skips nameless parts without reading them; `NextPart` callers read all.
+    skip_nameless: bool,
+}
+
+impl<'a> Reader<'a> {
+    fn new(body: &'a [u8], boundary: &str, skip_nameless: bool) -> Self {
+        Reader {
+            body,
+            pos: 0,
+            nl: b"\r\n",
+            dash_boundary: format!("--{boundary}").into_bytes(),
+            parts_read: 0,
+            skip_nameless,
+        }
+    }
 }
 
 fn skip_lwsp(b: &[u8]) -> &[u8] {
@@ -397,6 +412,9 @@ impl<'a> Reader<'a> {
     /// `nextPart`; `Ok(None)` is `io.EOF`, which also ends the form when the body
     /// ends inside a part's headers.
     fn next_part(&mut self) -> Result<Option<Part>, String> {
+        if self.dash_boundary == b"--" {
+            return Err("multipart: boundary is empty".into());
+        }
         let mut expect_new = false;
         loop {
             let line = match self.read_slice() {
@@ -514,10 +532,12 @@ impl<'a> Reader<'a> {
         // missing boundary, and then reads only what is left of a partial "\r\n--b".
         let body = match body {
             Ok(body) => body,
-            Err(BodyError::UnexpectedEof) if name.is_empty() => return Err("multipart: NextPart: EOF".into()),
+            Err(BodyError::UnexpectedEof) if self.skip_nameless && name.is_empty() => {
+                return Err("multipart: NextPart: EOF".into());
+            }
             Err(BodyError::UnexpectedEof) => return Err("unexpected EOF".into()),
             // Draining a nameless part stops at the error; NextPart reads on from there.
-            Err(BodyError::BufferFull(end)) if name.is_empty() => {
+            Err(BodyError::BufferFull(end)) if self.skip_nameless && name.is_empty() => {
                 self.pos = end;
                 Vec::new()
             }
@@ -571,16 +591,7 @@ impl<'a> Reader<'a> {
 
 /// `Reader.ReadForm`.
 pub fn read_form(body: &[u8], boundary: &str) -> Result<Form, String> {
-    if boundary.is_empty() {
-        return Err("multipart: boundary is empty".into());
-    }
-    let mut reader = Reader {
-        body,
-        pos: 0,
-        nl: b"\r\n",
-        dash_boundary: format!("--{boundary}").into_bytes(),
-        parts_read: 0,
-    };
+    let mut reader = Reader::new(body, boundary, true);
     let mut form = Form::default();
     while let Some(part) = reader.next_part()? {
         if part.name.is_empty() {
@@ -594,6 +605,57 @@ pub fn read_form(body: &[u8], boundary: &str) -> Result<Form, String> {
         }
     }
     Ok(form)
+}
+
+/// `NextPart` until `io.EOF`: every part, unnamed ones included.
+pub fn parts(body: &[u8], boundary: &str) -> Result<Vec<Part>, String> {
+    let mut reader = Reader::new(body, boundary, false);
+    let mut parts = Vec::new();
+    while let Some(part) = reader.next_part()? {
+        parts.push(part);
+    }
+    Ok(parts)
+}
+
+/// `mime.FormatMediaType` for a valid type: parameters sorted, tokens bare, other values
+/// quoted, and values outside printable ASCII RFC 2231-encoded. `None` where Go returns "".
+pub fn format_media_type(media: &str, params: &BTreeMap<&str, &[u8]>) -> Option<String> {
+    let token = |v: &[u8]| !v.is_empty() && v.iter().all(|&c| token_char(c));
+    let mut out = media.to_ascii_lowercase();
+    for (key, value) in params {
+        if !token(key.as_bytes()) {
+            return None;
+        }
+        out.push_str("; ");
+        out.push_str(&key.to_ascii_lowercase());
+        // `needsEncoding` ranges over runes: invalid UTF-8 decodes as U+FFFD.
+        let encode = String::from_utf8_lossy(value)
+            .chars()
+            .any(|c| !(' '..='~').contains(&c) && c != '\t');
+        if encode {
+            out.push_str("*=utf-8''");
+            for &c in value.iter() {
+                if c <= b' ' || c >= 0x7f || b"*'%".contains(&c) || tspecial(c) {
+                    out.push_str(&format!("%{c:02X}"));
+                } else {
+                    out.push(char::from(c));
+                }
+            }
+        } else if token(value) {
+            out.push('=');
+            out.push_str(&String::from_utf8_lossy(value));
+        } else {
+            out.push_str("=\"");
+            for &c in value.iter() {
+                if c == b'"' || c == b'\\' {
+                    out.push('\\');
+                }
+                out.push(char::from(c));
+            }
+            out.push('"');
+        }
+    }
+    Some(out)
 }
 
 fn push<T>(list: &mut Vec<(String, Vec<T>)>, key: String, value: T) {
@@ -610,8 +672,19 @@ pub struct Writer {
     parts: usize,
 }
 
+/// `quoteEscaper`: backslash escapes for `\` and `"`, percent encoding for CR and LF.
 fn escape_quotes(s: &str) -> String {
-    s.replace('\\', "\\\\").replace('"', "\\\"")
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\r' => out.push_str("%0D"),
+            '\n' => out.push_str("%0A"),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 /// `multipart.FileContentDisposition`.

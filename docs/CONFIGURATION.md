@@ -165,6 +165,12 @@ keep the listener open and back off from 5 ms to one second; config changes and
 shutdown interrupt the wait. Addresses require numeric ports; unlike Go, `:` and
 service-name ports such as `:http` are not accepted.
 
+## models
+
+| Setting | What it does |
+|---|---|
+| `catalog`, `codex-catalog`, `devin-catalog` | Where the model catalog (`models.json`), the Codex client catalog and the Devin catalog come from: an absolute local path or an `http`/`https` URL. Empty keeps the default. Any other value, such as a relative path, `~/models.json` or a `file://` URL, refuses the config, as in CLIProxyAPI v8.0.35. cliproxy-rs checks and keeps these settings but does not use them yet; see [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md). |
+
 ## worker-threads
 
 `worker-threads: 4` at the top level sets how many threads serve requests. Without it, cliproxy-rs uses the smaller of the CPU count and two, which is plenty for one person: a coding-agent request with a 300 KB prompt costs about 20 to 30 ms of CPU (a small chat request about 1 ms), and most of a request's time is spent waiting on the provider. Each extra thread can keep its own pool of freed memory, so more threads mean a larger resident size. The `TOKIO_WORKER_THREADS` environment variable overrides it.

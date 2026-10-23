@@ -773,7 +773,7 @@ pub(crate) async fn put_config_yaml(State(state): State<Arc<Management>>, body: 
     // comment lines only while writing, which can break a block scalar holding a `#` line
     // after the file is already overwritten.
     let text = normalize_comment_indentation(text);
-    let root = match serde_yaml_ng::from_str::<serde_yaml_ng::Value>(&text) {
+    let root = match cpa_core::config::yaml_value(&text) {
         Err(e) => return fail(StatusCode::BAD_REQUEST, "invalid_yaml", e.to_string()),
         Ok(root @ serde_yaml_ng::Value::Mapping(_)) => root,
         Ok(serde_yaml_ng::Value::Null) if text.trim().is_empty() => serde_yaml_ng::Value::Null,
@@ -795,6 +795,11 @@ pub(crate) async fn put_config_yaml(State(state): State<Arc<Management>>, body: 
     }
     if let Some(e) = v8_group_error(&root) {
         return fail(StatusCode::BAD_REQUEST, "invalid_yaml", e);
+    }
+    // Go v8.0.35 validates the model catalog sources while decoding the upload into
+    // Config (Config.UnmarshalYAML), so a bad source is this 400, not LoadConfig's 422.
+    if let Err(e) = cpa_core::config::validate_catalog_sources(root.get("models")) {
+        return fail(StatusCode::BAD_REQUEST, "invalid_yaml", format!("{e:#}"));
     }
     if let Some(answer) = legacy_weight_error(&root) {
         return answer;

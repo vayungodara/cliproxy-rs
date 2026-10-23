@@ -774,25 +774,47 @@ async fn usage_records_the_payload_override_reasoning_effort() {
     }
 }
 
-/// Go `TestCodexImageResolvedModelOnWire` ("custom upstream" and "routing and thinking
-/// suffix", 51bde0ff) through the executor: a configured, prefixed upstream name reaches
-/// the direct Images endpoint as resolved, for a JSON generation and a multipart edit.
+/// Go `TestCodexImageResolvedModelOnWire` ("custom upstream", "routing and thinking
+/// suffix" and the two "final payload" rows, 51bde0ff and 868e137) through the executor:
+/// a configured, prefixed upstream name reaches the direct Images endpoint as resolved,
+/// for a JSON generation and a multipart edit, and the payload rules run once, last.
 #[tokio::test]
 async fn direct_images_send_the_configured_upstream_model() {
     let executor = executor();
     let form = "--XB\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nREQ\r\n--XB\r\nContent-Disposition: form-data; name=\"prompt\"\r\n\r\ndiagnostic\r\n--XB--\r\n";
-    for (requested, resolved, configured, want) in [
+    let models = "[{name: openai/gpt-image-2-cpr, protocol: openai, match: [{model: openai/gpt-image-2-cpr}]}]";
+    let override_rules = format!(
+        "payload:\n  override:\n    - models: {models}\n      params: {{model: policy/image-model}}\n    - models: [{{name: \"*\"}}]\n      params: {{\"audit.-1\": once}}\n"
+    );
+    let filter_rules = format!("payload:\n  filter:\n    - models: {models}\n      params: [model]\n");
+    for (requested, resolved, configured, want, rules) in [
         (
             "gpt-image-2",
             "openai/gpt-image-2-cpr",
             "openai/gpt-image-2-cpr",
             "openai/gpt-image-2-cpr",
+            "",
         ),
         (
             "tenant/gpt-image-2(high)",
             "OpenAI/GPT-Image-2(high)",
             "OpenAI/GPT-Image-2",
             "OpenAI/GPT-Image-2",
+            "",
+        ),
+        (
+            "gpt-image-2",
+            "openai/gpt-image-2-cpr",
+            "openai/gpt-image-2-cpr",
+            "policy/image-model",
+            override_rules.as_str(),
+        ),
+        (
+            "gpt-image-2",
+            "openai/gpt-image-2-cpr",
+            "openai/gpt-image-2-cpr",
+            "",
+            filter_rules.as_str(),
         ),
     ] {
         for (request_path, upstream_path, content_type, body) in [
@@ -818,7 +840,7 @@ async fn direct_images_send_the_configured_upstream_model() {
                 )],
             );
             let cfg = Config::parse(&format!(
-                "codex-api-key:\n  - api-key: codex-token\n    base-url: {}\n    prefix: tenant\n    models:\n      - name: {configured}\n        alias: gpt-image-2\n",
+                "codex-api-key:\n  - api-key: codex-token\n    base-url: {}\n    prefix: tenant\n    models:\n      - name: {configured}\n        alias: gpt-image-2\n{rules}",
                 mock.url
             ))
             .unwrap();
@@ -858,7 +880,15 @@ async fn direct_images_send_the_configured_upstream_model() {
             assert_eq!(captured.len(), 1, "{resolved} {request_path}");
             assert_eq!(captured[0].path, upstream_path);
             let sent: Value = serde_json::from_slice(&captured[0].body).unwrap();
-            assert_eq!(sent["model"], want, "{resolved} {request_path}");
+            assert_eq!(
+                sent["model"].as_str().unwrap_or_default(),
+                want,
+                "{resolved} {request_path}"
+            );
+            assert_eq!(sent["prompt"], "diagnostic", "{request_path}");
+            if rules.contains("audit") {
+                assert_eq!(sent["audit"], serde_json::json!(["once"]), "{request_path}");
+            }
         }
     }
 }

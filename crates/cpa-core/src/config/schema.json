@@ -1543,6 +1543,13 @@
       }
     },
     "config-version": "version",
+    "models": {
+      "fields": {
+        "catalog": "string",
+        "codex-catalog": "string",
+        "devin-catalog": "string"
+      }
+    },
     "worker-threads": "int"
   }
 }

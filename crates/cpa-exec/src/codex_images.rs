@@ -112,6 +112,35 @@ impl CodexExecutor {
         }
         let cache = request::session_uuid(&req, None);
         let body = json_body(body, cache.as_deref());
+        // The payload rules run last (868e137), on the body's JSON view.
+        let original = if req.original_body.is_empty() {
+            &req.body
+        } else {
+            &req.original_body
+        };
+        let requested = if req.requested_model.trim().is_empty() {
+            req.model.trim()
+        } else {
+            req.requested_model.trim()
+        };
+        let client_content_type = request::header(&req.headers, "content-type");
+        let (body, content_type) =
+            crate::payload_media::apply(&body, &content_type, original, client_content_type, |view, original| {
+                let rules = cpa_common::payload::Request {
+                    target_executor: "codex",
+                    model,
+                    requested_model: requested,
+                    protocol: "openai",
+                    from_protocol: SOURCE,
+                    root: "",
+                    original,
+                    request_path: path,
+                    headers: Some(&req.headers),
+                };
+                cpa_common::payload::apply(&settings.payload, &rules, view)
+            })
+            .map_err(plain_err)?;
+        let body = Bytes::from(body);
         // `applyCodexDirectImageHeaders`: the client's User-Agent is not forwarded.
         let mut client = req.headers.clone();
         client.remove(http::header::USER_AGENT);

@@ -151,7 +151,19 @@ impl Env {
         (response.status().as_u16(), response.text().await.unwrap())
     }
 
+    /// Stops the refresh loop and waits for the refreshes it started. Stopping drops a
+    /// refresh still waiting for its plugin, but one whose plugin answered commits (and
+    /// writes its credential's file) after the loop is gone, holding the credential's
+    /// prepare lock until it has.
+    async fn stop_refreshes(&self) {
+        self.rt.stop_auto_refresh();
+        for credential in self.rt.store().snapshot() {
+            drop(self.rt.store().prepare_lock(&credential.id).lock_owned().await);
+        }
+    }
+
     async fn finish(self) {
+        self.stop_refreshes().await;
         self.rt.plugins().shutdown_all(None).await;
         std::fs::remove_dir_all(self.dir).unwrap();
     }
@@ -3556,7 +3568,7 @@ async fn a_plugin_refresh_interval_schedules_background_refreshes() {
     );
     assert_eq!(refreshed(), ["due.json", "due.json"]);
     assert_eq!(env.rt.store().get("due.json").unwrap().metadata["access_token"], "new");
-    env.rt.stop_auto_refresh();
+    env.stop_refreshes().await;
     env.finish().await;
 }
 
@@ -3787,6 +3799,44 @@ async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadli
             .count()
     };
     let write = |name: &str, body: &str| std::fs::write(auth_dir.join(name), body).unwrap();
+    // A refresh is done when its tokens are committed, in the store and on disk: one
+    // committing after its section ends would write its file back into the next.
+    let committed = |id: &str| {
+        let on_disk = std::fs::read(auth_dir.join(id))
+            .ok()
+            .and_then(|b| serde_json::from_slice::<Value>(&b).ok());
+        env.rt
+            .store()
+            .get(id)
+            .is_some_and(|c| c.metadata["access_token"] == "p2")
+            && on_disk.is_some_and(|d| d["access_token"] == "p2")
+    };
+    // What a missing refresh looks like, for the failure message.
+    let state = || {
+        let store: Vec<String> = env
+            .rt
+            .store()
+            .snapshot()
+            .iter()
+            .map(|c| format!("{} {:?} {}", c.id, c.source, c.metadata["access_token"]))
+            .collect();
+        let parsed: Vec<Value> = calls(&env.records, "pp", "auth.parse")
+            .iter()
+            .map(|r| r["Path"].clone())
+            .collect();
+        let files: Vec<_> = std::fs::read_dir(&auth_dir)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name())
+            .collect();
+        format!(
+            "store {store:?}, parsed {parsed:?}, files {files:?}, refreshed {:?}",
+            calls(&env.records, "pp", "auth.refresh")
+                .iter()
+                .map(|r| r["AuthID"].clone())
+                .collect::<Vec<_>>()
+        )
+    };
     let wrapped = r#"{"type":"pp","wrapped":"material"}"#;
     let ordinary = r#"{"type":"pp","access_token":"q","refresh_interval":"1h"}"#;
     // The refresh loop coalesces store changes for 1 s.
@@ -3807,8 +3857,8 @@ async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadli
     write("a.json", ordinary);
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
     assert_eq!(env.rt.store().get("a.json").unwrap().metadata["access_token"], "q");
-    eventually("a.json's refresh", || refreshes("a.json") >= 1).await;
-    env.rt.stop_auto_refresh();
+    eventually("a.json's committed refresh", || committed("a.json")).await;
+    env.stop_refreshes().await;
     std::fs::remove_file(auth_dir.join("a.json")).unwrap();
 
     // Parsed, deleted and created again before the refresh loop runs.
@@ -3820,9 +3870,14 @@ async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadli
     canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
     write("b.json", ordinary);
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    assert!(env.rt.store().get("a.json").is_none(), "{}", state());
     env.rt.start_auto_refresh();
-    eventually("b.json's refresh", || refreshes("b.json") >= 1).await;
-    env.rt.stop_auto_refresh();
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while !committed("b.json") {
+        assert!(std::time::Instant::now() < deadline, "b.json's refresh: {}", state());
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    env.stop_refreshes().await;
     std::fs::remove_file(auth_dir.join("b.json")).unwrap();
 
     // Disabled and enabled again.
@@ -3842,7 +3897,7 @@ async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadli
         settle().await;
     }
     assert_eq!(refreshes("c.json"), 0, "still waiting for the parsed NextRefreshAfter");
-    env.rt.stop_auto_refresh();
+    env.stop_refreshes().await;
     env.finish().await;
 }
 

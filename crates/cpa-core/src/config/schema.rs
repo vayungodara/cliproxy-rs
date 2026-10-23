@@ -111,7 +111,9 @@ pub(super) fn is_struct(path: &str) -> bool {
 
 fn walk(value: &Value, schema: &Schema, path: &str, strict: bool) -> anyhow::Result<()> {
     if value.is_null() {
-        if schema.get("fields").is_some() && path != "config.routing" {
+        // Routing is shared with the legacy layout, and `models` is no v8 path parent:
+        // Go decodes null into their zero structs.
+        if schema.get("fields").is_some() && path != "config.routing" && path != "config.models" {
             bail!("{path} must be a mapping");
         }
         if schema.get("list").is_some() && path.starts_with("config.api-keys.") && !path.contains('[') {
