@@ -109,12 +109,16 @@ pub(crate) fn due_at(rt: &Runtime, c: &Credential, cfg: &Config) -> Option<DateT
 
 /// Go's refresh lifecycle fields of one credential a plugin refreshes, kept per
 /// credential ID beside the store's set ([`register`]).
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub(crate) struct Schedule {
     /// Go `LastRefreshedAt`.
-    last: Option<DateTime<Utc>>,
+    pub last: Option<DateTime<Utc>>,
     /// Go `NextRefreshAfter`.
-    next_after: Option<DateTime<Utc>>,
+    pub next_after: Option<DateTime<Utc>>,
+    /// Registered by the startup load, which runs before plugins parse auth files: the
+    /// first plugin-aware load registers the credential as Go's first one does, so its
+    /// next registration takes its own fields ([`end_bootstrap`]).
+    pub provisional: bool,
 }
 
 /// Credential ID to its [`Schedule`].
@@ -137,10 +141,16 @@ pub(crate) fn schedules(rt: &Runtime) -> Schedules {
 /// while it and the one it replaces are both enabled, and otherwise takes those it is
 /// registered with: no `LastRefreshedAt`, and the `NextRefreshAfter` its plugin parsed
 /// (Go `prepareCoreAuthForModelRegistration`, service_auth.go L427-450). An auth save
-/// (`saved`) registers its credentials with the fields of the auth each replaces
-/// instead, whatever their state, unset ones included (Go `preserveExistingAuthState`
-/// and `upsertAuthRecordsForPath`), or with their own without one. A credential that
-/// leaves the set loses its schedule (Go `Manager.Remove`).
+/// (`saved`) registers its credentials with the fields of the auth each replaces,
+/// whatever that one's state, unset ones included (Go `preserveExistingAuthState` and
+/// `upsertAuthRecordsForPath`), or with their own without one. Go's watcher then
+/// registers the written file again (its hash changed; nothing suppresses the server's
+/// own writes), against the saved auth: a disabled saved credential ends with its own
+/// fields, and that is what it gets here, as the store's reload may find the file's
+/// credential unchanged and register nothing. A credential that
+/// leaves the set loses its schedule (Go `Manager.Remove`), so the map holds the
+/// set's IDs only. A [`Schedule::provisional`] one is replaced as if a side were
+/// disabled.
 pub(crate) fn register(
     schedules: &Schedules,
     before: &[Arc<Credential>],
@@ -158,18 +168,45 @@ pub(crate) fn register(
         let own = Schedule {
             last: None,
             next_after: c.next_refresh_after.map(DateTime::<Utc>::from),
+            provisional: false,
         };
         let schedule = match saved.iter().find(|s| s.id == c.id) {
-            Some(SavedRefresh { donor: Some(donor), .. }) => schedules.get(donor).copied().unwrap_or_default(),
+            // Go's watcher registers the written file again right after the save, which
+            // keeps the save's fields only while the credential is enabled.
+            Some(SavedRefresh { donor: Some(donor), .. }) if !c.disabled => Schedule {
+                provisional: false,
+                ..schedules.get(donor).copied().unwrap_or_default()
+            },
             Some(_) => own,
-            None if previous.is_some_and(|p| !p.disabled && !c.disabled) => continue,
+            None if previous.is_some_and(|p| !p.disabled && !c.disabled)
+                && !schedules.get(&c.id).is_some_and(|s| s.provisional) =>
+            {
+                continue;
+            }
             None => own,
         };
         registered.push((c.id.clone(), schedule));
     }
     let live: std::collections::HashSet<&str> = after.iter().map(|c| c.id.as_str()).collect();
-    schedules.retain(|id, _| live.contains(id.as_str()) || !previous.contains_key(id.as_str()));
+    for id in previous.keys().filter(|id| !live.contains(*id)) {
+        schedules.remove(*id);
+    }
     schedules.extend(registered);
+}
+
+/// Marks every schedule the startup load registered [`Schedule::provisional`].
+pub(crate) fn begin_bootstrap(schedules: &Schedules) {
+    for schedule in lock(schedules).values_mut() {
+        schedule.provisional = true;
+    }
+}
+
+/// Ends the startup window: the first plugin-aware load has registered its credentials,
+/// and the schedules it left in place are their own.
+pub(crate) fn end_bootstrap(schedules: &Schedules) {
+    for schedule in lock(schedules).values_mut() {
+        schedule.provisional = false;
+    }
 }
 
 /// Records a committed plugin refresh of `c` (Go `refreshAuth` on success): the refresh
@@ -179,13 +216,12 @@ pub(crate) fn committed(schedules: &Schedules, c: &Credential, now: DateTime<Utc
     let still_due = cpa_exec::preferred_interval(c).is_some_and(|interval| {
         cpa_exec::expiration(c).is_some_and(|expiry| expiry.checked_sub_signed(interval).is_none_or(|at| at <= now))
     });
-    lock(schedules).insert(
-        c.id.clone(),
-        Schedule {
-            last: Some(now),
-            next_after: still_due.then(|| now + chrono::Duration::seconds(30)),
-        },
-    );
+    // Only for a credential still in the set: a removed one has no schedule to record
+    // into, and a late result must not leave one behind.
+    if let Some(schedule) = lock(schedules).get_mut(&c.id) {
+        schedule.last = Some(now);
+        schedule.next_after = still_due.then(|| now + chrono::Duration::seconds(30));
+    }
 }
 
 /// Records a failed plugin refresh of `c`, whatever triggered it: Go holds the next one
@@ -194,15 +230,15 @@ pub(crate) fn committed(schedules: &Schedules, c: &Credential, now: DateTime<Utc
 // ponytail: Go's other failure branches (an invalid grant's growing backoff, a 401 on an
 // expired token retrying at once, a disabled credential) all take this 5 min; port them
 // if a plugin needs them.
-pub(crate) fn failed(rt: &Runtime, c: &Credential, now: DateTime<Utc>) {
+pub(crate) fn failed(store: &crate::runtime::CredentialStore, c: &Credential, now: DateTime<Utc>) {
     let mut at = now + chrono::Duration::minutes(5);
     if let Some(expiry) = cpa_exec::expiration(c).filter(|expiry| *expiry > now) {
         at = at.min(expiry);
     }
-    lock(rt.store().refresh_schedules())
-        .entry(c.id.clone())
-        .or_default()
-        .next_after = Some(at);
+    // As in [`committed`], only for a credential still in the set.
+    if let Some(schedule) = lock(store.refresh_schedules()).get_mut(&c.id) {
+        schedule.next_after = Some(at);
+    }
 }
 
 /// What a plugin refresh commits: the metadata change, and whether a plugin answered.
@@ -226,7 +262,7 @@ pub(crate) async fn refresh(
 ) -> Result<Refreshed, ExecError> {
     let result = refresh_once(rt, route, c, stored).await;
     if result.is_err() {
-        failed(rt, c, Utc::now());
+        failed(rt.store(), c, Utc::now());
     }
     result
 }
@@ -401,5 +437,37 @@ fn diff(current: &Map<String, Value>, next: &Map<String, Value>) -> MetadataPatc
             .filter(|k| kept(k) && !next.contains_key(*k))
             .cloned()
             .collect(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A refresh result that lands after its credential left the set records nothing:
+    /// no schedule outlives its credential, whatever the churn.
+    #[test]
+    fn a_late_refresh_result_leaves_no_schedule_behind() {
+        let credential = |id: &str| {
+            let metadata = serde_json::json!({"type":"pp","access_token":"t","refresh_interval":"1h"});
+            Credential::from_file(
+                std::path::Path::new("/auths"),
+                &std::path::Path::new("/auths").join(id),
+                metadata.as_object().cloned().unwrap(),
+            )
+            .unwrap()
+        };
+        let store = crate::runtime::CredentialStore::new(vec![credential("a.json")]);
+        store.end_bootstrap();
+        let now = Utc::now();
+        for round in 0..3 {
+            let gone = store.get("a.json").unwrap();
+            store.reconcile(vec![credential(&format!("b{round}.json"))]);
+            committed(store.refresh_schedules(), &gone, now);
+            failed(&store, &gone, now);
+            let ids: Vec<String> = lock(store.refresh_schedules()).keys().cloned().collect();
+            assert_eq!(ids, [format!("b{round}.json")], "round {round}");
+            store.reconcile(vec![credential("a.json")]);
+        }
     }
 }

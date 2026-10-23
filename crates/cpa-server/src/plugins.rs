@@ -137,10 +137,13 @@ pub async fn sync(rt: &Runtime, cfg: Arc<Config>) {
 /// changed after the scan read it (a token refresh committed meanwhile) keeps its
 /// current credential, and so does a file the scan read half-written. Plugins parse on
 /// a blocking thread, holding no lock: a parse can make host callbacks that need the
-/// async runtime, even with one worker thread.
+/// async runtime, even with one worker thread. This load registers the credentials as
+/// Go's first one does, so it replaces the startup load's refresh schedules
+/// ([`crate::runtime::CredentialStore::end_bootstrap`]).
 pub async fn reload_plugin_auth_files(rt: &Arc<Runtime>) {
     use cpa_core::config::credentials;
     if !credentials::plugin_auth_parser_active() {
+        rt.store().end_bootstrap();
         return;
     }
     let rt = rt.clone();
@@ -161,6 +164,7 @@ pub async fn reload_plugin_auth_files(rt: &Arc<Runtime>) {
         rt.store().reconcile_scanned_with(all, &scan.read, |current, all| {
             keep_deferred(current, all, &scan.deferred)
         });
+        rt.store().end_bootstrap();
     });
     if let Err(e) = reload.await {
         tracing::error!(error = %e, "reloading auth files for plugin auth providers failed");

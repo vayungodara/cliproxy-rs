@@ -3581,7 +3581,11 @@ async fn a_plugin_refresh_interval_schedules_background_refreshes() {
 async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
     let Some(env) = env(
         "plugin-owned-refresh-deadlines",
-        &[("acme", "auth_provider"), ("pp", "auth_provider")],
+        &[
+            ("acme", "auth_provider"),
+            ("pp", "auth_provider"),
+            ("qq", "auth_provider"),
+        ],
         "",
         &[
             (
@@ -3597,6 +3601,9 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
                 r#"{"type":"acme","access_token":"s","refresh_interval":"1h","disabled":false}"#,
             ),
             ("p.json", r#"{"type":"pp","wrapped":"material"}"#),
+            // Loaded before the plugins start, as the binary loads it, under the ID the
+            // plugin then parses it as.
+            ("q.json", r#"{"type":"qq","wrapped":"material"}"#),
         ],
         |records| {
             // An answer without auth fields keeps the credential as it was.
@@ -3609,6 +3616,14 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
                     "Metadata":{"type":"pp","access_token":"p","refresh_interval":"1h"},
                     "NextRefreshAfter":"2099-01-01T00:00:00Z"}]}),
             );
+            canned(
+                records,
+                "qq",
+                "auth.parse",
+                json!({"Handled":true,"Auths":[{"Provider":"qq","ID":"q.json",
+                    "Metadata":{"type":"qq","access_token":"q","refresh_interval":"1h"},
+                    "NextRefreshAfter":"2099-01-01T00:00:00Z"}]}),
+            );
         },
     )
     .await
@@ -3617,6 +3632,7 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
     };
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
     assert!(env.rt.store().get("p-1").is_some());
+    assert_eq!(env.rt.store().get("q.json").unwrap().metadata["access_token"], "q");
     let refreshed = |id: &str| {
         calls(&env.records, "acme", "auth.refresh")
             .iter()
@@ -3652,10 +3668,12 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
     tokio::time::sleep(Duration::from_millis(1500)).await;
     assert_eq!(refreshed("f.json"), 1, "backing off after the failed refresh");
     assert_eq!(refreshed("s.json"), 1, "the no-op refresh counts as the last one");
-    assert!(
-        calls(&env.records, "pp", "auth.refresh").is_empty(),
-        "waiting for the parsed NextRefreshAfter"
-    );
+    for label in ["pp", "qq"] {
+        assert!(
+            calls(&env.records, label, "auth.refresh").is_empty(),
+            "{label} waiting for the parsed NextRefreshAfter"
+        );
+    }
     env.rt.stop_auto_refresh();
     env.finish().await;
 }
@@ -4002,6 +4020,57 @@ async fn a_disabling_reload_drops_a_credentials_refresh_schedule() {
     assert!(env.rt.store().get("d.json").unwrap().disabled);
     reload(file(json!({}))).await;
     eventually("the refresh after the enabling reload", || refreshes("d.json") == 2).await;
+    env.finish().await;
+}
+
+/// A save the parser does not handle registers the file's built-in credential with the
+/// refresh state of the credential it replaces (Go `preserveExistingAuthState`), and
+/// Go's watcher then registers the written file again against it: a save that edits
+/// the credential keeps its last refresh, while one that disables it ends with its own
+/// fields, so the save that enables it again finds no last refresh and it is due at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_builtin_save_keeps_the_refresh_state_its_watcher_would_keep() {
+    let Some(env) = env(
+        "plugin-owned-builtin-save-deadline",
+        &[("acme", "auth_provider,management_api")],
+        "",
+        &[(
+            "s.json",
+            r#"{"type":"acme","access_token":"s","refresh_interval":"1h"}"#,
+        )],
+        |records| {
+            canned(records, "acme", "auth.parse", json!({"Handled":false}));
+            canned(records, "acme", "auth.refresh", json!({"Auth":{}}));
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let path = env.dir.join("config.yaml");
+    std::fs::write(&path, &env.yaml).unwrap();
+    let management = cpa_server::management::Management::new(env.rt.clone(), path);
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    let refreshes = || calls(&env.records, "acme", "auth.refresh").len();
+    let save = |extra: Value| {
+        let mut body = json!({"type":"acme","access_token":"s","refresh_interval":"1h"});
+        body.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        host_save(&env, "acme", "s.json", body)
+    };
+    env.rt.start_auto_refresh();
+    eventually("the first refresh", || refreshes() == 1).await;
+    // The refresh loop coalesces store changes for 1 s.
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    let saved = save(json!({"note":"edited"})).await;
+    assert_eq!(saved["ok"], true, "{saved}");
+    assert_eq!(env.rt.store().get("s.json").unwrap().metadata["note"], "edited");
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    assert_eq!(refreshes(), 1, "an edit keeps the last refresh");
+    assert_eq!(save(json!({"disabled":true})).await["ok"], true);
+    assert!(env.rt.store().get("s.json").unwrap().disabled);
+    assert_eq!(save(json!({})).await["ok"], true);
+    eventually("the refresh after the enabling save", || refreshes() == 2).await;
+    drop(management);
     env.finish().await;
 }
 

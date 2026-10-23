@@ -584,7 +584,7 @@ impl Runtime {
         .map_err(|e| {
             // The plugin refreshed but nothing was saved: back off as for a failed refresh.
             if plugin.is_some() {
-                crate::plugins::refresh::failed(self, &view, chrono::Utc::now());
+                crate::plugins::refresh::failed(&self.store, &view, chrono::Utc::now());
             }
             ExecError::local(
                 500,
@@ -1354,6 +1354,7 @@ impl CredentialStore {
         }
         let refresh_schedules = crate::plugins::refresh::Schedules::default();
         crate::plugins::refresh::register(&refresh_schedules, &[], &inner.creds, &[]);
+        crate::plugins::refresh::begin_bootstrap(&refresh_schedules);
         Arc::new(Self {
             inner: RwLock::new(inner),
             policy: RwLock::new(Arc::new(Policy::default())),
@@ -1381,6 +1382,12 @@ impl CredentialStore {
     /// The plugin refresh schedules ([`crate::plugins::refresh::register`]).
     pub(crate) fn refresh_schedules(&self) -> &crate::plugins::refresh::Schedules {
         &self.refresh_schedules
+    }
+
+    /// Ends the startup window in which the credentials loaded before plugins parse auth
+    /// files are provisional ([`crate::plugins::refresh::end_bootstrap`]).
+    pub fn end_bootstrap(&self) {
+        crate::plugins::refresh::end_bootstrap(&self.refresh_schedules);
     }
 
     /// Registers the plugin refresh schedules of a change from `before` to `after`;
