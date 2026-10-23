@@ -1118,6 +1118,7 @@ mod tests {
             attributes: attributes.iter().map(|(k, v)| ((*k).into(), (*v).into())).collect(),
             metadata: metadata.as_object().unwrap().clone(),
             revision: 0,
+            next_refresh_after: None,
         }
     }
 

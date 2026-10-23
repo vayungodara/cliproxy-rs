@@ -736,22 +736,6 @@ impl Host {
             .ok_or_else(|| CallError::Other("auth provider refresh returned invalid auth data".into()))
     }
 
-    /// Takes the `NextRefreshAfter` the plugin parser returned for auth `id` (Go keeps it
-    /// on the auth it registers), if any. The caller registers the auth with it once; a
-    /// later registration needs a new parse of the file.
-    pub fn take_parsed_next_refresh_after(&self, id: &str) -> Option<chrono::DateTime<chrono::Utc>> {
-        crate::host::lock(&self.inner.parsed_refresh_after)
-            .remove(id)
-            .map(|(at, _)| at)
-    }
-
-    /// The `NextRefreshAfter` the plugin parser returned for auth `id`, left in place.
-    pub fn parsed_next_refresh_after(&self, id: &str) -> Option<chrono::DateTime<chrono::Utc>> {
-        crate::host::lock(&self.inner.parsed_refresh_after)
-            .get(id)
-            .map(|(at, _)| *at)
-    }
-
     /// Go `RegisterFrontendAuthProviders`: `(access provider key, plugin ID)` for each
     /// active frontend auth provider in order, and the exclusive key (highest priority,
     /// then lowest ID) if any. Keys are `plugin:<id>:<identifier>`; identifiers are asked
@@ -986,35 +970,18 @@ impl cpa_core::config::credentials::PluginAuthParser for AuthParser {
         let Some(inner) = self.0.upgrade() else {
             return Parsed::NotHandled;
         };
-        let path = req.path.display().to_string();
-        let result = Host::from_inner(inner.clone()).parse_auths(AuthParseRequest {
+        let result = Host::from_inner(inner).parse_auths(AuthParseRequest {
             provider: req.provider.to_owned(),
-            path: path.clone(),
+            path: req.path.display().to_string(),
             file_name: req.file_name.to_owned(),
             raw_json: Bytes::copy_from_slice(req.raw_json),
             ..Default::default()
         });
-        // This parse decides the file's auths: whatever an earlier parse of it returned
-        // no longer registers anything.
-        let mut deadlines = crate::host::lock(&inner.parsed_refresh_after);
-        deadlines.retain(|_, (_, from)| *from != path);
         // Go falls back to the built-in synthesizer on any parse error.
         if result.error.is_some() || !result.handled {
             return Parsed::NotHandled;
         }
-        Parsed::Handled(
-            result
-                .auths
-                .into_iter()
-                .map(|auth| {
-                    match auth.next_refresh_after.0 {
-                        Some(at) => deadlines.insert(auth.id.clone(), (at.to_utc(), path.clone())),
-                        None => deadlines.remove(&auth.id),
-                    };
-                    auth.into_parsed()
-                })
-                .collect(),
-        )
+        Parsed::Handled(result.auths.into_iter().map(PluginAuth::into_parsed).collect())
     }
 }
 
@@ -1038,6 +1005,7 @@ impl PluginAuth {
             disabled: self.disabled,
             metadata,
             attributes: self.attributes,
+            next_refresh_after: self.next_refresh_after.0.map(std::time::SystemTime::from),
         }
     }
 }

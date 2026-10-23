@@ -2640,6 +2640,15 @@ mod tests {
     }
 
     fn management(name: &str, files: &[(&str, &str)]) -> (Arc<Management>, std::path::PathBuf) {
+        management_with(name, files, |_| {})
+    }
+
+    /// [`management`], with `edit` applied to the loaded credentials first.
+    fn management_with(
+        name: &str,
+        files: &[(&str, &str)],
+        edit: impl FnOnce(&mut Vec<Credential>),
+    ) -> (Arc<Management>, std::path::PathBuf) {
         let dir = std::env::temp_dir().join(format!("cpa-modify-{name}-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         for (file, body) in files {
@@ -2648,7 +2657,8 @@ mod tests {
         let path = dir.join("config.yaml");
         std::fs::write(&path, format!("oauth: {{auth-dir: {}}}\n", dir.display())).unwrap();
         let cfg = cpa_core::config::Config::load(&path).unwrap();
-        let scan = credentials::scan_auth_dir(&cfg);
+        let mut scan = credentials::scan_auth_dir(&cfg);
+        edit(&mut scan.credentials);
         let rt = Arc::new(crate::testing::runtime(
             cfg.clone(),
             scan.credentials,
@@ -2663,6 +2673,60 @@ mod tests {
         // As the binary records what it loaded.
         rt.store().note_loaded(&scan.read);
         (Management::new(rt, path), dir)
+    }
+
+    /// The two management paths that disable and enable a plugin-parsed credential
+    /// register it without parsing its file again (DIFFERENCES-FROM-GO.md): a status
+    /// write re-synthesizes it as a built-in credential, without a parsed
+    /// `NextRefreshAfter`, while a patch (a plugin-virtual source's status) keeps the one
+    /// its last parse gave. Go's watcher parses the written file and takes that parse's.
+    #[tokio::test]
+    async fn management_status_changes_register_plugin_deadlines_without_a_parse() {
+        use chrono::TimeZone;
+        let parsed = chrono::Utc.with_ymd_and_hms(2099, 1, 1, 0, 0, 0).unwrap();
+        let body = r#"{"type":"pp","access_token":"t","refresh_interval":"1h"}"#;
+        let (state, dir) = management_with("plugin-deadlines", &[("a.json", body), ("b.json", body)], |creds| {
+            for c in creds {
+                c.next_refresh_after = Some(parsed.into());
+            }
+        });
+        let store = state.rt.store();
+        store.end_bootstrap();
+        let next_after = |id: &str| {
+            store
+                .refresh_schedules()
+                .lock()
+                .unwrap()
+                .get(id)
+                .map(|s| (s.last.is_some(), s.next_after))
+        };
+        assert_eq!(next_after("a.json"), Some((false, Some(parsed))));
+        let now = chrono::Utc::now();
+        crate::plugins::refresh::committed(store.refresh_schedules(), &store.get("a.json").unwrap(), now);
+        crate::plugins::refresh::committed(store.refresh_schedules(), &store.get("b.json").unwrap(), now);
+        for disabled in [true, false] {
+            let r = status(
+                State(state.clone()),
+                Ok(FirstJson(Bytes::from(format!(
+                    r#"{{"name":"a.json","disabled":{disabled}}}"#
+                )))),
+            )
+            .await;
+            assert_eq!(r.status(), StatusCode::OK);
+            assert_eq!(store.get("a.json").unwrap().disabled, disabled);
+            assert_eq!(next_after("a.json"), Some((false, None)), "status disabled={disabled}");
+            let mut patch = MetadataPatch::default();
+            patch.set.insert("disabled".into(), disabled.into());
+            store
+                .apply_patch("b.json", store.get("b.json").unwrap().revision, &patch)
+                .unwrap();
+            assert_eq!(
+                next_after("b.json"),
+                Some((false, Some(parsed))),
+                "patch disabled={disabled}"
+            );
+        }
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     /// What a token refresh commits: the store's compare-and-swap patch.

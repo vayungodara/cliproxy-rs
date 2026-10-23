@@ -560,6 +560,7 @@ async fn anthropic_model_list_cloaking_reads_the_shared_setting() {
                 .unwrap()
                 .clone(),
             revision: 0,
+            next_refresh_after: None,
         };
         let p = proxy(config, vec![key]).await;
         let models: Value = wreq::Client::new()
@@ -607,6 +608,7 @@ async fn config_models_alias_and_force_mapping_reach_upstream_and_client() {
             .unwrap()
             .clone(),
         revision: 0,
+        next_refresh_after: None,
     };
     key.attributes.insert("prefix".into(), "team".into());
     let p = proxy("", vec![key]).await;
