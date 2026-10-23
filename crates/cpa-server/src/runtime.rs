@@ -479,14 +479,19 @@ impl Runtime {
         // Owned: the commit below moves it into its blocking job, which a cancelled caller
         // cannot stop, so the lock covers the read through the commit either way.
         let guard = self.store.prepare_lock(id).lock_owned().await;
-        // Another request may have prepared it while we waited.
-        let current = self.store.get(id).filter(|c| !c.disabled).ok_or_else(|| {
-            ExecError::local(
-                409,
-                FailureScope::Request,
-                "credential removed or disabled during preparation",
-            )
-        })?;
+        // Another request may have prepared it while we waited. The registration it is
+        // current under is what a plugin refresh records its outcome for.
+        let (current, registration) = self
+            .store
+            .get_registered(id)
+            .filter(|(c, _)| !c.disabled)
+            .ok_or_else(|| {
+                ExecError::local(
+                    409,
+                    FailureScope::Request,
+                    "credential removed or disabled during preparation",
+                )
+            })?;
         match failed {
             Some(revision) if current.revision != revision => return Ok(current),
             Some(_) => {}
@@ -499,7 +504,7 @@ impl Runtime {
         // one, or a concurrent edit's when that wins the merge) as the credential's.
         let (patch, publish_proxy) = match (&plugin, failed) {
             (Some(route), _) => {
-                let refreshed = crate::plugins::refresh::refresh(self, route, &view, &current).await?;
+                let refreshed = crate::plugins::refresh::refresh(self, route, &view, &current, registration).await?;
                 (refreshed.patch, refreshed.answered)
             }
             (None, Some(_)) if management => (self.executors.prepare_management(&view, cfg).await?, false),
@@ -537,8 +542,10 @@ impl Runtime {
                         // RegistrationEpoch moved) before any merge, and drops one whose
                         // CredentialVersion moved, which covers an A→B→A token replacement
                         // within one registration. Here a re-created file, or tokens put back
-                        // to the snapshot's, takes the merged refresh. A registration counter
-                        // and a credential version on `Credential` would close both.
+                        // to the snapshot's, takes the merged refresh (DIFFERENCES-FROM-GO.md);
+                        // a plugin refresh's schedule is fenced by its registration already.
+                        // Upgrade: check `registration` here too (the shared refresh writer,
+                        // Claude's included), plus a credential version on `Credential`.
                         Err(PatchError::Stale { .. }) => {
                             let latest = store.get(&id).ok_or(PatchError::NotFound)?;
                             let (rebased, partition_applies) =
@@ -554,7 +561,12 @@ impl Runtime {
                                 // Nothing left to write, but the refresh happened (Go
                                 // records `LastRefreshedAt` whatever the merge changes).
                                 if let Some(schedules) = &plugin_schedules {
-                                    crate::plugins::refresh::committed(schedules, &latest, chrono::Utc::now());
+                                    crate::plugins::refresh::committed(
+                                        schedules,
+                                        &latest,
+                                        registration,
+                                        chrono::Utc::now(),
+                                    );
                                 }
                                 return Ok(latest);
                             }
@@ -570,7 +582,12 @@ impl Runtime {
                             }
                             // Go `LastRefreshedAt`, recorded with the commit.
                             if let Some(schedules) = &plugin_schedules {
-                                crate::plugins::refresh::committed(schedules, &committed, chrono::Utc::now());
+                                crate::plugins::refresh::committed(
+                                    schedules,
+                                    &committed,
+                                    registration,
+                                    chrono::Utc::now(),
+                                );
                             }
                             return Ok(committed);
                         }
@@ -584,7 +601,7 @@ impl Runtime {
         .map_err(|e| {
             // The plugin refreshed but nothing was saved: back off as for a failed refresh.
             if plugin.is_some() {
-                crate::plugins::refresh::failed(&self.store, &view, chrono::Utc::now());
+                crate::plugins::refresh::failed(&self.store, &view, registration, chrono::Utc::now());
             }
             ExecError::local(
                 500,
@@ -1377,6 +1394,15 @@ impl CredentialStore {
             session_closer: std::sync::OnceLock::new(),
             refresh_schedules,
         })
+    }
+
+    /// Credential `id` and the registration it is current under
+    /// ([`crate::plugins::refresh::Schedule::registration`]), read together.
+    pub(crate) fn get_registered(&self, id: &str) -> Option<(Arc<Credential>, u64)> {
+        let inner = self.read();
+        let credential = inner.creds.iter().find(|c| c.id == id)?.clone();
+        let registration = crate::plugins::refresh::registration(&self.refresh_schedules, id).unwrap_or(0);
+        Some((credential, registration))
     }
 
     /// The plugin refresh schedules ([`crate::plugins::refresh::register`]).

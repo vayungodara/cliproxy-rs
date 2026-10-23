@@ -2702,8 +2702,10 @@ mod tests {
         };
         assert_eq!(next_after("a.json"), Some((false, Some(parsed))));
         let now = chrono::Utc::now();
-        crate::plugins::refresh::committed(store.refresh_schedules(), &store.get("a.json").unwrap(), now);
-        crate::plugins::refresh::committed(store.refresh_schedules(), &store.get("b.json").unwrap(), now);
+        for id in ["a.json", "b.json"] {
+            let (c, registration) = store.get_registered(id).unwrap();
+            crate::plugins::refresh::committed(store.refresh_schedules(), &c, registration, now);
+        }
         for disabled in [true, false] {
             let r = status(
                 State(state.clone()),

@@ -4096,6 +4096,58 @@ async fn startup_refreshes_wait_for_the_plugin_aware_load() {
     env.finish().await;
 }
 
+/// Go records a refresh's outcome only on the registration it started under (it drops
+/// a result whose `RegistrationEpoch` moved). A refresh held while its credential is
+/// removed and registered again under the same ID leaves the new registration's
+/// schedule alone, whether it fails (no 5 min backoff) or commits (no last refresh): the
+/// new one is due by its interval at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_refresh_from_an_earlier_registration_leaves_the_new_ones_schedule() {
+    let Some((env, refreshes)) = pp_refresh_env("plugin-owned-refresh-registration").await else {
+        return;
+    };
+    canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
+    let auth_dir = env.rt.config().auth_dir.clone();
+    let body = r#"{"type":"pp","access_token":"q","refresh_interval":"1h"}"#;
+    for name in ["f.json", "c.json"] {
+        std::fs::write(auth_dir.join(name), body).unwrap();
+    }
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    // `f.json`'s refresh fails, `c.json`'s commits; each is held while its credential is
+    // removed and registered again.
+    for (name, fails) in [("f.json", true), ("c.json", false)] {
+        if fails {
+            std::fs::write(
+                env.records.join("respond/pp/auth.refresh.once.json"),
+                json!({"ok":false,"error":{"code":"upstream","message":"refresh failed","http_status":502}})
+                    .to_string(),
+            )
+            .unwrap();
+        }
+        let hold = Release(env.records.join("respond/pp/auth.refresh.hold"));
+        std::fs::write(&hold.0, "").unwrap();
+        let pending = tokio::spawn({
+            let (rt, name) = (env.rt.clone(), name.to_owned());
+            async move { rt.refresh_credential(&name).await }
+        });
+        eventually("the held refresh", || refreshes(name) == 1).await;
+        std::fs::remove_file(auth_dir.join(name)).unwrap();
+        cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+        assert!(env.rt.store().get(name).is_none());
+        std::fs::write(auth_dir.join(name), body).unwrap();
+        cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+        assert!(env.rt.store().get(name).is_some());
+        drop(hold);
+        assert_eq!(pending.await.unwrap().is_err(), fails, "{name}");
+    }
+    env.rt.start_auto_refresh();
+    eventually("both new registrations' refreshes", || {
+        refreshes("f.json") == 2 && refreshes("c.json") == 2
+    })
+    .await;
+    env.finish().await;
+}
+
 /// A save the parser does not handle registers the file's built-in credential with the
 /// refresh state of the credential it replaces (Go `preserveExistingAuthState`), and
 /// Go's watcher then registers the written file again against it: a save that edits
