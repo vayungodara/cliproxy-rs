@@ -2062,6 +2062,15 @@ impl Drop for Release {
     }
 }
 
+/// Releases a recorder hold created at `since`, first checking that it still holds
+/// `pending`: the recorder answers by itself after 10 s, and an overlap it let go of
+/// would test nothing.
+fn release<T>(hold: Release, since: std::time::Instant, pending: &tokio::task::JoinHandle<T>) {
+    assert!(since.elapsed() < Duration::from_secs(8), "the hold may have expired");
+    assert!(!pending.is_finished(), "released before the hold");
+    drop(hold);
+}
+
 /// Asserts the saved file and its registered credential hold the same document.
 fn file_matches_store(env: &Env, name: &str) {
     let on_disk: Value = serde_json::from_slice(&std::fs::read(env.rt.config().auth_dir.join(name)).unwrap()).unwrap();
@@ -4093,6 +4102,121 @@ async fn startup_refreshes_wait_for_the_plugin_aware_load() {
     .await;
     tokio::time::sleep(Duration::from_millis(2000)).await;
     assert_eq!(refreshes(), 0, "waiting for the parsed NextRefreshAfter");
+    env.finish().await;
+}
+
+/// Go fences a refresh by the registration it started under (its `RegistrationEpoch`):
+/// a refresh held while its credential is removed and registered again under the same
+/// ID, with the same tokens, changes nothing of the new registration. A failed one
+/// leaves no 5 min backoff; a committed one is refused before it merges or saves its
+/// tokens and `last_refresh`, and records no last refresh. Both new registrations are
+/// due by their interval at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_refresh_from_an_earlier_registration_leaves_the_new_ones_schedule() {
+    let Some((env, refreshes)) = pp_refresh_env("plugin-owned-refresh-registration").await else {
+        return;
+    };
+    canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
+    let auth_dir = env.rt.config().auth_dir.clone();
+    let body = r#"{"type":"pp","access_token":"q","refresh_interval":"1h"}"#;
+    for name in ["f.json", "c.json"] {
+        std::fs::write(auth_dir.join(name), body).unwrap();
+    }
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    // `f.json`'s refresh fails, `c.json`'s answers new tokens and a last refresh; each is
+    // held while its credential is removed and registered again.
+    for (name, response) in [
+        (
+            "f.json",
+            json!({"ok":false,"error":{"code":"upstream","message":"refresh failed","http_status":502}}),
+        ),
+        (
+            "c.json",
+            json!({"ok":true,"result":{"Auth":{"Metadata":{"type":"pp","access_token":"p2",
+                "refresh_interval":"1h","last_refresh":chrono::Utc::now().to_rfc3339()}}}}),
+        ),
+    ] {
+        std::fs::write(
+            env.records.join("respond/pp/auth.refresh.once.json"),
+            response.to_string(),
+        )
+        .unwrap();
+        let hold = Release(env.records.join("respond/pp/auth.refresh.hold"));
+        std::fs::write(&hold.0, "").unwrap();
+        let since = std::time::Instant::now();
+        let pending = tokio::spawn({
+            let (rt, name) = (env.rt.clone(), name.to_owned());
+            async move { rt.refresh_credential(&name).await }
+        });
+        eventually("the held refresh", || refreshes(name) == 1).await;
+        std::fs::remove_file(auth_dir.join(name)).unwrap();
+        cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+        assert!(env.rt.store().get(name).is_none());
+        std::fs::write(auth_dir.join(name), body).unwrap();
+        cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+        assert!(env.rt.store().get(name).is_some());
+        release(hold, since, &pending);
+        assert!(pending.await.unwrap().is_err(), "{name}: Go's stale registration epoch");
+        let on_disk: Value = serde_json::from_slice(&std::fs::read(auth_dir.join(name)).unwrap()).unwrap();
+        let in_memory = env.rt.store().get(name).unwrap();
+        for document in [&on_disk, &Value::Object(in_memory.metadata.clone())] {
+            assert_eq!(document["access_token"], "q", "{name}");
+            assert!(document.get("last_refresh").is_none(), "{name}");
+        }
+    }
+    env.rt.start_auto_refresh();
+    eventually("both new registrations' refreshes", || {
+        refreshes("f.json") == 2 && refreshes("c.json") == 2
+    })
+    .await;
+    env.finish().await;
+}
+
+/// A failed refresh holds the next one off until the access token expires when that
+/// is sooner than 5 min, reading the credential as it is when the refresh fails (Go
+/// `refreshAuth` reads `m.auths[id]` under its lock): an edit while the refresh is held
+/// that only brings the expiry closer to a few seconds away has the next refresh then,
+/// not 5 min on.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_failed_refresh_backs_off_to_the_current_expiry() {
+    let Some((env, refreshes)) = pp_refresh_env("plugin-owned-refresh-current-expiry").await else {
+        return;
+    };
+    canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
+    let auth_dir = env.rt.config().auth_dir.clone();
+    let write = |expires_in: chrono::Duration| {
+        let expired = (chrono::Utc::now() + expires_in).to_rfc3339();
+        let body = json!({"type":"pp","access_token":"q","refresh_interval":"1h","expired":expired});
+        std::fs::write(auth_dir.join("e.json"), body.to_string()).unwrap();
+    };
+    write(chrono::Duration::hours(1));
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    std::fs::write(
+        env.records.join("respond/pp/auth.refresh.once.json"),
+        json!({"ok":false,"error":{"code":"upstream","message":"refresh failed","http_status":502}}).to_string(),
+    )
+    .unwrap();
+    let hold = Release(env.records.join("respond/pp/auth.refresh.hold"));
+    std::fs::write(&hold.0, "").unwrap();
+    let since = std::time::Instant::now();
+    let pending = tokio::spawn({
+        let rt = env.rt.clone();
+        async move { rt.refresh_credential("e.json").await }
+    });
+    eventually("the held refresh", || refreshes("e.json") == 1).await;
+    let revision = env.rt.store().get("e.json").unwrap().revision;
+    write(chrono::Duration::seconds(8));
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    assert_ne!(env.rt.store().get("e.json").unwrap().revision, revision);
+    release(hold, since, &pending);
+    assert!(pending.await.unwrap().is_err());
+    env.rt.start_auto_refresh();
+    // Due at the new expiry, about 8 s after the edit; 5 min on without it.
+    let deadline = std::time::Instant::now() + Duration::from_secs(60);
+    while refreshes("e.json") < 2 {
+        assert!(std::time::Instant::now() < deadline, "the refresh at the new expiry");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
     env.finish().await;
 }
 
