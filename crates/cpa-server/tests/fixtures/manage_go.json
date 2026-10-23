@@ -33327,6 +33327,680 @@
      "file_has_archive": false
     }
    ]
+  },
+  {
+   "name": "binary_scalars",
+   "yaml": "remote-management:\n  secret-key: \"$HASH\"\nproxy-url: !!binary aHR0cDovL3guZXhhbXBsZTo4MA==\napi-keys: [fake-client, \u0026k !!binary ZmFrZS1iaW5hcnk=, *k]\nrequest-retry: 1\n",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "fake-client",
+        "fake-binary",
+        "fake-binary"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "requests": {
+       "proxy-url": "http://x.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 1
+       }
+      }
+     },
+     "raw_json": "{\"access\":{\"api-keys\":[\"fake-client\",\"fake-binary\",\"fake-binary\"]},\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3.\"},\"requests\":{\"proxy-url\":\"http://x.example:80\"},\"routing\":{\"retry\":{\"request-retry\":1}}}",
+     "file": {
+      "api-keys": [
+       "fake-client",
+       "fake-binary",
+       "fake-binary"
+      ],
+      "proxy-url": "http://x.example:80",
+      "remote-management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "request-retry": 1
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/access/api-keys",
+     "status": 200,
+     "response": [
+      "fake-client",
+      "fake-binary",
+      "fake-binary"
+     ],
+     "raw_json": "[\"fake-client\",\"fake-binary\",\"fake-binary\"]",
+     "file": {
+      "api-keys": [
+       "fake-client",
+       "fake-binary",
+       "fake-binary"
+      ],
+      "proxy-url": "http://x.example:80",
+      "remote-management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "request-retry": 1
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "fake-client",
+        "fake-binary",
+        "fake-binary"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "requests": {
+       "proxy-url": "http://x.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 1
+       }
+      }
+     },
+     "raw_response": "requests:\n    proxy-url: !!binary aHR0cDovL3guZXhhbXBsZTo4MA==\naccess:\n    api-keys: [fake-client, !!binary ZmFrZS1iaW5hcnk=, !!binary ZmFrZS1iaW5hcnk=]\nmanagement:\n    secret-key: \"$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3.\"\nrouting:\n    retry:\n        request-retry: 1\nconfig-version: 8\n",
+     "file": {
+      "api-keys": [
+       "fake-client",
+       "fake-binary",
+       "fake-binary"
+      ],
+      "proxy-url": "http://x.example:80",
+      "remote-management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "request-retry": 1
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/routing/strategy",
+     "body": "\"fill-first\"",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "access": {
+       "api-keys": [
+        "fake-client",
+        "fake-binary",
+        "fake-binary"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "requests": {
+       "proxy-url": "http://x.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 1
+       },
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "fake-client",
+        "fake-binary",
+        "fake-binary"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "requests": {
+       "proxy-url": "http://x.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 1
+       },
+       "strategy": "fill-first"
+      }
+     },
+     "raw_json": "{\"access\":{\"api-keys\":[\"fake-client\",\"fake-binary\",\"fake-binary\"]},\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3.\"},\"requests\":{\"proxy-url\":\"http://x.example:80\"},\"routing\":{\"retry\":{\"request-retry\":1},\"strategy\":\"fill-first\"}}",
+     "file": {
+      "access": {
+       "api-keys": [
+        "fake-client",
+        "fake-binary",
+        "fake-binary"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "requests": {
+       "proxy-url": "http://x.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 1
+       },
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nrequests:\n  proxy-url: \u0026p !!binary aHR0cDovL3kuZXhhbXBsZTo4MA==\naccess:\n  api-keys: [*p, !!binary ZmFrZS11cGxvYWQ=]\n",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      }
+     },
+     "raw_json": "{\"access\":{\"api-keys\":[\"http://y.example:80\",\"fake-upload\"]},\"config-version\":8,\"management\":{\"secret-key\":\"fake-secret\"},\"requests\":{\"proxy-url\":\"http://y.example:80\"}}",
+     "file": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/config",
+     "body": "{\"routing\":{\"retry\":{\"request-retry\":2}}}",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 2
+       }
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 2
+       }
+      }
+     },
+     "raw_json": "{\"access\":{\"api-keys\":[\"http://y.example:80\",\"fake-upload\"]},\"config-version\":8,\"management\":{\"secret-key\":\"fake-secret\"},\"requests\":{\"proxy-url\":\"http://y.example:80\"},\"routing\":{\"retry\":{\"request-retry\":2}}}",
+     "file": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 2
+       }
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 2
+       }
+      }
+     },
+     "raw_response": "config-version: 8\nmanagement:\n    secret-key: fake-secret\nrequests:\n    proxy-url: !!binary aHR0cDovL3kuZXhhbXBsZTo4MA==\naccess:\n    api-keys:\n        - !!binary aHR0cDovL3kuZXhhbXBsZTo4MA==\n        - !!binary ZmFrZS11cGxvYWQ=\nrouting:\n    retry:\n        request-retry: 2\n",
+     "file": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 2
+       }
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nrequests:\n  proxy-url: !!binary aHR0cDovL3o=x\n",
+     "status": 400,
+     "response": {
+      "error": "invalid_config",
+      "message": "yaml: !!binary value contains invalid base64 data"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"yaml: !!binary value contains invalid base64 data\"}",
+     "file": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 2
+       }
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/requests",
+     "status": 200,
+     "response": {
+      "proxy-url": "http://y.example:80"
+     },
+     "raw_json": "{\"proxy-url\":\"http://y.example:80\"}",
+     "file": {
+      "access": {
+       "api-keys": [
+        "http://y.example:80",
+        "fake-upload"
+       ]
+      },
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "requests": {
+       "proxy-url": "http://y.example:80"
+      },
+      "routing": {
+       "retry": {
+        "request-retry": 2
+       }
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/v0/management/config.yaml",
+     "body": "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: !!binary aHR0cHM6Ly9jLmV4YW1wbGUvbW9kZWxzLmpzb24=\n",
+     "status": 200,
+     "response": {
+      "changed": [
+       "config"
+      ],
+      "ok": true
+     },
+     "raw_json": "{\"changed\":[\"config\"],\"ok\":true}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$p5N/9ofeVEpResiveWvCYutVhftu.44sY1HsbSrQXy21MjFe8246W"
+      },
+      "models": {
+       "catalog": "https://c.example/models.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 200,
+     "response": {
+      "catalog": "https://c.example/models.json"
+     },
+     "raw_json": "{\"catalog\":\"https://c.example/models.json\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$p5N/9ofeVEpResiveWvCYutVhftu.44sY1HsbSrQXy21MjFe8246W"
+      },
+      "models": {
+       "catalog": "https://c.example/models.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/v0/management/config.yaml",
+     "body": "remote-management:\n  secret-key: fake-secret\nproxy-url: !!binary aHR0cDovL3o=x\n",
+     "status": 400,
+     "response": {
+      "error": "invalid_yaml",
+      "message": "yaml: !!binary value contains invalid base64 data"
+     },
+     "raw_json": "{\"error\":\"invalid_yaml\",\"message\":\"yaml: !!binary value contains invalid base64 data\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$p5N/9ofeVEpResiveWvCYutVhftu.44sY1HsbSrQXy21MjFe8246W"
+      },
+      "models": {
+       "catalog": "https://c.example/models.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "body": "!!binary '!!!'",
+     "status": 400,
+     "response": {
+      "error": "config_must_be_object"
+     },
+     "raw_json": "{\"error\":\"config_must_be_object\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$p5N/9ofeVEpResiveWvCYutVhftu.44sY1HsbSrQXy21MjFe8246W"
+      },
+      "models": {
+       "catalog": "https://c.example/models.json"
+      }
+     },
+     "file_has_archive": false
+    }
+   ]
+  },
+  {
+   "name": "binary_plugin_pin",
+   "yaml": "remote-management:\n  secret-key: \"$HASH\"\npin: \u0026v !!binary MS4yLjM=\nplugins:\n  configs:\n    x:\n      store:\n        version: *v\n",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/config/plugins",
+     "status": 200,
+     "response": {
+      "configs": {
+       "x": {
+        "store": {
+         "version": "1.2.3"
+        }
+       }
+      }
+     },
+     "raw_json": "{\"configs\":{\"x\":{\"store\":{\"version\":\"1.2.3\"}}}}",
+     "file": {
+      "pin": "1.2.3",
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "remote-management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/routing/strategy",
+     "body": "\"fill-first\"",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/plugins",
+     "status": 200,
+     "response": {
+      "configs": {
+       "x": {
+        "store": {
+         "version": "1.2.3"
+        }
+       }
+      }
+     },
+     "raw_json": "{\"configs\":{\"x\":{\"store\":{\"version\":\"1.2.3\"}}}}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "raw_response": "plugins:\n    configs:\n        x:\n            store:\n                version: !!binary MS4yLjM=\nmanagement:\n    secret-key: \"$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3.\"\nconfig-version: 8\nrouting:\n    strategy: \"fill-first\"\n\n# pin: !!binary MS4yLjM=\n",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    }
+   ]
   }
  ],
  "client_ip_bytes": [

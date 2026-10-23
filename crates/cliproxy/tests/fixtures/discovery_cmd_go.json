@@ -30,6 +30,54 @@
       "exclude": null,
       "include": null,
       "yaml": ""
+    },
+    {
+      "exclude": [
+        "docker0",
+        "eth0"
+      ],
+      "include": [
+        "eth0",
+        "wl*"
+      ],
+      "yaml": "discovery:\n  interfaces:\n    include: [\u0026i !!binary ZXRoMA==, wl*]\n    exclude: [!!binary ZG9ja2VyMA==, *i]\n"
+    },
+    {
+      "exclude": [
+        "eth0"
+      ],
+      "include": null,
+      "yaml": "discovery:\n  interfaces:\n    \u003c\u003c: {exclude: [eth0]}\n"
+    },
+    {
+      "exclude": [
+        "eth0"
+      ],
+      "include": [
+        "wl*"
+      ],
+      "yaml": "discovery:\n  interfaces:\n    \u003c\u003c: {exclude: [!!binary ZXRoMA==]}\n    include: [wl*]\n"
+    },
+    {
+      "exclude": [
+        "a"
+      ],
+      "include": [
+        "c"
+      ],
+      "yaml": "discovery:\n  interfaces:\n    \u003c\u003c: [{exclude: [a], include: [x]}, {exclude: [b]}]\n    include: [c]\n"
+    },
+    {
+      "exclude": null,
+      "include": null,
+      "yaml": "discovery:\n  interfaces:\n    include: [!!binary '!!!']\n"
+    },
+    {
+      "exclude": [
+        "eth0"
+      ],
+      "include": null,
+      "yaml": "proxy-url: !!binary '!!!'\ndiscovery:\n  interfaces:\n    exclude: [eth0]\n"
     }
   ],
   "interface_lists": [

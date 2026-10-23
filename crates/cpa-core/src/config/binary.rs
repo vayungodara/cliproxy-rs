@@ -24,6 +24,8 @@ use serde_yaml_ng::Value;
 const UNSUPPORTED_TAG: &str = "a YAML tag in the config file is not supported";
 const UNSUPPORTED_KEY: &str = "a tagged or aliased mapping key in the config file is not supported";
 const REPEATED_ANCHOR: &str = "a YAML anchor name is defined more than once in the config file";
+const PLUGIN_PIN: &str =
+    "a plugin's store.version or store.release-tag in the config file is a !!binary value, which is not supported";
 /// More rewritten scalars than a config has; alias chains past it are refused.
 const MAX_REWRITES: usize = 1 << 20;
 
@@ -60,14 +62,21 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     if let Some(root) = walk.events.next() {
         walk.node(root, &mut Vec::new(), false)?;
     }
+    // Go reads a plugin's pin from the raw node (pluginhost `yamlScalarString`), so a
+    // `!!binary` pin, aliased or merged in too, keeps its base64 text there and fails
+    // the version grammar; refused rather than read decoded.
+    ensure!(
+        !walk.found.iter().any(|(p, _, binary)| *binary && plugin_pin(value, p)),
+        PLUGIN_PIN
+    );
     // Paths are entry or item positions; patch them in one ordered pass.
     let mut found = walk.found;
     found.sort_by(|a, b| a.0.cmp(&b.0));
     apply(value, 0, &found)
 }
 
-fn apply(node: &mut Value, depth: usize, patches: &[(Vec<usize>, Value)]) -> anyhow::Result<()> {
-    let Some((path, replacement)) = patches.first() else {
+fn apply(node: &mut Value, depth: usize, patches: &[Found]) -> anyhow::Result<()> {
+    let Some((path, replacement, _)) = patches.first() else {
         return Ok(());
     };
     if path.len() == depth {
@@ -88,12 +97,59 @@ fn apply(node: &mut Value, depth: usize, patches: &[(Vec<usize>, Value)]) -> any
         if rest.is_empty() {
             break;
         }
-        let n = rest.iter().take_while(|(p, _)| p[depth] == i).count();
+        let n = rest.iter().take_while(|(p, _, _)| p[depth] == i).count();
         apply(child, depth + 1, &rest[..n])?;
         rest = &rest[n..];
     }
     ensure!(rest.is_empty(), "config YAML changed while it was read");
     Ok(())
+}
+
+/// Whether `path` (entry or item positions in `root`) is a plugin's `store.version` or
+/// `store.release-tag`, merge keys skipped.
+fn plugin_pin(root: &Value, path: &[usize]) -> bool {
+    let mut keys = Vec::new();
+    let mut node = root;
+    for &i in path {
+        while let Value::Tagged(tagged) = node {
+            node = &tagged.value;
+        }
+        match node {
+            Value::Mapping(m) => {
+                let Some((key, value)) = m.iter().nth(i) else {
+                    return false;
+                };
+                keys.push(key.as_str());
+                node = value;
+            }
+            Value::Sequence(items) => {
+                let Some(item) = items.get(i) else { return false };
+                keys.push(None);
+                node = item;
+            }
+            _ => return false,
+        }
+    }
+    let mut named = Vec::new();
+    let mut keys = keys.into_iter().peekable();
+    while let Some(key) = keys.next() {
+        if key == Some("<<") {
+            // `<<: [*a, *b]`: the list item is part of the merge too.
+            keys.next_if(Option::is_none);
+        } else {
+            named.push(key);
+        }
+    }
+    matches!(
+        named.as_slice(),
+        [
+            Some("plugins"),
+            Some("configs"),
+            Some(_),
+            Some("store"),
+            Some("version" | "release-tag")
+        ]
+    )
 }
 
 /// The document's node events, in order, without stream and document markers.
@@ -242,13 +298,17 @@ fn rewrite(tag: &[u8], plain: bool, value: Vec<u8>) -> anyhow::Result<Option<Val
     }))
 }
 
+/// A rewritten scalar: its path (entry or item positions), the value yaml.v3 reads, and
+/// whether a `!!binary` tag made it.
+type Found = (Vec<usize>, Value, bool);
+
 struct Walk {
     events: std::vec::IntoIter<Event>,
     defined: HashSet<Vec<u8>>,
     /// Each anchor's rewritten scalars, by their path below it.
-    anchors: HashMap<Vec<u8>, Vec<(Vec<usize>, Value)>>,
-    /// Rewritten scalars by their path: entry or item positions from the root.
-    found: Vec<(Vec<usize>, Value)>,
+    anchors: HashMap<Vec<u8>, Vec<Found>>,
+    /// Rewritten scalars, by their path from the root.
+    found: Vec<Found>,
 }
 
 impl Walk {
@@ -277,8 +337,9 @@ impl Walk {
                     // yaml.v3's layout code matches keys by their node, tag included
                     // (`!!str <<` is no merge key).
                     ensure!(!key, UNSUPPORTED_KEY);
+                    let binary = matches!(tag.as_slice(), b"tag:yaml.org,2002:binary" | b"!!binary");
                     if let Some(v) = rewrite(&tag, plain, value)? {
-                        self.found.push((path.clone(), v));
+                        self.found.push((path.clone(), v, binary));
                     }
                 }
                 anchor
@@ -290,8 +351,8 @@ impl Walk {
                     self.found.len() + copies.len() <= MAX_REWRITES,
                     "config YAML aliases expand too far"
                 );
-                for (below, v) in copies {
-                    self.found.push(([path.as_slice(), &below].concat(), v));
+                for (below, v, binary) in copies {
+                    self.found.push(([path.as_slice(), &below].concat(), v, binary));
                 }
                 None
             }
@@ -324,7 +385,7 @@ impl Walk {
         if let Some(name) = anchor {
             let below = self.found[start..]
                 .iter()
-                .map(|(p, v)| (p[path.len()..].to_vec(), v.clone()))
+                .map(|(p, v, binary)| (p[path.len()..].to_vec(), v.clone(), *binary))
                 .collect();
             self.anchors.insert(name, below);
         }

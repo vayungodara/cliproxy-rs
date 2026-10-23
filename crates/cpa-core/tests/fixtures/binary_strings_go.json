@@ -544,5 +544,50 @@
     "proxy_url": "",
     "port": 0,
     "api_keys": null
+  },
+  {
+    "name": "binary plugin pin",
+    "yaml": "plugins:\n  configs:\n    x:\n      store:\n        version: !!binary MS4yLjM=\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
+  },
+  {
+    "name": "aliased binary plugin pin",
+    "yaml": "pin: \u0026v !!binary MS4yLjM=\nplugins:\n  configs:\n    x:\n      store:\n        version: *v\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
+  },
+  {
+    "name": "binary plugin pin through a merge",
+    "yaml": "base: \u0026b\n  release-tag: !!binary djEuMi4z\nplugins:\n  configs:\n    x:\n      store:\n        \u003c\u003c: *b\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
+  },
+  {
+    "name": "shadowed binary plugin pin",
+    "yaml": "defaults: \u0026d {version: !!binary MS4yLjM=}\nplugins:\n  configs:\n    x:\n      store: {\u003c\u003c: *d, version: !keep 4.5.6}\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
+  },
+  {
+    "name": "binary plugin setting",
+    "yaml": "plugins:\n  configs:\n    x:\n      store:\n        channel: !!binary c3RhYmxl\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
   }
 ]

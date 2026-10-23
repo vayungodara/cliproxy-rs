@@ -1839,6 +1839,7 @@ mod tests {
                 .cloned()
                 .unwrap(),
             revision: 0,
+            next_refresh_after: None,
         };
         let settings = |c: &Credential| Settings {
             home: c

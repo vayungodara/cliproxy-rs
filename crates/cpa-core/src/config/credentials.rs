@@ -466,6 +466,7 @@ impl Draft {
             attributes: self.attrs,
             metadata: self.meta,
             revision: 0,
+            next_refresh_after: None,
         }
     }
 }
@@ -1038,14 +1039,14 @@ pub fn parse_weight(value: &Json) -> Result<i64, String> {
 /// ask plugin auth providers; only [`scan_auth_dir`] does.
 pub fn from_file(_cfg: &Config, auth_dir: &Path, path: &Path, data: &[u8]) -> Result<Option<Credential>, String> {
     Ok(match file_credentials(None, auth_dir, path, data)? {
-        Some(FileCredentials::One(c)) => Some(c),
+        Some(FileCredentials::One(c)) => Some(*c),
         Some(FileCredentials::Plugin(_) | FileCredentials::Unapplied(_) | FileCredentials::Deferred) | None => None,
     })
 }
 
 /// What one auth file synthesizes to.
 enum FileCredentials {
-    One(Credential),
+    One(Box<Credential>),
     /// What a plugin parsed: possibly none (the plugin suppresses the file) or several.
     Plugin(Vec<Credential>),
     /// No cached plugin answer for these bytes yet ([`plugin_auth::Ask::Cached`]).
@@ -1189,9 +1190,10 @@ fn file_credentials(
         attributes: attrs,
         metadata: meta,
         revision: 0,
+        next_refresh_after: None,
     };
     cred.refresh_derived();
-    Ok(Some(FileCredentials::One(cred)))
+    Ok(Some(FileCredentials::One(Box::new(cred))))
 }
 
 /// Go `buildAuthFromFileData`'s fallback for an uploaded file no synthesizer claims:
@@ -1233,6 +1235,7 @@ pub fn upload_fallback(auth_dir: &Path, path: &Path, data: &[u8]) -> Option<Cred
         attributes,
         metadata: meta,
         revision: 0,
+        next_refresh_after: None,
     })
 }
 
@@ -1445,7 +1448,7 @@ fn scan_with(cfg: &Config, parser: Option<Ask<'_>>) -> AuthScan {
             continue;
         }
         match file_credentials(parser, &cfg.auth_dir, &path, &data) {
-            Ok(Some(FileCredentials::One(c))) => scan.credentials.push(c),
+            Ok(Some(FileCredentials::One(c))) => scan.credentials.push(*c),
             Ok(Some(FileCredentials::Plugin(all))) => scan.credentials.extend(all),
             Ok(Some(FileCredentials::Unapplied(all))) => {
                 scan.credentials.extend(all);

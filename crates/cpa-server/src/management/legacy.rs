@@ -773,7 +773,7 @@ pub(crate) async fn put_config_yaml(State(state): State<Arc<Management>>, body: 
     // comment lines only while writing, which can break a block scalar holding a `#` line
     // after the file is already overwritten.
     let text = normalize_comment_indentation(text);
-    let root = match serde_yaml_ng::from_str::<serde_yaml_ng::Value>(&text) {
+    let root = match cpa_core::config::yaml_value(&text) {
         Err(e) => return fail(StatusCode::BAD_REQUEST, "invalid_yaml", e.to_string()),
         Ok(root @ serde_yaml_ng::Value::Mapping(_)) => root,
         Ok(serde_yaml_ng::Value::Null) if text.trim().is_empty() => serde_yaml_ng::Value::Null,

@@ -4862,6 +4862,36 @@ async fn v0_config_yaml_saves_by_submitted_version() {
     }
 }
 
+/// v0 saves of a legacy file keep the text of its `!!binary` values (an alias of one
+/// included), and the runtime holds their decoded text.
+#[tokio::test]
+async fn v0_writes_keep_binary_values() {
+    let f = Fixture::new("v0-binary");
+    let hash = f.rt.config().management.secret_key.clone();
+    let legacy = format!(
+        "port: 0\nremote-management:\n  secret-key: '{hash}'\nauth-dir: {}\nproxy-url: !!binary aHR0cDovL3guZXhhbXBsZTo4MA==\napi-keys: [fake-client, &k !!binary ZmFrZS1iaW5hcnk=, *k]\nrequest-retry: 1\n",
+        f.dir.join("auth").display()
+    );
+    std::fs::write(f.dir.join("config.yaml"), &legacy).unwrap();
+    let (base, server) = f.server().await;
+    let (status, text) = call(
+        &base,
+        wreq::Method::PUT,
+        "/v0/management/request-retry",
+        r#"{"value":2}"#,
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    assert_eq!(f.file(), legacy.replace("request-retry: 1", "request-retry: 2"));
+    let cfg = f.rt.config();
+    assert_eq!(cfg.document["requests"]["proxy-url"], "http://x.example:80");
+    assert_eq!(
+        cfg.document["access"]["api-keys"],
+        serde_yaml_ng::from_str::<serde_yaml_ng::Value>("[fake-client, fake-binary, fake-binary]").unwrap()
+    );
+    server.abort();
+}
+
 /// Go `TestV0SetterSavesByExistingVersion` (v8 cases), `TestV0SaveUpgradesHistoricalV8Layout`
 /// and `TestV8MovedCommentsSurviveV0Saves`: a v0 setter saves an existing v8 file in the
 /// latest layout, and the comments of a moved historical field (and of the ancestors

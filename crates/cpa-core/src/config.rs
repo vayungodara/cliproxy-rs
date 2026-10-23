@@ -26,6 +26,16 @@ pub use document::{ConfigDocument, archive_comments, is_v8_layout};
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
 
+/// A config text with its tagged scalars as yaml.v3 decodes them (`!!binary` values
+/// base64-decoded, aliases of them included), merges not yet expanded. The loader and
+/// the management document read config text through here, so a view or a save
+/// candidate sees the values the loader sees.
+pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
+    let mut value = serde_yaml_ng::from_str::<Value>(text)?;
+    binary::decode(text, &mut value)?;
+    Ok(value)
+}
+
 /// Go `expandConfigAliases` plus yaml.v3's merge rules: `<<` keys expand bottom-up
 /// (nested merges first); explicit keys win, then earlier merged mappings. A merge
 /// value that is not a mapping or a list of mappings is yaml.v3's decode error.
@@ -567,8 +577,7 @@ fn scalar_exists(node: &Value, value: &str) -> bool {
 /// The decoding part of [`Config::parse`]: the YAML, its layout and the setting types,
 /// before the validators. Its errors name settings, not their values.
 fn decode(text: &str) -> anyhow::Result<(Mapping, ConfigDocument)> {
-    let mut parsed = serde_yaml_ng::from_str::<Value>(text)?;
-    binary::decode(text, &mut parsed)?;
+    let mut parsed = yaml_value(text)?;
     // Before any migration, as Go expands aliases first.
     expand_merges(&mut parsed)?;
     let root = match parsed {

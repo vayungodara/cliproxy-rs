@@ -18,7 +18,7 @@ use std::time::SystemTime;
 use cpa_core::config::credentials;
 use cpa_core::credential::Credential;
 use cpa_plugin::gojson::GoTime;
-use cpa_plugin::hostauth::{AuthManager, HostAuth, SavedAuths};
+use cpa_plugin::hostauth::{AuthManager, HostAuth, SavedAuths, SavedRefresh};
 use serde_json::Value;
 
 use super::Management;
@@ -92,11 +92,17 @@ impl AuthManager for PluginAuthManager {
                     },
                     Err(e) => return Err(format!("register auth: {e}")),
                 };
-                // Go keeps the ID of the credential the file already has.
+                // Go keeps the ID of the credential the file already has, and that
+                // credential's refresh state (`preserveExistingAuthState`): its ID is the
+                // one a registered credential the save replaces has.
                 if !auth.id.is_empty() {
                     credential.id = auth.id.clone();
                 }
-                (path, vec![credential], Vec::new())
+                let refresh = vec![SavedRefresh {
+                    id: credential.id.clone(),
+                    donor: Some(credential.id.clone()),
+                }];
+                (path, vec![credential], refresh)
             }
             SavedAuths::Plugin {
                 path,
@@ -118,9 +124,7 @@ impl AuthManager for PluginAuthManager {
                 (path, credentials, refresh)
             }
         };
-        crate::plugins::refresh::register_saved(&state.rt, &refresh, || {
-            state.rt.store().upsert_file(Some(&path), credentials)
-        });
+        state.rt.store().upsert_file(Some(&path), credentials, &refresh);
         Ok(())
     }
 

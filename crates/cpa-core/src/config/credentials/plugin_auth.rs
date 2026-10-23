@@ -46,6 +46,8 @@ pub struct ParsedAuth {
     pub disabled: bool,
     pub metadata: Map<String, Json>,
     pub attributes: BTreeMap<String, String>,
+    /// Go `NextRefreshAfter`: the credential registers with it ([`Credential::next_refresh_after`]).
+    pub next_refresh_after: Option<std::time::SystemTime>,
 }
 
 /// Go `ParseAuths`' outcome.
@@ -494,6 +496,7 @@ fn into_credential(mut auth: ParsedAuth, path: &Path) -> Credential {
         attributes: auth.attributes,
         metadata: auth.metadata,
         revision: 0,
+        next_refresh_after: auth.next_refresh_after,
     }
 }
 
