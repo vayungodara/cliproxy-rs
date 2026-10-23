@@ -45,7 +45,7 @@ fn payload_rules_match_go() {
     );
     assert_eq!(rules.image_generation, payload::ImageGeneration::Chat);
     let cases = fixture["payload"].as_array().unwrap();
-    assert_eq!(cases.len(), 40);
+    assert_eq!(cases.len(), 41);
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let s = |k: &str| case[k].as_str().unwrap_or_default();

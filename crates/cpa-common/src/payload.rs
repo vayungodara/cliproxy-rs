@@ -331,6 +331,26 @@ fn model_rules(v: Option<&Yaml>) -> Vec<ModelRule> {
         .collect()
 }
 
+/// `part` split at each `|` that is not escaped or inside parentheses: gjson pipes.
+fn pipe_parts(part: &str) -> Vec<&str> {
+    let (mut out, mut start, mut depth, mut escaped) = (Vec::new(), 0, 0usize, false);
+    for (i, c) in part.bytes().enumerate() {
+        match c {
+            _ if escaped => escaped = false,
+            b'\\' => escaped = true,
+            b'(' => depth += 1,
+            b')' => depth = depth.saturating_sub(1),
+            b'|' if depth == 0 => {
+                out.push(&part[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    out.push(&part[start..]);
+    out
+}
+
 /// A rule path in gjson syntax the port does not read (docs/DIFFERENCES-FROM-GO.md):
 /// subselectors (`[a,b]`, `{a}`), modifiers other than `@this`, static values (`!true`)
 /// and JSON lines (`..`). Go reads such a path with gjson but writes it with sjson,
@@ -342,7 +362,7 @@ fn unported(path: &str) -> bool {
         || split_path(path)
             .into_iter()
             .filter(|part| !part.starts_with("#("))
-            .flat_map(|part| part.split('|'))
+            .flat_map(pipe_parts)
             .any(|part| {
                 part.starts_with(['[', '{'])
                     || part.strip_prefix('@').is_some_and(|m| {

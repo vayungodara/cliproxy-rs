@@ -70,6 +70,8 @@ payload:
       params: {sub_seen: true}
     - models: [{name: "subn-*", not-exist: ["{a}"]}]
       params: {subn_seen: true}
+    - models: [{name: "esc-*", exist: ["k\\|@reverse"]}]
+      params: {esc_seen: true}
   default-raw:
     - models: [{name: "gpt-*"}]
       params: {response_format: '{"type":"json_object"}'}
@@ -254,6 +256,8 @@ var payloadInputs = []payloadCase{
 	{Name: "subselector_override", Model: "sub-1", Protocol: "openai",
 		Payload: `{"[a]":[{"k":1},{"k":1}],"a":[{"k":1}]}`, Tracked: []string{"[a]", "a"}},
 	{Name: "modifier_override", Model: "mod-1", Protocol: "openai", Payload: `{"a":1}`, Tracked: []string{"@reverse"}},
+	// An escaped pipe is part of the key, so @reverse is not a modifier here.
+	{Name: "escaped_pipe_key", Model: "esc-1", Protocol: "openai", Payload: `{"k|@reverse":1}`},
 	{Name: "subselector_condition", Model: "subc-1", Protocol: "openai", Payload: `{"b":1}`},
 	{Name: "subselector_not_exist", Model: "subn-1", Protocol: "openai", Payload: `{"b":1}`},
 	{Name: "set_under_minus_one", Model: "lns-1", Protocol: "openai",
