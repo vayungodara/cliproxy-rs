@@ -186,6 +186,11 @@ into a probe or a helper, or out of one: Go classifies the cloaked body, so a qu
 probe whose system text becomes a role:system turn on a modern model is no longer a
 probe, a legacy model's title prompt moved into a user reminder stays a helper, and
 `max_tokens: 1` with `Hi` becomes a probe once cloaking adds `cache_control`.
+Four more cover the steps that now run after cloaking with no rules configured:
+`disable-image-generation` stripping an image tool after the request is classified
+(as the last tool, and as the only tool of a `quota` probe, which stays a normal turn),
+and duplicate `prompt_cache_options` members, both stripped, where a later member's
+`mode: explicit` counts.
 `claude::tests::v8_0_35_payload_barrier_scenarios_match_go` replays them, and checks that
 each sent body's CCH signs that body.
 

@@ -569,12 +569,16 @@ const FOLLOWS_V8_0_35: &[&str] = &[
 ];
 
 /// Requests without payload rules that cloaking turns into a probe or a helper, or out
-/// of one. Go classifies the cloaked body; cliproxy-rs before 868e137 sent each of
-/// these with a different cc_prompt_id, cache TTL or diagnostics choice.
+/// of one, and image-tool stripping and `prompt_cache_options` handling, which now run
+/// after cloaking. cliproxy-rs before 868e137 sent each of these differently.
 const NO_RULES_V8_0_35: &[&str] = &[
     "noroles-quota-probe-with-system",
     "noroles-legacy-title-helper",
     "noroles-hi-becomes-probe",
+    "noroles-image-tool-last",
+    "noroles-image-tool-only-probe",
+    "noroles-duplicate-prompt-cache-options",
+    "noroles-duplicate-prompt-cache-options-explicit",
 ];
 
 /// 868e137 through Go v8.0.35's executor (scenarios-v8.0.35.json): payload rules see
