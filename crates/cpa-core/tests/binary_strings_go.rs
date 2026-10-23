@@ -45,6 +45,7 @@ const REFUSED: &[(&str, &str)] = &[
     // yaml.v3 skips a merge source a key already set shadows; the merge checks run anyway.
     ("shadowed merge of an aliased sequence", MERGE),
     ("shadowed scalar merge", MERGE),
+    ("binary plugin pin through a tagged merge source", PIN),
 ];
 
 #[test]
@@ -58,6 +59,9 @@ fn binary_scalars_decode_like_go() {
         let config = match (Config::parse(case["yaml"].as_str().unwrap()), go_error.is_empty()) {
             (result, _) if REFUSED.iter().any(|(n, _)| *n == name) => {
                 let want = REFUSED.iter().find(|(n, _)| *n == name).unwrap().1;
+                if !go_error.is_empty() {
+                    fail(format!("listed as refused where Go loads, but Go failed: {go_error}"));
+                }
                 match result {
                     Err(e) if e.to_string() == want => {}
                     other => fail(format!("{:?}, expected {want:?}", other.map(|_| ()))),

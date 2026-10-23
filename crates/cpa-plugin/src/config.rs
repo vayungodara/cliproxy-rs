@@ -377,6 +377,9 @@ mod tests {
             "pin: &v v1.2.3\nplugins:\n  configs:\n    x:\n      store:\n        release-tag: *v\n",
             "plugins:\n  configs:\n    x:\n      store:\n        release-tag: ! v1.2.3\n",
             "pin: &v ! v1.2.3\nplugins:\n  configs:\n    x:\n      store:\n        release-tag: *v\n",
+            // Merged in from a locally tagged source, aliased or not.
+            "base: &b !keep {version: 1.2.3}\nplugins:\n  configs:\n    x:\n      store:\n        <<: *b\n",
+            "plugins:\n  configs:\n    x:\n      store:\n        <<: !keep {version: 1.2.3}\n",
         ] {
             let cfg = cpa_core::config::Config::parse(yaml).unwrap_or_else(|e| panic!("{yaml}: {e:#}"));
             let item = item_config("x", &cfg.document["plugins"]["configs"]["x"]);
