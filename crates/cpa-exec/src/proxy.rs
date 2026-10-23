@@ -818,7 +818,8 @@ async fn exchange(
     // `current` then only routes the hop.
     let mut go = None;
     if headers.exact_target {
-        let parsed = go_url::Escaped::parse(url).ok_or_else(invalid)?;
+        let mut parsed = go_url::Escaped::parse(url).ok_or_else(invalid)?;
+        parsed.remove_empty_port();
         let target = go_target(&parsed).ok_or_else(invalid)?;
         go = Some((parsed, target));
     }
@@ -858,7 +859,18 @@ async fn exchange(
         .redirect(wreq::redirect::Policy::none());
         // Go's standard transport (no exact order) speaks HTTP/2 wherever ALPN picks it.
         let go_transport = hop.order.is_none();
-        let (builder, auto_gzip) = hop_headers.clone().apply_gzip(
+        let mut send_headers = hop_headers.clone();
+        // Go `send`: the hop URL's user info becomes Basic auth unless the hop already
+        // carries an Authorization header.
+        if let Some((go_hop, _)) = &go
+            && let Some(credentials) = go_hop.basic_credentials()
+            && send_headers.get("Authorization").is_none_or(str::is_empty)
+        {
+            use base64::Engine as _;
+            let encoded = base64::engine::general_purpose::STANDARD.encode(credentials);
+            send_headers.set("Authorization", format!("Basic {encoded}"));
+        }
+        let (builder, auto_gzip) = send_headers.apply_gzip(
             builder,
             hop.order.as_deref(),
             method != wreq::Method::HEAD,
@@ -1310,11 +1322,8 @@ pub fn go_target(url: &go_url::Escaped) -> Option<http::Uri> {
         return None;
     }
     let target = url.request_uri();
-    let authority = match url.user() {
-        Some(user) => format!("{user}@{host}"),
-        None => host.to_owned(),
-    };
-    let uri = http::Uri::try_from(format!("{}://{authority}{target}", url.scheme())).ok()?;
+    // Never the user info: Go sends it only as Basic auth (see `exchange`).
+    let uri = http::Uri::try_from(format!("{}://{host}{target}", url.scheme())).ok()?;
     (uri.path_and_query().map(http::uri::PathAndQuery::as_str) == Some(target.as_str())).then_some(uri)
 }
 
@@ -1933,7 +1942,8 @@ mod tests {
                 "content_length": header("content-length"),
                 "body": String::from_utf8_lossy(&body),
             }));
-            let Some(step) = script.get(&path) else {
+            // The exact request target first, as the recorder does.
+            let Some(step) = script.get(&target).or_else(|| script.get(&path)) else {
                 return (http::StatusCode::OK, "done").into_response();
             };
             let status = http::StatusCode::from_u16(step["status"].as_u64().unwrap() as u16).unwrap();
@@ -1981,10 +1991,15 @@ mod tests {
             let base = format!("http://{main_addr}");
             let method = wreq::Method::from_bytes(case["method"].as_str().unwrap().as_bytes()).unwrap();
             let body = case["body"].as_str().map(|b| Bytes::from(b.to_owned()));
+            let start = case["start"].as_str().unwrap();
+            let target = match case["user"].as_str() {
+                Some(user) => format!("http://{user}@{main_addr}{start}"),
+                None => format!("{base}{start}"),
+            };
             let result = request(
                 &default_client(),
                 method,
-                &format!("{base}{}", case["start"].as_str().unwrap()),
+                &target,
                 headers,
                 body,
                 Some(std::time::Duration::from_secs(10)),

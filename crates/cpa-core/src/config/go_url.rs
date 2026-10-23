@@ -40,7 +40,7 @@ pub fn parse(raw: &str) -> Option<GoUrl> {
         host: None,
     };
     if u == "*" {
-        return Some(url);
+        return (frag.is_empty() || unescape(frag, Mode::Other).is_some()).then_some(url);
     }
     let (scheme, rest) = get_scheme(u)?;
     url.scheme = scheme.to_ascii_lowercase();
@@ -152,7 +152,8 @@ impl Escaped {
             return Some(url);
         }
         if r.path.is_empty() && r.query.is_none() {
-            url.query.clone_from(&self.query);
+            // Only `RawQuery` is inherited; `ForceQuery` (a bare `?`) stays the reference's.
+            url.query = self.query.clone().filter(|q| !q.is_empty());
             if r.fragment.is_empty() {
                 url.fragment.clone_from(&self.fragment);
             }
@@ -180,9 +181,22 @@ impl Escaped {
         &self.host
     }
 
-    /// The user info as written, without its `@`.
-    pub fn user(&self) -> Option<&str> {
-        self.user.as_deref()
+    /// Go `removeEmptyPort`, which `http.NewRequest` applies to the first hop's host.
+    pub fn remove_empty_port(&mut self) {
+        if self.host.ends_with(':') {
+            self.host.pop();
+        }
+    }
+
+    /// `username:password` with both unescaped, as Go's client joins `URL.User` for
+    /// Basic auth (an absent password is empty); `None` without user info.
+    pub fn basic_credentials(&self) -> Option<Vec<u8>> {
+        let user = self.user.as_deref()?;
+        let (name, password) = user.split_once(':').unwrap_or((user, ""));
+        let mut out = unescape_bytes(name)?;
+        out.push(b':');
+        out.extend(unescape_bytes(password)?);
+        Some(out)
     }
 
     /// Go `URL.RequestURI()` for a URL that is not opaque.
@@ -459,6 +473,7 @@ mod tests {
             "1a:b/c",
             "http://h/\x01",
             "http://h/#%zz",
+            "*#%zz",
         ] {
             assert!(parse(bad).is_none(), "{bad}");
         }
@@ -486,6 +501,21 @@ mod tests {
         }
         assert_eq!(request_uri("https://h/%zz"), None);
         assert_eq!(request_uri("mailto:x"), None);
+    }
+
+    /// Go 1.26.8 `http.NewRequest(...).URL.String()`: `removeEmptyPort` on the host.
+    #[test]
+    fn new_request_removes_an_empty_port() {
+        for (raw, want) in [
+            ("http://h:/x", "http://h/x"),
+            ("http://[::1]:/x?", "http://[::1]/x?"),
+            ("http://u:p@h:/x", "http://h/x"),
+            ("http://h:80/x", "http://h:80/x"),
+        ] {
+            let mut url = Escaped::parse(raw).unwrap();
+            url.remove_empty_port();
+            assert_eq!(url.referer(), want, "{raw}");
+        }
     }
 
     /// Go's own table (net/url url_test.go `resolvePathTests`), plus merged `//` paths.

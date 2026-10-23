@@ -128,6 +128,8 @@ type redirectCase struct {
 	Start string `json:"start"`
 	// DisableCompression uses a transport with DisableCompression set.
 	DisableCompression bool `json:"disable_compression"`
+	// User is the first URL's user info, written before its host.
+	User *string `json:"user,omitempty"`
 }
 
 type recorder struct {
@@ -154,7 +156,11 @@ func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		ContentLength:  strings.Join(req.Header.Values("Content-Length"), ","),
 		Body:           string(body),
 	})
-	s, ok := r.script[req.URL.Path]
+	// The exact request target first, so a bare `?` tells two hops apart.
+	s, ok := r.script[req.RequestURI]
+	if !ok {
+		s, ok = r.script[req.URL.Path]
+	}
 	r.mu.Unlock()
 	if !ok {
 		w.WriteHeader(200)
@@ -184,7 +190,11 @@ func runRedirect(c redirectCase) redirectCase {
 	if c.Start == "" {
 		c.Start = "/start"
 	}
-	req, _ := http.NewRequest(c.Method, base+c.Start, body)
+	target := base + c.Start
+	if c.User != nil {
+		target = "http://" + *c.User + "@" + main.Addr().String() + c.Start
+	}
+	req, _ := http.NewRequest(c.Method, target, body)
 	for k, v := range c.Headers {
 		if k == "Host" {
 			// Go reads a custom Host from req.Host only (GoHeaders' "Host").
@@ -331,6 +341,7 @@ func main() {
 	}
 	str := func(s string) *string { return &s }
 	auth := map[string]string{"Authorization": "Bearer fake-token", "Accept": "application/json"}
+	accept := map[string]string{"Accept": "application/json"}
 	form := map[string]string{"Authorization": "Bearer fake-token", "Content-Type": "application/x-www-form-urlencoded"}
 	redirects := []redirectCase{
 		{Name: "get-301-302-303", Method: "GET", Headers: auth, Script: map[string]step{
@@ -398,6 +409,21 @@ func main() {
 			"/b": {302, "/a\\..\\my dir/m|1.json"}}},
 		{Name: "get-utf8-location-exact", Method: "GET", Headers: auth, Start: "/u", Script: map[string]step{
 			"/u": {302, "/mod\u00e8les/c.json"}}},
+		// Only the base's RawQuery is inherited: a bare `?` (ForceQuery) is not.
+		{Name: "get-force-query-fragment-exact", Method: "GET", Headers: auth, Start: "/a/b?", Script: map[string]step{
+			"/a/b?": {302, "#f"}}},
+		{Name: "get-force-query-bare-fragment-exact", Method: "GET", Headers: auth, Start: "/a/b?", Script: map[string]step{
+			"/a/b?": {302, "#"}}},
+		// User info is never sent in the URL: each hop whose URL carries it (a relative
+		// Location inherits it) sends it unescaped as Basic auth, unless the request
+		// already has an Authorization header.
+		{Name: "get-user-info-hops-exact", Method: "GET", Headers: accept, User: str("u:p"), Start: "/u1", Script: map[string]step{
+			"/u1": {302, "/u2"}, "/u2": {302, "OTHER/u3"}}},
+		{Name: "get-user-info-empty-name-exact", Method: "GET", Headers: accept, User: str(":tok"), Start: "/u1"},
+		{Name: "get-user-info-empty-exact", Method: "GET", Headers: accept, User: str(""), Start: "/u1"},
+		{Name: "get-user-info-not-utf8-exact", Method: "GET", Headers: accept, User: str("u%FF:p"), Start: "/u1"},
+		{Name: "get-user-info-escaped-exact", Method: "GET", Headers: accept, User: str("a%40b:p%3Aq+r"), Start: "/u1"},
+		{Name: "get-user-info-with-authorization-exact", Method: "GET", Headers: auth, User: str("u:p"), Start: "/u1"},
 		{Name: "put-empty-body", Method: "PUT", Body: str(""), Headers: auth},
 		{Name: "delete-nil-body", Method: "DELETE", Headers: auth},
 		{Name: "patch-empty-body-307", Method: "PATCH", Body: str(""), Headers: form, Script: map[string]step{
