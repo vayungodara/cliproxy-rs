@@ -707,6 +707,7 @@ fn credential(response: &DispatchResponse, requested: &str) -> Result<Credential
         attributes,
         metadata,
         revision: 0,
+        next_refresh_after: None,
     };
     // Go `attachResolvedHomeModelInfo` inputs, fixed for the lease: Home's definition of
     // the model (`registryModelInfo` is nil without an ID) and the `credential_options`

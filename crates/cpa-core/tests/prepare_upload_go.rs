@@ -126,9 +126,10 @@ fn prepare_for_upload_matches_go() {
                 case["unchanged"]
             ));
         }
-        // An unchanged file is the input, which Go's generic decode reads.
+        // An unchanged file is the input, which Go's generic decode reads (`!!binary`
+        // decoded).
         if !case["result"].is_null() && saved != yaml {
-            let mut doc: Value = serde_yaml_ng::from_str(&saved).unwrap();
+            let mut doc = cpa_core::config::yaml_value(&saved).unwrap();
             cpa_core::config::expand_merges(&mut doc).unwrap();
             let got = masked(serde_json::to_value(&doc).unwrap());
             if got != case["result"] {

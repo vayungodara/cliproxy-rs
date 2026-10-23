@@ -214,6 +214,8 @@ func main() {
 		{"declared claude header leaf overridden", "claude-header-defaults:\n  client-request-id: 'off'\nupstream:\n  claude:\n    header-defaults:\n      client-request-id: 'on'\n", ""},
 		{"undeclared nested antigravity field", "antigravity:\n  signature-cache-enabled: false\noauth:\n  providers:\n    antigravity:\n      signature-cache-enabled: true\n", ""},
 		{"empty legacy discovery interfaces", "discovery:\n  interfaces: {}\nserver:\n  discovery:\n    interfaces: {}\n", ""},
+		// Dropping the overridden legacy field keeps a !!binary value elsewhere.
+		{"binary value beside a dropped legacy field", "config-version: 8\nrequest-retry: 1\nrouting:\n  retry:\n    request-retry: 2\nrequests:\n  proxy-url: !!binary aHR0cDovL3guZXhhbXBsZTo4MA==\naccess:\n  api-keys: [&k !!binary ZmFrZS1iaW5hcnk=, *k]\nmanagement:\n  secret-key: " + plain + "\n", plain},
 		// uint16 relay ports fail to decode even with the relay disabled.
 		{"relay port above uint16", "management:\n  secret-key: " + plain + "\ncodex:\n  live-media-relay:\n    udp-port-min: 65536\n", plain},
 		{"negative relay port", "management:\n  secret-key: " + plain + "\noauth:\n  providers:\n    codex:\n      live-media-relay:\n        udp-port-max: -1\n", plain},

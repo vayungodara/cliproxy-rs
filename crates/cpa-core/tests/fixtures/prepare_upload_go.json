@@ -1619,6 +1619,35 @@
     "effective_same": true
   },
   {
+    "name": "binary value beside a dropped legacy field",
+    "yaml": "config-version: 8\nrequest-retry: 1\nrouting:\n  retry:\n    request-retry: 2\nrequests:\n  proxy-url: !!binary aHR0cDovL3guZXhhbXBsZTo4MA==\naccess:\n  api-keys: [\u0026k !!binary ZmFrZS1iaW5hcnk=, *k]\nmanagement:\n  secret-key: upload-plaintext-secret\n",
+    "plain": "upload-plaintext-secret",
+    "error": "",
+    "unchanged": false,
+    "result": {
+      "access": {
+        "api-keys": [
+          "fake-binary",
+          "fake-binary"
+        ]
+      },
+      "config-version": 8,
+      "management": {
+        "secret-key": "\u003cbcrypt\u003e"
+      },
+      "requests": {
+        "proxy-url": "http://x.example:80"
+      },
+      "routing": {
+        "retry": {
+          "request-retry": 2
+        }
+      }
+    },
+    "verifies": true,
+    "effective_same": true
+  },
+  {
     "name": "relay port above uint16",
     "yaml": "management:\n  secret-key: upload-plaintext-secret\ncodex:\n  live-media-relay:\n    udp-port-min: 65536\n",
     "plain": "upload-plaintext-secret",

@@ -119,6 +119,15 @@ func TestZZCmdFixture(t *testing.T) {
 		"discovery: [broken\n",
 		"discovery:\n  interfaces:\n    include: eth0\n",
 		"",
+		// !!binary names, through aliases too.
+		"discovery:\n  interfaces:\n    include: [&i !!binary ZXRoMA==, wl*]\n    exclude: [!!binary ZG9ja2VyMA==, *i]\n",
+		// Merge keys: plain, binary, explicit keys over merged ones, earlier maps first.
+		"discovery:\n  interfaces:\n    <<: {exclude: [eth0]}\n",
+		"discovery:\n  interfaces:\n    <<: {exclude: [!!binary ZXRoMA==]}\n    include: [wl*]\n",
+		"discovery:\n  interfaces:\n    <<: [{exclude: [a], include: [x]}, {exclude: [b]}]\n    include: [c]\n",
+		// Invalid base64 on the path, then elsewhere: cliproxy-rs refuses both.
+		"discovery:\n  interfaces:\n    include: [!!binary '!!!']\n",
+		"proxy-url: !!binary '!!!'\ndiscovery:\n  interfaces:\n    exclude: [eth0]\n",
 	} {
 		path := filepath.Join(dir, "config.yaml")
 		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {

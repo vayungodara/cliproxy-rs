@@ -59,6 +59,7 @@ async fn count_tokens_matches_go() {
         attributes: [("base_url".to_owned(), "http://127.0.0.1:1".to_owned())].into(),
         metadata: Default::default(),
         revision: 0,
+        next_refresh_after: None,
     };
     let executor = crate::codex::CodexExecutor::new().unwrap();
     let cfg = Config::default();

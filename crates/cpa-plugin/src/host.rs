@@ -176,9 +176,6 @@ pub(crate) struct Inner {
     /// The `auth.parse` calls in flight: the plugin instance asked, the auth file's
     /// cleaned absolute path, and whether a `host.auth.save` asked (`auth::Parsing`).
     pub(crate) auth_parses: Mutex<Vec<(Arc<CallbackInstance>, PathBuf, bool)>>,
-    /// The `NextRefreshAfter` of each auth the parser last returned, by auth ID, with
-    /// the path of the file it came from. A parse of that file replaces them.
-    pub(crate) parsed_refresh_after: Mutex<std::collections::HashMap<String, (chrono::DateTime<chrono::Utc>, String)>>,
 }
 
 /// The plugin host. Cheap to clone.
@@ -231,7 +228,6 @@ impl Host {
             auth_parser_installed: Default::default(),
             auth_parser: Default::default(),
             auth_parses: Default::default(),
-            parsed_refresh_after: Default::default(),
         });
         Self { inner }
     }

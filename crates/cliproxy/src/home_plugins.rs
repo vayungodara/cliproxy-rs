@@ -13,7 +13,6 @@ use cpa_home::client::PluginTask;
 use cpa_plugin::gojson;
 use cpa_plugin::homeplugins::{self, PluginRuntime, SyncConfig, SyncReport};
 use cpa_plugin::store::{self, Doer, PluginSyncRequest, PluginSyncResponse};
-use serde_yaml_ng::Value as Yaml;
 use tokio_util::sync::CancellationToken;
 
 /// Go main's 30-second context around the bootstrap sync.
@@ -30,7 +29,13 @@ fn doer(cfg: &SyncConfig) -> Arc<dyn Doer> {
 /// that Home mode strips from it before applying (Go syncs with a copy that keeps it).
 pub fn sync_config(raw: &[u8], cfg: &cpa_core::config::Config) -> SyncConfig {
     let mut out = SyncConfig::from_document(&cfg.document);
-    if let Ok(document) = serde_yaml_ng::from_slice::<Yaml>(raw) {
+    // As Go's typed decode reads it: `!!binary` values decoded, merges expanded.
+    let document = std::str::from_utf8(raw).ok().and_then(|text| {
+        let mut value = cpa_core::config::yaml_value(text).ok()?;
+        cpa_core::config::expand_merges(&mut value).ok()?;
+        Some(value)
+    });
+    if let Some(document) = document {
         out.store_auth = cpa_plugin::config::store_auth(&document);
     }
     out
@@ -599,6 +604,28 @@ mod tests {
         assert!(cpa_plugin::config::store_auth(&cfg.document).is_empty());
         // The plugin sync still sees it.
         assert_eq!(sync_config(raw, &cfg).store_auth.len(), 1);
+    }
+
+    /// Go decodes the rules into typed fields, so a `!!binary` env name is its decoded
+    /// text, through an alias too, and merge keys expand.
+    #[test]
+    fn store_auth_rules_read_binary_values_decoded() {
+        let raw = b"plugins:\n  store-auth:\n    - match: &m !!binary aHR0cHM6Ly9kb3dubG9hZHMuZXhhbXBsZS8=\n      type: bearer\n      token-env: !!binary UExVR0lOX1RPS0VO\n    - match: *m\n      type: basic\n      username-env: USER_ENV\n      password-env: PASS_ENV\n    - <<: [{match: https://a.example/, type: bearer, token-env: FIRST}, {token-env: SECOND}]\n      match: https://b.example/\n";
+        let cfg = crate::home::overlay(raw, None).unwrap();
+        let rules = sync_config(raw, &cfg).store_auth;
+        let got: Vec<_> = rules
+            .iter()
+            .map(|r| (r.matches.as_str(), r.token_env.as_str(), r.username_env.as_str()))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                ("https://downloads.example/", "PLUGIN_TOKEN", ""),
+                ("https://downloads.example/", "", "USER_ENV"),
+                // yaml.v3 merges: the explicit key wins, then the earlier mapping.
+                ("https://b.example/", "FIRST", "")
+            ]
+        );
     }
 
     #[tokio::test]

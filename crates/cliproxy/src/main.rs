@@ -467,7 +467,16 @@ fn discover_options(
     config: &str,
     cli: (Vec<String>, Vec<String>),
 ) -> discovery::cli::Options {
-    let (include, exclude) = discovery::cli::resolve_filters(cli, discovery::cli::load_scan_filters(config));
+    // CLI filters replace the file's, as in Go, so only an unfiltered scan needs them.
+    let file = if cli.0.is_empty() && cli.1.is_empty() {
+        discovery::cli::load_scan_filters(config).unwrap_or_else(|e| {
+            eprintln!("{e}");
+            std::process::exit(1)
+        })
+    } else {
+        Default::default()
+    };
+    let (include, exclude) = discovery::cli::resolve_filters(cli, file);
     discovery::cli::Options {
         timeout: Duration::from_secs(timeout.clamp(0, 3600) as u64),
         json,

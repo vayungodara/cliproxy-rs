@@ -721,9 +721,17 @@ mod config_writes {
         }
     }
 
-    /// A YAML text as Go's decoder into `any` sees it: merge keys expanded.
+    /// Scenarios whose file cliproxy-rs refuses to load where Go loads it
+    /// (docs/DIFFERENCES-FROM-GO.md), with the refusal.
+    const REFUSED_LOADS: &[(&str, &str)] = &[(
+        "binary_plugin_pin",
+        "a plugin's store.version or store.release-tag in the config file is a !!binary value, which is not supported",
+    )];
+
+    /// A YAML text as Go's decoder into `any` sees it: merge keys expanded, `!!binary`
+    /// scalars decoded.
     fn rust_yaml_value(text: &str) -> Value {
-        let mut v: serde_yaml_ng::Value = serde_yaml_ng::from_str(text).unwrap();
+        let mut v = cpa_core::config::yaml_value(text).unwrap();
         cpa_core::config::expand_merges(&mut v).unwrap();
         serde_json::to_value(v).unwrap()
     }
@@ -748,6 +756,12 @@ mod config_writes {
             std::fs::write(&path, scenario["yaml"].as_str().unwrap().replace("$HASH", &hash)).unwrap();
             // The fixtures set no auth-dir; never fall back to the real ~/.cli-proxy-api.
             let auth = dir.join("auth");
+            if let Some((_, refusal)) = REFUSED_LOADS.iter().find(|(n, _)| *n == name) {
+                let e = Config::load(&path).err().map(|e| format!("{e:#}"));
+                assert_eq!(e.as_deref(), Some(*refusal), "{name}");
+                let _ = std::fs::remove_dir_all(&dir);
+                continue;
+            }
             let mut cfg = Config::load(&path).unwrap();
             cfg.auth_dir = auth.clone();
             let rt = Arc::new(cpa_server::testing::runtime(
@@ -857,11 +871,11 @@ mod config_writes {
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
         // Windows skips model_catalog_sources: 31 steps, 18 of them byte-compared.
-        assert_eq!(compared, if cfg!(windows) { 123 } else { 154 });
+        assert_eq!(compared, if cfg!(windows) { 139 } else { 170 });
         eprintln!("config writes: {bytes_compared} of {compared} steps compared byte for byte");
         assert_eq!(
             bytes_compared,
-            if cfg!(windows) { 91 } else { 109 },
+            if cfg!(windows) { 101 } else { 119 },
             "steps compared byte for byte"
         );
     }
