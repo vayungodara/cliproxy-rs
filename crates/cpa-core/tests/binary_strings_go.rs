@@ -1,5 +1,5 @@
 //! `Config::parse` against Go v8.0.35's config decoder for `!!binary` and locally
-//! tagged scalars,
+//! tagged scalars and merge keys,
 //! recorded by `tests/reference/binary_strings/main.go`: the error, the management key
 //! as decoded, `proxy-url`, `port` and `api-keys`. [`REFUSED`] names the cases Rust
 //! refuses where Go loads (docs/DIFFERENCES-FROM-GO.md), with the refusal expected.
@@ -8,6 +8,8 @@ use serde_json::Value as Json;
 
 const TAG: &str = "a YAML tag in the config file is not supported";
 const KEY: &str = "a tagged or aliased mapping key in the config file is not supported";
+const MERGE: &str = "yaml: map merge requires map or sequence of maps as the value";
+const QUOTED_MERGE: &str = "a quoted << mapping key in the config file is not supported";
 const ANCHOR: &str = "a YAML anchor name is defined more than once in the config file";
 const PIN: &str =
     "a plugin's store.version or store.release-tag in the config file is a !!binary value, which is not supported";
@@ -34,6 +36,15 @@ const REFUSED: &[(&str, &str)] = &[
     ("canonically tagged port key", KEY),
     ("non-specific document marker secret", TAG),
     ("non-specific boolean word secret", TAG),
+    // yaml.v3 reads a quoted `<<` as a plain key.
+    ("single-quoted merge key", QUOTED_MERGE),
+    ("double-quoted merge key", QUOTED_MERGE),
+    ("escaped merge key", QUOTED_MERGE),
+    ("literal block merge key", QUOTED_MERGE),
+    ("quoted merge key in an anchored section", QUOTED_MERGE),
+    // yaml.v3 skips a merge source a key already set shadows; the merge checks run anyway.
+    ("shadowed merge of an aliased sequence", MERGE),
+    ("shadowed scalar merge", MERGE),
 ];
 
 #[test]
@@ -55,8 +66,10 @@ fn binary_scalars_decode_like_go() {
             }
             (Ok(config), true) => config,
             (Err(e), false) => {
-                // The base64 error is Go's text; other errors only fail in both.
-                if go_error.contains("!!binary value") && e.to_string() != go_error {
+                // The base64 and merge errors are Go's text; other errors only fail in
+                // both.
+                let exact = ["!!binary value", "map merge"].iter().any(|t| go_error.contains(t));
+                if exact && e.to_string() != go_error {
                     fail(format!("error {e:#}, Go {go_error:?}"));
                 }
                 continue;

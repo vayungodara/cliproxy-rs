@@ -78,6 +78,18 @@
       ],
       "include": null,
       "yaml": "proxy-url: !!binary '!!!'\ndiscovery:\n  interfaces:\n    exclude: [eth0]\n"
+    },
+    {
+      "exclude": null,
+      "include": [
+        "wl*"
+      ],
+      "yaml": "discovery:\n  interfaces:\n    '\u003c\u003c': {exclude: [eth0]}\n    include: [wl*]\n"
+    },
+    {
+      "exclude": null,
+      "include": null,
+      "yaml": "seq: \u0026s [{exclude: [eth0]}]\ndiscovery:\n  interfaces:\n    \u003c\u003c: *s\n    include: [wl*]\n"
     }
   ],
   "interface_lists": [

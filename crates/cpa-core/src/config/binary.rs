@@ -10,9 +10,12 @@
 //!
 //! What this does not follow is refused rather than read differently: other literal
 //! short tags, a non-specific tag that resolves to a number or boolean, tagged or
-//! aliased mapping keys and collection keys, a repeated anchor name (serde_yaml_ng binds a redefined
-//! anchor's aliases to a different node than libyaml does), and a `%00` escape in a
-//! tag (libyaml cuts the tag there; Go keeps the NUL).
+//! aliased mapping keys, collection keys (Go rejects them too), a repeated anchor name (serde_yaml_ng binds a redefined
+//! anchor's aliases to a different node than libyaml does), a `%00` escape in a
+//! tag (libyaml cuts the tag there; Go keeps the NUL), and a quoted `<<` key (yaml.v3's
+//! `isMerge` reads it as a plain key; [`super::expand_merges`] cannot tell it apart).
+//! A merge operand that is an alias of a sequence fails with yaml.v3's error, which
+//! serde_yaml_ng's expanded aliases no longer show.
 
 use std::collections::{HashMap, HashSet};
 use std::ffi::CStr;
@@ -23,6 +26,8 @@ use serde_yaml_ng::Value;
 
 const UNSUPPORTED_TAG: &str = "a YAML tag in the config file is not supported";
 const UNSUPPORTED_KEY: &str = "a tagged or aliased mapping key in the config file is not supported";
+const COLLECTION_KEY: &str = "a mapping or sequence used as a mapping key in the config file is not supported";
+const QUOTED_MERGE_KEY: &str = "a quoted << mapping key in the config file is not supported";
 const REPEATED_ANCHOR: &str = "a YAML anchor name is defined more than once in the config file";
 const PLUGIN_PIN: &str =
     "a plugin's store.version or store.release-tag in the config file is a !!binary value, which is not supported";
@@ -49,13 +54,15 @@ pub(super) fn go_base64(text: &[u8]) -> Option<Vec<u8>> {
 /// invalid base64 as Go does, and refuses what it does not follow (see the module
 /// docs) and binary bytes that are not UTF-8, which a setting cannot hold.
 pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
-    // Without a tag or an anchor, serde_yaml_ng reads the file as yaml.v3 does here.
-    if !text.contains(['!', '&']) {
+    // Without a tag, an anchor, a `<<` key or a collection key, serde_yaml_ng reads the
+    // file as yaml.v3 does here.
+    if !text.contains(['!', '&']) && !needs_walk(value) {
         return Ok(());
     }
     let mut walk = Walk {
         events: events(text)?.into_iter(),
         defined: HashSet::new(),
+        sequences: HashSet::new(),
         anchors: HashMap::new(),
         found: Vec::new(),
     };
@@ -73,6 +80,19 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     let mut found = walk.found;
     found.sort_by(|a, b| a.0.cmp(&b.0));
     apply(value, 0, &found)
+}
+
+/// Whether `value` holds a `<<` key or a mapping or sequence used as a key (whose own
+/// keys serde_yaml_ng's merge expansion never visits).
+fn needs_walk(value: &Value) -> bool {
+    match value {
+        Value::Mapping(m) => m.iter().any(|(k, v)| {
+            matches!(k, Value::Mapping(_) | Value::Sequence(_)) || k.as_str() == Some("<<") || needs_walk(v)
+        }),
+        Value::Sequence(items) => items.iter().any(needs_walk),
+        Value::Tagged(tagged) => needs_walk(&tagged.value),
+        _ => false,
+    }
 }
 
 fn apply(node: &mut Value, depth: usize, patches: &[Found]) -> anyhow::Result<()> {
@@ -305,6 +325,8 @@ type Found = (Vec<usize>, Value, bool);
 struct Walk {
     events: std::vec::IntoIter<Event>,
     defined: HashSet<Vec<u8>>,
+    /// Anchors of sequences.
+    sequences: HashSet<Vec<u8>>,
     /// Each anchor's rewritten scalars, by their path below it.
     anchors: HashMap<Vec<u8>, Vec<Found>>,
     /// Rewritten scalars, by their path from the root.
@@ -358,8 +380,11 @@ impl Walk {
             }
             Event::Start { anchor, mapping } => {
                 // Paths address mapping values only; Go rejects collection keys.
-                ensure!(!key, UNSUPPORTED_KEY);
+                ensure!(!key, COLLECTION_KEY);
                 self.define(&anchor)?;
+                if let Some(name) = anchor.as_ref().filter(|_| !mapping) {
+                    self.sequences.insert(name.clone());
+                }
                 let mut i = 0;
                 loop {
                     let event = self.next()?;
@@ -367,8 +392,19 @@ impl Walk {
                         break;
                     }
                     if mapping {
+                        // yaml.v3 `isMerge` takes an untagged `<<` key only when plain; a
+                        // quoted one is refused here, a tagged one below.
+                        let merge = matches!(&event, Event::Scalar { tag: None, value, .. } if value == b"<<");
+                        ensure!(
+                            !merge || matches!(event, Event::Scalar { plain: true, .. }),
+                            QUOTED_MERGE_KEY
+                        );
                         self.node(event, path, true)?;
                         let value = self.next()?;
+                        // yaml.v3 `merge`: an alias operand must name a mapping.
+                        if merge && let Event::Alias(name) = &value {
+                            ensure!(!self.sequences.contains(name), super::MERGE_NOT_MAPS);
+                        }
                         path.push(i);
                         self.node(value, path, false)?;
                     } else {
