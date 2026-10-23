@@ -191,6 +191,11 @@ Four more cover the steps that now run after cloaking with no rules configured:
 (as the last tool, and as the only tool of a `quota` probe, which stays a normal turn),
 and duplicate `prompt_cache_options` members, both stripped, where a later member's
 `mode: explicit` counts.
+Duplicate `thinking`, `tool_choice` and block `cache_control` members check that the
+executor reads them as Go's gjson does, moving on to a later member when the first
+lacks the path. A duplicate `metadata` member is refused with 400 on both sides; the
+recorder reads an error's status with `errors.As`, as the handler does, since the
+executor wraps that error.
 `claude::tests::v8_0_35_payload_barrier_scenarios_match_go` replays them, and checks that
 each sent body's CCH signs that body.
 

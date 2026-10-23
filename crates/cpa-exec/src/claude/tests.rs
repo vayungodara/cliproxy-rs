@@ -579,6 +579,10 @@ const NO_RULES_V8_0_35: &[&str] = &[
     "noroles-image-tool-only-probe",
     "noroles-duplicate-prompt-cache-options",
     "noroles-duplicate-prompt-cache-options-explicit",
+    "noroles-duplicate-thinking",
+    "noroles-duplicate-tool-choice",
+    "noroles-duplicate-cache-control",
+    "noroles-duplicate-metadata",
 ];
 
 /// 868e137 through Go v8.0.35's executor (scenarios-v8.0.35.json): payload rules see
