@@ -481,7 +481,7 @@ impl Runtime {
         let guard = self.store.prepare_lock(id).lock_owned().await;
         // Another request may have prepared it while we waited. The registration it is
         // current under is what a plugin refresh records its outcome for.
-        let (current, registration) = self
+        let (current, registered) = self
             .store
             .get_registered(id)
             .filter(|(c, _)| !c.disabled)
@@ -520,7 +520,7 @@ impl Runtime {
                 refresher,
                 guard,
                 current,
-                registration,
+                registered,
                 view,
                 file,
                 mode,
@@ -531,7 +531,8 @@ impl Runtime {
         // one, or a concurrent edit's when that wins the merge) as the credential's.
         let (patch, publish_proxy) = match (&plugin, failed) {
             (Some(route), _) => {
-                let refreshed = crate::plugins::refresh::refresh(self, route, &view, &current, registration).await?;
+                let refreshed =
+                    crate::plugins::refresh::refresh(self, route, &view, &current, registered.registration).await?;
                 (refreshed.patch, refreshed.answered)
             }
             (None, Some(_)) if management => (self.executors.prepare_management(&view, cfg).await?, false),
@@ -545,7 +546,7 @@ impl Runtime {
         };
         let store = self.store.clone();
         let fence = RefreshFence {
-            registration,
+            registered,
             plugin: plugin.is_some(),
         };
         let committed = tokio::task::spawn_blocking({
@@ -561,7 +562,7 @@ impl Runtime {
         .map_err(|e| {
             // The plugin refreshed but nothing was saved: back off as for a failed refresh.
             if plugin.is_some() {
-                crate::plugins::refresh::failed(&self.store, id, registration, chrono::Utc::now());
+                crate::plugins::refresh::failed(&self.store, id, registered.registration, chrono::Utc::now());
             }
             ExecError::local(
                 500,
@@ -1175,8 +1176,9 @@ pub enum PatchError {
 /// What a token refresh commits under ([`CredentialStore::apply_refresh`]).
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct RefreshFence {
-    /// The registration the refresh started under ([`CredentialStore::get_registered`]).
-    pub registration: u64,
+    /// The registration and credential version the refresh started under
+    /// ([`CredentialStore::get_registered`]).
+    pub registered: crate::plugins::refresh::Registered,
     /// A plugin refresh, whose schedule the commit records.
     pub plugin: bool,
 }
@@ -1365,36 +1367,38 @@ impl CredentialStore {
         })
     }
 
-    /// Credential `id` and the registration it is current under
-    /// ([`crate::plugins::refresh::Schedule::registration`]), read together.
-    pub(crate) fn get_registered(&self, id: &str) -> Option<(Arc<Credential>, u64)> {
+    /// Credential `id` and what a refresh of it starts under: its registration and
+    /// credential version ([`crate::plugins::refresh::Registered`]), read together.
+    pub(crate) fn get_registered(&self, id: &str) -> Option<(Arc<Credential>, crate::plugins::refresh::Registered)> {
         let inner = self.read();
         let credential = inner.creds.iter().find(|c| c.id == id)?.clone();
-        Some((credential, self.registration(id)))
+        Some((credential, self.registered(id)))
     }
 
-    /// The registration `id` is current under; 0 for none.
-    fn registration(&self, id: &str) -> u64 {
-        crate::plugins::refresh::registration(&self.refresh_schedules, id).unwrap_or(0)
+    /// What a refresh of `id` starts under; zeros for none.
+    fn registered(&self, id: &str) -> crate::plugins::refresh::Registered {
+        crate::plugins::refresh::registered(&self.refresh_schedules, id).unwrap_or_default()
     }
 
     /// Records a refresh outcome of credential `id` (Go reads `m.auths[id]` under
     /// `m.mu`): `record` sees the current credential and its schedule while it is under
-    /// `registration` and, given `revision`, still at it (`NotFound` and `Stale`
-    /// otherwise). No registration can land in between.
+    /// `registration` (`NotFound` otherwise) and, given `at`, still at that revision
+    /// and credential version (`Stale` otherwise). No registration can land in
+    /// between.
     pub(crate) fn record_refresh(
         &self,
         id: &str,
         registration: u64,
-        revision: Option<u64>,
+        at: Option<(u64, u64)>,
         record: impl FnOnce(&Credential, &mut crate::plugins::refresh::Schedule),
     ) -> Result<Arc<Credential>, PatchError> {
         let inner = self.read();
         let current = inner.creds.iter().find(|c| c.id == id).ok_or(PatchError::NotFound)?;
-        if self.registration(id) != registration {
+        let registered = self.registered(id);
+        if registered.registration != registration {
             return Err(PatchError::NotFound);
         }
-        if revision.is_some_and(|r| r != current.revision) {
+        if at.is_some_and(|at| at != (current.revision, registered.credential_version)) {
             return Err(PatchError::Stale {
                 current: current.revision,
             });
@@ -2008,16 +2012,16 @@ impl CredentialStore {
     /// Go `updateInternal` for a Codex refresh of `original` whose result `written` is
     /// already on disk ([`write_codex_refresh`]), run while the caller holds the file's
     /// credential lock. Refused (`NotFound`) once the ID was registered again since
-    /// `registration`. When the credentials changed since `original` and no refreshed
-    /// partition still holds a version `patch` may be applied over (Go `CanApplyTo`), the
-    /// refresh is discarded with no side effect. Otherwise the written document is
+    /// `registered`. When the credential version moved or the credentials changed since
+    /// `original` and no refreshed partition still holds a version `patch` may be applied
+    /// over (Go `CanApplyTo`), the refresh is discarded with no side effect. Otherwise the written document is
     /// published as the credential's metadata, with its proxy (Go's persist then holds
     /// the file's document), its time is recorded as [`Self::apply_refresh`] records it,
     /// and new tokens clear unauthorized cooldowns. Blocking.
     fn admit_codex_refresh(
         &self,
         original: &Credential,
-        registration: u64,
+        registered: crate::plugins::refresh::Registered,
         patch: &cpa_exec::codex_refresh::RefreshPatch,
         written: Vec<u8>,
     ) -> Result<CodexAdmission, PatchError> {
@@ -2030,13 +2034,21 @@ impl CredentialStore {
             let committed = loop {
                 let revision = self.get(id).ok_or(PatchError::NotFound)?.revision;
                 let mut discarded = None;
+                // The registration and version are checked here, not by the writer: a
+                // moved version is a discard decision, not an edit to retry on. The
+                // writer's gate holds off registrations, its lock this credential's writes.
                 let admitted = self.write_unlocked(
                     id,
                     revision,
-                    Some(registration),
+                    None,
                     false,
                     |current| {
-                        if credentials_changed(original, current) && !patch.can_apply_to(&current.metadata) {
+                        let now = self.registered(id);
+                        if now.registration != registered.registration {
+                            return Err(PatchError::NotFound);
+                        }
+                        let moved = now.credential_version != registered.credential_version;
+                        if (moved || credentials_changed(original, current)) && !patch.can_apply_to(&current.metadata) {
                             discarded = Some(current.clone());
                             return Ok(None);
                         }
@@ -2142,7 +2154,7 @@ impl CredentialStore {
         let committed = self.write_unlocked(
             id,
             expected_revision,
-            fence.map(|f| f.registration),
+            fence.map(|f| f.registered),
             false,
             |current| {
                 if patch.remove.iter().any(|k| k == "type")
@@ -2227,13 +2239,14 @@ impl CredentialStore {
     /// a set replacement can land between the write and its publication. A publication
     /// that touches another credential (an identity change) passes `exclusive` and holds
     /// the gate exclusively instead, so no write of any credential is in flight. A token
-    /// refresh passes the `registration` it started under, and is refused (`NotFound`)
-    /// once the credential's ID was registered again, before anything is merged.
+    /// refresh passes what it started under: it is refused (`NotFound`) once the
+    /// credential's ID was registered again, before anything is merged, and meets a
+    /// credential version moved since as an edit (`Stale`).
     fn write_unlocked<T, R>(
         &self,
         id: &str,
         expected_revision: u64,
-        registration: Option<u64>,
+        registered: Option<crate::plugins::refresh::Registered>,
         exclusive: bool,
         prepare: impl FnOnce(&Arc<Credential>) -> Result<Option<(Option<std::path::PathBuf>, Vec<u8>, T)>, PatchError>,
         publish: impl FnOnce(&mut Inner, usize, &[u8], T) -> R,
@@ -2259,8 +2272,16 @@ impl CredentialStore {
             .ok_or(PatchError::NotFound)?;
         // Go `updateInternal`: "stale registration epoch" for a refresh, ahead of the
         // revision check. The gate holds off every set replacement.
-        if registration.is_some_and(|r| r != self.registration(id)) {
-            return Err(PatchError::NotFound);
+        if let Some(registered) = registered {
+            let now = self.registered(id);
+            if now.registration != registered.registration {
+                return Err(PatchError::NotFound);
+            }
+            if now.credential_version != registered.credential_version {
+                return Err(PatchError::Stale {
+                    current: current.revision,
+                });
+            }
         }
         if current.revision != expected_revision {
             return Err(PatchError::Stale {
@@ -2902,11 +2923,11 @@ impl Runtime {
 /// Commits a token refresh of credential `id` that started from `current` under
 /// `fence`'s registration: `patch` is what the refresh changed, merged with any edit
 /// committed since (Go `UpdateRefreshedAuth`). Blocking.
-fn commit_refresh(
+pub(crate) fn commit_refresh(
     store: &CredentialStore,
     id: &str,
     current: &Credential,
-    fence: RefreshFence,
+    mut fence: RefreshFence,
     patch: &MetadataPatch,
     publish_proxy: impl Fn(&mut Credential) + Copy,
 ) -> Result<Arc<Credential>, PatchError> {
@@ -2921,11 +2942,8 @@ fn commit_refresh(
             // first (Go "stale registration epoch"), on every retry. Go 935aa6e3: an edit
             // that changed the credentials wins and this refresh is dropped; any other edit
             // is merged with it (Go `MergeRefreshedAuth`), so a rotated refresh token is
-            // not lost.
-            // ponytail: Go also drops a refresh whose CredentialVersion moved, which covers
-            // an A→B→A token replacement within one registration; here tokens put back to
-            // the snapshot's take the merged refresh (DIFFERENCES-FROM-GO.md). Upgrade: a
-            // credential version on `Credential`, bumped by every token change.
+            // not lost. Credentials changed and put back since (A→B→A) count as changed:
+            // the credential version moved (Go `CredentialVersion`).
             Err(PatchError::Stale { .. }) => {
                 #[cfg(test)]
                 if let Some(hook) = tests::AFTER_STALE.with(std::cell::Cell::take) {
@@ -2934,8 +2952,8 @@ fn commit_refresh(
                 // The writer's check, before anything here returns: an ID registered
                 // again since then fails as Go's "stale registration epoch" does,
                 // whatever its credentials.
-                let (latest, now_under) = store.get_registered(id).ok_or(PatchError::NotFound)?;
-                if now_under != fence.registration {
+                let (latest, now) = store.get_registered(id).ok_or(PatchError::NotFound)?;
+                if now.registration != fence.registered.registration {
                     return Err(PatchError::NotFound);
                 }
                 let (rebased, partition_applies) =
@@ -2943,9 +2961,12 @@ fn commit_refresh(
                 // Go 7b0319fb: a Codex token partition the refresh still matches
                 // applies even when the other partition changed meanwhile
                 // (`CredentialRefreshPatch.CanApplyTo`).
-                if credentials_changed(current, &latest) && !partition_applies {
+                let moved = now.credential_version != fence.registered.credential_version;
+                if (moved || credentials_changed(current, &latest)) && !partition_applies {
                     return Ok(latest);
                 }
+                // Merged into `latest` from here, at its credential version.
+                fence.registered = now;
                 attempt = rebased;
                 revision = latest.revision;
                 if attempt.set.is_empty() && attempt.remove.is_empty() {
@@ -2955,7 +2976,8 @@ fn commit_refresh(
                     // edit since goes round again: its newer revision fails the writer's
                     // check, as revisions are never reused, so the empty patch is never
                     // written.
-                    match store.record_refresh(id, fence.registration, Some(revision), |c, s| {
+                    let at = (revision, fence.registered.credential_version);
+                    match store.record_refresh(id, fence.registered.registration, Some(at), |c, s| {
                         if fence.plugin {
                             crate::plugins::refresh::committed(c, s, chrono::Utc::now());
                         }
@@ -3125,7 +3147,7 @@ async fn refresh_codex_file(
     refresher: cpa_exec::codex_refresh::Refresher,
     guard: tokio::sync::OwnedMutexGuard<()>,
     current: Arc<Credential>,
-    registration: u64,
+    registered: crate::plugins::refresh::Registered,
     view: Arc<Credential>,
     path: std::path::PathBuf,
     mode: cpa_exec::codex_refresh::RefreshMode,
@@ -3148,7 +3170,7 @@ async fn refresh_codex_file(
         let admitted = tokio::task::spawn_blocking(move || {
             let _lock = lock;
             let written = write_codex_refresh(&path, &patch).map_err(PatchError::Io)?;
-            store.admit_codex_refresh(&current, registration, &patch, written)
+            store.admit_codex_refresh(&current, registered, &patch, written)
         })
         .await
         .map_err(|e| PatchError::Io(e.to_string()))
@@ -3243,7 +3265,7 @@ fn read_locked_codex_file(path: &Path) -> Result<LockedFile, String> {
 }
 
 /// Go `CredentialsChanged`: the tokens or API key differ.
-fn credentials_changed(a: &Credential, b: &Credential) -> bool {
+pub(crate) fn credentials_changed(a: &Credential, b: &Credential) -> bool {
     let text = |c: &Credential, keys: &[&str]| {
         keys.iter()
             .find_map(|k| {
@@ -3511,7 +3533,7 @@ mod tests {
         let mut patch = MetadataPatch::default();
         patch.set.insert("access_token".into(), "p2".into());
         let fence = RefreshFence {
-            registration,
+            registered: registration,
             plugin: false,
         };
         let committed = commit_refresh(&store, "a.json", &current, fence, &patch, |_| {});
@@ -5621,6 +5643,51 @@ mod tests {
         assert_eq!(
             f.tokens("codex.json", &["/siwc/access_token", "/siwc/refresh_token"]),
             ["siwc-D", "siwc-ref-D"]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// A refresh is discarded when the credential version moved while it ran and no
+    /// refreshed partition still matches (Go `updateInternal`), even though the tokens
+    /// were put back: here the outer partition's account changed with its token, and
+    /// only the token came back.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_refresh_is_discarded_when_the_credential_version_moved_meanwhile() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let mut file = codex_file(("A", minute), ("keep", "oaiapp_x", days));
+        file["use_siwc"] = false.into();
+        file["account_id"] = "acct-A".into();
+        let f = CodexDisk::gated(&[("codex.json", &file)], 0).await;
+        let refresh = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.prepare_credential("codex.json", &rt.config(), None).await }
+        });
+        f.granted().await;
+        let mut last = None;
+        for edit in [
+            serde_json::json!({"access_token": "outer-B", "account_id": "acct-X"}),
+            serde_json::json!({"access_token": "outer-A"}),
+        ] {
+            let mut patch = MetadataPatch::default();
+            for (k, v) in edit.as_object().unwrap() {
+                patch.set.insert(k.clone(), v.clone());
+            }
+            let revision = f.rt.store.get("codex.json").unwrap().revision;
+            last = Some(f.rt.store.apply_patch("codex.json", revision, &patch).unwrap());
+        }
+        let edited = last.unwrap();
+        f.gate.add_permits(1);
+        let answered = tokio::time::timeout(Duration::from_secs(5), refresh)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(f.grants().len(), 1);
+        assert_eq!(answered.revision, edited.revision);
+        assert_eq!(f.rt.store.get("codex.json").unwrap().revision, edited.revision);
+        assert_eq!(
+            f.tokens("codex.json", &["/access_token", "/account_id"]),
+            ["outer-A", "acct-X"]
         );
         std::fs::remove_dir_all(&f.dir).unwrap();
     }
