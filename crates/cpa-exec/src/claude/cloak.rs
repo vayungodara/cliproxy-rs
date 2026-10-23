@@ -586,22 +586,16 @@ pub(crate) fn inject_context_management(body: &str) -> Option<String> {
         .then(|| rawjson::set_raw(body, "context_management", CONTEXT_MANAGEMENT))
 }
 
-/// `reconcileClaudeCodeContextManagement` without payload-rule ownership.
-pub(crate) fn reconcile_context_management(
-    body: String,
-    eligible: bool,
-    caller_owned: bool,
-    injected: bool,
-    payload_touched: bool,
-) -> String {
+/// `reconcileClaudeCodeContextManagement`.
+pub(crate) fn reconcile_context_management(body: String, eligible: bool, caller_owned: bool, injected: bool) -> String {
     let current = rawjson::get(&body, "context_management");
     if !thinking_accepts_clear(&body) {
-        if caller_owned || !injected || payload_touched || current.json() != CONTEXT_MANAGEMENT {
+        if caller_owned || !injected || current.json() != CONTEXT_MANAGEMENT {
             return body;
         }
         return rawjson::delete(&body, "context_management");
     }
-    if !eligible || caller_owned || payload_touched || current.exists() {
+    if !eligible || caller_owned || current.exists() {
         return body;
     }
     rawjson::set_raw(&body, "context_management", CONTEXT_MANAGEMENT)

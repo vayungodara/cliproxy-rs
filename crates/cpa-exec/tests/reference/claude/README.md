@@ -145,26 +145,46 @@ RSFIX_ONLY='^(TestClaudeExecutor_PromptCacheOptions\w*|TestClaudeExecutor_CountT
 All of them ran with the network denied (`unshare -rn` with loopback up), `GOTOOLCHAIN=local
 GOPROXY=off` and Go 1.26 after a `go mod download` in each checkout. The tests left out
 of the v8.0.27 recording are those whose answers depend on v8.0.27's later move of
-payload rules to the end of the pipeline (`868e137`), which is not ported yet. One of
-them, `TestClaudeCloakedDateReminderProbeOverrideDoesNotReinitializeSessionDate`, also
-checks the date a probe keeps when a payload rule makes it an ordinary request;
-`claude::tests::declassified_probes_keep_their_own_date` checks that date instead.
+payload rules to the end of the pipeline (`868e137`); the v8.0.35 recordings below
+cover them.
 
 ## v8.0.35 recordings
 
 `../../../src/claude/testdata/go_unit_v8.0.35.json` holds Go's own v8.0.35 tests whose
 answers changed with a v8.0.35 behaviour the executor follows. It is replayed by
 `claude::go_unit::v8_0_35_executor`, and the 6fecc6e recordings of the same tests are
-skipped (`SUPERSEDED` in `claude/go_unit.rs`). Today it has one test:
-`TestClaudeExecutor_DisabledThinkingStripsDisplayBeta`, whose `thinking` object Go
-ad9e456d (`disableThinking`) now replaces whole.
+skipped (`SUPERSEDED` in `claude/go_unit.rs`; the 6fecc6e tests 868e137 deleted are
+in `REMOVED_IN_868E137`). It holds `TestClaudeExecutor_DisabledThinkingStripsDisplayBeta`,
+whose `thinking` object Go ad9e456d (`disableThinking`) now replaces whole, and the 868e137
+payload-barrier tests: payload rules run once, on the fully prepared body, and nothing
+repairs their result. They are replayed by `v8_0_35_executor`, `v8_0_35_mid_system_model`,
+`v8_0_35_cloaked_date_pin`, `v8_0_35_payload_barrier` and `v8_0_35_payload_review`. The
+preserved-thinking tests in the same files (911f49cb) are not recorded: that commit is not
+ported.
 
 The recording's `source` names the checkout's full commit (`git rev-parse HEAD` in the
 reference, `ae3ee3be303fb07fb8173279923413005bf32177`, with a clean worktree).
 
 ```sh
 reference=/absolute/path/to/CLIProxyAPI   # at v8.0.35
-RSFIX_REFERENCE="v8.0.35 ($(git -C "$reference" rev-parse HEAD))" RSFIX_FILES=claude_executor_test.go \
-RSFIX_ONLY='^TestClaudeExecutor_DisabledThinkingStripsDisplayBeta$' \
+RSFIX_REFERENCE="v8.0.35 ($(git -C "$reference" rev-parse HEAD))" \
+RSFIX_FILES=claude_executor_test.go,claude_mid_system_model_test.go,claude_cloaked_date_pin_test.go,payload_barrier_test.go,payload_review_test.go \
+RSFIX_ONLY='^(TestClaudeExecutor_DisabledThinkingStripsDisplayBeta|TestClaudeExecutorPayloadOverrideDisabledThinking|TestClaudeExecutorPayloadOverrideReenablesThinking|TestClaudeExecutor_ChatCompletionsDefaultMaxTokensAndPayloadDefaultRule|TestClaudeExecutor_ExecutePayloadStreamOverrideDoesNotChangeResponseParser|TestClaudeExecutor_Payload(CustomReportingOutcomesPreservedOnRewrite|FableProbeOverrideKeepsBuiltinAdditions|FableThinkingAdaptiveToDisabledKeepsBuiltinDisplay|FableToSonnetPreservesObfuscatedBuiltins|FilterFallbacksPreservesRemovalOnFable|MaxTokensOverrideDoesNotReclassifyBuiltins|OverrideFableModelLeavesBuiltinsUnchanged|OverrideNonFableModelDoesNotInjectFableBuiltins|OverrideParentThinkingPreventsDisplayUpdates|OverridePreservesExplicitFallbacks|OverrideProbeWithExplicitDiagnosticsPreserved|OverrideRawPreservesExplicitFallbacks|ProbeToNormalDoesNotReinitializeBuiltins|ReplacesSystemOnOriginalFableWithoutReinjection|SonnetToFableDoesNotAddReporting|SonnetToFableWithSensitiveWordsDoesNotInjectReporting|StringSystemFableWinsReportingBlock|StringSystemMentioningReportingOutcomesStaysExact|StringSystemWithExactReportingPromptDoesNotDuplicate|SystemTTLOverrideKeepsBuiltinFableReporting|UnrelatedRuleLeavesBuiltinFallbacksUnchanged)|TestClaudeExecutorPayloadRepairsLegacyMidSystemMessage|TestClaudeExecutor_PayloadOverride(CannotSmuggleLegacyMidSystemMessage|DoesNotClaimMatchingCallerTurn|DoesNotRerunSystemPlacement)|TestClaudeCloakedDateReminderProbeOverrideDoesNotReinitializeSessionDate|TestPayloadBarrierClaudeDoesNotReplayFiltersOrReinjectIdentity|TestClaudePayloadConditions(EvaluateOnceAtFinalBarrier|ObserveBuiltinThinkingRemoval))$' \
   python3 "$crate/tests/reference/claude/unit/record.py" "$reference" "$crate/src/claude/testdata/go_unit_v8.0.35.json"
+```
+
+The recorder no longer prunes `params` maps, which dropped
+`false` values; recordings made before that fix may lack `false` params.
+
+`../../../src/claude/testdata/go_executor_v8.0.35.json` runs `scenarios-v8.0.35.json`
+through v8.0.35's executor with the same `main.go` as the v8.0.27 recording (a temporary
+module whose `replace` points at the v8.0.35 checkout). It holds the 6fecc6e payload
+scenarios Go now answers differently (`FOLLOWS_V8_0_35` in `claude/tests.rs`) and two
+count_tokens scenarios with rules: upstream through OAuth and local through a gateway key.
+`claude::tests::v8_0_35_payload_barrier_scenarios_match_go` replays them, and checks that
+each sent body's CCH signs that body.
+
+```sh
+go run . "$crate/tests/reference/claude/scenarios-v8.0.35.json" \
+  "$crate/src/claude/testdata/go_executor_v8.0.35.json" 'v8.0.35 (ae3ee3be303fb07fb8173279923413005bf32177)'
 ```
