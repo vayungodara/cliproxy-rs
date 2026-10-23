@@ -219,7 +219,6 @@ impl Rules {
                         .into_iter()
                         .flatten()
                         .map(|(k, v)| (yaml_key(k), Param::from_yaml(v)))
-                        .filter(|(path, _)| !unported(path))
                         .collect(),
                 })
                 // Go `SanitizePayloadRules`: a raw rule with no params or an invalid raw
@@ -233,6 +232,11 @@ impl Rules {
                             }
                             _ => true,
                         }))
+                })
+                // After Go's whole-rule check, which sees every parameter.
+                .map(|mut r| {
+                    r.params.retain(|(path, _)| !unported(path));
+                    r
                 })
                 .collect()
         };
@@ -351,25 +355,44 @@ fn pipe_parts(part: &str) -> Vec<&str> {
     out
 }
 
-/// A rule path in gjson syntax the port does not read (docs/DIFFERENCES-FROM-GO.md):
-/// subselectors (`[a,b]`, `{a}`), modifiers other than `@this`, static values (`!true`)
-/// and JSON lines (`..`). Go reads such a path with gjson but writes it with sjson,
-/// which takes the same bytes as keys; the rule is ignored instead.
+/// A rule path outside what the port reads exactly like Go (docs/DIFFERENCES-FROM-GO.md);
+/// such a rule is ignored. Allowed: dot-separated plain keys and indexes with `\\`
+/// escapes and `*`/`?` wildcards, a bare `#` (count or `#.key`), `@this` without
+/// arguments, `|` pipes between such parts, and whole `#(query)` or `#(query)#` parts
+/// with a simple predicate (no `@`, `|` or nested query). Everything else (subselectors,
+/// modifiers, static values, JSON lines, `#[...]` and queries after a pipe) is gjson
+/// syntax `cpa_common::json` and the query resolver do not implement.
 fn unported(path: &str) -> bool {
     let path = path.trim();
-    path.starts_with("..")
-        || (path.len() > 1 && path.starts_with('!'))
-        || split_path(path)
-            .into_iter()
-            .filter(|part| !part.starts_with("#("))
-            .flat_map(pipe_parts)
-            .any(|part| {
-                part.starts_with(['[', '{'])
-                    || part.strip_prefix('@').is_some_and(|m| {
-                        let name = m.split(':').next().unwrap_or_default();
-                        name != "this" && json::is_modifier(name.as_bytes())
-                    })
-            })
+    path.is_empty()
+        || !split_path(path).into_iter().all(|part| match query_part(part) {
+            Some((query, _)) => simple_query(query),
+            None => pipe_parts(part).into_iter().all(plain_read),
+        })
+}
+
+/// A query predicate the resolver reads as gjson does.
+fn simple_query(query: &str) -> bool {
+    !query.contains(['@', '|']) && !query.contains("#(") && !query.contains("#[")
+}
+
+/// A part `cpa_common::json::get` reads as gjson does, between dots or pipes: gjson
+/// reads `@` and `!` as syntax only at a part's start.
+fn plain_read(part: &str) -> bool {
+    if part == "#" || part == "@this" {
+        return true;
+    }
+    let mut escaped = false;
+    !part.is_empty()
+        && !part.starts_with(['@', '!'])
+        && part.bytes().all(|c| {
+            if escaped {
+                escaped = false;
+                return true;
+            }
+            escaped = c == b'\\';
+            !b"[]{}()#|\"'".contains(&c)
+        })
 }
 
 /// [`apply_tracked`] without tracking.

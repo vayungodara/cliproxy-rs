@@ -28,7 +28,14 @@ fn header_map(pairs: &Value) -> HeaderMap {
 /// `@reverse` in `modifier_override` without an edit, and applies the rule behind the
 /// `{a}` condition in `subselector_condition`. `subselector_not_exist` is compared with
 /// Go: the subselector exists there, so the rule does not apply on either side.
-const REFUSED: &[&str] = &["subselector_override", "modifier_override", "subselector_condition"];
+/// `unported_not_exist_7` (`a(|@reverse`) is the missing key `a(` to Go, so its rule
+/// applies there.
+const REFUSED: &[&str] = &[
+    "subselector_override",
+    "modifier_override",
+    "subselector_condition",
+    "unported_not_exist_7",
+];
 
 #[test]
 fn payload_rules_match_go() {
@@ -45,7 +52,7 @@ fn payload_rules_match_go() {
     );
     assert_eq!(rules.image_generation, payload::ImageGeneration::Chat);
     let cases = fixture["payload"].as_array().unwrap();
-    assert_eq!(cases.len(), 41);
+    assert_eq!(cases.len(), 52);
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let s = |k: &str| case[k].as_str().unwrap_or_default();
