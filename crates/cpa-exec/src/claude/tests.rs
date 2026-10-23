@@ -122,7 +122,9 @@ async fn pipeline_reproduces_go_upstream_captures() {
         ctx.today = "2026-10-02".into();
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
         let prepared = if req.operation == Operation::CountTokens {
-            ctx.prepare_count(&req, &translated).await.unwrap()
+            let baseline =
+                translate::count_original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+            ctx.prepare_count(&req, &translated, &baseline).await.unwrap()
         } else {
             let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
             ctx.prepare_messages(&req, &translated, &original, req.stream)
@@ -483,9 +485,35 @@ async fn executor_scenarios_match_go() {
     // Sequenced through execute(): compat_replay_sequence_matches_go; config keys:
     // m1_0041_to_m1_0056_config_keys_match_go.
     scenarios_match_go(GO_EXECUTOR, "all", |name| {
-        !name.starts_with("replay-") && !is_config_scenario(name) && !FOLLOWS_V8_0_27.contains(&name)
+        !name.starts_with("replay-")
+            && !is_config_scenario(name)
+            && !FOLLOWS_V8_0_27.contains(&name)
+            && !FOLLOWS_V8_0_35.contains(&name)
     })
     .await;
+}
+
+/// 6fecc6e scenarios with payload rules: the rules now run once, last (868e137), and
+/// the v8.0.35 fixture holds Go's answer.
+const FOLLOWS_V8_0_35: &[&str] = &[
+    "payload-model-to-fable",
+    "payload-model-to-legacy",
+    "payload-declassify-probe",
+    "payload-make-probe-fable",
+    "payload-default-reads-original",
+    "payload-filter-fable",
+];
+
+/// 868e137 through Go v8.0.35's executor (scenarios-v8.0.35.json): payload rules see
+/// the fully prepared body and nothing repairs their result.
+#[tokio::test]
+async fn v8_0_35_payload_barrier_scenarios_match_go() {
+    let fixture = include_str!("testdata/go_executor_v8.0.35.json");
+    assert!(fixture.contains(r#""source": "CLIProxyAPI v8.0.35 "#));
+    for name in FOLLOWS_V8_0_35 {
+        assert!(fixture.contains(&format!(r#""name": "{name}""#)), "{name}");
+    }
+    scenarios_match_go(fixture, "v8.0.35", |_| true).await;
 }
 
 /// 6fecc6e scenarios whose outcome now follows Go v8.0.27: the v8.0.27 fixture runs
@@ -676,8 +704,23 @@ async fn scenarios_match_go(fixture: &str, run: &str, selected: fn(&str) -> bool
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
         let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+        if let (true, true, Some(output)) = (count, scenario["upstream"].is_null(), scenario["output"].as_array()) {
+            // Counted locally: Go answered without an upstream request.
+            let response = executor.count_tokens(ctx, req, false).await.unwrap();
+            let ResponseBody::Buffered(body) = response.body else {
+                panic!("{name}: streamed count")
+            };
+            assert_eq!(
+                String::from_utf8_lossy(&body),
+                output[0].as_str().unwrap(),
+                "{name}: count"
+            );
+            continue;
+        }
         let prepared = if count {
-            ctx.prepare_count(&req, &translated).await
+            let baseline =
+                translate::count_original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+            ctx.prepare_count(&req, &translated, &baseline).await
         } else {
             // generate(): translated clients always stream upstream.
             let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
@@ -718,6 +761,12 @@ async fn scenarios_match_go(fixture: &str, run: &str, selected: fn(&str) -> bool
             random_prompt(&normalize_random(&prepared.body)),
             random_prompt(&normalize_random(&go_body)),
             "{name}: upstream body"
+        );
+        // The masked CCH must still sign the body as sent (signing runs last).
+        assert_eq!(
+            super::signing::sign(prepared.body.clone()).unwrap(),
+            prepared.body,
+            "{name}: CCH"
         );
         let mut ours: Vec<(String, String)> = prepared.headers.clone();
         ours.sort_by(|a, b| a.0.cmp(&b.0));
@@ -1073,60 +1122,6 @@ async fn api_key_cloak_keeps_the_caller_prompt_in_place_across_turns() {
         rawjson::string(one, "messages.1.content.0.text"),
         "You are a coding agent."
     );
-}
-
-/// A probe that a payload rule turns into an ordinary request keeps the probe's own
-/// date. As in Go v8.0.27
-/// (TestClaudeCloakedDateReminderProbeOverrideDoesNotReinitializeSessionDate), it
-/// neither reads the date its session pinned on an earlier day nor pins one for the
-/// session's later requests.
-#[tokio::test]
-async fn declassified_probes_keep_their_own_date() {
-    let (base, sent) = recording_upstream().await;
-    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
-    let mut credential = harness_credential();
-    credential.id = "declassified-probe.json".into();
-    credential.attributes.insert("base_url".into(), base);
-    credential.attributes.insert("timezone".into(), "UTC".into());
-    // Raises max_tokens past a probe's 1 after classification.
-    let cfg = Config::parse(
-        "requests:\n  payload:\n    override:\n      - models:\n          - name: claude-opus-5\n            protocol: claude\n        params:\n          max_tokens: 100\n",
-    )
-    .unwrap();
-    let send = |session: &str, content: &str, max_tokens: u32, stream: bool| {
-        let mut headers = http::HeaderMap::new();
-        headers.insert("x-session-id", session.parse().unwrap());
-        let body = format!(
-            r#"{{"model":"claude-opus-5","messages":[{{"role":"user","content":"{content}"}}],"max_tokens":{max_tokens},"stream":{stream}}}"#
-        );
-        drain(&executor, &credential, &cfg, client_request(body, headers))
-    };
-    let (pinned, fresh) = ("declassified-probe-session-1", "declassified-probe-session-2");
-    let _pins = Pins;
-    set_clock(Some("2026-08-01T23:59:00Z"));
-    send(pinned, "normal request", 100, false).await;
-    set_clock(Some("2026-08-02T00:01:00Z"));
-    send(pinned, "probe", 1, false).await;
-    send(pinned, "probe", 1, true).await;
-    send(pinned, "normal request", 100, false).await;
-    // A session that starts with a declassified probe pins its first ordinary date.
-    set_clock(Some("2026-08-02T23:59:30Z"));
-    send(fresh, "probe", 1, false).await;
-    set_clock(Some("2026-08-03T00:00:30Z"));
-    send(fresh, "normal request", 100, false).await;
-    let sent = sent.lock().unwrap();
-    assert_eq!(
-        sent.iter().map(|b| reminder_date(b)).collect::<Vec<_>>(),
-        [
-            "2026-08-01",
-            "2026-08-02",
-            "2026-08-02",
-            "2026-08-01",
-            "2026-08-02",
-            "2026-08-03"
-        ]
-    );
-    assert!(sent.iter().all(|b| rawjson::get(b, "max_tokens").i64() == 100));
 }
 
 /// Go's non-stream native path: a reply whose OAuth tool alias cannot be restored

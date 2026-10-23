@@ -409,6 +409,11 @@ func rsfixPrune(v any) (any, bool) {
 	case map[string]any:
 		out := map[string]any{}
 		for key, child := range value {
+			// Payload rule values are kept as written: false and 0 are real values there.
+			if params, ok := child.(map[string]any); ok && key == "params" && len(params) > 0 {
+				out[key] = params
+				continue
+			}
 			if pruned, keep := rsfixPrune(child); keep {
 				out[key] = pruned
 			}

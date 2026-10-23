@@ -269,77 +269,6 @@ pub(crate) fn billing_tags(body: &str) -> (String, String) {
     (prev, prompt)
 }
 
-/// Removes `\s*cc_prev_req=...;` and `\s*cc_prompt_id=...;` occurrences.
-fn remove_tags(text: &str) -> String {
-    let mut out = text.to_owned();
-    for name in ["cc_prev_req=", "cc_prompt_id="] {
-        let mut result = String::with_capacity(out.len());
-        let mut rest = out.as_str();
-        while let Some(i) = rest.find(name) {
-            let value = &rest[i + name.len()..];
-            match value.find(';') {
-                Some(end) if end > 0 => {
-                    // RE2 `\s` is [\t\n\f\r ], without \v.
-                    let before = rest[..i].trim_end_matches([' ', '\t', '\n', '\r', '\x0c']);
-                    result.push_str(before);
-                    rest = &value[end + 1..];
-                }
-                _ => {
-                    result.push_str(&rest[..i + name.len()]);
-                    rest = value;
-                }
-            }
-        }
-        result.push_str(rest);
-        out = result;
-    }
-    out
-}
-
-/// `InjectClaudeBillingTags`: replaces the billing header's continuity tags.
-pub(crate) fn inject_billing_tags(body: &str, prev: &str, prompt: &str) -> String {
-    let system = rawjson::get(body, "system");
-    if system.kind() != gjson::Kind::Array {
-        return body.to_owned();
-    }
-    let Some(text) = system.array().first().map(|b| b.get("text").str().to_owned()) else {
-        return body.to_owned();
-    };
-    if !text.starts_with(BILLING) {
-        return body.to_owned();
-    }
-    let mut cleaned = remove_tags(&text).trim().to_owned();
-    if !cleaned.ends_with(';') {
-        cleaned.push(';');
-    }
-    if !prev.is_empty() {
-        cleaned.push_str(&format!(" cc_prev_req={prev};"));
-    }
-    if !prompt.is_empty() {
-        cleaned.push_str(&format!(" cc_prompt_id={prompt};"));
-    }
-    rawjson::set_str(body, "system.0.text", &cleaned)
-}
-
-/// `StripClaudeBillingTags` (probe and helper requests carry none).
-pub(crate) fn strip_billing_tags(body: &str) -> String {
-    let system = rawjson::get(body, "system");
-    if system.kind() != gjson::Kind::Array {
-        return body.to_owned();
-    }
-    let Some(text) = system.array().first().map(|b| b.get("text").str().to_owned()) else {
-        return body.to_owned();
-    };
-    if !text.starts_with(BILLING) {
-        return body.to_owned();
-    }
-    let cleaned = remove_tags(&text);
-    if cleaned == text {
-        return body.to_owned();
-    }
-    rawjson::set_str(body, "system.0.text", &cleaned)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -359,10 +288,6 @@ mod tests {
         assert_eq!(
             billing_tags(body),
             ("req_ab-1".into(), "83ec619f-ab81-4d70-9c67-44c3865291b9".into())
-        );
-        assert_eq!(
-            rawjson::get(&strip_billing_tags(body), "system.0.text").str(),
-            "x-anthropic-billing-header: cc_version=2.1.280.abc; cc_entrypoint=cli; cch=00000;"
         );
     }
 }

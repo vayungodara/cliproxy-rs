@@ -12,8 +12,8 @@
 //! Thinking (`cpa_common::thinking`), signature sanitizing (`cpa_common::signature`)
 //! and request translation (`cpa_translate::translate_request`) are the shared modules.
 //!
-//! Payload rules (`cpa_common::payload`) run after cloaking, as in Go, and
-//! reconcile.rs repairs the cloak's model-specific additions afterwards.
+//! Payload rules (`cpa_common::payload`) are the last change to the body, as in Go
+//! v8.0.35 (868e137): only beta extraction, CCH signing and read-only checks follow.
 //!
 //! Usage reports go through `ExecRequest::usage` with Go's reporter calls: the body
 //! sent, the upstream body and lines, the TTFT marks, `Publish` on native Execute,
@@ -35,7 +35,6 @@ mod identity;
 #[cfg(test)]
 pub(crate) mod kv_test;
 mod profile;
-mod reconcile;
 mod replay;
 mod session;
 mod settings;
@@ -542,19 +541,21 @@ impl ClaudeExecutor {
                 raw,
             ))
         };
+        let original = translate::count_original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
         if !upstream && (ctx.api_key.trim().is_empty() || !ctx.first_party) {
             let mut body = ctx.apply_thinking(&req, String::from_utf8_lossy(&translated).into_owned())?;
             if ctx.rebuild_mid_system() {
                 body = rebuild_mid_system(&body);
             }
-            let body = cloak::strip_prompt_cache_options(sanitize_for_upstream(body, &ctx.base_model, ctx.is_compat));
+            let body = sanitize_for_upstream(body, &ctx.base_model, ctx.is_compat);
+            let body = cloak::strip_prompt_cache_options(ctx.count_rules(&req, body, &original));
             return Ok(ExecResponse {
                 status: 200,
                 headers: Default::default(),
                 body: ResponseBody::Buffered(render(&tokens::count(body.as_bytes())?)),
             });
         }
-        let mut prepared = ctx.prepare_count(&req, &translated).await?;
+        let mut prepared = ctx.prepare_count(&req, &translated, &original).await?;
         let capture = req.capture();
         let response = self
             .send(&ctx, &mut prepared, "/v1/messages/count_tokens", None, capture)
@@ -1273,12 +1274,6 @@ impl<'a> Ctx<'a> {
         let probe_before = signals::probe_or_helper(&body);
         let mut continuity = session::Continuity::default();
         let mut cloaked = false;
-        // What the post-payload reconciliations need from the uncloaked body.
-        let before = if cloak {
-            reconcile::Before::read(&body, explicit)
-        } else {
-            reconcile::Before::default()
-        };
         if cloak {
             if !strict && let Some(message) = cloak::invalid_system_block(&body) {
                 return Err(ExecError::local(400, FailureScope::Request, message));
@@ -1348,7 +1343,6 @@ impl<'a> Ctx<'a> {
         let caller_owned_cm = rawjson::get(&body, "context_management").exists();
         let mut injected_cm = false;
         let mut diagnostics = session::Continuity::default();
-        let mut injected_diagnostics = false;
         if continuity.initialized {
             diagnostics = continuity.clone();
         }
@@ -1365,84 +1359,14 @@ impl<'a> Ctx<'a> {
                 }
                 if diagnostics.initialized || !diagnostics.key.is_empty() {
                     body = inject_diagnostics(&body, &diagnostics.previous_message_id);
-                    injected_diagnostics = true;
                 }
             }
         }
-        if self.compaction_summary {
-            body = compaction::finalize(body);
-        }
-        let placement = reconcile::SystemPlacement::capture(&before, &body, cloaked);
-        let fable = reconcile::FableState::capture(&before, &body, cloaked);
-        let (edited, touched) = cpa_common::payload::apply_tracked(
-            &self.payload_rules,
-            &cpa_common::payload::Request {
-                target_executor: "claude",
-                model: &self.base_model,
-                requested_model: &req.requested_model,
-                protocol: Format::Claude.as_str(),
-                from_protocol: req.source_format.as_str(),
-                root: "",
-                original: original_translated,
-                request_path: &req.request_path,
-                headers: Some(&req.headers),
-            },
-            body.into_bytes(),
-            &["context_management", "fallbacks", "thinking.display", "diagnostics"],
-        );
-        body = text(edited);
-        let touched = |path: &str| touched.contains(path);
-        body = placement.reconcile(body);
-        let was_probe = probe;
-        let probe = signals::probe_or_helper(&body);
-        if probe {
-            diagnostics = session::Continuity::default();
-            if injected_diagnostics && !touched("diagnostics") {
-                body = rawjson::delete(&body, "diagnostics");
-            }
-            if cloaked {
-                body = signals::strip_billing_tags(&body);
-            }
-            continuity = session::Continuity::default();
-        } else if was_probe && cloaked {
-            // A payload rule declassified the probe: start continuity and diagnostics
-            // now, as cloaking would have.
-            let (existing_prev, existing_prompt) = signals::billing_tags(&body);
-            let (prev, prompt, begun) =
-                self.continuity_tags(&req.headers, &body, &session_id, &existing_prev, &existing_prompt);
-            if begun.initialized {
-                // The date stays the probe's own, today's: Go v8.0.27 classifies the
-                // request before payload rules run (868e137), so a probe they turn into
-                // a request neither sets nor reads its session's pinned date.
-                continuity = begun.clone();
-                body = signals::inject_billing_tags(&body, &prev, &prompt);
-                if self.cli_profile && self.first_party {
-                    body = inject_diagnostics(&body, &begun.previous_message_id);
-                    diagnostics = begun;
-                }
-            }
-        }
-        body = reconcile::fable(
-            body,
-            &fable,
-            touched("fallbacks"),
-            touched("thinking.display"),
-            cloaked,
-            probe,
-        );
         body = self.ensure_max_tokens(body);
         body = disable_thinking_if_tool_choice_forced(body);
-        body = cloak::reconcile_context_management(
-            body,
-            eligible,
-            caller_owned_cm,
-            injected_cm,
-            touched("context_management"),
-        );
+        body = cloak::reconcile_context_management(body, eligible, caller_owned_cm, injected_cm);
         body = normalize_sampling(body, confirmed);
-        // `shouldEnsureCacheControl`. Go v8.0.27 applies payload rules last, so a rule
-        // that sets prompt_cache_options only gets stripped; `explicit` was decided
-        // before the rules ran here for the same result.
+        // `shouldEnsureCacheControl`.
         let cpa_owns_cache = !explicit && !confirmed && (cloaked || cloak::count_cache_controls(&body) == 0);
         if cpa_owns_cache {
             body = cloak::ensure_cache_control(body);
@@ -1467,8 +1391,6 @@ impl<'a> Ctx<'a> {
                 body = rawjson::set_raw(&body, "stream", want);
             }
         }
-        let (extra_betas, stripped) = extract_betas(body);
-        body = stripped;
         let thread = thread::Thread::of(&body);
         let mut reverse = Arc::default();
         if self.cli_profile && cloaked {
@@ -1504,12 +1426,42 @@ impl<'a> Ctx<'a> {
             } else {
                 String::new()
             };
-            body = signing::finalize(body, &fallback)
-                .map_err(|e| ExecError::local(500, FailureScope::Request, format!("finalize Claude CCH: {e}")))?;
+            body = signing::placeholder(body, &fallback);
         }
         if self.kimi && !self.cli_profile {
             // stripDefaultKimiClaudeCodeAttribution: Kimi reads the block as prompt text.
             body = strip_attribution_system(&body);
+        }
+        if self.compaction_summary {
+            body = compaction::finalize(body);
+        }
+        // 868e137: the payload rules match the fully prepared body and apply once. Only
+        // header extraction, signing and read-only checks follow.
+        let (edited, touched) = cpa_common::payload::apply_tracked(
+            &self.payload_rules,
+            &cpa_common::payload::Request {
+                target_executor: "claude",
+                model: &self.base_model,
+                requested_model: &req.requested_model,
+                protocol: Format::Claude.as_str(),
+                from_protocol: req.source_format.as_str(),
+                root: "",
+                original: original_translated,
+                request_path: &req.request_path,
+                headers: Some(&req.headers),
+            },
+            body.into_bytes(),
+            &["diagnostics"],
+        );
+        body = text(edited);
+        if touched.contains("diagnostics") {
+            diagnostics = session::Continuity::default();
+        }
+        let (extra_betas, stripped) = extract_betas(body);
+        body = cloak::strip_prompt_cache_options(stripped);
+        if cch {
+            body = signing::sign(body)
+                .map_err(|e| ExecError::local(500, FailureScope::Request, format!("sign Claude CCH: {e}")))?;
         }
         validate_mid_system(&body, confirmed, self.first_party)?;
         let fast = betas::uses_fast_mode(&body, &betas::requested("", &[]));
@@ -1541,7 +1493,33 @@ impl<'a> Ctx<'a> {
         })
     }
 
-    async fn prepare_count(&self, req: &ExecRequest, translated: &[u8]) -> Result<Prepared, ExecError> {
+    /// The payload rules on a finished count_tokens body (868e137), against the client's
+    /// original request translated as the working one ([`translate::count_original`]).
+    fn count_rules(&self, req: &ExecRequest, body: String, original: &[u8]) -> String {
+        let edited = cpa_common::payload::apply(
+            &self.payload_rules,
+            &cpa_common::payload::Request {
+                target_executor: "claude",
+                model: &self.base_model,
+                requested_model: &req.requested_model,
+                protocol: Format::Claude.as_str(),
+                from_protocol: req.source_format.as_str(),
+                root: "",
+                original,
+                request_path: &req.request_path,
+                headers: Some(&req.headers),
+            },
+            body.into_bytes(),
+        );
+        text(edited)
+    }
+
+    async fn prepare_count(
+        &self,
+        req: &ExecRequest,
+        translated: &[u8],
+        baseline: &[u8],
+    ) -> Result<Prepared, ExecError> {
         let original = utf8(&req.original_body);
         let detection = detect::detect(&req.headers, &original, true, &self.settings);
         let confirmed = detection.confirmed;
@@ -1603,6 +1581,7 @@ impl<'a> Ctx<'a> {
             body = strip_attribution_system(&body);
         }
         validate_mid_system(&body, confirmed, self.first_party)?;
+        body = cloak::strip_prompt_cache_options(self.count_rules(req, body, baseline));
         let (headers, order) = self
             .headers(
                 req,

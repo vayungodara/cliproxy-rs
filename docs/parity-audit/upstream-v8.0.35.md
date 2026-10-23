@@ -20,7 +20,7 @@ Columns:
 | Claude: other executor work | 13 | 5 | 8 | 0 | 0 | 0 |
 | Claude: Responses tool_search | 13 | 0 | 13 | 0 | 0 | 0 |
 | Translation to and from Claude | 17 | 13 | 4 | 0 | 0 | 0 |
-| Payload rules | 1 | 0 | 1 | 0 | 0 | 0 |
+| Payload rules | 1 | 1 | 0 | 0 | 0 | 0 |
 | Codex | 19 | 16 | 3 | 0 | 0 | 0 |
 | Gemini, Vertex and AI Studio | 20 | 0 | 20 | 0 | 0 | 0 |
 | xAI | 8 | 2 | 6 | 0 | 0 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **88** | **134** | **0** | **63** | **3** |
+| **All** | **288** | **89** | **133** | **0** | **63** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -134,7 +134,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 
 | Commit | Subject | User-visible | This PR | Size | Notes |
 |---|---|---|---|---|---|
-| [`868e137f`](https://github.com/router-for-me/CLIProxyAPI/commit/868e137f) | feat(payload): introduce payload finalizer for protobuf and multipart requests | yes | to port | L (+585 −222) | payload rules move to a final barrier for every executor; Claude's post-rule repairs go. Partly ported: Codex (HTTP, compact, WebSocket turns, duplex steers, the Images tool path and CountTokens), Gemini, Vertex, AI Studio, Antigravity, Kimi, Meta, OpenAI-compatible chat and CountTokens, and xAI (including compact, CountTokens, WebSocket frames, images and videos) apply the rules last; Devin's rules edit the protobuf's JSON business view, which its request log records (`crates/cpa-exec/src/devin_payload.rs`, v8.0.35 fixtures in `tests/device_fixtures/devin`). OpenAI-compatible and Codex direct images apply them last to the request's JSON view, a multipart form as JSON with files in base64 (`crates/cpa-exec/src/payload_media.rs`, Go goldens in `tests/fixtures/payload_media_go.json`). Still to port: Claude (Messages and count_tokens, with the reconcile repairs removed and CCH signing split) |
+| [`868e137f`](https://github.com/router-for-me/CLIProxyAPI/commit/868e137f) | feat(payload): introduce payload finalizer for protobuf and multipart requests | yes | ported here | L (+585 −222) | payload rules move to a final barrier for every executor; Claude's post-rule repairs go. Codex (HTTP, compact, WebSocket turns, duplex steers, the Images tool path and CountTokens), Gemini, Vertex, AI Studio, Antigravity, Kimi, Meta, OpenAI-compatible chat and CountTokens, and xAI (including compact, CountTokens, WebSocket frames, images and videos) apply the rules last; Devin's rules edit the protobuf's JSON business view, which its request log records (`crates/cpa-exec/src/devin_payload.rs`, v8.0.35 fixtures in `tests/device_fixtures/devin`). OpenAI-compatible and Codex direct images apply them last to the request's JSON view, a multipart form as JSON with files in base64 (`crates/cpa-exec/src/payload_media.rs`, Go goldens in `tests/fixtures/payload_media_go.json`). Claude's Messages and count_tokens (local and upstream) apply them once on the finished body; the reconcile repairs are gone and CCH signing is split into the placeholder before the rules and the signature after them (`claude::tests::v8_0_35_payload_barrier_scenarios_match_go`, `claude::go_unit::v8_0_35_*`) |
 
 ## Codex
 

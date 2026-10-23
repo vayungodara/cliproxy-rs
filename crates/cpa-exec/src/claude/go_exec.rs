@@ -461,7 +461,10 @@ fn unframe_chat(stream: &str) -> String {
 
 /// Go tests whose upstream body key order comes from Go's random map iteration (several
 /// payload-rule params in one Go map): their bodies compare as JSON values.
-const GO_MAP_ORDER: &[&str] = &["TestClaudeExecutorPayloadOverrideDisabledThinking"];
+const GO_MAP_ORDER: &[&str] = &[
+    "TestClaudeExecutorPayloadOverrideDisabledThinking",
+    "TestClaudePayloadConditionsEvaluateOnceAtFinalBarrier",
+];
 
 /// Go v8.0.27 tests that send an API key's caller system text upstream top-level,
 /// where cliproxy-rs moves it after the leading user run as for every request
