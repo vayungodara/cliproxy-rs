@@ -158,6 +158,10 @@ payload:
       params: {'a.#(s!="").v': 9}
     - models: [{name: "qp4-*", not-exist: ['a.#([k])']}]
       params: {hit: 9}
+    - models: [{name: "qp5-*"}]
+      params: {'a.#(!=0)': 9}
+    - models: [{name: "qp6-*", not-exist: ['a.#(==~null)']}]
+      params: {hit: 9}
   override-raw:
     - models: [{name: "rawo-*"}]
       params: {"@reverse": '{', x: '9'}
@@ -308,6 +312,9 @@ var payloadInputs = []payloadCase{
 	{Name: "query_not_empty_write", Model: "qp3-1", Protocol: "openai", Payload: `{"a":[{"s":""}]}`},
 	// A query path in syntax the port does not read (a subselector): refused.
 	{Name: "query_subselector_path", Model: "qp4-1", Protocol: "openai", Payload: `{"a":[{"k":1},{"k":2}]}`},
+	// gjson's array-query loop reads nan as a number (NaN), where Array() says null.
+	{Name: "query_nan_not_zero", Model: "qp5-1", Protocol: "openai", Payload: `{"a":[nan]}`},
+	{Name: "query_nan_not_null", Model: "qp6-1", Protocol: "openai", Payload: `{"a":[nan]}`},
 	// A raw rule with an invalid value is dropped whole, unported parameters included.
 	{Name: "raw_override_invalid_with_unported", Model: "rawo-1", Protocol: "openai", Payload: `{}`, Tracked: []string{"x"}},
 	{Name: "raw_default_invalid_with_unported", Model: "rawd-1", Protocol: "openai", Payload: `{}`, Tracked: []string{"x"}},

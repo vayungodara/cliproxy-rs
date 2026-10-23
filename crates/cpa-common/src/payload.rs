@@ -1304,7 +1304,7 @@ fn query_matches(item: &Res<'_>, query: &str) -> bool {
                 json::parse_query(format!("#({term})").as_bytes())
                     .map(|(query, _)| query)
                     .unwrap_or_default()
-                    .matches(item)
+                    .matches_raw(item.raw())
             })
     })
 }

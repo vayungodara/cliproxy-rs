@@ -3319,10 +3319,76 @@ fn parse_bool_lower(s: &[u8]) -> Option<bool> {
 }
 
 impl Query {
+    /// `gjson.GetBytes("["+item+"]", "#("+query+")").Exists()`: whether any element
+    /// gjson's array-query loop reads from the wrapped bytes matches. That loop
+    /// classifies raw tokens itself, not as `Result.Array()` does: it skips bytes that
+    /// start no value, reads `n` not followed by `u` (`nan`) as a number, and reads
+    /// any run of letters after `t` or `f` as that literal.
+    pub fn matches_raw(&self, item: &[u8]) -> bool {
+        let mut json = Vec::with_capacity(item.len() + 2);
+        json.push(b'[');
+        json.extend_from_slice(item);
+        json.push(b']');
+        let json = &json[..];
+        let mut i = 1;
+        while i <= json.len() {
+            let ch = if i == json.len() { b']' } else { json[i] };
+            let mut num = false;
+            let elem = match ch {
+                b'"' => {
+                    let (next, end, esc, ok) = parse_string(json, i + 1);
+                    if !ok {
+                        return false;
+                    }
+                    let elem = string_res(json, i, end, esc);
+                    i = next;
+                    elem
+                }
+                b'{' | b'[' => {
+                    let (next, end) = parse_squash(json, i);
+                    let elem = json_res(json, i, end);
+                    i = next;
+                    elem
+                }
+                b'n' if i + 1 < json.len() && json[i + 1] != b'u' => {
+                    num = true;
+                    Res::default()
+                }
+                b'n' | b't' | b'f' => {
+                    let (next, end) = parse_literal(json, i);
+                    let elem = literal_res(json, i, end);
+                    i = next;
+                    elem
+                }
+                b'+' | b'-' | b'0'..=b'9' | b'i' | b'I' | b'N' => {
+                    num = true;
+                    Res::default()
+                }
+                b']' => return false,
+                _ => {
+                    i += 1;
+                    continue;
+                }
+            };
+            let elem = if num {
+                let (next, end) = parse_number(json, i);
+                let elem = number_res(json, i, end);
+                i = next;
+                elem
+            } else {
+                elem
+            };
+            if self.matches(&elem) {
+                return true;
+            }
+        }
+        false
+    }
+
     /// gjson's `procQuery` test on one array element: the query path read from `elem`
     /// (an element that is not JSON matches only a query without a path), then
     /// `queryMatches`, `~` conversions included.
-    pub fn matches(&self, elem: &Res<'_>) -> bool {
+    fn matches(&self, elem: &Res<'_>) -> bool {
         let mut value = if elem.kind == Kind::Json {
             elem.get(&self.path[..])
         } else if self.path.is_empty() {
