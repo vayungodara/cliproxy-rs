@@ -54,17 +54,49 @@ pub struct HostAuth {
     pub account: String,
 }
 
+/// What `host.auth.save` registers for the file it writes (Go `buildAuthsFromFileData`).
+#[derive(Clone)]
+pub enum SavedAuths {
+    /// No plugin auth provider took the file: its built-in credential.
+    BuiltIn(Box<HostAuth>),
+    /// The credentials the plugin auth provider for the file's type parsed, the file's
+    /// settings applied. Possibly none: the file then has no credential. `persist`: the
+    /// one credential's metadata replaces the file (Go `Manager.persist` with its token
+    /// storage); otherwise the file keeps the saved bytes.
+    Plugin {
+        path: PathBuf,
+        credentials: Vec<cpa_core::credential::Credential>,
+        persist: bool,
+        refresh: Vec<SavedRefresh>,
+    },
+    /// Nothing yet: the saving plugin is parsing this file, and the file's credentials
+    /// come from that parse. `data` is what the save writes.
+    Written { path: PathBuf, data: Vec<u8> },
+}
+
+/// Where a saved plugin auth's refresh deadlines come from (Go `preserveExistingAuthState`
+/// in `buildAuthsFromFileData`): the registered auth it replaces (`donor`, Go
+/// `findExistingAuthForSave`), whose `LastRefreshedAt` and `NextRefreshAfter` it takes,
+/// unset ones included; without one, the `NextRefreshAfter` its plugin parsed. The
+/// manager applies them only once it registers the auth.
+#[derive(Clone, Debug)]
+pub struct SavedRefresh {
+    pub id: String,
+    pub donor: Option<String>,
+    pub next_refresh_after: Option<chrono::DateTime<chrono::Utc>>,
+}
+
 /// The server's credential manager as the plugin host uses it.
 pub trait AuthManager: Send + Sync {
     /// Go `Manager.List`.
     fn list(&self) -> Vec<HostAuth>;
     /// Go `Manager.GetByID`.
     fn get_by_id(&self, id: &str) -> Option<HostAuth>;
-    /// Go `saveAuthFile` from the write on: `write` puts the file at
-    /// `auth.attributes["path"]` (its error is the callback's), then the manager
-    /// registers or updates `auth` (`upsertAuthRecord`), persisting it as its store
-    /// does. The manager serialises this with its own credential changes.
-    fn save(&self, auth: HostAuth, write: &mut dyn FnMut() -> Result<(), String>) -> Result<(), String>;
+    /// Go `saveAuthFile` from the write on: `write` puts the file (its error is the
+    /// callback's), then the manager registers or updates `auths` and removes the
+    /// file's other credentials (`upsertAuthRecordsForPath`), persisting them as its
+    /// store does. The manager serialises this with its own credential changes.
+    fn save(&self, auths: SavedAuths, write: &mut dyn FnMut() -> Result<(), String>) -> Result<(), String>;
     /// Go `Manager.LookupSessionAffinity`: the status (`bound`, `unbound`, `ambiguous`,
     /// `unsupported`) and, when bound, the credential.
     fn lookup_session_affinity(&self, provider: &str, model: &str, session_id: &str) -> (String, Option<HostAuth>);
@@ -285,7 +317,7 @@ impl Host {
     }
 
     /// `host.auth.save`: writes the credential file and registers it.
-    pub(crate) fn host_auth_save(&self, raw: &[u8]) -> Result<Bytes, CallbackError> {
+    pub(crate) fn host_auth_save(&self, caller: &crate::callbacks::Caller, raw: &[u8]) -> Result<Bytes, CallbackError> {
         let req: HostAuthSaveRequest =
             gojson::from_slice(raw).map_err(|e| err(format!("decode host auth save request: {e}")))?;
         // validateHostAuthSaveRequest.
@@ -306,10 +338,25 @@ impl Host {
             .resolved_auth_dir()
             .ok_or_else(|| err("auth directory is unavailable"))?;
         let dst = absolute(&dir.join(name));
-        let auth = self.build_auth_from_file_data(&dst, &data)?;
+        // Go parses the saved data first, which recurses through a plugin saving the file
+        // it is parsing (`auth::SaveParse`).
+        let auths = match self.save_parse(&caller.instance, &dst) {
+            crate::auth::SaveParse::Parse => self.build_auths_from_file_data(&dst, &data)?,
+            // The file is written as is; the parse's answer is published and the watcher
+            // parses the saved bytes next (`credentials::note_plugin_auth_write`).
+            crate::auth::SaveParse::Nested => SavedAuths::Written {
+                path: dst.clone(),
+                data: data.clone(),
+            },
+            crate::auth::SaveParse::Refused => {
+                return Err(err(format!(
+                    "auth file {name} is being parsed for another save by this plugin"
+                )));
+            }
+        };
         let mut write = || write_auth_file(&dst, &data).map_err(|e| format!("failed to write auth file: {e}"));
         match self.auth_manager() {
-            Some(manager) => manager.save(auth, &mut write).map_err(err)?,
+            Some(manager) => manager.save(auths, &mut write).map_err(err)?,
             None => write().map_err(err)?,
         }
         Ok(abi::ok_envelope(&HostAuthSaveResponse {
@@ -318,13 +365,187 @@ impl Host {
         }))
     }
 
-    /// Go `buildAuthFromFileData` for a file about to be written.
-    fn build_auth_from_file_data(&self, path: &Path, data: &[u8]) -> Result<HostAuth, CallbackError> {
+    /// Go `buildAuthsFromFileData` for a file about to be written: the plugin auth
+    /// provider for the file's type is asked first (a failed parse fails the save), then
+    /// the built-in credential. Called holding no lock, so the plugin may call back.
+    fn build_auths_from_file_data(&self, path: &Path, data: &[u8]) -> Result<SavedAuths, CallbackError> {
         let mut metadata: Map<String, Value> = match gojson::from_slice::<Metadata>(data) {
             Ok(m) => m.into_iter().collect(),
             Err(e) => return Err(err(format!("invalid auth file: {e}"))),
         };
         crate::auth::normalize_credential_metadata(&mut metadata);
+        // ValidateAuthWeight on the file's metadata.
+        if let Some(weight) = metadata.get("weight") {
+            cpa_core::config::credentials::parse_weight(weight).map_err(|e| {
+                err(format!(
+                    "invalid auth weight: invalid metadata weight: {}",
+                    go_weight_error(weight, e)
+                ))
+            })?;
+        }
+        let path_text = path.to_string_lossy().into_owned();
+        let default_id = match self.auth_id_for_path(&path_text) {
+            id if id.is_empty() => path_text.clone(),
+            id => id,
+        };
+        let parsed = self.parse_auths_for(
+            crate::api::AuthParseRequest {
+                provider: match metadata.get("type") {
+                    Some(Value::String(p)) => p.trim().to_owned(),
+                    _ => String::new(),
+                },
+                path: path_text.clone(),
+                file_name: default_id.clone(),
+                raw_json: Bytes::copy_from_slice(data),
+                ..Default::default()
+            },
+            true,
+        );
+        if let Some(e) = parsed.error {
+            return Err(err(format!("invalid auth file: {e}")));
+        }
+        if !parsed.handled {
+            // The file's credential keeps its ID.
+            let id = self
+                .existing_auth_for_save(&default_id, &path_text, &default_id)
+                .map(|existing| existing.id.trim().to_owned())
+                .filter(|id| !id.is_empty())
+                .unwrap_or(default_id);
+            return self
+                .built_in_auth(path, metadata, id)
+                .map(|auth| SavedAuths::BuiltIn(Box::new(auth)));
+        }
+        let single = parsed.auths.len() == 1;
+        let file_disabled = metadata.get("disabled").and_then(parse_bool_value) == Some(true);
+        let base = path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        let mut persist = single;
+        let mut auths = Vec::with_capacity(parsed.auths.len());
+        let mut refresh = Vec::with_capacity(parsed.auths.len());
+        for mut auth in parsed.auths {
+            validate_parsed_weight(&auth)?;
+            // Normalized before the one auth inherits the file's other fields, so the
+            // plugin's own fields win in either spelling.
+            let mut own: Map<String, Value> = std::mem::take(&mut auth.metadata).into_iter().collect();
+            crate::auth::normalize_credential_metadata(&mut own);
+            auth.metadata = own.into_iter().collect();
+            if single {
+                // The one auth inherits the file's other fields and, without storage of
+                // its own, the file itself.
+                for (key, value) in &metadata {
+                    auth.metadata.entry(key.clone()).or_insert_with(|| value.clone());
+                }
+                if auth.storage_json.trim_ascii().is_empty() {
+                    auth.storage_json = Bytes::copy_from_slice(data);
+                }
+            }
+            if auth.file_name.trim().is_empty() {
+                auth.file_name = base.clone();
+            }
+            // ponytail: a credential lists under its file's name (see
+            // DIFFERENCES-FROM-GO.md); a save whose auth names another file is refused
+            // before the write. Upgrade: keep the parsed file name on the credential.
+            if auth.file_name.trim() != base {
+                return Err(err(format!(
+                    "auth provider returned file name {} for auth file {base}, which is not supported",
+                    auth.file_name.trim()
+                )));
+            }
+            // One auth under the file's own ID takes over the credential the file has.
+            if single
+                && (auth.id.trim().is_empty() || auth.id == default_id)
+                && let Some(existing) = self.existing_auth_for_save(&auth.id, &path_text, &default_id)
+                && !existing.id.trim().is_empty()
+            {
+                auth.id = existing.id.trim().to_owned();
+            }
+            if auth.id.trim().is_empty() {
+                auth.id = default_id.clone();
+            }
+            // Go `findExistingAuthForSave(auth.ID, path, len(out) == 1)`.
+            let donor = if single {
+                self.existing_auth_for_save(&auth.id, &path_text, &default_id)
+            } else {
+                self.auth_manager().and_then(|m| m.get_by_id(auth.id.trim()))
+            };
+            refresh.push(SavedRefresh {
+                id: auth.id.clone(),
+                donor: donor.map(|d| d.id),
+                next_refresh_after: auth.next_refresh_after.0.map(|at| at.to_utc()),
+            });
+            if file_disabled {
+                auth.disabled = true;
+                auth.metadata.insert("disabled".into(), true.into());
+            }
+            if single {
+                // Go `Manager.persist` skips runtime-only and plugin-virtual auths, and a
+                // token storage that cannot build its document fails, leaving the file
+                // with the saved bytes; the auth is registered either way.
+                let marked = |key: &str| auth.attributes.get(key).is_some_and(|v| v.trim().go_eq_fold("true"));
+                persist = !marked("runtime_only") && !marked("plugin_virtual");
+                if persist {
+                    // Go `FileTokenStore.Save` records the disabled state before the
+                    // storage serializes, so it stays even when serializing fails.
+                    auth.metadata.insert("disabled".into(), auth.disabled.into());
+                    if let Err(error) = auth.storage_payload() {
+                        tracing::warn!(id = %auth.id, provider = %auth.provider, %error, "failed to persist registered auth");
+                        persist = false;
+                    }
+                }
+            }
+            auths.push(auth.into_parsed());
+        }
+        // The saved file's settings Go applies when saving (priority, weight, prefix,
+        // proxy URL, ...), from its decoded metadata.
+        let credentials =
+            cpa_core::config::credentials::plugin_save_credentials(path, &metadata, auths).map_err(err)?;
+        Ok(SavedAuths::Plugin {
+            path: path.to_owned(),
+            credentials,
+            persist,
+            refresh,
+        })
+    }
+
+    /// Go `findExistingAuthForSave(authID, path, true)`: the credential with `id` unless
+    /// that is the file's default ID, else a non-virtual credential of the file at
+    /// `path` (preferring one not under the default ID), else the one with `id`.
+    fn existing_auth_for_save(&self, id: &str, path: &str, default_id: &str) -> Option<HostAuth> {
+        let manager = self.auth_manager()?;
+        let id = id.trim();
+        if !id.is_empty()
+            && id != default_id
+            && let Some(existing) = manager.get_by_id(id)
+        {
+            return Some(existing);
+        }
+        let path = absolute(&crate::platform::clean(Path::new(path)));
+        let same_file = |auth: &HostAuth| {
+            ["path", "source", "virtual_source"].iter().any(|key| {
+                let other = attribute(auth, key).trim();
+                !other.is_empty() && absolute(&crate::platform::clean(Path::new(other))) == path
+            })
+        };
+        let mut matched: Option<HostAuth> = None;
+        for candidate in manager.list() {
+            let marked = |key| attribute(&candidate, key).trim().go_eq_fold("true");
+            if marked("runtime_only") || marked("plugin_virtual") || !same_file(&candidate) {
+                continue;
+            }
+            if matched
+                .as_ref()
+                .is_none_or(|m| m.id == default_id && candidate.id != default_id)
+            {
+                matched = Some(candidate);
+            }
+        }
+        matched.or_else(|| (!id.is_empty()).then(|| manager.get_by_id(id)).flatten())
+    }
+
+    /// The built-in branch of Go `buildAuthsFromFileData`.
+    fn built_in_auth(&self, path: &Path, metadata: Map<String, Value>, id: String) -> Result<HostAuth, CallbackError> {
         let provider = match metadata.get("type") {
             Some(Value::String(p)) if !p.trim().is_empty() => p.clone(),
             _ => "unknown".to_owned(),
@@ -334,10 +555,6 @@ impl Host {
             _ => provider.clone(),
         };
         let path_text = path.to_string_lossy().into_owned();
-        let id = match self.auth_id_for_path(&path_text) {
-            id if id.is_empty() => path_text.clone(),
-            id => id,
-        };
         let disabled = metadata.get("disabled").and_then(parse_bool_value) == Some(true);
         let now = GoTime::now_utc();
         let mut auth = HostAuth {
@@ -360,15 +577,6 @@ impl Host {
             auth.created_at = existing.created_at;
             auth.last_refreshed_at = existing.last_refreshed_at;
             auth.next_retry_after = existing.next_retry_after;
-        }
-        // ValidateAuthWeight: only the metadata can carry a weight here.
-        if let Some(weight) = auth.metadata.get("weight") {
-            cpa_core::config::credentials::parse_weight(weight).map_err(|e| {
-                err(format!(
-                    "invalid auth weight: invalid metadata weight: {}",
-                    go_weight_error(weight, e)
-                ))
-            })?;
         }
         // ponytail: ApplyCustomHeadersFromMetadata is left to the manager, which loads
         // the saved file the way every auth file is loaded.
@@ -641,6 +849,24 @@ fn absolute(path: &Path) -> PathBuf {
     std::env::current_dir()
         .map(|cwd| crate::platform::clean(&cwd.join(path)))
         .unwrap_or_else(|_| path.to_owned())
+}
+
+/// Go `ValidateAuthWeight` on an auth a plugin parsed.
+fn validate_parsed_weight(auth: &crate::auth::PluginAuth) -> Result<(), CallbackError> {
+    let invalid = |kind: &str, weight: &Value, e: String| {
+        err(format!(
+            "invalid auth weight: invalid {kind} weight: {}",
+            go_weight_error(weight, e)
+        ))
+    };
+    if let Some(weight) = auth.attributes.get("weight") {
+        let weight = Value::String(weight.clone());
+        cpa_core::config::credentials::parse_weight(&weight).map_err(|e| invalid("attributes", &weight, e))?;
+    }
+    if let Some(weight) = auth.metadata.get("weight") {
+        cpa_core::config::credentials::parse_weight(weight).map_err(|e| invalid("metadata", weight, e))?;
+    }
+    Ok(())
 }
 
 /// Windows `filepath.VolumeName` is non-empty: a drive letter or a UNC prefix.

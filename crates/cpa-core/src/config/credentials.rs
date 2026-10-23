@@ -27,8 +27,9 @@ use plugin_auth::Ask;
 #[cfg(feature = "test-support")]
 pub use plugin_auth::with_thread_plugin_auth_parser;
 pub use plugin_auth::{
-    ParseRequest, Parsed, ParsedAuth, PluginAuthParser, note_plugin_auth_write, on_plugin_auth_change,
-    plugin_auth_epoch, plugin_auth_parser_active, preparse_auth_dir, set_plugin_auth_parser, set_plugin_auth_providers,
+    ParseRequest, Parsed, ParsedAuth, PluginAuthParser, clean as absolute_clean_path, note_plugin_auth_write,
+    on_plugin_auth_change, plugin_auth_epoch, plugin_auth_parser_active, plugin_save_credentials, preparse_auth_dir,
+    set_plugin_auth_parser, set_plugin_auth_providers,
 };
 
 const WEIGHT_MAX: i64 = 1_000_000;
