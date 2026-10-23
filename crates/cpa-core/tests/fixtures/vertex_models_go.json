@@ -1,4 +1,156 @@
 {
+  "execution": {
+    "cases": [
+      {
+        "api_key": "vk",
+        "request": "va",
+        "upstream": [
+          "v1"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "VA",
+        "upstream": [
+          "v1"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "v1",
+        "upstream": [
+          "v1"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "va(high)",
+        "upstream": [
+          "v1(high)"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "v-only",
+        "upstream": [
+          "v3"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "V-ONLY",
+        "upstream": [
+          "v3"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "v2",
+        "upstream": [
+          "v2"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "V2(8192)",
+        "upstream": [
+          "v2(8192)"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "ghost",
+        "upstream": [
+          "ghost"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "missing",
+        "upstream": [
+          "missing"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": " va ",
+        "upstream": [
+          "v1"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": " missing ",
+        "upstream": [
+          "missing"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "K1",
+        "upstream": [
+          "k-real"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "pro",
+        "upstream": [
+          "pro(high)"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "pro(low)",
+        "upstream": [
+          "pro(high)"
+        ]
+      },
+      {
+        "api_key": "vk",
+        "request": "team/va",
+        "upstream": [
+          "team/va"
+        ]
+      },
+      {
+        "api_key": "tk",
+        "request": "team/va",
+        "upstream": [
+          "t1"
+        ]
+      },
+      {
+        "api_key": "tk",
+        "request": "va",
+        "upstream": [
+          "t1"
+        ]
+      },
+      {
+        "api_key": "tk",
+        "request": "team/missing",
+        "upstream": [
+          "missing"
+        ]
+      },
+      {
+        "api_key": "tk",
+        "request": "TEAM/va",
+        "upstream": [
+          "TEAM/va"
+        ]
+      },
+      {
+        "api_key": "tk",
+        "request": "team/v1",
+        "upstream": [
+          "v1"
+        ]
+      }
+    ],
+    "yaml": "api-keys:\n  vertex:\n    - base-url: https://v.example.invalid\n      models: [{name: v-only}, {name: v1, alias: va}, {name: \" v2 \", alias: \"  \"}, {name: \" \", alias: ghost}, {name: V-ONLY, alias: \"\"}, {name: v3, alias: v-only}, {name: k-real, alias: k1}, {name: \"pro(high)\", alias: pro}]\n      keys: [{api-key: vk}]\n    - base-url: https://v.example.invalid\n      models: [{name: t1, alias: va}]\n      keys: [{api-key: tk, prefix: team}]\n"
+  },
   "models": [
     {
       "id": "v-only",

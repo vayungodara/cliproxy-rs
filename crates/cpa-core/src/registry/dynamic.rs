@@ -1601,6 +1601,11 @@ pub fn execution_models(
             return (vec![first], alias);
         }
     }
+    // Go `applyAPIKeyModelAliasWithRouting` returns an API key's unmatched model trimmed.
+    let trimmed = upstream.trim();
+    if is_api_key(c) && !trimmed.is_empty() {
+        return (vec![trimmed.to_owned()], alias);
+    }
     (vec![upstream], alias)
 }
 
