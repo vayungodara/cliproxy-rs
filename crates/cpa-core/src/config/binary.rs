@@ -65,15 +65,18 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     // Go reads a plugin's pin from the raw node (pluginhost `yamlScalarString`), so a
     // `!!binary` pin, aliased or merged in too, keeps its base64 text there and fails
     // the version grammar; refused rather than read decoded.
-    ensure!(!walk.found.iter().any(|(p, _)| plugin_pin(value, p)), PLUGIN_PIN);
+    ensure!(
+        !walk.found.iter().any(|(p, _, binary)| *binary && plugin_pin(value, p)),
+        PLUGIN_PIN
+    );
     // Paths are entry or item positions; patch them in one ordered pass.
     let mut found = walk.found;
     found.sort_by(|a, b| a.0.cmp(&b.0));
     apply(value, 0, &found)
 }
 
-fn apply(node: &mut Value, depth: usize, patches: &[(Vec<usize>, Value)]) -> anyhow::Result<()> {
-    let Some((path, replacement)) = patches.first() else {
+fn apply(node: &mut Value, depth: usize, patches: &[Found]) -> anyhow::Result<()> {
+    let Some((path, replacement, _)) = patches.first() else {
         return Ok(());
     };
     if path.len() == depth {
@@ -94,7 +97,7 @@ fn apply(node: &mut Value, depth: usize, patches: &[(Vec<usize>, Value)]) -> any
         if rest.is_empty() {
             break;
         }
-        let n = rest.iter().take_while(|(p, _)| p[depth] == i).count();
+        let n = rest.iter().take_while(|(p, _, _)| p[depth] == i).count();
         apply(child, depth + 1, &rest[..n])?;
         rest = &rest[n..];
     }
@@ -295,13 +298,17 @@ fn rewrite(tag: &[u8], plain: bool, value: Vec<u8>) -> anyhow::Result<Option<Val
     }))
 }
 
+/// A rewritten scalar: its path (entry or item positions), the value yaml.v3 reads, and
+/// whether a `!!binary` tag made it.
+type Found = (Vec<usize>, Value, bool);
+
 struct Walk {
     events: std::vec::IntoIter<Event>,
     defined: HashSet<Vec<u8>>,
     /// Each anchor's rewritten scalars, by their path below it.
-    anchors: HashMap<Vec<u8>, Vec<(Vec<usize>, Value)>>,
-    /// Rewritten scalars by their path: entry or item positions from the root.
-    found: Vec<(Vec<usize>, Value)>,
+    anchors: HashMap<Vec<u8>, Vec<Found>>,
+    /// Rewritten scalars, by their path from the root.
+    found: Vec<Found>,
 }
 
 impl Walk {
@@ -330,8 +337,9 @@ impl Walk {
                     // yaml.v3's layout code matches keys by their node, tag included
                     // (`!!str <<` is no merge key).
                     ensure!(!key, UNSUPPORTED_KEY);
+                    let binary = matches!(tag.as_slice(), b"tag:yaml.org,2002:binary" | b"!!binary");
                     if let Some(v) = rewrite(&tag, plain, value)? {
-                        self.found.push((path.clone(), v));
+                        self.found.push((path.clone(), v, binary));
                     }
                 }
                 anchor
@@ -343,8 +351,8 @@ impl Walk {
                     self.found.len() + copies.len() <= MAX_REWRITES,
                     "config YAML aliases expand too far"
                 );
-                for (below, v) in copies {
-                    self.found.push(([path.as_slice(), &below].concat(), v));
+                for (below, v, binary) in copies {
+                    self.found.push(([path.as_slice(), &below].concat(), v, binary));
                 }
                 None
             }
@@ -377,7 +385,7 @@ impl Walk {
         if let Some(name) = anchor {
             let below = self.found[start..]
                 .iter()
-                .map(|(p, v)| (p[path.len()..].to_vec(), v.clone()))
+                .map(|(p, v, binary)| (p[path.len()..].to_vec(), v.clone(), *binary))
                 .collect();
             self.anchors.insert(name, below);
         }

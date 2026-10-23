@@ -607,10 +607,10 @@ mod tests {
     }
 
     /// Go decodes the rules into typed fields, so a `!!binary` env name is its decoded
-    /// text, through an alias too.
+    /// text, through an alias too, and merge keys expand.
     #[test]
     fn store_auth_rules_read_binary_values_decoded() {
-        let raw = b"plugins:\n  store-auth:\n    - match: &m !!binary aHR0cHM6Ly9kb3dubG9hZHMuZXhhbXBsZS8=\n      type: bearer\n      token-env: !!binary UExVR0lOX1RPS0VO\n    - match: *m\n      type: basic\n      username-env: USER_ENV\n      password-env: PASS_ENV\n";
+        let raw = b"plugins:\n  store-auth:\n    - match: &m !!binary aHR0cHM6Ly9kb3dubG9hZHMuZXhhbXBsZS8=\n      type: bearer\n      token-env: !!binary UExVR0lOX1RPS0VO\n    - match: *m\n      type: basic\n      username-env: USER_ENV\n      password-env: PASS_ENV\n    - <<: [{match: https://a.example/, type: bearer, token-env: FIRST}, {token-env: SECOND}]\n      match: https://b.example/\n";
         let cfg = crate::home::overlay(raw, None).unwrap();
         let rules = sync_config(raw, &cfg).store_auth;
         let got: Vec<_> = rules
@@ -621,7 +621,9 @@ mod tests {
             got,
             [
                 ("https://downloads.example/", "PLUGIN_TOKEN", ""),
-                ("https://downloads.example/", "", "USER_ENV")
+                ("https://downloads.example/", "", "USER_ENV"),
+                // yaml.v3 merges: the explicit key wins, then the earlier mapping.
+                ("https://b.example/", "FIRST", "")
             ]
         );
     }
