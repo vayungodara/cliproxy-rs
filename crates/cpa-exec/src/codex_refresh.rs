@@ -267,11 +267,16 @@ impl Partition {
         (!self.after.is_empty() && same_version(target, &self.after)).then_some(&self.after)
     }
 
-    /// Go `applyCredentialFields`: the fields the refresh changed against `base`.
+    /// Go `applyCredentialFields`: the fields the refresh changed against `base`, as Go
+    /// holds them (its maps decode numbers as float64).
     fn apply(&self, base: &Map<String, Value>, doc: &mut BTreeMap<String, GoValue>) {
         for (key, value) in &self.after {
             if base.get(key) != Some(value) {
-                doc.insert(key.clone(), GoValue::from_json(value));
+                let go = serde_json::to_vec(value)
+                    .ok()
+                    .and_then(|text| GoValue::parse_f64(&text))
+                    .unwrap_or_else(|| GoValue::from_json(value));
+                doc.insert(key.clone(), go);
             }
         }
     }
@@ -289,6 +294,16 @@ impl RefreshPatch {
     /// No partition was adopted or refreshed: nothing to write.
     pub fn is_empty(&self) -> bool {
         self.outer.is_none() && self.siwc.is_none()
+    }
+
+    /// Go `CredentialRefreshPatch.CanApplyTo`: some partition still holds a version the
+    /// refresh may be applied over in `metadata`.
+    pub fn can_apply_to(&self, metadata: &Map<String, Value>) -> bool {
+        self.outer.as_ref().is_some_and(|p| p.baseline(metadata).is_some())
+            || self
+                .siwc
+                .as_ref()
+                .is_some_and(|p| p.baseline(&siwc_map(metadata)).is_some())
     }
 
     /// Go `CredentialRefreshPatch.Apply` on the credential file as read under its lock:
