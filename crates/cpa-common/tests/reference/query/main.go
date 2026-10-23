@@ -20,7 +20,10 @@ func main() {
 	for _, v := range values {
 		items = append(items, `{"x":`+v+`}`)
 	}
-	items = append(items, `{}`, `{"":1}`, `{"x":"a","x":"b"}`, `x1`, `tx`, `{"x":{"b":1}}`, `{"x":{"b":"a"}}`)
+	items = append(items, `{}`, `{"":1}`, `{"x":"a","x":"b"}`, `x1`, `tx`, `{"x":{"b":1}}`, `{"x":{"b":"a"}}`,
+		// Raw fragments the loop reads as several elements or one odd number token, and
+		// a match before malformed trailing input.
+		`1 2`, `x1,2`, `1-2`, `1e`, `0x1`, `1 "x`, `"a" {`)
 	ops := []string{"==", "=", "!=", "<", "<=", ">", ">=", "%", "!%", "!", ""}
 	rhs := []string{`"a"`, `""`, `"?"`, `"*"`, `"a*"`, `"\u00e9"`, `"\"a"`, `a`, `1`, `0`, `2.5`, `1e0`, `true`, `false`, `null`,
 		`~true`, `~false`, `~null`, `~*`, `~x`, ``,

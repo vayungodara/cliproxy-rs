@@ -15,7 +15,7 @@ fn query_predicates_match_go_gjson() {
     let items = fixture["items"].as_array().unwrap();
     let results = fixture["results"].as_array().unwrap();
     assert_eq!(terms.len(), 1255);
-    assert_eq!(items.len(), 65);
+    assert_eq!(items.len(), 72);
     let mut failures = Vec::new();
     let mut unbalanced = 0;
     for (item, row) in items.iter().zip(results) {
