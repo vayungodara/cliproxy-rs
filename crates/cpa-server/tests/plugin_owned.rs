@@ -3901,6 +3901,110 @@ async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadli
     env.finish().await;
 }
 
+/// A refresh env for plugin `pp`, whose refresh answers with new tokens, and how many
+/// times it refreshed auth `id`.
+async fn pp_refresh_env(name: &str) -> Option<(Env, impl Fn(&str) -> usize)> {
+    let env = env(name, &[("pp", "auth_provider")], "", &[], |records| {
+        canned(
+            records,
+            "pp",
+            "auth.refresh",
+            json!({"Auth":{"Metadata":{"type":"pp","access_token":"p2","refresh_interval":"1h"}}}),
+        );
+    })
+    .await?;
+    let records = env.records.clone();
+    let refreshes = move |id: &str| {
+        calls(&records, "pp", "auth.refresh")
+            .iter()
+            .filter(|r| r["AuthID"] == id)
+            .count()
+    };
+    Some((env, refreshes))
+}
+
+/// A parsed `NextRefreshAfter` belongs to the registration it came with, whichever file
+/// registers the auth next: `a.json` registers auth `b.json` disabled, so the refresh
+/// loop never looks at its deadline, and is deleted; file `b.json` then registers
+/// `b.json` as an ordinary credential the parser does not handle, which is due by its
+/// interval at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn an_auth_another_file_registers_does_not_inherit_a_parsed_refresh_deadline() {
+    let Some((env, refreshes)) = pp_refresh_env("plugin-owned-refresh-cross-file").await else {
+        return;
+    };
+    let auth_dir = env.rt.config().auth_dir.clone();
+    canned(
+        &env.records,
+        "pp",
+        "auth.parse",
+        json!({"Handled":true,"Auths":[{"Provider":"pp","ID":"b.json",
+            "Metadata":{"type":"pp","access_token":"p","refresh_interval":"1h"},
+            "NextRefreshAfter":"2099-01-01T00:00:00Z"}]}),
+    );
+    std::fs::write(
+        auth_dir.join("a.json"),
+        r#"{"type":"pp","wrapped":"material","disabled":true}"#,
+    )
+    .unwrap();
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    assert!(env.rt.store().get("b.json").unwrap().disabled);
+    std::fs::remove_file(auth_dir.join("a.json")).unwrap();
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    assert!(env.rt.store().get("b.json").is_none());
+    canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
+    std::fs::write(
+        auth_dir.join("b.json"),
+        r#"{"type":"pp","access_token":"q","refresh_interval":"1h"}"#,
+    )
+    .unwrap();
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    assert_eq!(env.rt.store().get("b.json").unwrap().metadata["access_token"], "q");
+    env.rt.start_auto_refresh();
+    eventually("b.json's refresh", || refreshes("b.json") >= 1).await;
+    env.finish().await;
+}
+
+/// Go keeps a credential's `LastRefreshedAt` and `NextRefreshAfter` when it is
+/// registered again only while it and the one it replaces are both enabled. A reload
+/// that edits it keeps them; one that disables it, and the one that enables it again,
+/// take the registered ones: no last refresh, so it is due by its interval at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_disabling_reload_drops_a_credentials_refresh_schedule() {
+    let Some((env, refreshes)) = pp_refresh_env("plugin-owned-refresh-disabled-reload").await else {
+        return;
+    };
+    let auth_dir = env.rt.config().auth_dir.clone();
+    canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
+    let reload = |body: Value| {
+        std::fs::write(auth_dir.join("d.json"), body.to_string()).unwrap();
+        cpa_server::plugins::reload_plugin_auth_files(&env.rt)
+    };
+    let file = |extra: Value| {
+        let mut body = json!({"type":"pp","access_token":"q","refresh_interval":"1h"});
+        body.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
+        body
+    };
+    reload(file(json!({}))).await;
+    env.rt.start_auto_refresh();
+    eventually("the first refresh", || refreshes("d.json") == 1).await;
+    let refreshed = |c: &cpa_core::credential::Credential| c.metadata["access_token"] == "p2";
+    eventually("the committed refresh", || {
+        refreshed(&env.rt.store().get("d.json").unwrap())
+    })
+    .await;
+    reload(file(json!({"note":"edited"}))).await;
+    assert_eq!(env.rt.store().get("d.json").unwrap().metadata["note"], "edited");
+    // The refresh loop coalesces store changes for 1 s.
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    assert_eq!(refreshes("d.json"), 1, "an edit keeps the last refresh");
+    reload(file(json!({"disabled":true}))).await;
+    assert!(env.rt.store().get("d.json").unwrap().disabled);
+    reload(file(json!({}))).await;
+    eventually("the refresh after the enabling reload", || refreshes("d.json") == 2).await;
+    env.finish().await;
+}
+
 /// What a plugin refresh response saves (Go `MergeRefreshedAuth`, then the store): its
 /// `disabled` state and the merged proxy URL reach the document, and the proxy URL the
 /// running credential, so the next refresh starts from it. A response that moves the
