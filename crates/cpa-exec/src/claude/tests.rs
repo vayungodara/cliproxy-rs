@@ -221,6 +221,70 @@ async fn custom_origin_counts_locally_without_sending_credentials() {
     );
 }
 
+/// count_tokens checks `default` rules against the client's original request, not the
+/// working body (868e137): a default for a field only the original sets is not added.
+#[tokio::test]
+async fn count_defaults_read_the_original_request() {
+    let mut credential = Credential::from_file(
+        Path::new("/fake"),
+        Path::new("/fake/claude.json"),
+        serde_json::json!({"type":"claude","access_token":"sk-ant-oat-fake"})
+            .as_object()
+            .unwrap()
+            .clone(),
+    )
+    .unwrap();
+    // A custom origin counts locally, so nothing is sent.
+    credential
+        .attributes
+        .insert("base_url".into(), "http://127.0.0.1:9".into());
+    let working = br#"{"model":"claude","messages":[{"role":"user","content":"Hello."}]}"#;
+    let count = |config: &'static str, original: &'static [u8]| {
+        let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+        let credential = credential.clone();
+        async move {
+            let req = ExecRequest {
+                operation: Operation::CountTokens,
+                source_format: Format::Claude,
+                response_format: Format::Claude,
+                stream_payloads: false,
+                requested_model: "claude".into(),
+                model: "claude".into(),
+                original_body: Bytes::from_static(original),
+                body: Bytes::from_static(working),
+                stream: false,
+                alt: None,
+                session: None,
+                execution_session: None,
+                derived_session: None,
+                resolved_model: None,
+                usage: Default::default(),
+                request_path: String::new(),
+                headers: Default::default(),
+                caller: Caller {
+                    principal: "fake-client".into(),
+                    source: "x-api-key",
+                    provider: String::new(),
+                },
+            };
+            let response = executor
+                .execute(&credential, req, &Config::parse(config).unwrap())
+                .await
+                .unwrap();
+            let ResponseBody::Buffered(body) = response.body else {
+                panic!("count is buffered")
+            };
+            String::from_utf8(body.to_vec()).unwrap()
+        }
+    };
+    let rule = "payload:\n  default:\n    - models: [{name: claude}]\n      params: {system: \"A configured system prompt that adds tokens\"}\n";
+    let original = br#"{"model":"claude","system":"x","messages":[{"role":"user","content":"Hello."}]}"#;
+    let plain = count("", working).await;
+    let defaulted = count(rule, working).await;
+    assert_ne!(plain, defaulted, "the default applies when neither body sets system");
+    assert_eq!(count(rule, original).await, plain, "the original sets system");
+}
+
 /// Go's conductor observes the quota headers of every Messages response (success,
 /// undecodable success or upstream error) for Claude credentials; count_tokens results
 /// skip observation.
