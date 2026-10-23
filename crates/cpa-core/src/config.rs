@@ -36,21 +36,18 @@ pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
     Ok(value)
 }
 
+/// yaml.v3's error for a merge value that is not a mapping or a list of mappings.
+const MERGE_NOT_MAPS: &str = "map merge requires map or sequence of maps as the value";
+
 /// Go `expandConfigAliases` plus yaml.v3's merge rules: `<<` keys expand bottom-up
 /// (nested merges first); explicit keys win, then earlier merged mappings. A merge
 /// value that is not a mapping or a list of mappings is yaml.v3's decode error.
-/// (Aliases are already expanded by the parser.)
-///
-/// ponytail: the parsed value no longer says whether a key was quoted, so a quoted
-/// `<<` key in config.yaml merges here, where yaml.v3 loads it as a plain key. Go's
-/// style-normalizing v8 save clears double quotes only: a double-quoted `"<<"` then
-/// merges a mapping or fails on a scalar, a single-quoted `'<<'` stays a plain key, and
-/// an unknown section archived before the save never merges. A JSON body sent to
-/// `/config.yaml` is the same gap (Go 422, here 400). JSON bodies elsewhere keep `<<`
-/// literal until the completed candidate is expanded. Telling quoted keys apart needs
-/// the yaml-edit syntax tree walked alongside the value.
+/// (Aliases are already expanded by the parser.) The parsed value no longer says whether
+/// a key was quoted or a merge operand an alias, so [`yaml_value`] refuses a quoted
+/// `<<` key (yaml.v3 reads it as a plain key) and fails an alias of a sequence as a
+/// merge operand. A JSON management body, which is not read through it, keeps `<<`
+/// literal until the completed candidate is expanded, as Go's save ends up writing it plain.
 pub fn expand_merges(value: &mut Value) -> anyhow::Result<()> {
-    const NOT_MAPS: &str = "map merge requires map or sequence of maps as the value";
     match value {
         Value::Mapping(map) => {
             for (_, child) in map.iter_mut() {
@@ -63,10 +60,10 @@ pub fn expand_merges(value: &mut Value) -> anyhow::Result<()> {
                         .into_iter()
                         .map(|item| match item {
                             Value::Mapping(m) => Ok(m),
-                            _ => Err(anyhow::anyhow!(NOT_MAPS)),
+                            _ => Err(anyhow::anyhow!(MERGE_NOT_MAPS)),
                         })
                         .collect::<anyhow::Result<_>>()?,
-                    _ => bail!(NOT_MAPS),
+                    _ => bail!(MERGE_NOT_MAPS),
                 };
                 for source in sources {
                     for (key, item) in source {

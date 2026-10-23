@@ -128,6 +128,10 @@ func TestZZCmdFixture(t *testing.T) {
 		// Invalid base64 on the path, then elsewhere: cliproxy-rs refuses both.
 		"discovery:\n  interfaces:\n    include: [!!binary '!!!']\n",
 		"proxy-url: !!binary '!!!'\ndiscovery:\n  interfaces:\n    exclude: [eth0]\n",
+		// A quoted merge key (a plain key to yaml.v3) and an aliased sequence as a merge
+		// operand (a decode error): cliproxy-rs refuses both.
+		"discovery:\n  interfaces:\n    '<<': {exclude: [eth0]}\n    include: [wl*]\n",
+		"seq: &s [{exclude: [eth0]}]\ndiscovery:\n  interfaces:\n    <<: *s\n    include: [wl*]\n",
 	} {
 		path := filepath.Join(dir, "config.yaml")
 		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {

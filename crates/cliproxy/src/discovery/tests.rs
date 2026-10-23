@@ -391,6 +391,19 @@ fn terminal_sanitizing_and_filters_match_go() {
             assert!(e.ends_with("yaml: !!binary value contains invalid base64 data"), "{e}");
             continue;
         }
+        // A quoted `<<` (a plain key to Go) and an aliased sequence as a merge operand
+        // (Go scans with no filters) are refused too.
+        let refusal = [
+            ("'<<'", "a quoted << mapping key in the config file is not supported"),
+            ("<<: *s", "map merge requires map or sequence of maps as the value"),
+        ]
+        .into_iter()
+        .find(|(marker, _)| s(&case["yaml"]).contains(marker));
+        if let Some((_, refusal)) = refusal {
+            let e = got.unwrap_err();
+            assert!(e.ends_with(refusal), "{e}");
+            continue;
+        }
         assert_eq!(got, Ok((list(&case["include"]), list(&case["exclude"]))), "{case}");
     }
     assert_eq!(
