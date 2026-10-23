@@ -1107,11 +1107,9 @@ fn config_sync_locked(
         Ok(v) => v,
         Err(e) => return invalid_config(StatusCode::BAD_REQUEST, e),
     };
-    // Go `ParseConfigBytes` (422) checks the key groups and weights before it decodes,
-    // then `ValidateV8Config` (400) the layout before its strict decode.
-    if let Some(e) = legacy::v8_group_error(doc.value()) {
-        return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e);
-    }
+    // Go `ParseConfigBytes` (422), which checks the layout shape, the key groups and
+    // the weights unwrapped before it decodes, then `ValidateV8Config` (400) the layout
+    // before its strict decode.
     let parsed = match Config::parse_payload(&text) {
         Ok(v) => v,
         Err(e) => return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e),

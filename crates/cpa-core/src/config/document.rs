@@ -882,6 +882,90 @@ pub fn v8_layout_error(root: &Value) -> Option<String> {
         .map(|key| format!("unknown API-key provider {key}"))
 }
 
+/// The credential checks Go's `validateCredentialWeightYAML` makes (first in
+/// `LoadConfig` and `ParseConfigBytes`, unwrapped), after `flattenV8`'s shape and
+/// version checks: [`v8_group_error`], then the weights of the legacy key lists and
+/// OpenAI-compatible `api-key-entries` a v8 family does not replace, in document order.
+/// `root` is the merge-expanded document.
+pub fn credential_error(root: &Mapping) -> Option<String> {
+    if let Some(e) = v8_group_error(root) {
+        return Some(e);
+    }
+    let groups = root.get("api-keys").and_then(Value::as_mapping);
+    root.iter().find_map(|(name, value)| {
+        let name = name.as_str()?;
+        let (_, family) = FAMILIES.iter().find(|(legacy, _)| *legacy == name)?;
+        if groups.is_some_and(|g| g.contains_key(*family)) {
+            return None;
+        }
+        if name != "openai-compatibility" {
+            return weight_error(value.as_sequence()?, name);
+        }
+        value.as_sequence()?.iter().enumerate().find_map(|(p, provider)| {
+            let entries = provider.as_mapping()?.get("api-key-entries")?.as_sequence()?;
+            weight_error(entries, &format!("openai-compatibility[{p}].api-key-entries"))
+        })
+    })
+}
+
+/// Go `flattenV8`'s v8 key group expansion (`expandV8Groups`), in family order, the
+/// group keys' weights included. `root` is the merge-expanded document.
+pub fn v8_group_error(root: &Mapping) -> Option<String> {
+    let groups = root.get("api-keys").and_then(Value::as_mapping)?;
+    for (_, family) in FAMILIES {
+        let Some(groups) = groups.get(*family) else {
+            continue;
+        };
+        let Some(groups) = groups.as_sequence() else {
+            return Some(format!("api-keys.{family} must be a list"));
+        };
+        for (index, group) in groups.iter().enumerate() {
+            let Some(group) = group.as_mapping() else {
+                return Some(format!("api-keys.{family}[{index}] must be a mapping"));
+            };
+            let Some(keys) = group.get("keys").and_then(Value::as_sequence) else {
+                return Some(format!("api-keys.{family}[{index}].keys must be a list"));
+            };
+            if let Some(e) = weight_error(keys, &format!("api-keys.{family}.keys")) {
+                return Some(e);
+            }
+            if *family == "openai-compatibility" {
+                continue;
+            }
+            let unsupported = group
+                .keys()
+                .map(|k| k.as_str().unwrap_or_default())
+                .find(|field| !["name", "base-url", "keys"].contains(field) && !SHARED.contains(field));
+            if let Some(field) = unsupported {
+                return Some(format!("api-keys.{family}: unsupported group field {field}"));
+            }
+            for key in keys {
+                let Some(key) = key.as_mapping() else {
+                    return Some(format!("api-keys.{family} key must be a mapping"));
+                };
+                if key.contains_key("base-url") {
+                    return Some(format!("api-keys.{family}: base-url belongs to the group"));
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Go `validateWeightSequenceNode`: the first weight that is not an integer node or is
+/// above the limit, as `<path>[<i>].weight: <reason>`.
+fn weight_error(items: &[Value], path: &str) -> Option<String> {
+    items.iter().enumerate().find_map(|(i, item)| {
+        let weight = item.as_mapping()?.get("weight")?;
+        let reason = match weight.as_i64() {
+            None => "weight must be an integer",
+            Some(w) if w > 1_000_000 => "weight must not exceed 1000000",
+            Some(_) => return None,
+        };
+        Some(format!("{path}[{i}].weight: {reason}"))
+    })
+}
+
 pub fn is_v8_layout(root: &Value) -> bool {
     let mut root = root.clone();
     if super::expand_merges(&mut root).is_err() {

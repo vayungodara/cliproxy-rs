@@ -22,7 +22,7 @@ mod schema;
 mod text;
 mod trusted;
 mod validate;
-pub use document::{ConfigDocument, archive_comments, is_v8_layout, v8_layout_error};
+pub use document::{ConfigDocument, archive_comments, credential_error, is_v8_layout, v8_group_error, v8_layout_error};
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
 
@@ -589,6 +589,9 @@ fn decode(text: &str, payload: bool) -> anyhow::Result<(Mapping, ConfigDocument)
         _ => bail!("config must be a mapping"),
     };
     validate_shape(&root)?;
+    if let Some(e) = credential_error(&root) {
+        bail!(e);
+    }
     let mut document = ConfigDocument::from_mapping(root.clone())?;
     document.coerce_typed_scalars();
     schema::validate(document.value(), false)
@@ -892,6 +895,26 @@ mod tests {
         assert!(
             Config::parse("routing: null\nconfig-version: 8\n").is_ok(),
             "routing: null means defaults"
+        );
+    }
+
+    #[test]
+    fn image_generation_mode_reads_go_spellings() {
+        let mode = |yaml: &str| {
+            Config::parse(&format!("multimedia:\n  disable-image-generation: {yaml}\n"))
+                .map(|c| c.document["multimedia"]["disable-image-generation"].clone())
+                .map_err(|e| e.to_string())
+        };
+        assert_eq!(mode("' Off '"), Ok(Value::Bool(false)));
+        assert_eq!(mode("~"), Ok(Value::Bool(false)));
+        assert_eq!(mode("YES"), Ok(Value::Bool(true)));
+        assert_eq!(mode("' Chat'"), Ok(Value::from("chat")));
+        assert_eq!(
+            mode("\"\\u00dc\\u0001\""),
+            Err(
+                "invalid disable-image-generation value \"\u{fc}\\x01\" (allowed: true, false, chat, passthrough)"
+                    .into()
+            )
         );
     }
 
