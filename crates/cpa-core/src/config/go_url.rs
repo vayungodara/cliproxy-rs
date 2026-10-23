@@ -71,6 +71,80 @@ pub fn parse(raw: &str) -> Option<GoUrl> {
     Some(url)
 }
 
+/// Go `URL.RequestURI()` after `url.Parse(raw)` for a URL with a path (`EscapedPath`,
+/// then `?` and the raw query); `None` where Parse fails or the URL is opaque.
+pub fn request_uri(raw: &str) -> Option<String> {
+    parse(raw)?;
+    let u = raw.split_once('#').map_or(raw, |(u, _)| u);
+    let (_, rest) = get_scheme(u)?;
+    let (rest, query) = if rest.ends_with('?') && rest.matches('?').count() == 1 {
+        (&rest[..rest.len() - 1], Some(""))
+    } else {
+        rest.split_once('?').map_or((rest, None), |(r, q)| (r, Some(q)))
+    };
+    let path = match rest.strip_prefix("//") {
+        Some(authority) => authority.find('/').map_or("", |i| &authority[i..]),
+        None => rest,
+    };
+    if !path.is_empty() && !path.starts_with('/') {
+        return None;
+    }
+    let mut target = if path.is_empty() {
+        "/".to_owned()
+    } else if valid_encoded_path(path) {
+        path.to_owned()
+    } else {
+        escape_path(&unescape_bytes(path)?)
+    };
+    if let Some(query) = query {
+        target.push('?');
+        target.push_str(query);
+    }
+    Some(target)
+}
+
+/// Go `shouldEscape(c, encodePath)`.
+fn path_should_escape(c: u8) -> bool {
+    !(c.is_ascii_alphanumeric() || b"-_.~$&+,/:;=@".contains(&c))
+}
+
+/// Go `validEncoded(s, encodePath)`.
+fn valid_encoded_path(s: &str) -> bool {
+    s.bytes()
+        .all(|c| b"!$&'()*+,;=:@[]%".contains(&c) || !path_should_escape(c))
+}
+
+/// Go `escape(s, encodePath)`.
+fn escape_path(s: &[u8]) -> String {
+    let mut out = String::with_capacity(s.len());
+    for &c in s {
+        if path_should_escape(c) {
+            out.push_str(&format!("%{c:02X}"));
+        } else {
+            out.push(c as char);
+        }
+    }
+    out
+}
+
+/// Go `unescape(s, encodePath)` as bytes.
+fn unescape_bytes(s: &str) -> Option<Vec<u8>> {
+    let b = s.as_bytes();
+    let hex = |c: u8| (c as char).to_digit(16).map(|d| d as u8);
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] == b'%' {
+            out.push(hex(*b.get(i + 1)?)? << 4 | hex(*b.get(i + 2)?)?);
+            i += 3;
+        } else {
+            out.push(b[i]);
+            i += 1;
+        }
+    }
+    Some(out)
+}
+
 fn get_scheme(raw: &str) -> Option<(&str, &str)> {
     for (i, c) in raw.bytes().enumerate() {
         match c {
@@ -229,5 +303,26 @@ mod tests {
         assert_eq!(parse("turn:%zz").map(|u| u.scheme), Some("turn".into()));
         assert!(parse("postgres://a:1,b:2/db").is_some());
         assert!(parse("http://h/?%zz").is_some(), "Go leaves the query unvalidated");
+    }
+
+    /// Go 1.26.4 `URL.RequestURI()` after `url.Parse`.
+    #[test]
+    fn request_uri_follows_go() {
+        for (raw, want) in [
+            ("http://h:1/my catalogs/../models.json", "/my%20catalogs/../models.json"),
+            ("https://h/mod\u{e8}les/models.json", "/mod%C3%A8les/models.json"),
+            ("https://h/a%2Fb/x|y.json", "/a/b/x%7Cy.json"),
+            ("https://h/a%2Fb/x.json", "/a%2Fb/x.json"),
+            ("https://h/a/../c.json?x=1&y=a b", "/a/../c.json?x=1&y=a b"),
+            ("https://h/[x]/!$'()*.json", "/[x]/!$'()*.json"),
+            ("https://h", "/"),
+            ("https://h?", "/?"),
+            ("https://h/p#frag", "/p"),
+            ("https://h/%41", "/%41"),
+        ] {
+            assert_eq!(request_uri(raw).as_deref(), Some(want), "{raw}");
+        }
+        assert_eq!(request_uri("https://h/%zz"), None);
+        assert_eq!(request_uri("mailto:x"), None);
     }
 }

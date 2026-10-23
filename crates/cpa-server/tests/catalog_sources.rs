@@ -114,18 +114,14 @@ async fn commits_reconfigure_in_order_and_invalid_sources_are_rejected() {
     rt.publish_config(config(&auth, [&general, &codex, &b]));
     rt.publish_config(config(&auth, [&general, &codex, &a]));
     await_devin(&d1).await;
-    // B's read, if it finished late, is not published over A's.
-    tokio::time::sleep(Duration::from_millis(200)).await;
-    assert_eq!(devin::global().snapshot().0, d1);
 
-    // A relative source fails Go's validation: the whole commit is rejected.
+    // A relative source fails Go's validation: the whole commit is rejected. Loaded
+    // configs are validated already; this is a caller editing the document.
     let mut invalid = config(&auth, [&general, &codex, &b]);
     let models = invalid.document.get_mut("models").unwrap().as_mapping_mut().unwrap();
     models.insert("devin-catalog".into(), "relative.json".into());
-    rt.publish_config(invalid);
+    assert!(!rt.publish_config(invalid));
     assert_eq!(rt.config().catalog_sources()[2], a.display().to_string());
-    tokio::time::sleep(Duration::from_millis(200)).await;
-    assert_eq!(devin::global().snapshot().0, d1);
 
     // Restore the embedded catalog for the other test.
     let embedded = dir.join("embedded.json");

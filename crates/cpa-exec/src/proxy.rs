@@ -399,8 +399,8 @@ pub struct GoHeaders {
     compression_disabled: bool,
     /// Send the first request's target exactly as the caller wrote the URL.
     exact_target: bool,
-    /// Fail a redirect whose target has a percent-encoded dot segment.
-    refuse_encoded_dots: bool,
+    /// Fail a redirect whose target the URL parser would read differently from Go.
+    refuse_ambiguous_redirects: bool,
 }
 
 impl GoHeaders {
@@ -436,11 +436,13 @@ impl GoHeaders {
         self.exact_target = true;
     }
 
-    /// Fails a redirect whose `Location` path has a percent-encoded dot segment (`%2e`,
-    /// `.%2e`, `%2e%2e`). Later hops go out as `url::Url` serializes them, which reads
-    /// those as dot segments where Go keeps them, so such a hop would fetch another path.
-    pub fn refuse_encoded_dot_redirects(&mut self) {
-        self.refuse_encoded_dots = true;
+    /// Fails a redirect whose `Location` a later hop would not request as Go does: one
+    /// with a percent-encoded dot segment (`%2e`, `.%2e`, `%2e%2e`), which `url::Url`
+    /// reads as a dot segment where Go keeps it, or with a byte outside RFC 3986's
+    /// characters (`\`, controls, space, `"`, `<`, `>`, `` ` ``, `{`, `}`, `|`, `^`), which
+    /// WHATWG parsing strips, reads as `/` or escapes differently from Go.
+    pub fn refuse_ambiguous_redirects(&mut self) {
+        self.refuse_ambiguous_redirects = true;
     }
 
     /// The headers as Go's `http.Header` holds them before sending (`Header.Clone()`, what
@@ -933,13 +935,9 @@ async fn exchange(
         if !follow_redirects || !matches!(status, 301 | 302 | 303 | 307 | 308) || location.is_empty() {
             break (response, auto_gzip, dialled);
         }
-        if hop_headers.refuse_encoded_dots && encoded_dot_segment(&location) {
+        if hop_headers.refuse_ambiguous_redirects && ambiguous_location(&location) {
             return Err(local(
-                ExecError::local(
-                    500,
-                    FailureScope::Transport,
-                    "redirect target has an encoded dot segment",
-                ),
+                ExecError::local(500, FailureScope::Transport, "ambiguous redirect target"),
                 &hop_url,
             ));
         }
@@ -1289,14 +1287,17 @@ fn remember_protocol(url: &url::Url, http2: bool) {
     protocols.insert(origin(url), http2);
 }
 
-/// Whether a `Location`'s path has a segment that is a dot segment only once
-/// percent-decoded (`%2e`, `.%2e`, `%2E%2e`, ...).
-fn encoded_dot_segment(location: &str) -> bool {
+/// See [`GoHeaders::refuse_ambiguous_redirects`].
+fn ambiguous_location(location: &str) -> bool {
+    let outside = location
+        .bytes()
+        .any(|b| !(b.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=:@/?%#[]".contains(&b)));
     let path = location.split(['?', '#']).next().unwrap_or_default();
-    path.split('/').any(|segment| {
-        let decoded = segment.replace("%2e", ".").replace("%2E", ".");
-        decoded != segment && matches!(decoded.as_str(), "." | "..")
-    })
+    outside
+        || path.split('/').any(|segment| {
+            let decoded = segment.replace("%2e", ".").replace("%2E", ".");
+            decoded != segment && matches!(decoded.as_str(), "." | "..")
+        })
 }
 
 /// Go `URL.ResolveReference` against the base URL as written (`Response.Location`):
