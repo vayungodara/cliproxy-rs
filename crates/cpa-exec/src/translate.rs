@@ -84,6 +84,22 @@ pub(crate) fn original(
     Ok(cpa_common::json::delete_changed(&original, "max_tokens").map_or(original, Bytes::from))
 }
 
+/// The count_tokens rule baseline (868e137): the client's original payload translated
+/// like the working one, else the working translation (`translated`). Go counts with a
+/// failed translation's partial body; this refuses with its error.
+pub(crate) fn count_original(
+    req: &ExecRequest,
+    translated: &Bytes,
+    codex: cpa_common::codex_client::Settings,
+    model: &str,
+    is_compat: bool,
+) -> Result<Bytes, ExecError> {
+    if req.original_body.is_empty() {
+        return Ok(translated.clone());
+    }
+    translate_body(req, &req.original_body, codex, model, is_compat)
+}
+
 fn translate_body(
     req: &ExecRequest,
     body: &[u8],
