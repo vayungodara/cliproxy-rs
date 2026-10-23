@@ -624,29 +624,54 @@ fn in_source(source: &[u8], targets: &[Target]) -> Vec<bool> {
     // ponytail: a nested query's targets each name a different inner array, so each is
     // located from the source's root (one get per outer element); caching the shared
     // ancestors would make nested defaults linear too.
-    let mut arrays: HashMap<&str, Option<Vec<Res<'_>>>> = HashMap::new();
+    let mut bases: HashMap<&str, Base<'_>> = HashMap::new();
     targets
         .iter()
         .zip(locals)
         .map(|(t, l)| {
-            let items = arrays.entry(&l.base).or_insert_with(|| {
-                let array = if l.base.is_empty() {
-                    json::parse(source)
-                } else {
-                    json::get(source, &l.base)
-                };
-                // A numeric part reads an object key in gjson; only arrays index.
-                array.is_array().then(|| array.array())
+            let base = bases.entry(&l.base).or_insert_with(|| match route(source, &l.base) {
+                Route::Missing => Base::Missing,
+                Route::Ambiguous => Base::Ambiguous,
+                Route::Found(bytes) => {
+                    let value = json::parse(bytes);
+                    match value.raw().first() {
+                        Some(b'[') => Base::Array(value.array()),
+                        // A numeric part reads an object key in gjson, which tries each
+                        // member with that key in turn.
+                        Some(b'{') => {
+                            let mut keys: HashMap<Vec<u8>, Vec<Res<'_>>> = HashMap::new();
+                            value.each(|k, v| {
+                                keys.entry(k.bytes().into_owned()).or_default().push(v);
+                                true
+                            });
+                            Base::Object(keys)
+                        }
+                        _ => Base::Missing,
+                    }
+                }
             });
-            match items {
-                // A path through a scalar is missing, as in a whole-source get.
-                Some(items) => items.get(l.index).is_some_and(|item| {
-                    l.rest.is_empty() || (matches!(item.raw().first(), Some(b'{' | b'[')) && item.get(&l.rest).exists())
-                }),
-                None => json::get(source, &t.path).exists(),
+            // A path through a scalar is missing, as in a whole-source get.
+            let holds = |item: &Res<'_>| {
+                l.rest.is_empty() || (matches!(item.raw().first(), Some(b'{' | b'[')) && item.get(&l.rest).exists())
+            };
+            match base {
+                Base::Missing => false,
+                Base::Array(items) => items.get(l.index).is_some_and(holds),
+                Base::Object(keys) => keys
+                    .get(l.index.to_string().as_bytes())
+                    .is_some_and(|items| items.iter().any(holds)),
+                Base::Ambiguous => json::get(source, &t.path).exists(),
             }
         })
         .collect()
+}
+
+/// What the source holds at a target array's path, read once for all its targets.
+enum Base<'s> {
+    Missing,
+    Array(Vec<Res<'s>>),
+    Object(HashMap<Vec<u8>, Vec<Res<'s>>>),
+    Ambiguous,
 }
 
 fn normalize_from_protocol(p: &str) -> String {
@@ -732,6 +757,9 @@ struct Target {
 
 #[derive(Clone)]
 struct Local {
+    /// The route from the body's root to the element has one candidate at every level,
+    /// so reading inside the element finds what gjson finds from the root.
+    unique: bool,
     elem: (usize, usize),
     /// The element is an object or array; a path inside a scalar reads nothing.
     container: bool,
@@ -745,6 +773,63 @@ struct Local {
 /// leading `:` is a key to gjson but forces an object key in sjson.
 fn plain(part: &str) -> bool {
     !part.is_empty() && !part.bytes().any(|c| b"|@*?#\\!=<>%:".contains(&c))
+}
+
+/// Where a plain path leads in `doc`, when gjson cannot read it differently.
+enum Route<'d> {
+    /// No candidate at some level, so gjson finds nothing either.
+    Missing,
+    /// The value's bytes, a slice of `doc`.
+    Found(&'d [u8]),
+    /// A part that is not plain, a duplicate key (gjson tries each in turn), or a
+    /// part an array does not read as a plain index: read the full path from the root.
+    Ambiguous,
+}
+
+/// Walks `path` through `doc` one level at a time, visiting each container on the route
+/// once. An empty path is the document.
+fn route<'d>(doc: &'d [u8], path: &str) -> Route<'d> {
+    let mut cur = doc;
+    if path.is_empty() {
+        return Route::Found(cur);
+    }
+    for part in path.split('.') {
+        if !plain(part) {
+            return Route::Ambiguous;
+        }
+        let value = json::parse(cur);
+        let mut found = None;
+        let mut ambiguous = false;
+        match value.raw().first() {
+            Some(b'{') => value.each(|k, v| {
+                if *k.bytes() == *part.as_bytes() {
+                    ambiguous |= found.is_some();
+                    found = Some(v);
+                }
+                !ambiguous
+            }),
+            Some(b'[') => {
+                if !part.bytes().all(|c| c.is_ascii_digit()) || (part.len() > 1 && part.starts_with('0')) {
+                    return Route::Ambiguous;
+                }
+                found = part
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|i| value.array().into_iter().nth(i));
+            }
+            _ => return Route::Missing,
+        }
+        if ambiguous {
+            return Route::Ambiguous;
+        }
+        let Some(v) = found else { return Route::Missing };
+        // Indexes count from the start of `cur`.
+        match cur.get(v.index..v.index + v.raw().len()) {
+            Some(bytes) if bytes == v.raw() => cur = bytes,
+            _ => return Route::Ambiguous,
+        }
+    }
+    Route::Found(cur)
 }
 
 /// Go `resolvePayloadRulePaths`: `#(query)` and `#(query)#` segments become the matching
@@ -777,18 +862,26 @@ fn resolve_targets(payload: &[u8], path: &str) -> Vec<Target> {
         };
         let mut next = Vec::new();
         for t in &targets {
-            let (array, offset) = match &t.local {
-                Some(l) if l.rest.is_empty() || (l.container && l.rest.split('.').all(plain)) => {
-                    let elem = &payload[l.elem.0..l.elem.1];
-                    let array = if l.rest.is_empty() {
-                        json::parse(elem)
-                    } else {
-                        json::get(elem, &l.rest)
-                    };
-                    (array, l.elem.0)
+            // Read the array inside the element the previous query selected only when
+            // gjson's search from the root could not go anywhere else: every part is
+            // plain and every level on the route has one candidate. Otherwise (a
+            // wildcard or duplicate key before it) gjson moves on to the next candidate
+            // when the rest is missing, so read the full path from the root.
+            let routed = match &t.local {
+                Some(l) if l.unique && (l.rest.is_empty() || l.container) => {
+                    route(&payload[l.elem.0..l.elem.1], &l.rest)
                 }
-                _ if t.path.is_empty() => (json::parse(payload), 0),
-                _ => (json::get(payload, &t.path), 0),
+                Some(_) => Route::Ambiguous,
+                None => route(payload, &t.path),
+            };
+            let (array, offset, unique) = match routed {
+                Route::Missing => continue,
+                Route::Found(bytes) => {
+                    let offset = bytes.as_ptr() as usize - payload.as_ptr() as usize;
+                    (json::parse(bytes), offset, true)
+                }
+                Route::Ambiguous if t.path.is_empty() => (json::parse(payload), 0, false),
+                Route::Ambiguous => (json::get(payload, &t.path), 0, false),
             };
             if !array.is_array() {
                 continue;
@@ -803,6 +896,7 @@ fn resolve_targets(payload: &[u8], path: &str) -> Vec<Target> {
                 let path = join(&t.path, &index.to_string());
                 let local =
                     (located && payload.get(start..start + item.raw().len()) == Some(item.raw())).then(|| Local {
+                        unique,
                         elem: (start, start + item.raw().len()),
                         container: matches!(item.raw().first(), Some(b'{' | b'[')),
                         rest: String::new(),
@@ -853,7 +947,12 @@ fn locals(targets: &[Target], mode: Mode) -> Option<Vec<&Local>> {
         // The whole resolved path must be plain: sjson refuses a complex path (a
         // wildcard before the query included) on the whole body. A path inside a
         // scalar reads nothing in gjson, while the scalar's own bytes may parse.
-        if !fits || !(whole || l.container) || !t.path.split('.').all(plain) {
+        if !fits || !l.unique || !(whole || l.container) || !t.path.split('.').all(plain) {
+            return None;
+        }
+        // sjson's delete reads an unforced `-1` key as the last element (`Get("#")`),
+        // even in an object, so a delete under one may land outside this element.
+        if mode != Mode::Any && l.base.split('.').any(|p| p == "-1") {
             return None;
         }
         if out.last().is_some_and(|prev| prev.elem.1 > l.elem.0) {

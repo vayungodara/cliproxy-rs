@@ -58,6 +58,14 @@ payload:
       params: {nums_matched: true}
     - models: [{name: "wild-*", exist: ["strs.#(==\"[1,2]\")#.0"]}]
       params: {scalar_exists: true}
+    - models: [{name: "lno-*"}]
+      params: {"items.#(k==1)#.x": 9}
+    - models: [{name: "lno-*"}]
+      params: {"whole.#(k==2)#": 5}
+    - models: [{name: "lns-*"}]
+      params: {"-1.#(k==1)#.d": 2}
+    - models: [{name: "lnx-*", exist: ["items.#(k==1)#.z"]}]
+      params: {z_seen: true}
   default-raw:
     - models: [{name: "gpt-*"}]
       params: {response_format: '{"type":"json_object"}'}
@@ -67,6 +75,8 @@ payload:
       params: {"items.#(k==2)#.r": '{"x":1}'}
     - models: [{name: "lin-*"}]
       params: {"multi.#(k==1)#.r": '{"y":2}'}
+    - models: [{name: "lno-*"}]
+      params: {"items.#(k==1)#.y": '{"a":1}'}
   override:
     - models: [{name: "gpt-*"}]
       params: {max_tokens: 100}
@@ -102,6 +112,12 @@ payload:
       params: {"eq.#(k==1)#.v": 1}
     - models: [{name: "lin-*"}]
       params: {"a*.#(k==1)#.new": "complex"}
+    - models: [{name: "lnc-*"}]
+      params: {"a*.#(k==1)#.b.#(k==2)#.x": 9}
+    - models: [{name: "lng-*"}]
+      params: {"g.#(k==1)#.m.#(k==2)#.x": 9}
+    - models: [{name: "lns-*"}]
+      params: {"-1.#(k==1)#.s": 1}
   override-raw:
     - models: [{name: "gpt-*"}]
       params: {logit_bias: '{"1": -100}'}
@@ -128,6 +144,10 @@ payload:
       params: [":a.#(k==1)#.x"]
     - models: [{name: "lin-*"}]
       params: ["neg.#(k==1)#.list.-1"]
+    - models: [{name: "lnm-*"}]
+      params: ["-1.#(k==1)#"]
+    - models: [{name: "lnf-*"}]
+      params: ["-1.#(k==1)#.y"]
 `
 
 type payloadCase struct {
@@ -158,6 +178,8 @@ const lin = `{"diagnostics":{"ab":[{"k":1},{"k":1}]},":a":[{"k":1,"x":1},{"k":1,
 	`"whole":[{"k":1},{"k":2},{"k":1},{"k":2}],"lap":[{"k":1,"b":0},{"k":2},{"k":1}],` +
 	`"arr":[{"k":2,"list":[1]},{"k":1,"list":[1,2]},{"k":1,"list":[]}],"neg":[{"k":1,"list":[1,2,3]},{"k":1,"list":[4]}],` +
 	`"multi":[{"k":1},{"k":1,"r":{"old":1}},{"k":1}],"eq":[{"k":1,"v":1,"w":[1, 2]},{"k":1,"v":2,"w":[1,2]}],"nums":[3,7,9]}`
+
+const lno = `{"items":[{"k":1},{"k":1},{"k":1}],"whole":[{"k":2},{"k":2}]}`
 
 var payloadInputs = []payloadCase{
 	{Name: "chat_all_sections", Model: "gpt-5", RequestedModel: "gpt-5", Protocol: "openai", FromProtocol: "openai", Payload: chat, RequestPath: "/v1/chat/completions", Tracked: []string{"temperature", "messages", "max_tokens", "nope"}},
@@ -201,6 +223,29 @@ var payloadInputs = []payloadCase{
 		Payload: `{"items":[{"k":1},{"k":1}]}`, Original: `{"items":["[1,2]","[1,2]"]}`, Tracked: []string{"items.0.0", "items.1.0"}},
 	{Name: "wildcards_defaults_read_original", Model: "wild-1", Protocol: "openai",
 		Payload: `{"items":[{"k":1},{"k":2},{"k":1}]}`, Original: `{"items":[{"k":1},{"k":2},{"k":1,"d":"orig","n":{"m":1}}]}`},
+	// gjson's search from the root moves past a wildcard or duplicate key whose rest is
+	// missing; sjson's delete reads an unforced -1 as the last element; defaults read an
+	// original whose target array is missing, a scalar, an object or duplicated.
+	{Name: "nested_complex_prefix", Model: "lnc-1", Protocol: "openai",
+		Payload: `{"aa":[{"k":0},{"k":1}],"ab":[{},{"b":[{"k":2,"x":0}]}]}`, Tracked: []string{"a*.1.b.0.x"}},
+	{Name: "nested_duplicate_key", Model: "lng-1", Protocol: "openai",
+		Payload: `{"g":[{"k":1}],"g":[{"k":1,"m":[{"k":2}]}]}`, Tracked: []string{"g"}},
+	{Name: "condition_duplicate_key", Model: "lnx-1", Protocol: "openai",
+		Payload: `{"items":[{"k":1},{"k":1}],"items":[{"z":1},{"z":1}]}`},
+	{Name: "delete_under_minus_one", Model: "lnm-1", Protocol: "openai",
+		Payload: `{"#":1,"0":[{"k":1},{"k":1}],"-1":[{"k":1},{"k":1}]}`, Tracked: []string{"-1.0", "-1.1", "0"}},
+	{Name: "delete_fields_under_minus_one", Model: "lnf-1", Protocol: "openai",
+		Payload: `{"#":1,"0":[{"k":1,"y":1},{"k":1,"y":2}],"-1":[{"k":1,"y":3},{"k":1,"y":4}]}`, Tracked: []string{"-1", "0"}},
+	{Name: "set_under_minus_one", Model: "lns-1", Protocol: "openai",
+		Payload: `{"#":1,"0":[{"k":1}],"-1":[{"k":1},{"k":1}]}`, Tracked: []string{"-1", "0"}},
+	{Name: "original_lacks_array", Model: "lno-1", Protocol: "openai", Payload: lno, Original: `{"pad":"pp"}`, Tracked: []string{"items", "whole"}},
+	{Name: "original_scalar_base", Model: "lno-1", Protocol: "openai", Payload: lno, Original: `{"items":"[{\"x\":1}]","whole":7}`, Tracked: []string{"items", "whole"}},
+	{Name: "original_object_base", Model: "lno-1", Protocol: "openai", Payload: lno,
+		Original: `{"items":{"0":{"x":1},"1":"s","2":{"y":0}},"whole":{"1":0}}`, Tracked: []string{"items", "whole"}},
+	{Name: "original_object_duplicate_keys", Model: "lno-1", Protocol: "openai", Payload: lno,
+		Original: `{"items":{"0":"s","0":{"x":1},"2":{"y":1},"2":"t"},"whole":{"0":"a","0":"b"}}`, Tracked: []string{"items", "whole"}},
+	{Name: "original_duplicate_base", Model: "lno-1", Protocol: "openai", Payload: lno,
+		Original: `{"items":[{}],"items":[{"x":1},{"y":1},{}]}`, Tracked: []string{"items", "whole"}},
 	{Name: "codex_target_skips_integer_tools", Target: "codex", Model: "zz", Protocol: "codex", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},
 		Payload: `{"tools":[{"type":"function","name":"exec_command","parameters":{"properties":{"timeout_ms":{"type":"number"}}}}]}`},
 }
