@@ -1,5 +1,5 @@
 {
-  "config": "\ndisable-image-generation: chat\npayload:\n  default:\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.5}\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.9}\n    - models: [{name: \"gpt-*\", protocol: openai}]\n      params: {metadata.tags: [\"a\", \"b\"]}\n    - models: [{name: \"gpt-*\", from-protocol: openai-response}]\n      params: {reasoning.effort: \"high\"}\n    - models: [{name: \"claude-*\", headers: {X-Team: \"red-*\"}}]\n      params: {top_k: 40}\n    - models: [{name: \"*-thinking\"}]\n      params: {suffix_hit: true}\n    - models: [{name: \"gpt-*\", match: [{stream: true}]}]\n      params: {stream_options: {include_usage: true, \"\u003ctag\u003e\": 1.25e1}}\n    - models: [{name: \"gpt-*\", not-match: [{n: 2}]}]\n      params: {n_checked: 1}\n    - models: [{name: \"gpt-*\", exist: [user]}]\n      params: {user_seen: \"yes\"}\n    - models: [{name: \"gpt-*\", not-exist: [seed]}]\n      params: {seed: 7}\n    - models: [{name: \"img-*\"}]\n      params: {tool_choice: image_generation}\n  default-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {response_format: '{\"type\":\"json_object\"}'}\n    - models: [{name: \"gpt-*\"}]\n      params: {broken: '{\"type\":'}\n  override:\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 100}\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 200}\n    - models: [{name: \"gpt-*\"}]\n      params: {model_label: \"\u003cb\u003e\u0026\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {big: 1e21}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"messages.#(role==\\\"system\\\").content\": \"rewritten\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"tools.#(type==\\\"function\\\")#.strict\": true}\n    - models: [{name: \"gemini-*\"}]\n      params: {generationConfig.maxOutputTokens: 64}\n    - models: [{name: \"gpt-*\"}]\n      params: {nullable: null}\n    - models: [{name: \"uni-*\"}]\n      params: {\"items.#(é==1)#.x\": true}\n  override-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {logit_bias: '{\"1\": -100}'}\n  filter:\n    - models: [{name: \"gpt-*\"}]\n      params: [frequency_penalty, \"messages.#(role==\\\"developer\\\")#\"]\n",
+  "config": "\ndisable-image-generation: chat\npayload:\n  default:\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.5}\n    - models: [{name: \"gpt-*\"}]\n      params: {temperature: 0.9}\n    - models: [{name: \"gpt-*\", protocol: openai}]\n      params: {metadata.tags: [\"a\", \"b\"]}\n    - models: [{name: \"gpt-*\", from-protocol: openai-response}]\n      params: {reasoning.effort: \"high\"}\n    - models: [{name: \"claude-*\", headers: {X-Team: \"red-*\"}}]\n      params: {top_k: 40}\n    - models: [{name: \"*-thinking\"}]\n      params: {suffix_hit: true}\n    - models: [{name: \"gpt-*\", match: [{stream: true}]}]\n      params: {stream_options: {include_usage: true, \"\u003ctag\u003e\": 1.25e1}}\n    - models: [{name: \"gpt-*\", not-match: [{n: 2}]}]\n      params: {n_checked: 1}\n    - models: [{name: \"gpt-*\", exist: [user]}]\n      params: {user_seen: \"yes\"}\n    - models: [{name: \"gpt-*\", not-exist: [seed]}]\n      params: {seed: 7}\n    - models: [{name: \"img-*\"}]\n      params: {tool_choice: image_generation}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==1)#.d\": \"dv\"}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==1)#.n.m\": 5}\n  default-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {response_format: '{\"type\":\"json_object\"}'}\n    - models: [{name: \"gpt-*\"}]\n      params: {broken: '{\"type\":'}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==2)#.r\": '{\"x\":1}'}\n  override:\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 100}\n    - models: [{name: \"gpt-*\"}]\n      params: {max_tokens: 200}\n    - models: [{name: \"gpt-*\"}]\n      params: {model_label: \"\u003cb\u003e\u0026\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {big: 1e21}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"messages.#(role==\\\"system\\\").content\": \"rewritten\"}\n    - models: [{name: \"gpt-*\"}]\n      params: {\"tools.#(type==\\\"function\\\")#.strict\": true}\n    - models: [{name: \"gemini-*\"}]\n      params: {generationConfig.maxOutputTokens: 64}\n    - models: [{name: \"gpt-*\"}]\n      params: {nullable: null}\n    - models: [{name: \"uni-*\"}]\n      params: {\"items.#(é==1)#.x\": true}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==1)#.o\": \"ov\"}\n    - models: [{name: \"wild-*\"}]\n      params: {\"groups.#(g==1)#.members.#(m==1)#.flag\": true}\n  override-raw:\n    - models: [{name: \"gpt-*\"}]\n      params: {logit_bias: '{\"1\": -100}'}\n    - models: [{name: \"wild-*\"}]\n      params: {\"items.#(k==1)#.raw\": '[1, 2]'}\n  filter:\n    - models: [{name: \"gpt-*\"}]\n      params: [frequency_penalty, \"messages.#(role==\\\"developer\\\")#\"]\n    - models: [{name: \"wild-*\"}]\n      params: [\"items.#(k==1)#.drop\"]\n    - models: [{name: \"wild-*\"}]\n      params: [\"list.#(t==\\\"x\\\")#\"]\n    - models: [{name: \"wild-*\"}]\n      params: [\"nested.#(a==1)#.inner.#(b==1)#\"]\n",
   "headers": [
     {
       "name": "mixed",
@@ -313,6 +313,98 @@
       ],
       "tracked": null,
       "out": "{\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"integer\"},\"cmd\":{\"type\":\"string\"},\"yield_time_ms\":{\"type\":[\"integer\",\"null\"]}}}},{\"type\":\"function\",\"name\":\"other\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}},{\"type\":\"namespace\",\"tools\":[{\"name\":\"collab__wait_agent\",\"input_schema\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"function\":{\"name\":\"functions__sleep\",\"parameters\":{\"properties\":{\"duration_ms\":{\"type\":\"integer\"}}}}}]}]}",
+      "touched": []
+    },
+    {
+      "name": "wildcards",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[ {\"k\":1,\"d\":\"have\",\"o\":\"ov\",\"drop\":1} , {\"k\":2} ,{\"k\":1,\"drop\":2,\"o\":\"old\"},{\"k\":3}],\"list\":[ {\"t\":\"x\"} ,{\"t\":\"x\"},  {\"t\":\"y\"} , {\"t\":\"x\"}],\"groups\":[{\"g\":1,\"members\":[{\"m\":1},{\"m\":2},{\"m\":1,\"flag\":false}]},{\"g\":2,\"members\":[{\"m\":1}]},{\"g\":1,\"members\":[ {\"m\":1} ]}],\"nested\":[{\"a\":1,\"inner\":[{\"b\":1},{\"b\":2},{\"b\":1}]},{\"a\":2,\"inner\":[{\"b\":1}]},{\"a\":1,\"inner\":[{\"b\":1}]}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": [
+        "items.2",
+        "list",
+        "groups.0.members.2.flag",
+        "nested.2",
+        "items.1.r"
+      ],
+      "out": "{\"items\":[ {\"k\":1,\"d\":\"have\",\"o\":\"ov\",\"n\":{\"m\":5},\"raw\":[1, 2]} , {\"k\":2,\"r\":{\"x\":1}} ,{\"k\":1,\"o\":\"ov\",\"d\":\"dv\",\"n\":{\"m\":5},\"raw\":[1, 2]},{\"k\":3}],\"list\":[   {\"t\":\"y\"} ],\"groups\":[{\"g\":1,\"members\":[{\"m\":1,\"flag\":true},{\"m\":2},{\"m\":1,\"flag\":true}]},{\"g\":2,\"members\":[{\"m\":1}]},{\"g\":1,\"members\":[ {\"m\":1,\"flag\":true} ]}],\"nested\":[{\"a\":1,\"inner\":[{\"b\":2}]},{\"a\":2,\"inner\":[{\"b\":1}]},{\"a\":1,\"inner\":[]}]}",
+      "touched": [
+        "groups.0.members.2.flag",
+        "items.1.r",
+        "items.2",
+        "list",
+        "nested.2"
+      ]
+    },
+    {
+      "name": "wildcards_all_deleted",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"list\":[ {\"t\":\"x\"} ,\n {\"t\":\"x\"}\t]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"list\":[  \t]}",
+      "touched": []
+    },
+    {
+      "name": "wildcards_first_two_deleted",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"list\": [\n  {\"t\":\"x\"},\n  {\"t\":\"x\"} ,\n  {\"t\":\"y\"}  ,{\"t\":\"x\"},{\"t\":\"y\"}\n]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"list\": [\n  \n  {\"t\":\"y\"}  ,{\"t\":\"y\"}\n]}",
+      "touched": []
+    },
+    {
+      "name": "wildcards_middle_deleted",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"list\":[{\"t\":\"y\"} , {\"t\":\"x\"},{\"t\":\"x\"} ,  {\"t\":\"y\"}]}",
+      "original": "",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"list\":[{\"t\":\"y\"}  ,  {\"t\":\"y\"}]}",
+      "touched": []
+    },
+    {
+      "name": "wildcards_defaults_read_original",
+      "target": "",
+      "model": "wild-1",
+      "requested_model": "",
+      "protocol": "openai",
+      "from_protocol": "",
+      "root": "",
+      "payload": "{\"items\":[{\"k\":1},{\"k\":2},{\"k\":1}]}",
+      "original": "{\"items\":[{\"k\":1},{\"k\":2},{\"k\":1,\"d\":\"orig\",\"n\":{\"m\":1}}]}",
+      "request_path": "",
+      "headers": null,
+      "tracked": null,
+      "out": "{\"items\":[{\"k\":1,\"d\":\"dv\",\"n\":{\"m\":5},\"o\":\"ov\",\"raw\":[1, 2]},{\"k\":2,\"r\":{\"x\":1}},{\"k\":1,\"o\":\"ov\",\"raw\":[1, 2]}]}",
       "touched": []
     },
     {

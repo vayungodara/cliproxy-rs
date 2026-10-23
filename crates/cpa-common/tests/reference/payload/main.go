@@ -42,11 +42,17 @@ payload:
       params: {seed: 7}
     - models: [{name: "img-*"}]
       params: {tool_choice: image_generation}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==1)#.d": "dv"}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==1)#.n.m": 5}
   default-raw:
     - models: [{name: "gpt-*"}]
       params: {response_format: '{"type":"json_object"}'}
     - models: [{name: "gpt-*"}]
       params: {broken: '{"type":'}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==2)#.r": '{"x":1}'}
   override:
     - models: [{name: "gpt-*"}]
       params: {max_tokens: 100}
@@ -66,12 +72,24 @@ payload:
       params: {nullable: null}
     - models: [{name: "uni-*"}]
       params: {"items.#(é==1)#.x": true}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==1)#.o": "ov"}
+    - models: [{name: "wild-*"}]
+      params: {"groups.#(g==1)#.members.#(m==1)#.flag": true}
   override-raw:
     - models: [{name: "gpt-*"}]
       params: {logit_bias: '{"1": -100}'}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==1)#.raw": '[1, 2]'}
   filter:
     - models: [{name: "gpt-*"}]
       params: [frequency_penalty, "messages.#(role==\"developer\")#"]
+    - models: [{name: "wild-*"}]
+      params: ["items.#(k==1)#.drop"]
+    - models: [{name: "wild-*"}]
+      params: ["list.#(t==\"x\")#"]
+    - models: [{name: "wild-*"}]
+      params: ["nested.#(a==1)#.inner.#(b==1)#"]
 `
 
 type payloadCase struct {
@@ -93,6 +111,11 @@ type payloadCase struct {
 
 const chat = `{"model":"gpt-5","stream":true, "user":"u1","messages":[{"role":"system","content":"s"},{"role":"developer","content":"d1"},{"role":"user","content":"hi"},{"role":"developer","content":"d2"}],"tools":[{"type":"function","name":"a"},{"type":"image_generation"},{"type":"function","name":"b"}],"tool_choice":{"type":"image_generation"},"frequency_penalty":0.5,"max_tokens":100,"n":1,"big":1e21}`
 
+const wild = `{"items":[ {"k":1,"d":"have","o":"ov","drop":1} , {"k":2} ,{"k":1,"drop":2,"o":"old"},{"k":3}],` +
+	`"list":[ {"t":"x"} ,{"t":"x"},  {"t":"y"} , {"t":"x"}],` +
+	`"groups":[{"g":1,"members":[{"m":1},{"m":2},{"m":1,"flag":false}]},{"g":2,"members":[{"m":1}]},{"g":1,"members":[ {"m":1} ]}],` +
+	`"nested":[{"a":1,"inner":[{"b":1},{"b":2},{"b":1}]},{"a":2,"inner":[{"b":1}]},{"a":1,"inner":[{"b":1}]}]}`
+
 var payloadInputs = []payloadCase{
 	{Name: "chat_all_sections", Model: "gpt-5", RequestedModel: "gpt-5", Protocol: "openai", FromProtocol: "openai", Payload: chat, RequestPath: "/v1/chat/completions", Tracked: []string{"temperature", "messages", "max_tokens", "nope"}},
 	{Name: "defaults_skip_fields_in_original", Model: "gpt-5", Protocol: "openai", Payload: `{"model":"gpt-5"}`, Original: `{"temperature":1,"seed":3}`},
@@ -109,6 +132,17 @@ var payloadInputs = []payloadCase{
 	{Name: "unicode_query_key", Model: "uni-1", Protocol: "openai", Payload: `{"items":[{"é":1},{"é":2},{"é":1,"x":false}]}`},
 	{Name: "codex_client_integer_tools", Target: "openai", Model: "zz", Protocol: "openai", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},
 		Payload: `{"tools":[{"type":"function","name":"exec_command","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"},"cmd":{"type":"string"},"yield_time_ms":{"type":["number","null","integer"]}}}},{"type":"function","name":"other","parameters":{"properties":{"timeout_ms":{"type":"number"}}}},{"type":"namespace","tools":[{"name":"collab__wait_agent","input_schema":{"properties":{"timeout_ms":{"type":"number"}}}}]}],"input":[{"type":"additional_tools","tools":[{"function":{"name":"functions__sleep","parameters":{"properties":{"duration_ms":{"type":"number"}}}}}]}]}`},
+	// Wildcard targets: element-local edits, nested queries, and whole-element deletes
+	// (first, adjacent, last and all elements) with uneven whitespace.
+	{Name: "wildcards", Model: "wild-1", Protocol: "openai", Payload: wild, Tracked: []string{"items.2", "list", "groups.0.members.2.flag", "nested.2", "items.1.r"}},
+	{Name: "wildcards_all_deleted", Model: "wild-1", Protocol: "openai",
+		Payload: "{\"list\":[ {\"t\":\"x\"} ,\n {\"t\":\"x\"}\t]}"},
+	{Name: "wildcards_first_two_deleted", Model: "wild-1", Protocol: "openai",
+		Payload: "{\"list\": [\n  {\"t\":\"x\"},\n  {\"t\":\"x\"} ,\n  {\"t\":\"y\"}  ,{\"t\":\"x\"},{\"t\":\"y\"}\n]}"},
+	{Name: "wildcards_middle_deleted", Model: "wild-1", Protocol: "openai",
+		Payload: "{\"list\":[{\"t\":\"y\"} , {\"t\":\"x\"},{\"t\":\"x\"} ,  {\"t\":\"y\"}]}"},
+	{Name: "wildcards_defaults_read_original", Model: "wild-1", Protocol: "openai",
+		Payload: `{"items":[{"k":1},{"k":2},{"k":1}]}`, Original: `{"items":[{"k":1},{"k":2},{"k":1,"d":"orig","n":{"m":1}}]}`},
 	{Name: "codex_target_skips_integer_tools", Target: "codex", Model: "zz", Protocol: "codex", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},
 		Payload: `{"tools":[{"type":"function","name":"exec_command","parameters":{"properties":{"timeout_ms":{"type":"number"}}}}]}`},
 }

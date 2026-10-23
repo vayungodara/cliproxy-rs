@@ -15,7 +15,7 @@
 //! Edits go through `crate::json` (tidwall sjson semantics), so untouched bytes stay
 //! byte for byte.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
 use cpa_core::config::Config;
 use http::HeaderMap;
@@ -363,11 +363,9 @@ pub fn apply_tracked(
 fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut(&str)) -> Vec<u8> {
     // Go: defaults check the original request, else the body as it entered (after the
     // Codex normalization, before image-generation stripping).
-    let source = if req.original.is_empty() {
-        out.clone()
-    } else {
-        req.original.to_vec()
-    };
+    let needs_source = !(rules.default.is_empty() && rules.default_raw.is_empty());
+    let entered = (needs_source && req.original.is_empty()).then(|| out.clone());
+    let source: &[u8] = entered.as_deref().unwrap_or(req.original);
     if strip_image_generation(rules.image_generation, req.request_path) {
         out = remove_tool_type(&out, &build_path(req.root, "tools"), "image_generation");
         out = remove_tool_choice(&out, &build_path(req.root, "tool_choice"), "image_generation");
@@ -389,15 +387,19 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
             if full.is_empty() {
                 continue;
             }
-            for resolved in resolve_paths(&out, &full) {
-                if json::get(&source, &resolved).exists() || defaulted.contains(&resolved) {
-                    continue;
+            let targets = resolve_targets(&out, &full);
+            let in_source = in_source(source, &targets);
+            let mut n = 0;
+            each_target(&mut out, &targets, |doc, path, resolved| {
+                n += 1;
+                if in_source[n - 1] || defaulted.contains(resolved) {
+                    return None;
                 }
-                if sjson_set(&mut out, &resolved, value) {
-                    defaulted.insert(resolved.clone());
-                    mark(&resolved);
-                }
-            }
+                let next = sjson_set(doc, path, value)?;
+                defaulted.insert(resolved.to_owned());
+                mark(resolved);
+                Some(next)
+            });
         }
     }
     for rule in &rules.default_raw {
@@ -409,17 +411,20 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
             if full.is_empty() {
                 continue;
             }
-            for resolved in resolve_paths(&out, &full) {
-                if json::get(&source, &resolved).exists() || defaulted.contains(&resolved) {
-                    continue;
+            let targets = resolve_targets(&out, &full);
+            let in_source = in_source(source, &targets);
+            let mut n = 0;
+            each_target(&mut out, &targets, |doc, path, resolved| {
+                n += 1;
+                if in_source[n - 1] || defaulted.contains(resolved) {
+                    return None;
                 }
-                let Some(raw) = raw_value(value) else { continue };
-                if let Ok(next) = json::try_set_raw(&out, &resolved, &raw) {
-                    out = next;
-                    defaulted.insert(resolved.clone());
-                    mark(&resolved);
-                }
-            }
+                let raw = raw_value(value)?;
+                let next = json::try_set_raw(doc, path, &raw).ok()?;
+                defaulted.insert(resolved.to_owned());
+                mark(resolved);
+                Some(next)
+            });
         }
     }
     for rule in &rules.overrides {
@@ -431,11 +436,12 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
             if full.is_empty() {
                 continue;
             }
-            for resolved in resolve_paths(&out, &full) {
-                if set_if_different(&mut out, &resolved, value) {
-                    mark(&resolved);
-                }
-            }
+            let targets = resolve_targets(&out, &full);
+            each_target(&mut out, &targets, |doc, path, resolved| {
+                let next = set_if_different(doc, path, value).ok()?;
+                mark(resolved);
+                next
+            });
         }
     }
     for rule in &rules.override_raw {
@@ -448,18 +454,20 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
                 continue;
             }
             let Some(raw) = raw_value(value) else { continue };
-            for resolved in resolve_paths(&out, &full) {
-                let current = json::get(&out, &resolved);
+            let targets = resolve_targets(&out, &full);
+            each_target(&mut out, &targets, |doc, path, resolved| {
+                let current = json::get(doc, path);
                 let same = current.exists()
                     && current.indexes.as_ref().is_none_or(Vec::is_empty)
                     && current.raw() == raw.as_slice();
                 if same {
-                    mark(&resolved);
-                } else if let Ok(next) = json::try_set_raw(&out, &resolved, &raw) {
-                    out = next;
-                    mark(&resolved);
+                    mark(resolved);
+                    return None;
                 }
-            }
+                let next = json::try_set_raw(doc, path, &raw).ok()?;
+                mark(resolved);
+                Some(next)
+            });
         }
     }
     for rule in &rules.filter {
@@ -471,54 +479,58 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
             if full.is_empty() {
                 continue;
             }
-            for resolved in resolve_paths(&out, &full).into_iter().rev() {
-                if let Ok(next) = json::try_delete(&out, &resolved) {
-                    out = next;
-                    mark(&resolved);
-                }
+            let targets = resolve_targets(&out, &full);
+            if let Some(next) = locals(&targets, true).and_then(|l| delete_elements(&out, &l)) {
+                out = next;
+                targets.iter().for_each(|t| mark(&t.path));
+                continue;
             }
+            // Go deletes in reverse, so earlier indexes still name the same elements. Edits
+            // inside separate elements do not depend on their order.
+            let mut targets = targets;
+            if locals(&targets, false).is_none() {
+                targets.reverse();
+            }
+            each_target(&mut out, &targets, |doc, path, resolved| {
+                let next = json::try_delete(doc, path).ok()?;
+                mark(resolved);
+                Some(next)
+            });
         }
     }
     out
 }
 
-/// `sjson.SetBytes(out, path, value)` for a configured value.
-fn sjson_set(out: &mut Vec<u8>, path: &str, value: &Param) -> bool {
+/// `sjson.SetBytes(doc, path, value)` for a configured value: the new document, or
+/// `None` when sjson returns an error.
+fn sjson_set(doc: &[u8], path: &str, value: &Param) -> Option<Vec<u8>> {
     match value {
-        Param::Str(s) => json::try_set_str(out, path, s),
-        other => match other.sjson_raw() {
-            Some(raw) => json::try_set_raw(out, path, raw),
-            None => return false,
-        },
+        Param::Str(s) => json::try_set_str(doc, path, s),
+        other => json::try_set_raw(doc, path, other.sjson_raw()?),
     }
-    .map(|next| *out = next)
-    .is_ok()
+    .ok()
 }
 
-/// Go `setPayloadValueIfDifferentTracked`: an equal value counts as applied.
-fn set_if_different(out: &mut Vec<u8>, path: &str, value: &Param) -> bool {
-    let current = json::get(out, path);
+/// Go `setPayloadValueIfDifferentTracked`: an equal value counts as applied and leaves
+/// the document as it is (`Ok(None)`); `Err` when sjson returns an error.
+fn set_if_different(doc: &[u8], path: &str, value: &Param) -> Result<Option<Vec<u8>>, ()> {
+    let current = json::get(doc, path);
     let same = match value {
         Param::Str(s) => current.kind == Kind::String && *current.str() == **s,
         Param::Bool(b) => current.kind == if *b { Kind::True } else { Kind::False },
         Param::Null => current.raw() == b"null",
         other => {
-            let Some(expected) = other.sjson_raw() else {
-                return false;
-            };
+            let expected = other.sjson_raw().ok_or(())?;
             if current.indexes.as_ref().is_none_or(Vec::is_empty) && current.raw() == expected.as_slice() {
-                return true;
+                return Ok(None);
             }
-            return match json::try_set_raw(out, path, expected) {
-                Ok(next) => {
-                    *out = next;
-                    true
-                }
-                Err(_) => false,
-            };
+            return json::try_set_raw(doc, path, expected).map(Some).map_err(|_| ());
         }
     };
-    same || sjson_set(out, path, value)
+    if same {
+        return Ok(None);
+    }
+    sjson_set(doc, path, value).map(Some).ok_or(())
 }
 
 /// Go `payloadRawValue`: strings are raw JSON as written; other values are marshaled.
@@ -583,17 +595,52 @@ fn path_matches_value(payload: &[u8], path: &str, value: &Param) -> bool {
     let Some(expected) = value.marshal().and_then(|m| GoValue::parse_f64(&m)) else {
         return false;
     };
-    resolve_paths(payload, path).iter().any(|p| {
-        let r = json::get(payload, p);
+    any_target(payload, path, |r| {
         r.exists() && GoValue::parse_f64(r.raw().trim_ascii()).is_some_and(|actual| actual == expected)
     })
 }
 
 fn path_exists(payload: &[u8], path: &str) -> bool {
-    resolve_paths(payload, path).iter().any(|p| {
-        let r = json::get(payload, p);
-        r.exists() && r.kind != Kind::Null
-    })
+    any_target(payload, path, |r| r.exists() && r.kind != Kind::Null)
+}
+
+/// Whether any resolved path's value passes `test`, reading inside each target's element.
+fn any_target(payload: &[u8], path: &str, test: impl Fn(&Res<'_>) -> bool) -> bool {
+    let targets = resolve_targets(payload, path);
+    match locals(&targets, false) {
+        Some(locals) => locals
+            .iter()
+            .any(|l| test(&json::get(&payload[l.elem.0..l.elem.1], &l.rest))),
+        None => targets.iter().any(|t| test(&json::get(payload, &t.path))),
+    }
+}
+
+/// `gjson.GetBytes(source, path).Exists()` for each target. Each source array a target
+/// reads is parsed once, so the check stays linear in the source.
+fn in_source(source: &[u8], targets: &[Target]) -> Vec<bool> {
+    let Some(locals) = locals(targets, false) else {
+        return targets.iter().map(|t| json::get(source, &t.path).exists()).collect();
+    };
+    let mut arrays: HashMap<&str, Option<Vec<Res<'_>>>> = HashMap::new();
+    targets
+        .iter()
+        .zip(locals)
+        .map(|(t, l)| {
+            let items = arrays.entry(&l.base).or_insert_with(|| {
+                let array = if l.base.is_empty() {
+                    json::parse(source)
+                } else {
+                    json::get(source, &l.base)
+                };
+                // A numeric part reads an object key in gjson; only arrays index.
+                array.is_array().then(|| array.array())
+            });
+            match items {
+                Some(items) => items.get(l.index).is_some_and(|item| item.get(&l.rest).exists()),
+                None => json::get(source, &t.path).exists(),
+            }
+        })
+        .collect()
 }
 
 fn normalize_from_protocol(p: &str) -> String {
@@ -668,48 +715,230 @@ fn targets_path(path: &str, tracked: &str) -> bool {
         && (path == tracked || path.starts_with(&format!("{tracked}.")) || tracked.starts_with(&format!("{path}.")))
 }
 
+/// A resolved rule path. When the path went through a `#(...)` query, `elem` is the byte
+/// range (in the body it was resolved against) of the array element the last query
+/// selected, `rest` the path inside that element, `array` the range of the array holding
+/// it, and `base` and `index` the array's path and the element's position in it.
+struct Target {
+    path: String,
+    local: Option<Local>,
+}
+
+#[derive(Clone)]
+struct Local {
+    elem: (usize, usize),
+    rest: String,
+    array: (usize, usize),
+    base: String,
+    index: usize,
+}
+
+/// A path part gjson and sjson read the same at any depth: a plain key or index.
+fn plain(part: &str) -> bool {
+    !part.is_empty() && !part.bytes().any(|c| b"|@*?#\\!=<>%".contains(&c))
+}
+
 /// Go `resolvePayloadRulePaths`: `#(query)` and `#(query)#` segments become the matching
-/// array indexes; other paths are used as written.
-fn resolve_paths(payload: &[u8], path: &str) -> Vec<String> {
+/// array indexes; other paths are used as written. Arrays are read inside the element
+/// the previous query selected, so a nested query reads each element once.
+fn resolve_targets(payload: &[u8], path: &str) -> Vec<Target> {
     let path = path.trim();
     if path.is_empty() {
         return Vec::new();
     }
     if !path.contains("#(") {
-        return vec![path.to_owned()];
+        return vec![Target {
+            path: path.to_owned(),
+            local: None,
+        }];
     }
-    let mut paths = vec![String::new()];
+    let mut targets = vec![Target {
+        path: String::new(),
+        local: None,
+    }];
     for part in split_path(path) {
         let Some((query, all)) = query_part(part) else {
-            paths.iter_mut().for_each(|p| *p = join(p, part));
+            for t in &mut targets {
+                t.path = join(&t.path, part);
+                if let Some(local) = &mut t.local {
+                    local.rest = join(&local.rest, part);
+                }
+            }
             continue;
         };
         let mut next = Vec::new();
-        for base in &paths {
-            let array = if base.is_empty() {
-                json::parse(payload)
-            } else {
-                json::get(payload, base)
+        for t in &targets {
+            let (array, offset) = match &t.local {
+                Some(l) if l.rest.split('.').all(plain) || l.rest.is_empty() => {
+                    let elem = &payload[l.elem.0..l.elem.1];
+                    let array = if l.rest.is_empty() {
+                        json::parse(elem)
+                    } else {
+                        json::get(elem, &l.rest)
+                    };
+                    (array, l.elem.0)
+                }
+                _ if t.path.is_empty() => (json::parse(payload), 0),
+                _ => (json::get(payload, &t.path), 0),
             };
             if !array.is_array() {
                 continue;
             }
+            let located = matches!(array.raw, std::borrow::Cow::Borrowed(_))
+                && payload.get(offset + array.index..offset + array.index + array.raw().len()) == Some(array.raw());
             for (index, item) in array.array().iter().enumerate() {
                 if !query_matches(item, query) {
                     continue;
                 }
-                next.push(join(base, &index.to_string()));
+                let start = offset + item.index;
+                let path = join(&t.path, &index.to_string());
+                let local =
+                    (located && payload.get(start..start + item.raw().len()) == Some(item.raw())).then(|| Local {
+                        elem: (start, start + item.raw().len()),
+                        rest: String::new(),
+                        array: (offset + array.index, offset + array.index + array.raw().len()),
+                        base: t.path.clone(),
+                        index,
+                    });
+                next.push(Target { path, local });
                 if !all {
                     break;
                 }
             }
         }
-        paths = next;
-        if paths.is_empty() {
-            return paths;
+        targets = next;
+        if targets.is_empty() {
+            return targets;
         }
     }
-    paths
+    targets
+}
+
+/// Element-local targets, in body order and disjoint, when the edit of each touches only
+/// its own element; `None` when the edits must run one by one on the whole body.
+fn locals(targets: &[Target], whole_elements: bool) -> Option<Vec<&Local>> {
+    if targets.len() < 2 {
+        return None;
+    }
+    let mut out: Vec<&Local> = Vec::with_capacity(targets.len());
+    for t in targets {
+        let l = t.local.as_ref()?;
+        if l.rest.is_empty() != whole_elements || !(l.rest.is_empty() || l.rest.split('.').all(plain)) {
+            return None;
+        }
+        if out.last().is_some_and(|prev| prev.elem.1 > l.elem.0) {
+            return None;
+        }
+        out.push(l);
+    }
+    Some(out)
+}
+
+/// Runs `op(doc, path, full_path)` for each target in order, as Go's loop over the
+/// resolved paths does. `op` returns the edited document. A target inside an array
+/// element edits only that element (sjson recurses into the element's bytes), so `op`
+/// runs on the element and the edited elements are joined in one pass over the body.
+fn each_target(out: &mut Vec<u8>, targets: &[Target], mut op: impl FnMut(&[u8], &str, &str) -> Option<Vec<u8>>) {
+    let Some(locals) = locals(targets, false) else {
+        for t in targets {
+            if let Some(next) = op(out, &t.path, &t.path) {
+                *out = next;
+            }
+        }
+        return;
+    };
+    let mut next = Vec::with_capacity(out.len());
+    let mut at = 0;
+    for (t, l) in targets.iter().zip(locals) {
+        let elem = &out[l.elem.0..l.elem.1];
+        next.extend_from_slice(&out[at..l.elem.0]);
+        match op(elem, &l.rest, &t.path) {
+            Some(edited) => next.extend_from_slice(&edited),
+            None => next.extend_from_slice(elem),
+        }
+        at = l.elem.1;
+    }
+    next.extend_from_slice(&out[at..]);
+    *out = next;
+}
+
+/// sjson's `DeleteBytes` of whole array elements, in Go's reverse order, in one pass.
+/// Deleting element `k > 0` removes the comma before it, the whitespace after that
+/// comma, and the element. Deleting element 0 (last, after the others) removes the
+/// element and, when an element is left after it, everything up to and including the
+/// next comma. `None` when the array's gaps are not plain whitespace and commas.
+fn delete_elements(out: &[u8], locals: &[&Local]) -> Option<Vec<u8>> {
+    let mut next = Vec::with_capacity(out.len());
+    let mut at = 0;
+    let mut i = 0;
+    while i < locals.len() {
+        let array = locals[i].array;
+        let group = locals[i..].iter().take_while(|l| l.array == array).count();
+        let deleted: HashSet<usize> = locals[i..i + group].iter().map(|l| l.index).collect();
+        next.extend_from_slice(&out[at..array.0]);
+        next.extend_from_slice(&delete_in_array(&out[array.0..array.1], &deleted)?);
+        at = array.1;
+        i += group;
+    }
+    next.extend_from_slice(&out[at..]);
+    Some(next)
+}
+
+fn delete_in_array(raw: &[u8], deleted: &HashSet<usize>) -> Option<Vec<u8>> {
+    let items = json::parse(raw).array();
+    let spans: Vec<(usize, usize)> = items.iter().map(|it| (it.index, it.index + it.raw().len())).collect();
+    if spans.is_empty() || raw.first() != Some(&b'[') || raw.last() != Some(&b']') {
+        return None;
+    }
+    // gap(i): the bytes before element i (after '[' for i = 0), split at its comma.
+    let gap = |i: usize| -> Option<(&[u8], &[u8])> {
+        let from = if i == 0 { 1 } else { spans[i - 1].1 };
+        let g = raw.get(from..spans[i].0)?;
+        let commas = g.iter().filter(|&&c| c == b',').count();
+        if g.iter().any(|&c| c > b' ' && c != b',') || commas != usize::from(i > 0) {
+            return None;
+        }
+        Some(match g.iter().position(|&c| c == b',') {
+            Some(c) => (&g[..c], &g[c + 1..]),
+            None => (g, &[][..]),
+        })
+    };
+    let tail = raw.get(spans[spans.len() - 1].1..raw.len() - 1)?;
+    if tail.iter().any(|&c| c > b' ') {
+        return None;
+    }
+    let mut out = Vec::with_capacity(raw.len());
+    out.push(b'[');
+    out.extend_from_slice(gap(0)?.0);
+    let first_kept = (0..spans.len()).find(|i| !deleted.contains(i));
+    let start = match first_kept {
+        Some(j) if j > 0 && deleted.contains(&0) => {
+            // Element 0's deletion ran past the leftover whitespace to j's comma.
+            for k in 1..j {
+                gap(k)?;
+            }
+            out.extend_from_slice(gap(j)?.1);
+            j
+        }
+        _ => 0,
+    };
+    for i in start..spans.len() {
+        let (before, after) = gap(i)?;
+        if i > start {
+            out.extend_from_slice(before);
+        }
+        if deleted.contains(&i) {
+            continue;
+        }
+        if i > start {
+            out.push(b',');
+            out.extend_from_slice(after);
+        }
+        out.extend_from_slice(&raw[spans[i].0..spans[i].1]);
+    }
+    out.extend_from_slice(tail);
+    out.push(b']');
+    Some(out)
 }
 
 fn join(path: &str, part: &str) -> String {
