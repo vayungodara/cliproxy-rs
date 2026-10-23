@@ -193,7 +193,7 @@ func main() {
 	// more exact decimal digits than any tie needs.
 	fvalues = append(fvalues, 1073741824.00390625, 8589934592.0078125, 70368744177664.125,
 		562949953421312.25, -1125899906842624.25, 70368744177664.375, 1125899906842624.75,
-		9.999999999999999e20, 1.0000000000000001e21, 9.999999999999999e-7, 1.0000000000000002e-6)
+		9.999999999999999e20, 1.0000000000000001e21, math.Nextafter(1e-6, 0), 1.0000000000000002e-6)
 	// A seeded sample: uniform bit patterns (mostly the exponent range) and values in
 	// [1, 2^53) with fractions (the 'f' range).
 	rng := rand.New(rand.NewSource(1))
