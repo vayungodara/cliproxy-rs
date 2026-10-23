@@ -3301,7 +3301,11 @@ pub fn parse_query(query: &[u8]) -> Option<(Query, usize)> {
             value = unescape(&value);
         }
     }
-    let query = Query { path: path.to_vec(), op: op.to_vec(), value };
+    let query = Query {
+        path: path.to_vec(),
+        op: op.to_vec(),
+        value,
+    };
     Some((query, i + 1))
 }
 

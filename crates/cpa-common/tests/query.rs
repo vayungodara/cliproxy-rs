@@ -6,7 +6,12 @@ use cpa_common::json;
 #[test]
 fn query_predicates_match_go_gjson() {
     let fixture: serde_json::Value = serde_json::from_str(include_str!("fixtures/query_go.json")).unwrap();
-    let terms: Vec<&str> = fixture["terms"].as_array().unwrap().iter().map(|t| t.as_str().unwrap()).collect();
+    let terms: Vec<&str> = fixture["terms"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t.as_str().unwrap())
+        .collect();
     let items = fixture["items"].as_array().unwrap();
     let results = fixture["results"].as_array().unwrap();
     assert_eq!(terms.len(), 644);
@@ -35,5 +40,10 @@ fn query_predicates_match_go_gjson() {
         }
     }
     assert_eq!(unbalanced, 3 * items.len());
-    assert!(failures.is_empty(), "{} mismatches:\n{}", failures.len(), failures.join("\n"));
+    assert!(
+        failures.is_empty(),
+        "{} mismatches:\n{}",
+        failures.len(),
+        failures.join("\n")
+    );
 }
