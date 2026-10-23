@@ -67,6 +67,15 @@ func TestRSFixPayloadMedia(t *testing.T) {
 		{"form_file_to_field", rule("override", `{"image": "replaced"}`), basic, ct, ""},
 		{"form_raw_number", rule("default-raw", `{"n": "3"}`), basic, ct, ""},
 		{"form_truncated", rule("override", `{"n": 2}`), "--" + b + "\r\n" + field("model", "gpt-image-2"), ct, ""},
+		{"form_truncated_unnamed", rule("override", `{"n": 2}`), "--" + b + "\r\n" + field("", "gpt-image-2"), ct, ""},
+		{"form_empty_boundary", rule("override", `{"n": 2}`), basic, "multipart/form-data", ""},
+		{"form_empty_boundary_param", rule("override", `{"n": 2}`), basic, "multipart/form-data; boundary=\"\"", ""},
+		// Go 1.26's quoteEscaper writes CR and LF as %0D and %0A, in names a client sent
+		// (RFC 2231) and names a rule added.
+		{"form_crlf_names", rule("override", `{"c\r\nd": "rule"}`),
+			form(field("model", "gpt-image-2"),
+				"Content-Disposition: form-data; name*=UTF-8''a%0D%0Ab\r\n\r\nclient",
+				"Content-Disposition: form-data; name*=UTF-8''f%0D%0Ag; filename*=UTF-8''x%0Ay%0D.png\r\nContent-Type: image/png\r\n\r\nE"), ct, ""},
 	}
 	var out []map[string]any
 	for _, tc := range cases {
@@ -103,6 +112,8 @@ func TestRSFixPayloadMedia(t *testing.T) {
 			rec["out_media"] = media
 			reader := multipart.NewReader(bytes.NewReader(body), params["boundary"])
 			var parts []string
+			// Each name's bodies in the order Go wrote them; the parts list is sorted.
+			order := map[string][]string{}
 			for {
 				part, errNext := reader.NextRawPart()
 				if errNext == io.EOF {
@@ -122,9 +133,16 @@ func TestRSFixPayloadMedia(t *testing.T) {
 					desc += k + ": " + part.Header.Get(k) + "\n"
 				}
 				parts = append(parts, desc+"\n"+base64.StdEncoding.EncodeToString(data))
+				order[part.FormName()] = append(order[part.FormName()], base64.StdEncoding.EncodeToString(data))
 			}
 			sort.Strings(parts)
 			rec["out_parts"] = parts
+			for name, bodies := range order {
+				if len(bodies) < 2 {
+					delete(order, name)
+				}
+			}
+			rec["out_order"] = order
 		}
 		out = append(out, rec)
 	}

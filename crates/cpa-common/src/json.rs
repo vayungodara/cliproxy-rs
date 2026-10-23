@@ -268,6 +268,8 @@ impl<'a> Res<'a> {
 fn array_or_map(json: &[u8], vc: u8, base: usize) -> (Vec<Res<'_>>, Vec<(Vec<u8>, Res<'_>)>) {
     let mut items = vec![];
     let mut pairs: Vec<(Vec<u8>, Res<'_>)> = vec![];
+    // The first of duplicate keys wins; `seen` keeps that check constant-time.
+    let mut seen = std::collections::HashSet::new();
     let mut i = 0;
     while i < json.len() {
         if json[i] == vc {
@@ -315,7 +317,7 @@ fn array_or_map(json: &[u8], vc: u8, base: usize) -> (Vec<Res<'_>>, Vec<(Vec<u8>
             if count % 2 == 0 {
                 key = Some(value.s.to_vec());
             } else if let Some(k) = key.take()
-                && !pairs.iter().any(|(existing, _)| *existing == k)
+                && seen.insert(k.clone())
             {
                 pairs.push((k, value));
             }

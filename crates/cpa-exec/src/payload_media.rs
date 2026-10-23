@@ -134,6 +134,22 @@ mod tests {
         out
     }
 
+    /// Each repeated name's part bodies (base64) in the order they were written.
+    fn order(body: &[u8], content_type: &str) -> BTreeMap<String, Vec<String>> {
+        let MediaType::Ok(_, params) = multipart::parse_media_type(content_type) else {
+            panic!("{content_type}");
+        };
+        let mut order: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for part in multipart::parts(body, &params["boundary"]).unwrap() {
+            order
+                .entry(part.name.clone())
+                .or_default()
+                .push(STANDARD.encode(&part.body));
+        }
+        order.retain(|_, bodies| bodies.len() > 1);
+        order
+    }
+
     #[test]
     fn media_payload_rules_match_go() {
         let go: Value = serde_json::from_str(include_str!("../tests/fixtures/payload_media_go.json")).unwrap();
@@ -181,6 +197,9 @@ mod tests {
                     } else {
                         let want: Vec<String> = serde_json::from_value(case["out_parts"].clone()).unwrap();
                         assert_eq!(parts(&out, &out_type), want, "{name}");
+                        let want: BTreeMap<String, Vec<String>> =
+                            serde_json::from_value(case["out_order"].clone()).unwrap();
+                        assert_eq!(order(&out, &out_type), want, "{name}: repeated order");
                     }
                 }
             }
