@@ -31,7 +31,7 @@ const MESSAGE_TOOLS: [&str; 3] = ["spawn_agent", "send_message", "followup_task"
 
 /// The embedded Codex client model catalog (Go embeds `models/codex_client_models.json`);
 /// [`crate::codex_catalog`] serves it until a remote refresh replaces it.
-pub const CLIENT_MODELS_JSON: &str = include_str!("codex_client_models.json");
+pub static CLIENT_MODELS_JSON: &str = include_str!("codex_client_models.json");
 
 /// The two settings these rewrites read from one config snapshot.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

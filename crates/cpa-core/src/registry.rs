@@ -15,7 +15,7 @@ use serde::Deserialize;
 use serde_json::{Map, Value};
 
 /// The models.json built into the binary.
-pub const MODELS_JSON: &str = include_str!("registry/models.json");
+pub static MODELS_JSON: &str = include_str!("registry/models.json");
 
 /// Channels searched by [`Catalog::lookup`], in Go's `LookupStaticModelInfo` order
 /// (internal/registry/model_definitions.go). `gemini-cli`, `codex-free`, `codex-team` and
