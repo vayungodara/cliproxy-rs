@@ -48,6 +48,14 @@ payload:
       params: {"items.#(k==1)#.n.m": 5}
     - models: [{name: "wild-*"}]
       params: {"strs.#(==\"[1,2]\")#.0": "scalar"}
+    - models: [{name: "lin-*"}]
+      params: {"items.#(k==1)#.0": 9}
+    - models: [{name: "lin-*"}]
+      params: {"whole.#(k==2)#": 5}
+    - models: [{name: "lin-*", exist: ["whole.#(k==1)#"]}]
+      params: {whole_seen: true}
+    - models: [{name: "lin-*", match: [{"nums.#(>5)#": 7}]}]
+      params: {nums_matched: true}
     - models: [{name: "wild-*", exist: ["strs.#(==\"[1,2]\")#.0"]}]
       params: {scalar_exists: true}
   default-raw:
@@ -57,6 +65,8 @@ payload:
       params: {broken: '{"type":'}
     - models: [{name: "wild-*"}]
       params: {"items.#(k==2)#.r": '{"x":1}'}
+    - models: [{name: "lin-*"}]
+      params: {"multi.#(k==1)#.r": '{"y":2}'}
   override:
     - models: [{name: "gpt-*"}]
       params: {max_tokens: 100}
@@ -82,11 +92,25 @@ payload:
       params: {"groups.#(g==1)#.members.#(m==1)#.flag": true}
     - models: [{name: "wild-*"}]
       params: {"i*.#(k==1)#.new": "complex"}
+    - models: [{name: "lin-*"}]
+      params: {"whole.#(k==1)#": "replaced"}
+    - models: [{name: "lin-*"}]
+      params: {"lap.#(k==1)#.b": 2}
+    - models: [{name: "lin-*"}]
+      params: {"arr.#(k==1)#.list.-1": "app"}
+    - models: [{name: "lin-*"}]
+      params: {"eq.#(k==1)#.v": 1}
+    - models: [{name: "lin-*"}]
+      params: {"a*.#(k==1)#.new": "complex"}
   override-raw:
     - models: [{name: "gpt-*"}]
       params: {logit_bias: '{"1": -100}'}
     - models: [{name: "wild-*"}]
       params: {"items.#(k==1)#.raw": '[1, 2]'}
+    - models: [{name: "lin-*"}]
+      params: {"lap.#(k==1)#": '{"k":1,"z":true}'}
+    - models: [{name: "lin-*"}]
+      params: {"eq.#(k==1)#.w": '[1, 2]'}
   filter:
     - models: [{name: "gpt-*"}]
       params: [frequency_penalty, "messages.#(role==\"developer\")#"]
@@ -98,6 +122,12 @@ payload:
       params: ["nested.#(a==1)#.inner.#(b==1)#"]
     - models: [{name: "wild-*"}]
       params: ["i*.#(k==1)#.x"]
+    - models: [{name: "lin-*"}]
+      params: ["diagnostics.a*.#(k==1)#"]
+    - models: [{name: "lin-*"}]
+      params: [":a.#(k==1)#.x"]
+    - models: [{name: "lin-*"}]
+      params: ["neg.#(k==1)#.list.-1"]
 `
 
 type payloadCase struct {
@@ -123,6 +153,11 @@ const wild = `{"items":[ {"k":1,"d":"have","o":"ov","drop":1} , {"k":2} ,{"k":1,
 	`"list":[ {"t":"x"} ,{"t":"x"},  {"t":"y"} , {"t":"x"}],` +
 	`"groups":[{"g":1,"members":[{"m":1},{"m":2},{"m":1,"flag":false}]},{"g":2,"members":[{"m":1}]},{"g":1,"members":[ {"m":1} ]}],` +
 	`"nested":[{"a":1,"inner":[{"b":1},{"b":2},{"b":1}]},{"a":2,"inner":[{"b":1}]},{"a":1,"inner":[{"b":1}]}]}`
+
+const lin = `{"diagnostics":{"ab":[{"k":1},{"k":1}]},":a":[{"k":1,"x":1},{"k":1,"x":2}],"a":[{"k":1,"x":3},{"k":1}],` +
+	`"whole":[{"k":1},{"k":2},{"k":1},{"k":2}],"lap":[{"k":1,"b":0},{"k":2},{"k":1}],` +
+	`"arr":[{"k":2,"list":[1]},{"k":1,"list":[1,2]},{"k":1,"list":[]}],"neg":[{"k":1,"list":[1,2,3]},{"k":1,"list":[4]}],` +
+	`"multi":[{"k":1},{"k":1,"r":{"old":1}},{"k":1}],"eq":[{"k":1,"v":1,"w":[1, 2]},{"k":1,"v":2,"w":[1,2]}],"nums":[3,7,9]}`
 
 var payloadInputs = []payloadCase{
 	{Name: "chat_all_sections", Model: "gpt-5", RequestedModel: "gpt-5", Protocol: "openai", FromProtocol: "openai", Payload: chat, RequestPath: "/v1/chat/completions", Tracked: []string{"temperature", "messages", "max_tokens", "nope"}},
@@ -152,7 +187,18 @@ var payloadInputs = []payloadCase{
 	// A scalar element is not a container, and a wildcard before the query makes the
 	// whole path complex for sjson.
 	{Name: "wildcards_scalars_and_complex_base", Model: "wild-1", Protocol: "openai",
-		Payload: `{"strs":["[1,2]","[1,2]"],"items":[{"k":1,"x":1},{"k":2,"x":2},{"k":1,"x":3}]}`},
+		Payload: `{"strs":["[1,2]","[1,2]"],"items":[{"k":1,"x":1},{"k":2,"x":2},{"k":1,"x":3}]}`,
+		Tracked: []string{"strs", "items.0.x", "items.2.new"}},
+	// Whole-element setters and reads, complex prefixes, a leading-colon key, append and
+	// negative indexes inside elements, overlapping parameters, equal values, and
+	// default-raw on several elements.
+	{Name: "linear_targets", Model: "lin-1", Protocol: "openai", Payload: lin,
+		Tracked: []string{"diagnostics", ":a", "a", "whole", "lap.0", "lap.2.b", "arr.1.list", "neg", "multi", "eq.0.v", "eq.1.w"}},
+	{Name: "linear_whole_defaults", Model: "lin-1", Protocol: "openai",
+		Payload: `{"whole":[{"k":2},{"k":2}]}`, Original: `{"whole":[]}`, Tracked: []string{"whole"}},
+	// A scalar in the original is not a container: the defaults inside it apply.
+	{Name: "linear_scalar_original", Model: "lin-1", Protocol: "openai",
+		Payload: `{"items":[{"k":1},{"k":1}]}`, Original: `{"items":["[1,2]","[1,2]"]}`, Tracked: []string{"items.0.0", "items.1.0"}},
 	{Name: "wildcards_defaults_read_original", Model: "wild-1", Protocol: "openai",
 		Payload: `{"items":[{"k":1},{"k":2},{"k":1}]}`, Original: `{"items":[{"k":1},{"k":2},{"k":1,"d":"orig","n":{"m":1}}]}`},
 	{Name: "codex_target_skips_integer_tools", Target: "codex", Model: "zz", Protocol: "codex", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},

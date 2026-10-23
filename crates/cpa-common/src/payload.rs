@@ -390,7 +390,7 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
             let targets = resolve_targets(&out, &full);
             let in_source = in_source(source, &targets);
             let mut n = 0;
-            each_target(&mut out, &targets, |doc, path, resolved| {
+            each_target(&mut out, &targets, Mode::Any, |doc, path, resolved| {
                 n += 1;
                 if in_source[n - 1] || defaulted.contains(resolved) {
                     return None;
@@ -414,13 +414,13 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
             let targets = resolve_targets(&out, &full);
             let in_source = in_source(source, &targets);
             let mut n = 0;
-            each_target(&mut out, &targets, |doc, path, resolved| {
+            each_target(&mut out, &targets, Mode::Any, |doc, path, resolved| {
                 n += 1;
                 if in_source[n - 1] || defaulted.contains(resolved) {
                     return None;
                 }
                 let raw = raw_value(value)?;
-                let next = json::try_set_raw(doc, path, &raw).ok()?;
+                let next = set_raw_at(doc, path, &raw)?;
                 defaulted.insert(resolved.to_owned());
                 mark(resolved);
                 Some(next)
@@ -437,7 +437,7 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
                 continue;
             }
             let targets = resolve_targets(&out, &full);
-            each_target(&mut out, &targets, |doc, path, resolved| {
+            each_target(&mut out, &targets, Mode::Any, |doc, path, resolved| {
                 let next = set_if_different(doc, path, value).ok()?;
                 mark(resolved);
                 next
@@ -455,8 +455,8 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
             }
             let Some(raw) = raw_value(value) else { continue };
             let targets = resolve_targets(&out, &full);
-            each_target(&mut out, &targets, |doc, path, resolved| {
-                let current = json::get(doc, path);
+            each_target(&mut out, &targets, Mode::Any, |doc, path, resolved| {
+                let current = get_at(doc, path);
                 let same = current.exists()
                     && current.indexes.as_ref().is_none_or(Vec::is_empty)
                     && current.raw() == raw.as_slice();
@@ -464,7 +464,7 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
                     mark(resolved);
                     return None;
                 }
-                let next = json::try_set_raw(doc, path, &raw).ok()?;
+                let next = set_raw_at(doc, path, &raw)?;
                 mark(resolved);
                 Some(next)
             });
@@ -480,7 +480,7 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
                 continue;
             }
             let targets = resolve_targets(&out, &full);
-            if let Some(next) = locals(&targets, true).and_then(|l| delete_elements(&out, &l)) {
+            if let Some(next) = locals(&targets, Mode::Delete).and_then(|l| delete_elements(&out, &l)) {
                 out = next;
                 targets.iter().for_each(|t| mark(&t.path));
                 continue;
@@ -488,10 +488,10 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
             // Go deletes in reverse, so earlier indexes still name the same elements. Edits
             // inside separate elements do not depend on their order.
             let mut targets = targets;
-            if locals(&targets, false).is_none() {
+            if locals(&targets, Mode::Fields).is_none() {
                 targets.reverse();
             }
-            each_target(&mut out, &targets, |doc, path, resolved| {
+            each_target(&mut out, &targets, Mode::Fields, |doc, path, resolved| {
                 let next = json::try_delete(doc, path).ok()?;
                 mark(resolved);
                 Some(next)
@@ -505,16 +505,16 @@ fn edit(rules: &Rules, req: &Request<'_>, mut out: Vec<u8>, mark: &mut dyn FnMut
 /// `None` when sjson returns an error.
 fn sjson_set(doc: &[u8], path: &str, value: &Param) -> Option<Vec<u8>> {
     match value {
-        Param::Str(s) => json::try_set_str(doc, path, s),
-        other => json::try_set_raw(doc, path, other.sjson_raw()?),
+        Param::Str(s) if path.is_empty() => Some(json::stringify(s.as_bytes())),
+        Param::Str(s) => json::try_set_str(doc, path, s).ok(),
+        other => set_raw_at(doc, path, &other.sjson_raw()?),
     }
-    .ok()
 }
 
 /// Go `setPayloadValueIfDifferentTracked`: an equal value counts as applied and leaves
 /// the document as it is (`Ok(None)`); `Err` when sjson returns an error.
 fn set_if_different(doc: &[u8], path: &str, value: &Param) -> Result<Option<Vec<u8>>, ()> {
-    let current = json::get(doc, path);
+    let current = get_at(doc, path);
     let same = match value {
         Param::Str(s) => current.kind == Kind::String && *current.str() == **s,
         Param::Bool(b) => current.kind == if *b { Kind::True } else { Kind::False },
@@ -524,7 +524,7 @@ fn set_if_different(doc: &[u8], path: &str, value: &Param) -> Result<Option<Vec<
             if current.indexes.as_ref().is_none_or(Vec::is_empty) && current.raw() == expected.as_slice() {
                 return Ok(None);
             }
-            return json::try_set_raw(doc, path, expected).map(Some).map_err(|_| ());
+            return set_raw_at(doc, path, &expected).map(Some).ok_or(());
         }
     };
     if same {
@@ -607,10 +607,10 @@ fn path_exists(payload: &[u8], path: &str) -> bool {
 /// Whether any resolved path's value passes `test`, reading inside each target's element.
 fn any_target(payload: &[u8], path: &str, test: impl Fn(&Res<'_>) -> bool) -> bool {
     let targets = resolve_targets(payload, path);
-    match locals(&targets, false) {
+    match locals(&targets, Mode::Any) {
         Some(locals) => locals
             .iter()
-            .any(|l| test(&json::get(&payload[l.elem.0..l.elem.1], &l.rest))),
+            .any(|l| test(&get_at(&payload[l.elem.0..l.elem.1], &l.rest))),
         None => targets.iter().any(|t| test(&json::get(payload, &t.path))),
     }
 }
@@ -618,9 +618,12 @@ fn any_target(payload: &[u8], path: &str, test: impl Fn(&Res<'_>) -> bool) -> bo
 /// `gjson.GetBytes(source, path).Exists()` for each target. Each source array a target
 /// reads is parsed once, so the check stays linear in the source.
 fn in_source(source: &[u8], targets: &[Target]) -> Vec<bool> {
-    let Some(locals) = locals(targets, false) else {
+    let Some(locals) = locals(targets, Mode::Any) else {
         return targets.iter().map(|t| json::get(source, &t.path).exists()).collect();
     };
+    // ponytail: a nested query's targets each name a different inner array, so each is
+    // located from the source's root (one get per outer element); caching the shared
+    // ancestors would make nested defaults linear too.
     let mut arrays: HashMap<&str, Option<Vec<Res<'_>>>> = HashMap::new();
     targets
         .iter()
@@ -636,7 +639,10 @@ fn in_source(source: &[u8], targets: &[Target]) -> Vec<bool> {
                 array.is_array().then(|| array.array())
             });
             match items {
-                Some(items) => items.get(l.index).is_some_and(|item| item.get(&l.rest).exists()),
+                // A path through a scalar is missing, as in a whole-source get.
+                Some(items) => items.get(l.index).is_some_and(|item| {
+                    l.rest.is_empty() || (matches!(item.raw().first(), Some(b'{' | b'[')) && item.get(&l.rest).exists())
+                }),
                 None => json::get(source, &t.path).exists(),
             }
         })
@@ -735,9 +741,10 @@ struct Local {
     index: usize,
 }
 
-/// A path part gjson and sjson read the same at any depth: a plain key or index.
+/// A path part gjson and sjson read the same at any depth: a plain key or index. A
+/// leading `:` is a key to gjson but forces an object key in sjson.
 fn plain(part: &str) -> bool {
-    !part.is_empty() && !part.bytes().any(|c| b"|@*?#\\!=<>%".contains(&c))
+    !part.is_empty() && !part.bytes().any(|c| b"|@*?#\\!=<>%:".contains(&c))
 }
 
 /// Go `resolvePayloadRulePaths`: `#(query)` and `#(query)#` segments become the matching
@@ -817,18 +824,36 @@ fn resolve_targets(payload: &[u8], path: &str) -> Vec<Target> {
     targets
 }
 
+/// Which element-local targets a batch takes.
+#[derive(Clone, Copy, PartialEq)]
+enum Mode {
+    /// Whole elements only (filters that delete elements).
+    Delete,
+    /// Paths inside elements only (filters that delete fields).
+    Fields,
+    /// Whole elements and paths inside elements (setters and reads).
+    Any,
+}
+
 /// Element-local targets, in body order and disjoint, when the edit of each touches only
 /// its own element; `None` when the edits must run one by one on the whole body.
-fn locals(targets: &[Target], whole_elements: bool) -> Option<Vec<&Local>> {
+fn locals(targets: &[Target], mode: Mode) -> Option<Vec<&Local>> {
     if targets.len() < 2 {
         return None;
     }
     let mut out: Vec<&Local> = Vec::with_capacity(targets.len());
     for t in targets {
         let l = t.local.as_ref()?;
+        let whole = l.rest.is_empty();
+        let fits = match mode {
+            Mode::Delete => whole,
+            Mode::Fields => !whole,
+            Mode::Any => true,
+        };
         // The whole resolved path must be plain: sjson refuses a complex path (a
-        // wildcard before the query included) on the whole body.
-        if l.rest.is_empty() != whole_elements || !(l.rest.is_empty() || l.container) || !t.path.split('.').all(plain) {
+        // wildcard before the query included) on the whole body. A path inside a
+        // scalar reads nothing in gjson, while the scalar's own bytes may parse.
+        if !fits || !(whole || l.container) || !t.path.split('.').all(plain) {
             return None;
         }
         if out.last().is_some_and(|prev| prev.elem.1 > l.elem.0) {
@@ -839,12 +864,34 @@ fn locals(targets: &[Target], whole_elements: bool) -> Option<Vec<&Local>> {
     Some(out)
 }
 
+/// `gjson.GetBytes(doc, path)`, where an empty path (a whole element) is the document.
+fn get_at<'d>(doc: &'d [u8], path: &str) -> Res<'d> {
+    if path.is_empty() {
+        json::parse(doc)
+    } else {
+        json::get(doc, path)
+    }
+}
+
+/// `sjson.SetRawBytes(doc, path, raw)`; an existing element's whole path replaces it.
+fn set_raw_at(doc: &[u8], path: &str, raw: &[u8]) -> Option<Vec<u8>> {
+    if path.is_empty() {
+        return Some(raw.to_vec());
+    }
+    json::try_set_raw(doc, path, raw).ok()
+}
+
 /// Runs `op(doc, path, full_path)` for each target in order, as Go's loop over the
 /// resolved paths does. `op` returns the edited document. A target inside an array
 /// element edits only that element (sjson recurses into the element's bytes), so `op`
 /// runs on the element and the edited elements are joined in one pass over the body.
-fn each_target(out: &mut Vec<u8>, targets: &[Target], mut op: impl FnMut(&[u8], &str, &str) -> Option<Vec<u8>>) {
-    let Some(locals) = locals(targets, false) else {
+fn each_target(
+    out: &mut Vec<u8>,
+    targets: &[Target],
+    mode: Mode,
+    mut op: impl FnMut(&[u8], &str, &str) -> Option<Vec<u8>>,
+) {
+    let Some(locals) = locals(targets, mode) else {
         for t in targets {
             if let Some(next) = op(out, &t.path, &t.path) {
                 *out = next;
