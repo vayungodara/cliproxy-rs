@@ -736,6 +736,8 @@ fn canonical_key(key: &str) -> &str {
         "excluded-models" => "excluded_models",
         "fingerprint-profile" => "fingerprint_profile",
         "model-aliases" => "model_aliases",
+        "openapi-location" => "openapi_location",
+        "openapi-models" => "openapi_models",
         "proxy-url" => "proxy_url",
         "request-retry" => "request_retry",
         "request-scoped-errors" => "request_scoped_errors",
