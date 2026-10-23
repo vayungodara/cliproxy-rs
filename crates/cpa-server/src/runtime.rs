@@ -54,6 +54,17 @@ pub struct Runtime {
     pub(crate) deny_external: std::sync::atomic::AtomicBool,
     /// Marked on every config publish, so background loops sleep until it changes.
     config_changed: tokio::sync::watch::Sender<()>,
+    /// Codex refresh transactions in flight ([`Runtime::shutdown_codex_refreshes`]).
+    codex_refreshes: CodexRefreshes,
+}
+
+/// The Codex refresh transactions under a credential file's lock: shutdown stops the
+/// ones still waiting for the lock and waits for the ones that hold it, whose grant may
+/// have spent a refresh token.
+#[derive(Clone, Default)]
+struct CodexRefreshes {
+    shutdown: tokio_util::sync::CancellationToken,
+    tasks: tokio_util::task::TaskTracker,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -105,6 +116,7 @@ impl Runtime {
             remote: RwLock::default(),
             deny_external: Default::default(),
             config_changed: tokio::sync::watch::Sender::new(()),
+            codex_refreshes: CodexRefreshes::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -455,6 +467,15 @@ impl Runtime {
         Ok(())
     }
 
+    /// At shutdown: Codex refreshes still waiting for a credential file's lock (another
+    /// process holds it) give up, and those that hold it finish, so new tokens a grant
+    /// returned are written before the process exits. Later refreshes fail.
+    pub async fn shutdown_codex_refreshes(&self) {
+        self.codex_refreshes.shutdown.cancel();
+        self.codex_refreshes.tasks.close();
+        self.codex_refreshes.tasks.wait().await;
+    }
+
     /// Prepares and commits one credential. `failed` is the revision whose token an
     /// upstream rejected: preparation then runs even when not due, unless another task
     /// already replaced that revision (Go `refreshAuthForRequest`).
@@ -517,6 +538,7 @@ impl Runtime {
             let refresher = self.executors.codex.refresher(&view, cfg);
             let file = path.clone();
             return refresh_codex_file(
+                &self.codex_refreshes,
                 self.store.clone(),
                 refresher,
                 guard,
@@ -3151,6 +3173,7 @@ fn rebase_patch(
 /// release the lock while a grant is in flight and leave its new tokens unwritten.
 #[allow(clippy::too_many_arguments)]
 async fn refresh_codex_file(
+    refreshes: &CodexRefreshes,
     store: Arc<CredentialStore>,
     refresher: cpa_exec::codex_refresh::Refresher,
     guard: tokio::sync::OwnedMutexGuard<()>,
@@ -3161,16 +3184,10 @@ async fn refresh_codex_file(
     mode: cpa_exec::codex_refresh::RefreshMode,
 ) -> Result<Arc<Credential>, ExecError> {
     let local = |e: String| ExecError::local(500, FailureScope::Request, format!("codex executor: {e}"));
-    let transaction = tokio::spawn(async move {
+    let shutdown = refreshes.shutdown.clone();
+    let transaction = refreshes.tasks.spawn(async move {
         let _guard = guard;
-        let (lock, disk) = tokio::task::spawn_blocking({
-            let path = path.clone();
-            move || read_locked_codex_file(&path)
-        })
-        .await
-        .map_err(|e| e.to_string())
-        .and_then(|r| r)
-        .map_err(local)?;
+        let (lock, disk) = read_locked_codex_file(&path, &shutdown).await.map_err(local)?;
         let patch = refresher.refresh_locked(&view, &disk, mode).await?;
         if patch.is_empty() {
             return Ok(current);
@@ -3307,14 +3324,32 @@ type LockedFile = (std::fs::File, Map<String, Value>);
 
 /// Go `refreshLocked`'s read: the Codex credential file under its lock, which the
 /// returned file holds. A file that is gone, or that is not a non-empty JSON object,
-/// fails before anything refreshes. Blocking.
-fn read_locked_codex_file(path: &Path) -> Result<LockedFile, String> {
+/// fails before anything refreshes. The wait for the lock gives up at `shutdown`.
+async fn read_locked_codex_file(
+    path: &Path,
+    shutdown: &tokio_util::sync::CancellationToken,
+) -> Result<LockedFile, String> {
     #[cfg(test)]
     tests::LOCK_ATTEMPTS
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .push(path.to_owned());
-    let lock = cpa_exec::codex_siwc_bind::lock_file(path)?;
+    let stopped = || "shutting down while waiting for the credential lock".to_owned();
+    if shutdown.is_cancelled() {
+        return Err(stopped());
+    }
+    let lock = cpa_exec::codex_siwc_bind::open_lock_file(path)?;
+    // ponytail: polled, not a blocking wait, so shutdown can stop it; up to 100 ms later
+    // than Go's blocking flock once the holder releases. Upgrade: a lock wait on a
+    // blocking thread that a signal interrupts.
+    let mut delay = Duration::from_millis(5);
+    while !cpa_exec::codex_siwc_bind::try_lock(&lock)? {
+        tokio::select! {
+            _ = shutdown.cancelled() => return Err(stopped()),
+            _ = tokio::time::sleep(delay) => {}
+        }
+        delay = (delay * 2).min(Duration::from_millis(100));
+    }
     let data = std::fs::read(path).map_err(|e| format!("read credential file {}: {e}", path.display()))?;
     match serde_json::from_slice(&data) {
         Ok(Value::Object(disk)) if !disk.is_empty() => Ok((lock, disk)),
@@ -5913,6 +5948,54 @@ mod tests {
             }
             std::fs::remove_dir_all(&f.dir).unwrap();
         }
+    }
+
+    /// At shutdown, a Codex refresh still waiting for the file's lock (another process
+    /// holds it) gives up without a grant, and one whose grant is in flight is waited for
+    /// until its tokens are written: an exit cannot strand a spent refresh token.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn shutdown_stops_codex_lock_waits_and_drains_started_grants() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let f = CodexDisk::gated(
+            &[
+                ("locked.json", &codex_file(("keep", days), ("L", "oaiapp_x", minute))),
+                ("granting.json", &codex_file(("keep", days), ("G", "oaiapp_x", minute))),
+            ],
+            0,
+        )
+        .await;
+        let held = cpa_exec::codex_siwc_bind::lock_file(&f.dir.join("locked.json")).unwrap();
+        let refresh = |id: &'static str| {
+            let rt = f.rt.clone();
+            tokio::spawn(async move { rt.prepare_credential(id, &rt.config(), None).await })
+        };
+        let (waiting, granting) = (refresh("locked.json"), refresh("granting.json"));
+        f.lock_attempts("locked.json", 1).await;
+        f.granted().await;
+        let shutdown = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.shutdown_codex_refreshes().await }
+        });
+        let waited = tokio::time::timeout(Duration::from_secs(5), waiting)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(waited.is_err(), "{waited:?}");
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(!shutdown.is_finished(), "shutdown waits for the started grant");
+        f.gate.add_permits(1);
+        tokio::time::timeout(Duration::from_secs(5), shutdown)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(granting.await.unwrap().is_ok());
+        assert_eq!(f.grants(), [("siwc", "siwc-ref-G".to_owned(), "oaiapp_x".to_owned())]);
+        assert_eq!(
+            f.tokens("granting.json", &["/siwc/refresh_token"]),
+            ["siwc-ref-refreshed"]
+        );
+        drop(held);
+        std::fs::remove_dir_all(&f.dir).unwrap();
     }
 
     /// The new tokens reach the file even when the store refuses the refresh: here the
