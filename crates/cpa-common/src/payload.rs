@@ -371,9 +371,25 @@ fn unported(path: &str) -> bool {
         })
 }
 
-/// A query predicate the resolver reads as gjson does.
+/// A query predicate the resolver reads as gjson does: each `&&`/`||` term is one gjson
+/// query that ends where the term ends, and its path is a plain read.
 fn simple_query(query: &str) -> bool {
-    !query.contains(['@', '|']) && !query.contains("#(") && !query.contains("#[")
+    !query.contains(['@', '|'])
+        && !query.contains("#(")
+        && !query.contains("#[")
+        && split_logical(query, "||").into_iter().all(|or| {
+            split_logical(or, "&&").into_iter().all(|term| {
+                let term = format!("#({})", term.trim());
+                match json::parse_query(term.as_bytes()) {
+                    None => true,
+                    Some((query, end)) => {
+                        end == term.len()
+                            && (query.path.is_empty()
+                                || std::str::from_utf8(&query.path).is_ok_and(|path| !unported(path)))
+                    }
+                }
+            })
+        })
 }
 
 /// A part `cpa_common::json::get` reads as gjson does, between dots or pipes: gjson
@@ -1282,13 +1298,13 @@ fn query_matches(item: &Res<'_>, query: &str) -> bool {
                 if term.is_empty() || item.raw().is_empty() {
                     return false;
                 }
-                let wrapped = format!("[{}]", String::from_utf8_lossy(item.raw()));
-                // ponytail: gjson queries come from the `gjson` crate (tidwall's own Rust
-                // port); `crate::json` does not implement `#(...)`. The crate's predicates
-                // differ from Go gjson 1.18.0 (`""` unquoting, `~null`, `?` per byte), as
-                // docs/DIFFERENCES-FROM-GO.md says; upgrade: port Go's parseQuery and
-                // queryMatches into `crate::json`.
-                gjson::get(&wrapped, &format!("#({term})")).exists()
+                // gjson.GetBytes("[item]", "#("+term+")").Exists(): the one element is
+                // the item. An unbalanced term leaves gjson an empty query, which is
+                // `Query::default()` (tests/query.rs checks both against Go).
+                json::parse_query(format!("#({term})").as_bytes())
+                    .map(|(query, _)| query)
+                    .unwrap_or_default()
+                    .matches_raw(item.raw())
             })
     })
 }

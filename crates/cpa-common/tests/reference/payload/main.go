@@ -148,6 +148,20 @@ payload:
       params: {hit: 9}
     - models: [{name: "lnw-*"}]
       params: {"a.18446744073709551616.#(k==1)#.x": 9}
+    - models: [{name: "qp0-*", not-exist: ['a.#(s=="")']}]
+      params: {hit: 9}
+    - models: [{name: "qp1-*", not-exist: ["a.#(x==~null)"]}]
+      params: {hit: 9}
+    - models: [{name: "qp2-*", not-exist: ['a.#(s%"?")']}]
+      params: {hit: 9}
+    - models: [{name: "qp3-*"}]
+      params: {'a.#(s!="").v': 9}
+    - models: [{name: "qp4-*", not-exist: ['a.#([k])']}]
+      params: {hit: 9}
+    - models: [{name: "qp5-*"}]
+      params: {'a.#(!=0)': 9}
+    - models: [{name: "qp6-*", not-exist: ['a.#(==~null)']}]
+      params: {hit: 9}
   override-raw:
     - models: [{name: "rawo-*"}]
       params: {"@reverse": '{', x: '9'}
@@ -290,6 +304,17 @@ var payloadInputs = []payloadCase{
 	{Name: "unported_not_exist_5", Model: "ne5-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
 	{Name: "unported_not_exist_6", Model: "ne6-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
 	{Name: "unported_not_exist_7", Model: "ne7-1", Protocol: "openai", Payload: `{"a":[{"k":1}]}`},
+	// Query predicates as gjson v1.18.0 matches them: "" unquoted, ~null on a missing
+	// field, ? against one rune, and a != "" write that matches nothing.
+	{Name: "query_empty_string", Model: "qp0-1", Protocol: "openai", Payload: `{"a":[{"s":""}]}`},
+	{Name: "query_tilde_null_missing", Model: "qp1-1", Protocol: "openai", Payload: `{"a":[{}]}`},
+	{Name: "query_pattern_rune", Model: "qp2-1", Protocol: "openai", Payload: `{"a":[{"s":"é"}]}`},
+	{Name: "query_not_empty_write", Model: "qp3-1", Protocol: "openai", Payload: `{"a":[{"s":""}]}`},
+	// A query path in syntax the port does not read (a subselector): refused.
+	{Name: "query_subselector_path", Model: "qp4-1", Protocol: "openai", Payload: `{"a":[{"k":1},{"k":2}]}`},
+	// gjson's array-query loop reads nan as a number (NaN), where Array() says null.
+	{Name: "query_nan_not_zero", Model: "qp5-1", Protocol: "openai", Payload: `{"a":[nan]}`},
+	{Name: "query_nan_not_null", Model: "qp6-1", Protocol: "openai", Payload: `{"a":[nan]}`},
 	// A raw rule with an invalid value is dropped whole, unported parameters included.
 	{Name: "raw_override_invalid_with_unported", Model: "rawo-1", Protocol: "openai", Payload: `{}`, Tracked: []string{"x"}},
 	{Name: "raw_default_invalid_with_unported", Model: "rawd-1", Protocol: "openai", Payload: `{}`, Tracked: []string{"x"}},
