@@ -265,10 +265,10 @@ pub fn is_api_key(c: &Credential) -> bool {
     auth_kind(c) == Some("apikey")
 }
 
+/// Go `openAICompatInfoFromAuth`: a `compat_name` or the `openai-compatibility`
+/// provider. A `provider_key` alone does not count; Vertex API keys carry one.
 fn openai_compat(c: &Credential) -> bool {
-    ["compat_name", "provider_key"]
-        .iter()
-        .any(|k| c.attributes.get(*k).is_some_and(|v| !v.trim().is_empty()))
+    c.attributes.get("compat_name").is_some_and(|v| !v.trim().is_empty())
         || c.provider.trim().go_eq_fold("openai-compatibility")
 }
 
