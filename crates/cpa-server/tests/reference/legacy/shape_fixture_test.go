@@ -1,6 +1,6 @@
 package config
 
-// Overlaid into internal/config at 6fecc6e (see README.md). Dumps what the v0
+// Overlaid into internal/config at v8.0.35, ae3ee3be (see README.md). Dumps what the v0
 // management reads need to reproduce Go's json.Marshal of runtime config values: the
 // JSON layout of Config (field order, names, omitempty, kinds, YAML names) and the
 // legacy-to-v8 document path table.

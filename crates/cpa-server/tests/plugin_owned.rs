@@ -4172,6 +4172,57 @@ async fn a_refresh_from_an_earlier_registration_leaves_the_new_ones_schedule() {
     env.finish().await;
 }
 
+/// Go drops a refresh whose credential version moved since it started
+/// (`CredentialVersion`), even when the credentials were put back since: a refresh
+/// held while the file's token goes from `q` to `b` and back to `q` saves neither its
+/// tokens nor its `last_refresh`, and records no last refresh, so the credential is
+/// due by its interval at once.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_refresh_across_a_token_replacement_and_back_is_dropped() {
+    let Some((env, refreshes)) = pp_refresh_env("plugin-owned-refresh-credential-version").await else {
+        return;
+    };
+    canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
+    let auth_dir = env.rt.config().auth_dir.clone();
+    let write = |token: &str| {
+        let body = json!({"type":"pp","access_token":token,"refresh_interval":"1h"});
+        std::fs::write(auth_dir.join("x.json"), body.to_string()).unwrap();
+    };
+    write("q");
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    std::fs::write(
+        env.records.join("respond/pp/auth.refresh.once.json"),
+        json!({"ok":true,"result":{"Auth":{"Metadata":{"type":"pp","access_token":"p2",
+            "refresh_interval":"1h","last_refresh":chrono::Utc::now().to_rfc3339()}}}})
+        .to_string(),
+    )
+    .unwrap();
+    let hold = Release(env.records.join("respond/pp/auth.refresh.hold"));
+    std::fs::write(&hold.0, "").unwrap();
+    let since = std::time::Instant::now();
+    let pending = tokio::spawn({
+        let rt = env.rt.clone();
+        async move { rt.refresh_credential("x.json").await }
+    });
+    eventually("the held refresh", || refreshes("x.json") == 1).await;
+    for token in ["b", "q"] {
+        write(token);
+        cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+        assert_eq!(env.rt.store().get("x.json").unwrap().metadata["access_token"], token);
+    }
+    release(hold, since, &pending);
+    pending.await.unwrap().unwrap();
+    let on_disk: Value = serde_json::from_slice(&std::fs::read(auth_dir.join("x.json")).unwrap()).unwrap();
+    let in_memory = env.rt.store().get("x.json").unwrap();
+    for document in [&on_disk, &Value::Object(in_memory.metadata.clone())] {
+        assert_eq!(document["access_token"], "q");
+        assert!(document.get("last_refresh").is_none());
+    }
+    env.rt.start_auto_refresh();
+    eventually("the refresh due at once", || refreshes("x.json") == 2).await;
+    env.finish().await;
+}
+
 /// A failed refresh holds the next one off until the access token expires when that
 /// is sooner than 5 min, reading the credential as it is when the refresh fails (Go
 /// `refreshAuth` reads `m.auths[id]` under its lock): an edit while the refresh is held

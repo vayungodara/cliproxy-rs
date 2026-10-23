@@ -1,5 +1,5 @@
 // Records Go's v0 management routes for the legacy.rs replay. Overlaid as
-// cmd/zzlegacy/main.go in CLIProxyAPI 6fecc6e (see README.md). Every request goes
+// cmd/zzlegacy/main.go in CLIProxyAPI v8.0.35, ae3ee3be (see README.md). Every request goes
 // through a complete api.NewServer via httptest: no sockets, no outbound calls.
 package main
 

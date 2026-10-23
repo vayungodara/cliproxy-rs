@@ -1746,6 +1746,17 @@ pub(crate) async fn fields(State(state): State<Arc<Management>>, body: Result<Fi
     let root = |p: &str| p.split('.').next().unwrap_or_default().trim().to_owned();
     let mut retry: Option<Option<i64>> = None;
     for Field { path, raw, .. } in &fields {
+        // Go keeps a `use_siwc` number as its `json.Number`, which `parseBoolAny` reads
+        // only through `Int64`: a fraction, an exponent or a value past i64 counts as no
+        // flag until the file is loaded again (a float, true when non-zero). Credentials
+        // here keep no number literal, so such a write would move the credential version
+        // where Go's does not, and the reverse (DIFFERENCES-FROM-GO.md).
+        if path == "use_siwc" && matches!(raw, GoValue::Number(n) if n.parse::<i64>().is_err()) {
+            return fail(
+                StatusCode::BAD_REQUEST,
+                "use_siwc must be an integer when it is a number",
+            );
+        }
         if root(path) == "request_retry" && path != "request_retry" {
             return fail(StatusCode::BAD_REQUEST, "request_retry does not support nested fields");
         }
@@ -2675,6 +2686,58 @@ mod tests {
         (Management::new(rt, path), dir)
     }
 
+    /// A refresh that started before management edits only the credential's `use_siwc`
+    /// commits, as in Go, whose credential version stays put: a number Go would hold
+    /// unparsed (`json.Number` past `Int64`) is refused before anything is written, and
+    /// clearing an absent flag changes nothing Go compares.
+    #[tokio::test]
+    async fn a_use_siwc_edit_go_cannot_parse_leaves_a_refresh_in_flight_alone() {
+        let body = r#"{"type":"pp","access_token":"q","refresh_token":"r"}"#;
+        let (state, dir) = management("use-siwc-number", &[("a.json", body)]);
+        let store = state.rt.store();
+        let (current, registered) = store.get_registered("a.json").unwrap();
+        let mut codes = Vec::new();
+        for value in ["1.5", "1e0", "10000000000000000000", "null"] {
+            let r = fields(
+                State(state.clone()),
+                Ok(FirstJson(Bytes::from(format!(
+                    r#"{{"name":"a.json","use_siwc":{value}}}"#
+                )))),
+            )
+            .await;
+            codes.push((value, r.status()));
+        }
+        let mut patch = MetadataPatch::default();
+        patch.set.insert("access_token".into(), "p2".into());
+        patch.set.insert("refresh_token".into(), "r2".into());
+        let fence = crate::runtime::RefreshFence {
+            registered,
+            plugin: true,
+        };
+        let committed = crate::runtime::commit_refresh(store, "a.json", &current, fence, &patch, |_| {}).unwrap();
+        assert_eq!(committed.metadata["refresh_token"], "r2", "the refresh commits");
+        let on_disk: Value = serde_json::from_slice(&std::fs::read(dir.join("a.json")).unwrap()).unwrap();
+        assert_eq!(on_disk["refresh_token"], "r2");
+        assert!(store.refresh_schedules().lock().unwrap()["a.json"].last.is_some());
+        assert_eq!(
+            codes,
+            [
+                ("1.5", StatusCode::BAD_REQUEST),
+                ("1e0", StatusCode::BAD_REQUEST),
+                ("10000000000000000000", StatusCode::BAD_REQUEST),
+                ("null", StatusCode::OK),
+            ]
+        );
+        // An integer parses in Go as in the file it is loaded from.
+        let r = fields(
+            State(state.clone()),
+            Ok(FirstJson(Bytes::from(r#"{"name":"a.json","use_siwc":-0}"#))),
+        )
+        .await;
+        assert_eq!(r.status(), StatusCode::OK);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
     /// The two management paths that disable and enable a plugin-parsed credential
     /// register it without parsing its file again (DIFFERENCES-FROM-GO.md): a status
     /// write re-synthesizes it as a built-in credential, without a parsed
@@ -2703,7 +2766,7 @@ mod tests {
         assert_eq!(next_after("a.json"), Some((false, Some(parsed))));
         let now = chrono::Utc::now();
         for id in ["a.json", "b.json"] {
-            let (_, registration) = store.get_registered(id).unwrap();
+            let registration = store.get_registered(id).unwrap().1.registration;
             store
                 .record_refresh(id, registration, None, |c, s| {
                     crate::plugins::refresh::committed(c, s, now)
