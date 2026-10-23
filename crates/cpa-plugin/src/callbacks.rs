@@ -365,7 +365,7 @@ impl Host {
             method::HOST_AUTH_LIST => self.host_auth_list(request),
             method::HOST_AUTH_GET => self.host_auth_get(request),
             method::HOST_AUTH_GET_RUNTIME => self.host_auth_get_runtime(request),
-            method::HOST_AUTH_SAVE => self.host_auth_save(request),
+            method::HOST_AUTH_SAVE => self.host_auth_save(caller, request),
             method::HOST_AFFINITY_LOOKUP => self.host_affinity_lookup(request),
             _ => Err(CallbackError::new(format!("unsupported host callback {method}"))),
         }

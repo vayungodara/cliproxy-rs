@@ -22,6 +22,8 @@
 // In an envelope's host_calls, the string "$seq" in a request becomes the number of
 // host_calls made so far, so a repeated call can send different content each time;
 // "$seq" elsewhere in the envelope then becomes the number of its last host call.
+// With "spawn": true the envelope's host_calls are made from a new goroutine, which the
+// call waits for, so they reach the host on another thread than the call's.
 // While <method>.hold exists, calls of that method wait (up to 10s) before answering, so a
 // test can change host state between the call's record and its answer.
 // executor.execute_stream.script.once.json, {"chunks":["..."],"error":"..."}, makes the
@@ -308,24 +310,37 @@ func handle(method string, request []byte) ([]byte, int) {
 			// from an interceptor, rather than only from management.handle.
 			var callbacks struct {
 				Calls []hostCall `json:"host_calls"`
+				Spawn bool       `json:"spawn"`
 			}
 			_ = json.Unmarshal(raw, &callbacks)
 			var parent struct {
 				HostCallbackID string `json:"host_callback_id"`
 			}
 			_ = json.Unmarshal(request, &parent)
-			for _, call := range callbacks.Calls {
-				var fields map[string]any
-				_ = json.Unmarshal(call.Request, &fields)
-				fields["host_callback_id"] = parent.HostCallbackID
-				payload, _ := json.Marshal(fields)
-				mu.Lock()
-				seq++
-				n := seq
-				mu.Unlock()
-				payload = []byte(strings.ReplaceAll(string(payload), `"$seq"`, strconv.Itoa(n)))
-				response, _ := callHost(call.Method, payload)
-				record("host_callback", response)
+			makeCalls := func() {
+				for _, call := range callbacks.Calls {
+					var fields map[string]any
+					_ = json.Unmarshal(call.Request, &fields)
+					fields["host_callback_id"] = parent.HostCallbackID
+					payload, _ := json.Marshal(fields)
+					mu.Lock()
+					seq++
+					n := seq
+					mu.Unlock()
+					payload = []byte(strings.ReplaceAll(string(payload), `"$seq"`, strconv.Itoa(n)))
+					response, _ := callHost(call.Method, payload)
+					record("host_callback", response)
+				}
+			}
+			if callbacks.Spawn {
+				done := make(chan struct{})
+				go func() {
+					defer close(done)
+					makeCalls()
+				}()
+				<-done
+			} else {
+				makeCalls()
 			}
 			if len(callbacks.Calls) > 0 {
 				mu.Lock()
