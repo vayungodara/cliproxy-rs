@@ -2669,8 +2669,8 @@ async fn a_saved_auth_takes_its_refresh_deadline_only_when_registered() {
 }
 
 /// A reload that parses a saved file again keeps the saved auth's deadline (Go keeps the
-/// registered auth's `NextRefreshAfter` when it registers it again): the parsed one
-/// seeds a credential's schedule only with its first registration.
+/// registered auth's `NextRefreshAfter` when it registers it again while both are
+/// enabled): the parsed one counts only for a registration that takes it.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_reload_keeps_a_saved_auths_refresh_deadline() {
     let Some(env) = env(
@@ -3765,7 +3765,7 @@ async fn a_plugin_refresh_that_cannot_be_saved_backs_off() {
 /// registered afresh is due by its interval at once, as Go registers it: after its
 /// file is deleted and created again as an ordinary credential the parser no longer
 /// handles (whether or not the refresh loop saw the parsed one). A credential disabled
-/// and enabled again is not registered afresh: it keeps the parsed deadline.
+/// and enabled again takes the deadline it is registered with: the parsed one again.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadline() {
     let parsed = |id: &str| {

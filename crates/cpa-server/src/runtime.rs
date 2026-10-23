@@ -667,7 +667,6 @@ impl Runtime {
                 let jobs: Vec<_> = {
                     let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
                     state.reconcile(&snapshot);
-                    crate::plugins::refresh::reconcile(&rt);
                     let mut jobs = Vec::new();
                     rt.store.forget_stale_unauthorized(&rejected, &snapshot);
                     // Far enough ahead that any expiry has passed, near enough for chrono.
@@ -1256,6 +1255,10 @@ pub struct CredentialStore {
     /// Ends the upstream WebSocket sessions a removed credential serves (set by the
     /// runtime to [`cpa_exec::Executors::credential_session_closer`]).
     session_closer: std::sync::OnceLock<SessionCloser>,
+    /// Go `LastRefreshedAt` and `NextRefreshAfter` of the credentials a plugin
+    /// refreshes, registered with every change to the set
+    /// ([`crate::plugins::refresh::register`]).
+    refresh_schedules: crate::plugins::refresh::Schedules,
 }
 
 /// Ends the upstream WebSocket sessions of one removed credential.
@@ -1349,6 +1352,8 @@ impl CredentialStore {
             cred.revision = inner.generation;
             inner.creds.push(Arc::new(cred));
         }
+        let refresh_schedules = crate::plugins::refresh::Schedules::default();
+        crate::plugins::refresh::register(&refresh_schedules, &[], &inner.creds, &[]);
         Arc::new(Self {
             inner: RwLock::new(inner),
             policy: RwLock::new(Arc::new(Policy::default())),
@@ -1369,7 +1374,24 @@ impl CredentialStore {
             unauthorized: Mutex::default(),
             unauthorized_noted: tokio::sync::watch::Sender::new(()),
             session_closer: std::sync::OnceLock::new(),
+            refresh_schedules,
         })
+    }
+
+    /// The plugin refresh schedules ([`crate::plugins::refresh::register`]).
+    pub(crate) fn refresh_schedules(&self) -> &crate::plugins::refresh::Schedules {
+        &self.refresh_schedules
+    }
+
+    /// Registers the plugin refresh schedules of a change from `before` to `after`;
+    /// called with the change, under the write lock.
+    fn register(
+        &self,
+        before: &[Arc<Credential>],
+        after: &[Arc<Credential>],
+        saved: &[cpa_plugin::hostauth::SavedRefresh],
+    ) {
+        crate::plugins::refresh::register(&self.refresh_schedules, before, after, saved);
     }
 
     /// Go `ApplyConfigWithCooldownStateStore` plus the restore that follows a config
@@ -2043,7 +2065,13 @@ impl CredentialStore {
                             .remove(&next.id);
                     }
                 }
-                inner.creds[index] = Arc::new(next);
+                let next = Arc::new(next);
+                self.register(
+                    std::slice::from_ref(&inner.creds[index]),
+                    std::slice::from_ref(&next),
+                    &[],
+                );
+                inner.creds[index] = next;
                 inner.epoch += 1;
                 self.changed.send_replace(());
                 inner.creds[index].clone()
@@ -2135,7 +2163,9 @@ impl CredentialStore {
         let mut next = next;
         next.source = slot.source.clone();
         next.revision = generation;
-        *slot = Arc::new(next);
+        let next = Arc::new(next);
+        self.register(std::slice::from_ref(slot), std::slice::from_ref(&next), &[]);
+        *slot = next;
         let committed = slot.clone();
         inner.generation = generation;
         // Registrations depend on the credential (prefix, models): invalidate the
@@ -2210,6 +2240,7 @@ impl CredentialStore {
                 Ok(Some((write.then(|| path.clone()), bytes, (next, held))))
             },
             |inner, index, _, (next, held)| {
+                let before = inner.creds.clone();
                 let previous = inner.creds.remove(index);
                 self.provenance
                     .lock()
@@ -2225,6 +2256,7 @@ impl CredentialStore {
                     let at = index.min(inner.creds.len());
                     inner.creds.insert(at, Arc::new(next));
                 }
+                self.register(&before, &inner.creds, &[]);
                 inner.epoch += 1;
                 self.changed.send_replace(());
                 self.scheduler
@@ -2431,6 +2463,7 @@ impl CredentialStore {
             .collect();
         next.extend(runtime);
         let removed = removed_ids(&inner.creds, &next);
+        self.register(&inner.creds, &next, &[]);
         inner.creds = next;
         inner.epoch += 1;
         self.changed.send_replace(());
@@ -2480,6 +2513,7 @@ impl CredentialStore {
             }
         }
         let removed = removed_ids(&inner.creds, &next);
+        self.register(&inner.creds, &next, &[]);
         inner.creds = next;
         inner.epoch += 1;
         self.changed.send_replace(());
@@ -2499,15 +2533,22 @@ impl CredentialStore {
     /// the way a snapshot followed by [`Self::reconcile`] could undo it. An unchanged
     /// credential keeps its revision, as in `reconcile`.
     pub fn upsert(&self, credential: Credential) {
-        self.upsert_file(None, vec![credential]);
+        self.upsert_file(None, vec![credential], &[]);
     }
 
     /// [`Self::upsert`] for every credential an auth file saved at `path` holds (Go
     /// `upsertAuthRecordsForPath`): the file's other credentials, parsed from it
-    /// earlier, go, runtime-only ones excepted.
-    pub fn upsert_file(&self, path: Option<&std::path::Path>, credentials: Vec<Credential>) {
+    /// earlier, go, runtime-only ones excepted. `saved` has the refresh schedules a
+    /// plugin's save registers its credentials with.
+    pub fn upsert_file(
+        &self,
+        path: Option<&std::path::Path>,
+        credentials: Vec<Credential>,
+        saved: &[cpa_plugin::hostauth::SavedRefresh],
+    ) {
         let reload = self.reload.write().unwrap_or_else(PoisonError::into_inner);
         let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
+        let before = inner.creds.clone();
         let mut changed = false;
         let mut removed = Vec::new();
         if let Some(path) = path {
@@ -2543,6 +2584,7 @@ impl CredentialStore {
         if !changed {
             return;
         }
+        self.register(&before, &inner.creds, saved);
         inner.epoch += 1;
         self.changed.send_replace(());
         self.scheduler
@@ -2563,10 +2605,12 @@ impl CredentialStore {
         if inner.creds.iter().any(|c| c.id == credential.id && !c.disabled) {
             return false;
         }
+        let before = inner.creds.clone();
         inner.creds.retain(|c| c.id != credential.id);
         inner.generation += 1;
         credential.revision = inner.generation;
         inner.creds.push(Arc::new(credential));
+        self.register(&before, &inner.creds, &[]);
         inner.epoch += 1;
         self.changed.send_replace(());
         self.scheduler
@@ -2580,11 +2624,12 @@ impl CredentialStore {
     /// API for the relay route.
     pub fn remove_runtime(&self, id: &str) {
         let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
-        let before = inner.creds.len();
+        let before = inner.creds.clone();
         inner.creds.retain(|c| !(c.id == id && c.source == Source::Runtime));
-        if inner.creds.len() == before {
+        if inner.creds.len() == before.len() {
             return;
         }
+        self.register(&before, &inner.creds, &[]);
         inner.epoch += 1;
         self.changed.send_replace(());
         self.scheduler

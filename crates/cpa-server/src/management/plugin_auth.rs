@@ -118,9 +118,7 @@ impl AuthManager for PluginAuthManager {
                 (path, credentials, refresh)
             }
         };
-        crate::plugins::refresh::register_saved(&state.rt, &refresh, || {
-            state.rt.store().upsert_file(Some(&path), credentials)
-        });
+        state.rt.store().upsert_file(Some(&path), credentials, &refresh);
         Ok(())
     }
 

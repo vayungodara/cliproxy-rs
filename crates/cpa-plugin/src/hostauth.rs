@@ -77,13 +77,12 @@ pub enum SavedAuths {
 /// Where a saved plugin auth's refresh deadlines come from (Go `preserveExistingAuthState`
 /// in `buildAuthsFromFileData`): the registered auth it replaces (`donor`, Go
 /// `findExistingAuthForSave`), whose `LastRefreshedAt` and `NextRefreshAfter` it takes,
-/// unset ones included; without one, the `NextRefreshAfter` its plugin parsed. The
-/// manager applies them only once it registers the auth.
+/// unset ones included; without one, the `NextRefreshAfter` its plugin parsed (the
+/// credential's own). The manager applies them only once it registers the auth.
 #[derive(Clone, Debug)]
 pub struct SavedRefresh {
     pub id: String,
     pub donor: Option<String>,
-    pub next_refresh_after: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// The server's credential manager as the plugin host uses it.
@@ -473,7 +472,6 @@ impl Host {
             refresh.push(SavedRefresh {
                 id: auth.id.clone(),
                 donor: donor.map(|d| d.id),
-                next_refresh_after: auth.next_refresh_after.0.map(|at| at.to_utc()),
             });
             if file_disabled {
                 auth.disabled = true;

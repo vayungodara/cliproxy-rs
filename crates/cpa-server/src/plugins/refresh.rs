@@ -91,19 +91,10 @@ pub(crate) fn route(rt: &Runtime, c: &Credential, cfg: &Config) -> Option<Route>
 pub(crate) fn due_at(rt: &Runtime, c: &Credential, cfg: &Config) -> Option<DateTime<Utc>> {
     let interval = cpa_exec::preferred_interval(c)?;
     route(rt, c, cfg)?;
-    // Go registers a parsed auth with the plugin's `NextRefreshAfter`, and keeps both
-    // fields when the auth is registered again (`prepareCoreAuthForModelRegistration`).
-    // The parsed value is taken either way: it seeds this registration only, so a
-    // credential registered afresh after its removal waits for a new parse of its file
-    // to get one. Taken under the schedules lock, so a save reading this credential's
-    // deadlines ([`register_saved`]) sees either the seed or the schedule.
-    let mut schedules = lock(&rt.plugin_runtime().schedules);
-    let parsed = rt.plugins().take_parsed_next_refresh_after(&c.id);
-    let schedule = *schedules.entry(c.id.clone()).or_insert(Schedule {
-        last: None,
-        next_after: parsed,
-    });
-    drop(schedules);
+    let schedule = lock(rt.store().refresh_schedules())
+        .get(&c.id)
+        .copied()
+        .unwrap_or_default();
     let by_last = schedule
         .last
         .or_else(|| cpa_exec::last_refresh(c))
@@ -116,8 +107,8 @@ pub(crate) fn due_at(rt: &Runtime, c: &Credential, cfg: &Config) -> Option<DateT
     Some(schedule.next_after.map_or(due, |after| due.max(after)))
 }
 
-/// Go's refresh lifecycle fields of one credential a plugin refreshes. Kept per
-/// credential ID, so an edit of the file keeps them, as Go's re-registration does.
+/// Go's refresh lifecycle fields of one credential a plugin refreshes, kept per
+/// credential ID beside the store's set ([`register`]).
 #[derive(Clone, Copy, Default)]
 pub(crate) struct Schedule {
     /// Go `LastRefreshedAt`.
@@ -136,61 +127,49 @@ fn lock(schedules: &Schedules) -> std::sync::MutexGuard<'_, HashMap<String, Sche
 /// Where [`committed`] records plugin refreshes; cloned into the commit, which a
 /// cancelled caller cannot stop.
 pub(crate) fn schedules(rt: &Runtime) -> Schedules {
-    rt.plugin_runtime().schedules.clone()
+    rt.store().refresh_schedules().clone()
 }
 
-/// Forgets the schedules of credentials that are gone: Go registers them afresh, without
-/// the previous `LastRefreshedAt` and `NextRefreshAfter`. A disabled credential keeps
-/// its schedule (Go's disable edits the registered auth and keeps both fields).
-pub(crate) fn reconcile(rt: &Runtime) {
-    let mut schedules = lock(&rt.plugin_runtime().schedules);
-    // Read under the lock, so a credential a save registers with its schedule
-    // ([`register_saved`]) is never taken for gone.
-    let snapshot = rt.store().snapshot();
-    let live: std::collections::HashSet<&str> = snapshot.iter().map(|c| c.id.as_str()).collect();
-    schedules.retain(|id, _| live.contains(id.as_str()));
-}
-
-/// Registers the credentials of an auth save (`register`) with their refresh deadlines
-/// (Go `preserveExistingAuthState`, then `upsertAuthRecordsForPath`): an auth
-/// replacing a registered one under another ID takes that one's schedule, unset fields
-/// included; one replacing itself keeps its own; a new one starts from the
-/// `NextRefreshAfter` its plugin parsed (`saved`), or with none. The credentials the
-/// save removes lose theirs (Go `Manager.Remove`). The schedules stay locked across the
-/// registration, so the refresh loop never sees a saved credential without its own.
-pub(crate) fn register_saved(rt: &Runtime, saved: &[SavedRefresh], register: impl FnOnce()) {
-    let mut schedules = lock(&rt.plugin_runtime().schedules);
-    let ids = |rt: &Runtime| -> std::collections::HashSet<String> {
-        rt.store().snapshot().iter().map(|c| c.id.clone()).collect()
-    };
-    let before = ids(rt);
-    let entries: Vec<(String, Schedule)> = saved
-        .iter()
-        .filter_map(|s| {
-            let schedule = match s.donor.as_deref() {
-                Some(donor) if donor == s.id => return None,
-                // ponytail: a donor never scheduled yet gives the deadline of its file's
-                // latest parse, which a reload replaces, where Go gives the one it was
-                // registered with (DIFFERENCES-FROM-GO.md). Upgrade: Go's registration rule
-                // for plugin refresh state (service_auth.go L427-450) at every register.
-                Some(donor) => schedules.get(donor).copied().unwrap_or(Schedule {
-                    last: None,
-                    next_after: rt.plugins().parsed_next_refresh_after(donor),
-                }),
-                None => Schedule {
-                    last: None,
-                    next_after: s.next_refresh_after,
-                },
-            };
-            Some((s.id.clone(), schedule))
-        })
-        .collect();
-    register();
-    let after = ids(rt);
-    // A credential registered afresh starts without the schedule of an earlier one
-    // under its ID that has not been reconciled away yet.
-    schedules.retain(|id, _| after.contains(id) && before.contains(id));
-    schedules.extend(entries);
+/// Registers the schedules of a change to the store's set from `before` to `after`
+/// (the credentials it replaced, and the set or the credentials replacing them); the
+/// store calls it with the change, under its write lock. A credential registered
+/// again, under a new revision, keeps its `LastRefreshedAt` and `NextRefreshAfter`
+/// while it and the one it replaces are both enabled, and otherwise takes those it is
+/// registered with: no `LastRefreshedAt`, and the `NextRefreshAfter` its plugin parsed
+/// (Go `prepareCoreAuthForModelRegistration`, service_auth.go L427-450). An auth save
+/// (`saved`) registers its credentials with the fields of the auth each replaces
+/// instead, whatever their state, unset ones included (Go `preserveExistingAuthState`
+/// and `upsertAuthRecordsForPath`), or with their own without one. A credential that
+/// leaves the set loses its schedule (Go `Manager.Remove`).
+pub(crate) fn register(
+    schedules: &Schedules,
+    before: &[Arc<Credential>],
+    after: &[Arc<Credential>],
+    saved: &[SavedRefresh],
+) {
+    let mut schedules = lock(schedules);
+    let previous: HashMap<&str, &Credential> = before.iter().map(|c| (c.id.as_str(), &**c)).collect();
+    let mut registered = Vec::new();
+    for c in after {
+        let previous = previous.get(c.id.as_str());
+        if previous.is_some_and(|p| p.revision == c.revision) {
+            continue;
+        }
+        let own = Schedule {
+            last: None,
+            next_after: c.next_refresh_after.map(DateTime::<Utc>::from),
+        };
+        let schedule = match saved.iter().find(|s| s.id == c.id) {
+            Some(SavedRefresh { donor: Some(donor), .. }) => schedules.get(donor).copied().unwrap_or_default(),
+            Some(_) => own,
+            None if previous.is_some_and(|p| !p.disabled && !c.disabled) => continue,
+            None => own,
+        };
+        registered.push((c.id.clone(), schedule));
+    }
+    let live: std::collections::HashSet<&str> = after.iter().map(|c| c.id.as_str()).collect();
+    schedules.retain(|id, _| live.contains(id.as_str()) || !previous.contains_key(id.as_str()));
+    schedules.extend(registered);
 }
 
 /// Records a committed plugin refresh of `c` (Go `refreshAuth` on success): the refresh
@@ -220,7 +199,7 @@ pub(crate) fn failed(rt: &Runtime, c: &Credential, now: DateTime<Utc>) {
     if let Some(expiry) = cpa_exec::expiration(c).filter(|expiry| *expiry > now) {
         at = at.min(expiry);
     }
-    lock(&rt.plugin_runtime().schedules)
+    lock(rt.store().refresh_schedules())
         .entry(c.id.clone())
         .or_default()
         .next_after = Some(at);
