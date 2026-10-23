@@ -625,7 +625,7 @@ fn normalize_comment_indentation(text: &str) -> String {
 /// The checks Go's `flattenV8` makes on v8 key groups while decoding (`expandV8Groups`,
 /// `validateWeightSequenceNode`), which make an upload 400 rather than 422. `root` is
 /// the merge-expanded document.
-fn v8_group_error(root: &serde_yaml_ng::Value) -> Option<String> {
+pub(crate) fn v8_group_error(root: &serde_yaml_ng::Value) -> Option<String> {
     let families = root.get("api-keys")?.as_mapping()?;
     for (_, family) in view::KEY_FAMILIES {
         let Some(groups) = families.get(family) else { continue };

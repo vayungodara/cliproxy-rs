@@ -845,6 +845,43 @@ fn set_path(root: &mut Mapping, path: &str, value: Value) {
 
 /// Go `IsV8ConfigLayout`: a document is v8 by its version, a v8-only section, grouped
 /// `api-keys`, or a v8 path; roots shared with the legacy layout do not count alone.
+/// The layout checks of Go's `ValidateV8Config` that come before its strict decode, in
+/// its order, with its text: a legacy field (Go's declared legacy leaves, the historical
+/// v8 aliases, the shared structs), a root section v8 does not have, then an
+/// `api-keys` provider that is not a key family. `root` is the merge-expanded document.
+pub fn v8_layout_error(root: &Value) -> Option<String> {
+    let map = root.as_mapping()?;
+    let leaves = LEGACY.leaves.iter().map(|(old, new)| (old.as_str(), new.as_str()));
+    let aliases = CLIENT_PATHS.iter().chain(SHARED_PATHS).chain(SHARED_STRUCTS).copied();
+    for (old, new) in leaves.chain(aliases) {
+        // Go `legacyPath`: an `api-keys` mapping is the v8 key map.
+        if lookup(map, old).is_some_and(|v| !(old == "api-keys" && v.is_mapping())) {
+            return Some(format!("legacy field {old} is not accepted by v8; use {new}"));
+        }
+    }
+    // Go `v8AllowedRoots`.
+    let fixed = [
+        "models",
+        "config-version",
+        "api-keys",
+        "plugins",
+        "quota-exceeded",
+        "client",
+    ];
+    for key in map.keys().filter_map(Value::as_str) {
+        let section = |new: &String| new.split('.').next() == Some(key);
+        if !fixed.contains(&key) && !LEGACY.leaves.iter().any(|(_, new)| section(new)) {
+            return Some(format!("unknown v8 configuration section {key}"));
+        }
+    }
+    let groups = map.get("api-keys").and_then(Value::as_mapping)?;
+    groups
+        .keys()
+        .filter_map(Value::as_str)
+        .find(|key| !FAMILIES.iter().any(|(_, family)| family == key))
+        .map(|key| format!("unknown API-key provider {key}"))
+}
+
 pub fn is_v8_layout(root: &Value) -> bool {
     let mut root = root.clone();
     if super::expand_merges(&mut root).is_err() {

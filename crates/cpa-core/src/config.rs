@@ -22,7 +22,7 @@ mod schema;
 mod text;
 mod trusted;
 mod validate;
-pub use document::{ConfigDocument, archive_comments, is_v8_layout};
+pub use document::{ConfigDocument, archive_comments, is_v8_layout, v8_layout_error};
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
 
@@ -50,7 +50,7 @@ pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
 /// literal until the completed candidate is expanded. Telling quoted keys apart needs
 /// the yaml-edit syntax tree walked alongside the value.
 pub fn expand_merges(value: &mut Value) -> anyhow::Result<()> {
-    const NOT_MAPS: &str = "map merge requires map or sequence of maps as the value";
+    const NOT_MAPS: &str = "yaml: map merge requires map or sequence of maps as the value";
     match value {
         Value::Mapping(map) => {
             for (_, child) in map.iter_mut() {
@@ -367,7 +367,7 @@ pub fn prepare_for_upload(path: &Path) -> anyhow::Result<()> {
 }
 
 fn prepared_for_upload(text: &str) -> anyhow::Result<String> {
-    decode(text).context("failed to parse config file")?;
+    decode(text, false).context("failed to parse config file")?;
     // yaml.v3 and libyaml end a line at NEL, LS and PS too; yaml-edit, which places
     // the edits and reads the secret's tag, does not, so a comment would hide what
     // follows it. Refuse rather than misread the file.
@@ -575,8 +575,11 @@ fn scalar_exists(node: &Value, value: &str) -> bool {
 }
 
 /// The decoding part of [`Config::parse`]: the YAML, its layout and the setting types,
-/// before the validators. Its errors name settings, not their values.
-fn decode(text: &str) -> anyhow::Result<(Mapping, ConfigDocument)> {
+/// before the validators. Its errors name settings, not their values. With `payload`,
+/// an error of the typed decode (setting types, catalog sources) reads
+/// `parse config payload: ...`, as Go's `ParseConfigBytes` wraps its `yaml.Unmarshal`;
+/// Go checks the layout before that, unwrapped.
+fn decode(text: &str, payload: bool) -> anyhow::Result<(Mapping, ConfigDocument)> {
     let mut parsed = yaml_value(text)?;
     // Before any migration, as Go expands aliases first.
     expand_merges(&mut parsed)?;
@@ -588,8 +591,15 @@ fn decode(text: &str) -> anyhow::Result<(Mapping, ConfigDocument)> {
     validate_shape(&root)?;
     let mut document = ConfigDocument::from_mapping(root.clone())?;
     document.coerce_typed_scalars();
-    schema::validate(document.value(), false)?;
-    validate::decoded(document.value())?;
+    schema::validate(document.value(), false)
+        .and_then(|()| validate::decoded(document.value()))
+        .map_err(|e| {
+            if payload {
+                anyhow::anyhow!("parse config payload: {e}")
+            } else {
+                e
+            }
+        })?;
     Ok((root, document))
 }
 
@@ -614,8 +624,18 @@ impl Config {
         Ok(config)
     }
 
+    /// Go `ParseConfigBytes`, as the v8 config writer reports it: [`Config::parse`] with
+    /// typed-decode errors wrapped as `parse config payload: ...` (see [`decode`]).
+    pub fn parse_payload(text: &str) -> anyhow::Result<Self> {
+        Self::parse_as(text, true)
+    }
+
     pub fn parse(text: &str) -> anyhow::Result<Self> {
-        let (root, document) = decode(text)?;
+        Self::parse_as(text, false)
+    }
+
+    fn parse_as(text: &str, payload: bool) -> anyhow::Result<Self> {
+        let (root, document) = decode(text, payload)?;
         let canonical = document.value().as_mapping().expect("document is a mapping");
         let routing = decode_section::<RoutingConfig>(canonical, "routing")?;
         let mut routing = routing;
