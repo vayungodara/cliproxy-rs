@@ -622,49 +622,6 @@ fn normalize_comment_indentation(text: &str) -> String {
         .join("\n")
 }
 
-/// The checks Go's `flattenV8` makes on v8 key groups while decoding (`expandV8Groups`,
-/// `validateWeightSequenceNode`), which make an upload 400 rather than 422. `root` is
-/// the merge-expanded document.
-fn v8_group_error(root: &serde_yaml_ng::Value) -> Option<String> {
-    let families = root.get("api-keys")?.as_mapping()?;
-    for (_, family) in view::KEY_FAMILIES {
-        let Some(groups) = families.get(family) else { continue };
-        let Some(groups) = groups.as_sequence() else {
-            return Some(format!("api-keys.{family} must be a list"));
-        };
-        for (index, group) in groups.iter().enumerate() {
-            let Some(group) = group.as_mapping() else {
-                return Some(format!("api-keys.{family}[{index}] must be a mapping"));
-            };
-            let Some(keys) = group.get("keys").filter(|k| k.is_sequence()) else {
-                return Some(format!("api-keys.{family}[{index}].keys must be a list"));
-            };
-            if let Some(e) = weight_error_in(keys, &format!("api-keys.{family}.keys")) {
-                return Some(e.message);
-            }
-            if family == "openai-compatibility" {
-                continue;
-            }
-            let unsupported = group
-                .keys()
-                .map(|k| k.as_str().unwrap_or_default())
-                .find(|field| *field != "name" && *field != "keys" && !view::SHARED_KEY_FIELDS.contains(field));
-            if let Some(field) = unsupported {
-                return Some(format!("api-keys.{family}: unsupported group field {field}"));
-            }
-            for key in keys.as_sequence().into_iter().flatten() {
-                let Some(key) = key.as_mapping() else {
-                    return Some(format!("api-keys.{family} key must be a mapping"));
-                };
-                if key.contains_key("base-url") {
-                    return Some(format!("api-keys.{family}: base-url belongs to the group"));
-                }
-            }
-        }
-    }
-    None
-}
-
 /// A weight Go's config loading rejects.
 struct WeightError {
     /// `<path>[<i>].weight: <reason>`.
@@ -793,7 +750,8 @@ pub(crate) async fn put_config_yaml(State(state): State<Arc<Management>>, body: 
     if let Err(e) = cpa_core::config::expand_merges(&mut root) {
         return fail(StatusCode::BAD_REQUEST, "invalid_yaml", format!("{e:#}"));
     }
-    if let Some(e) = v8_group_error(&root) {
+    // The v8 key groups, which Go checks while decoding.
+    if let Some(e) = root.as_mapping().and_then(cpa_core::config::v8_group_error) {
         return fail(StatusCode::BAD_REQUEST, "invalid_yaml", e);
     }
     // Go v8.0.35 validates the model catalog sources while decoding the upload into

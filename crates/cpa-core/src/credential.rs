@@ -38,6 +38,9 @@ pub struct Credential {
     /// Store-wide monotonic stamp set on every accepted change, never reused even after
     /// a delete and re-create. Patches against an old revision are rejected.
     pub revision: u64,
+    /// Go `NextRefreshAfter` as the plugin auth parser returned it for this credential.
+    /// Registering the credential takes it per Go's registration rule; never persisted.
+    pub next_refresh_after: Option<std::time::SystemTime>,
 }
 
 impl Credential {
@@ -59,6 +62,7 @@ impl Credential {
             attributes: BTreeMap::from([("runtime_only".to_owned(), "true".to_owned())]),
             metadata,
             revision: 0,
+            next_refresh_after: None,
         }
     }
 
@@ -87,6 +91,7 @@ impl Credential {
             attributes: BTreeMap::new(),
             metadata,
             revision: 0,
+            next_refresh_after: None,
         };
         cred.refresh_derived();
         Some(cred)

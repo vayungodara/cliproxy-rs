@@ -46,6 +46,8 @@ pub struct ParsedAuth {
     pub disabled: bool,
     pub metadata: Map<String, Json>,
     pub attributes: BTreeMap<String, String>,
+    /// Go `NextRefreshAfter`: the credential registers with it ([`Credential::next_refresh_after`]).
+    pub next_refresh_after: Option<std::time::SystemTime>,
 }
 
 /// Go `ParseAuths`' outcome.
@@ -494,6 +496,7 @@ fn into_credential(mut auth: ParsedAuth, path: &Path) -> Credential {
         attributes: auth.attributes,
         metadata: auth.metadata,
         revision: 0,
+        next_refresh_after: auth.next_refresh_after,
     }
 }
 
@@ -546,6 +549,14 @@ mod tests {
 
     use super::super::{FileCredentials, auth_index, file_credentials, scan_with};
     use super::*;
+
+    /// Serializes the tests that use the process-wide answer cache and provider
+    /// signature: `cargo test` runs tests on parallel threads, and one test's
+    /// `set_plugin_auth_providers` retires the answers another is reading.
+    fn plugin_auth_state() -> std::sync::MutexGuard<'static, ()> {
+        static STATE: Mutex<()> = Mutex::new(());
+        STATE.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
     /// A parser answering from a closure and recording what it was asked.
     struct Fake<F> {
@@ -860,6 +871,7 @@ mod tests {
     /// of `read`, so the watcher reloads it) until a fill answers for it.
     #[test]
     fn a_locked_scan_only_uses_answers_cached_for_the_current_bytes() {
+        let _state = plugin_auth_state();
         let dir = std::env::temp_dir().join(format!("plugin-scan-cache-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
@@ -924,6 +936,7 @@ mod tests {
     /// file. Neither caches the answer for the new bytes: the next fill parses them.
     #[test]
     fn only_a_parses_own_write_publishes_its_answer_and_neither_is_cached() {
+        let _state = plugin_auth_state();
         let dir = std::env::temp_dir().join(format!("plugin-own-write-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("sub")).unwrap();

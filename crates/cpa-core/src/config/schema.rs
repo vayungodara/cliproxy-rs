@@ -1,5 +1,6 @@
 //! Field shapes generated from Go structs at 6fecc6e. Runtime defaults and provider
 //! sanitizers are separate; this does not claim to replace those normalizers.
+use crate::gostr::GoStr;
 use anyhow::{Context, bail};
 use serde_json::Value as Schema;
 use serde_yaml_ng::Value;
@@ -68,6 +69,12 @@ pub fn coerce_typed_scalars(value: &mut Value) {
                 }
                 return;
             }
+            Some("image-mode") => {
+                if let Ok(mode) = image_mode(value) {
+                    *value = mode;
+                }
+                return;
+            }
             Some("int" | "port") => {
                 if value.as_i64().is_none()
                     && let Some(n) = go_int(value)
@@ -122,6 +129,9 @@ fn walk(value: &Value, schema: &Schema, path: &str, strict: bool) -> anyhow::Res
         return Ok(());
     }
     if let Some(kind) = schema.as_str() {
+        if kind == "image-mode" && !value.is_number() {
+            return image_mode(value).map(drop).map_err(anyhow::Error::msg);
+        }
         let valid = match kind {
             "opaque" => true,
             // yaml.v3 decodes numeric/bool scalar spellings into Go string fields.
@@ -135,19 +145,12 @@ fn walk(value: &Value, schema: &Schema, path: &str, strict: bool) -> anyhow::Res
             "duration" => value
                 .as_str()
                 .is_some_and(|s| super::validate::parse_duration(s).is_some()),
-            "image-mode" => {
-                value.is_bool()
-                    || value
-                        .as_str()
-                        .is_some_and(|s| ["chat", "passthrough", "true", "false"].contains(&s))
-            }
+            // yaml.v3 hands the number's own text to the mode parser.
+            "image-mode" => false,
             _ => false,
         };
         if !valid {
             bail!("{path} has an invalid type");
-        }
-        if path.ends_with(".weight") && go_int(value).is_some_and(|v| v > 1_000_000) {
-            bail!("credential weight must not exceed 1000000");
         }
         return Ok(());
     }
@@ -421,6 +424,34 @@ pub(super) fn zero_at(doc: &mut Value, path: &str) {
             map.remove(*last);
         }
     }
+}
+
+/// Go `parseDisableImageGenerationNode`: the mode a `disable-image-generation` value
+/// selects, as `false`, `true`, `"chat"` or `"passthrough"`, or Go's error. Null is
+/// off; any other scalar is read as text, lowercased and trimmed.
+///
+/// ponytail: the validator refuses a number (`has an invalid type`): Go parses its
+/// source text, so `1` is `true` but `0x1` and `1.0` are errors, and the parsed value
+/// no longer tells those apart.
+fn image_mode(value: &Value) -> Result<Value, String> {
+    let text = match value {
+        Value::Null => return Ok(Value::Bool(false)),
+        Value::Bool(b) => return Ok(Value::Bool(*b)),
+        Value::String(s) => s.go_lower(),
+        _ => return Err("invalid disable-image-generation value".to_owned()),
+    };
+    let text = String::from_utf8_lossy(super::go_trim_space(text.as_bytes()));
+    Ok(match &*text {
+        "" | "false" | "0" | "off" | "no" => Value::Bool(false),
+        "true" | "1" | "on" | "yes" => Value::Bool(true),
+        "chat" | "passthrough" => Value::from(&*text),
+        _ => {
+            return Err(format!(
+                "invalid disable-image-generation value {} (allowed: true, false, chat, passthrough)",
+                crate::gostr::quote(&*text)
+            ));
+        }
+    })
 }
 
 fn zero_of(kind: &str) -> Option<Value> {

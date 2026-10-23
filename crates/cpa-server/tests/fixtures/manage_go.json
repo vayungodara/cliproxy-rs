@@ -30294,6 +30294,393 @@
       }
      },
      "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"config-version\":7,\"api-keys\":{\"gemini\":null}}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "unsupported config-version (expected 8)"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"unsupported config-version (expected 8)\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$CPTcqlq1Ho0ikxcoGym5wOD.qk5F7TVy1jZR7pGHoYxaSEAlmTUIK"
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"server\":0,\"api-keys\":{\"gemini\":null}}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "server must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"server must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$CPTcqlq1Ho0ikxcoGym5wOD.qk5F7TVy1jZR7pGHoYxaSEAlmTUIK"
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"gemini-api-key\":[{\"api-key\":\"fake\",\"weight\":1000001}]}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "gemini-api-key[0].weight: weight must not exceed 1000000"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"gemini-api-key[0].weight: weight must not exceed 1000000\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$CPTcqlq1Ho0ikxcoGym5wOD.qk5F7TVy1jZR7pGHoYxaSEAlmTUIK"
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"openai-compatibility\":[{\"name\":\"x\",\"base-url\":\"https://x.invalid\",\"api-key-entries\":[{\"api-key\":\"fake\",\"weight\":\"heavy\"}]}]}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "openai-compatibility[0].api-key-entries[0].weight: weight must be an integer"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"openai-compatibility[0].api-key-entries[0].weight: weight must be an integer\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$CPTcqlq1Ho0ikxcoGym5wOD.qk5F7TVy1jZR7pGHoYxaSEAlmTUIK"
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"api-keys\":{\"gemini\":[{\"keys\":[{\"api-key\":\"fake\"}]}]},\"gemini-api-key\":[{\"api-key\":\"fake\",\"weight\":1000001}]}",
+     "status": 400,
+     "response": {
+      "error": "invalid_config",
+      "message": "unknown v8 configuration section gemini-api-key"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"unknown v8 configuration section gemini-api-key\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$CPTcqlq1Ho0ikxcoGym5wOD.qk5F7TVy1jZR7pGHoYxaSEAlmTUIK"
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/multimedia/disable-image-generation",
+     "body": "\"bad\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: invalid disable-image-generation value \"bad\" (allowed: true, false, chat, passthrough)"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: invalid disable-image-generation value \\\"bad\\\" (allowed: true, false, chat, passthrough)\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$CPTcqlq1Ho0ikxcoGym5wOD.qk5F7TVy1jZR7pGHoYxaSEAlmTUIK"
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/multimedia/disable-image-generation",
+     "body": "{\"x\":1}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: invalid disable-image-generation value"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: invalid disable-image-generation value\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$CPTcqlq1Ho0ikxcoGym5wOD.qk5F7TVy1jZR7pGHoYxaSEAlmTUIK"
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/multimedia/disable-image-generation",
+     "body": "\" ON \"",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$CPTcqlq1Ho0ikxcoGym5wOD.qk5F7TVy1jZR7pGHoYxaSEAlmTUIK"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"oauth\":{\"providers\":{\"claude\":0}},\"api-keys\":{\"gemini\":null}}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "oauth.providers.claude must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"oauth.providers.claude must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$0IPfS61d/K2Gs/JgNaDgKOequiFMbpu1tGuUMGWbM3DJgKTruKz1S"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"oauth\":{\"providers\":{\"codex\":{\"live-media-relay\":0}}},\"api-keys\":{\"gemini\":null}}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "oauth.providers.codex.live-media-relay must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"oauth.providers.codex.live-media-relay must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$0IPfS61d/K2Gs/JgNaDgKOequiFMbpu1tGuUMGWbM3DJgKTruKz1S"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/oauth/providers/codex/live-media-relay",
+     "body": "0",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "oauth.providers.codex.live-media-relay must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"oauth.providers.codex.live-media-relay must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$0IPfS61d/K2Gs/JgNaDgKOequiFMbpu1tGuUMGWbM3DJgKTruKz1S"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/oauth/providers/claude",
+     "body": "0",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "oauth.providers.claude must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"oauth.providers.claude must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$0IPfS61d/K2Gs/JgNaDgKOequiFMbpu1tGuUMGWbM3DJgKTruKz1S"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
     }
    ]
   },

@@ -65,7 +65,7 @@ fn binary_scalars_decode_like_go() {
                 // The base64 and merge errors are Go's text; other errors only fail in
                 // both.
                 let exact = ["!!binary value", "map merge"].iter().any(|t| go_error.contains(t));
-                if exact && !e.to_string().ends_with(go_error.trim_start_matches("yaml: ")) {
+                if exact && e.to_string() != go_error {
                     fail(format!("error {e:#}, Go {go_error:?}"));
                 }
                 continue;

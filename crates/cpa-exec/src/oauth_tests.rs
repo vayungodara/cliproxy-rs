@@ -543,6 +543,7 @@ async fn home_device_pools_match_go() {
             attributes,
             metadata: scenario["metadata"].as_object().cloned().unwrap_or_default(),
             revision: 0,
+            next_refresh_after: None,
         };
         let raw_pool = credential.metadata.get("claude_device_ids");
         if canonical_pool(raw_pool) {

@@ -3253,6 +3253,7 @@ mod tests {
                 attributes,
                 metadata: case["metadata"].as_object().cloned().unwrap_or_default(),
                 revision: 0,
+                next_refresh_after: None,
             };
             let request = &case["request"];
             let with_options = request["with_options"].as_bool().unwrap_or(false);

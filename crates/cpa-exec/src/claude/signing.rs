@@ -114,7 +114,7 @@ struct Member {
 }
 
 fn normalize(body: &[u8]) -> Result<Vec<u8>, String> {
-    if !gjson::valid(std::str::from_utf8(body).map_err(|e| e.to_string())?) {
+    if !rawjson::valid(std::str::from_utf8(body).map_err(|e| e.to_string())?) {
         return Err("invalid JSON body".into());
     }
     let mut s = Scanner {

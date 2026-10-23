@@ -1699,5 +1699,119 @@
     },
     "verifies": false,
     "effective_same": true
+  },
+  {
+    "name": "null legacy weight",
+    "yaml": "gemini-api-key: [{api-key: fake, weight: null}]\n",
+    "error": "",
+    "unchanged": true,
+    "result": {
+      "gemini-api-key": [
+        {
+          "api-key": "fake",
+          "weight": null
+        }
+      ]
+    },
+    "verifies": false,
+    "effective_same": true
+  },
+  {
+    "name": "legacy weight above the limit",
+    "yaml": "gemini-api-key: [{api-key: fake, weight: 1000001}]\n",
+    "error": "",
+    "unchanged": true,
+    "result": {
+      "gemini-api-key": [
+        {
+          "api-key": "fake",
+          "weight": 1000001
+        }
+      ]
+    },
+    "verifies": false,
+    "effective_same": true
+  },
+  {
+    "name": "compatible weight above the limit",
+    "yaml": "openai-compatibility: [{name: x, base-url: https://x.invalid, api-key-entries: [{api-key: fake, weight: 1000001}]}]\n",
+    "error": "",
+    "unchanged": true,
+    "result": {
+      "openai-compatibility": [
+        {
+          "api-key-entries": [
+            {
+              "api-key": "fake",
+              "weight": 1000001
+            }
+          ],
+          "base-url": "https://x.invalid",
+          "name": "x"
+        }
+      ]
+    },
+    "verifies": false,
+    "effective_same": true
+  },
+  {
+    "name": "null group weight",
+    "yaml": "api-keys: {gemini: [{keys: [{api-key: fake, weight: null}]}]}\n",
+    "error": "failed to parse config file: api-keys.gemini.keys[0].weight: weight must be an integer",
+    "unchanged": true,
+    "result": {
+      "api-keys": {
+        "gemini": [
+          {
+            "keys": [
+              {
+                "api-key": "fake",
+                "weight": null
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "verifies": false,
+    "effective_same": null
+  },
+  {
+    "name": "non-integer legacy weight",
+    "yaml": "gemini-api-key: [{api-key: fake, weight: heavy}]\n",
+    "error": "failed to parse config file: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `heavy` into int",
+    "unchanged": true,
+    "result": {
+      "gemini-api-key": [
+        {
+          "api-key": "fake",
+          "weight": "heavy"
+        }
+      ]
+    },
+    "verifies": false,
+    "effective_same": null
+  },
+  {
+    "name": "group weight above the limit",
+    "yaml": "api-keys: {gemini: [{keys: [{api-key: fake, weight: 1000001}]}]}\n",
+    "error": "failed to parse config file: api-keys.gemini.keys[0].weight: weight must not exceed 1000000",
+    "unchanged": true,
+    "result": {
+      "api-keys": {
+        "gemini": [
+          {
+            "keys": [
+              {
+                "api-key": "fake",
+                "weight": 1000001
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "verifies": false,
+    "effective_same": null
   }
 ]

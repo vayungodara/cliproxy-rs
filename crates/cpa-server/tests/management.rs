@@ -2050,7 +2050,7 @@ async fn a_v0_write_over_a_file_with_an_invalid_catalog_source_is_refused() {
         (status, text.as_str()),
         (
             422,
-            r#"{"error":"invalid_config","message":"models.catalog must be an http(s) URL or an absolute local path"}"#
+            r#"{"error":"invalid_config","message":"parse config payload: models.catalog must be an http(s) URL or an absolute local path"}"#
         )
     );
     assert_eq!(f.file(), disk);

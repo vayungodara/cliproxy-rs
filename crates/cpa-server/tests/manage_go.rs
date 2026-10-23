@@ -728,6 +728,60 @@ mod config_writes {
         "a plugin's store.version or store.release-tag in the config file is a !!binary value, which is not supported",
     )];
 
+    /// Steps where Go reports yaml.v3's typed-decode error (`line N: cannot unmarshal ...`
+    /// or `field X not found in type ...`), with the message cliproxy-rs gives instead.
+    const DECODE_MESSAGES: &[(&str, &str)] = &[
+        (
+            "malformed_oauth_maps_are_rejected_before_sanitizing[0]",
+            "parse config payload: config.oauth.excluded-models.claude must be a list",
+        ),
+        (
+            "malformed_oauth_maps_are_rejected_before_sanitizing[1]",
+            "parse config payload: config.oauth.model-alias.claude[0].name has an invalid type",
+        ),
+        (
+            "malformed_oauth_maps_are_rejected_before_sanitizing[2]",
+            "parse config payload: config.oauth.settings.claude must be a list",
+        ),
+        (
+            "malformed_oauth_maps_are_rejected_before_sanitizing[3]",
+            "parse config payload: config.oauth.request-scoped-errors.claude[0].status has an invalid type",
+        ),
+        (
+            "rejected_writes_leave_the_file[0]",
+            "parse config payload: config.server.port has an invalid type",
+        ),
+        (
+            "rejected_writes_leave_the_file[2]",
+            "unknown setting config.oauth.providers.codex.unknown",
+        ),
+        (
+            "rejected_writes_leave_the_file[5]",
+            "parse config payload: config.access.api-keys must be a list",
+        ),
+        (
+            "rejected_writes_leave_the_file[17]",
+            "parse config payload: config.routing.retry.request-retry has an invalid type",
+        ),
+        (
+            "yaml_bools_and_merges[5]",
+            "parse config payload: config.routing.force-model-prefix has an invalid type",
+        ),
+        (
+            "yaml_bools_and_merges[6]",
+            "parse config payload: config.routing.force-model-prefix has an invalid type",
+        ),
+        ("model_catalog_sources[12]", "unknown setting config.models.unknown"),
+        (
+            "model_catalog_sources[13]",
+            "parse config payload: config.models must be a mapping",
+        ),
+        (
+            "server_github_token[7]",
+            "parse config payload: config.server.github-token has an invalid type",
+        ),
+    ];
+
     /// A YAML text as Go's decoder into `any` sees it: merge keys expanded, `!!binary`
     /// scalars decoded.
     fn rust_yaml_value(text: &str) -> Value {
@@ -835,6 +889,21 @@ mod config_writes {
                             want.get("message").is_some(),
                             "{at}: {got}"
                         );
+                        // Go's text, except where it is yaml.v3's typed-decode error, which
+                        // cliproxy-rs words by setting (docs/DIFFERENCES-FROM-GO.md).
+                        if let Some(go) = want.get("message").and_then(Value::as_str) {
+                            let step = format!("{name}[{i}]");
+                            let rust = match DECODE_MESSAGES.iter().find(|(s, _)| *s == step) {
+                                Some((_, rust)) => {
+                                    assert!(go.contains("yaml: unmarshal errors:\n"), "{at}: {go}");
+                                    *rust
+                                }
+                                None => go,
+                            };
+                            if got["message"] != rust {
+                                failures.push(format!("{at}: message {}, expected {rust:?}", got["message"]));
+                            }
+                        }
                     } else {
                         // Values as written: `"on"` stays a string, as in Go's file.
                         let path = step["path"].as_str().unwrap();
@@ -870,12 +939,12 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        // Windows skips model_catalog_sources: 31 steps, 18 of them byte-compared.
-        assert_eq!(compared, if cfg!(windows) { 139 } else { 170 });
+        // Windows skips model_catalog_sources: 31 steps, 25 of them byte-compared.
+        assert_eq!(compared, if cfg!(windows) { 151 } else { 182 });
         eprintln!("config writes: {bytes_compared} of {compared} steps compared byte for byte");
         assert_eq!(
             bytes_compared,
-            if cfg!(windows) { 101 } else { 119 },
+            if cfg!(windows) { 121 } else { 146 },
             "steps compared byte for byte"
         );
     }

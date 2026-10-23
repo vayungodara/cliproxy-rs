@@ -30,9 +30,6 @@ pub struct PluginRuntime {
     access: RwLock<Arc<AccessRegistry>>,
     /// Go's executor table entries owned by plugins: provider to the registered executor.
     executors: RwLock<HashMap<String, cpa_plugin::executor::Adapter>>,
-    /// The refresh lifecycle of credentials a plugin refreshes (Go `LastRefreshedAt` and
-    /// `NextRefreshAfter`, which Go keeps in memory too).
-    schedules: refresh::Schedules,
 }
 
 impl Default for PluginRuntime {
@@ -51,7 +48,6 @@ impl PluginRuntime {
             applied: watch::Sender::new(0),
             access: RwLock::default(),
             executors: RwLock::default(),
-            schedules: refresh::Schedules::default(),
         }
     }
 
@@ -141,14 +137,27 @@ pub async fn sync(rt: &Runtime, cfg: Arc<Config>) {
 /// changed after the scan read it (a token refresh committed meanwhile) keeps its
 /// current credential, and so does a file the scan read half-written. Plugins parse on
 /// a blocking thread, holding no lock: a parse can make host callbacks that need the
-/// async runtime, even with one worker thread.
+/// async runtime, even with one worker thread. This load registers the credentials as
+/// Go's first one does, so it replaces the startup load's refresh schedules
+/// ([`crate::runtime::CredentialStore::end_bootstrap`]).
 pub async fn reload_plugin_auth_files(rt: &Arc<Runtime>) {
     use cpa_core::config::credentials;
+    /// Ends the startup window however the load ends, a failed one included, so the
+    /// refresh loop never waits on provisional schedules. Owned by the load itself: a
+    /// dropped caller leaves the window open until the parse it started is published.
+    struct EndBootstrap(Arc<Runtime>);
+    impl Drop for EndBootstrap {
+        fn drop(&mut self) {
+            self.0.store().end_bootstrap();
+        }
+    }
+    let end = EndBootstrap(rt.clone());
     if !credentials::plugin_auth_parser_active() {
         return;
     }
     let rt = rt.clone();
     let reload = tokio::task::spawn_blocking(move || {
+        let _end = end;
         let cfg = rt.config();
         credentials::preparse_auth_dir(&cfg);
         let scan = credentials::scan_auth_dir(&cfg);
