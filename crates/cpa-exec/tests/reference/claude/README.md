@@ -181,6 +181,11 @@ through v8.0.35's executor with the same `main.go` as the v8.0.27 recording (a t
 module whose `replace` points at the v8.0.35 checkout). It holds the 6fecc6e payload
 scenarios Go now answers differently (`FOLLOWS_V8_0_35` in `claude/tests.rs`) and two
 count_tokens scenarios with rules: upstream through OAuth and local through a gateway key.
+Three scenarios without rules (`NO_RULES_V8_0_35`) cover requests that cloaking turns
+into a probe or a helper, or out of one: Go classifies the cloaked body, so a quota
+probe whose system text becomes a role:system turn on a modern model is no longer a
+probe, a legacy model's title prompt moved into a user reminder stays a helper, and
+`max_tokens: 1` with `Hi` becomes a probe once cloaking adds `cache_control`.
 `claude::tests::v8_0_35_payload_barrier_scenarios_match_go` replays them, and checks that
 each sent body's CCH signs that body.
 

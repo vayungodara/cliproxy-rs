@@ -568,13 +568,22 @@ const FOLLOWS_V8_0_35: &[&str] = &[
     "payload-filter-fable",
 ];
 
+/// Requests without payload rules that cloaking turns into a probe or a helper, or out
+/// of one. Go classifies the cloaked body; cliproxy-rs before 868e137 sent each of
+/// these with a different cc_prompt_id, cache TTL or diagnostics choice.
+const NO_RULES_V8_0_35: &[&str] = &[
+    "noroles-quota-probe-with-system",
+    "noroles-legacy-title-helper",
+    "noroles-hi-becomes-probe",
+];
+
 /// 868e137 through Go v8.0.35's executor (scenarios-v8.0.35.json): payload rules see
 /// the fully prepared body and nothing repairs their result.
 #[tokio::test]
 async fn v8_0_35_payload_barrier_scenarios_match_go() {
     let fixture = include_str!("testdata/go_executor_v8.0.35.json");
     assert!(fixture.contains(r#""source": "CLIProxyAPI v8.0.35 "#));
-    for name in FOLLOWS_V8_0_35 {
+    for name in FOLLOWS_V8_0_35.iter().chain(NO_RULES_V8_0_35) {
         assert!(fixture.contains(&format!(r#""name": "{name}""#)), "{name}");
     }
     scenarios_match_go(fixture, "v8.0.35", |_| true).await;
