@@ -500,6 +500,32 @@ impl Runtime {
         }
         let view = self.for_executor(&current);
         let plugin = crate::plugins::refresh::route(self, &current, cfg);
+        // Go `CodexExecutor.Refresh` on a Codex credential file: one transaction, under
+        // the file's credential lock, owned apart from the caller.
+        if let Source::File(path) = &current.source
+            && plugin.is_none()
+            && current.provider == "codex"
+            && path.exists()
+        {
+            let mode = match failed {
+                Some(_) if management => cpa_exec::codex_refresh::RefreshMode::Management,
+                Some(_) => cpa_exec::codex_refresh::RefreshMode::Rejected,
+                None => cpa_exec::codex_refresh::RefreshMode::Due,
+            };
+            let refresher = self.executors.codex.refresher(&view, cfg);
+            let file = path.clone();
+            return refresh_codex_file(
+                self.store.clone(),
+                refresher,
+                guard,
+                current,
+                registration,
+                view,
+                file,
+                mode,
+            )
+            .await;
+        }
         // A plugin answer also publishes the committed document's proxy URL (the merged
         // one, or a concurrent edit's when that wins the merge) as the credential's.
         let (patch, publish_proxy) = match (&plugin, failed) {
@@ -1984,6 +2010,101 @@ impl CredentialStore {
         Ok((committed, rotated))
     }
 
+    /// Go `PersistCodexAuthFile` for a refresh of `original`'s file, run while the
+    /// caller holds the file's credential lock: the file is read again, `patch` applied
+    /// to it (each refreshed token partition over the version it still holds, every
+    /// other field as the file has it), the result written as Go's `json.Marshal` of
+    /// the decoded map with legacy keys renamed, and published as the credential's
+    /// metadata. Refused (`NotFound`) once the ID was registered again since
+    /// `registration`. When the commit replaced the tokens, its time is recorded as
+    /// [`Self::apply_refresh`] records it, and unauthorized cooldowns are cleared.
+    /// Blocking.
+    pub(crate) fn commit_codex_refresh(
+        &self,
+        original: &Credential,
+        registration: u64,
+        patch: &cpa_exec::codex_refresh::RefreshPatch,
+    ) -> Result<Arc<Credential>, PatchError> {
+        use cpa_common::json::GoValue;
+        let id = original.id.as_str();
+        let committed = {
+            let mut state = self.unauthorized.lock().unwrap_or_else(PoisonError::into_inner);
+            let committed = loop {
+                let revision = self.get(id).ok_or(PatchError::NotFound)?.revision;
+                let written = self.write_unlocked(
+                    id,
+                    revision,
+                    Some(registration),
+                    false,
+                    |current| {
+                        let Source::File(path) = &current.source else {
+                            return Err(PatchError::ConfigBacked);
+                        };
+                        let invalid = || PatchError::Io(format!("invalid credential JSON in {}", path.display()));
+                        let bytes = std::fs::read(path).map_err(|e| PatchError::Io(e.to_string()))?;
+                        let Ok(Value::Object(target)) = serde_json::from_slice::<Value>(&bytes) else {
+                            return Err(invalid());
+                        };
+                        let mut doc = GoValue::parse_f64(&bytes)
+                            .and_then(|v| v.into_object().ok())
+                            .ok_or_else(invalid)?;
+                        patch.apply(&target, &mut doc);
+                        // Go `NormalizeCredentialMetadata`: a present canonical key wins.
+                        let legacy: Vec<String> = doc
+                            .keys()
+                            .filter(|k| cpa_plugin::auth::canonical_metadata_key(k) != k.as_str())
+                            .cloned()
+                            .collect();
+                        for key in legacy {
+                            let value = doc.remove(&key).expect("listed above");
+                            doc.entry(cpa_plugin::auth::canonical_metadata_key(&key).to_owned())
+                                .or_insert(value);
+                        }
+                        let out = GoValue::Object(doc).marshal();
+                        let Ok(Value::Object(metadata)) = serde_json::from_slice::<Value>(&out) else {
+                            return Err(invalid());
+                        };
+                        let mut next = Credential::clone(current);
+                        next.metadata = metadata;
+                        next.refresh_derived();
+                        Ok(Some((Some(path.clone()), out, next)))
+                    },
+                    |inner, index, bytes, mut next| {
+                        inner.generation += 1;
+                        next.revision = inner.generation;
+                        // The file holds Go's encoding of its own float64 reading.
+                        self.note_provenance(&next.id, next.revision, sha256(bytes), None);
+                        let next = Arc::new(next);
+                        self.register(
+                            std::slice::from_ref(&inner.creds[index]),
+                            std::slice::from_ref(&next),
+                            &[],
+                        );
+                        inner.creds[index] = next;
+                        inner.epoch += 1;
+                        self.changed.send_replace(());
+                        inner.creds[index].clone()
+                    },
+                );
+                match written {
+                    // Edited in memory meanwhile: the file, read again, carries the edit.
+                    Err(PatchError::Stale { .. }) => continue,
+                    other => break other?.expect("a codex refresh always writes"),
+                }
+            };
+            if credentials_changed(original, &committed) {
+                state
+                    .refreshed
+                    .insert(id.to_owned(), (committed.revision, Instant::now()));
+            }
+            committed
+        };
+        if credentials_changed(original, &committed) {
+            self.recover_unauthorized(id);
+        }
+        Ok(committed)
+    }
+
     /// Changes whenever a 401 schedules a background refresh.
     pub(crate) fn subscribe_unauthorized(&self) -> tokio::sync::watch::Receiver<()> {
         self.unauthorized_noted.subscribe()
@@ -3004,6 +3125,78 @@ fn rebase_patch(
     (out, partition_applies)
 }
 
+/// Go `CodexExecutor.Refresh` for credential `current`, whose file is `path`, as one
+/// transaction: the file's credential lock (`<file>.lock`, shared with Go and
+/// `--siwc-bind`) is taken, the file read under it, the grants sent from the tokens it
+/// holds ([`cpa_exec::codex_refresh::Refresher::refresh_locked`]), and their result
+/// applied to the file as read again under the same lock and published
+/// ([`CredentialStore::commit_codex_refresh`]) before the lock is released. A spawned
+/// task owns it all, the preparation lock (`guard`) included: a cancelled caller cannot
+/// release the lock while a grant is in flight and leave its new tokens unwritten.
+#[allow(clippy::too_many_arguments)]
+async fn refresh_codex_file(
+    store: Arc<CredentialStore>,
+    refresher: cpa_exec::codex_refresh::Refresher,
+    guard: tokio::sync::OwnedMutexGuard<()>,
+    current: Arc<Credential>,
+    registration: u64,
+    view: Arc<Credential>,
+    path: std::path::PathBuf,
+    mode: cpa_exec::codex_refresh::RefreshMode,
+) -> Result<Arc<Credential>, ExecError> {
+    let local = |e: String| ExecError::local(500, FailureScope::Request, format!("codex executor: {e}"));
+    let transaction = tokio::spawn(async move {
+        let _guard = guard;
+        let (lock, disk) = tokio::task::spawn_blocking({
+            let path = path.clone();
+            move || read_locked_codex_file(&path)
+        })
+        .await
+        .map_err(|e| e.to_string())
+        .and_then(|r| r)
+        .map_err(local)?;
+        let patch = refresher.refresh_locked(&view, &disk, mode).await?;
+        if patch.is_empty() {
+            return Ok(current);
+        }
+        tokio::task::spawn_blocking(move || {
+            let _lock = lock;
+            store.commit_codex_refresh(&current, registration, &patch)
+        })
+        .await
+        .map_err(|e| PatchError::Io(e.to_string()))
+        .and_then(|r| r)
+        .map_err(|e| {
+            ExecError::local(
+                500,
+                FailureScope::Request,
+                format!("committing prepared credential: {e:?}"),
+            )
+        })
+    });
+    transaction.await.map_err(|e| local(e.to_string()))?
+}
+
+/// A held credential lock and the file read under it.
+type LockedFile = (std::fs::File, Map<String, Value>);
+
+/// Go `refreshLocked`'s read: the Codex credential file under its lock, which the
+/// returned file holds. A file that is gone, or that is not a non-empty JSON object,
+/// fails before anything refreshes. Blocking.
+fn read_locked_codex_file(path: &Path) -> Result<LockedFile, String> {
+    #[cfg(test)]
+    tests::LOCK_ATTEMPTS
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .push(path.to_owned());
+    let lock = cpa_exec::codex_siwc_bind::lock_file(path)?;
+    let data = std::fs::read(path).map_err(|e| format!("read credential file {}: {e}", path.display()))?;
+    match serde_json::from_slice(&data) {
+        Ok(Value::Object(disk)) if !disk.is_empty() => Ok((lock, disk)),
+        _ => Err(format!("invalid credential JSON in {}", path.display())),
+    }
+}
+
 /// Go `CredentialsChanged`: the tokens or API key differ.
 fn credentials_changed(a: &Credential, b: &Credential) -> bool {
     let text = |c: &Credential, keys: &[&str]| {
@@ -3234,6 +3427,9 @@ mod tests {
         /// before it reads the credential again.
         pub(super) static AFTER_STALE: std::cell::Cell<Option<Box<dyn FnOnce()>>> = const { std::cell::Cell::new(None) };
     }
+
+    /// Every Codex credential file a refresh went to lock, in order (all tests).
+    pub(super) static LOCK_ATTEMPTS: Mutex<Vec<std::path::PathBuf>> = Mutex::new(Vec::new());
 
     /// Go checks a refresh's `RegistrationEpoch` before anything else in
     /// `updateInternal`: a refresh that meets an edit, after which its ID is registered
@@ -4720,6 +4916,574 @@ mod tests {
             }
             std::fs::remove_dir_all(dir).unwrap();
         }
+    }
+
+    /// A runtime over Codex credential files in a private auth-dir, refreshing against a
+    /// loopback mock that records each grant as (partition, refresh token, client ID).
+    struct CodexDisk {
+        rt: Arc<Runtime>,
+        dir: std::path::PathBuf,
+        grants: Arc<Mutex<Grants>>,
+        /// Each grant takes a permit before the mock answers.
+        gate: Arc<tokio::sync::Semaphore>,
+        base: String,
+    }
+
+    type Grants = Vec<(&'static str, String, String)>;
+
+    impl CodexDisk {
+        async fn new(files: &[(&str, &Value)]) -> Self {
+            Self::gated(files, 1000).await
+        }
+
+        async fn gated(files: &[(&str, &Value)], permits: usize) -> Self {
+            let grants = Arc::new(Mutex::new(Vec::new()));
+            let gate = Arc::new(tokio::sync::Semaphore::new(permits));
+            let route = |partition: &'static str, answer: &'static str| {
+                let (grants, gate) = (grants.clone(), gate.clone());
+                axum::routing::post(move |body: String| async move {
+                    let field = |key: &str| {
+                        url::form_urlencoded::parse(body.as_bytes())
+                            .find(|(k, _)| k == key)
+                            .map(|(_, v)| v.into_owned())
+                            .unwrap_or_default()
+                    };
+                    grants
+                        .lock()
+                        .unwrap()
+                        .push((partition, field("refresh_token"), field("client_id")));
+                    gate.acquire().await.unwrap().forget();
+                    answer
+                })
+            };
+            let app = axum::Router::new()
+                .route(
+                    "/oauth/token",
+                    route(
+                        "outer",
+                        r#"{"access_token":"outer-access-refreshed","refresh_token":"outer-ref-refreshed","expires_in":864000}"#,
+                    ),
+                )
+                .route(
+                    "/siwc/token",
+                    route(
+                        "siwc",
+                        r#"{"access_token":"siwc-access-refreshed","refresh_token":"siwc-ref-refreshed","scope":"openid chatgpt.tokens.use.direct","expires_in":3600}"#,
+                    ),
+                );
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+            let dir = std::env::temp_dir().join(format!("cpa-codex-disk-{}", uuid::Uuid::new_v4()));
+            std::fs::create_dir_all(&dir).unwrap();
+            for (name, body) in files {
+                std::fs::write(dir.join(name), body.to_string()).unwrap();
+            }
+            let rt = Self::runtime(&dir, &base);
+            Self {
+                rt,
+                dir,
+                grants,
+                gate,
+                base,
+            }
+        }
+
+        /// A runtime over the auth-dir as it is now, with its own refresh coordination:
+        /// another process sharing the files and the mock.
+        fn other_process(&self) -> Arc<Runtime> {
+            Self::runtime(&self.dir, &self.base)
+        }
+
+        fn runtime(dir: &Path, base: &str) -> Arc<Runtime> {
+            let mut cfg = Config::parse("").unwrap();
+            cfg.auth_dir = dir.to_owned();
+            let client = wreq::Client::new();
+            let oauth = cpa_exec::codex_oauth::CodexOAuth::with_endpoints(
+                client.clone(),
+                &format!("{base}/oauth/token"),
+                "",
+                "",
+            )
+            .with_siwc_token_url(&format!("{base}/siwc/token"))
+            .with_retry_delay(Duration::from_millis(1));
+            Arc::new(crate::testing::runtime(
+                cfg.clone(),
+                cpa_core::config::credentials::from_auth_dir(&cfg)
+                    .into_iter()
+                    .map(crate::testing::local)
+                    .collect(),
+                Executors {
+                    claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                    codex: cpa_exec::codex::CodexExecutor::with_client(client, oauth),
+                    devices: Default::default(),
+                    openai: Default::default(),
+                    google: Default::default(),
+                },
+            ))
+        }
+
+        /// Waits until `n` refreshes in all went to lock this auth-dir's `name`.
+        async fn lock_attempts(&self, name: &str, n: usize) {
+            let path = self.dir.join(name);
+            let attempted = async {
+                while LOCK_ATTEMPTS.lock().unwrap().iter().filter(|p| **p == path).count() < n {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            };
+            tokio::time::timeout(Duration::from_secs(5), attempted)
+                .await
+                .expect("the refresh went to lock the file");
+        }
+
+        /// Waits until a grant reached the mock.
+        async fn granted(&self) {
+            let granted = async {
+                while self.grants.lock().unwrap().is_empty() {
+                    tokio::time::sleep(Duration::from_millis(5)).await;
+                }
+            };
+            tokio::time::timeout(Duration::from_secs(5), granted)
+                .await
+                .expect("a grant");
+        }
+
+        fn grants(&self) -> Grants {
+            std::mem::take(&mut *self.grants.lock().unwrap())
+        }
+
+        /// The file and the stored credential, which must agree on `fields`.
+        fn tokens(&self, name: &str, fields: &[&str]) -> Vec<Value> {
+            let disk: Value = serde_json::from_slice(&std::fs::read(self.dir.join(name)).unwrap()).unwrap();
+            let stored = Value::Object(self.rt.store.get(name).unwrap().metadata.clone());
+            let pick = |m: &Value| {
+                fields
+                    .iter()
+                    .map(|f| m.pointer(f).cloned().unwrap_or(Value::Null))
+                    .collect()
+            };
+            let (disk, stored): (Vec<Value>, Vec<Value>) = (pick(&disk), pick(&stored));
+            assert_eq!(disk, stored, "file and store differ");
+            disk
+        }
+    }
+
+    fn codex_file(outer: (&str, chrono::Duration), siwc: (&str, &str, chrono::Duration)) -> Value {
+        let now = chrono::Utc::now();
+        serde_json::json!({
+            "type": "codex",
+            "access_token": format!("outer-{}", outer.0),
+            "refresh_token": format!("outer-ref-{}", outer.0),
+            "expired": (now + outer.1).to_rfc3339(),
+            "use_siwc": true,
+            "siwc": {
+                "access_token": format!("siwc-{}", siwc.0),
+                "refresh_token": format!("siwc-ref-{}", siwc.0),
+                "client_id": siwc.1,
+                "device_id": "e61bbe28-07ef-466d-8e5d-a344f94ab305",
+                "expired": (now + siwc.2).to_rfc3339(),
+            },
+        })
+    }
+
+    /// Go `TestCodexExecutorRefreshSerializesUnderFileLockAndSkipsAlreadyRotatedToken`
+    /// (7b0319fb): a due refresh waits while another process holds the file's credential
+    /// lock, then reads the file: the Sign in with ChatGPT partition that process rotated
+    /// is adopted, in memory and on disk, and its refresh token is not spent again.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_refresh_waits_for_the_file_lock_and_adopts_what_another_process_rotated() {
+        let (days, minutes) = (chrono::Duration::days(5), chrono::Duration::minutes(2));
+        let f = CodexDisk::new(&[(
+            "codex.json",
+            &codex_file(("keep", days), ("old", "oaiapp_shared", minutes)),
+        )])
+        .await;
+        let path = f.dir.join("codex.json");
+        let (locked_tx, locked) = std::sync::mpsc::channel();
+        let (release_tx, release) = std::sync::mpsc::channel::<()>();
+        let other = std::thread::spawn({
+            let path = path.clone();
+            move || {
+                let lock = cpa_exec::codex_siwc_bind::lock_file(&path).unwrap();
+                locked_tx.send(()).unwrap();
+                release.recv().unwrap();
+                let rotated = codex_file(("keep", days), ("other", "oaiapp_shared", chrono::Duration::hours(1)));
+                std::fs::write(&path, rotated.to_string()).unwrap();
+                drop(lock);
+            }
+        });
+        locked.recv().unwrap();
+        let refresh = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.prepare_credential("codex.json", &rt.config(), None).await }
+        });
+        f.lock_attempts("codex.json", 1).await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(!refresh.is_finished(), "the refresh waits for the lock");
+        assert_eq!(f.grants(), [], "nothing refreshes under another process's lock");
+        release_tx.send(()).unwrap();
+        other.join().unwrap();
+        tokio::time::timeout(Duration::from_secs(5), refresh)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(f.grants(), [], "the rotated token is not refreshed again");
+        assert_eq!(
+            f.tokens(
+                "codex.json",
+                &["/access_token", "/siwc/access_token", "/siwc/refresh_token"]
+            ),
+            ["outer-keep", "siwc-other", "siwc-ref-other"]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// The A→B→C case of the same Go test: memory holds version A, the file version B,
+    /// both due. The refresh spends B's refresh tokens (and B's client ID), and C reaches
+    /// memory and disk.
+    #[tokio::test]
+    async fn a_codex_refresh_spends_the_tokens_on_disk_not_the_stale_snapshot() {
+        let hour = chrono::Duration::hours(1);
+        let minute = chrono::Duration::minutes(1);
+        let f = CodexDisk::new(&[("codex.json", &codex_file(("A", hour), ("A", "oaiapp_A", minute)))]).await;
+        let disk_b = codex_file(("B", hour), ("B", "oaiapp_B", minute));
+        std::fs::write(f.dir.join("codex.json"), disk_b.to_string()).unwrap();
+        f.rt.prepare_credential("codex.json", &f.rt.config(), None)
+            .await
+            .unwrap();
+        assert_eq!(
+            f.grants(),
+            [
+                (
+                    "outer",
+                    "outer-ref-B".to_owned(),
+                    cpa_exec::codex_oauth::CLIENT_ID.to_owned()
+                ),
+                ("siwc", "siwc-ref-B".to_owned(), "oaiapp_B".to_owned()),
+            ]
+        );
+        assert_eq!(
+            f.tokens(
+                "codex.json",
+                &[
+                    "/access_token",
+                    "/refresh_token",
+                    "/siwc/access_token",
+                    "/siwc/client_id"
+                ]
+            ),
+            [
+                "outer-access-refreshed",
+                "outer-ref-refreshed",
+                "siwc-access-refreshed",
+                "oaiapp_B"
+            ]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// The A→B→C case when the watcher loads B while B refreshes: the commit merges
+    /// against B, the tokens the refresh started from, so C is kept, not dropped as a
+    /// stale refresh of A.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_refresh_keeps_its_result_when_the_watcher_loads_the_adopted_tokens() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let f = CodexDisk::gated(
+            &[("codex.json", &codex_file(("keep", days), ("A", "oaiapp_A", minute)))],
+            0,
+        )
+        .await;
+        let disk_b = codex_file(("keep", days), ("B", "oaiapp_B", minute));
+        std::fs::write(f.dir.join("codex.json"), disk_b.to_string()).unwrap();
+        let refresh = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.prepare_credential("codex.json", &rt.config(), None).await }
+        });
+        f.granted().await;
+        // The watcher's reload of B, while the grant for B is in flight.
+        let mut reload = MetadataPatch::default();
+        reload.set.insert("siwc".into(), disk_b["siwc"].clone());
+        let revision = f.rt.store.get("codex.json").unwrap().revision;
+        f.rt.store.apply_patch("codex.json", revision, &reload).unwrap();
+        f.gate.add_permits(1);
+        tokio::time::timeout(Duration::from_secs(5), refresh)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(f.grants(), [("siwc", "siwc-ref-B".to_owned(), "oaiapp_B".to_owned())]);
+        assert_eq!(
+            f.tokens("codex.json", &["/siwc/access_token", "/siwc/refresh_token"]),
+            ["siwc-access-refreshed", "siwc-ref-refreshed"]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// A file whose `type` is spelled differently from the provider it loaded as
+    /// (`Codex`) still takes an adopted outer partition: the stored spelling stays.
+    #[tokio::test]
+    async fn a_codex_refresh_adopts_a_rotated_file_whatever_its_type_spelling() {
+        let (days, hour) = (chrono::Duration::days(5), chrono::Duration::hours(1));
+        let mut file = codex_file(("A", days), ("keep", "oaiapp_x", hour));
+        file["type"] = "Codex".into();
+        file["use_siwc"] = false.into();
+        let f = CodexDisk::new(&[("codex.json", &file)]).await;
+        let mut rotated = file.clone();
+        rotated["access_token"] = "outer-B".into();
+        rotated["refresh_token"] = "outer-ref-B".into();
+        std::fs::write(f.dir.join("codex.json"), rotated.to_string()).unwrap();
+        let current = f.rt.store.get("codex.json").unwrap();
+        let cfg = f.rt.config();
+        assert!(f.rt.refresh_after_unauthorized(&current, &cfg).await.is_some());
+        assert_eq!(f.grants(), []);
+        assert_eq!(
+            f.tokens("codex.json", &["/type", "/access_token", "/refresh_token"]),
+            ["Codex", "outer-B", "outer-ref-B"]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// After a 401 on the Sign in with ChatGPT token, a file whose partition another
+    /// process already rotated is adopted without forcing a refresh of the new token
+    /// (Go `RejectedAccessToken` names the old one). A file that is not valid JSON fails
+    /// the refresh before any grant (Go: "invalid credential JSON").
+    #[tokio::test]
+    async fn a_rejected_codex_token_adopts_a_rotated_file_and_a_corrupt_file_refreshes_nothing() {
+        let (days, hour) = (chrono::Duration::days(5), chrono::Duration::hours(1));
+        let f = CodexDisk::new(&[(
+            "codex.json",
+            &codex_file(("keep", days), ("rejected", "oaiapp_x", hour)),
+        )])
+        .await;
+        let path = f.dir.join("codex.json");
+        std::fs::write(
+            &path,
+            codex_file(("keep", days), ("other", "oaiapp_x", hour)).to_string(),
+        )
+        .unwrap();
+        let cfg = f.rt.config();
+        let current = f.rt.store.get("codex.json").unwrap();
+        let refreshed = f.rt.refresh_after_unauthorized(&current, &cfg).await.expect("adopted");
+        assert_eq!(f.grants(), []);
+        assert_eq!(refreshed.metadata["siwc"]["access_token"], "siwc-other");
+        assert_eq!(
+            f.tokens("codex.json", &["/siwc/access_token", "/siwc/refresh_token"]),
+            ["siwc-other", "siwc-ref-other"]
+        );
+        std::fs::write(&path, "{corrupt").unwrap();
+        assert!(f.rt.refresh_after_unauthorized(&refreshed, &cfg).await.is_none());
+        assert_eq!(f.grants(), []);
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// The commit takes the partition as the file held it under the lock as well as the
+    /// snapshot's (Go `matchesBaselineOrAfter`): memory holds A and is edited while the
+    /// refresh waits for another process, which rotates the file to B. C, refreshed from
+    /// B, lands over B with the edit kept, instead of being dropped as a refresh of an A
+    /// that changed meanwhile, which would leave B's spent refresh token on disk.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_refresh_of_an_adopted_partition_lands_after_an_edit_to_the_snapshot() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let f = CodexDisk::new(&[("codex.json", &codex_file(("keep", days), ("A", "oaiapp_x", minute)))]).await;
+        let path = f.dir.join("codex.json");
+        let (locked_tx, locked) = std::sync::mpsc::channel();
+        let (release_tx, release) = std::sync::mpsc::channel::<()>();
+        let other = std::thread::spawn({
+            let path = path.clone();
+            move || {
+                let lock = cpa_exec::codex_siwc_bind::lock_file(&path).unwrap();
+                locked_tx.send(()).unwrap();
+                release.recv().unwrap();
+                let mut rotated = codex_file(("keep", days), ("B", "oaiapp_x", minute));
+                rotated["priority"] = 7.into();
+                std::fs::write(&path, rotated.to_string()).unwrap();
+                drop(lock);
+            }
+        });
+        locked.recv().unwrap();
+        let refresh = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.prepare_credential("codex.json", &rt.config(), None).await }
+        });
+        f.lock_attempts("codex.json", 1).await;
+        // An edit of A that keeps its tokens (the watcher, a management save).
+        let mut edit = MetadataPatch::default();
+        edit.set.insert("priority".into(), 7.into());
+        let revision = f.rt.store.get("codex.json").unwrap().revision;
+        f.rt.store.apply_patch("codex.json", revision, &edit).unwrap();
+        release_tx.send(()).unwrap();
+        other.join().unwrap();
+        tokio::time::timeout(Duration::from_secs(5), refresh)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(f.grants(), [("siwc", "siwc-ref-B".to_owned(), "oaiapp_x".to_owned())]);
+        assert_eq!(
+            f.tokens(
+                "codex.json",
+                &["/siwc/access_token", "/siwc/refresh_token", "/priority"]
+            ),
+            [
+                Value::from("siwc-access-refreshed"),
+                Value::from("siwc-ref-refreshed"),
+                Value::from(7)
+            ]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// A refresh whose caller is cancelled once its grant is sent keeps the file's
+    /// credential lock until the new tokens are written (Go `refreshLocked` writes before
+    /// `WithFileLock` returns): another process waiting on the lock then reads them and
+    /// does not spend the old refresh token again.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_cancelled_codex_refresh_writes_its_tokens_before_another_process_reads_the_file() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let f = CodexDisk::gated(
+            &[("codex.json", &codex_file(("keep", days), ("A", "oaiapp_x", minute)))],
+            0,
+        )
+        .await;
+        let other = f.other_process();
+        let refresh = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.prepare_credential("codex.json", &rt.config(), None).await }
+        });
+        f.granted().await;
+        refresh.abort();
+        assert!(refresh.await.unwrap_err().is_cancelled());
+        let waiting = tokio::spawn({
+            let other = other.clone();
+            async move { other.prepare_credential("codex.json", &other.config(), None).await }
+        });
+        f.lock_attempts("codex.json", 2).await;
+        f.gate.add_permits(10);
+        let adopted = tokio::time::timeout(Duration::from_secs(5), waiting)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(f.grants(), [("siwc", "siwc-ref-A".to_owned(), "oaiapp_x".to_owned())]);
+        assert_eq!(adopted.metadata["siwc"]["refresh_token"], "siwc-ref-refreshed");
+        assert_eq!(
+            f.tokens("codex.json", &["/siwc/access_token", "/siwc/refresh_token"]),
+            ["siwc-access-refreshed", "siwc-ref-refreshed"]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// Fields other than the refreshed tokens are written as the file holds them under
+    /// the lock (Go applies the refresh patch to the file it reads again): a credential
+    /// disabled in the file, not yet reloaded, stays disabled after a refresh of the
+    /// tokens it adopted from that file.
+    #[tokio::test]
+    async fn a_codex_refresh_keeps_a_disabled_flag_it_finds_in_the_file() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let f = CodexDisk::new(&[("codex.json", &codex_file(("keep", days), ("A", "oaiapp_x", minute)))]).await;
+        let mut disk_b = codex_file(("keep", days), ("B", "oaiapp_x", minute));
+        disk_b["disabled"] = true.into();
+        std::fs::write(f.dir.join("codex.json"), disk_b.to_string()).unwrap();
+        let refreshed =
+            f.rt.prepare_credential("codex.json", &f.rt.config(), None)
+                .await
+                .unwrap();
+        assert_eq!(f.grants(), [("siwc", "siwc-ref-B".to_owned(), "oaiapp_x".to_owned())]);
+        assert!(refreshed.disabled);
+        assert_eq!(
+            f.tokens("codex.json", &["/disabled", "/siwc/access_token"]),
+            [Value::Bool(true), Value::from("siwc-access-refreshed")]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// After a 401, a file that rotated only the refresh token of the partition requests
+    /// use still holds the rejected access token, so the refresh is forced, with the
+    /// file's refresh token (Go compares the adopted access token with
+    /// `RejectedAccessToken`). Both partitions.
+    #[tokio::test]
+    async fn a_rejected_codex_token_refreshes_when_the_file_rotated_only_its_refresh_token() {
+        let (days, hour) = (chrono::Duration::days(5), chrono::Duration::hours(1));
+        for use_siwc in [true, false] {
+            let mut file = codex_file(("A", days), ("A", "oaiapp_x", hour));
+            file["use_siwc"] = use_siwc.into();
+            let f = CodexDisk::new(&[("codex.json", &file)]).await;
+            let (prefix, client) = match use_siwc {
+                true => ("siwc", "oaiapp_x"),
+                false => ("outer", cpa_exec::codex_oauth::CLIENT_ID),
+            };
+            let pointer = if use_siwc {
+                "/siwc/refresh_token"
+            } else {
+                "/refresh_token"
+            };
+            *file.pointer_mut(pointer).unwrap() = format!("{prefix}-ref-B").into();
+            std::fs::write(f.dir.join("codex.json"), file.to_string()).unwrap();
+            let current = f.rt.store.get("codex.json").unwrap();
+            let cfg = f.rt.config();
+            let refreshed = f.rt.refresh_after_unauthorized(&current, &cfg).await;
+            assert_eq!(
+                f.grants(),
+                [(
+                    if use_siwc { "siwc" } else { "outer" },
+                    format!("{prefix}-ref-B"),
+                    client.to_owned()
+                )],
+                "use_siwc {use_siwc}"
+            );
+            let access = if use_siwc {
+                "/siwc/access_token"
+            } else {
+                "/access_token"
+            };
+            let refreshed = Value::Object(refreshed.expect("refreshed").metadata.clone());
+            assert_eq!(
+                refreshed.pointer(access).unwrap(),
+                &format!("{prefix}-access-refreshed")
+            );
+            assert_eq!(
+                f.tokens("codex.json", &[access]),
+                [format!("{prefix}-access-refreshed")]
+            );
+            std::fs::remove_dir_all(&f.dir).unwrap();
+        }
+    }
+
+    /// A credential file removed while the refresh waits for its lock fails the refresh
+    /// before any grant (Go: "read credential file").
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_refresh_fails_when_its_file_is_removed_while_it_waits_for_the_lock() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let f = CodexDisk::new(&[("codex.json", &codex_file(("keep", days), ("A", "oaiapp_x", minute)))]).await;
+        let path = f.dir.join("codex.json");
+        let (locked_tx, locked) = std::sync::mpsc::channel();
+        let (release_tx, release) = std::sync::mpsc::channel::<()>();
+        let other = std::thread::spawn({
+            let path = path.clone();
+            move || {
+                let lock = cpa_exec::codex_siwc_bind::lock_file(&path).unwrap();
+                locked_tx.send(()).unwrap();
+                release.recv().unwrap();
+                std::fs::remove_file(&path).unwrap();
+                drop(lock);
+            }
+        });
+        locked.recv().unwrap();
+        let refresh = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.prepare_credential("codex.json", &rt.config(), None).await }
+        });
+        f.lock_attempts("codex.json", 1).await;
+        release_tx.send(()).unwrap();
+        other.join().unwrap();
+        let result = tokio::time::timeout(Duration::from_secs(5), refresh)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(result.is_err(), "{result:?}");
+        assert_eq!(f.grants(), []);
+        std::fs::remove_dir_all(&f.dir).unwrap();
     }
 
     /// Go 50d5fe18 and feb63984 (conductor_issue6415_test, conductor_issue6742_test): a
