@@ -1947,7 +1947,8 @@ fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<
 /// from while the file still holds them, with any token refresh's values in place. A
 /// non-integer number with neither refuses the save (docs/DIFFERENCES-FROM-GO.md). An equal document leaves the file as it is, and
 /// the record is published all the same. Codex records go through
-/// `PersistCodexAuthFile`, which keeps the disk's credentials first.
+/// `PersistCodexAuthFile`, which keeps the disk's credentials first, under the file's
+/// credential lock. Blocking.
 ///
 /// [`Provenance`]: crate::runtime::Provenance
 fn save_file_backed(
@@ -1957,6 +1958,18 @@ fn save_file_backed(
     literals: &[(Vec<String>, GoValue)],
 ) -> Result<(), PatchError> {
     let path = path_of(target).ok_or(PatchError::ConfigBacked)?;
+    // Go `PersistCodexAuthFile`: a Codex record is read, merged and written under the
+    // file's credential lock, so a refresh holding it (here or in another process)
+    // lands before this read or after this write, never between.
+    let codex_record = target.provider.go_eq_fold("codex")
+        || metadata
+            .get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|t| t.trim().go_eq_fold("codex"));
+    let _lock = codex_record
+        .then(|| state.rt.lock_codex_file(path))
+        .transpose()
+        .map_err(PatchError::Io)?;
     let existing = std::fs::read(path).ok();
     let held: Option<[u8; 32]> = existing
         .as_deref()
@@ -2810,6 +2823,70 @@ mod tests {
 
     fn on_disk(dir: &std::path::Path, file: &str) -> Value {
         serde_json::from_slice(&std::fs::read(dir.join(file)).unwrap()).unwrap()
+    }
+
+    /// A management save of a Codex file takes the file's credential lock (Go
+    /// `PersistCodexAuthFile`): while another process holds it to rotate the tokens, the
+    /// save waits, then reads the rotated file and keeps its tokens beside the edit.
+    #[test]
+    fn a_codex_save_waits_for_the_credential_lock() {
+        let (state, dir) = management(
+            "codex-lock",
+            &[(
+                "codex.json",
+                r#"{"type":"codex","access_token":"A","refresh_token":"rA","disabled":false}"#,
+            )],
+        );
+        let path = dir.join("codex.json");
+        let lock = cpa_exec::codex_siwc_bind::lock_file(&path).unwrap();
+        let current = state.rt.store().get("codex.json").unwrap();
+        let mut meta = current.metadata.clone();
+        meta.insert("priority".into(), 7.into());
+        let save = std::thread::spawn({
+            let state = state.clone();
+            move || save_file_backed(&state, &current, &meta, &[])
+        });
+        // The other process's refresh, under its lock.
+        std::thread::sleep(std::time::Duration::from_millis(200));
+        assert!(!save.is_finished(), "the save waits for the lock");
+        std::fs::write(
+            &path,
+            r#"{"type":"codex","access_token":"C","refresh_token":"rC","disabled":false}"#,
+        )
+        .unwrap();
+        drop(lock);
+        save.join().unwrap().unwrap();
+        let disk = on_disk(&dir, "codex.json");
+        assert_eq!(
+            (&disk["access_token"], &disk["refresh_token"], &disk["priority"]),
+            (&"C".into(), &"rC".into(), &7.into())
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A Codex save waiting for a credential lock another process holds gives up at
+    /// shutdown, so the exit does not wait on that process.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_save_stops_waiting_for_the_lock_at_shutdown() {
+        let (state, dir) = management(
+            "codex-lock-stop",
+            &[("codex.json", r#"{"type":"codex","access_token":"A","disabled":false}"#)],
+        );
+        let held = cpa_exec::codex_siwc_bind::lock_file(&dir.join("codex.json")).unwrap();
+        let current = state.rt.store().get("codex.json").unwrap();
+        let save = tokio::task::spawn_blocking({
+            let state = state.clone();
+            move || save_file_backed(&state, &current, &current.metadata, &[])
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        state.rt.shutdown_codex_refreshes().await;
+        let saved = tokio::time::timeout(std::time::Duration::from_secs(5), save)
+            .await
+            .expect("the save stops waiting")
+            .unwrap();
+        assert!(saved.is_err(), "{saved:?}");
+        drop(held);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     /// Go's store leaves a file whose document is unchanged alone (`jsonEqual`, numbers
