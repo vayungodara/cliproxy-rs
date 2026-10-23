@@ -2685,7 +2685,7 @@ mod tests {
         use chrono::TimeZone;
         let parsed = chrono::Utc.with_ymd_and_hms(2099, 1, 1, 0, 0, 0).unwrap();
         let body = r#"{"type":"pp","access_token":"t","refresh_interval":"1h"}"#;
-        let (state, _dir) = management_with("plugin-deadlines", &[("a.json", body), ("b.json", body)], |creds| {
+        let (state, dir) = management_with("plugin-deadlines", &[("a.json", body), ("b.json", body)], |creds| {
             for c in creds {
                 c.next_refresh_after = Some(parsed.into());
             }
@@ -2726,6 +2726,7 @@ mod tests {
                 "patch disabled={disabled}"
             );
         }
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     /// What a token refresh commits: the store's compare-and-swap patch.
