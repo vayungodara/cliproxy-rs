@@ -118,6 +118,8 @@ payload:
       params: {"g.#(k==1)#.m.#(k==2)#.x": 9}
     - models: [{name: "lns-*"}]
       params: {"-1.#(k==1)#.s": 1}
+    - models: [{name: "lnw-*"}]
+      params: {"a.18446744073709551616.#(k==1)#.x": 9}
   override-raw:
     - models: [{name: "gpt-*"}]
       params: {logit_bias: '{"1": -100}'}
@@ -236,6 +238,9 @@ var payloadInputs = []payloadCase{
 		Payload: `{"#":1,"0":[{"k":1},{"k":1}],"-1":[{"k":1},{"k":1}]}`, Tracked: []string{"-1.0", "-1.1", "0"}},
 	{Name: "delete_fields_under_minus_one", Model: "lnf-1", Protocol: "openai",
 		Payload: `{"#":1,"0":[{"k":1,"y":1},{"k":1,"y":2}],"-1":[{"k":1,"y":3},{"k":1,"y":4}]}`, Tracked: []string{"-1", "0"}},
+	// gjson's parseUint wraps: 2^64 indexes element 0.
+	{Name: "wrapped_index", Model: "lnw-1", Protocol: "openai",
+		Payload: `{"a":[[{"k":1},{"k":1}]]}`, Tracked: []string{"a"}},
 	{Name: "set_under_minus_one", Model: "lns-1", Protocol: "openai",
 		Payload: `{"#":1,"0":[{"k":1}],"-1":[{"k":1},{"k":1}]}`, Tracked: []string{"-1", "0"}},
 	{Name: "original_lacks_array", Model: "lno-1", Protocol: "openai", Payload: lno, Original: `{"pad":"pp"}`, Tracked: []string{"items", "whole"}},

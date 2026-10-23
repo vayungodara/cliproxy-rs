@@ -660,6 +660,9 @@ fn in_source(source: &[u8], targets: &[Target]) -> Vec<bool> {
                 Base::Object(keys) => keys
                     .get(l.index.to_string().as_bytes())
                     .is_some_and(|items| items.iter().any(holds)),
+                // ponytail: O(N × source) when a key on the route is duplicated (Go has
+                // the same shape); indexing the ordered duplicate candidates once would make
+                // it linear.
                 Base::Ambiguous => json::get(source, &t.path).exists(),
             }
         })
@@ -812,10 +815,11 @@ fn route<'d>(doc: &'d [u8], path: &str) -> Route<'d> {
                 if !part.bytes().all(|c| c.is_ascii_digit()) || (part.len() > 1 && part.starts_with('0')) {
                     return Route::Ambiguous;
                 }
-                found = part
-                    .parse::<usize>()
-                    .ok()
-                    .and_then(|i| value.array().into_iter().nth(i));
+                // gjson's parseUint wraps past u64::MAX; the full-path read does too.
+                let Ok(i) = part.parse::<usize>() else {
+                    return Route::Ambiguous;
+                };
+                found = value.array().into_iter().nth(i);
             }
             _ => return Route::Missing,
         }
@@ -991,6 +995,9 @@ fn each_target(
     mut op: impl FnMut(&[u8], &str, &str) -> Option<Vec<u8>>,
 ) {
     let Some(locals) = locals(targets, mode) else {
+        // ponytail: O(N × body) when a key on the rule's route is duplicated (Go has the
+        // same shape); indexing the ordered duplicate candidates once, separately for
+        // gjson reads and sjson edits, would make it linear.
         for t in targets {
             if let Some(next) = op(out, &t.path, &t.path) {
                 *out = next;
