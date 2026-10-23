@@ -476,6 +476,25 @@ impl Runtime {
         self.codex_refreshes.tasks.wait().await;
     }
 
+    /// The credential lock of the Codex file at `path`, for a write that is not a refresh
+    /// (a management save), waited for as a refresh waits: shutdown stops the wait.
+    /// Blocking.
+    pub(crate) fn lock_codex_file(&self, path: &Path) -> Result<std::fs::File, String> {
+        let shutdown = &self.codex_refreshes.shutdown;
+        let lock = cpa_exec::codex_siwc_bind::open_lock_file(path)?;
+        let mut delay = Duration::from_millis(5);
+        loop {
+            if shutdown.is_cancelled() {
+                return Err(LOCK_WAIT_STOPPED.to_owned());
+            }
+            if cpa_exec::codex_siwc_bind::try_lock(&lock)? {
+                return Ok(lock);
+            }
+            std::thread::sleep(delay);
+            delay = (delay * 2).min(LOCK_POLL_CEILING);
+        }
+    }
+
     /// Prepares and commits one credential. `failed` is the revision whose token an
     /// upstream rejected: preparation then runs even when not due, unless another task
     /// already replaced that revision (Go `refreshAuthForRequest`).
@@ -3319,6 +3338,12 @@ fn publish_metadata_proxy(c: &mut Credential) {
     };
 }
 
+/// Why a wait for a Codex credential lock ended without it.
+const LOCK_WAIT_STOPPED: &str = "shutting down while waiting for the credential lock";
+
+/// The longest pause between two attempts at a Codex credential lock.
+const LOCK_POLL_CEILING: Duration = Duration::from_millis(100);
+
 /// A held credential lock and the file read under it.
 type LockedFile = (std::fs::File, Map<String, Value>);
 
@@ -3334,7 +3359,7 @@ async fn read_locked_codex_file(
         .lock()
         .unwrap_or_else(PoisonError::into_inner)
         .push(path.to_owned());
-    let stopped = || "shutting down while waiting for the credential lock".to_owned();
+    let stopped = || LOCK_WAIT_STOPPED.to_owned();
     if shutdown.is_cancelled() {
         return Err(stopped());
     }
@@ -3348,7 +3373,7 @@ async fn read_locked_codex_file(
             _ = shutdown.cancelled() => return Err(stopped()),
             _ = tokio::time::sleep(delay) => {}
         }
-        delay = (delay * 2).min(Duration::from_millis(100));
+        delay = (delay * 2).min(LOCK_POLL_CEILING);
     }
     let data = std::fs::read(path).map_err(|e| format!("read credential file {}: {e}", path.display()))?;
     match serde_json::from_slice(&data) {

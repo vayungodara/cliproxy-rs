@@ -1967,7 +1967,7 @@ fn save_file_backed(
             .and_then(Value::as_str)
             .is_some_and(|t| t.trim().go_eq_fold("codex"));
     let _lock = codex_record
-        .then(|| cpa_exec::codex_siwc_bind::lock_file(path))
+        .then(|| state.rt.lock_codex_file(path))
         .transpose()
         .map_err(PatchError::Io)?;
     let existing = std::fs::read(path).ok();
@@ -2861,6 +2861,31 @@ mod tests {
             (&disk["access_token"], &disk["refresh_token"], &disk["priority"]),
             (&"C".into(), &"rC".into(), &7.into())
         );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A Codex save waiting for a credential lock another process holds gives up at
+    /// shutdown, so the exit does not wait on that process.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_save_stops_waiting_for_the_lock_at_shutdown() {
+        let (state, dir) = management(
+            "codex-lock-stop",
+            &[("codex.json", r#"{"type":"codex","access_token":"A","disabled":false}"#)],
+        );
+        let held = cpa_exec::codex_siwc_bind::lock_file(&dir.join("codex.json")).unwrap();
+        let current = state.rt.store().get("codex.json").unwrap();
+        let save = tokio::task::spawn_blocking({
+            let state = state.clone();
+            move || save_file_backed(&state, &current, &current.metadata, &[])
+        });
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        state.rt.shutdown_codex_refreshes().await;
+        let saved = tokio::time::timeout(std::time::Duration::from_secs(5), save)
+            .await
+            .expect("the save stops waiting")
+            .unwrap();
+        assert!(saved.is_err(), "{saved:?}");
+        drop(held);
         std::fs::remove_dir_all(dir).unwrap();
     }
 
