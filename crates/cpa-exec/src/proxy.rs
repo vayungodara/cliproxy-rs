@@ -22,7 +22,7 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
-use cpa_core::config::Config;
+use cpa_core::config::{Config, go_url};
 use cpa_core::credential::Credential;
 use cpa_core::exec::{ExecError, FailureScope, UpstreamStage, UsageSink};
 use futures_util::StreamExt;
@@ -397,10 +397,8 @@ pub struct GoHeaders {
     headers: Vec<(String, String)>,
     /// Go `http.Transport.DisableCompression`: the transport never asks for gzip.
     compression_disabled: bool,
-    /// Send the first request's target exactly as the caller wrote the URL.
+    /// Build every hop's URL and request target as Go's `net/url` does.
     exact_target: bool,
-    /// Fail a redirect whose target the URL parser would read differently from Go.
-    refuse_ambiguous_redirects: bool,
 }
 
 impl GoHeaders {
@@ -427,22 +425,14 @@ impl GoHeaders {
         self.compression_disabled = true;
     }
 
-    /// Go's `URL.RequestURI()`: the first request's target is the caller's URL as
-    /// written, so `.` and `..` segments and the caller's escaping reach the upstream
-    /// (Go's `PathEscape` output). Without it the URL is normalized as WHATWG parses it.
-    /// A relative redirect from that request resolves against the path as written, as
-    /// Go's `ResolveReference` does.
+    /// Go's `net/url` for every hop: the caller's URL is parsed as `url.Parse` does, each
+    /// redirect `Location` is resolved with `URL.Parse` (`ResolveReference`), and each
+    /// request goes out with Go's `URL.RequestURI()`, so dot segments, percent escapes and
+    /// the query stay as Go keeps them. A URL or `Location` Go fails to parse, one without
+    /// a host, and one whose target wreq would not send as is ([`go_target`]) fail the
+    /// request. Without it every URL is normalized as WHATWG parses it.
     pub fn exact_target(&mut self) {
         self.exact_target = true;
-    }
-
-    /// Fails a redirect whose `Location` a later hop would not request as Go does: one
-    /// with a percent-encoded dot segment (`%2e`, `.%2e`, `%2e%2e`), which `url::Url`
-    /// reads as a dot segment where Go keeps it, or with a byte outside RFC 3986's
-    /// characters (`\`, controls, space, `"`, `<`, `>`, `` ` ``, `{`, `}`, `|`, `^`), which
-    /// WHATWG parsing strips, reads as `/` or escapes differently from Go.
-    pub fn refuse_ambiguous_redirects(&mut self) {
-        self.refuse_ambiguous_redirects = true;
     }
 
     /// The headers as Go's `http.Header` holds them before sending (`Header.Clone()`, what
@@ -818,17 +808,23 @@ async fn exchange(
         error,
         url: url.to_owned(),
     };
-    let initial = url::Url::parse(url).map_err(|_| {
+    let invalid = || {
         local(
             ExecError::local(500, FailureScope::Request, "invalid upstream URL"),
             url,
         )
-    })?;
+    };
+    // GoHeaders::exact_target: Go's URL for the current hop and the target sent for it.
+    // `current` then only routes the hop.
+    let mut go = None;
+    if headers.exact_target {
+        let parsed = go_url::Escaped::parse(url).ok_or_else(invalid)?;
+        let target = go_target(&parsed).ok_or_else(invalid)?;
+        go = Some((parsed, target));
+    }
+    let routed = go.as_ref().map(|(_, target)| target.to_string());
+    let initial = url::Url::parse(routed.as_deref().unwrap_or(url)).map_err(|_| invalid())?;
     let explicit_referer = headers.get("Referer").map(str::to_owned);
-    // The caller's URL as written, for the first request only (GoHeaders::exact_target);
-    // a URL with user info falls back to the parsed form (Go strips it from Referer).
-    let exact =
-        (headers.exact_target && initial.username().is_empty() && initial.password().is_none()).then(|| url.to_owned());
     let mut current = initial.clone();
     // req.Host: the custom Host of the current hop, if any.
     let mut host = headers.get("Host").filter(|h| !h.is_empty()).map(str::to_owned);
@@ -855,13 +851,11 @@ async fn exchange(
         // The URL Go's client reports for this hop.
         let hop_url = if sent == 0 { url.to_owned() } else { current.to_string() };
         let hop = route(&current).map_err(|e| local(e, &hop_url))?;
-        let builder = hop
-            .client
-            .request(
-                method.clone(),
-                exact.as_deref().filter(|_| sent == 0).unwrap_or(current.as_str()),
-            )
-            .redirect(wreq::redirect::Policy::none());
+        let builder = match &go {
+            Some((_, target)) => hop.client.request(method.clone(), target.clone()),
+            None => hop.client.request(method.clone(), current.as_str()),
+        }
+        .redirect(wreq::redirect::Policy::none());
         // Go's standard transport (no exact order) speaks HTTP/2 wherever ALPN picks it.
         let go_transport = hop.order.is_none();
         let (builder, auto_gzip) = hop_headers.clone().apply_gzip(
@@ -926,36 +920,50 @@ async fn exchange(
         }
         sent += 1;
         let status = response.status().as_u16();
+        // Go reads the header's bytes; a Go-URL hop takes any UTF-8 (escaped as Go does).
         let location = response
             .headers()
             .get(http::header::LOCATION)
-            .and_then(|v| v.to_str().ok())
+            .and_then(|v| match go {
+                Some(_) => std::str::from_utf8(v.as_bytes()).ok(),
+                None => v.to_str().ok(),
+            })
             .unwrap_or_default()
             .to_owned();
         if !follow_redirects || !matches!(status, 301 | 302 | 303 | 307 | 308) || location.is_empty() {
             break (response, auto_gzip, dialled);
         }
-        if hop_headers.refuse_ambiguous_redirects && ambiguous_location(&location) {
-            return Err(local(
-                ExecError::local(500, FailureScope::Transport, "ambiguous redirect target"),
-                &hop_url,
-            ));
-        }
-        let from_exact = exact.as_deref().filter(|_| sent == 1);
-        let next = match from_exact {
-            Some(raw) => resolve_exact(raw, &location, &current),
-            None => current.join(&location),
-        }
-        .map_err(|_| {
-            local(
-                ExecError::local(
-                    500,
-                    FailureScope::Transport,
-                    format!("failed to parse Location header {location:?}"),
-                ),
-                &hop_url,
-            )
-        })?;
+        // Go's `URL.Parse(loc)`; a Go-URL hop fails without a host ("no Host in request
+        // URL") or where wreq would rewrite its target. The error names no part of it.
+        let (next, next_go) = match &go {
+            Some((base, _)) => {
+                let resolved = base.join(&location).and_then(|next| {
+                    let target = go_target(&next)?;
+                    let routed = url::Url::parse(&target.to_string()).ok()?;
+                    Some((routed, (next, target)))
+                });
+                let (next, next_go) = resolved.ok_or_else(|| {
+                    local(
+                        ExecError::local(500, FailureScope::Transport, "invalid redirect target"),
+                        &hop_url,
+                    )
+                })?;
+                (next, Some(next_go))
+            }
+            None => {
+                let next = current.join(&location).map_err(|_| {
+                    local(
+                        ExecError::local(
+                            500,
+                            FailureScope::Transport,
+                            format!("failed to parse Location header {location:?}"),
+                        ),
+                        &hop_url,
+                    )
+                })?;
+                (next, None)
+            }
+        };
         // defaultCheckRedirect: len(via) >= 10.
         if sent >= 10 {
             return Err(local(
@@ -1013,7 +1021,7 @@ async fn exchange(
         if !(current.scheme() == "https" && next.scheme() == "http") {
             let referer = explicit_referer
                 .clone()
-                .or_else(|| from_exact.map(str::to_owned))
+                .or_else(|| go.as_ref().map(|(url, _)| url.referer()))
                 .unwrap_or_else(|| {
                     let mut last = current.clone();
                     let _ = last.set_username("");
@@ -1023,6 +1031,9 @@ async fn exchange(
             hop_headers.set("Referer", referer);
         }
         current = next;
+        if next_go.is_some() {
+            go = next_go;
+        }
     };
     let status = response.status().as_u16();
     let version = response.version();
@@ -1287,103 +1298,24 @@ fn remember_protocol(url: &url::Url, http2: bool) {
     protocols.insert(origin(url), http2);
 }
 
-/// See [`GoHeaders::refuse_ambiguous_redirects`].
-fn ambiguous_location(location: &str) -> bool {
-    let outside = location
-        .bytes()
-        .any(|b| !(b.is_ascii_alphanumeric() || b"-._~!$&'()*+,;=:@/?%#[]".contains(&b)));
-    let path = location.split(['?', '#']).next().unwrap_or_default();
-    outside
-        || path.split('/').any(|segment| {
-            let decoded = segment.replace("%2e", ".").replace("%2E", ".");
-            decoded != segment && matches!(decoded.as_str(), "." | "..")
-        })
-}
-
-/// Go `URL.ResolveReference` against the base URL as written (`Response.Location`):
-/// the scheme and authority stay; the path is Go's `resolvePath` over the written base
-/// path, so dot segments merge as written and a merged `//` path stays a path; the base
-/// query survives only a reference with neither path nor query. Absolute and
-/// network-path references ignore the base.
-// ponytail: the next hop is a `url::Url`, which reads `%2e` as a dot segment where Go
-// keeps it; only the first request goes out exactly as written.
-fn resolve_exact(raw: &str, location: &str, current: &url::Url) -> Result<url::Url, url::ParseError> {
-    if location.starts_with("//") || url::Url::parse(location).is_ok() {
-        return current.join(location);
+/// The request Go sends for `url`: its scheme and authority as written, then
+/// `URL.RequestURI()`. `None` where Go fails (no host, an opaque URL included: `http::Uri`
+/// needs one too) or wreq would not send that: a host Go escapes or IDNA-encodes on the
+/// way out (a percent escape, which includes an IPv6 zone, or a non-ASCII byte), or a
+/// target `http::Uri` does not carry as written (given a string, wreq would re-parse and
+/// normalize it).
+pub fn go_target(url: &go_url::Escaped) -> Option<http::Uri> {
+    let host = url.host();
+    if !host.is_ascii() || host.contains('%') {
+        return None;
     }
-    let (reference, fragment) = match location.split_once('#') {
-        Some((reference, fragment)) => (reference, Some(fragment)),
-        None => (location, None),
+    let target = url.request_uri();
+    let authority = match url.user() {
+        Some(user) => format!("{user}@{host}"),
+        None => host.to_owned(),
     };
-    let (ref_path, ref_query) = match reference.split_once('?') {
-        Some((path, query)) => (path, Some(query)),
-        None => (reference, None),
-    };
-    // Go's parse order: the fragment, then the query at the first `?`, then the
-    // authority (up to the first `/`) after the scheme.
-    let base = raw.split_once('#').map_or(raw, |(base, _)| base);
-    let (base, base_query) = match base.split_once('?') {
-        Some((base, query)) => (base, Some(query)),
-        None => (base, None),
-    };
-    let rest = base.find("://").map_or(base, |i| &base[i + 3..]);
-    let base_path = rest.find('/').map_or("", |i| &rest[i..]);
-    let mut next = current.clone();
-    next.set_path(&go_resolve_path(base_path, ref_path));
-    if ref_path.is_empty() && ref_query.is_none() {
-        next.set_query(base_query);
-    } else {
-        next.set_query(ref_query);
-    }
-    next.set_fragment(fragment);
-    Ok(next)
-}
-
-/// Go `net/url.resolvePath`: merge `reference` with `base`, then remove dot segments.
-fn go_resolve_path(base: &str, reference: &str) -> String {
-    let full = if reference.is_empty() {
-        base.to_owned()
-    } else if !reference.starts_with('/') {
-        let i = base.rfind('/').map_or(0, |i| i + 1);
-        format!("{}{reference}", &base[..i])
-    } else {
-        reference.to_owned()
-    };
-    if full.is_empty() {
-        return String::new();
-    }
-    let mut dst = String::with_capacity(full.len() + 1);
-    dst.push('/');
-    let mut first = true;
-    let mut last = "";
-    for elem in full.split('/') {
-        last = elem;
-        match elem {
-            "." => first = false,
-            ".." => {
-                match dst[1..].rfind('/') {
-                    Some(i) => dst.truncate(i + 1),
-                    None => dst.truncate(1),
-                }
-                first = dst.len() == 1;
-            }
-            _ => {
-                if !first {
-                    dst.push('/');
-                }
-                dst.push_str(elem);
-                first = false;
-            }
-        }
-    }
-    if last == "." || last == ".." {
-        dst.push('/');
-    }
-    // An initial `/` was written; never two.
-    if dst.len() > 1 && dst.as_bytes()[1] == b'/' {
-        dst.remove(0);
-    }
-    dst
+    let uri = http::Uri::try_from(format!("{}://{authority}{target}", url.scheme())).ok()?;
+    (uri.path_and_query().map(http::uri::PathAndQuery::as_str) == Some(target.as_str())).then_some(uri)
 }
 
 /// `io.ReadAll` up to `limit` bytes; with `lossy`, a read error keeps what arrived
@@ -1944,30 +1876,6 @@ mod tests {
         }
     }
 
-    /// Go's own table (net/url url_test.go `resolvePathTests`), plus merged `//` paths.
-    #[test]
-    fn resolve_path_matches_go() {
-        for (base, reference, want) in [
-            ("a/b", ".", "/a/"),
-            ("a/b", "c", "/a/c"),
-            ("a/b", "..", "/"),
-            ("a/", "..", "/"),
-            ("a/", "../..", "/"),
-            ("a/b/c", "..", "/a/"),
-            ("a/b/c", "../d", "/a/d"),
-            ("a/b/c", ".././d", "/a/d"),
-            ("a/b", "./..", "/"),
-            ("a/./b", ".", "/a/"),
-            ("a/../", ".", "/"),
-            ("a/.././b", "c", "/c"),
-            ("//api/item", "next", "//api/next"),
-            ("", "next", "/next"),
-            ("", "", ""),
-        ] {
-            assert_eq!(go_resolve_path(base, reference), want, "{base:?} + {reference:?}");
-        }
-    }
-
     /// Go's `http.Client` redirect hops for GET and POST (tests/reference/proxy/main.go),
     /// replayed through [`request`] against the same scripted servers.
     #[tokio::test]
@@ -1991,7 +1899,26 @@ mod tests {
                     .collect::<Vec<_>>()
                     .join(",")
             };
-            let path = parts.uri.path().to_owned();
+            // Go's server looks the script up by `URL.Path`, unescaped.
+            let raw = parts.uri.path().as_bytes();
+            let mut path = Vec::with_capacity(raw.len());
+            let mut i = 0;
+            while i < raw.len() {
+                let hex = raw
+                    .get(i + 1..i + 3)
+                    .and_then(|h| u8::from_str_radix(std::str::from_utf8(h).ok()?, 16).ok());
+                match (raw[i], hex) {
+                    (b'%', Some(byte)) => {
+                        path.push(byte);
+                        i += 3;
+                    }
+                    (byte, _) => {
+                        path.push(byte);
+                        i += 1;
+                    }
+                }
+            }
+            let path = String::from_utf8(path).unwrap();
             let target = parts.uri.path_and_query().map_or("/", |p| p.as_str()).to_owned();
             hops.lock().unwrap().push(serde_json::json!({
                 "user_agent": header("user-agent"),
@@ -2014,12 +1941,13 @@ mod tests {
             if location.is_empty() {
                 return status.into_response();
             }
+            let location = http::HeaderValue::from_bytes(location.as_bytes()).unwrap();
             (status, [(http::header::LOCATION, location)]).into_response()
         }
         let fixture = go_fixture();
         let cases = fixture["redirects"].as_array().unwrap();
-        // Go always sends the URL as written; Rust does with exact_target, and normalizes
-        // otherwise, which only dot segments and escaping can tell apart.
+        // Go's net/url builds every hop; Rust does with exact_target, and normalizes
+        // otherwise, which only dot segments, escaping and malformed targets tell apart.
         let runs = cases.iter().flat_map(|case| {
             let start = case["start"].as_str().unwrap();
             let both = start == "/start";

@@ -194,7 +194,8 @@ impl Updater {
 enum ReadError {
     File,
     Request,
-    /// A source whose request target would not go out as Go's ([`go_request_url`]).
+    /// A source Go reads that would not go out as Go sends it
+    /// ([`cpa_exec::proxy::go_target`]).
     Rewritten,
     Status(u16),
     Body,
@@ -216,15 +217,18 @@ async fn read_source(source: &str) -> Result<Vec<u8>, ReadError> {
             .map_err(|_| ReadError::File)?;
         data
     } else {
-        let Some(url) = go_request_url(source) else {
+        if cpa_core::config::go_url::Escaped::parse(source)
+            .as_ref()
+            .and_then(cpa_exec::proxy::go_target)
+            .is_none()
+        {
             return Err(ReadError::Rewritten);
-        };
+        }
         // A client per read: reads are hours apart and the client is tied to no runtime.
         let client = cpa_exec::proxy::default_client();
         let mut headers = cpa_exec::proxy::GoHeaders::new();
         headers.exact_target();
-        headers.refuse_ambiguous_redirects();
-        let response = cpa_exec::proxy::request(&client, wreq::Method::GET, &url, headers, None, Some(FETCH_TIMEOUT))
+        let response = cpa_exec::proxy::request(&client, wreq::Method::GET, source, headers, None, Some(FETCH_TIMEOUT))
             .await
             .map_err(|_| ReadError::Request)?;
         if response.status != 200 {
@@ -239,33 +243,6 @@ async fn read_source(source: &str) -> Result<Vec<u8>, ReadError> {
         return Err(ReadError::TooLarge);
     }
     Ok(data)
-}
-
-/// The URL to request for `source` so that its request target is Go's
-/// `URL.RequestURI()` (the escaped path and the raw query): the scheme and authority as
-/// written, then that target. `None` where it would not go out exactly so: a non-ASCII
-/// or percent-escaped authority (IPv6 zones included), a target `http::Uri` would not
-/// carry as is (wreq then normalizes the URL), or a URL with user info whose target
-/// the proxy helper's parsed form changes.
-fn go_request_url(source: &str) -> Option<String> {
-    let target = cpa_core::config::go_url::request_uri(source)?;
-    let (scheme, rest) = source.split_once("://")?;
-    let authority = &rest[..rest.find(['/', '?', '#']).unwrap_or(rest.len())];
-    if !authority.is_ascii() || authority.contains('%') {
-        return None;
-    }
-    let url = format!("{scheme}://{authority}{target}");
-    if authority.contains('@') {
-        // The helper sends the parsed form for a URL with user info.
-        let parsed = url::Url::parse(&url).ok()?;
-        let sent = match parsed.query() {
-            Some(query) => format!("{}?{query}", parsed.path()),
-            None => parsed.path().to_owned(),
-        };
-        return (sent == target).then_some(url);
-    }
-    let uri = wreq::Uri::try_from(url.as_str()).ok()?;
-    (uri.path_and_query().map(|p| p.as_str()) == Some(target.as_str())).then_some(url)
 }
 
 /// Go `catalogFetcher`: `embed` is the built-in catalog, the empty source tries
@@ -392,7 +369,7 @@ impl Drop for Session {
 
 impl Session {
     /// Go `StartModelCatalogUpdaters` (`startup`) and `UpdateModelCatalogSources`: called
-    /// by the runtime under its config lock, so commits reconfigure in their order.
+    /// by the runtime under its commit mutex, so commits reconfigure in their order.
     pub(crate) fn configure(&self, config: &cpa_core::config::Config, startup: bool) {
         configure(
             &CATALOGS,
@@ -711,16 +688,24 @@ mod tests {
     }
 
     /// A remote source goes out with Go's request target (`URL.RequestURI`, recorded
-    /// with Go 1.26.4): dot segments as written, the path escaped as Go escapes it. A
-    /// source that would not go out so is refused without a request, and so is a
-    /// redirect a later hop would not follow as Go does.
+    /// with Go 1.26.4): dot segments as written, the path escaped as Go escapes it, and
+    /// each redirect resolved and escaped as Go's client does (more cases in cpa-exec's
+    /// Go-recorded redirect replay). A source that would not go out so is refused
+    /// without a request.
     #[tokio::test]
     async fn sources_are_requested_as_go_requests_them() {
         let seen = Arc::new(Mutex::new(Vec::<String>::new()));
         let record = seen.clone();
         let app = axum::Router::new().fallback(move |request: axum::extract::Request| {
             let uri = request.uri().to_string();
-            record.lock().unwrap().push(uri.clone());
+            let auth = request
+                .headers()
+                .get("authorization")
+                .map(|v| v.to_str().unwrap().to_owned());
+            record.lock().unwrap().push(match auth {
+                Some(auth) => format!("{uri} {auth}"),
+                None => uri.clone(),
+            });
             async move {
                 use axum::response::IntoResponse;
                 let location = match uri.as_str() {
@@ -748,8 +733,11 @@ mod tests {
         ] {
             assert!(fetch(format!("http://{addr}{path}")).await.is_ok(), "{path}");
         }
-        assert!(fetch(format!("http://u:p@{addr}/a/../catalog.json")).await.is_err());
-        assert!(fetch(format!("http://u:p@{addr}/catalog.json?v=1")).await.is_ok());
+        assert!(
+            fetch(format!("http://u%3A:p@{addr}/a/../catalog.json?v=1"))
+                .await
+                .is_ok()
+        );
         // Go requests these; the URL would not go out as Go sends it.
         for source in [
             "http://b\u{fc}cher.example/a/../catalog.json",
@@ -758,11 +746,11 @@ mod tests {
         ] {
             assert_eq!(read_source(source).await, Err(ReadError::Rewritten), "{source}");
         }
-        // Go would request /x/%2E%2e/catalog.json and /a%5C..%5Ccatalog.json, and fail
-        // the tab; the helper would send /catalog.json each time.
-        for path in ["/dots", "/backslash", "/tab"] {
-            assert!(fetch(format!("http://{addr}{path}")).await.is_err(), "{path}");
+        for path in ["/dots", "/backslash"] {
+            assert!(fetch(format!("http://{addr}{path}")).await.is_ok(), "{path}");
         }
+        // Go's url.Parse fails on the tab; WHATWG would strip it and request /catalog.json.
+        assert!(fetch(format!("http://{addr}/tab")).await.is_err());
         assert_eq!(
             *seen.lock().unwrap(),
             [
@@ -770,9 +758,12 @@ mod tests {
                 "/my%20catalogs/../catalog.json",
                 "/mod%C3%A8les/catalog.json",
                 "/a/b/x%7Cy.json",
-                "/catalog.json?v=1",
+                // Basic "u::p", as Go sends the unescaped user info.
+                "/a/../catalog.json?v=1 Basic dTo6cA==",
                 "/dots",
+                "/x/%2E%2e/catalog.json",
                 "/backslash",
+                "/a%5C..%5Ccatalog.json",
                 "/tab",
             ]
         );

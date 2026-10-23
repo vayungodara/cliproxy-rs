@@ -169,8 +169,8 @@ impl Runtime {
         self.config.read().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
-    /// Starts the model catalog updaters for this runtime's lifetime under the config
-    /// lock, so no commit is configured before or skipped by the startup configure.
+    /// Starts the model catalog updaters for this runtime's lifetime under the commit
+    /// mutex, so no commit is configured before or skipped by the startup configure.
     pub(crate) fn start_catalogs(&self, session: crate::model_updater::Session) {
         let commit = self.config_commit.lock().unwrap_or_else(PoisonError::into_inner);
         session.configure(&self.config(), true);

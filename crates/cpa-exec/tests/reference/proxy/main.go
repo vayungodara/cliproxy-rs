@@ -373,6 +373,31 @@ func main() {
 			"/a/./b": {302, "?z=1"}}},
 		{Name: "get-fragment-reference-exact", Method: "GET", Headers: auth, Start: "/a/./b?k=v", Script: map[string]step{
 			"/a/./b": {302, "#frag"}}},
+		// Every hop resolves and escapes its target as Go does (the model catalog reads).
+		{Name: "get-invalid-escape-location-exact", Method: "GET", Headers: auth, Start: "/r1", Script: map[string]step{
+			"/r1": {302, "/x/%zz/c.json"}}},
+		{Name: "get-invalid-host-escape-location-exact", Method: "GET", Headers: auth, Start: "/r2", Script: map[string]step{
+			"/r2": {302, "//h%41/c.json"}}},
+		{Name: "get-opaque-location-exact", Method: "GET", Headers: auth, Start: "/r3", Script: map[string]step{
+			"/r3": {302, "http:c.json"}}},
+		{Name: "get-scheme-relative-path-location-exact", Method: "GET", Headers: auth, Start: "/r4", Script: map[string]step{
+			"/r4": {302, "http:/c.json"}}},
+		{Name: "get-scheme-without-host-location-exact", Method: "GET", Headers: auth, Start: "/r5", Script: map[string]step{
+			"/r5": {302, "https:/evil.example/c.json"}}},
+		{Name: "get-encoded-dots-relative-exact", Method: "GET", Headers: auth, Start: "/a/%2e%2e/r", Script: map[string]step{
+			"/a/../r": {302, "d.json"}}},
+		{Name: "get-encoded-dots-second-hop-exact", Method: "GET", Headers: auth, Start: "/m1", Script: map[string]step{
+			"/m1": {302, "/m2/%2E%2e/x"}, "/m2/../x": {302, "y?a='1'#f"}}},
+		{Name: "get-apostrophe-query-exact", Method: "GET", Headers: auth, Start: "/q", Script: map[string]step{
+			"/q": {302, "/c.json?v='1'&w=a"}}},
+		{Name: "get-fragment-keeps-quoted-query-exact", Method: "GET", Headers: auth, Start: "/f?k='v'#src", Script: map[string]step{
+			"/f": {302, "#frag"}}},
+		{Name: "get-triple-slash-location-exact", Method: "GET", Headers: auth, Start: "/t", Script: map[string]step{
+			"/t": {302, "///x/c.json"}}},
+		{Name: "get-backslash-space-location-exact", Method: "GET", Headers: auth, Start: "/b", Script: map[string]step{
+			"/b": {302, "/a\\..\\my dir/m|1.json"}}},
+		{Name: "get-utf8-location-exact", Method: "GET", Headers: auth, Start: "/u", Script: map[string]step{
+			"/u": {302, "/mod\u00e8les/c.json"}}},
 		{Name: "put-empty-body", Method: "PUT", Body: str(""), Headers: auth},
 		{Name: "delete-nil-body", Method: "DELETE", Headers: auth},
 		{Name: "patch-empty-body-307", Method: "PATCH", Body: str(""), Headers: form, Script: map[string]step{

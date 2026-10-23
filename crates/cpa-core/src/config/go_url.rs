@@ -74,33 +74,192 @@ pub fn parse(raw: &str) -> Option<GoUrl> {
 /// Go `URL.RequestURI()` after `url.Parse(raw)` for a URL with a path (`EscapedPath`,
 /// then `?` and the raw query); `None` where Parse fails or the URL is opaque.
 pub fn request_uri(raw: &str) -> Option<String> {
-    parse(raw)?;
-    let u = raw.split_once('#').map_or(raw, |(u, _)| u);
-    let (_, rest) = get_scheme(u)?;
-    let (rest, query) = if rest.ends_with('?') && rest.matches('?').count() == 1 {
-        (&rest[..rest.len() - 1], Some(""))
-    } else {
-        rest.split_once('?').map_or((rest, None), |(r, q)| (r, Some(q)))
-    };
-    let path = match rest.strip_prefix("//") {
-        Some(authority) => authority.find('/').map_or("", |i| &authority[i..]),
-        None => rest,
-    };
-    if !path.is_empty() && !path.starts_with('/') {
-        return None;
+    let url = Escaped::parse(raw)?;
+    (!url.opaque && (url.path.is_empty() || url.path.starts_with('/'))).then(|| url.request_uri())
+}
+
+/// A URL Go's `url.Parse` accepts, held as Go escapes it on the way out.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Escaped {
+    /// Lowercased.
+    scheme: String,
+    /// The user info as written, without its `@`.
+    user: Option<String>,
+    /// The host and port as written; empty without one.
+    host: String,
+    /// `URL.Opaque` is set; `path` is then empty.
+    opaque: bool,
+    /// `URL.EscapedPath()`.
+    path: String,
+    /// `URL.RawQuery`; `Some("")` with `ForceQuery`.
+    query: Option<String>,
+    /// `URL.EscapedFragment()`; empty without one.
+    fragment: String,
+}
+
+impl Escaped {
+    /// Go `url.Parse`; `None` wherever Go returns an error.
+    pub fn parse(raw: &str) -> Option<Self> {
+        parse(raw)?;
+        let (u, frag) = raw.split_once('#').unwrap_or((raw, ""));
+        let (scheme, rest) = get_scheme(u)?;
+        let (rest, query) = if rest.ends_with('?') && rest.matches('?').count() == 1 {
+            (&rest[..rest.len() - 1], Some(String::new()))
+        } else {
+            rest.split_once('?')
+                .map_or((rest, None), |(r, q)| (r, Some(q.to_owned())))
+        };
+        let mut url = Escaped {
+            scheme: scheme.to_ascii_lowercase(),
+            user: None,
+            host: String::new(),
+            opaque: false,
+            path: String::new(),
+            query,
+            fragment: escaped(frag, fragment_should_escape)?,
+        };
+        if !rest.starts_with('/') && !scheme.is_empty() {
+            url.opaque = true;
+            return Some(url);
+        }
+        let mut path = rest;
+        if (!scheme.is_empty() || !rest.starts_with("///"))
+            && let Some(authority) = rest.strip_prefix("//")
+        {
+            let (authority, p) = authority.split_at(authority.find('/').unwrap_or(authority.len()));
+            match authority.rsplit_once('@') {
+                Some((user, host)) => {
+                    url.user = Some(user.to_owned());
+                    url.host = host.to_owned();
+                }
+                None => url.host = authority.to_owned(),
+            }
+            path = p;
+        }
+        url.path = escaped(path, path_should_escape)?;
+        Some(url)
     }
-    let mut target = if path.is_empty() {
-        "/".to_owned()
-    } else if valid_encoded_path(path) {
-        path.to_owned()
-    } else {
-        escape_path(&unescape_bytes(path)?)
-    };
-    if let Some(query) = query {
-        target.push('?');
-        target.push_str(query);
+
+    /// Go `u.Parse(reference)`: `url.Parse`, then `URL.ResolveReference`.
+    pub fn join(&self, reference: &str) -> Option<Self> {
+        let r = Self::parse(reference)?;
+        let mut url = r.clone();
+        if r.scheme.is_empty() {
+            url.scheme.clone_from(&self.scheme);
+        }
+        if !r.scheme.is_empty() || !r.host.is_empty() || r.user.is_some() {
+            url.path = resolve_path(&r.path, "");
+            return Some(url);
+        }
+        if r.path.is_empty() && r.query.is_none() {
+            url.query.clone_from(&self.query);
+            if r.fragment.is_empty() {
+                url.fragment.clone_from(&self.fragment);
+            }
+        }
+        if r.path.is_empty() && self.opaque {
+            url.opaque = true;
+            url.user = None;
+            url.host.clear();
+            url.path.clear();
+            return Some(url);
+        }
+        url.host.clone_from(&self.host);
+        url.user.clone_from(&self.user);
+        url.path = resolve_path(&self.path, &r.path);
+        Some(url)
     }
-    Some(target)
+
+    /// Lowercased.
+    pub fn scheme(&self) -> &str {
+        &self.scheme
+    }
+
+    /// Go `URL.Host` as written; empty for an opaque URL or one without an authority.
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    /// The user info as written, without its `@`.
+    pub fn user(&self) -> Option<&str> {
+        self.user.as_deref()
+    }
+
+    /// Go `URL.RequestURI()` for a URL that is not opaque.
+    pub fn request_uri(&self) -> String {
+        let mut target = if self.path.is_empty() {
+            "/".to_owned()
+        } else {
+            self.path.clone()
+        };
+        if let Some(query) = &self.query {
+            target.push('?');
+            target.push_str(query);
+        }
+        target
+    }
+
+    /// Go `URL.String()` with the user info removed: the `Referer` Go's client sends
+    /// from this URL.
+    pub fn referer(&self) -> String {
+        let mut out = format!("{}://{}{}", self.scheme, self.host, self.path);
+        if let Some(query) = &self.query {
+            out.push('?');
+            out.push_str(query);
+        }
+        if !self.fragment.is_empty() {
+            out.push('#');
+            out.push_str(&self.fragment);
+        }
+        out
+    }
+}
+
+/// Go `net/url.resolvePath`: merge `reference` with `base`, then remove dot segments.
+pub fn resolve_path(base: &str, reference: &str) -> String {
+    let full = if reference.is_empty() {
+        base.to_owned()
+    } else if !reference.starts_with('/') {
+        let i = base.rfind('/').map_or(0, |i| i + 1);
+        format!("{}{reference}", &base[..i])
+    } else {
+        reference.to_owned()
+    };
+    if full.is_empty() {
+        return String::new();
+    }
+    let mut dst = String::with_capacity(full.len() + 1);
+    dst.push('/');
+    let mut first = true;
+    let mut last = "";
+    for elem in full.split('/') {
+        last = elem;
+        match elem {
+            "." => first = false,
+            ".." => {
+                match dst[1..].rfind('/') {
+                    Some(i) => dst.truncate(i + 1),
+                    None => dst.truncate(1),
+                }
+                first = dst.len() == 1;
+            }
+            _ => {
+                if !first {
+                    dst.push('/');
+                }
+                dst.push_str(elem);
+                first = false;
+            }
+        }
+    }
+    if last == "." || last == ".." {
+        dst.push('/');
+    }
+    // An initial `/` was written; never two.
+    if dst.len() > 1 && dst.as_bytes()[1] == b'/' {
+        dst.remove(0);
+    }
+    dst
 }
 
 /// Go `shouldEscape(c, encodePath)`.
@@ -108,23 +267,26 @@ fn path_should_escape(c: u8) -> bool {
     !(c.is_ascii_alphanumeric() || b"-_.~$&+,/:;=@".contains(&c))
 }
 
-/// Go `validEncoded(s, encodePath)`.
-fn valid_encoded_path(s: &str) -> bool {
-    s.bytes()
-        .all(|c| b"!$&'()*+,;=:@[]%".contains(&c) || !path_should_escape(c))
+/// Go `shouldEscape(c, encodeFragment)`.
+fn fragment_should_escape(c: u8) -> bool {
+    !(c.is_ascii_alphanumeric() || b"-_.~$&+,/:;=?@!()*".contains(&c))
 }
 
-/// Go `escape(s, encodePath)`.
-fn escape_path(s: &[u8]) -> String {
+/// Go's `EscapedPath` and `EscapedFragment` over `url.Parse`'s input: as written when
+/// `validEncoded`, else Go's `escape` of the unescaped bytes.
+fn escaped(s: &str, should_escape: fn(u8) -> bool) -> Option<String> {
+    if s.bytes().all(|c| b"!$&'()*+,;=:@[]%".contains(&c) || !should_escape(c)) {
+        return Some(s.to_owned());
+    }
     let mut out = String::with_capacity(s.len());
-    for &c in s {
-        if path_should_escape(c) {
+    for c in unescape_bytes(s)? {
+        if should_escape(c) {
             out.push_str(&format!("%{c:02X}"));
         } else {
             out.push(c as char);
         }
     }
-    out
+    Some(out)
 }
 
 /// Go `unescape(s, encodePath)` as bytes.
@@ -324,5 +486,29 @@ mod tests {
         }
         assert_eq!(request_uri("https://h/%zz"), None);
         assert_eq!(request_uri("mailto:x"), None);
+    }
+
+    /// Go's own table (net/url url_test.go `resolvePathTests`), plus merged `//` paths.
+    #[test]
+    fn resolve_path_matches_go() {
+        for (base, reference, want) in [
+            ("a/b", ".", "/a/"),
+            ("a/b", "c", "/a/c"),
+            ("a/b", "..", "/"),
+            ("a/", "..", "/"),
+            ("a/", "../..", "/"),
+            ("a/b/c", "..", "/a/"),
+            ("a/b/c", "../d", "/a/d"),
+            ("a/b/c", ".././d", "/a/d"),
+            ("a/b", "./..", "/"),
+            ("a/./b", ".", "/a/"),
+            ("a/../", ".", "/"),
+            ("a/.././b", "c", "/c"),
+            ("//api/item", "next", "//api/next"),
+            ("", "next", "/next"),
+            ("", "", ""),
+        ] {
+            assert_eq!(resolve_path(base, reference), want, "{base:?} + {reference:?}");
+        }
     }
 }
