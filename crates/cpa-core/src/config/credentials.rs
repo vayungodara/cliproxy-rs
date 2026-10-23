@@ -1667,6 +1667,24 @@ mod tests {
             })
             .collect();
         assert_eq!(Json::Array(got), go["models"]);
+
+        // Go `executionModelCandidatesWithAlias`: the upstream model each request
+        // executes as. `v-only` runs as `v3` (whose alias it is) although it registers
+        // as the alias-less `v-only`.
+        let exec = &go["execution"];
+        let cfg = Config::parse(exec["yaml"].as_str().unwrap()).unwrap();
+        let creds = from_config(&cfg);
+        let aliases = crate::registry::dynamic::global_aliases(&cfg);
+        for case in exec["cases"].as_array().unwrap() {
+            let key = case["api_key"].as_str().unwrap();
+            let c = creds
+                .iter()
+                .find(|c| c.attributes.get("api_key").map(String::as_str) == Some(key))
+                .unwrap();
+            let request = case["request"].as_str().unwrap();
+            let (got, _) = crate::registry::dynamic::execution_models(&aliases, c, request);
+            assert_eq!(Json::from(got), case["upstream"], "{key} {request:?}");
+        }
     }
 
     /// Go `resolveAPIKeyConfig`: `config_index` binds exactly even when an earlier
