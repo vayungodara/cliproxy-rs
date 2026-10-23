@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"sort"
 	"strconv"
@@ -186,7 +187,23 @@ func main() {
 		encs = append(encs, encodeCase{Input: h(s), HTML: h(string(b)), Plain: h(string(plain))})
 	}
 	var floats []floatCase
-	for _, f := range []float64{0, math.Copysign(0, -1), 1, -1.5, 0.1 + 0.2, 1e-7, 1e-6, 9.99e-7, 1e20, 1e21, 1.5e300, 5e-324, 123456789012345678, 1000, 1e3, 2.5e-10, -3e25, math.MaxFloat64} {
+	fvalues := []float64{0, math.Copysign(0, -1), 1, -1.5, 0.1 + 0.2, 1e-7, 1e-6, 9.99e-7, 1e20, 1e21, 1.5e300, 5e-324, 123456789012345678, 1000, 1e3, 2.5e-10, -3e25, math.MaxFloat64}
+	// Exact ties between two shortest candidates: Ryū keeps the even digit (half to
+	// even). Only the 'f' range has them; a float64 at or above 1e21 or below 1e-6 has
+	// more exact decimal digits than any tie needs.
+	fvalues = append(fvalues, 1073741824.00390625, 8589934592.0078125, 70368744177664.125,
+		562949953421312.25, -1125899906842624.25, 70368744177664.375, 1125899906842624.75,
+		9.999999999999999e20, 1.0000000000000001e21, math.Nextafter(1e-6, 0), 1.0000000000000002e-6)
+	// A seeded sample: uniform bit patterns (mostly the exponent range) and values in
+	// [1, 2^53) with fractions (the 'f' range).
+	rng := rand.New(rand.NewSource(1))
+	for len(fvalues) < 1500 {
+		if f := math.Float64frombits(rng.Uint64()); !math.IsNaN(f) && !math.IsInf(f, 0) {
+			fvalues = append(fvalues, f)
+		}
+		fvalues = append(fvalues, math.Ldexp(1+rng.Float64(), rng.Intn(53)))
+	}
+	for _, f := range fvalues {
 		j, _ := json.Marshal(f)
 		floats = append(floats, floatCase{Bits: math.Float64bits(f), F: strconv.FormatFloat(f, 'f', -1, 64), JSON: string(j)})
 	}

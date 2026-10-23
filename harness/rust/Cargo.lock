@@ -394,6 +394,7 @@ dependencies = [
  "gjson",
  "http",
  "memchr",
+ "ryu",
  "serde_json",
  "serde_yaml_ng",
  "sha2",
