@@ -1,0 +1,80 @@
+{
+  "legacy": {
+    "models": {
+      "lk": [
+        [
+          "False",
+          "2.50"
+        ]
+      ]
+    },
+    "yaml": "codex-api-key:\n  - api-key: lk\n    base-url: http://127.0.0.1:2\n    models: [{name: 2.50, alias: False}]\n"
+  },
+  "yaml": {
+    "models": {
+      "ck": [
+        [
+          "4.0",
+          "123"
+        ],
+        [
+          "c1",
+          "0x1F"
+        ],
+        [
+          "007",
+          "c2"
+        ],
+        [
+          "c3",
+          "1_000"
+        ],
+        [
+          "c4",
+          "1_000"
+        ]
+      ],
+      "ok": [
+        [
+          "+12",
+          ".5"
+        ],
+        [
+          "0o17",
+          "0o17"
+        ],
+        [
+          "o1",
+          "yes"
+        ],
+        [
+          "o2",
+          "2001-12-14"
+        ]
+      ],
+      "vk": [
+        [
+          "true",
+          "1.50"
+        ],
+        [
+          "1e3",
+          "1e3"
+        ],
+        [
+          "v2",
+          ".inf"
+        ],
+        [
+          "v3",
+          "-0"
+        ],
+        [
+          "v4",
+          "-0"
+        ]
+      ]
+    },
+    "yaml": "api-keys:\n  claude:\n    - models: [{name: 123, alias: 4.0}, {name: 0x1F, alias: c1}, {name: c2, alias: 007}, {name: \u0026n 1_000, alias: c3}, {name: *n, alias: c4}]\n      keys: [{api-key: ck}]\n  vertex:\n    - base-url: https://v.example.invalid\n      models: [{name: 1.50, alias: true}, {name: 1e3}, {name: ~, alias: v1}, {name: .inf, alias: v2}, \u0026m {name: -0, alias: v3}, {\u003c\u003c: *m, alias: v4}]\n      keys: [{api-key: vk}]\n  openai-compatibility:\n    - name: acme\n      base-url: http://127.0.0.1:1\n      keys: [{api-key: ok}]\n      models: [{name: .5, alias: +12}, {name: 0o17}, {name: yes, alias: o1}, {name: 2001-12-14, alias: o2}]\n"
+  }
+}
