@@ -46,7 +46,7 @@ Run the install command again to upgrade, or `brew upgrade cliproxy-rs` with Hom
 
 ## What is this?
 
-cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), with the compatibility target frozen at Go v8.0.35. It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. Parity is incomplete: the audit has 1,951 items, with 1,014 covered, 896 partial and 41 missing. [PARITY.md](docs/PARITY.md) defines those counts.
+cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), with the compatibility target frozen at Go v8.0.35. It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. Parity is incomplete: the audit has 1,951 items, with 1,015 covered, 895 partial and 41 missing. [PARITY.md](docs/PARITY.md) defines those counts.
 
 The dashboard shows accounts, provider limits, request history and tool settings.
 

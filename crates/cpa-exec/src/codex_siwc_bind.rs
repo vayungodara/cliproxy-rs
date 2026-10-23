@@ -146,9 +146,18 @@ pub fn save(path: &Path, tokens: &Tokens) -> Result<(), String> {
 /// Go `WithFileLock`'s inter-process half: an exclusive lock on `<path>.lock` for the
 /// duration of `f` (`flock`, or `LockFileEx` on Windows), so a Go or Rust process
 /// refreshing the same file waits.
-// ponytail: Go also serializes callers in one process with a mutex per path; the CLI is
-// the only caller here, and the server's refresh writer does not take this lock yet.
+// ponytail: Go also serializes callers in one process with a mutex per path; here the
+// server's refresh holds its per-credential preparation lock around [`lock_file`].
 pub fn with_file_lock<T>(path: &Path, f: impl FnOnce() -> Result<T, String>) -> Result<T, String> {
+    let file = lock_file(path)?;
+    let result = f();
+    drop(file);
+    result
+}
+
+/// The lock of [`with_file_lock`], held until the returned file is dropped (closing it
+/// releases the lock). Blocking.
+pub fn lock_file(path: &Path) -> Result<std::fs::File, String> {
     let mut lock_path = lock_base(path).into_os_string();
     lock_path.push(".lock");
     let lock_path = PathBuf::from(lock_path);
@@ -160,10 +169,7 @@ pub fn with_file_lock<T>(path: &Path, f: impl FnOnce() -> Result<T, String>) -> 
         .open(&lock_path)
         .map_err(|e| format!("failed to open credential lock file {}: {e}", lock_path.display()))?;
     lock_exclusive(&file).map_err(|e| format!("failed to acquire flock on {}: {e}", lock_path.display()))?;
-    // Closing the file releases the lock.
-    let result = f();
-    drop(file);
-    result
+    Ok(file)
 }
 
 #[cfg(unix)]

@@ -2683,6 +2683,41 @@ mod tests {
         );
     }
 
+    /// Go 8fbf152b (plugin_executor_usage_test.go): a Responses plugin executor's
+    /// top-level usage counts beside a service tier, buffered and streamed, and an
+    /// event's `response.usage` still wins over it.
+    #[test]
+    fn plugin_responses_usage_keeps_top_level_tokens_beside_a_service_tier() {
+        let tokens = |d: &Detail| (d.input, d.output, d.total, d.response_service_tier.clone());
+        let usage = r#""usage":{"input_tokens":34,"output_tokens":499,"total_tokens":533}"#;
+        let mut stream = StreamUsage::default();
+        let line = format!(r#"data: {{"type":"response.completed","service_tier":"default",{usage}}}"#);
+        stream.plugin_line("openai-response", line.as_bytes());
+        assert_eq!(tokens(stream.detail().unwrap()), (34, 499, 533, "default".into()));
+        for (protocol, payload, want) in [
+            (
+                "openai-response",
+                format!(r#"{{"id":"resp_1","object":"response","service_tier":"default",{usage}}}"#),
+                (34, 499, 533, "default"),
+            ),
+            ("openai-response", format!("{{{usage}}}"), (34, 499, 533, "")),
+            ("codex", format!(r#"{{"service_tier":"default",{usage}}}"#), (34, 499, 533, "default")),
+            (
+                "openai-response",
+                r#"{"service_tier":"priority","usage":{"input_tokens":1,"output_tokens":1,"total_tokens":2},"response":{"usage":{"input_tokens":18,"output_tokens":22,"total_tokens":40}}}"#.into(),
+                (18, 22, 40, "priority"),
+            ),
+            ("openai-response", r#"{"service_tier":"default"}"#.into(), (0, 0, 0, "default")),
+        ] {
+            let (input, output, total, tier) = want;
+            assert_eq!(
+                tokens(&parse_plugin_body(protocol, payload.as_bytes())),
+                (input, output, total, tier.to_owned()),
+                "{payload}"
+            );
+        }
+    }
+
     /// Claude's executor-published outcomes through the queue: an apply_patch
     /// rejection is Go's `reporter.PublishFailure(err)` after usage was observed (no
     /// tokens, response model kept, and the later failure the server sees changes
