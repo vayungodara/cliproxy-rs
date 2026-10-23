@@ -99,6 +99,10 @@ func main() {
 		{"merge of a locally tagged aliased mapping", "base: &a !keep {port: 1}\n<<: *a\n"},
 		{"merge of a locally tagged mapping", "<<: !keep {port: 1}\n"},
 		{"merge of a list holding a locally tagged mapping", "<<: [!keep {port: 1}]\n"},
+		{"merge of a locally tagged sequence", "<<: !keep [{port: 1}]\n"},
+		{"nested locally tagged merge", "inner: &i !keep {port: 1}\nouter: &o !keep {<<: *i}\n<<: *o\n"},
+		{"binary secret through a tagged merge source", "base: &b !keep {secret-key: !!binary c2VjcmV0}\nmanagement:\n  <<: *b\n"},
+		{"binary plugin pin through a tagged merge source", "base: &b !keep {version: !!binary MS4yLjM=}\nplugins:\n  configs:\n    x:\n      store:\n        <<: *b\n"},
 		// Collection keys, a merge key inside one included.
 		{"merge key inside a collection key", "extra:\n  ? {\"<<\": {port: 1}}\n  : ignored\nport: 2\n"},
 		{"collection key", "extra: {? {a: 1} : x}\n"},
