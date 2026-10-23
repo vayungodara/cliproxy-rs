@@ -42,11 +42,41 @@ payload:
       params: {seed: 7}
     - models: [{name: "img-*"}]
       params: {tool_choice: image_generation}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==1)#.d": "dv"}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==1)#.n.m": 5}
+    - models: [{name: "wild-*"}]
+      params: {"strs.#(==\"[1,2]\")#.0": "scalar"}
+    - models: [{name: "lin-*"}]
+      params: {"items.#(k==1)#.0": 9}
+    - models: [{name: "lin-*"}]
+      params: {"whole.#(k==2)#": 5}
+    - models: [{name: "lin-*", exist: ["whole.#(k==1)#"]}]
+      params: {whole_seen: true}
+    - models: [{name: "lin-*", match: [{"nums.#(>5)#": 7}]}]
+      params: {nums_matched: true}
+    - models: [{name: "wild-*", exist: ["strs.#(==\"[1,2]\")#.0"]}]
+      params: {scalar_exists: true}
+    - models: [{name: "lno-*"}]
+      params: {"items.#(k==1)#.x": 9}
+    - models: [{name: "lno-*"}]
+      params: {"whole.#(k==2)#": 5}
+    - models: [{name: "lns-*"}]
+      params: {"-1.#(k==1)#.d": 2}
+    - models: [{name: "lnx-*", exist: ["items.#(k==1)#.z"]}]
+      params: {z_seen: true}
   default-raw:
     - models: [{name: "gpt-*"}]
       params: {response_format: '{"type":"json_object"}'}
     - models: [{name: "gpt-*"}]
       params: {broken: '{"type":'}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==2)#.r": '{"x":1}'}
+    - models: [{name: "lin-*"}]
+      params: {"multi.#(k==1)#.r": '{"y":2}'}
+    - models: [{name: "lno-*"}]
+      params: {"items.#(k==1)#.y": '{"a":1}'}
   override:
     - models: [{name: "gpt-*"}]
       params: {max_tokens: 100}
@@ -66,12 +96,60 @@ payload:
       params: {nullable: null}
     - models: [{name: "uni-*"}]
       params: {"items.#(é==1)#.x": true}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==1)#.o": "ov"}
+    - models: [{name: "wild-*"}]
+      params: {"groups.#(g==1)#.members.#(m==1)#.flag": true}
+    - models: [{name: "wild-*"}]
+      params: {"i*.#(k==1)#.new": "complex"}
+    - models: [{name: "lin-*"}]
+      params: {"whole.#(k==1)#": "replaced"}
+    - models: [{name: "lin-*"}]
+      params: {"lap.#(k==1)#.b": 2}
+    - models: [{name: "lin-*"}]
+      params: {"arr.#(k==1)#.list.-1": "app"}
+    - models: [{name: "lin-*"}]
+      params: {"eq.#(k==1)#.v": 1}
+    - models: [{name: "lin-*"}]
+      params: {"a*.#(k==1)#.new": "complex"}
+    - models: [{name: "lnc-*"}]
+      params: {"a*.#(k==1)#.b.#(k==2)#.x": 9}
+    - models: [{name: "lng-*"}]
+      params: {"g.#(k==1)#.m.#(k==2)#.x": 9}
+    - models: [{name: "lns-*"}]
+      params: {"-1.#(k==1)#.s": 1}
+    - models: [{name: "lnw-*"}]
+      params: {"a.18446744073709551616.#(k==1)#.x": 9}
   override-raw:
     - models: [{name: "gpt-*"}]
       params: {logit_bias: '{"1": -100}'}
+    - models: [{name: "wild-*"}]
+      params: {"items.#(k==1)#.raw": '[1, 2]'}
+    - models: [{name: "lin-*"}]
+      params: {"lap.#(k==1)#": '{"k":1,"z":true}'}
+    - models: [{name: "lin-*"}]
+      params: {"eq.#(k==1)#.w": '[1, 2]'}
   filter:
     - models: [{name: "gpt-*"}]
       params: [frequency_penalty, "messages.#(role==\"developer\")#"]
+    - models: [{name: "wild-*"}]
+      params: ["items.#(k==1)#.drop"]
+    - models: [{name: "wild-*"}]
+      params: ["list.#(t==\"x\")#"]
+    - models: [{name: "wild-*"}]
+      params: ["nested.#(a==1)#.inner.#(b==1)#"]
+    - models: [{name: "wild-*"}]
+      params: ["i*.#(k==1)#.x"]
+    - models: [{name: "lin-*"}]
+      params: ["diagnostics.a*.#(k==1)#"]
+    - models: [{name: "lin-*"}]
+      params: [":a.#(k==1)#.x"]
+    - models: [{name: "lin-*"}]
+      params: ["neg.#(k==1)#.list.-1"]
+    - models: [{name: "lnm-*"}]
+      params: ["-1.#(k==1)#"]
+    - models: [{name: "lnf-*"}]
+      params: ["-1.#(k==1)#.y"]
 `
 
 type payloadCase struct {
@@ -93,6 +171,18 @@ type payloadCase struct {
 
 const chat = `{"model":"gpt-5","stream":true, "user":"u1","messages":[{"role":"system","content":"s"},{"role":"developer","content":"d1"},{"role":"user","content":"hi"},{"role":"developer","content":"d2"}],"tools":[{"type":"function","name":"a"},{"type":"image_generation"},{"type":"function","name":"b"}],"tool_choice":{"type":"image_generation"},"frequency_penalty":0.5,"max_tokens":100,"n":1,"big":1e21}`
 
+const wild = `{"items":[ {"k":1,"d":"have","o":"ov","drop":1} , {"k":2} ,{"k":1,"drop":2,"o":"old"},{"k":3}],` +
+	`"list":[ {"t":"x"} ,{"t":"x"},  {"t":"y"} , {"t":"x"}],` +
+	`"groups":[{"g":1,"members":[{"m":1},{"m":2},{"m":1,"flag":false}]},{"g":2,"members":[{"m":1}]},{"g":1,"members":[ {"m":1} ]}],` +
+	`"nested":[{"a":1,"inner":[{"b":1},{"b":2},{"b":1}]},{"a":2,"inner":[{"b":1}]},{"a":1,"inner":[{"b":1}]}]}`
+
+const lin = `{"diagnostics":{"ab":[{"k":1},{"k":1}]},":a":[{"k":1,"x":1},{"k":1,"x":2}],"a":[{"k":1,"x":3},{"k":1}],` +
+	`"whole":[{"k":1},{"k":2},{"k":1},{"k":2}],"lap":[{"k":1,"b":0},{"k":2},{"k":1}],` +
+	`"arr":[{"k":2,"list":[1]},{"k":1,"list":[1,2]},{"k":1,"list":[]}],"neg":[{"k":1,"list":[1,2,3]},{"k":1,"list":[4]}],` +
+	`"multi":[{"k":1},{"k":1,"r":{"old":1}},{"k":1}],"eq":[{"k":1,"v":1,"w":[1, 2]},{"k":1,"v":2,"w":[1,2]}],"nums":[3,7,9]}`
+
+const lno = `{"items":[{"k":1},{"k":1},{"k":1}],"whole":[{"k":2},{"k":2}]}`
+
 var payloadInputs = []payloadCase{
 	{Name: "chat_all_sections", Model: "gpt-5", RequestedModel: "gpt-5", Protocol: "openai", FromProtocol: "openai", Payload: chat, RequestPath: "/v1/chat/completions", Tracked: []string{"temperature", "messages", "max_tokens", "nope"}},
 	{Name: "defaults_skip_fields_in_original", Model: "gpt-5", Protocol: "openai", Payload: `{"model":"gpt-5"}`, Original: `{"temperature":1,"seed":3}`},
@@ -109,6 +199,58 @@ var payloadInputs = []payloadCase{
 	{Name: "unicode_query_key", Model: "uni-1", Protocol: "openai", Payload: `{"items":[{"é":1},{"é":2},{"é":1,"x":false}]}`},
 	{Name: "codex_client_integer_tools", Target: "openai", Model: "zz", Protocol: "openai", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},
 		Payload: `{"tools":[{"type":"function","name":"exec_command","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"},"cmd":{"type":"string"},"yield_time_ms":{"type":["number","null","integer"]}}}},{"type":"function","name":"other","parameters":{"properties":{"timeout_ms":{"type":"number"}}}},{"type":"namespace","tools":[{"name":"collab__wait_agent","input_schema":{"properties":{"timeout_ms":{"type":"number"}}}}]}],"input":[{"type":"additional_tools","tools":[{"function":{"name":"functions__sleep","parameters":{"properties":{"duration_ms":{"type":"number"}}}}}]}]}`},
+	// Wildcard targets: element-local edits, nested queries, and whole-element deletes
+	// (first, adjacent, last and all elements) with uneven whitespace.
+	{Name: "wildcards", Model: "wild-1", Protocol: "openai", Payload: wild, Tracked: []string{"items.2", "list", "groups.0.members.2.flag", "nested.2", "items.1.r"}},
+	{Name: "wildcards_all_deleted", Model: "wild-1", Protocol: "openai",
+		Payload: "{\"list\":[ {\"t\":\"x\"} ,\n {\"t\":\"x\"}\t]}"},
+	{Name: "wildcards_first_two_deleted", Model: "wild-1", Protocol: "openai",
+		Payload: "{\"list\": [\n  {\"t\":\"x\"},\n  {\"t\":\"x\"} ,\n  {\"t\":\"y\"}  ,{\"t\":\"x\"},{\"t\":\"y\"}\n]}"},
+	{Name: "wildcards_middle_deleted", Model: "wild-1", Protocol: "openai",
+		Payload: "{\"list\":[{\"t\":\"y\"} , {\"t\":\"x\"},{\"t\":\"x\"} ,  {\"t\":\"y\"}]}"},
+	// A scalar element is not a container, and a wildcard before the query makes the
+	// whole path complex for sjson.
+	{Name: "wildcards_scalars_and_complex_base", Model: "wild-1", Protocol: "openai",
+		Payload: `{"strs":["[1,2]","[1,2]"],"items":[{"k":1,"x":1},{"k":2,"x":2},{"k":1,"x":3}]}`,
+		Tracked: []string{"strs", "items.0.x", "items.2.new"}},
+	// Whole-element setters and reads, complex prefixes, a leading-colon key, append and
+	// negative indexes inside elements, overlapping parameters, equal values, and
+	// default-raw on several elements.
+	{Name: "linear_targets", Model: "lin-1", Protocol: "openai", Payload: lin,
+		Tracked: []string{"diagnostics", ":a", "a", "whole", "lap.0", "lap.2.b", "arr.1.list", "neg", "multi", "eq.0.v", "eq.1.w"}},
+	{Name: "linear_whole_defaults", Model: "lin-1", Protocol: "openai",
+		Payload: `{"whole":[{"k":2},{"k":2}]}`, Original: `{"whole":[]}`, Tracked: []string{"whole"}},
+	// A scalar in the original is not a container: the defaults inside it apply.
+	{Name: "linear_scalar_original", Model: "lin-1", Protocol: "openai",
+		Payload: `{"items":[{"k":1},{"k":1}]}`, Original: `{"items":["[1,2]","[1,2]"]}`, Tracked: []string{"items.0.0", "items.1.0"}},
+	{Name: "wildcards_defaults_read_original", Model: "wild-1", Protocol: "openai",
+		Payload: `{"items":[{"k":1},{"k":2},{"k":1}]}`, Original: `{"items":[{"k":1},{"k":2},{"k":1,"d":"orig","n":{"m":1}}]}`},
+	// gjson's search from the root moves past a wildcard or duplicate key whose rest is
+	// missing; sjson's delete reads an unforced -1 as the last element; defaults read an
+	// original whose target array is missing, a scalar, an object or duplicated.
+	{Name: "nested_complex_prefix", Model: "lnc-1", Protocol: "openai",
+		Payload: `{"aa":[{"k":0},{"k":1}],"ab":[{},{"b":[{"k":2,"x":0}]}]}`, Tracked: []string{"a*.1.b.0.x"}},
+	{Name: "nested_duplicate_key", Model: "lng-1", Protocol: "openai",
+		Payload: `{"g":[{"k":1}],"g":[{"k":1,"m":[{"k":2}]}]}`, Tracked: []string{"g"}},
+	{Name: "condition_duplicate_key", Model: "lnx-1", Protocol: "openai",
+		Payload: `{"items":[{"k":1},{"k":1}],"items":[{"z":1},{"z":1}]}`},
+	{Name: "delete_under_minus_one", Model: "lnm-1", Protocol: "openai",
+		Payload: `{"#":1,"0":[{"k":1},{"k":1}],"-1":[{"k":1},{"k":1}]}`, Tracked: []string{"-1.0", "-1.1", "0"}},
+	{Name: "delete_fields_under_minus_one", Model: "lnf-1", Protocol: "openai",
+		Payload: `{"#":1,"0":[{"k":1,"y":1},{"k":1,"y":2}],"-1":[{"k":1,"y":3},{"k":1,"y":4}]}`, Tracked: []string{"-1", "0"}},
+	// gjson's parseUint wraps: 2^64 indexes element 0.
+	{Name: "wrapped_index", Model: "lnw-1", Protocol: "openai",
+		Payload: `{"a":[[{"k":1},{"k":1}]]}`, Tracked: []string{"a"}},
+	{Name: "set_under_minus_one", Model: "lns-1", Protocol: "openai",
+		Payload: `{"#":1,"0":[{"k":1}],"-1":[{"k":1},{"k":1}]}`, Tracked: []string{"-1", "0"}},
+	{Name: "original_lacks_array", Model: "lno-1", Protocol: "openai", Payload: lno, Original: `{"pad":"pp"}`, Tracked: []string{"items", "whole"}},
+	{Name: "original_scalar_base", Model: "lno-1", Protocol: "openai", Payload: lno, Original: `{"items":"[{\"x\":1}]","whole":7}`, Tracked: []string{"items", "whole"}},
+	{Name: "original_object_base", Model: "lno-1", Protocol: "openai", Payload: lno,
+		Original: `{"items":{"0":{"x":1},"1":"s","2":{"y":0}},"whole":{"1":0}}`, Tracked: []string{"items", "whole"}},
+	{Name: "original_object_duplicate_keys", Model: "lno-1", Protocol: "openai", Payload: lno,
+		Original: `{"items":{"0":"s","0":{"x":1},"2":{"y":1},"2":"t"},"whole":{"0":"a","0":"b"}}`, Tracked: []string{"items", "whole"}},
+	{Name: "original_duplicate_base", Model: "lno-1", Protocol: "openai", Payload: lno,
+		Original: `{"items":[{}],"items":[{"x":1},{"y":1},{}]}`, Tracked: []string{"items", "whole"}},
 	{Name: "codex_target_skips_integer_tools", Target: "codex", Model: "zz", Protocol: "codex", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},
 		Payload: `{"tools":[{"type":"function","name":"exec_command","parameters":{"properties":{"timeout_ms":{"type":"number"}}}}]}`},
 }

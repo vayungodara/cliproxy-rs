@@ -38,7 +38,7 @@ fn payload_rules_match_go() {
     );
     assert_eq!(rules.image_generation, payload::ImageGeneration::Chat);
     let cases = fixture["payload"].as_array().unwrap();
-    assert_eq!(cases.len(), 15);
+    assert_eq!(cases.len(), 36);
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let s = |k: &str| case[k].as_str().unwrap_or_default();
@@ -124,4 +124,86 @@ fn model_candidates_dedup_on_go_lowercase() {
     };
     assert_eq!(run("σ", "ς"), r#"{"hit":true}"#, "σ and ς are distinct candidates");
     assert_eq!(run("İ", "i"), "{}", "i collapses into İ");
+}
+
+/// Whole-element setters and whole-element reads on a `#(...)#` query edit the body in
+/// one pass: 16 times the elements must cost far less than 256 times the time (one edit
+/// of the whole body per element). Both sizes run in this process, so the ratio does not
+/// depend on the machine.
+#[test]
+fn wildcard_rules_scale_linearly() {
+    // Every section on one wildcard: defaults against an original without the array,
+    // a whole-element default, a condition whose only match is the last element, and a
+    // filter of fields inside elements.
+    let cfg = Config::parse(
+        r#"payload:
+  default:
+    - models: [{name: "m"}]
+      params: {"items.#(k==3)#.x": 9}
+    - models: [{name: "m"}]
+      params: {"w.#(k==1)#": 5}
+  default-raw:
+    - models: [{name: "m"}]
+      params: {"items.#(k==3)#.y": '{"a":1}'}
+  override:
+    - models: [{name: "m", exist: ["items.#(k==1)#"]}]
+      params: {"items.#(k==1)#": "replaced"}
+  override-raw:
+    - models: [{name: "m", match: [{"items.#(k==2)#.n": 7}]}]
+      params: {"items.#(k==2)#": '{"k":2,"n":4}'}
+  filter:
+    - models: [{name: "m"}]
+      params: ["items.#(k==3)#.pad"]
+"#,
+    )
+    .unwrap();
+    let rules = payload::Rules::of(&cfg);
+    let time = |n: usize| {
+        let items: Vec<String> = (0..n)
+            .map(|i| {
+                let last = if i + 1 == n { 7 } else { 3 };
+                format!(r#"{{"k":{},"n":{last},"pad":"{}"}}"#, 1 + i % 3, "p".repeat(40))
+            })
+            .collect();
+        let body = format!(
+            r#"{{"items":[{}],"w":[{}]}}"#,
+            items.join(","),
+            vec![r#"{"k":1}"#; n].join(",")
+        );
+        let original = format!(r#"{{"pad":"{}"}}"#, "p".repeat(20 * n));
+        let req = payload::Request {
+            target_executor: "openai",
+            model: "m",
+            requested_model: "m",
+            protocol: "openai",
+            from_protocol: "",
+            root: "",
+            original: original.as_bytes(),
+            request_path: "",
+            headers: None,
+        };
+        (0..3)
+            .map(|_| {
+                let start = std::time::Instant::now();
+                let out = payload::apply(&rules, &req, body.clone().into_bytes());
+                assert!(
+                    out.starts_with(
+                        br#"{"items":["replaced",{"k":2,"n":4},{"k":3,"n":3,"x":9,"y":{"a":1}},"replaced""#
+                    ),
+                    "{}",
+                    String::from_utf8_lossy(&out[..200])
+                );
+                assert!(out.ends_with(br#",5,5]}"#));
+                start.elapsed()
+            })
+            .min()
+            .unwrap()
+    };
+    // The last element (n - 1 = 1 mod 3) has k == 2 and is the only one with n == 7.
+    let (small, large) = (time(500), time(8000));
+    let ratio = large.as_secs_f64() / small.as_secs_f64().max(1e-9);
+    assert!(
+        ratio < 64.0,
+        "16x the elements took {ratio:.0}x the time ({small:?} to {large:?})"
+    );
 }
