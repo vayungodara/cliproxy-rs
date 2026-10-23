@@ -80,6 +80,7 @@ mod openai_compat_payload;
 #[cfg(test)]
 mod openai_compat_usage;
 mod payload_barrier;
+mod payload_media;
 pub mod proxy;
 mod quota;
 mod rawjson;

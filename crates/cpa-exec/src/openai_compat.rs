@@ -420,19 +420,28 @@ impl OpenAICompatExecutor {
         if base_url.is_empty() {
             return Err(missing_base_url());
         }
-        let content_type = req
+        let client_content_type = req
             .headers
             .get(http::header::CONTENT_TYPE)
             .and_then(|v| v.to_str().ok())
             .unwrap_or_default()
             .trim()
             .to_owned();
-        let (body, content_type) = prepare_images_payload(&req.body, &base_model, &content_type, req.stream)?;
+        let (body, content_type) = prepare_images_payload(&req.body, &base_model, &client_content_type, req.stream)?;
         let content_type = if content_type.is_empty() {
             "application/json".to_owned()
         } else {
             content_type
         };
+        let (body, content_type) = media_barrier(
+            credential,
+            &req,
+            cfg,
+            &base_model,
+            &body,
+            &content_type,
+            &client_content_type,
+        )?;
         let path = if request_path.trim().ends_with(IMAGES_EDITS) {
             IMAGES_EDITS
         } else {
@@ -496,6 +505,37 @@ impl OpenAICompatExecutor {
             body: ResponseBody::Buffered(data),
         })
     }
+}
+
+/// `ApplyMediaPayloadConfig` on a prepared images request (868e137): the payload rules
+/// run last, on the body's JSON view, against the client's original request.
+fn media_barrier(
+    credential: &Credential,
+    req: &ExecRequest,
+    cfg: &Config,
+    model: &str,
+    body: &[u8],
+    content_type: &str,
+    client_content_type: &str,
+) -> Result<(Bytes, String), ExecError> {
+    let original = if req.original_body.is_empty() {
+        &req.body
+    } else {
+        &req.original_body
+    };
+    let (body, content_type) =
+        crate::payload_media::apply(body, content_type, original, client_content_type, |view, original| {
+            crate::payload_barrier::Barrier {
+                executor: &credential.provider,
+                model,
+                protocol: Format::OpenAI.as_str(),
+                root: "",
+                original,
+            }
+            .apply(cfg, req, view)
+        })
+        .map_err(plain_err)?;
+    Ok((Bytes::from(body), content_type))
 }
 
 /// `prepareOpenAICompatImagesPayload`.
