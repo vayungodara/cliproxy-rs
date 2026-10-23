@@ -194,11 +194,8 @@ fn parse_host(scheme: &str, host: &str) -> Result<String, String> {
             return Err(format!("invalid port {} after host", quote(colon_port)));
         }
         let port = unescape(colon_port.as_bytes(), Mode::Host)?;
-        // A `]` before the last `[` makes Go slice backwards and panic; nothing valid
-        // can follow, so it is reported as an invalid host here.
-        let Some(inner) = host.get(open + 1..close) else {
-            return Err("invalid host".into());
-        };
+        // The host starts with its only `[`, so the last `]` follows it.
+        let inner = &host[1..close];
         let unescaped = match inner.find("%25") {
             Some(zone) => {
                 let mut out = unescape(&inner.as_bytes()[..zone], Mode::Host)?;
@@ -341,9 +338,10 @@ pub(crate) fn quote_bytes(b: &[u8]) -> String {
 }
 
 /// Whether the HTTP client, which parses URLs with WHATWG rules (`url`), would contact
-/// the same scheme, host and port that Go's `net/url` parses from `raw`. They disagree on
-/// inputs such as `https://evil.example\[::1%25.x.ai]/`, where Go starts the host at the
-/// last `[`; a request must never go to a host Go would not contact.
+/// the same scheme, host and port that Go's `net/url` parses from `raw`, and `false` where
+/// Go refuses `raw`, as it does `https://evil.example\[::1%25.x.ai]/` (an invalid
+/// IP-literal) where WHATWG reads a host; a request must never go to a host Go would not
+/// contact.
 pub fn same_authority(raw: &str) -> bool {
     let (Ok(go), Ok(wh)) = (parse(raw), url::Url::parse(raw)) else {
         return false;
