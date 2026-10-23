@@ -46,6 +46,10 @@ payload:
       params: {"items.#(k==1)#.d": "dv"}
     - models: [{name: "wild-*"}]
       params: {"items.#(k==1)#.n.m": 5}
+    - models: [{name: "wild-*"}]
+      params: {"strs.#(==\"[1,2]\")#.0": "scalar"}
+    - models: [{name: "wild-*", exist: ["strs.#(==\"[1,2]\")#.0"]}]
+      params: {scalar_exists: true}
   default-raw:
     - models: [{name: "gpt-*"}]
       params: {response_format: '{"type":"json_object"}'}
@@ -76,6 +80,8 @@ payload:
       params: {"items.#(k==1)#.o": "ov"}
     - models: [{name: "wild-*"}]
       params: {"groups.#(g==1)#.members.#(m==1)#.flag": true}
+    - models: [{name: "wild-*"}]
+      params: {"i*.#(k==1)#.new": "complex"}
   override-raw:
     - models: [{name: "gpt-*"}]
       params: {logit_bias: '{"1": -100}'}
@@ -90,6 +96,8 @@ payload:
       params: ["list.#(t==\"x\")#"]
     - models: [{name: "wild-*"}]
       params: ["nested.#(a==1)#.inner.#(b==1)#"]
+    - models: [{name: "wild-*"}]
+      params: ["i*.#(k==1)#.x"]
 `
 
 type payloadCase struct {
@@ -141,6 +149,10 @@ var payloadInputs = []payloadCase{
 		Payload: "{\"list\": [\n  {\"t\":\"x\"},\n  {\"t\":\"x\"} ,\n  {\"t\":\"y\"}  ,{\"t\":\"x\"},{\"t\":\"y\"}\n]}"},
 	{Name: "wildcards_middle_deleted", Model: "wild-1", Protocol: "openai",
 		Payload: "{\"list\":[{\"t\":\"y\"} , {\"t\":\"x\"},{\"t\":\"x\"} ,  {\"t\":\"y\"}]}"},
+	// A scalar element is not a container, and a wildcard before the query makes the
+	// whole path complex for sjson.
+	{Name: "wildcards_scalars_and_complex_base", Model: "wild-1", Protocol: "openai",
+		Payload: `{"strs":["[1,2]","[1,2]"],"items":[{"k":1,"x":1},{"k":2,"x":2},{"k":1,"x":3}]}`},
 	{Name: "wildcards_defaults_read_original", Model: "wild-1", Protocol: "openai",
 		Payload: `{"items":[{"k":1},{"k":2},{"k":1}]}`, Original: `{"items":[{"k":1},{"k":2},{"k":1,"d":"orig","n":{"m":1}}]}`},
 	{Name: "codex_target_skips_integer_tools", Target: "codex", Model: "zz", Protocol: "codex", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},

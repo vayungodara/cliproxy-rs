@@ -727,6 +727,8 @@ struct Target {
 #[derive(Clone)]
 struct Local {
     elem: (usize, usize),
+    /// The element is an object or array; a path inside a scalar reads nothing.
+    container: bool,
     rest: String,
     array: (usize, usize),
     base: String,
@@ -769,7 +771,7 @@ fn resolve_targets(payload: &[u8], path: &str) -> Vec<Target> {
         let mut next = Vec::new();
         for t in &targets {
             let (array, offset) = match &t.local {
-                Some(l) if l.rest.split('.').all(plain) || l.rest.is_empty() => {
+                Some(l) if l.rest.is_empty() || (l.container && l.rest.split('.').all(plain)) => {
                     let elem = &payload[l.elem.0..l.elem.1];
                     let array = if l.rest.is_empty() {
                         json::parse(elem)
@@ -795,6 +797,7 @@ fn resolve_targets(payload: &[u8], path: &str) -> Vec<Target> {
                 let local =
                     (located && payload.get(start..start + item.raw().len()) == Some(item.raw())).then(|| Local {
                         elem: (start, start + item.raw().len()),
+                        container: matches!(item.raw().first(), Some(b'{' | b'[')),
                         rest: String::new(),
                         array: (offset + array.index, offset + array.index + array.raw().len()),
                         base: t.path.clone(),
@@ -823,7 +826,9 @@ fn locals(targets: &[Target], whole_elements: bool) -> Option<Vec<&Local>> {
     let mut out: Vec<&Local> = Vec::with_capacity(targets.len());
     for t in targets {
         let l = t.local.as_ref()?;
-        if l.rest.is_empty() != whole_elements || !(l.rest.is_empty() || l.rest.split('.').all(plain)) {
+        // The whole resolved path must be plain: sjson refuses a complex path (a
+        // wildcard before the query included) on the whole body.
+        if l.rest.is_empty() != whole_elements || !(l.rest.is_empty() || l.container) || !t.path.split('.').all(plain) {
             return None;
         }
         if out.last().is_some_and(|prev| prev.elem.1 > l.elem.0) {
