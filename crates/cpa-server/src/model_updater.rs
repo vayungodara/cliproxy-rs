@@ -217,11 +217,12 @@ async fn read_source(source: &str) -> Result<Vec<u8>, ReadError> {
             .map_err(|_| ReadError::File)?;
         data
     } else {
-        if cpa_core::config::go_url::Escaped::parse(source)
-            .as_ref()
-            .and_then(cpa_exec::proxy::go_target)
-            .is_none()
-        {
+        let target = cpa_core::config::go_url::Escaped::parse(source).and_then(|mut url| {
+            // http.NewRequest drops the first hop's empty port.
+            url.remove_empty_port();
+            cpa_exec::proxy::go_target(&url)
+        });
+        if target.is_none() {
             return Err(ReadError::Rewritten);
         }
         // A client per read: reads are hours apart and the client is tied to no runtime.
@@ -743,9 +744,19 @@ mod tests {
             "http://b\u{fc}cher.example/a/../catalog.json",
             "http://[fe80::1%25en0]:8080/catalog.json",
             "http://127.0.0.1:1/catalog.json?q=a b",
+            // Go sends Host: 127.0.0.1:80 (and :080, :443); wreq would drop the port.
+            "http://127.0.0.1:80/catalog.json",
+            "http://127.0.0.1:080/catalog.json",
+            "https://127.0.0.1:443/catalog.json",
         ] {
             assert_eq!(read_source(source).await, Err(ReadError::Rewritten), "{source}");
         }
+        // http.NewRequest drops the first hop's empty port, so Go's Host header has none
+        // either: the source is sent, to loopback port 80.
+        assert_ne!(
+            read_source("http://127.0.0.1:/catalog.json").await,
+            Err(ReadError::Rewritten)
+        );
         for path in ["/dots", "/backslash"] {
             assert!(fetch(format!("http://{addr}{path}")).await.is_ok(), "{path}");
         }

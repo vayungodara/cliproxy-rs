@@ -1324,6 +1324,12 @@ pub fn go_target(url: &go_url::Escaped) -> Option<http::Uri> {
     let target = url.request_uri();
     // Never the user info: Go sends it only as Basic auth (see `exchange`).
     let uri = http::Uri::try_from(format!("{}://{host}{target}", url.scheme())).ok()?;
+    // wreq writes the Host header from the URI and drops a port Go writes there: an
+    // empty one, or the scheme's default however it is spelled (`:80`, `:080`, `:443`).
+    let default_port = if url.scheme() == "https" { 443 } else { 80 };
+    if host.ends_with(':') || uri.port_u16() == Some(default_port) {
+        return None;
+    }
     (uri.path_and_query().map(http::uri::PathAndQuery::as_str) == Some(target.as_str())).then_some(uri)
 }
 
@@ -1893,7 +1899,8 @@ mod tests {
         async fn record(
             hops: Hops,
             script: Arc<serde_json::Value>,
-            other: Arc<String>,
+            // Location placeholders and their values, replaced in order.
+            other: Arc<[(&'static str, String); 3]>,
             request: axum::extract::Request,
         ) -> axum::response::Response {
             use axum::response::IntoResponse;
@@ -1947,7 +1954,11 @@ mod tests {
                 return (http::StatusCode::OK, "done").into_response();
             };
             let status = http::StatusCode::from_u16(step["status"].as_u64().unwrap() as u16).unwrap();
-            let location = step["location"].as_str().unwrap().replacen("OTHER", &other, 1);
+            let location = other
+                .iter()
+                .fold(step["location"].as_str().unwrap().to_owned(), |l, (token, value)| {
+                    l.replace(token, value)
+                });
             if location.is_empty() {
                 return status.into_response();
             }
@@ -1958,7 +1969,17 @@ mod tests {
         let cases = fixture["redirects"].as_array().unwrap();
         // Go's net/url builds every hop; Rust does with exact_target, and normalizes
         // otherwise, which only dot segments, escaping and malformed targets tell apart.
-        let runs = cases.iter().flat_map(|case| {
+        // cliproxy-rs refuses a hop whose Host header wreq would write without Go's port
+        // (DIFFERENCES "Model catalog reads"): the hops before it go out, then the
+        // request fails.
+        const REFUSED: &[(&str, usize)] = &[
+            ("get-empty-then-default-port-location-exact", 1),
+            ("get-default-port-source-exact", 0),
+        ];
+        // Goes to port 80, which a test cannot listen on; `go_url` tests cover its
+        // Host and Referer.
+        const PORT_80: &str = "get-empty-port-source-exact";
+        let runs = cases.iter().filter(|case| case["name"] != PORT_80).flat_map(|case| {
             let start = case["start"].as_str().unwrap();
             let both = start == "/start";
             [(case, true)].into_iter().chain(both.then_some((case, false)))
@@ -1968,7 +1989,11 @@ mod tests {
             let main = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             let second = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             let (main_addr, other_port) = (main.local_addr().unwrap(), second.local_addr().unwrap().port());
-            let other = Arc::new(format!("http://localhost:{other_port}"));
+            let other = Arc::new([
+                ("OTHERHOST", format!("localhost:{other_port}")),
+                ("MAINHOST", main_addr.to_string()),
+                ("OTHER", format!("http://localhost:{other_port}")),
+            ]);
             let hops: Hops = Arc::default();
             let script = Arc::new(case["script"].clone());
             for listener in [main, second] {
@@ -1992,10 +2017,12 @@ mod tests {
             let method = wreq::Method::from_bytes(case["method"].as_str().unwrap().as_bytes()).unwrap();
             let body = case["body"].as_str().map(|b| Bytes::from(b.to_owned()));
             let start = case["start"].as_str().unwrap();
-            let target = match case["user"].as_str() {
-                Some(user) => format!("http://{user}@{main_addr}{start}"),
-                None => format!("{base}{start}"),
+            let target = match (case["target"].as_str(), case["user"].as_str()) {
+                (Some(target), _) => target.replacen("MAINHOST", &main_addr.to_string(), 1),
+                (None, Some(user)) => format!("http://{user}@{main_addr}{start}"),
+                (None, None) => format!("{base}{start}"),
             };
+            let refused = REFUSED.iter().find(|(n, _)| case["name"] == *n).map(|(_, sent)| *sent);
             let result = request(
                 &default_client(),
                 method,
@@ -2006,7 +2033,14 @@ mod tests {
             )
             .await;
             match &result {
-                Ok(upstream) => assert_eq!(u64::from(upstream.status), case["status"].as_u64().unwrap(), "{name}"),
+                Ok(upstream) => {
+                    assert!(refused.is_none(), "{name}: not refused");
+                    assert_eq!(u64::from(upstream.status), case["status"].as_u64().unwrap(), "{name}");
+                }
+                // A refusal names the URL invalid; reaching for port 80 fails differently.
+                Err(e) if refused.is_some() => {
+                    assert!(String::from_utf8_lossy(&e.body).contains("invalid"), "{name}: {e:?}")
+                }
                 Err(_) => assert!(case["error"].as_bool().unwrap(), "{name}: unexpected error"),
             }
             let got: Vec<serde_json::Value> = hops
@@ -2025,7 +2059,8 @@ mod tests {
                     h
                 })
                 .collect();
-            assert_eq!(&got, case["hops"].as_array().unwrap(), "{name}");
+            let want = case["hops"].as_array().unwrap();
+            assert_eq!(&got, &want[..refused.unwrap_or(want.len())], "{name}");
         }
     }
 
