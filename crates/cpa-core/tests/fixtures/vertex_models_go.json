@@ -1,0 +1,26 @@
+{
+  "models": [
+    {
+      "id": "v-only",
+      "metadata_model_id": "v-only",
+      "display_name": "v-only",
+      "owned_by": "google",
+      "type": "vertex"
+    },
+    {
+      "id": "va",
+      "metadata_model_id": "v1",
+      "display_name": "v1",
+      "owned_by": "google",
+      "type": "vertex"
+    },
+    {
+      "id": "v2",
+      "metadata_model_id": "v2",
+      "display_name": "v2",
+      "owned_by": "google",
+      "type": "vertex"
+    }
+  ],
+  "yaml": "api-keys:\n  vertex:\n    - base-url: https://v.example.invalid\n      models: [{name: v-only}, {name: v1, alias: va}, {name: \" v2 \", alias: \"  \"}, {name: \" \", alias: ghost}, {name: V-ONLY, alias: \"\"}, {name: v3, alias: v-only}]\n      keys: [{api-key: vk}]\n"
+}

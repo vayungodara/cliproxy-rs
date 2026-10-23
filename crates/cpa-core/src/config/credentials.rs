@@ -270,15 +270,17 @@ fn sanitized(cfg: &Config, family: &str) -> Vec<Key> {
             k.base_url = k.base_url.trim().to_owned();
             k.proxy_url = k.proxy_url.trim().to_owned();
             k.excluded = normalize_excluded(&k.excluded);
+            // SanitizeVertexCompatKeys drops models without a name; since v8.0.35
+            // (d9451cb6) a model without an alias stays and registers under its name.
             k.models = std::mem::take(&mut k.models)
                 .into_iter()
                 .map(|(n, a)| (n.trim().to_owned(), a.trim().to_owned()))
-                .filter(|(n, a)| !n.is_empty() && !a.is_empty())
+                .filter(|(n, _)| !n.is_empty())
                 .collect();
-            // SanitizeVertexCompatKeys drops models without both a name and an alias.
             k.raw_models.retain(|m| {
-                let t = |key: &str| m.get(key).and_then(Json::as_str).is_some_and(|v| !v.trim().is_empty());
-                t("name") && t("alias")
+                m.get("name")
+                    .and_then(Json::as_str)
+                    .is_some_and(|v| !v.trim().is_empty())
             });
             seen.insert(format!("{}|{}", k.api_key, k.base_url))
         }
@@ -1621,11 +1623,11 @@ mod tests {
     use super::*;
 
     /// Go `buildCodexConfigModels`: name-only entries register under their name, an
-    /// alias with its display name; vertex keeps only entries with both (its sanitizer).
+    /// alias with its display name.
     #[test]
     fn config_models_reach_the_registry_like_go() {
         let cfg = Config::parse(
-            "api-keys:\n  codex:\n    - base-url: https://c.example.invalid\n      models: [{name: gpt-name-only}, {name: gpt-real, alias: friendly, display-name: Friendly}]\n      keys: [{api-key: k}]\n  vertex:\n    - base-url: https://v.example.invalid\n      models: [{name: v-only}, {name: v1, alias: va}]\n      keys: [{api-key: vk}]\n",
+            "api-keys:\n  codex:\n    - base-url: https://c.example.invalid\n      models: [{name: gpt-name-only}, {name: gpt-real, alias: friendly, display-name: Friendly}]\n      keys: [{api-key: k}]\n",
         )
         .unwrap();
         let creds = from_config(&cfg);
@@ -1644,10 +1646,27 @@ mod tests {
                 ("friendly".to_owned(), "Friendly".to_owned())
             ]
         );
-        assert_eq!(
-            ids("vertex").iter().map(|(id, _)| id.as_str()).collect::<Vec<_>>(),
-            ["va"]
-        );
+    }
+
+    /// Go v8.0.35 `buildVertexCompatConfigModels` after the config load's sanitizer
+    /// (tests/reference/vertex_models): a model without an alias registers under its
+    /// trimmed name, one without a name is dropped, and the first ID wins case-blind.
+    /// The entry is not OpenAI-compatible although it carries a `provider_key`.
+    #[test]
+    fn vertex_config_models_follow_go() {
+        let go: Json = serde_json::from_str(include_str!("../../tests/fixtures/vertex_models_go.json")).unwrap();
+        let cfg = Config::parse(go["yaml"].as_str().unwrap()).unwrap();
+        let creds = from_config(&cfg);
+        let aliases = crate::registry::dynamic::global_aliases(&cfg);
+        let vertex = creds.iter().find(|c| c.provider == "vertex").unwrap();
+        let got: Vec<Json> = crate::registry::dynamic::models_for(&cfg, &aliases, vertex, 0)
+            .into_iter()
+            .map(|m| {
+                serde_json::json!({"id": m.id, "metadata_model_id": m.metadata_model_id,
+                    "display_name": m.display_name, "owned_by": m.owned_by, "type": m.kind})
+            })
+            .collect();
+        assert_eq!(Json::Array(got), go["models"]);
     }
 
     /// Go `resolveAPIKeyConfig`: `config_index` binds exactly even when an earlier
