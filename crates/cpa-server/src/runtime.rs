@@ -501,7 +501,8 @@ impl Runtime {
         let view = self.for_executor(&current);
         let plugin = crate::plugins::refresh::route(self, &current, cfg);
         // Go `CodexExecutor.Refresh` on a Codex credential file: one transaction, under
-        // the file's credential lock, owned apart from the caller.
+        // the file's credential lock, owned apart from the caller. A plugin-virtual one
+        // refreshes in memory and leaves the plugin's file alone (DIFFERENCES-FROM-GO.md).
         if let Source::File(path) = &current.source
             && plugin.is_none()
             && current.provider == "codex"
@@ -2009,26 +2010,22 @@ impl CredentialStore {
         Ok((committed, rotated))
     }
 
-    /// Go `updateInternal` for a Codex refresh of `original` whose result `written` is
-    /// already on disk ([`write_codex_refresh`]), run while the caller holds the file's
-    /// credential lock. Refused (`NotFound`) once the ID was registered again since
+    /// Go `updateInternal` for a Codex refresh of `original`, run while the caller holds
+    /// the file's credential lock. Refused (`NotFound`) once the ID was registered again since
     /// `registered`. When the credential version moved or the credentials changed since
     /// `original` and no refreshed partition still holds a version `patch` may be applied
-    /// over (Go `CanApplyTo`), the refresh is discarded with no side effect. Otherwise the written document is
-    /// published as the credential's metadata, with its proxy (Go's persist then holds
-    /// the file's document), its time is recorded as [`Self::apply_refresh`] records it,
+    /// over (Go `CanApplyTo`), the refresh is discarded with no side effect. Otherwise
+    /// `patch` is applied to the file as it is now, written with legacy keys renamed (Go
+    /// `PersistCodexAuthFile`), and that document published as the credential's
+    /// metadata, with its proxy, its time is recorded as [`Self::apply_refresh`] records it,
     /// and new tokens clear unauthorized cooldowns. Blocking.
     fn admit_codex_refresh(
         &self,
         original: &Credential,
         registered: crate::plugins::refresh::Registered,
         patch: &cpa_exec::codex_refresh::RefreshPatch,
-        written: Vec<u8>,
     ) -> Result<CodexAdmission, PatchError> {
         let id = original.id.as_str();
-        let Ok(Value::Object(metadata)) = serde_json::from_slice::<Value>(&written) else {
-            return Err(PatchError::Io("the written credential could not be read back".into()));
-        };
         let committed = {
             let mut state = self.unauthorized.lock().unwrap_or_else(PoisonError::into_inner);
             let committed = loop {
@@ -2052,15 +2049,19 @@ impl CredentialStore {
                             discarded = Some(current.clone());
                             return Ok(None);
                         }
-                        if !matches!(current.source, Source::File(_)) {
+                        let Source::File(path) = &current.source else {
                             return Err(PatchError::ConfigBacked);
-                        }
+                        };
+                        // Go `PersistCodexAuthFile`: the patch over the file as it is now.
+                        let out = codex_file_patched(path, patch, false).map_err(PatchError::Io)?;
+                        let Ok(Value::Object(metadata)) = serde_json::from_slice::<Value>(&out) else {
+                            return Err(PatchError::Io(format!("invalid credential JSON in {}", path.display())));
+                        };
                         let mut next = Credential::clone(current);
-                        next.metadata = metadata.clone();
+                        next.metadata = metadata;
                         next.refresh_derived();
                         publish_metadata_proxy(&mut next);
-                        // Already written: nothing more to write.
-                        Ok(Some((None, written.clone(), next)))
+                        Ok(Some((Some(path.clone()), out, next)))
                     },
                     |inner, index, bytes, mut next| {
                         inner.generation += 1;
@@ -3136,9 +3137,9 @@ fn rebase_patch(
 /// transaction: the file's credential lock (`<file>.lock`, shared with Go and
 /// `--siwc-bind`) is taken, the file read under it, the grants sent from the tokens it
 /// holds ([`cpa_exec::codex_refresh::Refresher::refresh_locked`]), their result written
-/// onto the file as read again under the same lock ([`write_codex_refresh`]), and then
-/// admitted to the store or discarded ([`CredentialStore::admit_codex_refresh`]), before
-/// the lock is released. A spawned
+/// onto the file as read again under the same lock when a grant was attempted
+/// ([`codex_file_patched`]), and then admitted to the store, which writes the file again,
+/// or discarded ([`CredentialStore::admit_codex_refresh`]), before the lock is released. A spawned
 /// task owns it all, the preparation lock (`guard`) included: a cancelled caller cannot
 /// release the lock while a grant is in flight and leave its new tokens unwritten.
 #[allow(clippy::too_many_arguments)]
@@ -3169,8 +3170,16 @@ async fn refresh_codex_file(
         }
         let admitted = tokio::task::spawn_blocking(move || {
             let _lock = lock;
-            let written = write_codex_refresh(&path, &patch).map_err(PatchError::Io)?;
-            store.admit_codex_refresh(&current, registered, &patch, written)
+            // Go `refreshLocked` writes after a grant, whatever its manager then admits;
+            // an adopt-only refresh reaches the file only when admitted.
+            if patch.granted() {
+                let out = codex_file_patched(&path, &patch, true).map_err(PatchError::Io)?;
+                write_bytes_atomic(&path, &out)
+                    .map_err(|e| PatchError::Io(format!("persist refreshed credentials to {}: {e}", path.display())))?;
+            }
+            #[cfg(test)]
+            tests::before_admit(&path);
+            store.admit_codex_refresh(&current, registered, &patch)
         })
         .await
         .map_err(|e| PatchError::Io(e.to_string()))
@@ -3189,39 +3198,45 @@ async fn refresh_codex_file(
     transaction.await.map_err(|e| local(e.to_string()))?
 }
 
-/// Go `refreshLocked`'s write, while the caller holds the file's credential lock: the
-/// file is read again, and must still be a non-empty JSON object; `patch` is applied to
-/// it (each partition over a version it may still be applied over, every other field as
-/// the file has it), legacy keys are renamed (Go `NormalizeCredentialMetadata`), and the
-/// result is written as Go's `json.Marshal` of the decoded map. This write does not
-/// depend on the credential store: Go writes before its manager admits the refresh.
-/// Returns the bytes written. Blocking.
-fn write_codex_refresh(path: &Path, patch: &cpa_exec::codex_refresh::RefreshPatch) -> Result<Vec<u8>, String> {
+/// The Codex credential file at `path`, read again while the caller holds its
+/// credential lock, with `patch` applied (each partition over a version it may still be
+/// applied over, every other field as the file has it), as Go's `json.Marshal` of the
+/// decoded map. For `refresh_write`, Go `refreshLocked`'s write after a grant: the file
+/// must be a non-empty object and keys stay as written. Otherwise Go
+/// `PersistCodexAuthFile`'s: any object, legacy keys renamed (Go
+/// `NormalizeCredentialMetadata`). Blocking.
+fn codex_file_patched(
+    path: &Path,
+    patch: &cpa_exec::codex_refresh::RefreshPatch,
+    refresh_write: bool,
+) -> Result<Vec<u8>, String> {
     use cpa_common::json::GoValue;
     let invalid = || format!("invalid credential JSON in {} before write", path.display());
     let bytes =
         std::fs::read(path).map_err(|e| format!("re-read credential file {} before write: {e}", path.display()))?;
+    // ponytail: the file is read through serde for the partition baselines, so one
+    // holding invalid UTF-8 or a lone surrogate escape fails here (DIFFERENCES-FROM-GO.md).
     let target = match serde_json::from_slice::<Value>(&bytes) {
-        Ok(Value::Object(target)) if !target.is_empty() => target,
+        Ok(Value::Object(target)) if !(refresh_write && target.is_empty()) => target,
         _ => return Err(invalid()),
     };
     let mut doc = GoValue::parse_f64(&bytes)
         .and_then(|v| v.into_object().ok())
         .ok_or_else(invalid)?;
     patch.apply(&target, &mut doc);
-    let legacy: Vec<String> = doc
-        .keys()
-        .filter(|k| cpa_plugin::auth::canonical_metadata_key(k) != k.as_str())
-        .cloned()
-        .collect();
-    for key in legacy {
-        let value = doc.remove(&key).expect("listed above");
-        doc.entry(cpa_plugin::auth::canonical_metadata_key(&key).to_owned())
-            .or_insert(value);
+    if !refresh_write {
+        let legacy: Vec<String> = doc
+            .keys()
+            .filter(|k| cpa_plugin::auth::canonical_metadata_key(k) != k.as_str())
+            .cloned()
+            .collect();
+        for key in legacy {
+            let value = doc.remove(&key).expect("listed above");
+            doc.entry(cpa_plugin::auth::canonical_metadata_key(&key).to_owned())
+                .or_insert(value);
+        }
     }
-    let out = GoValue::Object(doc).marshal();
-    write_bytes_atomic(path, &out).map_err(|e| format!("persist refreshed credentials to {}: {e}", path.display()))?;
-    Ok(out)
+    Ok(GoValue::Object(doc).marshal())
 }
 
 /// What [`CredentialStore::admit_codex_refresh`] did with a refresh.
@@ -3497,6 +3512,21 @@ mod tests {
 
     /// Every Codex credential file a refresh went to lock, in order (all tests).
     pub(super) static LOCK_ATTEMPTS: Mutex<Vec<std::path::PathBuf>> = Mutex::new(Vec::new());
+
+    type AdmitHook = (std::path::PathBuf, Box<dyn FnOnce() + Send>);
+
+    /// Runs once, for its file, where a Codex refresh is about to be admitted.
+    static BEFORE_ADMIT: Mutex<Vec<AdmitHook>> = Mutex::new(Vec::new());
+
+    pub(super) fn before_admit(path: &Path) {
+        let hook = {
+            let mut hooks = BEFORE_ADMIT.lock().unwrap();
+            hooks.iter().position(|(p, _)| p == path).map(|i| hooks.remove(i).1)
+        };
+        if let Some(hook) = hook {
+            hook();
+        }
+    }
 
     /// Go checks a refresh's `RegistrationEpoch` before anything else in
     /// `updateInternal`: a refresh that meets an edit, after which its ID is registered
@@ -5692,6 +5722,102 @@ mod tests {
         std::fs::remove_dir_all(&f.dir).unwrap();
     }
 
+    /// A refresh that only adopted tokens another process rotated on disk (no grant) and
+    /// is then discarded leaves the file as it was, and the credential's cooldowns and
+    /// refresh record too: Go writes such a refresh only through the persist of an
+    /// admitted update.
+    #[tokio::test]
+    async fn a_discarded_adopt_only_codex_refresh_changes_nothing() {
+        let (days, hour) = (chrono::Duration::days(5), chrono::Duration::hours(1));
+        let f = CodexDisk::new(&[("codex.json", &codex_file(("keep", days), ("A", "oaiapp_x", hour)))]).await;
+        let path = f.dir.join("codex.json");
+        let select = |model: &str| f.rt.store.select(Selection::new("codex", model)).unwrap();
+        select("m").complete(Outcome::Failure(ExecError::local(
+            401,
+            FailureScope::Credential,
+            "unauthorized",
+        )));
+        // Written after the 401, whose cooldown state is persisted too.
+        let mut file_b = codex_file(("keep", days), ("B", "oaiapp_x", hour));
+        file_b["request-retry"] = 2.into();
+        let bytes_b = file_b.to_string();
+        std::fs::write(&path, &bytes_b).unwrap();
+        // The store takes other tokens without writing the file (a reload of another
+        // copy), once the refresh adopted B.
+        let cooldowns = Arc::new(Mutex::new(None));
+        BEFORE_ADMIT.lock().unwrap().push((
+            path.clone(),
+            Box::new({
+                let (store, dir, path, cooldowns) =
+                    (f.rt.store.clone(), f.dir.clone(), path.clone(), cooldowns.clone());
+                move || {
+                    let d = codex_file(("keep", days), ("D", "oaiapp_x", days));
+                    let d = Credential::from_file(&dir, &path, d.as_object().cloned().unwrap()).unwrap();
+                    store.reconcile(vec![crate::testing::local(d)]);
+                    *cooldowns.lock().unwrap() = Some(store.cooldowns("codex.json").len());
+                }
+            }),
+        ));
+        let current = f.rt.store.get("codex.json").unwrap();
+        let cfg = f.rt.config();
+        let replaced = f.rt.store.get("codex.json").unwrap();
+        assert!(f.rt.refresh_after_unauthorized(&current, &cfg).await.is_some());
+        assert_eq!(f.grants(), []);
+        let stored = f.rt.store.get("codex.json").unwrap();
+        assert_eq!(stored.metadata["siwc"]["access_token"], "siwc-D");
+        assert_ne!(stored.revision, replaced.revision);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), bytes_b);
+        let before = cooldowns.lock().unwrap().expect("the hook ran");
+        assert_eq!(before, 1, "the 401 cooldown is still there");
+        assert_eq!(f.rt.store.cooldowns("codex.json").len(), before);
+        assert!(
+            !f.rt
+                .store
+                .unauthorized
+                .lock()
+                .unwrap()
+                .refreshed
+                .contains_key("codex.json")
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// Tokens replaced and put back while the grant ran (A→D→A) move the credential
+    /// version, but the refreshed partition still holds the version it started from, so
+    /// the refresh is admitted (Go `CanApplyTo`).
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_refresh_is_admitted_over_tokens_put_back_meanwhile() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let file_a = codex_file(("keep", days), ("A", "oaiapp_x", minute));
+        let f = CodexDisk::gated(&[("codex.json", &file_a)], 0).await;
+        let refresh = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.prepare_credential("codex.json", &rt.config(), None).await }
+        });
+        f.granted().await;
+        for siwc in [
+            codex_file(("keep", days), ("D", "oaiapp_x", days))["siwc"].clone(),
+            file_a["siwc"].clone(),
+        ] {
+            let mut patch = MetadataPatch::default();
+            patch.set.insert("siwc".into(), siwc);
+            let revision = f.rt.store.get("codex.json").unwrap().revision;
+            f.rt.store.apply_patch("codex.json", revision, &patch).unwrap();
+        }
+        f.gate.add_permits(1);
+        let answered = tokio::time::timeout(Duration::from_secs(5), refresh)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(answered.metadata["siwc"]["access_token"], "siwc-access-refreshed");
+        assert_eq!(
+            f.tokens("codex.json", &["/siwc/access_token", "/siwc/refresh_token"]),
+            ["siwc-access-refreshed", "siwc-ref-refreshed"]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
     /// The new tokens reach the file even when the store refuses the refresh: here the
     /// file was removed and created again with the spent tokens, and the ID registered
     /// again, while the grant ran. Go writes under the lock before its manager refuses
@@ -5699,7 +5825,8 @@ mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn a_codex_refresh_writes_its_tokens_when_the_id_was_registered_again_meanwhile() {
         let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
-        let file_a = codex_file(("keep", days), ("A", "oaiapp_x", minute));
+        let mut file_a = codex_file(("keep", days), ("A", "oaiapp_x", minute));
+        file_a["request-retry"] = 2.into();
         let f = CodexDisk::gated(&[("codex.json", &file_a)], 0).await;
         let path = f.dir.join("codex.json");
         let refresh = tokio::spawn({
@@ -5726,9 +5853,20 @@ mod tests {
         assert!(answered.is_err(), "{answered:?}");
         let disk: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         assert_eq!(disk["siwc"]["refresh_token"], "siwc-ref-refreshed");
+        // Go's write after a grant keeps the file's keys as written.
+        assert_eq!(
+            (&disk["request-retry"], &disk["request_retry"]),
+            (&2.into(), &Value::Null)
+        );
         assert_eq!(
             f.rt.store.get("codex.json").unwrap().metadata["siwc"]["refresh_token"],
             "siwc-ref-A"
+        );
+        // The watcher's next reload takes the new tokens.
+        f.rt.store.reconcile(load());
+        assert_eq!(
+            f.rt.store.get("codex.json").unwrap().metadata["siwc"]["refresh_token"],
+            "siwc-ref-refreshed"
         );
         std::fs::remove_dir_all(&f.dir).unwrap();
     }

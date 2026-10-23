@@ -41,8 +41,18 @@ impl Refresher {
     /// OAuth service.
     pub async fn prepare(&self, credential: &Credential) -> Result<MetadataPatch, ExecError> {
         let now = Utc::now();
-        let outer = codex_oauth::refresh_due(credential, now);
-        let siwc = crate::codex_siwc::refresh_due(credential, now) == Some(true);
+        let (outer, siwc) = due_partitions(credential, now);
+        self.refresh_due(credential, outer, siwc, now).await
+    }
+
+    /// [`Self::prepare`] of the partitions `outer` and `siwc`.
+    async fn refresh_due(
+        &self,
+        credential: &Credential,
+        outer: bool,
+        siwc: bool,
+        now: chrono::DateTime<Utc>,
+    ) -> Result<MetadataPatch, ExecError> {
         if !outer && !siwc {
             return Ok(MetadataPatch::default());
         }
@@ -76,17 +86,16 @@ impl Refresher {
 
     /// A management refresh (Go `IsForceRefreshContext`): every partition that can refresh.
     pub async fn refresh_all(&self, credential: &Credential) -> Result<MetadataPatch, ExecError> {
-        let has_outer = !codex_oauth::refresh_token(credential).is_empty();
-        let has_siwc = crate::codex_siwc::refresh_due(credential, Utc::now()).is_some();
-        self.partitions(credential, has_outer, has_siwc).await
+        let (outer, siwc) = all_partitions(credential, Utc::now());
+        self.partitions(credential, outer, siwc).await
     }
 
     /// Go `refreshLocked` with the credential file (`disk`) read under its lock: a token
     /// partition another process rotated there replaces the `memory` snapshot's before
     /// anything refreshes, so its refresh token is not spent twice, and the refresh
     /// `mode` asks for then runs on the result. The answer names each partition adopted
-    /// or refreshed with its baselines, for [`RefreshPatch::apply`]; with one adopted, a
-    /// failed refresh still answers with it.
+    /// or refreshed with its baselines, for [`RefreshPatch::apply`], and whether a grant
+    /// was attempted; with one adopted, a failed refresh still answers with it.
     pub async fn refresh_locked(
         &self,
         memory: &Credential,
@@ -97,13 +106,16 @@ impl Refresher {
         let mut adopted = memory.clone();
         rotation.patch.apply(&mut adopted.metadata);
         adopted.refresh_derived();
+        let now = Utc::now();
+        let (outer, siwc) = match mode {
+            RefreshMode::Due => due_partitions(&adopted, now),
+            RefreshMode::Rejected => rejected_partitions(memory, &adopted, &rotation, now),
+            RefreshMode::Management => all_partitions(&adopted, now),
+        };
+        let granted = outer || siwc;
         let refreshed = match mode {
-            RefreshMode::Due => self.prepare(&adopted).await,
-            RefreshMode::Rejected => {
-                let (outer, siwc) = rejected_partitions(memory, &adopted, &rotation, Utc::now());
-                self.partitions(&adopted, outer, siwc).await
-            }
-            RefreshMode::Management => self.refresh_all(&adopted).await,
+            RefreshMode::Due => self.refresh_due(&adopted, outer, siwc, now).await,
+            _ => self.partitions(&adopted, outer, siwc).await,
         };
         let refresh = match refreshed {
             Ok(refresh) => refresh,
@@ -122,6 +134,7 @@ impl Refresher {
         let outer = rotation.outer || fields(&after, &OUTER) != fields(&adopted.metadata, &OUTER);
         let siwc = rotation.siwc || fields(&siwc_map(&after), &SIWC) != fields(&siwc_map(&adopted.metadata), &SIWC);
         Ok(RefreshPatch {
+            granted,
             outer: outer.then(|| Partition::new(&memory.metadata, disk, &after, &OUTER)),
             siwc: siwc.then(|| Partition::new(&siwc_map(&memory.metadata), &siwc_map(disk), &siwc_map(&after), &SIWC)),
         })
@@ -286,11 +299,18 @@ impl Partition {
 /// each with the versions it may still be applied over.
 #[derive(Debug, Clone, Default)]
 pub struct RefreshPatch {
+    /// A grant was attempted (Go `refreshLocked` then writes the file itself).
+    granted: bool,
     outer: Option<Partition>,
     siwc: Option<Partition>,
 }
 
 impl RefreshPatch {
+    /// A grant was attempted for this refresh; otherwise it only adopted from disk.
+    pub fn granted(&self) -> bool {
+        self.granted
+    }
+
     /// No partition was adopted or refreshed: nothing to write.
     pub fn is_empty(&self) -> bool {
         self.outer.is_none() && self.siwc.is_none()
@@ -376,6 +396,23 @@ impl DiskRotation {
         }
         Self { patch, outer, siwc }
     }
+}
+
+/// The partitions a due refresh takes (Go `CodexOuterNeedsRefresh` and
+/// `CodexSIWCNeedsRefresh`).
+fn due_partitions(credential: &Credential, now: chrono::DateTime<Utc>) -> (bool, bool) {
+    (
+        codex_oauth::refresh_due(credential, now),
+        crate::codex_siwc::refresh_due(credential, now) == Some(true),
+    )
+}
+
+/// The partitions a management refresh takes: every one that can refresh.
+fn all_partitions(credential: &Credential, now: chrono::DateTime<Utc>) -> (bool, bool) {
+    (
+        !codex_oauth::refresh_token(credential).is_empty(),
+        crate::codex_siwc::refresh_due(credential, now).is_some(),
+    )
 }
 
 /// Go `authOuterAccessToken`.
