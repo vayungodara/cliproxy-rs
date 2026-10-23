@@ -560,11 +560,12 @@ pub(crate) fn relocate_system_for_count(body: &str, strict: bool, explicit: bool
 /// `prompt_cache_options.mode` to `explicit` (case-insensitive).
 ///
 /// Per request: a substring scan of each form, and a key lookup only in a form that
-/// may hold the key.
+/// may hold the key. The lookup is Go's gjson: with duplicate `prompt_cache_options`
+/// members it reads the first one that has a `mode`.
 pub(crate) fn explicit_cache_mode(bodies: &[&str]) -> bool {
     bodies.iter().any(|body| {
         signals::may_contain(body, &["prompt_cache_options"])
-            && rawjson::get(body, "prompt_cache_options.mode")
+            && cpa_common::json::get(body.as_bytes(), "prompt_cache_options.mode")
                 .str()
                 .trim()
                 .eq_ignore_ascii_case("explicit")
