@@ -153,11 +153,13 @@ fn scalar_model_name(value: &Value, root: bool) -> bool {
 }
 
 /// Whether `path` (entry or item positions in `root`) is a `models[].name` or
-/// `models[].alias` outside `plugins`, merge keys skipped: a Go string in every config
-/// struct that has one.
+/// `models[].alias`, merge keys skipped: a Go string in every config struct that has
+/// one. Untyped data is left alone: plugin configs, and a payload rule's `params` and
+/// `match`/`not-match` values, which reach requests with their YAML types.
 fn model_name(root: &Value, path: &[usize]) -> bool {
     let keys = named_keys(root, path);
     keys.first() != Some(&Some("plugins"))
+        && !keys.iter().any(|k| matches!(k, Some("params" | "match" | "not-match")))
         && matches!(keys.as_slice(), [.., Some("models"), None, Some("name" | "alias")])
 }
 

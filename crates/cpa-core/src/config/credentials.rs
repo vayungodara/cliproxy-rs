@@ -1713,6 +1713,19 @@ mod tests {
             }
             assert_eq!(Json::Object(got), go[section]["models"], "{section}");
         }
+        // A payload rule's model name is a Go string too, but its params are untyped:
+        // a `models` list nested in them keeps its YAML types.
+        let doc = crate::config::yaml_value(
+            "requests:\n  payload:\n    override:\n      - models: [{name: 7}]\n        params: {metadata: {models: [{name: 123, alias: false}]}}\n",
+        )
+        .unwrap();
+        let rule = &doc["requests"]["payload"]["override"][0];
+        assert_eq!(rule["models"][0]["name"], Value::from("7"));
+        let nested = &rule["params"]["metadata"]["models"][0];
+        assert_eq!(
+            (&nested["name"], &nested["alias"]),
+            (&Value::from(123), &Value::from(false))
+        );
     }
 
     /// Go `resolveAPIKeyConfig`: `config_index` binds exactly even when an earlier
