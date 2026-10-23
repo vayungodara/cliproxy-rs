@@ -143,19 +143,21 @@ pub async fn sync(rt: &Runtime, cfg: Arc<Config>) {
 pub async fn reload_plugin_auth_files(rt: &Arc<Runtime>) {
     use cpa_core::config::credentials;
     /// Ends the startup window however the load ends, a failed one included, so the
-    /// refresh loop never waits on provisional schedules.
+    /// refresh loop never waits on provisional schedules. Owned by the load itself: a
+    /// dropped caller leaves the window open until the parse it started is published.
     struct EndBootstrap(Arc<Runtime>);
     impl Drop for EndBootstrap {
         fn drop(&mut self) {
             self.0.store().end_bootstrap();
         }
     }
-    let _end = EndBootstrap(rt.clone());
+    let end = EndBootstrap(rt.clone());
     if !credentials::plugin_auth_parser_active() {
         return;
     }
     let rt = rt.clone();
     let reload = tokio::task::spawn_blocking(move || {
+        let _end = end;
         let cfg = rt.config();
         credentials::preparse_auth_dir(&cfg);
         let scan = credentials::scan_auth_dir(&cfg);

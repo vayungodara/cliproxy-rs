@@ -4080,12 +4080,17 @@ async fn startup_refreshes_wait_for_the_plugin_aware_load() {
         let rt = env.rt.clone();
         async move { cpa_server::plugins::reload_plugin_auth_files(&rt).await }
     });
+    eventually("the held parse", || !calls(&env.records, "pp", "auth.parse").is_empty()).await;
+    // A caller that stops waiting leaves the load, and the startup window, running.
+    reload.abort();
     // The refresh loop coalesces store changes for 1 s.
     tokio::time::sleep(Duration::from_millis(2500)).await;
     assert_eq!(refreshes(), 0, "refreshed before the plugin-aware load");
     drop(hold);
-    reload.await.unwrap();
-    assert_eq!(env.rt.store().get("s.json").unwrap().metadata["access_token"], "p");
+    eventually("the plugin-aware load", || {
+        env.rt.store().get("s.json").unwrap().metadata["access_token"] == "p"
+    })
+    .await;
     tokio::time::sleep(Duration::from_millis(2000)).await;
     assert_eq!(refreshes(), 0, "waiting for the parsed NextRefreshAfter");
     env.finish().await;
