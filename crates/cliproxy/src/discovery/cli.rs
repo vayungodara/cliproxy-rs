@@ -43,21 +43,24 @@ pub fn resolve_filters(cli: (Vec<String>, Vec<String>), cfg: (Vec<String>, Vec<S
 }
 
 /// Go `LoadDiscoveryScanFilters`: `discovery.interfaces` from the legacy top-level key
-/// only (Go's scan does not read `server.discovery`). Missing or undecodable files
-/// give no filters.
-pub fn load_scan_filters(path: &str) -> (Vec<String>, Vec<String>) {
+/// only (Go's scan does not read `server.discovery`), `!!binary` names decoded. Missing
+/// or undecodable files give no filters. A file the config decoder refuses where Go
+/// reads it (docs/DIFFERENCES-FROM-GO.md) is an error, not an unfiltered scan.
+pub fn load_scan_filters(path: &str) -> Result<(Vec<String>, Vec<String>), String> {
     let path = match go_trim(path) {
         "" => std::env::current_dir()
             .map(|d| d.join("config.yaml"))
             .unwrap_or_else(|_| "config.yaml".into()),
         p => Path::new(p).to_path_buf(),
     };
-    let Ok(text) = std::fs::read_to_string(path) else {
-        return Default::default();
+    let Ok(text) = std::fs::read_to_string(&path) else {
+        return Ok(Default::default());
     };
-    let Ok(doc) = serde_yaml_ng::from_str::<Yaml>(&text) else {
-        return Default::default();
-    };
+    if serde_yaml_ng::from_str::<Yaml>(&text).is_err() {
+        return Ok(Default::default());
+    }
+    let doc = cpa_core::config::yaml_value(&text)
+        .map_err(|e| format!("discovery interface filters in {}: {e}", path.display()))?;
     // yaml.v3 decodes null into zero values and fails on a wrong-kind node anywhere
     // on the path, which drops both lists.
     let mapping = |v: Option<&Yaml>| -> Option<Option<Yaml>> {
@@ -68,18 +71,18 @@ pub fn load_scan_filters(path: &str) -> (Vec<String>, Vec<String>) {
         }
     };
     let Some(root) = mapping(Some(&doc)) else {
-        return Default::default();
+        return Ok(Default::default());
     };
     let Some(discovery) = mapping(root.as_ref().and_then(|r| r.get("discovery"))) else {
-        return Default::default();
+        return Ok(Default::default());
     };
     let Some(interfaces) = mapping(discovery.as_ref().and_then(|d| d.get("interfaces"))) else {
-        return Default::default();
+        return Ok(Default::default());
     };
     let list = |k: &str| super::string_list(interfaces.as_ref().and_then(|i| i.get(k)));
     match (list("include"), list("exclude")) {
-        (Some(include), Some(exclude)) => (parse_interface_list(&include), parse_interface_list(&exclude)),
-        _ => Default::default(),
+        (Some(include), Some(exclude)) => Ok((parse_interface_list(&include), parse_interface_list(&exclude))),
+        _ => Ok(Default::default()),
     }
 }
 

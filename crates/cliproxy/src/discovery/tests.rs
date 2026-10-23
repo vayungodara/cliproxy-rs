@@ -384,12 +384,21 @@ fn terminal_sanitizing_and_filters_match_go() {
     for case in f["config_filters"].as_array().unwrap() {
         std::fs::write(&path, s(&case["yaml"])).unwrap();
         let got = cli::load_scan_filters(path.to_str().unwrap());
-        assert_eq!(got, (list(&case["include"]), list(&case["exclude"])), "{case}");
+        assert_eq!(got, Ok((list(&case["include"]), list(&case["exclude"]))), "{case}");
     }
     assert_eq!(
         cli::load_scan_filters(dir.join("missing.yaml").to_str().unwrap()),
-        Default::default()
+        Ok(Default::default())
     );
+    // Go reads a redefined anchor; the config decoder refuses the file, which must not
+    // become an unfiltered scan.
+    std::fs::write(
+        &path,
+        "a: &x 1\nb: &x 2\ndiscovery:\n  interfaces:\n    exclude: [eth0]\n",
+    )
+    .unwrap();
+    let refused = cli::load_scan_filters(path.to_str().unwrap()).unwrap_err();
+    assert!(refused.contains("anchor name is defined more than once"), "{refused}");
     let _ = std::fs::rename(
         &dir,
         std::env::temp_dir().join(format!("cpa-trash-f-{}", std::process::id())),

@@ -33346,7 +33346,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK"
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
       },
       "requests": {
        "proxy-url": "http://x.example:80"
@@ -33357,7 +33357,7 @@
        }
       }
      },
-     "raw_json": "{\"access\":{\"api-keys\":[\"fake-client\",\"fake-binary\",\"fake-binary\"]},\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK\"},\"requests\":{\"proxy-url\":\"http://x.example:80\"},\"routing\":{\"retry\":{\"request-retry\":1}}}",
+     "raw_json": "{\"access\":{\"api-keys\":[\"fake-client\",\"fake-binary\",\"fake-binary\"]},\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3.\"},\"requests\":{\"proxy-url\":\"http://x.example:80\"},\"routing\":{\"retry\":{\"request-retry\":1}}}",
      "file": {
       "api-keys": [
        "fake-client",
@@ -33366,7 +33366,7 @@
       ],
       "proxy-url": "http://x.example:80",
       "remote-management": {
-       "secret-key": "$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK"
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
       },
       "request-retry": 1
      },
@@ -33390,7 +33390,7 @@
       ],
       "proxy-url": "http://x.example:80",
       "remote-management": {
-       "secret-key": "$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK"
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
       },
       "request-retry": 1
      },
@@ -33410,7 +33410,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK"
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
       },
       "requests": {
        "proxy-url": "http://x.example:80"
@@ -33421,7 +33421,7 @@
        }
       }
      },
-     "raw_response": "requests:\n    proxy-url: !!binary aHR0cDovL3guZXhhbXBsZTo4MA==\naccess:\n    api-keys: [fake-client, !!binary ZmFrZS1iaW5hcnk=, !!binary ZmFrZS1iaW5hcnk=]\nmanagement:\n    secret-key: \"$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK\"\nrouting:\n    retry:\n        request-retry: 1\nconfig-version: 8\n",
+     "raw_response": "requests:\n    proxy-url: !!binary aHR0cDovL3guZXhhbXBsZTo4MA==\naccess:\n    api-keys: [fake-client, !!binary ZmFrZS1iaW5hcnk=, !!binary ZmFrZS1iaW5hcnk=]\nmanagement:\n    secret-key: \"$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3.\"\nrouting:\n    retry:\n        request-retry: 1\nconfig-version: 8\n",
      "file": {
       "api-keys": [
        "fake-client",
@@ -33430,7 +33430,7 @@
       ],
       "proxy-url": "http://x.example:80",
       "remote-management": {
-       "secret-key": "$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK"
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
       },
       "request-retry": 1
      },
@@ -33456,7 +33456,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK"
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
       },
       "requests": {
        "proxy-url": "http://x.example:80"
@@ -33484,7 +33484,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK"
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
       },
       "requests": {
        "proxy-url": "http://x.example:80"
@@ -33496,7 +33496,7 @@
        "strategy": "fill-first"
       }
      },
-     "raw_json": "{\"access\":{\"api-keys\":[\"fake-client\",\"fake-binary\",\"fake-binary\"]},\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK\"},\"requests\":{\"proxy-url\":\"http://x.example:80\"},\"routing\":{\"retry\":{\"request-retry\":1},\"strategy\":\"fill-first\"}}",
+     "raw_json": "{\"access\":{\"api-keys\":[\"fake-client\",\"fake-binary\",\"fake-binary\"]},\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3.\"},\"requests\":{\"proxy-url\":\"http://x.example:80\"},\"routing\":{\"retry\":{\"request-retry\":1},\"strategy\":\"fill-first\"}}",
      "file": {
       "access": {
        "api-keys": [
@@ -33507,7 +33507,7 @@
       },
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$LxJnshMSjz6yT6/YfEx0f.ONbWYZpfna23z/7.0WfA08N8.L.tQGK"
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
       },
       "requests": {
        "proxy-url": "http://x.example:80"
@@ -33788,7 +33788,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$10$Ngnllq6oRoAFO7A022jnPu7kAPmQiVmyjb6UE3iSPjgxVSgAP8/Yy"
+       "secret-key": "$2a$10$p5N/9ofeVEpResiveWvCYutVhftu.44sY1HsbSrQXy21MjFe8246W"
       },
       "models": {
        "catalog": "https://c.example/models.json"
@@ -33807,7 +33807,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$10$Ngnllq6oRoAFO7A022jnPu7kAPmQiVmyjb6UE3iSPjgxVSgAP8/Yy"
+       "secret-key": "$2a$10$p5N/9ofeVEpResiveWvCYutVhftu.44sY1HsbSrQXy21MjFe8246W"
       },
       "models": {
        "catalog": "https://c.example/models.json"
@@ -33828,10 +33828,174 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$10$Ngnllq6oRoAFO7A022jnPu7kAPmQiVmyjb6UE3iSPjgxVSgAP8/Yy"
+       "secret-key": "$2a$10$p5N/9ofeVEpResiveWvCYutVhftu.44sY1HsbSrQXy21MjFe8246W"
       },
       "models": {
        "catalog": "https://c.example/models.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "body": "!!binary '!!!'",
+     "status": 400,
+     "response": {
+      "error": "config_must_be_object"
+     },
+     "raw_json": "{\"error\":\"config_must_be_object\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$p5N/9ofeVEpResiveWvCYutVhftu.44sY1HsbSrQXy21MjFe8246W"
+      },
+      "models": {
+       "catalog": "https://c.example/models.json"
+      }
+     },
+     "file_has_archive": false
+    }
+   ]
+  },
+  {
+   "name": "binary_plugin_pin",
+   "yaml": "remote-management:\n  secret-key: \"$HASH\"\npin: \u0026v !!binary MS4yLjM=\nplugins:\n  configs:\n    x:\n      store:\n        version: *v\n",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/config/plugins",
+     "status": 200,
+     "response": {
+      "configs": {
+       "x": {
+        "store": {
+         "version": "1.2.3"
+        }
+       }
+      }
+     },
+     "raw_json": "{\"configs\":{\"x\":{\"store\":{\"version\":\"1.2.3\"}}}}",
+     "file": {
+      "pin": "1.2.3",
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "remote-management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/routing/strategy",
+     "body": "\"fill-first\"",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/plugins",
+     "status": 200,
+     "response": {
+      "configs": {
+       "x": {
+        "store": {
+         "version": "1.2.3"
+        }
+       }
+      }
+     },
+     "raw_json": "{\"configs\":{\"x\":{\"store\":{\"version\":\"1.2.3\"}}}}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "raw_response": "plugins:\n    configs:\n        x:\n            store:\n                version: !!binary MS4yLjM=\nmanagement:\n    secret-key: \"$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3.\"\nconfig-version: 8\nrouting:\n    strategy: \"fill-first\"\n\n# pin: !!binary MS4yLjM=\n",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$jCA8xNVsogLAtU7cUuLVx.6DxYWyAmWKyNc2UVYtksd5el3Yb1b3."
+      },
+      "plugins": {
+       "configs": {
+        "x": {
+         "store": {
+          "version": "1.2.3"
+         }
+        }
+       }
+      },
+      "routing": {
+       "strategy": "fill-first"
       }
      },
      "file_has_archive": false

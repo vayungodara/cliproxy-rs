@@ -1548,6 +1548,16 @@ func configScenarios() []configScenario {
 			put("/v0/management/config.yaml", "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: !!binary aHR0cHM6Ly9jLmV4YW1wbGUvbW9kZWxzLmpzb24=\n"),
 			get("/config/models"),
 			put("/v0/management/config.yaml", "remote-management:\n  secret-key: fake-secret\nproxy-url: !!binary aHR0cDovL3o=x\n"),
+			// The root shape is checked before decoding.
+			put("/config.yaml", "!!binary '!!!'"),
+		}},
+		// Go reads a plugin's store.version from the raw node, so this pin stays
+		// base64 text (unpinned) there, and a migrating save that drops the anchor's
+		// unknown section keeps the tag. cliproxy-rs refuses the file.
+		{Name: "binary_plugin_pin", YAML: "remote-management:\n  secret-key: \"$HASH\"\npin: &v !!binary MS4yLjM=\nplugins:\n  configs:\n    x:\n      store:\n        version: *v\n", Steps: []configStep{
+			get("/config/plugins"),
+			put("/config/routing/strategy", `"fill-first"`),
+			get("/config/plugins"), get("/config.yaml"),
 		}},
 	}
 }

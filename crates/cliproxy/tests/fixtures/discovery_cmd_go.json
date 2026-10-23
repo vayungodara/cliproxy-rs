@@ -30,6 +30,17 @@
       "exclude": null,
       "include": null,
       "yaml": ""
+    },
+    {
+      "exclude": [
+        "docker0",
+        "eth0"
+      ],
+      "include": [
+        "eth0",
+        "wl*"
+      ],
+      "yaml": "discovery:\n  interfaces:\n    include: [\u0026i !!binary ZXRoMA==, wl*]\n    exclude: [!!binary ZG9ja2VyMA==, *i]\n"
     }
   ],
   "interface_lists": [

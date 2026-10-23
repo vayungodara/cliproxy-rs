@@ -24,6 +24,8 @@ use serde_yaml_ng::Value;
 const UNSUPPORTED_TAG: &str = "a YAML tag in the config file is not supported";
 const UNSUPPORTED_KEY: &str = "a tagged or aliased mapping key in the config file is not supported";
 const REPEATED_ANCHOR: &str = "a YAML anchor name is defined more than once in the config file";
+const PLUGIN_PIN: &str =
+    "a plugin's store.version or store.release-tag in the config file is a !!binary value, which is not supported";
 /// More rewritten scalars than a config has; alias chains past it are refused.
 const MAX_REWRITES: usize = 1 << 20;
 
@@ -60,6 +62,10 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     if let Some(root) = walk.events.next() {
         walk.node(root, &mut Vec::new(), false)?;
     }
+    // Go reads a plugin's pin from the raw node (pluginhost `yamlScalarString`), so a
+    // `!!binary` pin, aliased or merged in too, keeps its base64 text there and fails
+    // the version grammar; refused rather than read decoded.
+    ensure!(!walk.found.iter().any(|(p, _)| plugin_pin(value, p)), PLUGIN_PIN);
     // Paths are entry or item positions; patch them in one ordered pass.
     let mut found = walk.found;
     found.sort_by(|a, b| a.0.cmp(&b.0));
@@ -94,6 +100,53 @@ fn apply(node: &mut Value, depth: usize, patches: &[(Vec<usize>, Value)]) -> any
     }
     ensure!(rest.is_empty(), "config YAML changed while it was read");
     Ok(())
+}
+
+/// Whether `path` (entry or item positions in `root`) is a plugin's `store.version` or
+/// `store.release-tag`, merge keys skipped.
+fn plugin_pin(root: &Value, path: &[usize]) -> bool {
+    let mut keys = Vec::new();
+    let mut node = root;
+    for &i in path {
+        while let Value::Tagged(tagged) = node {
+            node = &tagged.value;
+        }
+        match node {
+            Value::Mapping(m) => {
+                let Some((key, value)) = m.iter().nth(i) else {
+                    return false;
+                };
+                keys.push(key.as_str());
+                node = value;
+            }
+            Value::Sequence(items) => {
+                let Some(item) = items.get(i) else { return false };
+                keys.push(None);
+                node = item;
+            }
+            _ => return false,
+        }
+    }
+    let mut named = Vec::new();
+    let mut keys = keys.into_iter().peekable();
+    while let Some(key) = keys.next() {
+        if key == Some("<<") {
+            // `<<: [*a, *b]`: the list item is part of the merge too.
+            keys.next_if(Option::is_none);
+        } else {
+            named.push(key);
+        }
+    }
+    matches!(
+        named.as_slice(),
+        [
+            Some("plugins"),
+            Some("configs"),
+            Some(_),
+            Some("store"),
+            Some("version" | "release-tag")
+        ]
+    )
 }
 
 /// The document's node events, in order, without stream and document markers.

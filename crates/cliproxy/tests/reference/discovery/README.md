@@ -15,7 +15,9 @@ The `../../fixtures/discovery_*.json` files hold outputs of CLIProxyAPI at `6fec
 
 The test files are overlaid into the reference packages with `go test -overlay`, so
 they can call unexported functions while the reference checkout stays unmodified.
-They open no sockets. Regenerate with:
+The last `config_filters` case (`!!binary` interface names through aliases) was
+recorded against v8.0.35 (`ae3ee3be`) with Go 1.26.4; `LoadDiscoveryScanFilters` is
+unchanged between the two. They open no sockets. Regenerate with:
 
 ```sh
 ./gen.sh /absolute/path/to/CLIProxyAPI   # checkout at 6fecc6e, Go 1.26

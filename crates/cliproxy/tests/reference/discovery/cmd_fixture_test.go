@@ -119,6 +119,8 @@ func TestZZCmdFixture(t *testing.T) {
 		"discovery: [broken\n",
 		"discovery:\n  interfaces:\n    include: eth0\n",
 		"",
+		// !!binary names, through aliases too.
+		"discovery:\n  interfaces:\n    include: [&i !!binary ZXRoMA==, wl*]\n    exclude: [!!binary ZG9ja2VyMA==, *i]\n",
 	} {
 		path := filepath.Join(dir, "config.yaml")
 		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {

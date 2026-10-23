@@ -9,7 +9,12 @@ use serde_json::Value as Json;
 const TAG: &str = "a YAML tag in the config file is not supported";
 const KEY: &str = "a tagged or aliased mapping key in the config file is not supported";
 const ANCHOR: &str = "a YAML anchor name is defined more than once in the config file";
+const PIN: &str =
+    "a plugin's store.version or store.release-tag in the config file is a !!binary value, which is not supported";
 const REFUSED: &[(&str, &str)] = &[
+    ("binary plugin pin", PIN),
+    ("aliased binary plugin pin", PIN),
+    ("binary plugin pin through a merge", PIN),
     ("not UTF-8", "a !!binary value in the config file is not UTF-8 text"),
     ("redefined anchor around a binary secret", ANCHOR),
     ("redefined anchor", ANCHOR),
