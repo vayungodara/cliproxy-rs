@@ -440,7 +440,7 @@ fn mask_output(text: &str) -> String {
     re.replace_all(text, "<masked>").into_owned()
 }
 
-const EXECUTOR_FIXTURES: [&str; 34] = [
+const EXECUTOR_FIXTURES: [&str; 35] = [
     "chat-nonstream",
     "chat-stream",
     "responses-nonstream",
@@ -475,6 +475,7 @@ const EXECUTOR_FIXTURES: [&str; 34] = [
     "chat-payload-rules",
     "interactions-payload-bad-signature",
     "interactions-temperature-infinite",
+    "chat-payload-nan",
 ];
 
 /// Runs one executor fixture once (turn indexes are process-wide per session, so every

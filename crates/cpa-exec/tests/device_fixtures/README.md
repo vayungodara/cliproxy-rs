@@ -52,7 +52,7 @@ checkout and copy only those files.
 Devin's request logs follow v8.0.35 too, where Go logs the payload rules' JSON view of
 the protobuf (`FinalizeDevinPayload`) instead of its readable request summary:
 
-- `devin/{chat-payload-rules,interactions-payload-bad-signature,interactions-temperature-infinite}.json`
+- `devin/{chat-payload-rules,chat-payload-nan,interactions-payload-bad-signature,interactions-temperature-infinite}.json`
   are v8.0.35 recordings (`TestRSFixDevin`, copied whole).
 - In every other Devin fixture, only the `Body:` section of `extra.capture.request` is
   replaced, by v8.0.35's view of the frame that fixture's `upstream` recorded:

@@ -224,6 +224,10 @@ func TestRSFixDevin(t *testing.T) {
 			cfg: "payload:\n  override:\n    - models: [{name: \"devin/*\", protocol: devin}]\n      params: {\"prompts.1.signature\": \"not base64!\"}\n"},
 		{name: "interactions-temperature-infinite", source: sdktranslator.FormatInteractions, model: "devin/swe-2",
 			body: strings.Replace(interactions, `"temperature":0.7`, `"temperature":1e999`, 1)},
+		// strconv.ParseFloat's NaN (math.NaN(), 0x7FF8000000000001) reaches the fixed64.
+		{name: "chat-payload-nan", source: sdktranslator.FormatOpenAI, model: "swe-2", body: chat,
+			cfg: "payload:\n  override:\n    - models: [{name: swe-2, protocol: devin}]\n      params: {\"completion_config.temperature\": \"NaN\"}\n",
+			responses: []rsfixResponse{dvResp(dvPlainFrames("ok")...)}},
 	}
 	sessions := 0
 	for _, tc := range cases {
