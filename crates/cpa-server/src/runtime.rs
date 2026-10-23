@@ -503,6 +503,7 @@ impl Runtime {
         // applies the patch to the file as re-read under the lock; a field another process
         // changed outside the token partitions, not yet reloaded here, is overwritten.
         let mut file_lock = None;
+        let mut base = current.clone();
         let codex_file = match &current.source {
             Source::File(path) if plugin.is_none() && current.provider == "codex" => Some(path.clone()),
             _ => None,
@@ -532,10 +533,14 @@ impl Runtime {
                     Some(_) => cpa_exec::codex::RefreshMode::Rejected,
                     None => cpa_exec::codex::RefreshMode::Due,
                 };
-                (
-                    self.executors.codex.refresh_with_disk(&view, disk, mode, cfg).await?,
-                    false,
-                )
+                let (patch, adopted) = self.executors.codex.refresh_with_disk(&view, disk, mode, cfg).await?;
+                // A commit that lost a race merges against the tokens the refresh started
+                // from, so a reload of exactly those tokens does not discard their refresh.
+                base = Arc::new(Credential {
+                    metadata: adopted,
+                    ..Credential::clone(&current)
+                });
+                (patch, false)
             }
             (None, Some(_), None) if management => (self.executors.prepare_management(&view, cfg).await?, false),
             (None, Some(_), None) => (self.executors.prepare_forced(&view, cfg).await?, false),
@@ -578,11 +583,11 @@ impl Runtime {
                         Err(PatchError::Stale { .. }) => {
                             let latest = store.get(&id).ok_or(PatchError::NotFound)?;
                             let (rebased, partition_applies) =
-                                rebase_patch(&current.provider, &current.metadata, &latest.metadata, &patch);
+                                rebase_patch(&base.provider, &base.metadata, &latest.metadata, &patch);
                             // Go 7b0319fb: a Codex token partition the refresh still matches
                             // applies even when the other partition changed meanwhile
                             // (`CredentialRefreshPatch.CanApplyTo`).
-                            if credentials_changed(&current, &latest) && !partition_applies {
+                            if credentials_changed(&base, &latest) && !partition_applies {
                                 return Ok(latest);
                             }
                             attempt = rebased;
@@ -4622,15 +4627,22 @@ mod tests {
         rt: Arc<Runtime>,
         dir: std::path::PathBuf,
         grants: Arc<Mutex<Grants>>,
+        /// Each grant takes a permit before the mock answers.
+        gate: Arc<tokio::sync::Semaphore>,
     }
 
     type Grants = Vec<(&'static str, String, String)>;
 
     impl CodexDisk {
         async fn new(files: &[(&str, &Value)]) -> Self {
+            Self::gated(files, 1000).await
+        }
+
+        async fn gated(files: &[(&str, &Value)], permits: usize) -> Self {
             let grants = Arc::new(Mutex::new(Vec::new()));
+            let gate = Arc::new(tokio::sync::Semaphore::new(permits));
             let route = |partition: &'static str, answer: &'static str| {
-                let grants = grants.clone();
+                let (grants, gate) = (grants.clone(), gate.clone());
                 axum::routing::post(move |body: String| async move {
                     let field = |key: &str| {
                         url::form_urlencoded::parse(body.as_bytes())
@@ -4642,6 +4654,7 @@ mod tests {
                         .lock()
                         .unwrap()
                         .push((partition, field("refresh_token"), field("client_id")));
+                    gate.acquire().await.unwrap().forget();
                     answer
                 })
             };
@@ -4693,7 +4706,7 @@ mod tests {
                     google: Default::default(),
                 },
             ));
-            Self { rt, dir, grants }
+            Self { rt, dir, grants, gate }
         }
 
         fn grants(&self) -> Grants {
@@ -4826,6 +4839,72 @@ mod tests {
                 "siwc-access-refreshed",
                 "oaiapp_B"
             ]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// The A→B→C case when the watcher loads B while B refreshes: the commit merges
+    /// against B, the tokens the refresh started from, so C is kept, not dropped as a
+    /// stale refresh of A.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_refresh_keeps_its_result_when_the_watcher_loads_the_adopted_tokens() {
+        let (days, minute) = (chrono::Duration::days(5), chrono::Duration::minutes(1));
+        let f = CodexDisk::gated(
+            &[("codex.json", &codex_file(("keep", days), ("A", "oaiapp_A", minute)))],
+            0,
+        )
+        .await;
+        let disk_b = codex_file(("keep", days), ("B", "oaiapp_B", minute));
+        std::fs::write(f.dir.join("codex.json"), disk_b.to_string()).unwrap();
+        let refresh = tokio::spawn({
+            let rt = f.rt.clone();
+            async move { rt.prepare_credential("codex.json", &rt.config(), None).await }
+        });
+        let granted = async {
+            while f.grants.lock().unwrap().is_empty() {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(5), granted).await.unwrap();
+        // The watcher's reload of B, while the grant for B is in flight.
+        let mut reload = MetadataPatch::default();
+        reload.set.insert("siwc".into(), disk_b["siwc"].clone());
+        let revision = f.rt.store.get("codex.json").unwrap().revision;
+        f.rt.store.apply_patch("codex.json", revision, &reload).unwrap();
+        f.gate.add_permits(1);
+        tokio::time::timeout(Duration::from_secs(5), refresh)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
+        assert_eq!(f.grants(), [("siwc", "siwc-ref-B".to_owned(), "oaiapp_B".to_owned())]);
+        assert_eq!(
+            f.tokens("codex.json", &["/siwc/access_token", "/siwc/refresh_token"]),
+            ["siwc-access-refreshed", "siwc-ref-refreshed"]
+        );
+        std::fs::remove_dir_all(&f.dir).unwrap();
+    }
+
+    /// A file whose `type` is spelled differently from the provider it loaded as
+    /// (`Codex`) still takes an adopted outer partition: the stored spelling stays.
+    #[tokio::test]
+    async fn a_codex_refresh_adopts_a_rotated_file_whatever_its_type_spelling() {
+        let (days, hour) = (chrono::Duration::days(5), chrono::Duration::hours(1));
+        let mut file = codex_file(("A", days), ("keep", "oaiapp_x", hour));
+        file["type"] = "Codex".into();
+        file["use_siwc"] = false.into();
+        let f = CodexDisk::new(&[("codex.json", &file)]).await;
+        let mut rotated = file.clone();
+        rotated["access_token"] = "outer-B".into();
+        rotated["refresh_token"] = "outer-ref-B".into();
+        std::fs::write(f.dir.join("codex.json"), rotated.to_string()).unwrap();
+        let current = f.rt.store.get("codex.json").unwrap();
+        let cfg = f.rt.config();
+        assert!(f.rt.refresh_after_unauthorized(&current, &cfg).await.is_some());
+        assert_eq!(f.grants(), []);
+        assert_eq!(
+            f.tokens("codex.json", &["/type", "/access_token", "/refresh_token"]),
+            ["Codex", "outer-B", "outer-ref-B"]
         );
         std::fs::remove_dir_all(&f.dir).unwrap();
     }

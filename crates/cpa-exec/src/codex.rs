@@ -218,14 +218,15 @@ impl CodexExecutor {
     /// partition another process rotated there replaces this snapshot's before anything
     /// refreshes, so its refresh token is not spent twice, and the refresh `mode` asks
     /// for then runs on the result. The patch carries the adopted partitions too; with
-    /// one adopted, a failed refresh still answers with it.
+    /// one adopted, a failed refresh still answers with it. Also returns the adopted
+    /// metadata: the tokens the refresh started from, for a commit that must merge.
     pub async fn refresh_with_disk(
         &self,
         credential: &Credential,
         disk: &serde_json::Map<String, serde_json::Value>,
         mode: RefreshMode,
         cfg: &Config,
-    ) -> Result<MetadataPatch, ExecError> {
+    ) -> Result<(MetadataPatch, serde_json::Map<String, serde_json::Value>), ExecError> {
         let rotation = DiskRotation::read(credential, disk);
         let mut adopted = credential.clone();
         rotation.patch.apply(&mut adopted.metadata);
@@ -239,6 +240,7 @@ impl CodexExecutor {
             RefreshMode::Management => self.refresh_all(&adopted, cfg).await,
         };
         let mut patch = rotation.patch;
+        let baseline = adopted.metadata;
         match refreshed {
             Ok(refresh) => {
                 for key in refresh.remove {
@@ -246,7 +248,7 @@ impl CodexExecutor {
                     patch.remove.push(key);
                 }
                 patch.set.extend(refresh.set);
-                Ok(patch)
+                Ok((patch, baseline))
             }
             Err(error) if rotation.outer || rotation.siwc => {
                 tracing::warn!(
@@ -254,7 +256,7 @@ impl CodexExecutor {
                     status = error.status,
                     "codex token refresh failed; keeping the tokens another process rotated on disk"
                 );
-                Ok(patch)
+                Ok((patch, baseline))
             }
             Err(error) => Err(error),
         }
@@ -825,7 +827,9 @@ impl DiskRotation {
     /// A partition is rotated when the file holds a non-blank access or refresh token
     /// that differs from the snapshot's (trimmed). A rotated outer partition brings
     /// Go's listed fields the file has, a rotated `siwc` its whole map; `use_siwc` always
-    /// follows the file when the file has it.
+    /// follows the file when the file has it. Go also copies `type`; here the provider
+    /// a credential was loaded as never changes (the loader normalizes it, and a commit
+    /// refuses a different `type`), so the stored spelling stays.
     fn read(credential: &Credential, disk: &serde_json::Map<String, serde_json::Value>) -> Self {
         use serde_json::{Map, Value};
         let text =
@@ -848,7 +852,6 @@ impl DiskRotation {
                 "email",
                 "expired",
                 "plan_type",
-                "type",
             ] {
                 if let Some(value) = disk.get(key) {
                     patch.set.insert(key.into(), value.clone());
