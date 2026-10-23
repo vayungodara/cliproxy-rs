@@ -1687,6 +1687,32 @@ mod tests {
         }
     }
 
+    /// yaml.v3 reads a plain scalar into a string field as its text, so a model name or
+    /// alias written as a number or boolean (`0x1F`, `1.50`, `007`, `true`, aliased or
+    /// merged in too) registers and executes as written (tests/reference/scalar_model_names).
+    #[test]
+    fn scalar_model_names_keep_their_yaml_text() {
+        let go: Json = serde_json::from_str(include_str!("../../tests/fixtures/scalar_model_names_go.json")).unwrap();
+        for section in ["yaml", "legacy"] {
+            let cfg = Config::parse(go[section]["yaml"].as_str().unwrap()).unwrap();
+            let aliases = crate::registry::dynamic::global_aliases(&cfg);
+            let mut got = serde_json::Map::new();
+            for c in from_config(&cfg) {
+                let models: Vec<Json> = crate::registry::dynamic::models_for(&cfg, &aliases, &c, 0)
+                    .into_iter()
+                    .map(|m| {
+                        let upstream = crate::registry::dynamic::execution_models(&aliases, &c, &m.id)
+                            .0
+                            .remove(0);
+                        serde_json::json!([m.id, upstream])
+                    })
+                    .collect();
+                got.insert(c.attributes["api_key"].clone(), models.into());
+            }
+            assert_eq!(Json::Object(got), go[section]["models"], "{section}");
+        }
+    }
+
     /// Go `resolveAPIKeyConfig`: `config_index` binds exactly even when an earlier
     /// entry has the same key and base URL (differing only by headers), and a stale
     /// index falls back to matching.

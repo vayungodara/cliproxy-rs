@@ -56,7 +56,7 @@ pub(super) fn go_base64(text: &[u8]) -> Option<Vec<u8>> {
 pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     // Without a tag, an anchor, a `<<` key or a collection key, serde_yaml_ng reads the
     // file as yaml.v3 does here.
-    if !text.contains(['!', '&']) && !needs_walk(value) {
+    if !text.contains(['!', '&']) && !needs_walk(value) && !scalar_model_name(value, true) {
         return Ok(());
     }
     let mut walk = Walk {
@@ -73,11 +73,21 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     // `!!binary` pin, aliased or merged in too, keeps its base64 text there and fails
     // the version grammar; refused rather than read decoded.
     ensure!(
-        !walk.found.iter().any(|(p, _, binary)| *binary && plugin_pin(value, p)),
+        !walk
+            .found
+            .iter()
+            .any(|(p, _, kind)| *kind == Kind::Binary && plugin_pin(value, p)),
         PLUGIN_PIN
     );
+    // yaml.v3 reads any plain scalar into a string field as its text; serde_yaml_ng
+    // reads a number or boolean (`1.50`, `0x1F`, `007`, `true`) as that value, whose text
+    // differs. Model names and aliases take the text.
+    let mut found: Vec<Found> = walk
+        .found
+        .into_iter()
+        .filter(|(p, _, kind)| *kind != Kind::Literal || model_name(value, p))
+        .collect();
     // Paths are entry or item positions; patch them in one ordered pass.
-    let mut found = walk.found;
     found.sort_by(|a, b| a.0.cmp(&b.0));
     apply(value, 0, &found)
 }
@@ -125,9 +135,50 @@ fn apply(node: &mut Value, depth: usize, patches: &[Found]) -> anyhow::Result<()
     Ok(())
 }
 
+/// Whether `value` holds a model name or alias (see [`model_name`]) that serde_yaml_ng
+/// read as a number or boolean.
+fn scalar_model_name(value: &Value, root: bool) -> bool {
+    let Value::Mapping(m) = value else {
+        return matches!(value, Value::Sequence(items) if items.iter().any(|v| scalar_model_name(v, false)));
+    };
+    m.iter().any(|(k, v)| match (k.as_str(), v) {
+        (Some("plugins"), _) if root => false,
+        (Some("models"), Value::Sequence(items)) => items.iter().any(|item| {
+            ["name", "alias"]
+                .iter()
+                .any(|key| matches!(item.get(key), Some(Value::Number(_) | Value::Bool(_))))
+        }),
+        _ => scalar_model_name(v, false),
+    })
+}
+
+/// Whether `path` (entry or item positions in `root`) is a `models[].name` or
+/// `models[].alias` outside `plugins`, merge keys skipped: a Go string in every config
+/// struct that has one.
+fn model_name(root: &Value, path: &[usize]) -> bool {
+    let keys = named_keys(root, path);
+    keys.first() != Some(&Some("plugins"))
+        && matches!(keys.as_slice(), [.., Some("models"), None, Some("name" | "alias")])
+}
+
 /// Whether `path` (entry or item positions in `root`) is a plugin's `store.version` or
 /// `store.release-tag`, merge keys skipped.
 fn plugin_pin(root: &Value, path: &[usize]) -> bool {
+    matches!(
+        named_keys(root, path).as_slice(),
+        [
+            Some("plugins"),
+            Some("configs"),
+            Some(_),
+            Some("store"),
+            Some("version" | "release-tag")
+        ]
+    )
+}
+
+/// The keys along `path` (`None` for a list item), merge keys and the list items of a
+/// `<<: [...]` skipped; empty where the path leaves `root`.
+fn named_keys<'a>(root: &'a Value, path: &[usize]) -> Vec<Option<&'a str>> {
     let mut keys = Vec::new();
     let mut node = root;
     for &i in path {
@@ -137,17 +188,17 @@ fn plugin_pin(root: &Value, path: &[usize]) -> bool {
         match node {
             Value::Mapping(m) => {
                 let Some((key, value)) = m.iter().nth(i) else {
-                    return false;
+                    return Vec::new();
                 };
                 keys.push(key.as_str());
                 node = value;
             }
             Value::Sequence(items) => {
-                let Some(item) = items.get(i) else { return false };
+                let Some(item) = items.get(i) else { return Vec::new() };
                 keys.push(None);
                 node = item;
             }
-            _ => return false,
+            _ => return Vec::new(),
         }
     }
     let mut named = Vec::new();
@@ -160,16 +211,7 @@ fn plugin_pin(root: &Value, path: &[usize]) -> bool {
             named.push(key);
         }
     }
-    matches!(
-        named.as_slice(),
-        [
-            Some("plugins"),
-            Some("configs"),
-            Some(_),
-            Some("store"),
-            Some("version" | "release-tag")
-        ]
-    )
+    named
 }
 
 /// The document's node events, in order, without stream and document markers.
@@ -319,8 +361,17 @@ fn rewrite(tag: &[u8], plain: bool, value: Vec<u8>) -> anyhow::Result<Option<Val
 }
 
 /// A rewritten scalar: its path (entry or item positions), the value yaml.v3 reads, and
-/// whether a `!!binary` tag made it.
-type Found = (Vec<usize>, Value, bool);
+/// what made it.
+type Found = (Vec<usize>, Value, Kind);
+
+#[derive(Clone, Copy, PartialEq)]
+enum Kind {
+    Tag,
+    Binary,
+    /// The text of an untagged plain scalar serde_yaml_ng may read as a number or
+    /// boolean; applied only to a model name or alias.
+    Literal,
+}
 
 struct Walk {
     events: std::vec::IntoIter<Event>,
@@ -359,10 +410,16 @@ impl Walk {
                     // yaml.v3's layout code matches keys by their node, tag included
                     // (`!!str <<` is no merge key).
                     ensure!(!key, UNSUPPORTED_KEY);
-                    let binary = matches!(tag.as_slice(), b"tag:yaml.org,2002:binary" | b"!!binary");
+                    let kind = match tag.as_slice() {
+                        b"tag:yaml.org,2002:binary" | b"!!binary" => Kind::Binary,
+                        _ => Kind::Tag,
+                    };
                     if let Some(v) = rewrite(&tag, plain, value)? {
-                        self.found.push((path.clone(), v, binary));
+                        self.found.push((path.clone(), v, kind));
                     }
+                } else if plain && !key && !is_null(&value) && !resolves_to_text(&value) {
+                    let text = String::from_utf8(value).ok().context("config YAML is not UTF-8")?;
+                    self.found.push((path.clone(), Value::String(text), Kind::Literal));
                 }
                 anchor
             }
@@ -373,8 +430,8 @@ impl Walk {
                     self.found.len() + copies.len() <= MAX_REWRITES,
                     "config YAML aliases expand too far"
                 );
-                for (below, v, binary) in copies {
-                    self.found.push(([path.as_slice(), &below].concat(), v, binary));
+                for (below, v, kind) in copies {
+                    self.found.push(([path.as_slice(), &below].concat(), v, kind));
                 }
                 None
             }
@@ -421,7 +478,7 @@ impl Walk {
         if let Some(name) = anchor {
             let below = self.found[start..]
                 .iter()
-                .map(|(p, v, binary)| (p[path.len()..].to_vec(), v.clone(), *binary))
+                .map(|(p, v, kind)| (p[path.len()..].to_vec(), v.clone(), *kind))
                 .collect();
             self.anchors.insert(name, below);
         }
