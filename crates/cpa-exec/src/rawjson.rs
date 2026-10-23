@@ -17,7 +17,9 @@ pub(crate) use gjson::Kind;
 pub(crate) struct Value<'a> {
     res: Res<'a>,
     raw: Cow<'a, str>,
-    s: Cow<'a, str>,
+    /// `Result.String()` when it is not the unescaped string `res.s` already holds
+    /// owned; `str` reads that one in place rather than copying it.
+    s: Option<Cow<'a, str>>,
 }
 
 /// `bytes` as text, borrowed from `src` when it is a slice of it.
@@ -39,7 +41,10 @@ fn as_str<'a>(src: &'a str, bytes: Cow<'a, [u8]>) -> Cow<'a, str> {
 impl<'a> Value<'a> {
     fn new(src: &'a str, res: Res<'a>) -> Self {
         let raw = as_str(src, res.raw.clone());
-        let s = as_str(src, res.bytes());
+        let s = match (&res.kind, &res.s) {
+            (json::Kind::String, Cow::Owned(_)) => None,
+            _ => Some(as_str(src, res.bytes())),
+        };
         Value { res, raw, s }
     }
 
@@ -78,7 +83,11 @@ impl<'a> Value<'a> {
 
     /// `Result.String()`.
     pub(crate) fn str(&self) -> &str {
-        &self.s
+        match &self.s {
+            Some(s) => s,
+            // Unescaped from valid UTF-8 (lone surrogates become U+FFFD), so this holds.
+            None => std::str::from_utf8(&self.res.s).unwrap_or_default(),
+        }
     }
 
     /// `Result.Int()`.
@@ -102,10 +111,25 @@ impl<'a> Value<'a> {
         self.res.each(|k, v| f(Value::new(src, k), Value::new(src, v)));
     }
 
-    /// `Result.Array()`.
+    /// `Result.Array()`: one allocation, as the gjson crate made, rather than one for
+    /// the port's results and another for these.
     pub(crate) fn array(&self) -> Vec<Value<'a>> {
         let src = self.src();
-        self.res.array().into_iter().map(|v| Value::new(src, v)).collect()
+        if self.kind() != Kind::Array {
+            // Go: nothing for null, else the value itself.
+            return self.res.array().into_iter().map(|v| Value::new(src, v)).collect();
+        }
+        let mut n = 0;
+        self.res.each(|_, _| {
+            n += 1;
+            true
+        });
+        let mut out = Vec::with_capacity(n);
+        self.res.each(|_, v| {
+            out.push(Value::new(src, v));
+            true
+        });
+        out
     }
 }
 
