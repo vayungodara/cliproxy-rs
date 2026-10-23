@@ -16,10 +16,10 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 
 | Milestone | Items | covered | partial | missing |
 |---|---:|---:|---:|---:|
-| M1 | 151 | 69 | 71 | 11 |
+| M1 | 151 | 69 | 72 | 10 |
 | M2 | 189 | 98 | 87 | 4 |
-| M3 | 424 | 212 | 203 | 9 |
-| M4 | 589 | 259 | 321 | 9 |
+| M3 | 424 | 212 | 205 | 7 |
+| M4 | 589 | 260 | 321 | 8 |
 | M5 | 331 | 224 | 104 | 3 |
 | M6 | 267 | 149 | 109 | 9 |
 
@@ -28,14 +28,14 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | Area | missing | partial | Missing items |
 |---|---:|---:|---|
 | claude | 11 | 62 | M1-0120, M1-0121, M1-0123, M1-0124, M1-0125, M1-0126, M1-0127, M1-0136, M1-0137, M1-0147, M5-0314 |
-| server | 10 | 284 | M1-0119, M4-0371, M4-0372, M4-0512, M4-0515, M4-0543, M4-0579, M4-0580, M4-0585, M5-0316 |
+| server | 9 | 285 | M4-0371, M4-0372, M4-0512, M4-0515, M4-0543, M4-0579, M4-0580, M4-0585, M5-0316 |
 | plugins | 8 | 78 | M6-0192, M6-0211, M6-0213, M6-0220, M6-0240, M6-0241, M6-0249, M6-0250 |
 | translate | 5 | 92 | M2-0166, M2-0167, M2-0168, M2-0181, M3-0405 |
-| codex | 5 | 72 | M3-0351, M3-0362, M3-0363, M3-0364, M5-0323 |
+| codex | 4 | 73 | M3-0362, M3-0363, M3-0364, M5-0323 |
 | google | 3 | 77 | M3-0058, M3-0059, M3-0361 |
-| manage | 1 | 129 | M4-0526 |
 | openai-xai | 1 | 29 | M6-0217 |
-| device-providers | 1 | 28 | M3-0352 |
+| manage | 0 | 129 | — |
+| device-providers | 0 | 29 | — |
 | home | 0 | 26 | — |
 | tui | 0 | 9 | — |
 | realtime | 0 | 8 | — |
@@ -134,7 +134,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 
 | ID | Item | Status | Evidence | Area | Note |
 |---|---|---|---|---|---|
-| M1-0119 | models.catalog | missing | New v8.0.35 configuration contract; internal/registry/catalog_config.go:12 (Catalog). No verified Rust test for this path and its new semantics. | server | Conservative baseline: schema acceptance or a matching leaf name alone is not implementation proof. |
+| M1-0119 | models.catalog | partial | crates/cpa-core/src/config/validate.rs (catalog_sources, go_is_abs; absolute_paths_follow_go_filepath_is_abs from Go 1.26.4 TestIsAbs); crates/cpa-server/tests/manage_go.rs load_errors (Go LoadConfig refusals) and config_writes (scenario model_catalog_sources) | server | Read, validated, saved and served by the v8 Management API like Go; the source does not yet select where the catalog comes from (DIFFERENCES: Model catalog sources). |
 | M1-0120 | upstream.claude.tool-search | missing | New v8.0.35 configuration contract; internal/config/config_types.go:123 (ToolSearch). No verified Rust test for this path and its new semantics. | claude | Conservative baseline: schema acceptance or a matching leaf name alone is not implementation proof. |
 | M1-0121 | upstream.claude.session-date-pin-days | missing | New v8.0.35 configuration contract; internal/config/config_types.go:128 (SessionDatePinDays). No verified Rust test for this path and its new semantics. | claude | Conservative baseline: schema acceptance or a matching leaf name alone is not implementation proof. |
 | M1-0122 | api-keys.claude[].keys[].models[].thinking.disable-type | covered | crates/cpa-core/src/registry.rs ThinkingSupport.disable_type (alias disable-type); crates/cpa-server/src/capabilities.rs resolve_model_info, configured_thinking_keeps_the_catalog_disable_type; crates/cpa-common/src/thinking/providers.rs claude_off; go_thinking_matrix.jsonl.gz (v8.0.35) |  | Thinking off uses the configured type; empty inherits the catalog (between_tools on claude-sonnet-5-5) and otherwise sends disabled, also on models the fixed refusal list names (configured_thinking_keeps_the_catalog_disable_type). User-defined models ignore it, as in Go applyCompatibleClaude. |
@@ -686,8 +686,8 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 
 | ID | Item | Status | Evidence | Area | Note |
 |---|---|---|---|---|---|
-| M3-0351 | models.codex-catalog | missing | New v8.0.35 configuration contract; internal/registry/catalog_config.go:13 (CodexCatalog). No verified Rust test for this path and its new semantics. | codex | Conservative baseline: schema acceptance or a matching leaf name alone is not implementation proof. |
-| M3-0352 | models.devin-catalog | missing | New v8.0.35 configuration contract; internal/registry/catalog_config.go:14 (DevinCatalog). No verified Rust test for this path and its new semantics. | device-providers | Conservative baseline: schema acceptance or a matching leaf name alone is not implementation proof. |
+| M3-0351 | models.codex-catalog | partial | crates/cpa-core/src/config/validate.rs (catalog_sources, go_is_abs; absolute_paths_follow_go_filepath_is_abs from Go 1.26.4 TestIsAbs); crates/cpa-server/tests/manage_go.rs load_errors (Go LoadConfig refusals) and config_writes (scenario model_catalog_sources) | codex | Read, validated, saved and served by the v8 Management API like Go; the source does not yet select where the catalog comes from (DIFFERENCES: Model catalog sources). |
+| M3-0352 | models.devin-catalog | partial | crates/cpa-core/src/config/validate.rs (catalog_sources, go_is_abs; absolute_paths_follow_go_filepath_is_abs from Go 1.26.4 TestIsAbs); crates/cpa-server/tests/manage_go.rs load_errors (Go LoadConfig refusals) and config_writes (scenario model_catalog_sources) | device-providers | Read, validated, saved and served by the v8 Management API like Go; the source does not yet select where the catalog comes from (DIFFERENCES: Model catalog sources). |
 | M3-0353 | api-keys.gemini[].keys[].models[].thinking.disable-type | covered | crates/cpa-core/src/registry.rs ThinkingSupport.disable_type (alias disable-type); crates/cpa-server/src/capabilities.rs resolve_model_info, configured_thinking_keeps_the_catalog_disable_type |  | Parsed into the shared models[].thinking support and carried on the resolved model. Only the Claude applier reads it, as in Go; an empty value inherits the catalog entry (Go modelconfig ResolveModelInfo). |
 | M3-0354 | api-keys.interactions[].keys[].models[].thinking.disable-type | covered | crates/cpa-core/src/registry.rs ThinkingSupport.disable_type (alias disable-type); crates/cpa-server/src/capabilities.rs resolve_model_info, configured_thinking_keeps_the_catalog_disable_type |  | Parsed into the shared models[].thinking support and carried on the resolved model. Only the Claude applier reads it, as in Go; an empty value inherits the catalog entry (Go modelconfig ResolveModelInfo). |
 | M3-0355 | api-keys.codex[].keys[].models[].thinking.disable-type | covered | crates/cpa-core/src/registry.rs ThinkingSupport.disable_type (alias disable-type); crates/cpa-server/src/capabilities.rs resolve_model_info, configured_thinking_keeps_the_catalog_disable_type |  | Parsed into the shared models[].thinking support and carried on the resolved model. Only the Claude applier reads it, as in Go; an empty value inherits the catalog entry (Go modelconfig ResolveModelInfo). |
@@ -1531,7 +1531,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M4-0523 | internal/config/config_v8_comments_test.go | covered | crates/cpa-core/src/config/text.rs take_nested; tests/management.rs v0_setters_save_v8_files_in_the_latest_layout (TestV8MovedCommentsSurviveV0Saves: ten markers, exactly once over three saves); crates/cpa-core/src/config/document.rs tests migration_keeps_provider_and_field_key_foot_comments_once (TestV8MigrationCarriesProviderKeyFootComments) |  | Moved historical fields keep their head, inline and foot comments, and the ancestors a move leaves empty keep theirs. |
 | M4-0524 | internal/config/config_v8_save_layout_test.go | covered | crates/cpa-core/src/config/document.rs is_v8_layout; crates/cpa-core/src/config.rs tests v8_layout_is_recognised_by_version_sections_and_paths (TestIsV8ConfigLayout, all 12 cases); tests/management.rs v0_setters_save_v8_files_in_the_latest_layout (TestV0SaveUpgradesHistoricalV8Layout: Go's file with and without config-version, canonical fields, the comment, and the Codex header default staying OAuth-only); tests/management.rs v0_setters_keep_a_legacy_layout (a legacy-only file keeps its layout) |  | Go's Home.Enabled assertion has no counterpart: cliproxy-rs keeps Home mode state in the cliproxy binary, not in the parsed config a save rewrites. |
 | M4-0525 | internal/config/github_token_test.go | covered | crates/cpa-server/tests/manage_go.rs config_writes (scenario server_github_token); crates/cpa-server/tests/management.rs github_token_stays_out_of_the_v0_config_json |  | Added since 6fecc6e. Parse, a v8 save keeping the canonical path, reload and the absence from the v0 config JSON are covered. Go's CloneForRuntime step has no counterpart: the token lives in the config document. |
-| M4-0526 | internal/config/model_catalogs_test.go | missing | Existing subsystem: crates/cpa-server/src/management/; new Go suite internal/config/model_catalogs_test.go. No case-by-case v8.0.35 replay or assertion mapping has been verified. | manage | Added since 6fecc6e. |
+| M4-0526 | internal/config/model_catalogs_test.go | covered | crates/cpa-server/tests/manage_go.rs config_writes (scenario model_catalog_sources: v8 saves, clearing, refusals) and load_errors (TestModelCatalogConfigValidation's sources for each field); crates/cpa-server/tests/management.rs model_catalog_sources_survive_a_legacy_save |  | Added since 6fecc6e. TestModelCatalogConfigRoundTrip and TestModelCatalogConfigValidation are covered, recorded with Go 1.26.4 at v8.0.35. |
 | M4-0527 | internal/config/shared_upstream_test.go | partial | Existing subsystem: crates/cpa-server/src/management/; new Go suite internal/config/shared_upstream_test.go. No case-by-case v8.0.35 replay or assertion mapping has been verified. | manage | Added since 6fecc6e. Partial records an unproven contract, not a claim that every new behavior is implemented. |
 | M4-0528 | internal/config/tls_handshake_timeout_test.go | partial | crates/cpa-exec/src/tls.rs handshake_timeout_reads_the_root_key_and_its_legacy_spelling (SDKConfig saturation and non-positive values, root key, flat legacy spelling, canonical precedence including explicit 0, upstream.claude ignored) | manage | Rust has no SDKConfig field: the cases check the value the transports read, not a parsed struct. |
 | M4-0529 | internal/githubauth/token_test.go | partial | crates/cpa-server/tests/manage_go.rs config_writes (scenario server_github_token) | server | Added since 6fecc6e. Not ported: Go's githubauth resolver and its api.github.com-only TokenForURL guard have no Rust caller yet; they land with the plugin store use (M6-0261). |

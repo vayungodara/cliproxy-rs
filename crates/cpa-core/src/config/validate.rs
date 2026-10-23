@@ -1,6 +1,7 @@
 //! Go's custom checks in `ParseConfigBytes` beyond YAML shape: credential in-flight
-//! bounds (internal/config/credential_in_flight.go) and the Codex Live media relay
-//! (internal/config/codex_live.go). Messages are Go's.
+//! bounds (internal/config/credential_in_flight.go), the Codex Live media relay
+//! (internal/config/codex_live.go), and the model catalog sources Go checks while
+//! decoding (internal/registry/catalog_config.go). Messages are Go's.
 
 use anyhow::{Result, bail};
 use serde_yaml_ng::Value;
@@ -12,6 +13,87 @@ pub(super) fn go_custom(doc: &Value) -> Result<()> {
     let at = |path: &[&str]| path.iter().try_fold(doc, |node, part| node.get(*part));
     in_flight(at(&["credentials", "in-flight"]))?;
     live_media_relay(at(&["oauth", "providers", "codex", "live-media-relay"]))
+}
+
+/// v8.0.35 `CatalogSources.Validate` (internal/registry/catalog_config.go): each model
+/// catalog source is empty, an absolute local path (`filepath.IsAbs`) or an http(s) URL
+/// with a host. Go walks a map, so with several invalid sources it names any one of
+/// them; this names the first in field order.
+pub fn catalog_sources(section: Option<&Value>) -> Result<()> {
+    for name in ["catalog", "codex-catalog", "devin-catalog"] {
+        let source = text(section, name, "");
+        if source.is_empty() || go_is_abs(&source, cfg!(windows)) {
+            continue;
+        }
+        let url = go_url::parse(&source);
+        if !url.is_some_and(|u| matches!(u.scheme.as_str(), "http" | "https") && !u.hostname().is_empty()) {
+            bail!("models.{name} must be an http(s) URL or an absolute local path");
+        }
+    }
+    Ok(())
+}
+
+/// Go `filepath.IsAbs` (internal/filepathlite): a leading `/` on Unix; on Windows a
+/// drive letter or `\\` volume (UNC, `\\.\`, `\\?\`, `\??\`) followed by a separator.
+pub fn go_is_abs(path: &str, windows: bool) -> bool {
+    if !windows {
+        return path.starts_with('/');
+    }
+    let p = path.as_bytes();
+    let sep = |b: u8| b == b'\\' || b == b'/';
+    let l = windows_volume_len(p);
+    if l == 0 {
+        return false;
+    }
+    if sep(p[0]) && sep(p[1]) {
+        return true;
+    }
+    p.get(l).is_some_and(|&b| sep(b))
+}
+
+/// Go `volumeNameLen` for Windows.
+fn windows_volume_len(p: &[u8]) -> usize {
+    let sep = |b: u8| b == b'\\' || b == b'/';
+    // `pathHasPrefixFold`: separators match either separator, then a separator or the end.
+    let prefix = |prefix: &[u8]| {
+        p.len() >= prefix.len()
+            && prefix.iter().zip(p).all(|(&want, &got)| {
+                if sep(want) {
+                    sep(got)
+                } else {
+                    want.eq_ignore_ascii_case(&got)
+                }
+            })
+            && p.get(prefix.len()).is_none_or(|&b| sep(b))
+    };
+    // `uncLen`: up to the second separator after the prefix.
+    let unc = |from: usize| {
+        p.iter()
+            .enumerate()
+            .skip(from)
+            .filter(|(_, b)| sep(**b))
+            .nth(1)
+            .map_or(p.len(), |(i, _)| i)
+    };
+    if p.len() >= 2 && p[1] == b':' {
+        2
+    } else if p.is_empty() || !sep(p[0]) {
+        0
+    } else if prefix(br"\\.\UNC") {
+        unc(br"\\.\UNC\".len())
+    } else if prefix(br"\\.") || prefix(br"\\?") || prefix(br"\??") {
+        if p.len() == 3 {
+            return 3;
+        }
+        match p[4..].iter().position(|&b| sep(b)) {
+            Some(i) => 4 + i,
+            None => p.len(),
+        }
+    } else if p.len() >= 2 && sep(p[1]) {
+        unc(2)
+    } else {
+        0
+    }
 }
 
 /// Present non-null value, else Go's pre-decode default.
@@ -75,9 +157,11 @@ fn in_flight(section: Option<&Value>) -> Result<()> {
     Ok(())
 }
 
-/// The Codex Live media relay's UDP ports are Go `uint16` fields, so decoding rejects
-/// out-of-range values whether or not the relay is enabled.
+/// Checks Go makes while decoding: the Codex Live media relay's UDP ports are Go
+/// `uint16` fields, so decoding rejects out-of-range values whether or not the relay is
+/// enabled, and `Config.UnmarshalYAML` validates the model catalog sources.
 pub(super) fn decoded(doc: &Value) -> Result<()> {
+    catalog_sources(doc.get("models"))?;
     let section = ["oauth", "providers", "codex", "live-media-relay"]
         .iter()
         .try_fold(doc, |node, part| node.get(*part));
@@ -240,7 +324,49 @@ pub fn parse_duration(s: &str) -> Option<i64> {
 
 #[cfg(test)]
 mod tests {
-    use super::{Value, in_flight, parse_duration};
+    use super::{Value, go_is_abs, in_flight, parse_duration};
+
+    /// Go 1.26.4 `TestIsAbs` (path/filepath/path_test.go): `isabstests` on Unix; on
+    /// Windows `winisabstests`, every Unix case false, and every Unix case behind `c:`.
+    #[test]
+    fn absolute_paths_follow_go_filepath_is_abs() {
+        let unix = [
+            ("", false),
+            ("/", true),
+            ("/usr/bin/gcc", true),
+            ("..", false),
+            ("/a/../bb", true),
+            (".", false),
+            ("./", false),
+            ("lala", false),
+        ];
+        let windows = [
+            (r"C:\", true),
+            (r"c\", false),
+            (r"c::", false),
+            (r"c:", false),
+            (r"/", false),
+            (r"\", false),
+            (r"\Windows", false),
+            (r"c:a\b", false),
+            (r"c:\a\b", true),
+            (r"c:/a/b", true),
+            (r"\\host\share", true),
+            (r"\\host\share\", true),
+            (r"\\host\share\foo", true),
+            (r"//host/share/foo/bar", true),
+            (r"\\?\a\b\c", true),
+            (r"\??\a\b\c", true),
+        ];
+        for (path, want) in unix {
+            assert_eq!(go_is_abs(path, false), want, "{path:?}");
+            assert!(!go_is_abs(path, true), "windows {path:?}");
+            assert_eq!(go_is_abs(&format!("c:{path}"), true), want, "windows c:{path:?}");
+        }
+        for (path, want) in windows {
+            assert_eq!(go_is_abs(path, true), want, "windows {path:?}");
+        }
+    }
 
     /// Go `TestCredentialInFlightConfigDurationBounds` and
     /// `TestCredentialInFlightConfigRejectsUnsafeBounds`.

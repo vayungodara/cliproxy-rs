@@ -655,12 +655,40 @@ fn underscore_ok(s: &[u8]) -> bool {
     saw != b'_'
 }
 
+/// Go's shortest digits for a finite non-zero `f` (Ryū, an exact tie rounded half to
+/// even; Rust's `Display` rounds it up): the significant digits and the decimal point's
+/// position, `f = ±0.digits × 10^point`.
+fn shortest(f: f64) -> (String, i32) {
+    let mut buf = ryu::Buffer::new();
+    let text = buf.format_finite(f.abs());
+    let (mantissa, exp) = text.split_once('e').unwrap_or((text, "0"));
+    let exp: i32 = exp.parse().unwrap_or_default();
+    let (int, frac) = mantissa.split_once('.').unwrap_or((mantissa, ""));
+    let digits = format!("{int}{frac}");
+    let lead = digits.len() - digits.trim_start_matches('0').len();
+    let digits = digits.trim_matches('0').to_owned();
+    (digits, int.len() as i32 + exp - lead as i32)
+}
+
 /// `strconv.FormatFloat(f, 'f', -1, 64)`.
 pub fn fmt_float(f: f64) -> String {
     if f.is_infinite() {
         return if f > 0.0 { "+Inf".into() } else { "-Inf".into() };
     }
-    format!("{f}")
+    if f == 0.0 || f.is_nan() {
+        return format!("{f}");
+    }
+    let (digits, point) = shortest(f);
+    let sign = if f < 0.0 { "-" } else { "" };
+    let len = digits.len() as i32;
+    if point <= 0 {
+        format!("{sign}0.{}{digits}", "0".repeat(-point as usize))
+    } else if point >= len {
+        format!("{sign}{digits}{}", "0".repeat((point - len) as usize))
+    } else {
+        let (int, frac) = digits.split_at(point as usize);
+        format!("{sign}{int}.{frac}")
+    }
 }
 
 /// encoding/json's float64 encoding (shortest digits, exponent form outside
@@ -671,16 +699,18 @@ pub fn json_float(f: f64) -> Option<String> {
     }
     let abs = f.abs();
     if abs != 0.0 && !(1e-6..1e21).contains(&abs) {
-        let e = format!("{f:e}");
-        let (mantissa, exp) = e.split_once('e').unwrap();
-        let exp: i32 = exp.parse().unwrap();
+        let (digits, point) = shortest(f);
+        let sign = if f < 0.0 { "-" } else { "" };
+        let (first, rest) = digits.split_at(1);
+        let dot = if rest.is_empty() { "" } else { "." };
+        let exp = point - 1;
         return Some(if exp < 0 {
-            format!("{mantissa}e-{}", -exp)
+            format!("{sign}{first}{dot}{rest}e-{}", -exp)
         } else {
-            format!("{mantissa}e+{exp:02}")
+            format!("{sign}{first}{dot}{rest}e+{exp:02}")
         });
     }
-    Some(format!("{f}"))
+    Some(fmt_float(f))
 }
 
 fn tonum(json: &[u8]) -> &[u8] {

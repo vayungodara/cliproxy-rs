@@ -106,6 +106,10 @@ fn parse_authority(scheme: &str, authority: &str) -> Option<String> {
 
 fn parse_host(scheme: &str, host: &str) -> Option<String> {
     if let Some(open) = host.rfind('[') {
+        // Go 1.26.4: an IP literal must start the host ("invalid IP-literal").
+        if open != 0 {
+            return None;
+        }
         let close = host.rfind(']')?;
         let colon_port = &host[close + 1..];
         if !valid_optional_port(colon_port) {
@@ -208,6 +212,8 @@ mod tests {
             "https://api.kimi.com:abc/v1",
             "https://a:1:2/",
             "https://[1.2.3.4]/",
+            "http://x[::1]",
+            "http://x[::1]:80/p",
             "https://[::1/",
             "https://[::1%25]/",
             "https://a b/",

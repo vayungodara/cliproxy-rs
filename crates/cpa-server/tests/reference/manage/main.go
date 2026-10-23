@@ -237,7 +237,12 @@ func runConfig(s configScenario) configScenario {
 	server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path, api.WithPluginHost(pluginhost.New()))
 	for i := range s.Steps {
 		st := &s.Steps[i]
-		req := httptest.NewRequest(st.Method, "/v8/management"+st.Path, strings.NewReader(st.Body))
+		// Paths are v8 management routes unless they name their API version.
+		target := "/v8/management" + st.Path
+		if strings.HasPrefix(st.Path, "/v0/") {
+			target = st.Path
+		}
+		req := httptest.NewRequest(st.Method, target, strings.NewReader(st.Body))
 		req.RemoteAddr = "127.0.0.1:1"
 		req.Header.Set("Authorization", "Bearer fake-secret")
 		rec := httptest.NewRecorder()
@@ -1086,6 +1091,23 @@ func main() {
 		"oauth: {providers: {codex: {live-media-relay: {enabled: false, max-sessions: -1, ice-servers: [{urls: []}]}}}}",
 		"oauth: {providers: {codex: {live-media-relay: {allow-private-remote-ips: true, disable-private-remote-ips: true}}}}",
 		"codex: {live-media-relay: {enabled: true, max-sessions: -1}}",
+		// v8.0.35 CatalogSources.Validate (internal/registry/catalog_config.go): each
+		// source is empty, an absolute local path (filepath.IsAbs) or an http(s) URL
+		// with a host; ConfigV8 UnmarshalYAML refuses the load otherwise.
+		"models: {catalog: relative.json}", "models: {catalog: ./models.json}", "models: {catalog: ~/models.json}",
+		"models: {catalog: 'ftp://example.invalid/models'}", "models: {catalog: 'file:///tmp/models.json'}", "models: {catalog: 'https:///models'}",
+		"models: {codex-catalog: relative.json}", "models: {codex-catalog: 'file:///tmp/models.json'}", "models: {codex-catalog: 'https:///models'}",
+		"models: {devin-catalog: ~/models.json}", "models: {devin-catalog: 'ftp://example.invalid/models'}", "models: {devin-catalog: 'https:///models'}",
+		"models: {}", "models: null", "models: {catalog: ''}", "models: {catalog: null}", "models: {catalog: /abs/models.json}",
+		"models: {codex-catalog: 'https://example.invalid/models.json'}", "models: {devin-catalog: 'HTTP://Example.INVALID:8080/x?y#z'}",
+		"models: {catalog: 'https://[::1]:443/x'}", "models: {catalog: 'https://:443/x'}", "models: {catalog: 'https://user@/x'}",
+		"models: {catalog: 'http://%zz/x'}", "models: {catalog: 'https://a b/x'}", "models: {catalog: 'https://example.invalid/%zz'}",
+		"models: {catalog: ' /abs/models.json'}", "models: {catalog: ' https://example.invalid/x'}", "models: {catalog: 'https://example.invalid/x '}",
+		"models: {catalog: 'c:/models.json'}", "models: {catalog: '\\\\host\\share\\m.json'}", "models: {catalog: '//host/share/m.json'}",
+		"models: {catalog: 'https:example.invalid/x'}", "models: {catalog: 'https://exa\tmple.invalid/'}", "models: {catalog: 'ws://example.invalid/x'}",
+		"models: {catalog: 'http://x[::1]'}", "models: {catalog: 'http://x[::1]:80/p'}", "models: {catalog: 'http://[::1]:80/p'}",
+		"models: {catalog: 5}", "models: {catalog: true}", "models: {catalog: [a]}", "models: []", "models: x", "models: {other: x}",
+		"config-version: 8\nmodels: {catalog: relative.json}", "config-version: 8\nmodels: {catalog: /abs/models.json, devin-catalog: 'https://h/x'}",
 	} {
 		dir, err := os.MkdirTemp("", "cpa-load-")
 		must(err)
@@ -1461,6 +1483,29 @@ func configScenarios() []configScenario {
 		// depth (a YAML upload's scalar merge is a 400 above).
 		// v8.0.35 7c41cd05: server.github-token, legacy root github-token. Go reads,
 		// migrates and writes it like any setting; v0 GET /config omits it (json:"-").
+		// v8.0.35 models (CatalogSources): three source strings read, written and
+		// validated like any setting; an invalid source is a 422 (ValidateV8Config).
+		{Name: "model_catalog_sources", YAML: "models:\n  catalog: /abs/models.json\n  devin-catalog: 'https://devin.example.invalid/x.json'\nremote-management:\n  secret-key: '$HASH'\n", Steps: []configStep{
+			get("/config"), get("/config/models"), get("/config/models/catalog"),
+			put("/config/routing/strategy", `"fill-first"`), get("/config.yaml"),
+			put("/config/models/codex-catalog", `"HTTPS://Codex.example.invalid/c.json"`), get("/config/models"),
+			put("/config/models/catalog", `"relative.json"`), put("/config/models/catalog", `"file:///tmp/models.json"`),
+			put("/config/models/devin-catalog", `"https:///models"`), put("/config/models/catalog", `5`),
+			put("/config/models/catalog", `"http://x[::1]:80/p"`),
+			put("/config/models/unknown", `"x"`), put("/config/models", `"x"`),
+			patch("/config/models", `{"catalog":"","devin-catalog":null}`), get("/config/models"),
+			patch("/config", `{"models":{"catalog":"~/m.json"}}`),
+			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nmodels:\n  catalog: ./models.json\n"),
+			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nmodels:\n  codex-catalog: /abs/codex.json\n"),
+			get("/config/models"), del("/config/models/codex-catalog"), get("/config/models"), get("/config.yaml"),
+			put("/config/models", `{"catalog":"/abs/a.json","codex-catalog":"http://h.example.invalid/c","devin-catalog":"/abs/d.json"}`),
+			del("/config/models"), get("/config/models"), get("/config.yaml"),
+			// The v0 upload decodes into Config first: a source error is its 400.
+			put("/v0/management/config.yaml", "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: relative.json\n"),
+			put("/v0/management/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nmodels:\n  devin-catalog: 'http://x[::1]'\n"),
+			put("/v0/management/config.yaml", "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: /abs/v0.json\n"),
+			get("/config/models"),
+		}},
 		{Name: "server_github_token", YAML: "github-token: ' fake-legacy-token '\nremote-management:\n  secret-key: '$HASH'\n", Steps: []configStep{
 			get("/config"), get("/config/server/github-token"),
 			put("/config/routing/strategy", `"fill-first"`),

@@ -179,9 +179,13 @@ fn valid_port(port: &str) -> bool {
             .is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
 }
 
-/// `parseHost` with the default `urlstrictcolons=1` (Go 1.26).
+/// `parseHost` with the default `urlstrictcolons=1` (Go 1.26.4).
 fn parse_host(scheme: &str, host: &str) -> Result<String, String> {
     if let Some(open) = host.rfind('[') {
+        // An IP literal must start the host.
+        if open != 0 {
+            return Err("invalid IP-literal".into());
+        }
         let Some(close) = host.rfind(']') else {
             return Err("missing ']' in host".into());
         };
@@ -190,11 +194,8 @@ fn parse_host(scheme: &str, host: &str) -> Result<String, String> {
             return Err(format!("invalid port {} after host", quote(colon_port)));
         }
         let port = unescape(colon_port.as_bytes(), Mode::Host)?;
-        // A `]` before the last `[` makes Go slice backwards and panic; nothing valid
-        // can follow, so it is reported as an invalid host here.
-        let Some(inner) = host.get(open + 1..close) else {
-            return Err("invalid host".into());
-        };
+        // The host starts with its only `[`, so the last `]` follows it.
+        let inner = &host[1..close];
         let unescaped = match inner.find("%25") {
             Some(zone) => {
                 let mut out = unescape(&inner.as_bytes()[..zone], Mode::Host)?;
@@ -337,9 +338,10 @@ pub(crate) fn quote_bytes(b: &[u8]) -> String {
 }
 
 /// Whether the HTTP client, which parses URLs with WHATWG rules (`url`), would contact
-/// the same scheme, host and port that Go's `net/url` parses from `raw`. They disagree on
-/// inputs such as `https://evil.example\[::1%25.x.ai]/`, where Go starts the host at the
-/// last `[`; a request must never go to a host Go would not contact.
+/// the same scheme, host and port that Go's `net/url` parses from `raw`, and `false` where
+/// Go refuses `raw`, as it does `https://evil.example\[::1%25.x.ai]/` (an invalid
+/// IP-literal) where WHATWG reads a host; a request must never go to a host Go would not
+/// contact.
 pub fn same_authority(raw: &str) -> bool {
     let (Ok(go), Ok(wh)) = (parse(raw), url::Url::parse(raw)) else {
         return false;
@@ -391,5 +393,24 @@ mod tests {
         ] {
             assert!(!same_authority(bad), "{bad}");
         }
+    }
+
+    /// Go 1.26.4 `url.Parse`: an IP literal must start the host.
+    #[test]
+    fn a_bracket_inside_the_host_is_go_s_invalid_ip_literal() {
+        for (raw, want) in [
+            ("http://x[::1]", r#"parse "http://x[::1]": invalid IP-literal"#),
+            (
+                "http://x[::1]:80/p",
+                r#"parse "http://x[::1]:80/p": invalid IP-literal"#,
+            ),
+            (
+                "http://[::1]x/",
+                r#"parse "http://[::1]x/": invalid port "x" after host"#,
+            ),
+        ] {
+            assert_eq!(parse(raw).err().as_deref(), Some(want), "{raw}");
+        }
+        assert_eq!(parse("http://[::1]:80/p").map(|u| u.hostname).as_deref(), Ok("::1"));
     }
 }

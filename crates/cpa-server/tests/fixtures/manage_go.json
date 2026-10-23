@@ -32024,6 +32024,716 @@
    ]
   },
   {
+   "name": "model_catalog_sources",
+   "yaml": "models:\n  catalog: /abs/models.json\n  devin-catalog: 'https://devin.example.invalid/x.json'\nremote-management:\n  secret-key: '$HASH'\n",
+   "steps": [
+    {
+     "method": "GET",
+     "path": "/config",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      }
+     },
+     "raw_json": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW\"},\"models\":{\"catalog\":\"/abs/models.json\",\"devin-catalog\":\"https://devin.example.invalid/x.json\"}}",
+     "file": {
+      "models": {
+       "catalog": "/abs/models.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "remote-management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 200,
+     "response": {
+      "catalog": "/abs/models.json",
+      "devin-catalog": "https://devin.example.invalid/x.json"
+     },
+     "raw_json": "{\"catalog\":\"/abs/models.json\",\"devin-catalog\":\"https://devin.example.invalid/x.json\"}",
+     "file": {
+      "models": {
+       "catalog": "/abs/models.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "remote-management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models/catalog",
+     "status": 200,
+     "response": "/abs/models.json",
+     "raw_json": "\"/abs/models.json\"",
+     "file": {
+      "models": {
+       "catalog": "/abs/models.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "remote-management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/routing/strategy",
+     "body": "\"fill-first\"",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "raw_response": "models:\n    catalog: /abs/models.json\n    devin-catalog: 'https://devin.example.invalid/x.json'\nmanagement:\n    secret-key: '$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW'\nconfig-version: 8\nrouting:\n    strategy: \"fill-first\"\n",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models/codex-catalog",
+     "body": "\"HTTPS://Codex.example.invalid/c.json\"",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 200,
+     "response": {
+      "catalog": "/abs/models.json",
+      "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+      "devin-catalog": "https://devin.example.invalid/x.json"
+     },
+     "raw_json": "{\"catalog\":\"/abs/models.json\",\"codex-catalog\":\"HTTPS://Codex.example.invalid/c.json\",\"devin-catalog\":\"https://devin.example.invalid/x.json\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models/catalog",
+     "body": "\"relative.json\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models/catalog",
+     "body": "\"file:///tmp/models.json\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models/devin-catalog",
+     "body": "\"https:///models\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: models.devin-catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: models.devin-catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models/catalog",
+     "body": "5",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models/catalog",
+     "body": "\"http://x[::1]:80/p\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models/unknown",
+     "body": "\"x\"",
+     "status": 400,
+     "response": {
+      "error": "invalid_config",
+      "message": "yaml: unmarshal errors:\n  line 5: field unknown not found in type registry.CatalogSources"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"yaml: unmarshal errors:\\n  line 5: field unknown not found in type registry.CatalogSources\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models",
+     "body": "\"x\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `x` into registry.CatalogSources"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: yaml: unmarshal errors:\\n  line 1: cannot unmarshal !!str `x` into registry.CatalogSources\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/config/models",
+     "body": "{\"catalog\":\"\",\"devin-catalog\":null}",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": null
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 200,
+     "response": {
+      "catalog": "",
+      "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+      "devin-catalog": null
+     },
+     "raw_json": "{\"catalog\":\"\",\"codex-catalog\":\"HTTPS://Codex.example.invalid/c.json\",\"devin-catalog\":null}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": null
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PATCH",
+     "path": "/config",
+     "body": "{\"models\":{\"catalog\":\"~/m.json\"}}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": null
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nmodels:\n  catalog: ./models.json\n",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": null
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config.yaml",
+     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nmodels:\n  codex-catalog: /abs/codex.json\n",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "models": {
+       "codex-catalog": "/abs/codex.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 200,
+     "response": {
+      "codex-catalog": "/abs/codex.json"
+     },
+     "raw_json": "{\"codex-catalog\":\"/abs/codex.json\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "models": {
+       "codex-catalog": "/abs/codex.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/config/models/codex-catalog",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 404,
+     "response": {
+      "error": "not_found"
+     },
+     "raw_json": "{\"error\":\"not_found\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "raw_response": "config-version: 8\nmanagement:\n    secret-key: fake-secret\n",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models",
+     "body": "{\"catalog\":\"/abs/a.json\",\"codex-catalog\":\"http://h.example.invalid/c\",\"devin-catalog\":\"/abs/d.json\"}",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      },
+      "models": {
+       "catalog": "/abs/a.json",
+       "codex-catalog": "http://h.example.invalid/c",
+       "devin-catalog": "/abs/d.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "DELETE",
+     "path": "/config/models",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "status": "ok"
+     },
+     "raw_json": "{\"config-version\":8,\"status\":\"ok\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 404,
+     "response": {
+      "error": "not_found"
+     },
+     "raw_json": "{\"error\":\"not_found\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config.yaml",
+     "status": 200,
+     "response": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "raw_response": "config-version: 8\nmanagement:\n    secret-key: fake-secret\n",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/v0/management/config.yaml",
+     "body": "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: relative.json\n",
+     "status": 400,
+     "response": {
+      "error": "invalid_yaml",
+      "message": "models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_yaml\",\"message\":\"models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/v0/management/config.yaml",
+     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nmodels:\n  devin-catalog: 'http://x[::1]'\n",
+     "status": 400,
+     "response": {
+      "error": "invalid_yaml",
+      "message": "models.devin-catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_yaml\",\"message\":\"models.devin-catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/v0/management/config.yaml",
+     "body": "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: /abs/v0.json\n",
+     "status": 200,
+     "response": {
+      "changed": [
+       "config"
+      ],
+      "ok": true
+     },
+     "raw_json": "{\"changed\":[\"config\"],\"ok\":true}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$pdJE3KnIhfler3oXnTDgUOs.3yPLRzcdcx5MAV4Jh9mxhvAcPHUSa"
+      },
+      "models": {
+       "catalog": "/abs/v0.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 200,
+     "response": {
+      "catalog": "/abs/v0.json"
+     },
+     "raw_json": "{\"catalog\":\"/abs/v0.json\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$pdJE3KnIhfler3oXnTDgUOs.3yPLRzcdcx5MAV4Jh9mxhvAcPHUSa"
+      },
+      "models": {
+       "catalog": "/abs/v0.json"
+      }
+     },
+     "file_has_archive": false
+    }
+   ]
+  },
+  {
    "name": "server_github_token",
    "yaml": "github-token: ' fake-legacy-token '\nremote-management:\n  secret-key: '$HASH'\n",
    "steps": [
@@ -39299,6 +40009,186 @@
   {
    "yaml": "codex: {live-media-relay: {enabled: true, max-sessions: -1}}",
    "error": "codex.live-media-relay.max-sessions must not be negative"
+  },
+  {
+   "yaml": "models: {catalog: relative.json}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: ./models.json}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: ~/models.json}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'ftp://example.invalid/models'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'file:///tmp/models.json'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'https:///models'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {codex-catalog: relative.json}",
+   "error": "failed to parse config file: models.codex-catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {codex-catalog: 'file:///tmp/models.json'}",
+   "error": "failed to parse config file: models.codex-catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {codex-catalog: 'https:///models'}",
+   "error": "failed to parse config file: models.codex-catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {devin-catalog: ~/models.json}",
+   "error": "failed to parse config file: models.devin-catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {devin-catalog: 'ftp://example.invalid/models'}",
+   "error": "failed to parse config file: models.devin-catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {devin-catalog: 'https:///models'}",
+   "error": "failed to parse config file: models.devin-catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {}",
+   "error": ""
+  },
+  {
+   "yaml": "models: null",
+   "error": ""
+  },
+  {
+   "yaml": "models: {catalog: ''}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {catalog: null}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {catalog: /abs/models.json}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {codex-catalog: 'https://example.invalid/models.json'}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {devin-catalog: 'HTTP://Example.INVALID:8080/x?y#z'}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {catalog: 'https://[::1]:443/x'}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {catalog: 'https://:443/x'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'https://user@/x'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'http://%zz/x'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'https://a b/x'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'https://example.invalid/%zz'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: ' /abs/models.json'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: ' https://example.invalid/x'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'https://example.invalid/x '}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {catalog: 'c:/models.json'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: '\\\\host\\share\\m.json'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: '//host/share/m.json'}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {catalog: 'https:example.invalid/x'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'https://exa\tmple.invalid/'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'ws://example.invalid/x'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'http://x[::1]'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'http://x[::1]:80/p'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'http://[::1]:80/p'}",
+   "error": ""
+  },
+  {
+   "yaml": "models: {catalog: 5}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: true}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: [a]}",
+   "error": "failed to parse config file: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!seq into string"
+  },
+  {
+   "yaml": "models: []",
+   "error": "failed to parse config file: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!seq into registry.CatalogSources"
+  },
+  {
+   "yaml": "models: x",
+   "error": "failed to parse config file: yaml: unmarshal errors:\n  line 1: cannot unmarshal !!str `x` into registry.CatalogSources"
+  },
+  {
+   "yaml": "models: {other: x}",
+   "error": ""
+  },
+  {
+   "yaml": "config-version: 8\nmodels: {catalog: relative.json}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "config-version: 8\nmodels: {catalog: /abs/models.json, devin-catalog: 'https://h/x'}",
+   "error": ""
   }
  ]
 }

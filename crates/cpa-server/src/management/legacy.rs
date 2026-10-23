@@ -796,6 +796,11 @@ pub(crate) async fn put_config_yaml(State(state): State<Arc<Management>>, body: 
     if let Some(e) = v8_group_error(&root) {
         return fail(StatusCode::BAD_REQUEST, "invalid_yaml", e);
     }
+    // Go v8.0.35 validates the model catalog sources while decoding the upload into
+    // Config (Config.UnmarshalYAML), so a bad source is this 400, not LoadConfig's 422.
+    if let Err(e) = cpa_core::config::validate_catalog_sources(root.get("models")) {
+        return fail(StatusCode::BAD_REQUEST, "invalid_yaml", format!("{e:#}"));
+    }
     if let Some(answer) = legacy_weight_error(&root) {
         return answer;
     }
