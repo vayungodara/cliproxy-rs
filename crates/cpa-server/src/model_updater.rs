@@ -243,7 +243,8 @@ fn fetcher(embedded: &'static [u8], defaults: Vec<String>, validate: Validate) -
                     .and_then(|data| validate(&data).map(|()| data))
                 {
                     Ok(data) => return Ok(data),
-                    Err(error) => tracing::debug!(%candidate, %error, "model catalog source failed"),
+                    // Not the source: a URL can carry credentials.
+                    Err(error) => tracing::debug!(%error, "model catalog source failed"),
                 }
             }
             Err("no valid model catalog source".to_owned())
