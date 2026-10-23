@@ -217,6 +217,17 @@ func TestRSFixDevin(t *testing.T) {
 		{name: "interactions-nonstream-ordering", source: sdktranslator.FormatInteractions, model: "devin/swe-2", body: interactions, responses: []rsfixResponse{dvResp(dvOrderingFrames()...)}},
 		{name: "count-tokens", source: sdktranslator.FormatOpenAI, model: "swe-2", body: chat, count: true},
 		{name: "missing-credentials", source: sdktranslator.FormatOpenAI, model: "swe-2", body: chat, meta: map[string]any{"type": "devin"}},
+		// v8.0.35 (868e137): payload rules edit the protobuf's JSON business view.
+		{name: "chat-payload-rules", source: sdktranslator.FormatOpenAI, model: "swe-2", body: chat, cfg: dvPayloadRules,
+			responses: []rsfixResponse{dvResp(dvPlainFrames("ok")...)}},
+		{name: "interactions-payload-bad-signature", source: sdktranslator.FormatInteractions, model: "devin/swe-2", body: interactions,
+			cfg: "payload:\n  override:\n    - models: [{name: \"devin/*\", protocol: devin}]\n      params: {\"prompts.1.signature\": \"not base64!\"}\n"},
+		{name: "interactions-temperature-infinite", source: sdktranslator.FormatInteractions, model: "devin/swe-2",
+			body: strings.Replace(interactions, `"temperature":0.7`, `"temperature":1e999`, 1)},
+		// strconv.ParseFloat's NaN (math.NaN(), 0x7FF8000000000001) reaches the fixed64.
+		{name: "chat-payload-nan", source: sdktranslator.FormatOpenAI, model: "swe-2", body: chat,
+			cfg: "payload:\n  override:\n    - models: [{name: swe-2, protocol: devin}]\n      params: {\"completion_config.temperature\": \"NaN\"}\n",
+			responses: []rsfixResponse{dvResp(dvPlainFrames("ok")...)}},
 	}
 	sessions := 0
 	for _, tc := range cases {
@@ -328,6 +339,20 @@ func TestRSFixDevin(t *testing.T) {
 		})
 	}
 }
+
+// Defaults apply only where the client set nothing (top_k), overrides replace built-in
+// values, and the filter drops a nested repeated field.
+const dvPayloadRules = `payload:
+  default:
+    - models: [{name: swe-2, protocol: devin}]
+      params: {"completion_config.top_k": 10, "completion_config.temperature": 0.9, "model": "other-model"}
+  override:
+    - models: [{name: swe-2, protocol: devin}]
+      params: {"prompts.0.content": "configured <b>", "system_prompt": "Configured system"}
+  filter:
+    - models: [{name: swe-2, protocol: devin}]
+      params: ["prompts.1.tool_calls"]
+`
 
 func dvUserStatus() []byte {
 	plan := pbMsg(

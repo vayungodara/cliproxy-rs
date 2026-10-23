@@ -180,6 +180,18 @@ impl GuardedClient {
     /// thread while the runtime waits, so callbacks that need the runtime
     /// (`host.http.*`, `host.model.*`) fail during the call instead of hanging.
     pub fn call_blocking(self: &Arc<Self>, method: &str, request: &[u8]) -> Result<Bytes, GuardError> {
+        self.call_blocking_in(method, request, || ())
+    }
+
+    /// [`Self::call_blocking`] with `scope` entered, for the call's duration, on the
+    /// thread that makes the plugin call: from a current-thread runtime that is not this
+    /// thread, and a native plugin's synchronous callbacks arrive on it.
+    pub fn call_blocking_in<G>(
+        self: &Arc<Self>,
+        method: &str,
+        request: &[u8],
+        scope: impl FnOnce() -> G + Send,
+    ) -> Result<Bytes, GuardError> {
         let inner = self.acquire()?;
         struct Release<'a>(&'a GuardedClient);
         impl Drop for Release<'_> {
@@ -188,7 +200,8 @@ impl GuardedClient {
             }
         }
         let _release = Release(self);
-        let call = || {
+        let call = move || {
+            let _scope = scope();
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| inner.call(method, request)))
                 .map_err(|p| GuardError::Panic(panic_text(&*p)))?
                 .map_err(GuardError::Transport)

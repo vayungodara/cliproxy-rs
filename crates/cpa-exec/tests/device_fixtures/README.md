@@ -30,7 +30,7 @@ git checkout 6fecc6e
 G=<cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/go
 cp $G/zz_rsfix_frames_test.go sdk/api/handlers/openai/
 cp $G/zz_rsfix_devin_paste_test.go sdk/auth/
-for f in $G/zz_rsfix_*_test.go; do case $(basename $f) in zz_rsfix_frames_test.go|zz_rsfix_devin_paste_test.go) ;; *) cp $f internal/runtime/executor/ ;; esac; done
+for f in $G/zz_rsfix_*_test.go; do case $(basename $f) in zz_rsfix_frames_test.go|zz_rsfix_devin_paste_test.go|zz_rsfix_devin_view_test.go) ;; *) cp $f internal/runtime/executor/ ;; esac; done
 # Run the generators with external network denied (loopback only), after `go mod download`;
 # with GOTOOLCHAIN=local, put a Go >= 1.26 toolchain first on PATH. For example:
 #   unshare -rn sh -c 'ip link set lo up && exec unshare --user --map-user='"$(id -u)"' \
@@ -48,6 +48,24 @@ the rules now run after the instructions default) and
 `kimi/{chat,responses}-payload-override-after-normalize.json` (a configured temperature
 survives the temperature normalization). Record them the same way from a v8.0.35
 checkout and copy only those files.
+
+Devin's request logs follow v8.0.35 too, where Go logs the payload rules' JSON view of
+the protobuf (`FinalizeDevinPayload`) instead of its readable request summary:
+
+- `devin/{chat-payload-rules,chat-payload-nan,interactions-payload-bad-signature,interactions-temperature-infinite}.json`
+  are v8.0.35 recordings (`TestRSFixDevin`, copied whole).
+- In every other Devin fixture, only the `Body:` section of `extra.capture.request` is
+  replaced, by v8.0.35's view of the frame that fixture's `upstream` recorded:
+
+  ```sh
+  cp $G/zz_rsfix_devin_view_test.go internal/runtime/executor/helps/
+  RSFIX_IN=<cliproxy-rs>/crates/cpa-exec/tests/device_fixtures/devin RSFIX_OUT=/tmp/views.json \
+    go test -count=1 -run '^TestRSFixDevinView$' ./internal/runtime/executor/helps/
+  ```
+
+  The view comes from the 6fecc6e frame rather than a v8.0.35 recording because v8.0.35
+  also changed what Devin sends (its catalog caps `max_tokens` lower), which is not
+  ported yet.
 
 The generator pins `buildinfo.Version` to `0.1.0`, and the fixture loader puts the running
 crate version in its place, so `User-Agent` and `X-Msh-Version` still compare exactly after a

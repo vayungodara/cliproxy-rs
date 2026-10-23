@@ -667,7 +667,7 @@ impl Runtime {
                 let jobs: Vec<_> = {
                     let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
                     state.reconcile(&snapshot);
-                    crate::plugins::refresh::reconcile(&rt, &snapshot);
+                    crate::plugins::refresh::reconcile(&rt);
                     let mut jobs = Vec::new();
                     rt.store.forget_stale_unauthorized(&rejected, &snapshot);
                     // Far enough ahead that any expiry has passed, near enough for chrono.
@@ -2498,19 +2498,50 @@ impl CredentialStore {
     /// write lock, so a concurrent `apply_patch` on another credential is never undone
     /// the way a snapshot followed by [`Self::reconcile`] could undo it. An unchanged
     /// credential keeps its revision, as in `reconcile`.
-    pub fn upsert(&self, mut credential: Credential) {
+    pub fn upsert(&self, credential: Credential) {
+        self.upsert_file(None, vec![credential]);
+    }
+
+    /// [`Self::upsert`] for every credential an auth file saved at `path` holds (Go
+    /// `upsertAuthRecordsForPath`): the file's other credentials, parsed from it
+    /// earlier, go, runtime-only ones excepted.
+    pub fn upsert_file(&self, path: Option<&std::path::Path>, credentials: Vec<Credential>) {
         let reload = self.reload.write().unwrap_or_else(PoisonError::into_inner);
         let mut inner = self.inner.write().unwrap_or_else(PoisonError::into_inner);
-        let slot = inner.creds.iter().position(|c| c.id == credential.id);
-        if slot.is_some_and(|i| unchanged(&inner.creds[i], &credential)) {
-            return;
+        let mut changed = false;
+        let mut removed = Vec::new();
+        if let Some(path) = path {
+            let clean = cpa_core::config::credentials::absolute_clean_path;
+            let target = clean(path);
+            let before = std::mem::take(&mut inner.creds);
+            for credential in before {
+                let stale = !marked(&credential, "runtime_only")
+                    && !credentials.iter().any(|c| c.id == credential.id)
+                    && matches!(&credential.source, Source::File(p) if clean(p) == target);
+                if stale {
+                    removed.push(credential.id.clone());
+                } else {
+                    inner.creds.push(credential);
+                }
+            }
+            changed = !removed.is_empty();
         }
-        inner.generation += 1;
-        credential.revision = inner.generation;
-        let credential = Arc::new(credential);
-        match slot {
-            Some(i) => inner.creds[i] = credential,
-            None => inner.creds.push(credential),
+        for mut credential in credentials {
+            let slot = inner.creds.iter().position(|c| c.id == credential.id);
+            if slot.is_some_and(|i| unchanged(&inner.creds[i], &credential)) {
+                continue;
+            }
+            inner.generation += 1;
+            credential.revision = inner.generation;
+            let credential = Arc::new(credential);
+            match slot {
+                Some(i) => inner.creds[i] = credential,
+                None => inner.creds.push(credential),
+            }
+            changed = true;
+        }
+        if !changed {
+            return;
         }
         inner.epoch += 1;
         self.changed.send_replace(());
@@ -2520,6 +2551,7 @@ impl CredentialStore {
             .reconcile(&inner.creds);
         drop(inner);
         drop(reload);
+        self.close_sessions(removed);
         self.clear_disabled_cooldowns();
         self.persist_cooldowns();
     }

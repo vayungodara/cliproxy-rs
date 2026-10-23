@@ -467,7 +467,8 @@ pub fn go_parse_float(s: &[u8]) -> Result<f64, f64> {
         return Ok(sign * f64::INFINITY);
     }
     if text.eq_ignore_ascii_case("nan") {
-        return Ok(f64::NAN);
+        // math.NaN(): Go's NaN bits differ from Rust's f64::NAN (0x7FF8000000000000).
+        return Ok(f64::from_bits(0x7FF8_0000_0000_0001));
     }
     let bytes = body.as_bytes();
     if bytes.len() > 2 && bytes[0] == b'0' && bytes[1] | 0x20 == b'x' {
@@ -3394,6 +3395,8 @@ mod parse_float_tests {
         ok("+Inf", f64::INFINITY);
         ok("-infinity", f64::NEG_INFINITY);
         ok("NaN", f64::NAN);
+        // math.NaN() is 0x7FF8000000000001 (Go 1.26 prints 9221120237041090561).
+        assert_eq!(go_parse_float(b"nAn").map(f64::to_bits), Ok(9221120237041090561));
         ok("1e-400", 0.0);
         ok("1.", 1.0);
         ok(".5", 0.5);

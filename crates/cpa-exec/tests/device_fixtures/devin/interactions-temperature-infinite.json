@@ -1,0 +1,44 @@
+{
+  "name": "interactions-temperature-infinite",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:40217",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"model\":\"devin/swe-2\",\"session_id\":\"0f8fad5b-d9cb-469f-a165-70867728950j\",\"system_instruction\":\"Be helpful interactions-temperature-infinite\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"signature\":\"gpt#gAAAAB\"},{\"type\":\"thought\",\"content\":[{\"type\":\"text\",\"text\":\"pondering\"}]},{\"type\":\"function_call\",\"name\":\"run\",\"id\":\"fc_1\",\"arguments\":{\"cmd\":\"ls\"}},{\"type\":\"function_result\",\"call_id\":\"fc_1\",\"result\":[{\"type\":\"text\",\"text\":\"a.txt\"}]},{\"type\":\"function_result\",\"call_id\":\"orphan_9\",\"result\":\"lost\"},{\"type\":\"function_result\",\"call_id\":\"\",\"result\":{}},{\"type\":\"user_input\",\"content\":\"next\"}],\"generation_config\":{\"temperature\":1e999,\"max_output_tokens\":999999,\"thinking_level\":\"fast\"},\"tools\":[{\"type\":\"function\",\"name\":\"run\",\"description\":\"Run\",\"parameters\":{\"type\":\"object\"}},{\"function_declarations\":[{\"name\":\"decl_a\",\"description\":\"Takes a task_id parameter identifying the task\",\"parametersJsonSchema\":{\"type\":\"object\"}}]},{\"type\":\"namespace\",\"name\":\"mcp__codex_app\",\"tools\":[{\"name\":\"automation_update\",\"description\":\"x\"},{\"name\":\"open\",\"description\":\"Open\"}]}]}",
+    "model": "devin/swe-2",
+    "source": "interactions",
+    "stream": false
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "err_status": -1,
+    "err_body": "json: unsupported value: +Inf"
+  },
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:40217"
+    },
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "fail_body": "json: unsupported value: +Inf",
+        "fail_status": 0,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "devin/swe-2",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "service_tier": "",
+        "total_tokens": 0,
+        "ttft_set": false
+      }
+    ]
+  }
+}
