@@ -190,7 +190,8 @@ fn entry(family: &str, e: &Value) -> Option<Value> {
                 .filter_map(|m| {
                     let mut m = m.as_object()?.clone();
                     let (alias, name) = (trimmed(&m, "alias"), trimmed(&m, "name"));
-                    if alias.is_empty() || name.is_empty() {
+                    // v8.0.35 (d9451cb6) keeps a model without an alias.
+                    if name.is_empty() {
                         return None;
                     }
                     m.insert("alias".into(), alias.into());
