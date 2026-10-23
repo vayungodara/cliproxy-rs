@@ -1999,7 +1999,9 @@ async fn github_token_stays_out_of_the_v0_config_json() {
 /// the `models` sources, which load back unchanged. `models` is a v8 root that Go's
 /// `IsV8ConfigLayout` does not share with the legacy layout, so the save writes v8. The
 /// v8 saves (`migrate` true), clearing and the refusals are the `model_catalog_sources`
-/// scenario in `manage_go.json`; the load refusals are its `load_errors`.
+/// scenario in `manage_go.json`; the load refusals are its `load_errors`. Unix only:
+/// `/abs/models.json` is not absolute on Windows.
+#[cfg(unix)]
 #[tokio::test]
 async fn model_catalog_sources_survive_a_legacy_save() {
     let raw = "models:\n  catalog: /abs/models.json\n  codex-catalog: 'https://codex.example.invalid/codex.json'\n  devin-catalog: 'http://localhost/devin.json'\n";
