@@ -21,7 +21,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3 | 424 | 212 | 205 | 7 |
 | M4 | 589 | 260 | 321 | 8 |
 | M5 | 331 | 224 | 104 | 3 |
-| M6 | 267 | 149 | 109 | 9 |
+| M6 | 267 | 151 | 107 | 9 |
 
 ### Gaps by area
 
@@ -29,7 +29,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 |---|---:|---:|---|
 | claude | 11 | 62 | M1-0120, M1-0121, M1-0123, M1-0124, M1-0125, M1-0126, M1-0127, M1-0136, M1-0137, M1-0147, M5-0314 |
 | server | 9 | 285 | M4-0371, M4-0372, M4-0512, M4-0515, M4-0543, M4-0579, M4-0580, M4-0585, M5-0316 |
-| plugins | 8 | 78 | M6-0192, M6-0211, M6-0213, M6-0220, M6-0240, M6-0241, M6-0249, M6-0250 |
+| plugins | 8 | 76 | M6-0192, M6-0211, M6-0213, M6-0220, M6-0240, M6-0241, M6-0249, M6-0250 |
 | translate | 5 | 92 | M2-0166, M2-0167, M2-0168, M2-0181, M3-0405 |
 | codex | 4 | 73 | M3-0362, M3-0363, M3-0364, M5-0323 |
 | google | 3 | 77 | M3-0058, M3-0059, M3-0361 |
@@ -2014,8 +2014,8 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M6-0026 | plugins.store-auth[].apply-to | partial | read in crates/cpa-plugin/src/config.rs; no test sets it | plugins | heuristic: key name match |
 | M6-0027 | plugins.store-auth[].type | covered | read in crates/cpa-common/src/cache.rs, crates/cpa-common/src/codex_catalog.rs (+136); set in crates/cliproxy/src/discovery/mdns.rs, crates/cliproxy/src/home.rs (+258) |  | heuristic: key name match |
 | M6-0028 | plugins.store-auth[].token-env | covered | read in crates/cpa-plugin/src/config.rs, crates/cpa-plugin/src/store/auth.rs; set in crates/cliproxy/src/home_plugins.rs, crates/cpa-plugin/src/homeplugins.rs (+1) |  | heuristic: key name match |
-| M6-0029 | plugins.store-auth[].username-env | partial | read in crates/cpa-plugin/src/config.rs, crates/cpa-plugin/src/store/auth.rs; no test sets it | plugins | heuristic: key name match |
-| M6-0030 | plugins.store-auth[].password-env | partial | read in crates/cpa-plugin/src/config.rs, crates/cpa-plugin/src/store/auth.rs; no test sets it | plugins | heuristic: key name match |
+| M6-0029 | plugins.store-auth[].username-env | covered | read in crates/cpa-plugin/src/config.rs, crates/cpa-plugin/src/store/auth.rs; set in crates/cliproxy/src/home_plugins.rs |  | heuristic: key name match |
+| M6-0030 | plugins.store-auth[].password-env | covered | read in crates/cpa-plugin/src/config.rs, crates/cpa-plugin/src/store/auth.rs; set in crates/cliproxy/src/home_plugins.rs |  | heuristic: key name match |
 | M6-0031 | plugins.store-auth[].header-name | partial | read in crates/cpa-plugin/src/config.rs; no test sets it | plugins | heuristic: key name match |
 | M6-0032 | plugins.store-auth[].header-value-env | partial | read in crates/cpa-plugin/src/config.rs, crates/cpa-plugin/src/store/auth.rs; no test sets it | plugins | heuristic: key name match |
 | M6-0033 | plugins.store-auth[].allow-insecure | partial | read in crates/cpa-plugin/src/config.rs; no test sets it | plugins | heuristic: key name match |
