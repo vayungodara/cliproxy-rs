@@ -209,16 +209,55 @@ impl CodexExecutor {
     /// `use_siwc` is on) and any due one. With neither able to refresh, every partition
     /// that can (Go's explicit unscheduled refresh). Nothing without a refresh token.
     pub async fn refresh_now(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
-        let now = Utc::now();
-        let has_outer = !codex_oauth::refresh_token(credential).is_empty();
-        let siwc_due = crate::codex_siwc::refresh_due(credential, now);
-        let active_siwc = crate::codex_siwc::enabled(credential);
-        let mut outer = has_outer && (!active_siwc || codex_oauth::refresh_due(credential, now));
-        let mut siwc = siwc_due.is_some_and(|due| due || active_siwc);
-        if !outer && !siwc {
-            (outer, siwc) = (has_outer, siwc_due.is_some());
-        }
+        let rotation = DiskRotation::default();
+        let (outer, siwc) = rejected_partitions(credential, credential, &rotation, Utc::now());
         self.refresh_partitions(credential, cfg, outer, siwc).await
+    }
+
+    /// Go `refreshLocked` with the credential file (`disk`) read under its lock: a token
+    /// partition another process rotated there replaces this snapshot's before anything
+    /// refreshes, so its refresh token is not spent twice, and the refresh `mode` asks
+    /// for then runs on the result. The patch carries the adopted partitions too; with
+    /// one adopted, a failed refresh still answers with it.
+    pub async fn refresh_with_disk(
+        &self,
+        credential: &Credential,
+        disk: &serde_json::Map<String, serde_json::Value>,
+        mode: RefreshMode,
+        cfg: &Config,
+    ) -> Result<MetadataPatch, ExecError> {
+        let rotation = DiskRotation::read(credential, disk);
+        let mut adopted = credential.clone();
+        rotation.patch.apply(&mut adopted.metadata);
+        adopted.refresh_derived();
+        let refreshed = match mode {
+            RefreshMode::Due => self.prepare(&adopted, cfg).await,
+            RefreshMode::Rejected => {
+                let (outer, siwc) = rejected_partitions(credential, &adopted, &rotation, Utc::now());
+                self.refresh_partitions(&adopted, cfg, outer, siwc).await
+            }
+            RefreshMode::Management => self.refresh_all(&adopted, cfg).await,
+        };
+        let mut patch = rotation.patch;
+        match refreshed {
+            Ok(refresh) => {
+                for key in refresh.remove {
+                    patch.set.remove(&key);
+                    patch.remove.push(key);
+                }
+                patch.set.extend(refresh.set);
+                Ok(patch)
+            }
+            Err(error) if rotation.outer || rotation.siwc => {
+                tracing::warn!(
+                    credential = %credential.id,
+                    status = error.status,
+                    "codex token refresh failed; keeping the tokens another process rotated on disk"
+                );
+                Ok(patch)
+            }
+            Err(error) => Err(error),
+        }
     }
 
     /// A management refresh (Go `IsForceRefreshContext`): every partition that can refresh.
@@ -760,6 +799,107 @@ impl CodexExecutor {
             body: ResponseBody::Buffered(data),
         })
     }
+}
+
+/// What a Codex refresh was asked for.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RefreshMode {
+    /// A due refresh ([`CodexExecutor::prepare`]).
+    Due,
+    /// After an upstream rejected the token requests use ([`CodexExecutor::refresh_now`]).
+    Rejected,
+    /// A management refresh ([`CodexExecutor::refresh_all`]).
+    Management,
+}
+
+/// The token partitions another process rotated in the credential file (Go
+/// `refreshLocked`'s disk check), and the patch that adopts them.
+#[derive(Debug, Default)]
+struct DiskRotation {
+    patch: MetadataPatch,
+    outer: bool,
+    siwc: bool,
+}
+
+impl DiskRotation {
+    /// A partition is rotated when the file holds a non-blank access or refresh token
+    /// that differs from the snapshot's (trimmed). A rotated outer partition brings
+    /// Go's listed fields the file has, a rotated `siwc` its whole map; `use_siwc` always
+    /// follows the file when the file has it.
+    fn read(credential: &Credential, disk: &serde_json::Map<String, serde_json::Value>) -> Self {
+        use serde_json::{Map, Value};
+        let text =
+            |m: &Map<String, Value>, key: &str| m.get(key).and_then(Value::as_str).unwrap_or("").trim().to_owned();
+        let rotated = |disk: &Map<String, Value>, memory: &Map<String, Value>| {
+            ["refresh_token", "access_token"].iter().any(|key| {
+                let on_disk = text(disk, key);
+                !on_disk.is_empty() && on_disk != text(memory, key)
+            })
+        };
+        let mut patch = MetadataPatch::default();
+        let outer = rotated(disk, &credential.metadata);
+        if outer {
+            for key in [
+                "id_token",
+                "access_token",
+                "refresh_token",
+                "account_id",
+                "last_refresh",
+                "email",
+                "expired",
+                "plan_type",
+                "type",
+            ] {
+                if let Some(value) = disk.get(key) {
+                    patch.set.insert(key.into(), value.clone());
+                }
+            }
+        }
+        let empty = Map::new();
+        let memory_siwc = credential
+            .metadata
+            .get("siwc")
+            .and_then(Value::as_object)
+            .unwrap_or(&empty);
+        let disk_siwc = disk.get("siwc").and_then(Value::as_object).filter(|m| !m.is_empty());
+        let siwc = disk_siwc.is_some_and(|d| rotated(d, memory_siwc));
+        if let Some(d) = disk_siwc.filter(|_| siwc) {
+            patch.set.insert("siwc".into(), Value::Object(d.clone()));
+        }
+        if let Some(value) = disk.get("use_siwc")
+            && credential.metadata.get("use_siwc") != Some(value)
+        {
+            patch.set.insert("use_siwc".into(), value.clone());
+        }
+        Self { patch, outer, siwc }
+    }
+}
+
+/// The partitions a refresh after a rejected token takes. On the `memory` snapshot whose
+/// token was rejected: the partition requests use (Sign in with ChatGPT when `use_siwc`
+/// is on) and any due one; with neither able to refresh, every partition that can (Go's
+/// explicit unscheduled refresh). A partition `rotation` adopted from disk into
+/// `adopted` holds a token nobody rejected: it refreshes only when due there.
+fn rejected_partitions(
+    memory: &Credential,
+    adopted: &Credential,
+    rotation: &DiskRotation,
+    now: chrono::DateTime<Utc>,
+) -> (bool, bool) {
+    let active_siwc = crate::codex_siwc::enabled(memory);
+    let pick = |c: &Credential, outer_rotated: bool, siwc_rotated: bool| {
+        let outer = !codex_oauth::refresh_token(c).is_empty()
+            && ((!active_siwc && !outer_rotated) || codex_oauth::refresh_due(c, now));
+        let siwc = crate::codex_siwc::refresh_due(c, now).is_some_and(|due| due || (active_siwc && !siwc_rotated));
+        (outer, siwc)
+    };
+    if pick(memory, false, false) != (false, false) {
+        return pick(adopted, rotation.outer, rotation.siwc);
+    }
+    let outer =
+        !codex_oauth::refresh_token(adopted).is_empty() && (!rotation.outer || codex_oauth::refresh_due(adopted, now));
+    let siwc = crate::codex_siwc::refresh_due(adopted, now).is_some_and(|due| due || !rotation.siwc);
+    (outer, siwc)
 }
 
 /// `CountTokens` (codex_executor_tokens.go): the request shaped as for Codex, counted
