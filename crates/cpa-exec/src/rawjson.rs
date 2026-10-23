@@ -144,6 +144,9 @@ impl<'a> Value<'a> {
     /// The values `Result.ForEach` visits: array elements, an object's member values
     /// (duplicates included), a scalar itself, nothing when missing.
     pub(crate) fn values(&self) -> Vec<Value<'a>> {
+        if self.kind() == Kind::Array {
+            return self.array();
+        }
         let mut out = Vec::new();
         self.each(|_, v| {
             out.push(v);
