@@ -1,5 +1,5 @@
 // Records how Go v8.0.35's config decoder reads !!binary and locally tagged
-// scalars, for
+// scalars and merge keys, for
 // crates/cpa-core/tests/binary_strings_go.rs. yaml.v3 base64-decodes a scalar whose
 // tag resolves to !!binary into any string field. Run from a module nested under the
 // v8 module path (so internal/config is importable) with a replace to the reference
@@ -83,6 +83,25 @@ func main() {
 		{"merge key", "<<:\n  management:\n    secret-key: secret\n"},
 		{"canonically tagged merge key", "!!str <<:\n  management:\n    secret-key: secret\n"},
 		{"canonically tagged port key", "!!str port: 1\n"},
+		// yaml.v3 merges a plain << key only, and an alias operand must name a mapping.
+		{"single-quoted merge key", "'<<':\n  port: 1\n"},
+		{"double-quoted merge key", "\"<<\": {port: 1}\n"},
+		{"escaped merge key", "\"\\x3c<\": {port: 1}\n"},
+		{"literal block merge key", "? |-\n  <<\n: {port: 1}\n"},
+		{"quoted merge key in an anchored section", "base: &b\n  '<<': {secret-key: secret}\nmanagement: *b\n"},
+		{"merge of an aliased sequence", "defaults: &d [{port: 1}]\n<<: *d\n"},
+		{"merge of a list holding an aliased sequence", "defaults: &d [{port: 1}]\n<<: [*d]\n"},
+		{"merge of a list of aliased mappings", "a: &a {port: 1}\nb: &b {port: 2, proxy-url: http://p.lan:80}\n<<: [*a, *b]\n"},
+		{"merge of an aliased mapping in a sequence", "list: [&a {port: 1}]\n<<: *a\n"},
+		// yaml.v3 skips a merge source a key already set shadows, and merges tagged mappings.
+		{"shadowed merge of an aliased sequence", "seq: &s [{port: 2}]\nserver: {port: 1}\n<<:\n  server: {<<: *s}\n"},
+		{"shadowed scalar merge", "server: {port: 1}\n<<:\n  server: {<<: 5}\n"},
+		{"merge of a locally tagged aliased mapping", "base: &a !keep {port: 1}\n<<: *a\n"},
+		{"merge of a locally tagged mapping", "<<: !keep {port: 1}\n"},
+		{"merge of a list holding a locally tagged mapping", "<<: [!keep {port: 1}]\n"},
+		// Collection keys, a merge key inside one included.
+		{"merge key inside a collection key", "extra:\n  ? {\"<<\": {port: 1}}\n  : ignored\nport: 2\n"},
+		{"collection key", "extra: {? {a: 1} : x}\n"},
 		// The non-specific tag keeps the scalar's own text.
 		{"non-specific document marker secret", "management:\n  secret-key: ! ---\n"},
 		{"non-specific multi-line secret", "management:\n  secret-key: ! first\n\n    second\n"},
