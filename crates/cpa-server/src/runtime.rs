@@ -54,6 +54,8 @@ pub struct Runtime {
     pub(crate) deny_external: std::sync::atomic::AtomicBool,
     /// Marked on every config publish, so background loops sleep until it changes.
     config_changed: tokio::sync::watch::Sender<()>,
+    /// The model catalog updaters' policy, once started (`model_updater::start`).
+    catalogs: Mutex<Option<crate::model_updater::Session>>,
 }
 
 /// An OAuth provider redirect received on the main listener.
@@ -105,6 +107,7 @@ impl Runtime {
             remote: RwLock::default(),
             deny_external: Default::default(),
             config_changed: tokio::sync::watch::Sender::new(()),
+            catalogs: Mutex::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -163,6 +166,20 @@ impl Runtime {
         self.config.read().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
+    /// Starts the model catalog updaters for this runtime's lifetime under the config
+    /// lock, so no commit is configured before or skipped by the startup configure.
+    pub(crate) fn start_catalogs(&self, session: crate::model_updater::Session) {
+        let current = self.config.write().unwrap_or_else(PoisonError::into_inner);
+        session.configure(&current, true);
+        let previous = self
+            .catalogs
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .replace(session);
+        drop(current);
+        drop(previous);
+    }
+
     /// Resolves after the next config publish.
     pub fn subscribe_config(&self) -> tokio::sync::watch::Receiver<()> {
         self.config_changed.subscribe()
@@ -177,6 +194,11 @@ impl Runtime {
 
     /// Integration should use this when publishing parsed routing settings too.
     pub fn publish_config_and_policy(&self, config: Config, mut policy: Policy) {
+        // Go `commitConfigUpdate` rejects the whole update over invalid catalog sources.
+        if let Err(error) = cpa_core::config::validate_catalog_sources(config.document.get("models")) {
+            tracing::warn!("rejected invalid model catalog sources: {error}");
+            return;
+        }
         policy.compat_disable_cooling = crate::scheduler::compat_cooling(&config);
         let (enabled, strict) = signature_cache_config(&config);
         cpa_translate::set_antigravity_signature_cache_config(enabled, strict);
@@ -188,6 +210,10 @@ impl Runtime {
             // reach it in the order they replaced the config.
             let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
             let previous = std::mem::replace(&mut *current, config.clone());
+            // Go `UpdateModelCatalogSources`, in commit order; the reads stay async.
+            if let Some(catalogs) = self.catalogs.lock().unwrap_or_else(PoisonError::into_inner).as_ref() {
+                catalogs.configure(&config, false);
+            }
             self.plugins.config_published(config);
             previous
         };

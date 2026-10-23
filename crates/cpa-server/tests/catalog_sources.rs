@@ -42,8 +42,12 @@ async fn await_devin(want: &[u8]) {
     }
 }
 
+/// The tests share the process-wide Devin catalog.
+static SERIAL: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[tokio::test]
 async fn service_catalog_startup_and_config_reload() {
+    let _serial = SERIAL.lock().await;
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
     let general = root.join("cpa-core/src/registry/models.json");
     let codex = root.join("cpa-common/src/codex_client_models.json");
@@ -81,6 +85,52 @@ async fn service_catalog_startup_and_config_reload() {
         &auth,
         [&general, &codex, &write("embedded.json", devin::EMBEDDED)],
     ));
+    await_devin(devin::EMBEDDED).await;
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+/// Each config commit reconfigures in commit order (Go `commitConfigUpdate`): switching
+/// to B and back to A before anything else runs still reads A again, and a commit with
+/// an invalid source is rejected whole.
+#[tokio::test]
+async fn commits_reconfigure_in_order_and_invalid_sources_are_rejected() {
+    let _serial = SERIAL.lock().await;
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..");
+    let general = root.join("cpa-core/src/registry/models.json");
+    let codex = root.join("cpa-common/src/codex_client_models.json");
+    let dir = std::env::temp_dir().join(format!("catalog-commits-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let catalog = |id: &str| format!(r#"{{"devin":[{{"id":"devin/{id}","display_name":"{id}"}}]}}"#).into_bytes();
+    let (d0, d1, d2) = (catalog("commit-d0"), catalog("commit-d1"), catalog("commit-d2"));
+    let (a, b) = (dir.join("a.json"), dir.join("b.json"));
+    std::fs::write(&a, &d0).unwrap();
+    std::fs::write(&b, &d2).unwrap();
+    let auth = dir.join("auth");
+    let rt = runtime(&auth, [&general, &codex, &a]);
+    cpa_server::model_updater::start(&rt, false);
+    await_devin(&d0).await;
+
+    std::fs::write(&a, &d1).unwrap();
+    rt.publish_config(config(&auth, [&general, &codex, &b]));
+    rt.publish_config(config(&auth, [&general, &codex, &a]));
+    await_devin(&d1).await;
+    // B's read, if it finished late, is not published over A's.
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(devin::global().snapshot().0, d1);
+
+    // A relative source fails Go's validation: the whole commit is rejected.
+    let mut invalid = config(&auth, [&general, &codex, &b]);
+    let models = invalid.document.get_mut("models").unwrap().as_mapping_mut().unwrap();
+    models.insert("devin-catalog".into(), "relative.json".into());
+    rt.publish_config(invalid);
+    assert_eq!(rt.config().catalog_sources()[2], a.display().to_string());
+    tokio::time::sleep(Duration::from_millis(200)).await;
+    assert_eq!(devin::global().snapshot().0, d1);
+
+    // Restore the embedded catalog for the other test.
+    let embedded = dir.join("embedded.json");
+    std::fs::write(&embedded, devin::EMBEDDED).unwrap();
+    rt.publish_config(config(&auth, [&general, &codex, &embedded]));
     await_devin(devin::EMBEDDED).await;
     let _ = std::fs::remove_dir_all(dir);
 }

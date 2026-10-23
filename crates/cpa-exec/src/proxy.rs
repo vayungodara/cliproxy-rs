@@ -399,6 +399,8 @@ pub struct GoHeaders {
     compression_disabled: bool,
     /// Send the first request's target exactly as the caller wrote the URL.
     exact_target: bool,
+    /// Fail a redirect whose target has a percent-encoded dot segment.
+    refuse_encoded_dots: bool,
 }
 
 impl GoHeaders {
@@ -432,6 +434,13 @@ impl GoHeaders {
     /// Go's `ResolveReference` does.
     pub fn exact_target(&mut self) {
         self.exact_target = true;
+    }
+
+    /// Fails a redirect whose `Location` path has a percent-encoded dot segment (`%2e`,
+    /// `.%2e`, `%2e%2e`). Later hops go out as `url::Url` serializes them, which reads
+    /// those as dot segments where Go keeps them, so such a hop would fetch another path.
+    pub fn refuse_encoded_dot_redirects(&mut self) {
+        self.refuse_encoded_dots = true;
     }
 
     /// The headers as Go's `http.Header` holds them before sending (`Header.Clone()`, what
@@ -924,6 +933,16 @@ async fn exchange(
         if !follow_redirects || !matches!(status, 301 | 302 | 303 | 307 | 308) || location.is_empty() {
             break (response, auto_gzip, dialled);
         }
+        if hop_headers.refuse_encoded_dots && encoded_dot_segment(&location) {
+            return Err(local(
+                ExecError::local(
+                    500,
+                    FailureScope::Transport,
+                    "redirect target has an encoded dot segment",
+                ),
+                &hop_url,
+            ));
+        }
         let from_exact = exact.as_deref().filter(|_| sent == 1);
         let next = match from_exact {
             Some(raw) => resolve_exact(raw, &location, &current),
@@ -1268,6 +1287,16 @@ fn remember_protocol(url: &url::Url, http2: bool) {
         protocols.clear();
     }
     protocols.insert(origin(url), http2);
+}
+
+/// Whether a `Location`'s path has a segment that is a dot segment only once
+/// percent-decoded (`%2e`, `.%2e`, `%2E%2e`, ...).
+fn encoded_dot_segment(location: &str) -> bool {
+    let path = location.split(['?', '#']).next().unwrap_or_default();
+    path.split('/').any(|segment| {
+        let decoded = segment.replace("%2e", ".").replace("%2E", ".");
+        decoded != segment && matches!(decoded.as_str(), "." | "..")
+    })
 }
 
 /// Go `URL.ResolveReference` against the base URL as written (`Response.Location`):

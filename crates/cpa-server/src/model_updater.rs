@@ -169,9 +169,9 @@ impl Updater {
     async fn refresh(&self, token: &CancellationToken, source: &str, generation: u64) {
         let data = match (self.fetch)(source.to_owned()).await {
             Ok(data) => data,
-            Err(error) => {
+            Err(_) => {
                 if !token.is_cancelled() {
-                    tracing::warn!(%error, "model catalog refresh failed; keeping last valid catalog");
+                    tracing::warn!("model catalog refresh failed; keeping last valid catalog");
                 }
                 return;
             }
@@ -182,43 +182,92 @@ impl Updater {
         }
         let published = (self.publish)(&data);
         drop(state);
-        if let Err(error) = published {
-            tracing::warn!(%error, "model catalog rejected; keeping last valid catalog");
+        if published.is_err() {
+            tracing::warn!("model catalog rejected; keeping last valid catalog");
         }
     }
 }
 
+/// Why one catalog source failed. Only this category is logged: the source, an error
+/// text or a redirect target can carry credentials (Go logs nothing more either).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ReadError {
+    File,
+    Request,
+    /// A URL with user info whose request target would not go out as written.
+    Rewritten,
+    Status(u16),
+    Body,
+    TooLarge,
+    Invalid,
+}
+
 /// Go `readCatalogSource`: an absolute path is read from disk, anything else is fetched
-/// and must answer 200. Either is capped at 8 MiB.
-async fn read_source(source: &str) -> Result<Vec<u8>, String> {
+/// with its request target as written (Go `URL.RequestURI`) and must answer 200. Either
+/// is capped at 8 MiB.
+async fn read_source(source: &str) -> Result<Vec<u8>, ReadError> {
     let data = if cpa_core::config::go_is_abs(source, cfg!(windows)) {
         use tokio::io::AsyncReadExt;
-        let file = tokio::fs::File::open(source).await.map_err(|e| e.to_string())?;
+        let file = tokio::fs::File::open(source).await.map_err(|_| ReadError::File)?;
         let mut data = Vec::new();
         file.take(MAX_SIZE as u64 + 1)
             .read_to_end(&mut data)
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|_| ReadError::File)?;
         data
     } else {
+        if !sent_as_written(source) {
+            return Err(ReadError::Rewritten);
+        }
         // A client per read: reads are hours apart and the client is tied to no runtime.
         let client = cpa_exec::proxy::default_client();
-        let headers = cpa_exec::proxy::GoHeaders::new();
+        let mut headers = cpa_exec::proxy::GoHeaders::new();
+        headers.exact_target();
+        headers.refuse_encoded_dot_redirects();
         let response = cpa_exec::proxy::request(&client, wreq::Method::GET, source, headers, None, Some(FETCH_TIMEOUT))
             .await
-            .map_err(|e| String::from_utf8_lossy(&e.body).into_owned())?;
+            .map_err(|_| ReadError::Request)?;
         if response.status != 200 {
-            return Err(format!("catalog HTTP status {}", response.status));
+            return Err(ReadError::Status(response.status));
         }
         cpa_exec::proxy::read_all(response.body, MAX_SIZE + 1, false)
             .await
-            .map_err(|e| String::from_utf8_lossy(&e.body).into_owned())?
+            .map_err(|_| ReadError::Body)?
             .to_vec()
     };
     if data.len() > MAX_SIZE {
-        return Err("catalog exceeds size limit".into());
+        return Err(ReadError::TooLarge);
     }
     Ok(data)
+}
+
+/// Whether the first request for `source` carries its target as written. The proxy
+/// helper sends the parsed (normalized) form for a URL with user info, so such a URL is
+/// refused when that form differs (dot segments, escaping), rather than fetching another
+/// path than Go does.
+fn sent_as_written(source: &str) -> bool {
+    let Ok(parsed) = url::Url::parse(source) else {
+        return true;
+    };
+    if parsed.username().is_empty() && parsed.password().is_none() {
+        return true;
+    }
+    // Go's parse order: the fragment, then the query, then the authority after the scheme.
+    let written = source.split_once('#').map_or(source, |(s, _)| s);
+    let rest = written.find("://").map_or(written, |i| &written[i + 3..]);
+    let target = rest.find(['/', '?']).map_or("", |i| &rest[i..]);
+    let target = if target.starts_with('?') {
+        format!("/{target}")
+    } else if target.is_empty() {
+        "/".to_owned()
+    } else {
+        target.to_owned()
+    };
+    let parsed_target = match parsed.query() {
+        Some(query) => format!("{}?{query}", parsed.path()),
+        None => parsed.path().to_owned(),
+    };
+    target == parsed_target
 }
 
 /// Go `catalogFetcher`: `embed` is the built-in catalog, the empty source tries
@@ -238,13 +287,10 @@ fn fetcher(embedded: &'static [u8], defaults: Vec<String>, validate: Validate) -
                 vec![source]
             };
             for candidate in candidates {
-                match read_source(&candidate)
-                    .await
-                    .and_then(|data| validate(&data).map(|()| data))
-                {
+                let read = read_source(&candidate).await;
+                match read.and_then(|data| validate(&data).map(|()| data).map_err(|_| ReadError::Invalid)) {
                     Ok(data) => return Ok(data),
-                    // Not the source: a URL can carry credentials.
-                    Err(error) => tracing::debug!(%error, "model catalog source failed"),
+                    Err(reason) => tracing::debug!(?reason, "model catalog source failed"),
                 }
             }
             Err("no valid model catalog source".to_owned())
@@ -333,12 +379,39 @@ fn configure(updaters: &[Arc<Updater>; 3], lifetime: &Lifetime, sources: &[Strin
     }
 }
 
+/// The catalog policy of one runtime's lifetime (Go's `catalogRuntime` and service
+/// context). Dropped with the runtime, which stops its readers.
+pub(crate) struct Session {
+    lifetime: Lifetime,
+    policy: Policy,
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        self.lifetime.token.cancel();
+    }
+}
+
+impl Session {
+    /// Go `StartModelCatalogUpdaters` (`startup`) and `UpdateModelCatalogSources`: called
+    /// by the runtime under its config lock, so commits reconfigure in their order.
+    pub(crate) fn configure(&self, config: &cpa_core::config::Config, startup: bool) {
+        configure(
+            &CATALOGS,
+            &self.lifetime,
+            &config.catalog_sources(),
+            self.policy,
+            startup,
+        );
+    }
+}
+
 /// Go `startModelCatalogUpdaters` and `misc.StartAntigravityVersionUpdater`, for the
-/// lifetime of `rt`: configures the catalogs from the current config and again after
-/// each published config (Go `commitConfigUpdate`). Call once per runtime. Cost while no
-/// Codex, Devin or Antigravity credential exists: one parked task that looks at the
-/// credentials' providers after each change to the set. In Home mode the local store
-/// stays empty, so every updater starts at once, as in Go.
+/// lifetime of `rt`: configures the catalogs from the current config, and every later
+/// config commit configures them again ([`Runtime::publish_config_and_policy`]). Call
+/// once per runtime. Cost while no Codex, Devin or Antigravity credential exists: one
+/// parked task that looks at the credentials' providers after each change to the set.
+/// In Home mode the local store stays empty, so every updater starts at once, as in Go.
 pub fn start(rt: &Arc<Runtime>, home_enabled: bool) {
     let deny_default = test_runtime(rt);
     let policy = Policy {
@@ -346,23 +419,15 @@ pub fn start(rt: &Arc<Runtime>, home_enabled: bool) {
         home: home_enabled,
         deny_default,
     };
-    let lifetime = Lifetime::new();
-    let mut configs = rt.subscribe_config();
-    configs.borrow_and_update();
-    configure(&CATALOGS, &lifetime, &rt.config().catalog_sources(), policy, true);
+    rt.start_catalogs(Session {
+        lifetime: Lifetime::new(),
+        policy,
+    });
     if home_enabled {
         tracing::info!(
             "Home mode: models.json and Devin catalog updates disabled; Codex client model list follows Home model IDs"
         );
     }
-    let weak = Arc::downgrade(rt);
-    tokio::spawn(async move {
-        while configs.changed().await.is_ok() {
-            let Some(rt) = weak.upgrade() else { break };
-            configure(&CATALOGS, &lifetime, &rt.config().catalog_sources(), policy, false);
-        }
-        lifetime.token.cancel();
-    });
     if deny_default {
         return;
     }
@@ -420,11 +485,11 @@ fn test_runtime(rt: &Runtime) -> bool {
 pub async fn refresh(urls: &[String]) {
     match general_fetcher(urls.to_vec())(String::new()).await {
         Ok(data) => {
-            if let Err(error) = publish_general(&data) {
-                tracing::warn!(%error, "model catalog rejected; keeping last valid catalog");
+            if publish_general(&data).is_err() {
+                tracing::warn!("model catalog rejected; keeping last valid catalog");
             }
         }
-        Err(error) => tracing::warn!(%error, "model catalog refresh failed; keeping last valid catalog"),
+        Err(_) => tracing::warn!("model catalog refresh failed; keeping last valid catalog"),
     }
 }
 
@@ -638,6 +703,92 @@ mod tests {
             assert!(fetch(path.clone()).await.is_err(), "{name}: file was not read again");
         }
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    async fn serve(app: axum::Router) -> std::net::SocketAddr {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        addr
+    }
+
+    /// A remote source goes out with its request target as written (Go
+    /// `URL.RequestURI`); a URL with user info whose target the proxy helper would
+    /// normalize is refused without a request, and so is a redirect to a path with an
+    /// encoded dot segment.
+    #[tokio::test]
+    async fn sources_are_requested_as_written() {
+        let seen = Arc::new(Mutex::new(Vec::<String>::new()));
+        let record = seen.clone();
+        let app = axum::Router::new().fallback(move |request: axum::extract::Request| {
+            let uri = request.uri().to_string();
+            record.lock().unwrap().push(uri.clone());
+            async move {
+                use axum::response::IntoResponse;
+                match uri.as_str() {
+                    "/dots" => (
+                        axum::http::StatusCode::FOUND,
+                        [(axum::http::header::LOCATION, "/x/%2E%2e/catalog.json")],
+                    )
+                        .into_response(),
+                    _ => cpa_core::registry::devin::EMBEDDED.into_response(),
+                }
+            }
+        });
+        let addr = serve(app).await;
+        let fetch = fetcher(cpa_core::registry::devin::EMBEDDED, Vec::new(), |d| {
+            cpa_core::registry::devin::validate(d).map(drop)
+        });
+        assert!(fetch(format!("http://{addr}/a/../catalog.json")).await.is_ok());
+        assert!(fetch(format!("http://u:p@{addr}/a/../catalog.json")).await.is_err());
+        assert!(fetch(format!("http://u:p@{addr}/catalog.json?v=1")).await.is_ok());
+        // Go would request /x/%2E%2e/catalog.json; the helper would send /catalog.json.
+        assert!(fetch(format!("http://{addr}/dots")).await.is_err());
+        assert_eq!(
+            *seen.lock().unwrap(),
+            ["/a/../catalog.json", "/catalog.json?v=1", "/dots"]
+        );
+    }
+
+    #[derive(Clone, Default)]
+    struct Capture(Arc<Mutex<Vec<u8>>>);
+
+    impl std::io::Write for Capture {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// A failed read logs its category only: neither the source's user info and query
+    /// nor a malformed redirect target reach a DEBUG log.
+    #[tokio::test]
+    async fn failed_reads_log_no_url() {
+        use axum::http::{StatusCode, header};
+        let target = "http://alice:SECRET@[invalid/catalog.json?token=SECRET";
+        let app =
+            axum::Router::new().fallback(move || async move { (StatusCode::FOUND, [(header::LOCATION, target)]) });
+        let addr = serve(app).await;
+        let capture = Capture::default();
+        let writer = capture.clone();
+        let subscriber = tracing_subscriber::fmt()
+            .with_ansi(false)
+            .with_max_level(tracing::Level::DEBUG)
+            .with_writer(move || writer.clone())
+            .finish();
+        let _guard = tracing::subscriber::set_default(subscriber);
+        let fetch = fetcher(b"", Vec::new(), |_| Ok(()));
+        assert!(fetch(format!("http://bob:SECRET@{addr}/r?token=SECRET")).await.is_err());
+        let u = Updater::new(fetch, Box::new(|_| Ok(())));
+        u.refresh(&CancellationToken::new(), &format!("http://{addr}/r?token=SECRET"), 0)
+            .await;
+        let logs = String::from_utf8(capture.0.lock().unwrap().clone()).unwrap();
+        assert!(logs.contains("model catalog source failed"), "{logs}");
+        assert!(logs.contains("model catalog refresh failed"), "{logs}");
+        assert!(!logs.contains("SECRET"), "{logs}");
     }
 
     /// Go TestCatalogPolicyHotReload, then the lazy default: at startup outside Home the
