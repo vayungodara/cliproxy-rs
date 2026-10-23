@@ -23,6 +23,13 @@ fn header_map(pairs: &Value) -> HeaderMap {
     out
 }
 
+/// Rules whose paths use gjson syntax the port does not read (subselectors, modifiers):
+/// cliproxy-rs ignores them. Go leaves `subselector_override` as it is too, marks
+/// `@reverse` in `modifier_override` without an edit, and applies the rule behind the
+/// `{a}` condition in `subselector_condition`. `subselector_not_exist` is compared with
+/// Go: the subselector exists there, so the rule does not apply on either side.
+const REFUSED: &[&str] = &["subselector_override", "modifier_override", "subselector_condition"];
+
 #[test]
 fn payload_rules_match_go() {
     let fixture = fixture();
@@ -38,7 +45,7 @@ fn payload_rules_match_go() {
     );
     assert_eq!(rules.image_generation, payload::ImageGeneration::Chat);
     let cases = fixture["payload"].as_array().unwrap();
-    assert_eq!(cases.len(), 36);
+    assert_eq!(cases.len(), 40);
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let s = |k: &str| case[k].as_str().unwrap_or_default();
@@ -61,8 +68,14 @@ fn payload_rules_match_go() {
             headers: Some(&headers),
         };
         let (out, touched) = payload::apply_tracked(&rules, &req, s("payload").as_bytes().to_vec(), &tracked);
-        assert_eq!(String::from_utf8(out).unwrap(), s("out"), "{name}");
         let touched: Vec<String> = touched.into_iter().collect();
+        if REFUSED.contains(&name) {
+            // docs/DIFFERENCES-FROM-GO.md: the rule is ignored, whatever Go did.
+            assert_eq!(String::from_utf8(out).unwrap(), s("payload"), "{name}");
+            assert!(touched.is_empty(), "{name} touched {touched:?}");
+            continue;
+        }
+        assert_eq!(String::from_utf8(out).unwrap(), s("out"), "{name}");
         let expected: Vec<String> = case["touched"]
             .as_array()
             .unwrap()

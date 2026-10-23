@@ -81,6 +81,11 @@ const MODIFIERS: [&[u8]; 13] = [
     b"group", b"dig",
 ];
 
+/// Whether gjson reads `@name` as a modifier.
+pub(crate) fn is_modifier(name: &[u8]) -> bool {
+    MODIFIERS.contains(&name)
+}
+
 impl<'a> Res<'a> {
     pub fn exists(&self) -> bool {
         self.kind != Kind::Null || !self.raw.is_empty()

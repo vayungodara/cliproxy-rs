@@ -66,6 +66,10 @@ payload:
       params: {"-1.#(k==1)#.d": 2}
     - models: [{name: "lnx-*", exist: ["items.#(k==1)#.z"]}]
       params: {z_seen: true}
+    - models: [{name: "subc-*", exist: ["{a}"]}]
+      params: {sub_seen: true}
+    - models: [{name: "subn-*", not-exist: ["{a}"]}]
+      params: {subn_seen: true}
   default-raw:
     - models: [{name: "gpt-*"}]
       params: {response_format: '{"type":"json_object"}'}
@@ -118,6 +122,10 @@ payload:
       params: {"g.#(k==1)#.m.#(k==2)#.x": 9}
     - models: [{name: "lns-*"}]
       params: {"-1.#(k==1)#.s": 1}
+    - models: [{name: "sub-*"}]
+      params: {"[a].#(k==1)#.x": 9}
+    - models: [{name: "mod-*"}]
+      params: {"@reverse": 1}
     - models: [{name: "lnw-*"}]
       params: {"a.18446744073709551616.#(k==1)#.x": 9}
   override-raw:
@@ -241,6 +249,13 @@ var payloadInputs = []payloadCase{
 	// gjson's parseUint wraps: 2^64 indexes element 0.
 	{Name: "wrapped_index", Model: "lnw-1", Protocol: "openai",
 		Payload: `{"a":[[{"k":1},{"k":1}]]}`, Tracked: []string{"a"}},
+	// gjson syntax the port does not read: cliproxy-rs ignores these rules
+	// (REFUSED in tests/payload.rs).
+	{Name: "subselector_override", Model: "sub-1", Protocol: "openai",
+		Payload: `{"[a]":[{"k":1},{"k":1}],"a":[{"k":1}]}`, Tracked: []string{"[a]", "a"}},
+	{Name: "modifier_override", Model: "mod-1", Protocol: "openai", Payload: `{"a":1}`, Tracked: []string{"@reverse"}},
+	{Name: "subselector_condition", Model: "subc-1", Protocol: "openai", Payload: `{"b":1}`},
+	{Name: "subselector_not_exist", Model: "subn-1", Protocol: "openai", Payload: `{"b":1}`},
 	{Name: "set_under_minus_one", Model: "lns-1", Protocol: "openai",
 		Payload: `{"#":1,"0":[{"k":1}],"-1":[{"k":1},{"k":1}]}`, Tracked: []string{"-1", "0"}},
 	{Name: "original_lacks_array", Model: "lno-1", Protocol: "openai", Payload: lno, Original: `{"pad":"pp"}`, Tracked: []string{"items", "whole"}},

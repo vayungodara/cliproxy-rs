@@ -219,6 +219,7 @@ impl Rules {
                         .into_iter()
                         .flatten()
                         .map(|(k, v)| (yaml_key(k), Param::from_yaml(v)))
+                        .filter(|(path, _)| !unported(path))
                         .collect(),
                 })
                 // Go `SanitizePayloadRules`: a raw rule with no params or an invalid raw
@@ -245,6 +246,7 @@ impl Rules {
                     .into_iter()
                     .flatten()
                     .map(|p| yaml_str(Some(p)))
+                    .filter(|path| !unported(path))
                     .collect(),
             })
             .collect();
@@ -319,7 +321,35 @@ fn model_rules(v: Option<&Yaml>) -> Vec<ModelRule> {
             exist: strings(m, "exist"),
             not_exist: strings(m, "not-exist"),
         })
+        // A condition the port cannot read never holds, so its model entry never matches.
+        .filter(|m| {
+            let mut paths = (m.matches.iter().chain(&m.not_matches).flatten().map(|(p, _)| p))
+                .chain(&m.exist)
+                .chain(&m.not_exist);
+            !paths.any(|p| unported(p))
+        })
         .collect()
+}
+
+/// A rule path in gjson syntax the port does not read (docs/DIFFERENCES-FROM-GO.md):
+/// subselectors (`[a,b]`, `{a}`), modifiers other than `@this`, static values (`!true`)
+/// and JSON lines (`..`). Go reads such a path with gjson but writes it with sjson,
+/// which takes the same bytes as keys; the rule is ignored instead.
+fn unported(path: &str) -> bool {
+    let path = path.trim();
+    path.starts_with("..")
+        || (path.len() > 1 && path.starts_with('!'))
+        || split_path(path)
+            .into_iter()
+            .filter(|part| !part.starts_with("#("))
+            .flat_map(|part| part.split('|'))
+            .any(|part| {
+                part.starts_with(['[', '{'])
+                    || part.strip_prefix('@').is_some_and(|m| {
+                        let name = m.split(':').next().unwrap_or_default();
+                        name != "this" && json::is_modifier(name.as_bytes())
+                    })
+            })
 }
 
 /// [`apply_tracked`] without tracking.
