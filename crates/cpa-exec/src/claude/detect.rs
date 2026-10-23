@@ -324,16 +324,16 @@ fn helper_session(headers: &HeaderMap, payload: &str) -> bool {
     {
         return false;
     }
-    raw_header(headers, "x-claude-code-session-id") == gjson::get(identity, "session_id").str()
+    raw_header(headers, "x-claude-code-session-id") == rawjson::get(identity, "session_id").str()
 }
 
 /// `claudeJSONObjectHasKeys`: valid JSON object whose keys are exactly `want`, in order.
 pub(crate) fn keys_exactly(raw: &str, want: &[&str]) -> bool {
-    if !gjson::valid(raw) || gjson::parse(raw).kind() != gjson::Kind::Object {
+    if !rawjson::valid(raw) || rawjson::parse(raw).kind() != gjson::Kind::Object {
         return false;
     }
     let mut keys = Vec::new();
-    gjson::parse(raw).each(|k, _| {
+    rawjson::parse(raw).each(|k, _| {
         keys.push(k.str().to_owned());
         true
     });
@@ -378,7 +378,7 @@ fn body_shape(payload: &str) -> Option<Shape> {
         return None;
     }
     let content = message.get("content");
-    let schema_object = |oc: &gjson::Value| {
+    let schema_object = |oc: &rawjson::Value| {
         let format = oc.get("format");
         keys_exactly(oc.json(), &["format"])
             && keys_exactly(format.json(), &["type", "schema"])

@@ -612,7 +612,7 @@ pub(crate) fn restore_response(body: &str, reverse: &Reverse) -> Result<String, 
 /// `reverseRemapOAuthToolNamesFromStreamLine` for one `data:` payload. Returns the
 /// rewritten JSON payload when a name changed.
 pub(crate) fn restore_event_payload(payload: &str, reverse: &Reverse) -> Result<Option<String>, String> {
-    if reverse.is_empty() || !gjson::valid(payload) {
+    if reverse.is_empty() || !rawjson::valid(payload) {
         return Ok(None);
     }
     let block = rawjson::get(payload, "content_block");

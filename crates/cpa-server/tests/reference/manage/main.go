@@ -1410,6 +1410,23 @@ func configScenarios() []configScenario {
 			put("/config/api-keys/claude", `[{"keys":[{"api-key":"fake","weight":1000001}]}]`),
 			patch("/config/routing", `{"retry":{"request-retry":"three"}}`),
 			put("/config/routing/session-affinity-ttl", `5`),
+			// ParseConfigBytes checks the layout shape and version, then the key groups,
+			// then legacy weights (v8 families win), unwrapped, before its typed decode.
+			put("/config", `{"config-version":7,"api-keys":{"gemini":null}}`),
+			put("/config", `{"server":0,"api-keys":{"gemini":null}}`),
+			put("/config", `{"gemini-api-key":[{"api-key":"fake","weight":1000001}]}`),
+			put("/config", `{"openai-compatibility":[{"name":"x","base-url":"https://x.invalid","api-key-entries":[{"api-key":"fake","weight":"heavy"}]}]}`),
+			put("/config", `{"api-keys":{"gemini":[{"keys":[{"api-key":"fake"}]}]},"gemini-api-key":[{"api-key":"fake","weight":1000001}]}`),
+			// The image mode's own decoder text, then a spelling it accepts.
+			put("/config/multimedia/disable-image-generation", `"bad"`),
+			put("/config/multimedia/disable-image-generation", `{"x":1}`),
+			put("/config/multimedia/disable-image-generation", `" ON "`),
+			// flattenV8 checks every v8 parent, then the shared containers, before the
+			// key groups.
+			put("/config", `{"oauth":{"providers":{"claude":0}},"api-keys":{"gemini":null}}`),
+			put("/config", `{"oauth":{"providers":{"codex":{"live-media-relay":0}}},"api-keys":{"gemini":null}}`),
+			put("/config/oauth/providers/codex/live-media-relay", `0`),
+			put("/config/oauth/providers/claude", `0`),
 		}},
 		{Name: "accepted_value_writes", YAML: v8, Steps: []configStep{
 			put("/config/api-keys/claude", `[{"name":"team","base-url":"https://claude.example.invalid","priority":3,"keys":[{"api-key":"fake-a"},{"api-key":"fake-b","weight":0,"prefix":null}]}]`),

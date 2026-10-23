@@ -845,6 +845,157 @@ fn set_path(root: &mut Mapping, path: &str, value: Value) {
 
 /// Go `IsV8ConfigLayout`: a document is v8 by its version, a v8-only section, grouped
 /// `api-keys`, or a v8 path; roots shared with the legacy layout do not count alone.
+/// The layout checks of Go's `ValidateV8Config` that come before its strict decode, in
+/// its order, with its text: a legacy field (Go's declared legacy leaves, the historical
+/// v8 aliases, the shared structs), a root section v8 does not have, then an
+/// `api-keys` provider that is not a key family. `root` is the merge-expanded document.
+pub fn v8_layout_error(root: &Value) -> Option<String> {
+    let map = root.as_mapping()?;
+    let leaves = LEGACY.leaves.iter().map(|(old, new)| (old.as_str(), new.as_str()));
+    let aliases = CLIENT_PATHS.iter().chain(SHARED_PATHS).chain(SHARED_STRUCTS).copied();
+    for (old, new) in leaves.chain(aliases) {
+        // Go `legacyPath`: an `api-keys` mapping is the v8 key map.
+        if lookup(map, old).is_some_and(|v| !(old == "api-keys" && v.is_mapping())) {
+            return Some(format!("legacy field {old} is not accepted by v8; use {new}"));
+        }
+    }
+    // Go `v8AllowedRoots`.
+    let fixed = [
+        "models",
+        "config-version",
+        "api-keys",
+        "plugins",
+        "quota-exceeded",
+        "client",
+    ];
+    for key in map.keys().filter_map(Value::as_str) {
+        let section = |new: &String| new.split('.').next() == Some(key);
+        if !fixed.contains(&key) && !LEGACY.leaves.iter().any(|(_, new)| section(new)) {
+            return Some(format!("unknown v8 configuration section {key}"));
+        }
+    }
+    let groups = map.get("api-keys").and_then(Value::as_mapping)?;
+    groups
+        .keys()
+        .filter_map(Value::as_str)
+        .find(|key| !FAMILIES.iter().any(|(_, family)| family == key))
+        .map(|key| format!("unknown API-key provider {key}"))
+}
+
+/// Go `flattenV8`'s shape checks, in its order: every parent of a v8 path, then of a
+/// historical alias's destination, must be a mapping (`routing` may also be null, as
+/// in the legacy layout); then each shared container (`v8SharedStructPaths`) must be a
+/// mapping or null. `root` is the merge-expanded document.
+pub(super) fn shape_error(root: &Mapping) -> Option<String> {
+    static PARENTS: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| {
+        let aliases = CLIENT_PATHS.iter().chain(SHARED_PATHS).map(|(_, current)| *current);
+        let mut out: Vec<String> = Vec::new();
+        for current in LEGACY.leaves.iter().map(|(_, current)| current.as_str()).chain(aliases) {
+            for (i, _) in current.match_indices('.') {
+                if !out.iter().any(|p| *p == current[..i]) {
+                    out.push(current[..i].to_owned());
+                }
+            }
+        }
+        out
+    });
+    for parent in PARENTS.iter() {
+        match lookup(root, parent) {
+            None | Some(Value::Mapping(_)) => {}
+            Some(Value::Null) if parent == "routing" => {}
+            Some(_) => return Some(format!("{parent} must be a mapping")),
+        }
+    }
+    SHARED_STRUCTS.iter().find_map(|(old, _)| match lookup(root, old) {
+        None | Some(Value::Null | Value::Mapping(_)) => None,
+        Some(_) => Some(format!("{old} must be a mapping")),
+    })
+}
+
+/// The credential checks Go's `validateCredentialWeightYAML` makes (first in
+/// `LoadConfig` and `ParseConfigBytes`, unwrapped), after `flattenV8`'s shape and
+/// version checks: [`v8_group_error`], then the weights of the legacy key lists and
+/// OpenAI-compatible `api-key-entries` a v8 family does not replace, in document order.
+/// `root` is the merge-expanded document.
+pub fn credential_error(root: &Mapping) -> Option<String> {
+    if let Some(e) = v8_group_error(root) {
+        return Some(e);
+    }
+    let groups = root.get("api-keys").and_then(Value::as_mapping);
+    root.iter().find_map(|(name, value)| {
+        let name = name.as_str()?;
+        let (_, family) = FAMILIES.iter().find(|(legacy, _)| *legacy == name)?;
+        if groups.is_some_and(|g| g.contains_key(*family)) {
+            return None;
+        }
+        if name != "openai-compatibility" {
+            return weight_error(value.as_sequence()?, name);
+        }
+        value.as_sequence()?.iter().enumerate().find_map(|(p, provider)| {
+            let entries = provider.as_mapping()?.get("api-key-entries")?.as_sequence()?;
+            weight_error(entries, &format!("openai-compatibility[{p}].api-key-entries"))
+        })
+    })
+}
+
+/// Go `flattenV8`'s v8 key group expansion (`expandV8Groups`), in family order, the
+/// group keys' weights included. `root` is the merge-expanded document.
+pub fn v8_group_error(root: &Mapping) -> Option<String> {
+    let groups = root.get("api-keys").and_then(Value::as_mapping)?;
+    for (_, family) in FAMILIES {
+        let Some(groups) = groups.get(*family) else {
+            continue;
+        };
+        let Some(groups) = groups.as_sequence() else {
+            return Some(format!("api-keys.{family} must be a list"));
+        };
+        for (index, group) in groups.iter().enumerate() {
+            let Some(group) = group.as_mapping() else {
+                return Some(format!("api-keys.{family}[{index}] must be a mapping"));
+            };
+            let Some(keys) = group.get("keys").and_then(Value::as_sequence) else {
+                return Some(format!("api-keys.{family}[{index}].keys must be a list"));
+            };
+            if let Some(e) = weight_error(keys, &format!("api-keys.{family}.keys")) {
+                return Some(e);
+            }
+            if *family == "openai-compatibility" {
+                continue;
+            }
+            let unsupported = group
+                .keys()
+                .map(|k| k.as_str().unwrap_or_default())
+                .find(|field| !["name", "base-url", "keys"].contains(field) && !SHARED.contains(field));
+            if let Some(field) = unsupported {
+                return Some(format!("api-keys.{family}: unsupported group field {field}"));
+            }
+            for key in keys {
+                let Some(key) = key.as_mapping() else {
+                    return Some(format!("api-keys.{family} key must be a mapping"));
+                };
+                if key.contains_key("base-url") {
+                    return Some(format!("api-keys.{family}: base-url belongs to the group"));
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Go `validateWeightSequenceNode`: the first weight that is not an integer node or is
+/// above the limit, as `<path>[<i>].weight: <reason>`.
+fn weight_error(items: &[Value], path: &str) -> Option<String> {
+    items.iter().enumerate().find_map(|(i, item)| {
+        let weight = item.as_mapping()?.get("weight")?;
+        let reason = match weight.as_i64() {
+            None => "weight must be an integer",
+            Some(w) if w > 1_000_000 => "weight must not exceed 1000000",
+            Some(_) => return None,
+        };
+        Some(format!("{path}[{i}].weight: {reason}"))
+    })
+}
+
 pub fn is_v8_layout(root: &Value) -> bool {
     let mut root = root.clone();
     if super::expand_merges(&mut root).is_err() {

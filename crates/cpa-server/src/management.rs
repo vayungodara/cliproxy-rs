@@ -1107,10 +1107,16 @@ fn config_sync_locked(
         Ok(v) => v,
         Err(e) => return invalid_config(StatusCode::BAD_REQUEST, e),
     };
-    let parsed = match Config::parse(&text) {
+    // Go `ParseConfigBytes` (422), which checks the layout shape, the key groups and
+    // the weights unwrapped before it decodes, then `ValidateV8Config` (400) the layout
+    // before its strict decode.
+    let parsed = match Config::parse_payload(&text) {
         Ok(v) => v,
         Err(e) => return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e),
     };
+    if let Some(e) = cpa_core::config::v8_layout_error(doc.value()) {
+        return invalid_config(StatusCode::BAD_REQUEST, e);
+    }
     if let Err(e) = cpa_core::config::validate_config_fields(doc.value(), true) {
         return invalid_config(StatusCode::BAD_REQUEST, e);
     }
@@ -1140,7 +1146,7 @@ fn config_sync_locked(
         text += &foot_comments(&original);
     }
     text += &archive_comments(&archived);
-    let cfg = match Config::parse(&text) {
+    let cfg = match Config::parse_payload(&text) {
         Ok(v) => v,
         Err(e) => return invalid_config(StatusCode::UNPROCESSABLE_ENTITY, e),
     };

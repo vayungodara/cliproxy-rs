@@ -569,12 +569,33 @@ const FOLLOWS_V8_0_35: &[&str] = &[
 ];
 
 /// Requests without payload rules that cloaking turns into a probe or a helper, or out
-/// of one. Go classifies the cloaked body; cliproxy-rs before 868e137 sent each of
-/// these with a different cc_prompt_id, cache TTL or diagnostics choice.
+/// of one, and image-tool stripping and `prompt_cache_options` handling, which now run
+/// after cloaking. cliproxy-rs before 868e137 sent each of these differently.
 const NO_RULES_V8_0_35: &[&str] = &[
     "noroles-quota-probe-with-system",
     "noroles-legacy-title-helper",
     "noroles-hi-becomes-probe",
+    "noroles-image-tool-last",
+    "noroles-image-tool-only-probe",
+    "noroles-duplicate-prompt-cache-options",
+    "noroles-duplicate-prompt-cache-options-explicit",
+    "noroles-duplicate-thinking",
+    "noroles-duplicate-tool-choice",
+    "noroles-duplicate-cache-control",
+    "noroles-duplicate-metadata",
+    // Go's IsArray guards and ForEach walks on non-array messages, content and tools.
+    "noroles-object-messages-system",
+    "noroles-object-messages-user",
+    "noroles-object-messages-foreach",
+    "noroles-object-messages-timing",
+    "noroles-object-messages-title-schema",
+    "noroles-object-messages-advisor",
+    "noroles-object-content-inline-tools",
+    "noroles-object-tools-advisor",
+    // strings.EqualFold(strings.TrimSpace(role), "system"), len(props.Map()), EqualFold.
+    "noroles-mid-system-spaced-role",
+    "noroles-title-duplicate-props",
+    "noroles-fold-speed-display",
 ];
 
 /// 868e137 through Go v8.0.35's executor (scenarios-v8.0.35.json): payload rules see
@@ -616,7 +637,7 @@ const RELOCATES_API_KEY_SYSTEM: &[&str] = &[
 pub(super) fn with_relocated_system(go_body: &str) -> String {
     let system = rawjson::get(go_body, "system");
     let blocks = system.array();
-    let ours = |block: &gjson::Value| {
+    let ours = |block: &rawjson::Value| {
         let text = block.get("text");
         let text = text.str();
         text.starts_with(cloak::BILLING_PREFIX) || text == cloak::CLI_IDENTITY || text == cloak::FABLE_REPORTING
@@ -1118,10 +1139,10 @@ async fn cloaked_conversation_prefix_holds_for_warm_changed_and_idle_turns() {
     let breakpoints = |body: &str| -> Vec<String> {
         signals::blocks(body)
             .into_iter()
-            .filter(|(_, block)| gjson::get(block, "cache_control").exists())
+            .filter(|(_, block)| rawjson::get(block, "cache_control").exists())
             .map(|(path, block)| {
                 assert_eq!(
-                    gjson::get(&block, "cache_control").json(),
+                    rawjson::get(&block, "cache_control").json(),
                     r#"{"type":"ephemeral","ttl":"1h"}"#,
                     "{path}"
                 );
@@ -1285,8 +1306,8 @@ async fn unrestorable_tool_alias_publishes_no_tokens() {
 async fn usage_reports_follow_go_reporter_calls() {
     use axum::response::IntoResponse;
     let router = axum::Router::new().fallback(|body: String| async move {
-        let model = gjson::get(&body, "model").str().to_owned();
-        if gjson::get(&body, "stream").bool() {
+        let model = rawjson::get(&body, "model").str().to_owned();
+        if rawjson::get(&body, "stream").bool() {
             let events = format!(
                 "event: message_start\ndata: {{\"type\":\"message_start\",\"message\":{{\"id\":\"msg_u\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"{model}\",\"content\":[],\"usage\":{{\"input_tokens\":3,\"output_tokens\":1}}}}}}\n\n\
                  event: message_delta\ndata: {{\"type\":\"message_delta\",\"delta\":{{\"stop_reason\":\"end_turn\"}},\"usage\":{{\"output_tokens\":2}}}}\n\n\
@@ -1469,7 +1490,7 @@ async fn request_logs_follow_go_capture_sites() {
             )
                 .into_response();
         }
-        if gjson::get(&body, "stream").bool() {
+        if rawjson::get(&body, "stream").bool() {
             let events = "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"m\",\"usage\":{\"input_tokens\":1}}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n";
             return ([(http::header::CONTENT_TYPE, "text/event-stream")], events.to_owned()).into_response();
         }
@@ -2023,7 +2044,7 @@ async fn responses_compaction_matches_go() {
         axum::Router::new().fallback(move |body: String| {
             let (seen, reply) = (seen.clone(), reply.clone());
             async move {
-                let stream = gjson::get(&body, "stream").bool();
+                let stream = rawjson::get(&body, "stream").bool();
                 seen.lock().unwrap().push(body);
                 if stream {
                     let events = "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_c\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-haiku-4-5-20251001\",\"content\":[],\"usage\":{\"input_tokens\":11,\"output_tokens\":0}}}\n\n\
@@ -2121,13 +2142,13 @@ async fn responses_compaction_matches_go() {
     };
     // The single compaction item, its capsule and the usage of the answer.
     let compaction = |payload: &str, usage: (i64, i64, i64, i64)| {
-        let item = gjson::get(payload, "output");
+        let item = rawjson::get(payload, "output");
         let items = item.array();
         assert_eq!(items.len(), 1, "{payload}");
         assert_eq!(items[0].get("type").str(), "compaction");
         let sealed = items[0].get("encrypted_content").str().to_owned();
         assert_eq!(crate::antigravity_compaction::unseal(&sealed).unwrap(), SUMMARY);
-        let got = gjson::get(payload, "usage");
+        let got = rawjson::get(payload, "usage");
         assert_eq!(
             (
                 got.get("input_tokens").i64(),
@@ -2144,7 +2165,7 @@ async fn responses_compaction_matches_go() {
         let body = upstream[0].clone();
         assert!(body.contains(PROMPT), "{body}");
         assert!(!body.contains("compaction_trigger"), "{body}");
-        assert!(!gjson::get(&body, "stream").bool(), "{body}");
+        assert!(!rawjson::get(&body, "stream").bool(), "{body}");
         body
     };
 
@@ -2176,7 +2197,7 @@ async fn responses_compaction_matches_go() {
         .find(|f| f.starts_with("event: response.completed"))
         .unwrap();
     compaction(
-        gjson::get(completed.split_once("data: ").unwrap().1, "response").json(),
+        rawjson::get(completed.split_once("data: ").unwrap().1, "response").json(),
         (11, 7, 18, 0),
     );
     summary_request(&upstream);
@@ -2214,7 +2235,7 @@ async fn responses_compaction_matches_go() {
             && sent.contains(r#""type":"tool_result""#),
         "{sent}"
     );
-    assert_eq!(gjson::get(&sent, "tool_choice.type").str(), "none", "{sent}");
+    assert_eq!(rawjson::get(&sent, "tool_choice.type").str(), "none", "{sent}");
     // CompactionTriggerFlattensToolHistoryWithoutTools.
     let (_, upstream, _) = run(
         input(&format!("{user},{calls},{trigger}"), ""),
@@ -2249,8 +2270,8 @@ async fn responses_compaction_matches_go() {
     )
     .await;
     let sent = summary_request(&upstream);
-    assert_eq!(gjson::get(&sent, "max_tokens").i64(), 1234, "{sent}");
-    assert_eq!(gjson::get(&sent, "tool_choice.type").str(), "auto", "{sent}");
+    assert_eq!(rawjson::get(&sent, "max_tokens").i64(), 1234, "{sent}");
+    assert_eq!(rawjson::get(&sent, "tool_choice.type").str(), "auto", "{sent}");
     // CompactionTriggerIncludesPreviousCapsule.
     let earlier = capsule("Earlier sealed summary.");
     let (body, upstream, _) = run(

@@ -29,12 +29,13 @@ fn header_map(pairs: &Value) -> HeaderMap {
 /// `{a}` condition in `subselector_condition`. `subselector_not_exist` is compared with
 /// Go: the subselector exists there, so the rule does not apply on either side.
 /// `unported_not_exist_7` (`a(|@reverse`) is the missing key `a(` to Go, so its rule
-/// applies there.
+/// applies there. `query_subselector_path` reads a query path (`[k]`) the port does not.
 const REFUSED: &[&str] = &[
     "subselector_override",
     "modifier_override",
     "subselector_condition",
     "unported_not_exist_7",
+    "query_subselector_path",
 ];
 
 #[test]
@@ -52,7 +53,7 @@ fn payload_rules_match_go() {
     );
     assert_eq!(rules.image_generation, payload::ImageGeneration::Chat);
     let cases = fixture["payload"].as_array().unwrap();
-    assert_eq!(cases.len(), 52);
+    assert_eq!(cases.len(), 59);
     for case in cases {
         let name = case["name"].as_str().unwrap();
         let s = |k: &str| case[k].as_str().unwrap_or_default();

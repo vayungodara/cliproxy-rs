@@ -352,7 +352,10 @@ func run(root string, s scenario) result {
 	}
 	if errRun != nil {
 		out.Error = errRun.Error()
-		if sc, ok := errRun.(interface{ StatusCode() int }); ok {
+		// errors.As, as the handler's clienterror.HTTPStatusFromError reads it: the
+		// executor wraps some statused errors.
+		var sc interface{ StatusCode() int }
+		if errors.As(errRun, &sc) {
 			out.Status = sc.StatusCode()
 		}
 		out.ErrorInfo = describe(errRun)

@@ -126,14 +126,14 @@ fn include_per_turn_timing(body: &str, r: &Requested) -> bool {
     per_turn_timing_model(&model(body))
         && (rawjson::get(body, "output_config.timing").exists()
             || rawjson::get(body, "messages")
-                .array()
+                .values()
                 .iter()
                 .any(|m| m.get("output_config.timing").exists()))
 }
 fn include_inline_tools(body: &str, r: &Requested) -> bool {
     r.contains(INLINE_TOOLS)
-        || rawjson::get(body, "messages").array().iter().any(|m| {
-            m.get("content").array().iter().any(|b| {
+        || rawjson::get(body, "messages").values().iter().any(|m| {
+            m.get("content").values().iter().any(|b| {
                 b.get("type").str().trim().eq_ignore_ascii_case("tool_addition") && b.get("tool.definition").exists()
             })
         })
@@ -142,7 +142,7 @@ fn include_clear_at(body: &str, r: &Requested) -> bool {
     r.contains(MID_CONV_CLEAR_AT)
         || progress_display(&model(body))
         || rawjson::get(body, "messages")
-            .array()
+            .values()
             .iter()
             .any(|m| m.get("clear_at").exists())
 }
@@ -163,7 +163,7 @@ pub(crate) fn supports_effort(body: &str) -> bool {
 
 fn display_updates(body: &str) -> bool {
     let d = rawjson::get(body, "thinking.display");
-    d.kind() == gjson::Kind::String && d.str().trim().eq_ignore_ascii_case("updates")
+    d.kind() == gjson::Kind::String && d.str().trim().go_eq_fold("updates")
 }
 fn display_set(body: &str) -> bool {
     let d = rawjson::get(body, "thinking.display");
@@ -171,7 +171,7 @@ fn display_set(body: &str) -> bool {
 }
 fn tool_types(body: &str) -> Vec<String> {
     rawjson::get(body, "tools")
-        .array()
+        .items()
         .iter()
         .map(|t| t.get("type").str().trim().go_lower())
         .collect()
@@ -191,7 +191,7 @@ pub(crate) fn has_advisor_tool(body: &str) -> bool {
 }
 pub(crate) fn uses_fast_mode(body: &str, r: &Requested) -> bool {
     let speed = rawjson::get(body, "speed");
-    r.contains(FAST_MODE) || (speed.kind() == gjson::Kind::String && speed.str().trim().eq_ignore_ascii_case("fast"))
+    r.contains(FAST_MODE) || (speed.kind() == gjson::Kind::String && speed.str().trim().go_eq_fold("fast"))
 }
 
 /// `claudeCodeCLIBetas`.

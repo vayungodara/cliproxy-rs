@@ -263,7 +263,7 @@ pub(crate) fn build(p: &Plan<'_>) -> GoHeader {
         existing.insert(beta.into());
     };
     if preserve_caller {
-        if rawjson::string(p.body, "speed").trim().eq_ignore_ascii_case("fast") {
+        if rawjson::string(p.body, "speed").trim().go_eq_fold("fast") {
             append(&mut base, betas::FAST_MODE);
         }
         for beta in p.extra_betas {

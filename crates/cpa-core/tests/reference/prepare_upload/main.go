@@ -220,6 +220,14 @@ func main() {
 		{"relay port above uint16", "management:\n  secret-key: " + plain + "\ncodex:\n  live-media-relay:\n    udp-port-min: 65536\n", plain},
 		{"negative relay port", "management:\n  secret-key: " + plain + "\noauth:\n  providers:\n    codex:\n      live-media-relay:\n        udp-port-max: -1\n", plain},
 		{"server port above uint16", "port: 70000\n", ""},
+		// Go's upload decode checks v8 key groups (flattenV8) but not legacy weights
+		// (validateCredentialWeightYAML runs only on a load).
+		{"null legacy weight", "gemini-api-key: [{api-key: fake, weight: null}]\n", ""},
+		{"legacy weight above the limit", "gemini-api-key: [{api-key: fake, weight: 1000001}]\n", ""},
+		{"compatible weight above the limit", "openai-compatibility: [{name: x, base-url: https://x.invalid, api-key-entries: [{api-key: fake, weight: 1000001}]}]\n", ""},
+		{"null group weight", "api-keys: {gemini: [{keys: [{api-key: fake, weight: null}]}]}\n", ""},
+		{"non-integer legacy weight", "gemini-api-key: [{api-key: fake, weight: heavy}]\n", ""},
+		{"group weight above the limit", "api-keys: {gemini: [{keys: [{api-key: fake, weight: 1000001}]}]}\n", ""},
 	}
 	dir, err := os.MkdirTemp("", "cpa-prepare-")
 	must(err)

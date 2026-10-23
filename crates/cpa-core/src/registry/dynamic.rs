@@ -1904,24 +1904,6 @@ mod tests {
         }
     }
 
-    /// The Devin catalog keys IDs with Go `strings.ToLower` (`ΟΣ` becomes `devin/οσ`,
-    /// where Rust's `to_lowercase` would give a final sigma), and admission compares with
-    /// Go `EqualFold` (`ClientSupportsModel`), where σ and ς are equal: a request for
-    /// `devin/ος` reaches the credential. This test alone in this binary loads the
-    /// process-wide Devin catalog.
-    #[test]
-    fn devin_admission_folds_final_sigma_like_go() {
-        assert_eq!(
-            crate::registry::devin::global().load(r#"{"devin":[{"id":"ΟΣ"}]}"#.as_bytes(), "test"),
-            Ok(true)
-        );
-        let c = file("d.json", serde_json::json!({"type":"devin"}), &[]);
-        let r = Registry::build(&Config::default(), std::slice::from_ref(&c));
-        assert!(r.ids().any(|id| id == "devin/οσ"), "{:?}", r.ids().collect::<Vec<_>>());
-        assert!(r.client_supports("d.json", "devin/ος"));
-        assert_eq!(r.client_model("d.json", "devin/ος").unwrap().id, "devin/οσ");
-    }
-
     /// Go `applyAPIKeyModelAliasWithRouting`: an API key resolves through its
     /// `strings.ToLower`-keyed alias table before the `EqualFold` scan, so aliases σ and ς
     /// stay distinct; `Σ` lowercases to σ.

@@ -1,5 +1,6 @@
 //! Go's table-driven rune functions: `unicode.ToLower`, `unicode.ToUpper`,
-//! `strings.ToLower`, `strings.ToUpper`, `strings.EqualFold` and `strconv.IsPrint`. They run on Go's own
+//! `strings.ToLower`, `strings.ToUpper`, `strings.EqualFold`, `strconv.IsPrint` and
+//! `strconv.Quote`. They run on Go's own
 //! Unicode tables (gostr_tables.rs, generated from Go 1.26), so results do not drift
 //! with Rust's Unicode version or its full (multi-character) case mappings.
 //! `cpa_common::gostr` re-exports them next to the rest of its Go string helpers.
@@ -132,6 +133,40 @@ pub fn is_print(c: char) -> bool {
             }
         })
         .is_ok()
+}
+
+/// `strconv.Quote`, which is what `%q` prints for a Go string (bytes; invalid UTF-8
+/// prints as `\xNN`).
+pub fn quote(s: impl AsRef<[u8]>) -> String {
+    let s = s.as_ref();
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('"');
+    for chunk in s.utf8_chunks() {
+        for c in chunk.valid().chars() {
+            match c {
+                '"' | '\\' => {
+                    out.push('\\');
+                    out.push(c);
+                }
+                c if is_print(c) => out.push(c),
+                '\u{7}' => out.push_str("\\a"),
+                '\u{8}' => out.push_str("\\b"),
+                '\u{c}' => out.push_str("\\f"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                '\u{b}' => out.push_str("\\v"),
+                c if c < ' ' || c == '\u{7f}' => out.push_str(&format!("\\x{:02x}", c as u32)),
+                c if (c as u32) < 0x10000 => out.push_str(&format!("\\u{:04x}", c as u32)),
+                c => out.push_str(&format!("\\U{:08x}", c as u32)),
+            }
+        }
+        for b in chunk.invalid() {
+            out.push_str(&format!("\\x{b:02x}"));
+        }
+    }
+    out.push('"');
+    out
 }
 
 #[cfg(test)]

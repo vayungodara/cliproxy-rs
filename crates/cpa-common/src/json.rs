@@ -3212,6 +3212,270 @@ impl GoValue {
     }
 }
 
+/// A gjson v1.18.0 array query, `#(path op value)`, as `parseArrayPath` leaves it: the
+/// value unquoted (and unescaped when the query held an escape inside quotes).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Query {
+    pub path: Vec<u8>,
+    pub op: Vec<u8>,
+    pub value: Vec<u8>,
+}
+
+/// gjson's `trim`: drops bytes up to and including space at both ends.
+fn trim_ctl(mut s: &[u8]) -> &[u8] {
+    while let [c, rest @ ..] = s
+        && *c <= b' '
+    {
+        s = rest;
+    }
+    while let [rest @ .., c] = s
+        && *c <= b' '
+    {
+        s = rest;
+    }
+    s
+}
+
+/// gjson's `parseQuery` on a path that starts `#(` or `#[`: the query and the index just
+/// past its closing bracket, or `None` when the brackets do not balance.
+pub fn parse_query(query: &[u8]) -> Option<(Query, usize)> {
+    if query.len() < 2 || query[0] != b'#' || (query[1] != b'(' && query[1] != b'[') {
+        return None;
+    }
+    let (mut i, mut j, mut depth, mut vesc) = (2, 0, 1, false);
+    while i < query.len() {
+        if depth == 1 && j == 0 && matches!(query[i], b'!' | b'=' | b'<' | b'>' | b'%') {
+            j = i;
+            i += 1;
+            continue;
+        }
+        match query[i] {
+            b'\\' => i += 1,
+            b'[' | b'(' => depth += 1,
+            b']' | b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    break;
+                }
+            }
+            b'"' => {
+                i += 1;
+                while i < query.len() {
+                    if query[i] == b'\\' {
+                        vesc = true;
+                        i += 1;
+                    } else if query[i] == b'"' {
+                        break;
+                    }
+                    i += 1;
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    if depth > 0 {
+        return None;
+    }
+    let (path, op, mut value) = if j > 0 {
+        let mut v = trim_ctl(&query[j..i]);
+        let opsz = if v.len() == 1 {
+            1
+        } else if v.starts_with(b"!=") || v.starts_with(b"!%") || v.starts_with(b"<=") || v.starts_with(b">=") {
+            2
+        } else if v.starts_with(b"==") {
+            v = &v[1..];
+            1
+        } else if matches!(v[0], b'<' | b'>' | b'=' | b'%') {
+            1
+        } else {
+            0
+        };
+        (trim_ctl(&query[2..j]), &v[..opsz], trim_ctl(&v[opsz..]).to_vec())
+    } else {
+        (trim_ctl(&query[2..i]), &b""[..], Vec::new())
+    };
+    if value.len() >= 2 && value[0] == b'"' && value[value.len() - 1] == b'"' {
+        value = value[1..value.len() - 1].to_vec();
+        if vesc {
+            value = unescape(&value);
+        }
+    }
+    let query = Query {
+        path: path.to_vec(),
+        op: op.to_vec(),
+        value,
+    };
+    Some((query, i + 1))
+}
+
+/// `strconv.ParseBool(strings.ToLower(s))` (no non-ASCII rune lowers into its inputs).
+fn parse_bool_lower(s: &[u8]) -> Option<bool> {
+    match s.to_ascii_lowercase().as_slice() {
+        b"1" | b"t" | b"true" => Some(true),
+        b"0" | b"f" | b"false" => Some(false),
+        _ => None,
+    }
+}
+
+impl Query {
+    /// `gjson.GetBytes("["+item+"]", "#("+query+")").Exists()`: whether any element
+    /// gjson's array-query loop reads from the wrapped bytes matches. That loop
+    /// classifies raw tokens itself, not as `Result.Array()` does: it skips bytes that
+    /// start no value, reads `n` not followed by `u` (`nan`) as a number, and reads
+    /// any run of letters after `t` or `f` as that literal.
+    pub fn matches_raw(&self, item: &[u8]) -> bool {
+        let mut json = Vec::with_capacity(item.len() + 2);
+        json.push(b'[');
+        json.extend_from_slice(item);
+        json.push(b']');
+        let json = &json[..];
+        let mut i = 1;
+        while i <= json.len() {
+            let ch = if i == json.len() { b']' } else { json[i] };
+            let mut num = false;
+            let elem = match ch {
+                b'"' => {
+                    let (next, end, esc, ok) = parse_string(json, i + 1);
+                    if !ok {
+                        return false;
+                    }
+                    let elem = string_res(json, i, end, esc);
+                    i = next;
+                    elem
+                }
+                b'{' | b'[' => {
+                    let (next, end) = parse_squash(json, i);
+                    let elem = json_res(json, i, end);
+                    i = next;
+                    elem
+                }
+                b'n' if i + 1 < json.len() && json[i + 1] != b'u' => {
+                    num = true;
+                    Res::default()
+                }
+                b'n' | b't' | b'f' => {
+                    let (next, end) = parse_literal(json, i);
+                    let elem = literal_res(json, i, end);
+                    i = next;
+                    elem
+                }
+                b'+' | b'-' | b'0'..=b'9' | b'i' | b'I' | b'N' => {
+                    num = true;
+                    Res::default()
+                }
+                b']' => return false,
+                _ => {
+                    i += 1;
+                    continue;
+                }
+            };
+            let elem = if num {
+                let (next, end) = parse_number(json, i);
+                let elem = number_res(json, i, end);
+                i = next;
+                elem
+            } else {
+                elem
+            };
+            if self.matches(&elem) {
+                return true;
+            }
+        }
+        false
+    }
+
+    /// gjson's `procQuery` test on one array element: the query path read from `elem`
+    /// (an element that is not JSON matches only a query without a path), then
+    /// `queryMatches`, `~` conversions included.
+    fn matches(&self, elem: &Res<'_>) -> bool {
+        let mut value = if elem.kind == Kind::Json {
+            elem.get(&self.path[..])
+        } else if self.path.is_empty() {
+            elem.clone()
+        } else {
+            return false;
+        };
+        let mut rpv = &self.value[..];
+        if let Some(conv) = rpv.strip_prefix(b"~") {
+            let ish = match conv {
+                b"*" => Some(value.exists()),
+                b"null" => Some(value.kind == Kind::Null),
+                b"true" => Some(match value.kind {
+                    Kind::True => true,
+                    Kind::String => parse_bool_lower(&value.s) == Some(true),
+                    Kind::Number => value.num != 0.0,
+                    _ => false,
+                }),
+                b"false" => Some(match value.kind {
+                    Kind::Null | Kind::False => true,
+                    Kind::String => parse_bool_lower(&value.s) == Some(false),
+                    Kind::Number => value.num == 0.0,
+                    _ => false,
+                }),
+                _ => None,
+            };
+            (rpv, value) = match ish {
+                Some(ish) => {
+                    let kind = if ish { Kind::True } else { Kind::False };
+                    (&b"true"[..], Res { kind, ..Res::default() })
+                }
+                None => (&b""[..], Res::default()),
+            };
+        }
+        if !value.exists() {
+            return false;
+        }
+        let op = &self.op[..];
+        if op.is_empty() {
+            return true;
+        }
+        match value.kind {
+            Kind::String => {
+                let s = &value.s[..];
+                match op {
+                    b"=" => s == rpv,
+                    b"!=" => s != rpv,
+                    b"<" => s < rpv,
+                    b"<=" => s <= rpv,
+                    b">" => s > rpv,
+                    b">=" => s >= rpv,
+                    b"%" => match_limit(s, rpv),
+                    b"!%" => !match_limit(s, rpv),
+                    _ => false,
+                }
+            }
+            Kind::Number => {
+                let (n, r) = (value.num, parse_float(rpv));
+                match op {
+                    b"=" => n == r,
+                    b"!=" => n != r,
+                    b"<" => n < r,
+                    b"<=" => n <= r,
+                    b">" => n > r,
+                    b">=" => n >= r,
+                    _ => false,
+                }
+            }
+            Kind::True => match op {
+                b"=" => rpv == b"true",
+                b"!=" => rpv != b"true",
+                b">" => rpv == b"false",
+                b">=" => true,
+                _ => false,
+            },
+            Kind::False => match op {
+                b"=" => rpv == b"false",
+                b"!=" => rpv != b"false",
+                b"<" => rpv == b"true",
+                b"<=" => true,
+                _ => false,
+            },
+            _ => false,
+        }
+    }
+}
+
 /// Go decode-then-marshal of one document with `UseNumber`, for semantic comparisons.
 pub fn canonical(text: &[u8]) -> Option<Vec<u8>> {
     GoValue::parse(trim_ws(text)).map(|v| v.marshal())

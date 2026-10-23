@@ -22,7 +22,7 @@ mod schema;
 mod text;
 mod trusted;
 mod validate;
-pub use document::{ConfigDocument, archive_comments, is_v8_layout};
+pub use document::{ConfigDocument, archive_comments, credential_error, is_v8_layout, v8_group_error, v8_layout_error};
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
 
@@ -50,7 +50,7 @@ pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
 /// literal until the completed candidate is expanded. Telling quoted keys apart needs
 /// the yaml-edit syntax tree walked alongside the value.
 pub fn expand_merges(value: &mut Value) -> anyhow::Result<()> {
-    const NOT_MAPS: &str = "map merge requires map or sequence of maps as the value";
+    const NOT_MAPS: &str = "yaml: map merge requires map or sequence of maps as the value";
     match value {
         Value::Mapping(map) => {
             for (_, child) in map.iter_mut() {
@@ -236,40 +236,6 @@ impl Default for Config {
     }
 }
 
-const V8_PARENTS: &[&str] = &[
-    "server",
-    "management",
-    "access",
-    "credentials",
-    "routing",
-    "routing.retry",
-    "routing.cooldown",
-    "requests",
-    "oauth",
-    "oauth.providers",
-    "multimedia",
-    "observability",
-    "observability.logs",
-    "observability.usage",
-    "server.tls",
-    "server.discovery",
-    "server.discovery.interfaces",
-    "credentials.concurrency",
-    "credentials.in-flight",
-    "requests.streaming",
-    "requests.payload",
-    "client",
-    "client.codex",
-    "oauth.providers.codex",
-    "oauth.providers.aistudio",
-    "oauth.providers.antigravity",
-    "upstream",
-    "upstream.codex",
-    "upstream.claude",
-    "upstream.claude.header-defaults",
-    "upstream.xai",
-];
-
 /// Writes `hash` over the plaintext `secret-key` (see [`with_secret_hash`]).
 fn persist_secret_hash(path: &Path, text: &str, hash: &str) -> anyhow::Result<()> {
     ConfigDocument::write(path, &with_secret_hash(text, hash)?)
@@ -355,8 +321,9 @@ fn with_secret_hash(text: &str, hash: &str) -> anyhow::Result<String> {
 /// would still be a scalar value elsewhere in it (a YAML anchor or a copy). A failure
 /// of the write itself can leave a partial file, as in Go.
 ///
-/// Like Go, this only decodes the file: the validators of a startup load do not run,
-/// so their messages, which quote setting values, cannot carry a secret into the log.
+/// Like Go, this only decodes the file: the validators of a startup load, and its
+/// credential weight preflight, do not run, so their messages, which quote setting
+/// values, cannot carry a secret into the log.
 pub fn prepare_for_upload(path: &Path) -> anyhow::Result<()> {
     let text = String::from_utf8(std::fs::read(path)?).context("failed to parse config file")?;
     let prepared = prepared_for_upload(&text)?;
@@ -367,7 +334,7 @@ pub fn prepare_for_upload(path: &Path) -> anyhow::Result<()> {
 }
 
 fn prepared_for_upload(text: &str) -> anyhow::Result<String> {
-    decode(text).context("failed to parse config file")?;
+    decode(text, Decode::Upload).context("failed to parse config file")?;
     // yaml.v3 and libyaml end a line at NEL, LS and PS too; yaml-edit, which places
     // the edits and reads the secret's tag, does not, so a comment would hide what
     // follows it. Refuse rather than misread the file.
@@ -574,9 +541,24 @@ fn scalar_exists(node: &Value, value: &str) -> bool {
     }
 }
 
+/// Which Go entry point [`decode`] follows.
+#[derive(Clone, Copy, PartialEq)]
+enum Decode {
+    /// `LoadConfig`: the credential preflight (`validateCredentialWeightYAML`), then the
+    /// typed decode.
+    Load,
+    /// `ParseConfigBytes`: as `Load`, with typed-decode errors wrapped as
+    /// `parse config payload: ...` (Go wraps its `yaml.Unmarshal`).
+    Payload,
+    /// `prepareConfigForUpload`: the typed decode only, so of the credential checks only
+    /// the v8 key groups, which `flattenV8` makes while decoding.
+    Upload,
+}
+
 /// The decoding part of [`Config::parse`]: the YAML, its layout and the setting types,
-/// before the validators. Its errors name settings, not their values.
-fn decode(text: &str) -> anyhow::Result<(Mapping, ConfigDocument)> {
+/// before the validators. Its errors name settings, not their values. The layout checks
+/// come first, unwrapped, as in Go.
+fn decode(text: &str, mode: Decode) -> anyhow::Result<(Mapping, ConfigDocument)> {
     let mut parsed = yaml_value(text)?;
     // Before any migration, as Go expands aliases first.
     expand_merges(&mut parsed)?;
@@ -586,10 +568,25 @@ fn decode(text: &str) -> anyhow::Result<(Mapping, ConfigDocument)> {
         _ => bail!("config must be a mapping"),
     };
     validate_shape(&root)?;
+    let credentials = if mode == Decode::Upload {
+        v8_group_error(&root)
+    } else {
+        credential_error(&root)
+    };
+    if let Some(e) = credentials {
+        bail!(e);
+    }
     let mut document = ConfigDocument::from_mapping(root.clone())?;
     document.coerce_typed_scalars();
-    schema::validate(document.value(), false)?;
-    validate::decoded(document.value())?;
+    schema::validate(document.value(), false)
+        .and_then(|()| validate::decoded(document.value()))
+        .map_err(|e| {
+            if mode == Decode::Payload {
+                anyhow::anyhow!("parse config payload: {e}")
+            } else {
+                e
+            }
+        })?;
     Ok((root, document))
 }
 
@@ -614,8 +611,18 @@ impl Config {
         Ok(config)
     }
 
+    /// Go `ParseConfigBytes`, as the v8 config writer reports it: [`Config::parse`] with
+    /// typed-decode errors wrapped as `parse config payload: ...` (see [`decode`]).
+    pub fn parse_payload(text: &str) -> anyhow::Result<Self> {
+        Self::parse_as(text, Decode::Payload)
+    }
+
     pub fn parse(text: &str) -> anyhow::Result<Self> {
-        let (root, document) = decode(text)?;
+        Self::parse_as(text, Decode::Load)
+    }
+
+    fn parse_as(text: &str, mode: Decode) -> anyhow::Result<Self> {
+        let (root, document) = decode(text, mode)?;
         let canonical = document.value().as_mapping().expect("document is a mapping");
         let routing = decode_section::<RoutingConfig>(canonical, "routing")?;
         let mut routing = routing;
@@ -719,13 +726,8 @@ fn null_scalars_to_zero(mut value: Value) -> Value {
 }
 
 fn validate_shape(root: &Mapping) -> anyhow::Result<()> {
-    for parent in V8_PARENTS {
-        match lookup(root, parent) {
-            None | Some(Value::Mapping(_)) => {}
-            // Routing is shared with the legacy layout, where null means defaults.
-            Some(Value::Null) if *parent == "routing" => {}
-            Some(_) => bail!("{parent} must be a mapping"),
-        }
+    if let Some(e) = document::shape_error(root) {
+        bail!(e);
     }
     if let Some(version) = lookup(root, "config-version")
         && version.as_u64() != Some(8)
@@ -872,6 +874,26 @@ mod tests {
         assert!(
             Config::parse("routing: null\nconfig-version: 8\n").is_ok(),
             "routing: null means defaults"
+        );
+    }
+
+    #[test]
+    fn image_generation_mode_reads_go_spellings() {
+        let mode = |yaml: &str| {
+            Config::parse(&format!("multimedia:\n  disable-image-generation: {yaml}\n"))
+                .map(|c| c.document["multimedia"]["disable-image-generation"].clone())
+                .map_err(|e| e.to_string())
+        };
+        assert_eq!(mode("' Off '"), Ok(Value::Bool(false)));
+        assert_eq!(mode("~"), Ok(Value::Bool(false)));
+        assert_eq!(mode("YES"), Ok(Value::Bool(true)));
+        assert_eq!(mode("' Chat'"), Ok(Value::from("chat")));
+        assert_eq!(
+            mode("\"\\u00dc\\u0001\""),
+            Err(
+                "invalid disable-image-generation value \"\u{fc}\\x01\" (allowed: true, false, chat, passthrough)"
+                    .into()
+            )
         );
     }
 

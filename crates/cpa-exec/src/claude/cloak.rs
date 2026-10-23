@@ -138,7 +138,7 @@ pub(crate) fn billing_header(b: &Billing<'_>) -> String {
 
 pub(crate) fn first_user_index(body: &str) -> Option<usize> {
     rawjson::get(body, "messages")
-        .array()
+        .items()
         .iter()
         .position(|m| m.get("role").str() == "user")
 }
@@ -155,11 +155,8 @@ pub(crate) fn fingerprint_message(body: &str) -> String {
     let Some(idx) = first_user_index(body) else {
         return String::new();
     };
-    let content = rawjson::get(body, "messages").array()[idx]
-        .get("content")
-        .json()
-        .to_owned();
-    let content = gjson::parse(&content);
+    let content = rawjson::get(body, &format!("messages.{idx}.content")).json().to_owned();
+    let content = rawjson::parse(&content);
     match content.kind() {
         gjson::Kind::String => content.str().to_owned(),
         gjson::Kind::Array => content
@@ -175,7 +172,7 @@ pub(crate) fn fingerprint_message(body: &str) -> String {
 
 /// `isValidClaudeCacheControl` (v8.0.27, be8c35f): only an object whose `type` is the
 /// string `ephemeral` is a breakpoint; `null` and other shapes are ignored.
-pub(crate) fn valid_cache_control(cc: &gjson::Value) -> bool {
+pub(crate) fn valid_cache_control(cc: &rawjson::Value) -> bool {
     cc.kind() == gjson::Kind::Object
         && cc.get("type").kind() == gjson::Kind::String
         && cc.get("type").str() == "ephemeral"
@@ -311,7 +308,7 @@ pub(crate) fn prepend_reminders(body: &str, blocks: &[Forwarded], explicit: bool
     body.to_owned()
 }
 
-pub(crate) fn message_text(content: &gjson::Value) -> String {
+pub(crate) fn message_text(content: &rawjson::Value) -> String {
     match content.kind() {
         gjson::Kind::String => content.str().to_owned(),
         gjson::Kind::Array => content
@@ -327,7 +324,7 @@ pub(crate) fn message_text(content: &gjson::Value) -> String {
 
 /// `isClaudeSystemDirectiveMessage` (v8.0.27, 2d8ec73): a `role: system` turn with an
 /// empty content array and an `output_config`, which Anthropic accepts anywhere.
-fn system_directive(message: &gjson::Value) -> bool {
+fn system_directive(message: &rawjson::Value) -> bool {
     let content = message.get("content");
     message.get("role").str() == "system"
         && message.get("output_config").exists()
@@ -337,7 +334,7 @@ fn system_directive(message: &gjson::Value) -> bool {
 
 /// `claudeLeadingUserRunEnd`: the index after the first user turn and the user turns
 /// that follow it, skipping effort directives between them.
-pub(crate) fn leading_user_run_end(messages: &[gjson::Value], first_user: usize) -> usize {
+pub(crate) fn leading_user_run_end(messages: &[rawjson::Value], first_user: usize) -> usize {
     let mut at = first_user + 1;
     while at < messages.len() && (messages[at].get("role").str() == "user" || system_directive(&messages[at])) {
         at += 1;
@@ -398,7 +395,7 @@ pub(crate) fn insert_mid_system(body: &str, blocks: &[Forwarded], explicit: bool
 
 /// Advisor results are bound to message positions; splicing would break them.
 pub(crate) fn has_advisor_history(body: &str) -> bool {
-    rawjson::get(body, "messages").array().iter().any(|msg| {
+    rawjson::get(body, "messages").items().iter().any(|msg| {
         let content = msg.get("content");
         match content.kind() {
             gjson::Kind::Array => content.array().iter().any(|b| match b.get("type").str() {
@@ -472,7 +469,7 @@ pub(crate) fn inject_current_date(body: &str, date: &str, explicit: bool) -> Str
     }
     let at = raw
         .iter()
-        .take_while(|b| gjson::get(b, "type").str() == "tool_result")
+        .take_while(|b| rawjson::get(b, "type").str() == "tool_result")
         .count();
     raw.insert(at, date_block);
     rawjson::set_raw(body, &path, &format!("[{}]", raw.join(",")))
@@ -560,11 +557,12 @@ pub(crate) fn relocate_system_for_count(body: &str, strict: bool, explicit: bool
 /// `prompt_cache_options.mode` to `explicit` (case-insensitive).
 ///
 /// Per request: a substring scan of each form, and a key lookup only in a form that
-/// may hold the key.
+/// may hold the key. The lookup is Go's gjson: with duplicate `prompt_cache_options`
+/// members it reads the first one that has a `mode`.
 pub(crate) fn explicit_cache_mode(bodies: &[&str]) -> bool {
     bodies.iter().any(|body| {
         signals::may_contain(body, &["prompt_cache_options"])
-            && rawjson::get(body, "prompt_cache_options.mode")
+            && cpa_common::json::get(body.as_bytes(), "prompt_cache_options.mode")
                 .str()
                 .trim()
                 .eq_ignore_ascii_case("explicit")
@@ -605,20 +603,20 @@ pub(crate) fn count_cache_controls(body: &str) -> usize {
     // Go counts system, tools, then messages; the total is order-independent.
     signals::blocks(body)
         .iter()
-        .filter(|(_, block)| valid_cache_control(&gjson::get(block, "cache_control")))
+        .filter(|(_, block)| valid_cache_control(&rawjson::get(block, "cache_control")))
         .count()
 }
 
 /// `upgradeClaudeCacheControlTTL`: every marker without an explicit ttl joins `ttl`.
 pub(crate) fn upgrade_ttl(body: String, ttl: &str) -> String {
-    if !gjson::valid(&body) {
+    if !rawjson::valid(&body) {
         return body;
     }
     // Go visits the blocks of the payload it was given; each edit touches only its own
     // block, so the remaining blocks read the same before and after the others.
     let mut edits = Vec::new();
     for (path, block) in signals::blocks(&body) {
-        let parsed = gjson::get(&block, "cache_control");
+        let parsed = rawjson::get(&block, "cache_control");
         if parsed.kind() != gjson::Kind::Object
             || parsed.get("ttl").exists()
             || parsed.get("type").kind() != gjson::Kind::String
@@ -644,13 +642,13 @@ pub(crate) fn upgrade_ttl(body: String, ttl: &str) -> String {
 
 /// `stripClaudeCacheControlTTL`.
 pub(crate) fn strip_ttl(body: String) -> String {
-    if !gjson::valid(&body) {
+    if !rawjson::valid(&body) {
         return body;
     }
     let paths: Vec<String> = signals::blocks(&body)
         .into_iter()
         .filter(|(_, block)| {
-            let cc = gjson::get(block, "cache_control");
+            let cc = rawjson::get(block, "cache_control");
             cc.kind() == gjson::Kind::Object && cc.get("ttl").exists()
         })
         .map(|(path, _)| format!("{path}.cache_control.ttl"))
@@ -660,13 +658,13 @@ pub(crate) fn strip_ttl(body: String) -> String {
 
 /// `normalizeCacheControlTTL`: a 1h marker may not follow a 5m one in evaluation order.
 pub(crate) fn normalize_ttl(body: String) -> String {
-    if !gjson::valid(&body) {
+    if !rawjson::valid(&body) {
         return body;
     }
     let mut paths = Vec::new();
     let mut seen_5m = false;
     for (path, block) in signals::blocks(&body) {
-        let parsed = gjson::get(&block, "cache_control");
+        let parsed = rawjson::get(&block, "cache_control");
         if !valid_cache_control(&parsed) {
             continue;
         }
@@ -689,13 +687,13 @@ pub(crate) fn normalize_ttl(body: String) -> String {
 /// spliced into one copy of the body (removing a `cache_control` key never moves
 /// another block, so their offsets and paths stay valid).
 pub(crate) fn enforce_cache_limit(body: String, mut max: usize) -> String {
-    if !gjson::valid(&body) {
+    if !rawjson::valid(&body) {
         return body;
     }
     let blocks = signals::blocks(&body);
     let marked: Vec<&(String, std::borrow::Cow<'_, str>)> = blocks
         .iter()
-        .filter(|(_, block)| valid_cache_control(&gjson::get(block, "cache_control")))
+        .filter(|(_, block)| valid_cache_control(&rawjson::get(block, "cache_control")))
         .collect();
     let total = marked.len();
     // Anthropic reserves one breakpoint for thread continuation (v8.0.27, 26e5efb). The
@@ -800,7 +798,7 @@ fn inject_system_cache(body: &str) -> String {
     }
 }
 
-fn eligible_for_rolling_cache(message: &gjson::Value) -> bool {
+fn eligible_for_rolling_cache(message: &rawjson::Value) -> bool {
     let content = message.get("content");
     if content.kind() == gjson::Kind::String {
         return true;
@@ -941,11 +939,11 @@ impl SensitiveWords {
             }
             _ => {}
         }
-        let count = rawjson::get(&body, "messages").array().len();
+        let count = rawjson::get(&body, "messages").items().len();
         for m in 0..count {
             let path = format!("messages.{m}.content");
-            let content = gjson::get(&body, &path).json().to_owned();
-            let parsed = gjson::parse(&content);
+            let content = rawjson::get(&body, &path).json().to_owned();
+            let parsed = rawjson::parse(&content);
             match parsed.kind() {
                 gjson::Kind::String => {
                     let out = self.apply(parsed.str());
