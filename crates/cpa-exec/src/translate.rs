@@ -72,11 +72,10 @@ pub(crate) fn original(
         Format::Gemini => &["generationConfig.maxOutputTokens"],
         _ => return Ok(original),
     };
-    let payload = String::from_utf8_lossy(payload);
     if original.is_empty()
         || limits.iter().any(|path| {
-            let limit = gjson::get(&payload, path);
-            limit.exists() && limit.kind() != gjson::Kind::Null
+            let limit = cpa_common::json::get(payload, *path);
+            limit.exists() && limit.kind != cpa_common::json::Kind::Null
         })
     {
         return Ok(original);

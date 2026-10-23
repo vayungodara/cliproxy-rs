@@ -93,10 +93,10 @@ pub(crate) fn apply(body: &str, device: &str, account: &str, session: &str) -> R
         rawjson::go_string(session)
     );
     let trimmed = existing.trim();
-    if trimmed.starts_with('{') && gjson::valid(trimmed) {
+    if trimmed.starts_with('{') && rawjson::valid(trimmed) {
         let mut seen = std::collections::HashSet::new();
         let mut duplicate = None;
-        gjson::parse(trimmed).each(|k, v| {
+        rawjson::parse(trimmed).each(|k, v| {
             let key = k.str().to_owned();
             if !seen.insert(key.clone()) {
                 duplicate = Some(key);
@@ -124,8 +124,8 @@ pub(crate) fn apply(body: &str, device: &str, account: &str, session: &str) -> R
 /// The string value of a unique top-level `metadata.user_id`, rejecting duplicate
 /// `metadata`/`user_id` members as a request error (Go returns 400).
 fn existing_user_id(body: &str) -> Result<String, String> {
-    let root = gjson::parse(body);
-    if !gjson::valid(body) || root.kind() != gjson::Kind::Object {
+    let root = rawjson::parse(body);
+    if !rawjson::valid(body) || root.kind() != gjson::Kind::Object {
         return Err("apply Claude credential metadata: request must be a JSON object".into());
     }
     let mut metadata = None;
@@ -143,7 +143,7 @@ fn existing_user_id(body: &str) -> Result<String, String> {
     let Some(metadata) = metadata else {
         return Ok(String::new());
     };
-    let m = gjson::parse(&metadata);
+    let m = rawjson::parse(&metadata);
     if m.kind() != gjson::Kind::Object {
         return Ok(String::new());
     }

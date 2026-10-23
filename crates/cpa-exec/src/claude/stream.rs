@@ -28,7 +28,7 @@ fn observe(line: &[u8], message_id: &mut String, completed: &mut bool) {
     let Ok(payload) = std::str::from_utf8(payload.trim_ascii()) else {
         return;
     };
-    if !gjson::valid(payload) {
+    if !rawjson::valid(payload) {
         return;
     }
     match rawjson::get(payload, "type").str() {
@@ -288,7 +288,7 @@ pub(crate) fn validate_buffered(data: &[u8]) -> Result<(), ExecError> {
         }
         has_data = true;
         let payload = std::str::from_utf8(payload).unwrap_or("");
-        if !gjson::valid(payload) {
+        if !rawjson::valid(payload) {
             return Err(bad("claude executor: upstream returned malformed stream data"));
         }
         match rawjson::get(payload, "type").str() {

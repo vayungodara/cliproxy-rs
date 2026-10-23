@@ -51,7 +51,7 @@ fn probe(body: &str) -> bool {
     }
 }
 
-fn any_text(value: &gjson::Value, matches: impl Fn(&str) -> bool) -> bool {
+fn any_text(value: &rawjson::Value, matches: impl Fn(&str) -> bool) -> bool {
     if value.kind() == gjson::Kind::Array {
         value.array().iter().any(|p| matches(p.get("text").str()))
     } else {
@@ -166,7 +166,7 @@ pub(crate) fn subagent(headers: &HeaderMap, body: &str) -> bool {
 /// like Go's ForEach; looking each path up again would rescan the body per block.
 pub(crate) fn blocks(body: &str) -> Vec<(String, Cow<'_, str>)> {
     // The items borrow from `body`; `rawjson::offset` recovers that borrow.
-    let raw = |item: &gjson::Value<'_>| match rawjson::offset(body, item) {
+    let raw = |item: &rawjson::Value<'_>| match rawjson::offset(body, item) {
         Some(start) => Cow::Borrowed(&body[start..start + item.json().len()]),
         None => Cow::Owned(item.json().to_owned()),
     };
@@ -205,9 +205,9 @@ pub(crate) fn blocks(body: &str) -> Vec<(String, Cow<'_, str>)> {
 pub(crate) fn has_1h_ttl(body: &str) -> bool {
     !body.is_empty()
         && may_contain(body, &["\"1h\""])
-        && gjson::valid(body)
+        && rawjson::valid(body)
         && blocks(body).iter().any(|(_, block)| {
-            let cc = gjson::get(block, "cache_control");
+            let cc = rawjson::get(block, "cache_control");
             cc.kind() == gjson::Kind::Object && cc.get("ttl").str() == "1h"
         })
 }
