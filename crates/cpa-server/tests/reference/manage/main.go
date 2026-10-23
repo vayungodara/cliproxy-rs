@@ -1487,6 +1487,19 @@ func configScenarios() []configScenario {
 			put("/config", `[{"<<":5}]`),
 			patch("/config", `[{"<<":5}]`),
 		}},
+		// !!binary scalars, aliases of them included: views and save candidates see the
+		// decoded text, and a migrating save keeps the values.
+		{Name: "binary_scalars", YAML: "remote-management:\n  secret-key: \"$HASH\"\nproxy-url: !!binary aHR0cDovL3guZXhhbXBsZTo4MA==\napi-keys: [fake-client, &k !!binary ZmFrZS1iaW5hcnk=, *k]\nrequest-retry: 1\n", Steps: []configStep{
+			get("/config"), get("/config/access/api-keys"), get("/config.yaml"),
+			put("/config/routing/strategy", `"fill-first"`),
+			get("/config"),
+			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nrequests:\n  proxy-url: &p !!binary aHR0cDovL3kuZXhhbXBsZTo4MA==\naccess:\n  api-keys: [*p, !!binary ZmFrZS11cGxvYWQ=]\n"),
+			get("/config"),
+			patch("/config", `{"routing":{"retry":{"request-retry":2}}}`),
+			get("/config"), get("/config.yaml"),
+			put("/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nrequests:\n  proxy-url: !!binary aHR0cDovL3o=x\n"),
+			get("/config/requests"),
+		}},
 	}
 }
 

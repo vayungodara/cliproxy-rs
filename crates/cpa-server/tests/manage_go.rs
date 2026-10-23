@@ -709,9 +709,10 @@ mod config_writes {
         }
     }
 
-    /// A YAML text as Go's decoder into `any` sees it: merge keys expanded.
+    /// A YAML text as Go's decoder into `any` sees it: merge keys expanded, `!!binary`
+    /// scalars decoded.
     fn rust_yaml_value(text: &str) -> Value {
-        let mut v: serde_yaml_ng::Value = serde_yaml_ng::from_str(text).unwrap();
+        let mut v = cpa_core::config::yaml_value(text).unwrap();
         cpa_core::config::expand_merges(&mut v).unwrap();
         serde_json::to_value(v).unwrap()
     }
@@ -834,9 +835,9 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        assert_eq!(compared, 123);
+        assert_eq!(compared, 135);
         eprintln!("config writes: {bytes_compared} of {compared} steps compared byte for byte");
-        assert_eq!(bytes_compared, 91, "steps compared byte for byte");
+        assert_eq!(bytes_compared, 97, "steps compared byte for byte");
     }
 }
 

@@ -1042,6 +1042,17 @@ fn config_sync_locked(
             Ok(v) if has_document => v,
             _ => return error(400, "invalid_body"),
         };
+        // Go keeps a `!!binary` node tagged through the update; decoding it for the
+        // save fails on invalid base64 with an invalid config (400).
+        if yaml {
+            value = match std::str::from_utf8(body)
+                .map_err(anyhow::Error::from)
+                .and_then(cpa_core::config::yaml_value)
+            {
+                Ok(v) => v,
+                Err(e) => return invalid_config(StatusCode::BAD_REQUEST, e),
+            };
+        }
         if parts.is_empty() && !value.is_mapping() {
             return error(400, "config_must_be_object");
         }
@@ -1195,7 +1206,7 @@ pub(crate) fn v0_save(
         Err(_) => return error(500, "read_failed"),
     };
     // Go's saver works on the alias- and merge-expanded root mapping (`flattenV8`).
-    let mut root: serde_yaml_ng::Value = match serde_yaml_ng::from_str(&original) {
+    let mut root = match cpa_core::config::yaml_value(&original) {
         Ok(v) => v,
         Err(e) => return invalid_config(StatusCode::INTERNAL_SERVER_ERROR, e),
     };

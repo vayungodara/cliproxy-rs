@@ -226,7 +226,7 @@ pub struct ConfigDocument(Value);
 
 impl ConfigDocument {
     pub fn parse(text: &str) -> anyhow::Result<Self> {
-        let mut root = serde_yaml_ng::from_str::<Value>(text)?;
+        let mut root = super::yaml_value(text)?;
         // Go migrates the alias-expanded tree (`expandConfigAliases`): an edit next to
         // an inherited setting must keep it rather than shadow the whole mapping.
         super::expand_merges(&mut root)?;
@@ -418,7 +418,7 @@ impl ConfigDocument {
     /// without the legacy fields that a v8 field overrides (presence wins), or `None`
     /// when it has none. A legacy-only document is not migrated.
     pub fn without_conflicts(text: &str) -> anyhow::Result<Option<String>> {
-        let mut raw: Value = serde_yaml_ng::from_str(text)?;
+        let mut raw = super::yaml_value(text)?;
         super::expand_merges(&mut raw)?;
         let Some(root) = raw.as_mapping_mut() else {
             return Ok(None);
@@ -444,7 +444,7 @@ impl ConfigDocument {
     /// to a full block re-emit that keeps the head comment only.
     pub fn render_preserving(&self, original: &str) -> anyhow::Result<String> {
         if let Some(text) = self.try_render(original)
-            && serde_yaml_ng::from_str::<Value>(&text).ok().as_ref() == Some(&self.0)
+            && super::yaml_value(&text).ok().as_ref() == Some(&self.0)
         {
             return Ok(text);
         }
@@ -456,7 +456,7 @@ impl ConfigDocument {
         for (key, value) in self.0.as_mapping().context("config must be a mapping")? {
             text = super::text::append_root(&text, key.as_str().context("config keys must be strings")?, value);
         }
-        if serde_yaml_ng::from_str::<Value>(&text)? != self.0 {
+        if super::yaml_value(&text)? != self.0 {
             bail!("edited YAML did not round-trip");
         }
         Ok(text)
@@ -470,7 +470,7 @@ impl ConfigDocument {
         };
         let doc = file.document()?;
         let root = doc.as_mapping()?;
-        let before: Value = match serde_yaml_ng::from_str(original).ok()? {
+        let before = match super::yaml_value(original).ok()? {
             Value::Null => Value::Mapping(Mapping::new()),
             v => v,
         };
