@@ -236,40 +236,6 @@ impl Default for Config {
     }
 }
 
-const V8_PARENTS: &[&str] = &[
-    "server",
-    "management",
-    "access",
-    "credentials",
-    "routing",
-    "routing.retry",
-    "routing.cooldown",
-    "requests",
-    "oauth",
-    "oauth.providers",
-    "multimedia",
-    "observability",
-    "observability.logs",
-    "observability.usage",
-    "server.tls",
-    "server.discovery",
-    "server.discovery.interfaces",
-    "credentials.concurrency",
-    "credentials.in-flight",
-    "requests.streaming",
-    "requests.payload",
-    "client",
-    "client.codex",
-    "oauth.providers.codex",
-    "oauth.providers.aistudio",
-    "oauth.providers.antigravity",
-    "upstream",
-    "upstream.codex",
-    "upstream.claude",
-    "upstream.claude.header-defaults",
-    "upstream.xai",
-];
-
 /// Writes `hash` over the plaintext `secret-key` (see [`with_secret_hash`]).
 fn persist_secret_hash(path: &Path, text: &str, hash: &str) -> anyhow::Result<()> {
     ConfigDocument::write(path, &with_secret_hash(text, hash)?)
@@ -355,8 +321,9 @@ fn with_secret_hash(text: &str, hash: &str) -> anyhow::Result<String> {
 /// would still be a scalar value elsewhere in it (a YAML anchor or a copy). A failure
 /// of the write itself can leave a partial file, as in Go.
 ///
-/// Like Go, this only decodes the file: the validators of a startup load do not run,
-/// so their messages, which quote setting values, cannot carry a secret into the log.
+/// Like Go, this only decodes the file: the validators of a startup load, and its
+/// credential weight preflight, do not run, so their messages, which quote setting
+/// values, cannot carry a secret into the log.
 pub fn prepare_for_upload(path: &Path) -> anyhow::Result<()> {
     let text = String::from_utf8(std::fs::read(path)?).context("failed to parse config file")?;
     let prepared = prepared_for_upload(&text)?;
@@ -367,7 +334,7 @@ pub fn prepare_for_upload(path: &Path) -> anyhow::Result<()> {
 }
 
 fn prepared_for_upload(text: &str) -> anyhow::Result<String> {
-    decode(text, false).context("failed to parse config file")?;
+    decode(text, Decode::Upload).context("failed to parse config file")?;
     // yaml.v3 and libyaml end a line at NEL, LS and PS too; yaml-edit, which places
     // the edits and reads the secret's tag, does not, so a comment would hide what
     // follows it. Refuse rather than misread the file.
@@ -574,12 +541,24 @@ fn scalar_exists(node: &Value, value: &str) -> bool {
     }
 }
 
+/// Which Go entry point [`decode`] follows.
+#[derive(Clone, Copy, PartialEq)]
+enum Decode {
+    /// `LoadConfig`: the credential preflight (`validateCredentialWeightYAML`), then the
+    /// typed decode.
+    Load,
+    /// `ParseConfigBytes`: as `Load`, with typed-decode errors wrapped as
+    /// `parse config payload: ...` (Go wraps its `yaml.Unmarshal`).
+    Payload,
+    /// `prepareConfigForUpload`: the typed decode only, so of the credential checks only
+    /// the v8 key groups, which `flattenV8` makes while decoding.
+    Upload,
+}
+
 /// The decoding part of [`Config::parse`]: the YAML, its layout and the setting types,
-/// before the validators. Its errors name settings, not their values. With `payload`,
-/// an error of the typed decode (setting types, catalog sources) reads
-/// `parse config payload: ...`, as Go's `ParseConfigBytes` wraps its `yaml.Unmarshal`;
-/// Go checks the layout before that, unwrapped.
-fn decode(text: &str, payload: bool) -> anyhow::Result<(Mapping, ConfigDocument)> {
+/// before the validators. Its errors name settings, not their values. The layout checks
+/// come first, unwrapped, as in Go.
+fn decode(text: &str, mode: Decode) -> anyhow::Result<(Mapping, ConfigDocument)> {
     let mut parsed = yaml_value(text)?;
     // Before any migration, as Go expands aliases first.
     expand_merges(&mut parsed)?;
@@ -589,7 +568,12 @@ fn decode(text: &str, payload: bool) -> anyhow::Result<(Mapping, ConfigDocument)
         _ => bail!("config must be a mapping"),
     };
     validate_shape(&root)?;
-    if let Some(e) = credential_error(&root) {
+    let credentials = if mode == Decode::Upload {
+        v8_group_error(&root)
+    } else {
+        credential_error(&root)
+    };
+    if let Some(e) = credentials {
         bail!(e);
     }
     let mut document = ConfigDocument::from_mapping(root.clone())?;
@@ -597,7 +581,7 @@ fn decode(text: &str, payload: bool) -> anyhow::Result<(Mapping, ConfigDocument)
     schema::validate(document.value(), false)
         .and_then(|()| validate::decoded(document.value()))
         .map_err(|e| {
-            if payload {
+            if mode == Decode::Payload {
                 anyhow::anyhow!("parse config payload: {e}")
             } else {
                 e
@@ -630,15 +614,15 @@ impl Config {
     /// Go `ParseConfigBytes`, as the v8 config writer reports it: [`Config::parse`] with
     /// typed-decode errors wrapped as `parse config payload: ...` (see [`decode`]).
     pub fn parse_payload(text: &str) -> anyhow::Result<Self> {
-        Self::parse_as(text, true)
+        Self::parse_as(text, Decode::Payload)
     }
 
     pub fn parse(text: &str) -> anyhow::Result<Self> {
-        Self::parse_as(text, false)
+        Self::parse_as(text, Decode::Load)
     }
 
-    fn parse_as(text: &str, payload: bool) -> anyhow::Result<Self> {
-        let (root, document) = decode(text, payload)?;
+    fn parse_as(text: &str, mode: Decode) -> anyhow::Result<Self> {
+        let (root, document) = decode(text, mode)?;
         let canonical = document.value().as_mapping().expect("document is a mapping");
         let routing = decode_section::<RoutingConfig>(canonical, "routing")?;
         let mut routing = routing;
@@ -742,13 +726,8 @@ fn null_scalars_to_zero(mut value: Value) -> Value {
 }
 
 fn validate_shape(root: &Mapping) -> anyhow::Result<()> {
-    for parent in V8_PARENTS {
-        match lookup(root, parent) {
-            None | Some(Value::Mapping(_)) => {}
-            // Routing is shared with the legacy layout, where null means defaults.
-            Some(Value::Null) if *parent == "routing" => {}
-            Some(_) => bail!("{parent} must be a mapping"),
-        }
+    if let Some(e) = document::shape_error(root) {
+        bail!(e);
     }
     if let Some(version) = lookup(root, "config-version")
         && version.as_u64() != Some(8)

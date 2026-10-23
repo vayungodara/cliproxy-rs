@@ -30545,6 +30545,142 @@
       }
      },
      "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"oauth\":{\"providers\":{\"claude\":0}},\"api-keys\":{\"gemini\":null}}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "oauth.providers.claude must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"oauth.providers.claude must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$0IPfS61d/K2Gs/JgNaDgKOequiFMbpu1tGuUMGWbM3DJgKTruKz1S"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config",
+     "body": "{\"oauth\":{\"providers\":{\"codex\":{\"live-media-relay\":0}}},\"api-keys\":{\"gemini\":null}}",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "oauth.providers.codex.live-media-relay must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"oauth.providers.codex.live-media-relay must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$0IPfS61d/K2Gs/JgNaDgKOequiFMbpu1tGuUMGWbM3DJgKTruKz1S"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/oauth/providers/codex/live-media-relay",
+     "body": "0",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "oauth.providers.codex.live-media-relay must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"oauth.providers.codex.live-media-relay must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$0IPfS61d/K2Gs/JgNaDgKOequiFMbpu1tGuUMGWbM3DJgKTruKz1S"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
+    },
+    {
+     "method": "PUT",
+     "path": "/config/oauth/providers/claude",
+     "body": "0",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "oauth.providers.claude must be a mapping"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"oauth.providers.claude must be a mapping\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$0IPfS61d/K2Gs/JgNaDgKOequiFMbpu1tGuUMGWbM3DJgKTruKz1S"
+      },
+      "multimedia": {
+       "disable-image-generation": " ON "
+      },
+      "routing": {
+       "cooldown": {
+        "disable-cooling": true
+       },
+       "retry": {
+        "request-retry": 2
+       },
+       "session-affinity-ttl": 5,
+       "strategy": "round-robin"
+      },
+      "server": {
+       "port": 0
+      }
+     },
+     "file_has_archive": true
     }
    ]
   },

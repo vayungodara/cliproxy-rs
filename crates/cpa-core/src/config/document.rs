@@ -882,6 +882,36 @@ pub fn v8_layout_error(root: &Value) -> Option<String> {
         .map(|key| format!("unknown API-key provider {key}"))
 }
 
+/// Go `flattenV8`'s shape checks, in its order: every parent of a v8 path, then of a
+/// historical alias's destination, must be a mapping (`routing` may also be null, as
+/// in the legacy layout); then each shared container (`v8SharedStructPaths`) must be a
+/// mapping or null. `root` is the merge-expanded document.
+pub(super) fn shape_error(root: &Mapping) -> Option<String> {
+    static PARENTS: std::sync::LazyLock<Vec<String>> = std::sync::LazyLock::new(|| {
+        let aliases = CLIENT_PATHS.iter().chain(SHARED_PATHS).map(|(_, current)| *current);
+        let mut out: Vec<String> = Vec::new();
+        for current in LEGACY.leaves.iter().map(|(_, current)| current.as_str()).chain(aliases) {
+            for (i, _) in current.match_indices('.') {
+                if !out.iter().any(|p| *p == current[..i]) {
+                    out.push(current[..i].to_owned());
+                }
+            }
+        }
+        out
+    });
+    for parent in PARENTS.iter() {
+        match lookup(root, parent) {
+            None | Some(Value::Mapping(_)) => {}
+            Some(Value::Null) if parent == "routing" => {}
+            Some(_) => return Some(format!("{parent} must be a mapping")),
+        }
+    }
+    SHARED_STRUCTS.iter().find_map(|(old, _)| match lookup(root, old) {
+        None | Some(Value::Null | Value::Mapping(_)) => None,
+        Some(_) => Some(format!("{old} must be a mapping")),
+    })
+}
+
 /// The credential checks Go's `validateCredentialWeightYAML` makes (first in
 /// `LoadConfig` and `ParseConfigBytes`, unwrapped), after `flattenV8`'s shape and
 /// version checks: [`v8_group_error`], then the weights of the legacy key lists and

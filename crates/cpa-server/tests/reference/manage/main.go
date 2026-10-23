@@ -1421,6 +1421,12 @@ func configScenarios() []configScenario {
 			put("/config/multimedia/disable-image-generation", `"bad"`),
 			put("/config/multimedia/disable-image-generation", `{"x":1}`),
 			put("/config/multimedia/disable-image-generation", `" ON "`),
+			// flattenV8 checks every v8 parent, then the shared containers, before the
+			// key groups.
+			put("/config", `{"oauth":{"providers":{"claude":0}},"api-keys":{"gemini":null}}`),
+			put("/config", `{"oauth":{"providers":{"codex":{"live-media-relay":0}}},"api-keys":{"gemini":null}}`),
+			put("/config/oauth/providers/codex/live-media-relay", `0`),
+			put("/config/oauth/providers/claude", `0`),
 		}},
 		{Name: "accepted_value_writes", YAML: v8, Steps: []configStep{
 			put("/config/api-keys/claude", `[{"name":"team","base-url":"https://claude.example.invalid","priority":3,"keys":[{"api-key":"fake-a"},{"api-key":"fake-b","weight":0,"prefix":null}]}]`),

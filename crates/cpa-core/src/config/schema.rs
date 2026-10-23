@@ -152,9 +152,6 @@ fn walk(value: &Value, schema: &Schema, path: &str, strict: bool) -> anyhow::Res
         if !valid {
             bail!("{path} has an invalid type");
         }
-        if path.ends_with(".weight") && go_int(value).is_some_and(|v| v > 1_000_000) {
-            bail!("credential weight must not exceed 1000000");
-        }
         return Ok(());
     }
     if let Some(inner) = schema.get("optional") {

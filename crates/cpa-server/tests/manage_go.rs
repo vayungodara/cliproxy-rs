@@ -940,11 +940,11 @@ mod config_writes {
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
         // Windows skips model_catalog_sources: 31 steps, 25 of them byte-compared.
-        assert_eq!(compared, if cfg!(windows) { 147 } else { 178 });
+        assert_eq!(compared, if cfg!(windows) { 151 } else { 182 });
         eprintln!("config writes: {bytes_compared} of {compared} steps compared byte for byte");
         assert_eq!(
             bytes_compared,
-            if cfg!(windows) { 117 } else { 142 },
+            if cfg!(windows) { 121 } else { 146 },
             "steps compared byte for byte"
         );
     }
