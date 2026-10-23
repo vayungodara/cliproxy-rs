@@ -769,7 +769,13 @@ mod config_writes {
             let (base, server) = super::access::serve(Management::with_options(rt, path.clone(), options)).await;
             for (i, step) in scenario["steps"].as_array().unwrap().iter().enumerate() {
                 let method: wreq::Method = step["method"].as_str().unwrap().parse().unwrap();
-                let url = format!("{base}/v8/management{}", step["path"].as_str().unwrap());
+                // Paths are v8 management routes unless they name their API version.
+                let route = step["path"].as_str().unwrap();
+                let url = if route.starts_with("/v0/") {
+                    format!("{base}{route}")
+                } else {
+                    format!("{base}/v8/management{route}")
+                };
                 let res = client
                     .request(method, url)
                     .header("X-Test-Peer", "127.0.0.1:1")
@@ -850,12 +856,12 @@ mod config_writes {
             let _ = std::fs::remove_dir_all(&dir);
         }
         assert!(failures.is_empty(), "{}", failures.join("\n"));
-        // Windows skips model_catalog_sources: 26 steps, 14 of them byte-compared.
-        assert_eq!(compared, if cfg!(windows) { 123 } else { 149 });
+        // Windows skips model_catalog_sources: 31 steps, 18 of them byte-compared.
+        assert_eq!(compared, if cfg!(windows) { 123 } else { 154 });
         eprintln!("config writes: {bytes_compared} of {compared} steps compared byte for byte");
         assert_eq!(
             bytes_compared,
-            if cfg!(windows) { 91 } else { 105 },
+            if cfg!(windows) { 91 } else { 109 },
             "steps compared byte for byte"
         );
     }

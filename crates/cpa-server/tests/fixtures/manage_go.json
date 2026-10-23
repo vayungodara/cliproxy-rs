@@ -32034,21 +32034,21 @@
      "response": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
        "devin-catalog": "https://devin.example.invalid/x.json"
       }
      },
-     "raw_json": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO\"},\"models\":{\"catalog\":\"/abs/models.json\",\"devin-catalog\":\"https://devin.example.invalid/x.json\"}}",
+     "raw_json": "{\"config-version\":8,\"management\":{\"secret-key\":\"$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW\"},\"models\":{\"catalog\":\"/abs/models.json\",\"devin-catalog\":\"https://devin.example.invalid/x.json\"}}",
      "file": {
       "models": {
        "catalog": "/abs/models.json",
        "devin-catalog": "https://devin.example.invalid/x.json"
       },
       "remote-management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       }
      },
      "file_has_archive": false
@@ -32068,7 +32068,7 @@
        "devin-catalog": "https://devin.example.invalid/x.json"
       },
       "remote-management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       }
      },
      "file_has_archive": false
@@ -32085,7 +32085,7 @@
        "devin-catalog": "https://devin.example.invalid/x.json"
       },
       "remote-management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       }
      },
      "file_has_archive": false
@@ -32103,7 +32103,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32122,7 +32122,7 @@
      "response": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32132,11 +32132,11 @@
        "strategy": "fill-first"
       }
      },
-     "raw_response": "models:\n    catalog: /abs/models.json\n    devin-catalog: 'https://devin.example.invalid/x.json'\nmanagement:\n    secret-key: '$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO'\nconfig-version: 8\nrouting:\n    strategy: \"fill-first\"\n",
+     "raw_response": "models:\n    catalog: /abs/models.json\n    devin-catalog: 'https://devin.example.invalid/x.json'\nmanagement:\n    secret-key: '$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW'\nconfig-version: 8\nrouting:\n    strategy: \"fill-first\"\n",
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32161,7 +32161,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32187,7 +32187,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32213,7 +32213,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32239,7 +32239,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32265,7 +32265,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32291,7 +32291,33 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
+      },
+      "models": {
+       "catalog": "/abs/models.json",
+       "codex-catalog": "HTTPS://Codex.example.invalid/c.json",
+       "devin-catalog": "https://devin.example.invalid/x.json"
+      },
+      "routing": {
+       "strategy": "fill-first"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/config/models/catalog",
+     "body": "\"http://x[::1]:80/p\"",
+     "status": 422,
+     "response": {
+      "error": "invalid_config",
+      "message": "parse config payload: models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_config\",\"message\":\"parse config payload: models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32317,7 +32343,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32343,7 +32369,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "/abs/models.json",
@@ -32369,7 +32395,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "",
@@ -32395,7 +32421,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "",
@@ -32421,7 +32447,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "",
@@ -32447,7 +32473,7 @@
      "file": {
       "config-version": 8,
       "management": {
-       "secret-key": "$2a$04$pYOFBOdxICFTVVefOkqEBOmd3XdMxdESmf7VZAHVxdnMqKlaZa6aO"
+       "secret-key": "$2a$04$U/rmTAM1lH/Mhm4la16Mt.mUN79AFOepVr.5LhB5zl.Do7jWic.vW"
       },
       "models": {
        "catalog": "",
@@ -32623,6 +32649,84 @@
       "config-version": 8,
       "management": {
        "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/v0/management/config.yaml",
+     "body": "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: relative.json\n",
+     "status": 400,
+     "response": {
+      "error": "invalid_yaml",
+      "message": "models.catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_yaml\",\"message\":\"models.catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/v0/management/config.yaml",
+     "body": "config-version: 8\nmanagement:\n  secret-key: fake-secret\nmodels:\n  devin-catalog: 'http://x[::1]'\n",
+     "status": 400,
+     "response": {
+      "error": "invalid_yaml",
+      "message": "models.devin-catalog must be an http(s) URL or an absolute local path"
+     },
+     "raw_json": "{\"error\":\"invalid_yaml\",\"message\":\"models.devin-catalog must be an http(s) URL or an absolute local path\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "fake-secret"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "PUT",
+     "path": "/v0/management/config.yaml",
+     "body": "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: /abs/v0.json\n",
+     "status": 200,
+     "response": {
+      "changed": [
+       "config"
+      ],
+      "ok": true
+     },
+     "raw_json": "{\"changed\":[\"config\"],\"ok\":true}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$pdJE3KnIhfler3oXnTDgUOs.3yPLRzcdcx5MAV4Jh9mxhvAcPHUSa"
+      },
+      "models": {
+       "catalog": "/abs/v0.json"
+      }
+     },
+     "file_has_archive": false
+    },
+    {
+     "method": "GET",
+     "path": "/config/models",
+     "status": 200,
+     "response": {
+      "catalog": "/abs/v0.json"
+     },
+     "raw_json": "{\"catalog\":\"/abs/v0.json\"}",
+     "file": {
+      "config-version": 8,
+      "management": {
+       "secret-key": "$2a$10$pdJE3KnIhfler3oXnTDgUOs.3yPLRzcdcx5MAV4Jh9mxhvAcPHUSa"
+      },
+      "models": {
+       "catalog": "/abs/v0.json"
       }
      },
      "file_has_archive": false
@@ -40041,6 +40145,18 @@
   {
    "yaml": "models: {catalog: 'ws://example.invalid/x'}",
    "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'http://x[::1]'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'http://x[::1]:80/p'}",
+   "error": "failed to parse config file: models.catalog must be an http(s) URL or an absolute local path"
+  },
+  {
+   "yaml": "models: {catalog: 'http://[::1]:80/p'}",
+   "error": ""
   },
   {
    "yaml": "models: {catalog: 5}",

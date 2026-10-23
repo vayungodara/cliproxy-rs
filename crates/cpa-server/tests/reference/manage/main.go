@@ -237,7 +237,12 @@ func runConfig(s configScenario) configScenario {
 	server := api.NewServer(cfg, coreauth.NewManager(nil, nil, nil), sdkaccess.NewManager(), path, api.WithPluginHost(pluginhost.New()))
 	for i := range s.Steps {
 		st := &s.Steps[i]
-		req := httptest.NewRequest(st.Method, "/v8/management"+st.Path, strings.NewReader(st.Body))
+		// Paths are v8 management routes unless they name their API version.
+		target := "/v8/management" + st.Path
+		if strings.HasPrefix(st.Path, "/v0/") {
+			target = st.Path
+		}
+		req := httptest.NewRequest(st.Method, target, strings.NewReader(st.Body))
 		req.RemoteAddr = "127.0.0.1:1"
 		req.Header.Set("Authorization", "Bearer fake-secret")
 		rec := httptest.NewRecorder()
@@ -1100,6 +1105,7 @@ func main() {
 		"models: {catalog: ' /abs/models.json'}", "models: {catalog: ' https://example.invalid/x'}", "models: {catalog: 'https://example.invalid/x '}",
 		"models: {catalog: 'c:/models.json'}", "models: {catalog: '\\\\host\\share\\m.json'}", "models: {catalog: '//host/share/m.json'}",
 		"models: {catalog: 'https:example.invalid/x'}", "models: {catalog: 'https://exa\tmple.invalid/'}", "models: {catalog: 'ws://example.invalid/x'}",
+		"models: {catalog: 'http://x[::1]'}", "models: {catalog: 'http://x[::1]:80/p'}", "models: {catalog: 'http://[::1]:80/p'}",
 		"models: {catalog: 5}", "models: {catalog: true}", "models: {catalog: [a]}", "models: []", "models: x", "models: {other: x}",
 		"config-version: 8\nmodels: {catalog: relative.json}", "config-version: 8\nmodels: {catalog: /abs/models.json, devin-catalog: 'https://h/x'}",
 	} {
@@ -1485,6 +1491,7 @@ func configScenarios() []configScenario {
 			put("/config/models/codex-catalog", `"HTTPS://Codex.example.invalid/c.json"`), get("/config/models"),
 			put("/config/models/catalog", `"relative.json"`), put("/config/models/catalog", `"file:///tmp/models.json"`),
 			put("/config/models/devin-catalog", `"https:///models"`), put("/config/models/catalog", `5`),
+			put("/config/models/catalog", `"http://x[::1]:80/p"`),
 			put("/config/models/unknown", `"x"`), put("/config/models", `"x"`),
 			patch("/config/models", `{"catalog":"","devin-catalog":null}`), get("/config/models"),
 			patch("/config", `{"models":{"catalog":"~/m.json"}}`),
@@ -1493,6 +1500,11 @@ func configScenarios() []configScenario {
 			get("/config/models"), del("/config/models/codex-catalog"), get("/config/models"), get("/config.yaml"),
 			put("/config/models", `{"catalog":"/abs/a.json","codex-catalog":"http://h.example.invalid/c","devin-catalog":"/abs/d.json"}`),
 			del("/config/models"), get("/config/models"), get("/config.yaml"),
+			// The v0 upload decodes into Config first: a source error is its 400.
+			put("/v0/management/config.yaml", "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: relative.json\n"),
+			put("/v0/management/config.yaml", "config-version: 8\nmanagement:\n  secret-key: fake-secret\nmodels:\n  devin-catalog: 'http://x[::1]'\n"),
+			put("/v0/management/config.yaml", "remote-management:\n  secret-key: fake-secret\nmodels:\n  catalog: /abs/v0.json\n"),
+			get("/config/models"),
 		}},
 		{Name: "server_github_token", YAML: "github-token: ' fake-legacy-token '\nremote-management:\n  secret-key: '$HASH'\n", Steps: []configStep{
 			get("/config"), get("/config/server/github-token"),

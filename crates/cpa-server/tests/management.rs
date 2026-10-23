@@ -2026,6 +2026,38 @@ async fn model_catalog_sources_survive_a_legacy_save() {
     server.abort();
 }
 
+/// A v0 setter edits the file on disk and validates the result, so a file a reload
+/// refused (here a relative catalog source) refuses an unrelated v0 write and stays as
+/// it is, while the running config keeps the last valid source. Go marshals its valid
+/// in-memory config over the file and saves (DIFFERENCES: v0 setters over a refused file).
+/// Unix only: `/ok/models.json` is not absolute on Windows.
+#[cfg(unix)]
+#[tokio::test]
+async fn a_v0_write_over_a_file_with_an_invalid_catalog_source_is_refused() {
+    let raw = "models:\n  catalog: /ok/models.json\n";
+    let f = Fixture::from_yaml("catalog-v0-refused", |auth, hash| private_config(raw, auth, hash, true));
+    let (base, server) = f.server().await;
+    let disk = f.file().replace("/ok/models.json", "relative.json");
+    std::fs::write(f.dir.join("config.yaml"), &disk).unwrap();
+    let (status, text) = call(
+        &base,
+        wreq::Method::PUT,
+        "/v0/management/request-retry",
+        r#"{"value":2}"#,
+    )
+    .await;
+    assert_eq!(
+        (status, text.as_str()),
+        (
+            422,
+            r#"{"error":"invalid_config","message":"models.catalog must be an http(s) URL or an absolute local path"}"#
+        )
+    );
+    assert_eq!(f.file(), disk);
+    assert_eq!(f.rt.config().document["models"]["catalog"], "/ok/models.json");
+    server.abort();
+}
+
 /// Separate processes give the environment fallback a fresh proxy snapshot without
 /// changing the environment of concurrently running tests. Every address is local;
 /// the unresolvable release host forces the check to use the configured transport.

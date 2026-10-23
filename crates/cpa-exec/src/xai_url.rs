@@ -179,9 +179,13 @@ fn valid_port(port: &str) -> bool {
             .is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
 }
 
-/// `parseHost` with the default `urlstrictcolons=1` (Go 1.26).
+/// `parseHost` with the default `urlstrictcolons=1` (Go 1.26.4).
 fn parse_host(scheme: &str, host: &str) -> Result<String, String> {
     if let Some(open) = host.rfind('[') {
+        // An IP literal must start the host.
+        if open != 0 {
+            return Err("invalid IP-literal".into());
+        }
         let Some(close) = host.rfind(']') else {
             return Err("missing ']' in host".into());
         };
@@ -391,5 +395,24 @@ mod tests {
         ] {
             assert!(!same_authority(bad), "{bad}");
         }
+    }
+
+    /// Go 1.26.4 `url.Parse`: an IP literal must start the host.
+    #[test]
+    fn a_bracket_inside_the_host_is_go_s_invalid_ip_literal() {
+        for (raw, want) in [
+            ("http://x[::1]", r#"parse "http://x[::1]": invalid IP-literal"#),
+            (
+                "http://x[::1]:80/p",
+                r#"parse "http://x[::1]:80/p": invalid IP-literal"#,
+            ),
+            (
+                "http://[::1]x/",
+                r#"parse "http://[::1]x/": invalid port "x" after host"#,
+            ),
+        ] {
+            assert_eq!(parse(raw).err().as_deref(), Some(want), "{raw}");
+        }
+        assert_eq!(parse("http://[::1]:80/p").map(|u| u.hostname).as_deref(), Ok("::1"));
     }
 }
