@@ -2809,7 +2809,7 @@ impl Runtime {
 /// Commits a token refresh of credential `id` that started from `current` under
 /// `fence`'s registration: `patch` is what the refresh changed, merged with any edit
 /// committed since (Go `UpdateRefreshedAuth`). Blocking.
-fn commit_refresh(
+pub(crate) fn commit_refresh(
     store: &CredentialStore,
     id: &str,
     current: &Credential,
