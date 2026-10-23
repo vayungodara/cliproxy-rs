@@ -391,7 +391,6 @@ version = "0.2.6"
 dependencies = [
  "base64 0.22.1",
  "cpa-core",
- "gjson",
  "http",
  "memchr",
  "ryu",
