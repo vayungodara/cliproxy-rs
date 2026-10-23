@@ -3551,6 +3551,8 @@ async fn a_plugin_refresh_interval_schedules_background_refreshes() {
     else {
         return;
     };
+    // The binary's startup load, as plugins parse auth files.
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
     env.rt.start_auto_refresh();
     let refreshed = || {
         calls(&env.records, "acme", "auth.refresh")
@@ -3585,6 +3587,7 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
             ("acme", "auth_provider"),
             ("pp", "auth_provider"),
             ("qq", "auth_provider"),
+            ("rr", "auth_provider"),
         ],
         "",
         &[
@@ -3604,6 +3607,9 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
             // Loaded before the plugins start, as the binary loads it, under the ID the
             // plugin then parses it as.
             ("q.json", r#"{"type":"qq","wrapped":"material"}"#),
+            // Parsed as the very credential the startup load built from it, but for its
+            // deadline.
+            ("r.json", r#"{"type":"rr","access_token":"r","refresh_interval":"1h"}"#),
         ],
         |records| {
             // An answer without auth fields keeps the credential as it was.
@@ -3622,6 +3628,14 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
                 "auth.parse",
                 json!({"Handled":true,"Auths":[{"Provider":"qq","ID":"q.json",
                     "Metadata":{"type":"qq","access_token":"q","refresh_interval":"1h"},
+                    "NextRefreshAfter":"2099-01-01T00:00:00Z"}]}),
+            );
+            canned(
+                records,
+                "rr",
+                "auth.parse",
+                json!({"Handled":true,"Auths":[{"Provider":"rr","ID":"r.json","Label":"rr",
+                    "Metadata":{"type":"rr","access_token":"r","refresh_interval":"1h"},
                     "NextRefreshAfter":"2099-01-01T00:00:00Z"}]}),
             );
         },
@@ -3668,7 +3682,7 @@ async fn plugin_refresh_deadlines_follow_gos_lifecycle_fields() {
     tokio::time::sleep(Duration::from_millis(1500)).await;
     assert_eq!(refreshed("f.json"), 1, "backing off after the failed refresh");
     assert_eq!(refreshed("s.json"), 1, "the no-op refresh counts as the last one");
-    for label in ["pp", "qq"] {
+    for label in ["pp", "qq", "rr"] {
         assert!(
             calls(&env.records, label, "auth.refresh").is_empty(),
             "{label} waiting for the parsed NextRefreshAfter"
@@ -3769,6 +3783,8 @@ async fn a_plugin_refresh_that_cannot_be_saved_backs_off() {
         return;
     }
     let refreshes = || calls(&env.records, "acme", "auth.refresh").len();
+    // The binary's startup load, as plugins parse auth files.
+    cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
     env.rt.start_auto_refresh();
     eventually("the refresh", || refreshes() >= 1).await;
     tokio::time::sleep(Duration::from_millis(3000)).await;
@@ -4020,6 +4036,58 @@ async fn a_disabling_reload_drops_a_credentials_refresh_schedule() {
     assert!(env.rt.store().get("d.json").unwrap().disabled);
     reload(file(json!({}))).await;
     eventually("the refresh after the enabling reload", || refreshes("d.json") == 2).await;
+    env.finish().await;
+}
+
+/// Go starts refreshing once its first load, which asks plugins, has registered the
+/// credentials (`Service.Run`: the parser, then `Load`, then `StartAutoRefresh`). Here
+/// the refresh loop runs from the start, as the binary starts it, and leaves the startup
+/// load's credentials alone until the plugin-aware load registers them: a credential due
+/// by its interval that the plugin then dates to 2099 is never refreshed.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn startup_refreshes_wait_for_the_plugin_aware_load() {
+    let Some(env) = env(
+        "plugin-owned-refresh-startup-order",
+        &[("pp", "auth_provider")],
+        "",
+        &[("s.json", r#"{"type":"pp","access_token":"s","refresh_interval":"1h"}"#)],
+        |records| {
+            canned(
+                records,
+                "pp",
+                "auth.parse",
+                json!({"Handled":true,"Auths":[{"Provider":"pp","ID":"s.json",
+                    "Metadata":{"type":"pp","access_token":"p","refresh_interval":"1h"},
+                    "NextRefreshAfter":"2099-01-01T00:00:00Z"}]}),
+            );
+            canned(
+                records,
+                "pp",
+                "auth.refresh",
+                json!({"Auth":{"Metadata":{"type":"pp","access_token":"p2","refresh_interval":"1h"}}}),
+            );
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let refreshes = || calls(&env.records, "pp", "auth.refresh").len();
+    let hold = Release(env.records.join("respond/pp/auth.parse.hold"));
+    std::fs::write(&hold.0, "").unwrap();
+    env.rt.start_auto_refresh();
+    let reload = tokio::spawn({
+        let rt = env.rt.clone();
+        async move { cpa_server::plugins::reload_plugin_auth_files(&rt).await }
+    });
+    // The refresh loop coalesces store changes for 1 s.
+    tokio::time::sleep(Duration::from_millis(2500)).await;
+    assert_eq!(refreshes(), 0, "refreshed before the plugin-aware load");
+    drop(hold);
+    reload.await.unwrap();
+    assert_eq!(env.rt.store().get("s.json").unwrap().metadata["access_token"], "p");
+    tokio::time::sleep(Duration::from_millis(2000)).await;
+    assert_eq!(refreshes(), 0, "waiting for the parsed NextRefreshAfter");
     env.finish().await;
 }
 

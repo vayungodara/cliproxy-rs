@@ -1387,7 +1387,10 @@ impl CredentialStore {
     /// Ends the startup window in which the credentials loaded before plugins parse auth
     /// files are provisional ([`crate::plugins::refresh::end_bootstrap`]).
     pub fn end_bootstrap(&self) {
-        crate::plugins::refresh::end_bootstrap(&self.refresh_schedules);
+        if crate::plugins::refresh::end_bootstrap(&self.refresh_schedules) {
+            // The refresh loop skips provisional schedules; it looks again.
+            self.changed.send_replace(());
+        }
     }
 
     /// Registers the plugin refresh schedules of a change from `before` to `after`;
@@ -2450,8 +2453,16 @@ impl CredentialStore {
         for c in &inner.creds {
             by_id.entry(c.id.as_str()).or_insert(c);
         }
+        // A credential the startup load registered provisionally is registered again
+        // when the first plugin-aware load parses another `NextRefreshAfter` for it,
+        // whatever else it equals: Go's first load registers it with that one.
+        let provisional = crate::plugins::refresh::provisional(&self.refresh_schedules);
         for mut cred in credentials {
-            match by_id.get(cred.id.as_str()).filter(|c| unchanged(c, &cred)) {
+            let same = |c: &Credential| {
+                unchanged(c, &cred)
+                    && !(provisional.contains(c.id.as_str()) && c.next_refresh_after != cred.next_refresh_after)
+            };
+            match by_id.get(cred.id.as_str()).filter(|c| same(c)) {
                 Some(&existing) => next.push(existing.clone()),
                 None => {
                     inner.generation += 1;

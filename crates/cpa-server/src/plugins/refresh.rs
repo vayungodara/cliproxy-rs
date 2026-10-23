@@ -95,6 +95,11 @@ pub(crate) fn due_at(rt: &Runtime, c: &Credential, cfg: &Config) -> Option<DateT
         .get(&c.id)
         .copied()
         .unwrap_or_default();
+    // Go starts refreshing once its first load, which asks plugins, has registered the
+    // credentials; until then their deadlines are not known.
+    if schedule.provisional {
+        return None;
+    }
     let by_last = schedule
         .last
         .or_else(|| cpa_exec::last_refresh(c))
@@ -115,9 +120,9 @@ pub(crate) struct Schedule {
     pub last: Option<DateTime<Utc>>,
     /// Go `NextRefreshAfter`.
     pub next_after: Option<DateTime<Utc>>,
-    /// Registered by the startup load, which runs before plugins parse auth files: the
-    /// first plugin-aware load registers the credential as Go's first one does, so its
-    /// next registration takes its own fields ([`end_bootstrap`]).
+    /// Registered by the startup load, which runs before plugins parse auth files: never
+    /// due ([`due_at`]), and the first plugin-aware load registers the credential as
+    /// Go's first one does, taking its own fields ([`end_bootstrap`]).
     pub provisional: bool,
 }
 
@@ -202,11 +207,22 @@ pub(crate) fn begin_bootstrap(schedules: &Schedules) {
 }
 
 /// Ends the startup window: the first plugin-aware load has registered its credentials,
-/// and the schedules it left in place are their own.
-pub(crate) fn end_bootstrap(schedules: &Schedules) {
+/// and the schedules it left in place are their own. Whether any was provisional.
+pub(crate) fn end_bootstrap(schedules: &Schedules) -> bool {
+    let mut ended = false;
     for schedule in lock(schedules).values_mut() {
-        schedule.provisional = false;
+        ended |= std::mem::take(&mut schedule.provisional);
     }
+    ended
+}
+
+/// The IDs whose schedules are [`Schedule::provisional`].
+pub(crate) fn provisional(schedules: &Schedules) -> std::collections::HashSet<String> {
+    lock(schedules)
+        .iter()
+        .filter(|(_, s)| s.provisional)
+        .map(|(id, _)| id.clone())
+        .collect()
 }
 
 /// Records a committed plugin refresh of `c` (Go `refreshAuth` on success): the refresh

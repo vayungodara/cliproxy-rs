@@ -142,8 +142,16 @@ pub async fn sync(rt: &Runtime, cfg: Arc<Config>) {
 /// ([`crate::runtime::CredentialStore::end_bootstrap`]).
 pub async fn reload_plugin_auth_files(rt: &Arc<Runtime>) {
     use cpa_core::config::credentials;
+    /// Ends the startup window however the load ends, a failed one included, so the
+    /// refresh loop never waits on provisional schedules.
+    struct EndBootstrap(Arc<Runtime>);
+    impl Drop for EndBootstrap {
+        fn drop(&mut self) {
+            self.0.store().end_bootstrap();
+        }
+    }
+    let _end = EndBootstrap(rt.clone());
     if !credentials::plugin_auth_parser_active() {
-        rt.store().end_bootstrap();
         return;
     }
     let rt = rt.clone();
@@ -164,7 +172,6 @@ pub async fn reload_plugin_auth_files(rt: &Arc<Runtime>) {
         rt.store().reconcile_scanned_with(all, &scan.read, |current, all| {
             keep_deferred(current, all, &scan.deferred)
         });
-        rt.store().end_bootstrap();
     });
     if let Err(e) = reload.await {
         tracing::error!(error = %e, "reloading auth files for plugin auth providers failed");
