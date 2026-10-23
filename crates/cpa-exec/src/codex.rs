@@ -174,121 +174,27 @@ impl CodexExecutor {
         codex_oauth::refresh_due(credential, now) || crate::codex_siwc::refresh_due(credential, now) == Some(true)
     }
 
-    /// Refreshes the due partitions. Go refreshes Codex only in the background and never
-    /// blocks a request on it, so a failed refresh while the token requests use is still
-    /// valid keeps the credential usable; the failure is cached for five minutes by the
-    /// OAuth service.
-    pub async fn prepare(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
-        let now = Utc::now();
-        let outer = codex_oauth::refresh_due(credential, now);
-        let siwc = crate::codex_siwc::refresh_due(credential, now) == Some(true);
-        if !outer && !siwc {
-            return Ok(MetadataPatch::default());
-        }
-        let usable = if crate::codex_siwc::enabled(credential) {
-            crate::codex_siwc::access_usable(credential, now)
-        } else {
-            codex_oauth::access_usable(credential, now)
-        };
-        match self.refresh_partitions(credential, cfg, outer, siwc).await {
-            Ok(patch) => Ok(patch),
-            Err(error) if usable => {
-                tracing::warn!(
-                    credential = %credential.id,
-                    status = error.status,
-                    "codex token refresh failed; current access token is still valid"
-                );
-                Ok(MetadataPatch::default())
-            }
-            Err(error) => Err(error),
-        }
-    }
-
-    /// Refreshes after an upstream rejected the token requests use (Go marks it
-    /// `RejectedAccessToken`): that partition (the Sign in with ChatGPT one when
-    /// `use_siwc` is on) and any due one. With neither able to refresh, every partition
-    /// that can (Go's explicit unscheduled refresh). Nothing without a refresh token.
-    pub async fn refresh_now(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
-        let now = Utc::now();
-        let has_outer = !codex_oauth::refresh_token(credential).is_empty();
-        let siwc_due = crate::codex_siwc::refresh_due(credential, now);
-        let active_siwc = crate::codex_siwc::enabled(credential);
-        let mut outer = has_outer && (!active_siwc || codex_oauth::refresh_due(credential, now));
-        let mut siwc = siwc_due.is_some_and(|due| due || active_siwc);
-        if !outer && !siwc {
-            (outer, siwc) = (has_outer, siwc_due.is_some());
-        }
-        self.refresh_partitions(credential, cfg, outer, siwc).await
-    }
-
-    /// A management refresh (Go `IsForceRefreshContext`): every partition that can refresh.
-    pub async fn refresh_all(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
-        let has_outer = !codex_oauth::refresh_token(credential).is_empty();
-        let has_siwc = crate::codex_siwc::refresh_due(credential, Utc::now()).is_some();
-        self.refresh_partitions(credential, cfg, has_outer, has_siwc).await
-    }
-
-    /// Go `refreshLocked`: the outer tokens, then the Sign in with ChatGPT partition, one
-    /// after the other. A partition that fails while the other refreshes is logged and
-    /// the other's patch kept; with neither refreshed, the outer error comes first.
-    async fn refresh_partitions(
-        &self,
-        credential: &Credential,
-        cfg: &Config,
-        outer: bool,
-        siwc: bool,
-    ) -> Result<MetadataPatch, ExecError> {
-        if !outer && !siwc {
-            return Ok(MetadataPatch::default());
-        }
-        // `NewCodexAuthWithProxyURL(cfg, auth.ProxyURL)`: the credential's proxy, then the
-        // global one, on Go's standard transport.
+    /// The refresh grants for `credential`, on the client its proxy selects
+    /// (`NewCodexAuthWithProxyURL(cfg, auth.ProxyURL)`: the credential's proxy, then the
+    /// global one, on Go's standard transport).
+    pub fn refresher(&self, credential: &Credential, cfg: &Config) -> crate::codex_refresh::Refresher {
         let proxy = crate::proxy::Proxy::effective(credential, cfg);
-        let oauth = self.oauth.with_client(self.transport.standard(&proxy));
-        let outer = if outer {
-            Some(oauth.refresh_patch(codex_oauth::refresh_token(credential)).await)
-        } else {
-            None
-        };
-        let siwc = if siwc {
-            let (token, client, device) = crate::codex_siwc::refresh_inputs(credential);
-            Some(
-                oauth
-                    .refresh_siwc(token, client, device)
-                    .await
-                    .map(|tokens| crate::codex_siwc::refresh_patch(credential, &tokens)),
-            )
-        } else {
-            None
-        };
-        let mut patch = MetadataPatch::default();
-        let (mut refreshed, mut failures) = (false, Vec::new());
-        for (partition, result) in [("outer", outer), ("SIWC", siwc)] {
-            match result {
-                Some(Ok(part)) => {
-                    refreshed = true;
-                    patch.set.extend(part.set);
-                    patch.remove.extend(part.remove);
-                }
-                Some(Err(error)) => failures.push((partition, error)),
-                None => {}
-            }
-        }
-        if !refreshed {
-            return match failures.into_iter().next() {
-                Some((_, error)) => Err(error),
-                None => Ok(patch),
-            };
-        }
-        for (partition, error) in failures {
-            tracing::warn!(
-                credential = %credential.id,
-                partition,
-                status = error.status,
-                "codex token refresh failed for one partition; the other refreshed"
-            );
-        }
-        Ok(patch)
+        crate::codex_refresh::Refresher::new(self.oauth.with_client(self.transport.standard(&proxy)))
+    }
+
+    /// [`crate::codex_refresh::Refresher::prepare`].
+    pub async fn prepare(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
+        self.refresher(credential, cfg).prepare(credential).await
+    }
+
+    /// [`crate::codex_refresh::Refresher::refresh_now`].
+    pub async fn refresh_now(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
+        self.refresher(credential, cfg).refresh_now(credential).await
+    }
+
+    /// [`crate::codex_refresh::Refresher::refresh_all`].
+    pub async fn refresh_all(&self, credential: &Credential, cfg: &Config) -> Result<MetadataPatch, ExecError> {
+        self.refresher(credential, cfg).refresh_all(credential).await
     }
 
     pub async fn execute(
