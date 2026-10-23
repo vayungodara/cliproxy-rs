@@ -434,6 +434,69 @@
     "api_keys": null
   },
   {
+    "name": "shadowed merge of an aliased sequence",
+    "yaml": "seq: \u0026s [{port: 2}]\nserver: {port: 1}\n\u003c\u003c:\n  server: {\u003c\u003c: *s}\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 1,
+    "api_keys": null
+  },
+  {
+    "name": "shadowed scalar merge",
+    "yaml": "server: {port: 1}\n\u003c\u003c:\n  server: {\u003c\u003c: 5}\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 1,
+    "api_keys": null
+  },
+  {
+    "name": "merge of a locally tagged aliased mapping",
+    "yaml": "base: \u0026a !keep {port: 1}\n\u003c\u003c: *a\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 1,
+    "api_keys": null
+  },
+  {
+    "name": "merge of a locally tagged mapping",
+    "yaml": "\u003c\u003c: !keep {port: 1}\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 1,
+    "api_keys": null
+  },
+  {
+    "name": "merge of a list holding a locally tagged mapping",
+    "yaml": "\u003c\u003c: [!keep {port: 1}]\n",
+    "error": "",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 1,
+    "api_keys": null
+  },
+  {
+    "name": "merge key inside a collection key",
+    "yaml": "extra:\n  ? {\"\u003c\u003c\": {port: 1}}\n  : ignored\nport: 2\n",
+    "error": "yaml: invalid map key: map[string]interface {}{\"\u003c\u003c\":map[string]interface {}{\"port\":1}}",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
+  },
+  {
+    "name": "collection key",
+    "yaml": "extra: {? {a: 1} : x}\n",
+    "error": "yaml: invalid map key: map[string]interface {}{\"a\":1}",
+    "secret_key": "",
+    "proxy_url": "",
+    "port": 0,
+    "api_keys": null
+  },
+  {
     "name": "non-specific document marker secret",
     "yaml": "management:\n  secret-key: ! ---\n",
     "error": "",

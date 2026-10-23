@@ -93,6 +93,15 @@ func main() {
 		{"merge of a list holding an aliased sequence", "defaults: &d [{port: 1}]\n<<: [*d]\n"},
 		{"merge of a list of aliased mappings", "a: &a {port: 1}\nb: &b {port: 2, proxy-url: http://p.lan:80}\n<<: [*a, *b]\n"},
 		{"merge of an aliased mapping in a sequence", "list: [&a {port: 1}]\n<<: *a\n"},
+		// yaml.v3 skips a merge source a key already set shadows, and merges tagged mappings.
+		{"shadowed merge of an aliased sequence", "seq: &s [{port: 2}]\nserver: {port: 1}\n<<:\n  server: {<<: *s}\n"},
+		{"shadowed scalar merge", "server: {port: 1}\n<<:\n  server: {<<: 5}\n"},
+		{"merge of a locally tagged aliased mapping", "base: &a !keep {port: 1}\n<<: *a\n"},
+		{"merge of a locally tagged mapping", "<<: !keep {port: 1}\n"},
+		{"merge of a list holding a locally tagged mapping", "<<: [!keep {port: 1}]\n"},
+		// Collection keys, a merge key inside one included.
+		{"merge key inside a collection key", "extra:\n  ? {\"<<\": {port: 1}}\n  : ignored\nport: 2\n"},
+		{"collection key", "extra: {? {a: 1} : x}\n"},
 		// The non-specific tag keeps the scalar's own text.
 		{"non-specific document marker secret", "management:\n  secret-key: ! ---\n"},
 		{"non-specific multi-line secret", "management:\n  secret-key: ! first\n\n    second\n"},

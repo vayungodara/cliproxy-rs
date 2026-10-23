@@ -8,6 +8,7 @@ use serde_json::Value as Json;
 
 const TAG: &str = "a YAML tag in the config file is not supported";
 const KEY: &str = "a tagged or aliased mapping key in the config file is not supported";
+const MERGE: &str = "yaml: map merge requires map or sequence of maps as the value";
 const QUOTED_MERGE: &str = "a quoted << mapping key in the config file is not supported";
 const ANCHOR: &str = "a YAML anchor name is defined more than once in the config file";
 const PIN: &str =
@@ -41,6 +42,9 @@ const REFUSED: &[(&str, &str)] = &[
     ("escaped merge key", QUOTED_MERGE),
     ("literal block merge key", QUOTED_MERGE),
     ("quoted merge key in an anchored section", QUOTED_MERGE),
+    // yaml.v3 skips a merge source a key already set shadows; the merge checks run anyway.
+    ("shadowed merge of an aliased sequence", MERGE),
+    ("shadowed scalar merge", MERGE),
 ];
 
 #[test]

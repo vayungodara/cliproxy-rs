@@ -41,7 +41,9 @@ const MERGE_NOT_MAPS: &str = "yaml: map merge requires map or sequence of maps a
 
 /// Go `expandConfigAliases` plus yaml.v3's merge rules: `<<` keys expand bottom-up
 /// (nested merges first); explicit keys win, then earlier merged mappings. A merge
-/// value that is not a mapping or a list of mappings is yaml.v3's decode error.
+/// value that is not a mapping or a list of mappings is yaml.v3's decode error, even in
+/// a merge source an explicit key or an earlier source shadows, which yaml.v3 never
+/// decodes.
 /// (Aliases are already expanded by the parser.) The parsed value no longer says whether
 /// a key was quoted or a merge operand an alias, so [`yaml_value`] refuses a quoted
 /// `<<` key (yaml.v3 reads it as a plain key) and fails an alias of a sequence as a
@@ -54,11 +56,11 @@ pub fn expand_merges(value: &mut Value) -> anyhow::Result<()> {
                 expand_merges(child)?;
             }
             if let Some(merge) = map.shift_remove("<<") {
-                let sources: Vec<Mapping> = match merge {
+                let sources: Vec<Mapping> = match untagged(merge) {
                     Value::Mapping(m) => vec![m],
                     Value::Sequence(items) => items
                         .into_iter()
-                        .map(|item| match item {
+                        .map(|item| match untagged(item) {
                             Value::Mapping(m) => Ok(m),
                             _ => Err(anyhow::anyhow!(MERGE_NOT_MAPS)),
                         })
@@ -81,6 +83,14 @@ pub fn expand_merges(value: &mut Value) -> anyhow::Result<()> {
         _ => {}
     }
     Ok(())
+}
+
+/// A merge operand without its local tags: yaml.v3 merges a tagged mapping by its kind.
+fn untagged(value: Value) -> Value {
+    match value {
+        Value::Tagged(tagged) => untagged(tagged.value),
+        other => other,
+    }
 }
 pub use trusted::{TrustedProxies, go_trim_space};
 pub use validate::{catalog_sources as validate_catalog_sources, parse_duration};

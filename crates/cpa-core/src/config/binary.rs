@@ -10,7 +10,7 @@
 //!
 //! What this does not follow is refused rather than read differently: other literal
 //! short tags, a non-specific tag that resolves to a number or boolean, tagged or
-//! aliased mapping keys and collection keys, a repeated anchor name (serde_yaml_ng binds a redefined
+//! aliased mapping keys, collection keys (Go rejects them too), a repeated anchor name (serde_yaml_ng binds a redefined
 //! anchor's aliases to a different node than libyaml does), a `%00` escape in a
 //! tag (libyaml cuts the tag there; Go keeps the NUL), and a quoted `<<` key (yaml.v3's
 //! `isMerge` reads it as a plain key; [`super::expand_merges`] cannot tell it apart).
@@ -26,6 +26,7 @@ use serde_yaml_ng::Value;
 
 const UNSUPPORTED_TAG: &str = "a YAML tag in the config file is not supported";
 const UNSUPPORTED_KEY: &str = "a tagged or aliased mapping key in the config file is not supported";
+const COLLECTION_KEY: &str = "a mapping or sequence used as a mapping key in the config file is not supported";
 const QUOTED_MERGE_KEY: &str = "a quoted << mapping key in the config file is not supported";
 const REPEATED_ANCHOR: &str = "a YAML anchor name is defined more than once in the config file";
 const PLUGIN_PIN: &str =
@@ -53,9 +54,9 @@ pub(super) fn go_base64(text: &[u8]) -> Option<Vec<u8>> {
 /// invalid base64 as Go does, and refuses what it does not follow (see the module
 /// docs) and binary bytes that are not UTF-8, which a setting cannot hold.
 pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
-    // Without a tag, an anchor or a `<<` key, serde_yaml_ng reads the file as yaml.v3
-    // does here.
-    if !text.contains(['!', '&']) && !has_merge_key(value) {
+    // Without a tag, an anchor, a `<<` key or a collection key, serde_yaml_ng reads the
+    // file as yaml.v3 does here.
+    if !text.contains(['!', '&']) && !needs_walk(value) {
         return Ok(());
     }
     let mut walk = Walk {
@@ -81,11 +82,15 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     apply(value, 0, &found)
 }
 
-fn has_merge_key(value: &Value) -> bool {
+/// Whether `value` holds a `<<` key or a mapping or sequence used as a key (whose own
+/// keys serde_yaml_ng's merge expansion never visits).
+fn needs_walk(value: &Value) -> bool {
     match value {
-        Value::Mapping(m) => m.iter().any(|(k, v)| k.as_str() == Some("<<") || has_merge_key(v)),
-        Value::Sequence(items) => items.iter().any(has_merge_key),
-        Value::Tagged(tagged) => has_merge_key(&tagged.value),
+        Value::Mapping(m) => m.iter().any(|(k, v)| {
+            matches!(k, Value::Mapping(_) | Value::Sequence(_)) || k.as_str() == Some("<<") || needs_walk(v)
+        }),
+        Value::Sequence(items) => items.iter().any(needs_walk),
+        Value::Tagged(tagged) => needs_walk(&tagged.value),
         _ => false,
     }
 }
@@ -375,7 +380,7 @@ impl Walk {
             }
             Event::Start { anchor, mapping } => {
                 // Paths address mapping values only; Go rejects collection keys.
-                ensure!(!key, UNSUPPORTED_KEY);
+                ensure!(!key, COLLECTION_KEY);
                 self.define(&anchor)?;
                 if let Some(name) = anchor.as_ref().filter(|_| !mapping) {
                     self.sequences.insert(name.clone());
