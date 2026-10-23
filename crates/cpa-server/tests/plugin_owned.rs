@@ -3786,6 +3786,53 @@ async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadli
             .filter(|r| r["AuthID"] == id)
             .count()
     };
+    let diag = |what: &str| {
+        let ids: Vec<String> = env
+            .rt
+            .store()
+            .snapshot()
+            .iter()
+            .map(|c| {
+                format!(
+                    "{}:{}:{}",
+                    c.id,
+                    c.metadata
+                        .get("access_token")
+                        .map(|v| v.to_string())
+                        .unwrap_or_default(),
+                    c.revision
+                )
+            })
+            .collect();
+        let parses: Vec<String> = calls(&env.records, "pp", "auth.parse")
+            .iter()
+            .map(|r| {
+                r["Path"]
+                    .as_str()
+                    .unwrap_or("")
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("")
+                    .to_owned()
+            })
+            .collect();
+        let files: Vec<String> = std::fs::read_dir(&auth_dir)
+            .unwrap()
+            .map(|e| {
+                let e = e.unwrap();
+                format!(
+                    "{}={}",
+                    e.file_name().to_string_lossy(),
+                    std::fs::read_to_string(e.path()).unwrap_or_default()
+                )
+            })
+            .collect();
+        let refreshes: Vec<String> = calls(&env.records, "pp", "auth.refresh")
+            .iter()
+            .map(|r| r["AuthID"].as_str().unwrap_or("").to_owned())
+            .collect();
+        eprintln!("DIAG {what}: store {ids:?} parses {parses:?} files {files:?} refreshes {refreshes:?}");
+    };
     let write = |name: &str, body: &str| std::fs::write(auth_dir.join(name), body).unwrap();
     let wrapped = r#"{"type":"pp","wrapped":"material"}"#;
     let ordinary = r#"{"type":"pp","access_token":"q","refresh_interval":"1h"}"#;
@@ -3796,40 +3843,61 @@ async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadli
     canned(&env.records, "pp", "auth.parse", parsed("a.json"));
     write("a.json", wrapped);
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    diag("step 1");
     env.rt.start_auto_refresh();
+    diag("step 2");
     settle().await;
     assert_eq!(refreshes("a.json"), 0, "waiting for the parsed NextRefreshAfter");
     std::fs::remove_file(auth_dir.join("a.json")).unwrap();
+    diag("step 3");
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    diag("step 4");
     assert!(env.rt.store().get("a.json").is_none());
     settle().await;
     canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
     write("a.json", ordinary);
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    diag("step 5");
     assert_eq!(env.rt.store().get("a.json").unwrap().metadata["access_token"], "q");
     eventually("a.json's refresh", || refreshes("a.json") >= 1).await;
     env.rt.stop_auto_refresh();
+    diag("step 6");
     std::fs::remove_file(auth_dir.join("a.json")).unwrap();
+    diag("step 7");
 
     // Parsed, deleted and created again before the refresh loop runs.
     canned(&env.records, "pp", "auth.parse", parsed("b.json"));
     write("b.json", wrapped);
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    diag("step 8");
     std::fs::remove_file(auth_dir.join("b.json")).unwrap();
+    diag("step 9");
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    diag("step 10");
     canned(&env.records, "pp", "auth.parse", json!({"Handled":false}));
     write("b.json", ordinary);
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    diag("step 11");
     env.rt.start_auto_refresh();
-    eventually("b.json's refresh", || refreshes("b.json") >= 1).await;
+    diag("step 12");
+    let deadline = std::time::Instant::now() + Duration::from_secs(10);
+    while refreshes("b.json") < 1 && std::time::Instant::now() < deadline {
+        tokio::time::sleep(Duration::from_millis(20)).await;
+    }
+    diag("b wait over");
+    assert!(refreshes("b.json") >= 1, "b.json's refresh");
     env.rt.stop_auto_refresh();
+    diag("step 13");
     std::fs::remove_file(auth_dir.join("b.json")).unwrap();
+    diag("step 14");
 
     // Disabled and enabled again.
     canned(&env.records, "pp", "auth.parse", parsed("c.json"));
     write("c.json", wrapped);
     cpa_server::plugins::reload_plugin_auth_files(&env.rt).await;
+    diag("step 15");
     env.rt.start_auto_refresh();
+    diag("step 16");
     settle().await;
     assert_eq!(refreshes("c.json"), 0, "waiting for the parsed NextRefreshAfter");
     let store = env.rt.store();
@@ -3843,6 +3911,7 @@ async fn a_credential_registered_afresh_does_not_inherit_a_parsed_refresh_deadli
     }
     assert_eq!(refreshes("c.json"), 0, "still waiting for the parsed NextRefreshAfter");
     env.rt.stop_auto_refresh();
+    diag("step 17");
     env.finish().await;
 }
 
