@@ -2368,6 +2368,13 @@ fn must_marshal(s: &[u8]) -> bool {
         .any(|&c| !(b' '..=0x7f).contains(&c) || c == b'"' || c == b'\\')
 }
 
+/// The bytes sjson writes for a string value (`SetBytes` with a string).
+pub fn stringify(s: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(s.len() + 2);
+    append_stringify(&mut out, s);
+    out
+}
+
 fn append_stringify(buf: &mut Vec<u8>, s: &[u8]) {
     if must_marshal(s) {
         marshal_str(buf, s, true);

@@ -94,8 +94,10 @@ pub(crate) fn count_original(
     model: &str,
     is_compat: bool,
 ) -> Result<Bytes, ExecError> {
-    // Equal bytes translate identically; reusing the translation keeps a large count
-    // from holding a second copy.
+    // Equal bytes translate alike except for generated tool-call IDs (a call without an
+    // `id` gets a random one in each translation, claude_chat_request.rs `tool_use`),
+    // which no rule can match on. Reusing the translation keeps a large count from
+    // holding a second copy.
     if req.original_body.is_empty() || req.original_body == req.body {
         return Ok(translated.clone());
     }

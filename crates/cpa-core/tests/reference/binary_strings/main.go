@@ -110,6 +110,7 @@ func main() {
 		{"binary plugin pin", "plugins:\n  configs:\n    x:\n      store:\n        version: !!binary MS4yLjM=\n"},
 		{"aliased binary plugin pin", "pin: &v !!binary MS4yLjM=\nplugins:\n  configs:\n    x:\n      store:\n        version: *v\n"},
 		{"binary plugin pin through a merge", "base: &b\n  release-tag: !!binary djEuMi4z\nplugins:\n  configs:\n    x:\n      store:\n        <<: *b\n"},
+		{"shadowed binary plugin pin", "defaults: &d {version: !!binary MS4yLjM=}\nplugins:\n  configs:\n    x:\n      store: {<<: *d, version: !keep 4.5.6}\n"},
 		{"binary plugin setting", "plugins:\n  configs:\n    x:\n      store:\n        channel: !!binary c3RhYmxl\n"},
 	}
 	var out []result

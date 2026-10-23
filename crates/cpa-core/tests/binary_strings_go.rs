@@ -15,6 +15,8 @@ const REFUSED: &[(&str, &str)] = &[
     ("binary plugin pin", PIN),
     ("aliased binary plugin pin", PIN),
     ("binary plugin pin through a merge", PIN),
+    // Go pins the explicit `!keep 4.5.6`; the binary merge candidate is refused anyway.
+    ("shadowed binary plugin pin", PIN),
     ("not UTF-8", "a !!binary value in the config file is not UTF-8 text"),
     ("redefined anchor around a binary secret", ANCHOR),
     ("redefined anchor", ANCHOR),

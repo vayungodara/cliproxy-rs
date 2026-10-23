@@ -43,9 +43,12 @@ pub fn resolve_filters(cli: (Vec<String>, Vec<String>), cfg: (Vec<String>, Vec<S
 }
 
 /// Go `LoadDiscoveryScanFilters`: `discovery.interfaces` from the legacy top-level key
-/// only (Go's scan does not read `server.discovery`), `!!binary` names decoded. Missing
-/// or undecodable files give no filters. A file the config decoder refuses where Go
-/// reads it (docs/DIFFERENCES-FROM-GO.md) is an error, not an unfiltered scan.
+/// only (Go's scan does not read `server.discovery`), `!!binary` names decoded and
+/// merge keys expanded. A missing file, a YAML syntax error and a wrong-kind node on
+/// the path give no filters, as in Go. Anything else the config decoder refuses (invalid
+/// `!!binary` data anywhere in the file, a scalar merge, the documented restrictions)
+/// is an error, where Go scans with no filters or with the file's filters
+/// (docs/DIFFERENCES-FROM-GO.md).
 pub fn load_scan_filters(path: &str) -> Result<(Vec<String>, Vec<String>), String> {
     let path = match go_trim(path) {
         "" => std::env::current_dir()
@@ -59,8 +62,9 @@ pub fn load_scan_filters(path: &str) -> Result<(Vec<String>, Vec<String>), Strin
     if serde_yaml_ng::from_str::<Yaml>(&text).is_err() {
         return Ok(Default::default());
     }
-    let doc = cpa_core::config::yaml_value(&text)
-        .map_err(|e| format!("discovery interface filters in {}: {e}", path.display()))?;
+    let refused = |e: anyhow::Error| format!("discovery interface filters in {}: {e}", path.display());
+    let mut doc = cpa_core::config::yaml_value(&text).map_err(refused)?;
+    cpa_core::config::expand_merges(&mut doc).map_err(refused)?;
     // yaml.v3 decodes null into zero values and fails on a wrong-kind node anywhere
     // on the path, which drops both lists.
     let mapping = |v: Option<&Yaml>| -> Option<Option<Yaml>> {

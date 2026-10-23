@@ -365,6 +365,25 @@ pub fn desired_versions(items: &BTreeMap<String, ItemConfig>) -> BTreeMap<String
 mod tests {
     use super::*;
 
+    /// Go v8.0.35's `pluginConfigDesiredVersion` pins these 1.2.3: the pin is the raw
+    /// node's text, which only a `!!binary` tag (refused by the config loader) changes.
+    #[test]
+    fn locally_tagged_pins_load_and_pin() {
+        for yaml in [
+            "plugins:\n  configs:\n    x:\n      store:\n        version: !keep 1.2.3\n",
+            "pin: &v !keep 1.2.3\nplugins:\n  configs:\n    x:\n      store:\n        version: *v\n",
+            "plugins:\n  configs:\n    x:\n      store:\n        release-tag: !!str v1.2.3\n",
+            "plugins:\n  configs:\n    x:\n      store:\n        version: !<!!str> 1.2.3\n",
+            "pin: &v v1.2.3\nplugins:\n  configs:\n    x:\n      store:\n        release-tag: *v\n",
+            "plugins:\n  configs:\n    x:\n      store:\n        release-tag: ! v1.2.3\n",
+            "pin: &v ! v1.2.3\nplugins:\n  configs:\n    x:\n      store:\n        release-tag: *v\n",
+        ] {
+            let cfg = cpa_core::config::Config::parse(yaml).unwrap_or_else(|e| panic!("{yaml}: {e:#}"));
+            let item = item_config("x", &cfg.document["plugins"]["configs"]["x"]);
+            assert_eq!(item.version, "1.2.3", "{yaml}");
+        }
+    }
+
     /// Expected errors printed by Go: `config.PluginInstanceConfig` decoded from the
     /// nodes `yamlNodeFromJSONValue` builds.
     #[test]
