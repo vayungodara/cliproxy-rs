@@ -35,8 +35,9 @@ pub(crate) fn resolved_model(s: &Value) -> Option<cpa_core::exec::ResolvedModel>
 pub(crate) struct UsageReports {
     effort: Mutex<Option<String>>,
     responses: Mutex<usize>,
-    /// A failure the executor published itself: status and body.
-    failure: Mutex<Option<(u16, String)>>,
+    /// A failure the executor published itself: status, body and whether it carries
+    /// the usage seen so far.
+    failure: Mutex<Option<(u16, String, bool)>>,
 }
 
 impl UsageReports {
@@ -60,12 +61,15 @@ impl UsageReports {
         }
         // A client that went away mid-stream: Go's record failed with the executor's
         // error, or succeeded, which Rust leaves to the server's end-of-attempt record.
+        // Every such upstream reports usage before the drop, so Go's failure carries
+        // tokens exactly when it keeps the usage seen so far.
         if s["cancel_when_idle"] == true {
             let usage = &s["usage"];
             let want = (usage["failed"] == true).then(|| {
                 (
                     usage["fail_status"].as_u64().unwrap() as u16,
                     usage["fail_body"].as_str().unwrap().to_owned(),
+                    usage["total_tokens"].as_u64().unwrap() > 0,
                 )
             });
             assert_eq!(*self.failure.lock().unwrap(), want, "{name}: executor failure on drop");
@@ -75,11 +79,17 @@ impl UsageReports {
 
 impl cpa_core::exec::UsageObserver for UsageReports {
     fn publish_failure(&self, status: u16, body: &str) {
-        self.failure.lock().unwrap().get_or_insert((status, body.to_owned()));
+        self.failure
+            .lock()
+            .unwrap()
+            .get_or_insert((status, body.to_owned(), false));
     }
 
     fn publish_failure_with_usage(&self, status: u16, body: &str) {
-        self.publish_failure(status, body);
+        self.failure
+            .lock()
+            .unwrap()
+            .get_or_insert((status, body.to_owned(), true));
     }
 
     fn response_body(&self, _: Format, _: &[u8]) {

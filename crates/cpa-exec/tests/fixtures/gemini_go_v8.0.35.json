@@ -1031,6 +1031,169 @@
         "fail_body": "context canceled"
       },
       "cancel_when_idle": true
+    },
+    {
+      "name": "int_stream_client_drop_mid_read",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini-interactions",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}",
+      "source": "interactions",
+      "op": "stream",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\n",
+        "missing": 40,
+        "stall": true
+      },
+      "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 59\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}",
+      "chunks": [
+        "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 499,
+        "fail_body": "context canceled"
+      },
+      "cancel_when_idle": true
+    },
+    {
+      "name": "int_stream_client_drop_after_completed",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini-interactions",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}",
+      "source": "interactions",
+      "op": "stream",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "interactions",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\ndata: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\n",
+        "missing": 40,
+        "stall": true
+      },
+      "request": "POST /v1beta/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 59\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-int-1\r\nX-Static: static-int\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}",
+      "chunks": [
+        "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\n",
+        "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 499,
+        "fail_body": "context canceled"
+      },
+      "cancel_when_idle": true
     }
   ]
 }

@@ -2,7 +2,7 @@
 //! (internal/util/responses_tools.go). The Claude Responses translator keeps its own
 //! variant in `claude_responses` because Go's Claude package collects built-in tools too.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use cpa_common::json::{self as gj, Kind, Res};
 use sha2::{Digest, Sha256};
@@ -233,16 +233,16 @@ pub(crate) fn winners(descriptors: &[Descriptor<'_>]) -> HashMap<Vec<u8>, usize>
 /// sanitizeResponsesToolNames: Gemini-safe names; names whose sanitized forms collide get
 /// a sha256-derived suffix, assigned in sorted name order.
 fn sanitize_names(names: &[&[u8]]) -> HashMap<Vec<u8>, Vec<u8>> {
-    let mut unique: Vec<&[u8]> = vec![];
+    let mut seen: HashSet<&[u8]> = HashSet::new();
     let mut base_counts: HashMap<Vec<u8>, usize> = HashMap::new();
     for &name in names {
-        if name.is_empty() || unique.contains(&name) {
+        if name.is_empty() || !seen.insert(name) {
             continue;
         }
-        unique.push(name);
         *base_counts.entry(sanitize_function_name(name)).or_default() += 1;
     }
-    unique.sort();
+    let mut unique: Vec<&[u8]> = seen.into_iter().collect();
+    unique.sort_unstable();
     let mut out = HashMap::new();
     let mut used: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
     for name in unique {
@@ -651,5 +651,43 @@ mod tests {
         assert_eq!(decls.len(), 1);
         assert_eq!(forward[&b"run".to_vec()], b"ns__run");
         assert_eq!(reverse[&b"ns__run".to_vec()].namespace, b"ns");
+    }
+
+    // Go internal/util/responses_tools_test.go cases the translator goldens cannot
+    // harvest (they only see the translated request); expectations were checked against
+    // Go's BuildGeminiFunctionDeclarations at ae3ee3be.
+
+    #[test]
+    fn dotted_user_tool_keeps_its_name_beside_the_tool_search_shim() {
+        let raw = br#"{"tools":[{"type":"function","name":"tool.search","description":"dotted user tool"},{"type":"tool_search","execution":"client","description":"client search"}]}"#;
+        let (decls, forward, reverse) = gemini_function_declarations(&gj::parse(raw));
+        let names: Vec<_> = decls.iter().map(|d| gj::get(d, "name").bytes().to_vec()).collect();
+        assert_eq!(names, [b"tool.search".to_vec(), b"tool_search".to_vec()]);
+        assert_eq!(client_tool_search_name(&forward), b"tool_search");
+        assert_eq!(forward[&b"tool.search".to_vec()], b"tool.search");
+        let dotted = &reverse[&b"tool.search".to_vec()];
+        assert!(!dotted.tool_search && dotted.name == b"tool.search");
+        assert!(reverse[&b"tool_search".to_vec()].tool_search);
+    }
+
+    #[test]
+    fn tool_search_shim_parameters_fall_back_only_for_a_non_object() {
+        let schema = |params: &str| {
+            let raw = format!(r#"{{"tools":[{{"type":"tool_search","execution":"client","parameters":{params}}}]}}"#);
+            let (decls, _, _) = gemini_function_declarations(&gj::parse(raw.as_bytes()));
+            assert_eq!(decls.len(), 1);
+            gj::get(&decls[0], "parametersJsonSchema").raw().to_vec()
+        };
+        // Not an object: the default schema.
+        assert_eq!(schema("[1]"), TOOL_SEARCH_DEFAULT_PARAMETERS);
+        // An object that cleans to an empty object keeps it (no default).
+        assert_eq!(schema(r##"{"$ref":"#/$defs/A","$defs":{"A":true}}"##), b"{}");
+    }
+
+    #[test]
+    fn server_executed_tool_search_is_dropped() {
+        let raw = br#"{"tools":[{"type":"tool_search"},{"type":"tool_search","execution":"server"}]}"#;
+        let (decls, forward, reverse) = gemini_function_declarations(&gj::parse(raw));
+        assert!(decls.is_empty() && forward.is_empty() && reverse.is_empty());
     }
 }
