@@ -6,6 +6,19 @@
 
 One local endpoint so Codex CLI, Claude Code and other tools can use DeepSeek, GLM, Kimi, OpenRouter or your own gateway, with your API keys or your own accounts. You can mix providers and translate between the OpenAI, Anthropic and Gemini APIs.
 
+<p align="center">
+  <a href="https://x.com/vayungodara/status/2106492049490899062"><img src="docs/img/hero.gif" alt="cliproxy-rs: one local endpoint for Claude, Codex, Gemini, xAI, Kimi, Meta, Devin and OpenRouter" width="880"></a>
+  <br><sub><a href="https://x.com/vayungodara/status/2106492049490899062">Watch the launch film</a></sub>
+</p>
+
+New in 0.3.0: cliproxy-rs follows CLIProxyAPI v8.0.35, with the plugin host, Sign in with ChatGPT for Codex, and payload rules that run as the last step before a request is sent. See the [release notes](https://github.com/vayungodara/cliproxy-rs/releases/tag/v0.3.0).
+
+> **Set it up with your coding agent.** Paste this into Claude Code, Codex or Amp on the machine where the proxy should run:
+>
+> ```text
+> Install cliproxy-rs on this machine by following https://github.com/vayungodara/cliproxy-rs/blob/master/docs/AI-SETUP.md
+> ```
+
 ## Quick start
 
 1. On macOS or Linux:
@@ -22,21 +35,7 @@ One local endpoint so Codex CLI, Claude Code and other tools can use DeepSeek, G
 
    The installer checks the release checksum, writes `~/.cliproxy-rs/config.yaml`, starts the proxy and opens the dashboard. On Windows, the config is `%USERPROFILE%\.cliproxy-rs\config.yaml`. It saves new keys in `keys.env` without printing them.
 
-   On Windows you can also use [Scoop](https://scoop.sh). It installs the binary only, so create the config and keys as in [First run without the install script](docs/INSTALL.md#first-run-without-the-install-script):
-
-   ```powershell
-   scoop bucket add vayungodara https://github.com/vayungodara/scoop-bucket
-   scoop install vayungodara/cliproxy-rs
-   ```
-
-   Or, on macOS or Linux, with Homebrew:
-
-   ```sh
-   brew install vayungodara/tap/cliproxy-rs
-   brew services start cliproxy-rs
-   ```
-
-   Its config and `keys.env` live in `$(brew --prefix)/etc/cliproxy-rs/`, and the dashboard is at `http://127.0.0.1:8317/management.html`. See [Homebrew](docs/INSTALL.md#homebrew).
+   Other ways to install: [Homebrew](docs/INSTALL.md#homebrew) on macOS or Linux, [Scoop](docs/INSTALL.md#scoop) on Windows, and the rest in [INSTALL.md](docs/INSTALL.md).
 
 2. Sign in to the dashboard with `CLIPROXY_MANAGEMENT_KEY` from the `keys.env` next to your config. Connect your own account or add a provider API key. Read [Accounts and provider terms](#accounts-and-provider-terms) before connecting a subscription.
 
@@ -46,14 +45,7 @@ Run the install command again to upgrade, or `brew upgrade cliproxy-rs` with Hom
 
 ## What is this?
 
-cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI), with the compatibility target frozen at Go v8.0.35. It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. Parity is incomplete: the audit has 1,951 items, with 1,029 covered, 894 partial and 28 missing. [PARITY.md](docs/PARITY.md) defines those counts.
-
-The dashboard shows accounts, provider limits, request history and tool settings.
-
-<p align="center">
-  <a href="https://x.com/vayungodara/status/2106492049490899062"><img src="docs/img/hero.gif" alt="cliproxy-rs: one local endpoint for Claude, Codex, Gemini, xAI, Kimi, Meta, Devin and OpenRouter" width="880"></a>
-  <br><sub><a href="https://x.com/vayungodara/status/2106492049490899062">Watch the launch film</a></sub>
-</p>
+cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. The dashboard shows accounts, provider limits, request history and tool settings.
 
 <p align="center">
   <picture>
@@ -61,6 +53,8 @@ The dashboard shows accounts, provider limits, request history and tool settings
     <img src="docs/img/overview-light.png" alt="The dashboard: recent requests, ready accounts and provider limits" width="880">
   </picture>
 </p>
+
+The compatibility target is CLIProxyAPI v8.0.35. Parity is incomplete: the audit has 1,951 items, with 1,029 covered, 894 partial and 28 missing. [PARITY.md](docs/PARITY.md) defines those counts.
 
 ## Use it with your tools
 
@@ -163,13 +157,14 @@ Before switching, read [MIGRATING-FROM-GO.md](docs/MIGRATING-FROM-GO.md), especi
 Not in cliproxy-rs yet:
 
 - An AUR package.
-- Per-credential plugin model discovery (`model.for_auth`) and plugin response hooks on a Claude client's buffered Claude answer. Existing plugins can load, serve routes and quotas, install from the store, parse the credential files of their provider (`auth.parse`) and participate in frontend auth, model routing, credential scheduling, interceptors, request and response translation, thinking and usage hooks. Plugin catalogs bind their models to credentials of the plugin's provider, and plugin executors serve those credentials without a model router. Unix plugins load from content-addressed shadow copies, so their source libraries remain replaceable during reload.
-- Sending `server.github-token` on plugin store requests to the GitHub API that no `plugins.store-auth` rule covers. The setting is already accepted and kept.
+- Three plugin pieces: model discovery for each credential, response hooks on a buffered Claude answer, and sending your GitHub token on plugin store requests.
 - The remaining parity gaps and Go test cases, listed in [PARITY.md](docs/PARITY.md).
 
 ## Performance
 
-In the [Claude soak](docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory), cliproxy-rs held 29 MB 30 seconds after 3,000 requests averaging 306 KB, and 43 MB after 600 requests averaging 1.9 MB. In an hour of the [field mix](docs/BENCHMARKS.md#field-mix-claude-codex-and-count_tokens) (Claude, Codex and count_tokens requests averaging 1 MB from 4 sessions), its resting RSS stayed between 80.6 and 97.6 MB and it peaked at 169.0 MB, where 0.2.0 rested between 128.2 and 145.4 MB and peaked at 220.1 MB; each build ran on its own CI runner, at the same time. [Two 32 MB tokenizers](https://dev.to/vayun/two-32-mb-tokenizers-hunting-a-memory-floor-in-a-rust-proxy-4hfl) explains how that floor was found and what is still unexplained. A personal install in daily use ran at 75 to 101 MB RSS. That reading was unscripted; sample timing, workload and the exact build were not recorded.
+On 23 October 2026, 67 minutes after 0.3.0 started on the maintainer's server, it had answered all 592 requests since start with status 200. Its resident memory was 43.9 MB, and its peak since start 63.7 MB. This is a field observation of real traffic, so it can't be reproduced on demand; [BENCHMARKS.md](docs/BENCHMARKS.md#field-memory) records how it was read.
+
+In the [Claude soak](docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory), cliproxy-rs held 29 MB 30 seconds after 3,000 requests averaging 306 KB, and 43 MB after 600 requests averaging 1.9 MB. In an hour of the [field mix](docs/BENCHMARKS.md#field-mix-claude-codex-and-count_tokens) (Claude, Codex and count_tokens requests averaging 1 MB from 4 sessions), its resting RSS stayed between 80.6 and 97.6 MB and it peaked at 169.0 MB, where 0.2.0 rested between 128.2 and 145.4 MB and peaked at 220.1 MB; each build ran on its own CI runner, at the same time. [Two 32 MB tokenizers](https://dev.to/vayun/two-32-mb-tokenizers-hunting-a-memory-floor-in-a-rust-proxy-4hfl) explains how that floor was found and what is still unexplained.
 
 On the [small-request benchmark](docs/BENCHMARKS.md#setup), the launch build answered its first request in 15 to 46 ms over three rounds, and Go in 104 to 453 ms in the same run. Go took 45 to 98 ms in quieter runs. The launch build served 793 translated streams/s against Go's 564.
 
@@ -199,8 +194,6 @@ cargo test --workspace --locked
 ```
 
 [CONTRIBUTING.md](CONTRIBUTING.md) explains how to contribute.
-
-Built with some help from AI.
 
 ## License
 

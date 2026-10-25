@@ -12,6 +12,8 @@ A later field report from 0.2.0, serving Claude and Codex with 1 to 2 MB prompts
 
 A report from 0.2.2, serving a coding agent on a Claude subscription with prompts of about 2 MB, showed peaks of 530 MB RSS and a `VmHWM` of 613 MB. It prompted the [cloaked large-prompt](#large-prompts-through-cloaking-bursts-and-peaks) soak: requests waiting for their first token each held up to four copies of their body, and glibc kept the copies of one burst resident into the next.
 
+On 2026-10-23, the 0.3.0 release binary on the maintainer's Linux server was read once from `/proc`, 67 minutes after it started at 07:30 UTC. `VmRSS` was 43.9 MB and `VmHWM` 63.7 MB. Its journal recorded 592 requests since start, all with status 200, and no error or warning lines. Like the 2026-10-05 reading, this is a field observation of real traffic and can't be reproduced on demand.
+
 ## Setup
 
 Measured on 2026-10-03.

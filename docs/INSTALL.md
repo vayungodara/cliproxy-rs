@@ -104,6 +104,17 @@ The service passes the config path explicitly, so it does not depend on the curr
 
 For maintainers: add `HOMEBREW_TAP_TOKEN` to this repository's Actions secrets. Give that token contents write access to the tap only. Publishing a stable release renders `Formula/cliproxy-rs.rb` from the release's `SHA256SUMS` and commits it to the tap. Without the token, the job skips the update; prereleases do not update the formula. Publishing does not rerun the release builds. The template lives in [`packaging/homebrew/cliproxy-rs.rb`](../packaging/homebrew/cliproxy-rs.rb).
 
+## Scoop
+
+On Windows, install from the bucket:
+
+```powershell
+scoop bucket add vayungodara https://github.com/vayungodara/scoop-bucket
+scoop install vayungodara/cliproxy-rs
+```
+
+Scoop installs the binary only. Create the config and keys as in [First run without the install script](#first-run-without-the-install-script).
+
 ## From a release
 
 Each [release](https://github.com/vayungodara/cliproxy-rs/releases) has an archive per platform and a `SHA256SUMS` file:
