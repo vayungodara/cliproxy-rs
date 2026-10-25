@@ -272,18 +272,21 @@ fn openai_compat(c: &Credential) -> bool {
         || c.provider.trim().go_eq_fold("openai-compatibility")
 }
 
-/// The provider key a credential registers and is scheduled under.
+/// The provider key a credential registers and is scheduled under. For an
+/// OpenAI-compatible credential, Go `registerModelsForAuth` takes a `provider_key`
+/// lowercased as written, and otherwise the `openAICompatInfoFromAuth` key: the
+/// `compat_name`, or else the label, through `util.OpenAICompatibleProviderKey`. A
+/// `provider_key` of `openai-compatibility` gives way to the bare, lowercased `compat_name`.
 pub fn provider_key(c: &Credential) -> String {
-    if openai_compat(c)
-        && let Some(key) = c
-            .attributes
-            .get("provider_key")
-            .map(|s| s.trim())
-            .filter(|s| !s.is_empty())
-    {
-        return key.go_lower();
+    if !openai_compat(c) {
+        return c.provider.trim().go_lower();
     }
-    c.provider.trim().go_lower()
+    let attr = |key: &str| c.attributes.get(key).map(|s| s.trim()).filter(|s| !s.is_empty());
+    match (attr("provider_key").map(|k| k.go_lower()), attr("compat_name")) {
+        (Some(key), Some(name)) if key == "openai-compatibility" => name.go_lower(),
+        (Some(key), _) => key,
+        (None, name) => crate::config::credentials::openai_compat_provider(name.unwrap_or(c.label.trim())),
+    }
 }
 
 /// The authoritative `prefix` (attributes first, then file metadata).
@@ -1881,6 +1884,39 @@ mod tests {
                 .collect();
             let r = Registry::build(&cfg, &creds);
             assert_eq!(r.ids().collect::<Vec<_>>(), ["keep"], "excluded: {excluded}");
+        }
+    }
+
+    /// Go `registerModelsForAuth` (tests/reference/provider_key): the key an
+    /// OpenAI-compatible credential that config synthesis did not build (a Home-dispatched
+    /// or plugin auth) registers under. Without a `provider_key`, the compat name or else
+    /// the label gets Go's `openai-compatible-` prefix.
+    #[test]
+    fn compat_provider_key_follows_go() {
+        // DIFFERENCES-FROM-GO.md "Plugins, models of credentials with another provider":
+        // Go registers these under the `provider_key` (or nothing without a plugin model),
+        // cliproxy-rs under the provider.
+        const OTHER_PROVIDER: [&str; 2] = ["unnamed-provider-provider-key", "unmatched-provider-provider-key"];
+        let go: Value = serde_json::from_str(include_str!("../../tests/fixtures/provider_key_go.json")).unwrap();
+        for case in go["cases"].as_array().unwrap() {
+            let attrs: Vec<(&str, &str)> = case["attributes"]
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(k, v)| (k.as_str(), v.as_str().unwrap()))
+                .collect();
+            let mut c = (*config(case["provider"].as_str().unwrap(), "zz", serde_json::json!({}), &attrs)).clone();
+            c.label = case["label"].as_str().unwrap().into();
+            if OTHER_PROVIDER.contains(&case["name"].as_str().unwrap()) {
+                assert_eq!(provider_key(&c), case["provider"].as_str().unwrap().go_lower());
+                continue;
+            }
+            assert_eq!(
+                Value::from(vec![provider_key(&c)]),
+                case["registered"],
+                "{}",
+                case["name"]
+            );
         }
     }
 

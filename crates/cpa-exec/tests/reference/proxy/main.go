@@ -8,6 +8,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -118,8 +119,9 @@ type redirectCase struct {
 	Method  string            `json:"method"`
 	Body    *string           `json:"body"`
 	Headers map[string]string `json:"headers"`
-	// Script maps a path to its reply; a Location starting with OTHER points at the
-	// second listener (a different host name).
+	// Script maps a request target, else a path, to its reply. In a Location, OTHER is
+	// the second listener's URL (a different host name), OTHERHOST its host and port,
+	// and MAINHOST the first listener's address.
 	Script map[string]step `json:"script"`
 	Hops   []hop           `json:"hops"`
 	Status int             `json:"status"`
@@ -128,13 +130,20 @@ type redirectCase struct {
 	Start string `json:"start"`
 	// DisableCompression uses a transport with DisableCompression set.
 	DisableCompression bool `json:"disable_compression"`
+	// User is the first URL's user info, written before its host.
+	User *string `json:"user,omitempty"`
+	// Target replaces the first URL; MAINHOST stands for the first listener's address.
+	Target string `json:"target,omitempty"`
+	// DialMain dials the first listener whatever address a hop names, so a hop to
+	// another port (an empty or default one) still reaches it.
+	DialMain bool `json:"dial_main,omitempty"`
 }
 
 type recorder struct {
 	mu     sync.Mutex
 	hops   []hop
 	script map[string]step
-	other  string
+	other  *strings.Replacer
 }
 
 func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
@@ -154,7 +163,11 @@ func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		ContentLength:  strings.Join(req.Header.Values("Content-Length"), ","),
 		Body:           string(body),
 	})
-	s, ok := r.script[req.URL.Path]
+	// The exact request target first, so a bare `?` tells two hops apart.
+	s, ok := r.script[req.RequestURI]
+	if !ok {
+		s, ok = r.script[req.URL.Path]
+	}
 	r.mu.Unlock()
 	if !ok {
 		w.WriteHeader(200)
@@ -162,7 +175,7 @@ func (r *recorder) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if s.Location != "" {
-		w.Header().Set("Location", strings.Replace(s.Location, "OTHER", r.other, 1))
+		w.Header().Set("Location", r.other.Replace(s.Location))
 	}
 	w.WriteHeader(s.Status)
 }
@@ -173,7 +186,8 @@ func runRedirect(c redirectCase) redirectCase {
 	defer main.Close()
 	defer other.Close()
 	_, otherPort, _ := net.SplitHostPort(other.Addr().String())
-	rec := &recorder{script: c.Script, other: "http://localhost:" + otherPort}
+	rec := &recorder{script: c.Script, other: strings.NewReplacer(
+		"OTHERHOST", "localhost:"+otherPort, "MAINHOST", main.Addr().String(), "OTHER", "http://localhost:"+otherPort)}
 	go http.Serve(main, rec)
 	go http.Serve(other, rec)
 	base := "http://" + main.Addr().String()
@@ -184,7 +198,14 @@ func runRedirect(c redirectCase) redirectCase {
 	if c.Start == "" {
 		c.Start = "/start"
 	}
-	req, _ := http.NewRequest(c.Method, base+c.Start, body)
+	target := base + c.Start
+	if c.User != nil {
+		target = "http://" + *c.User + "@" + main.Addr().String() + c.Start
+	}
+	if c.Target != "" {
+		target = strings.Replace(c.Target, "MAINHOST", main.Addr().String(), 1)
+	}
+	req, _ := http.NewRequest(c.Method, target, body)
 	for k, v := range c.Headers {
 		if k == "Host" {
 			// Go reads a custom Host from req.Host only (GoHeaders' "Host").
@@ -194,8 +215,14 @@ func runRedirect(c redirectCase) redirectCase {
 		req.Header.Set(k, v)
 	}
 	client := &http.Client{}
-	if c.DisableCompression {
-		client.Transport = &http.Transport{DisableCompression: true}
+	if c.DisableCompression || c.DialMain {
+		transport := &http.Transport{DisableCompression: c.DisableCompression}
+		if c.DialMain {
+			transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, network, main.Addr().String())
+			}
+		}
+		client.Transport = transport
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -331,6 +358,7 @@ func main() {
 	}
 	str := func(s string) *string { return &s }
 	auth := map[string]string{"Authorization": "Bearer fake-token", "Accept": "application/json"}
+	accept := map[string]string{"Accept": "application/json"}
 	form := map[string]string{"Authorization": "Bearer fake-token", "Content-Type": "application/x-www-form-urlencoded"}
 	redirects := []redirectCase{
 		{Name: "get-301-302-303", Method: "GET", Headers: auth, Script: map[string]step{
@@ -373,6 +401,62 @@ func main() {
 			"/a/./b": {302, "?z=1"}}},
 		{Name: "get-fragment-reference-exact", Method: "GET", Headers: auth, Start: "/a/./b?k=v", Script: map[string]step{
 			"/a/./b": {302, "#frag"}}},
+		// Every hop resolves and escapes its target as Go does (the model catalog reads).
+		{Name: "get-invalid-escape-location-exact", Method: "GET", Headers: auth, Start: "/r1", Script: map[string]step{
+			"/r1": {302, "/x/%zz/c.json"}}},
+		{Name: "get-invalid-host-escape-location-exact", Method: "GET", Headers: auth, Start: "/r2", Script: map[string]step{
+			"/r2": {302, "//h%41/c.json"}}},
+		{Name: "get-opaque-location-exact", Method: "GET", Headers: auth, Start: "/r3", Script: map[string]step{
+			"/r3": {302, "http:c.json"}}},
+		{Name: "get-scheme-relative-path-location-exact", Method: "GET", Headers: auth, Start: "/r4", Script: map[string]step{
+			"/r4": {302, "http:/c.json"}}},
+		{Name: "get-scheme-without-host-location-exact", Method: "GET", Headers: auth, Start: "/r5", Script: map[string]step{
+			"/r5": {302, "https:/evil.example/c.json"}}},
+		{Name: "get-encoded-dots-relative-exact", Method: "GET", Headers: auth, Start: "/a/%2e%2e/r", Script: map[string]step{
+			"/a/../r": {302, "d.json"}}},
+		{Name: "get-encoded-dots-second-hop-exact", Method: "GET", Headers: auth, Start: "/m1", Script: map[string]step{
+			"/m1": {302, "/m2/%2E%2e/x"}, "/m2/../x": {302, "y?a='1'#f"}}},
+		{Name: "get-apostrophe-query-exact", Method: "GET", Headers: auth, Start: "/q", Script: map[string]step{
+			"/q": {302, "/c.json?v='1'&w=a"}}},
+		{Name: "get-fragment-keeps-quoted-query-exact", Method: "GET", Headers: auth, Start: "/f?k='v'#src", Script: map[string]step{
+			"/f": {302, "#frag"}}},
+		{Name: "get-triple-slash-location-exact", Method: "GET", Headers: auth, Start: "/t", Script: map[string]step{
+			"/t": {302, "///x/c.json"}}},
+		{Name: "get-backslash-space-location-exact", Method: "GET", Headers: auth, Start: "/b", Script: map[string]step{
+			"/b": {302, "/a\\..\\my dir/m|1.json"}}},
+		{Name: "get-utf8-location-exact", Method: "GET", Headers: auth, Start: "/u", Script: map[string]step{
+			"/u": {302, "/mod\u00e8les/c.json"}}},
+		// Only the base's RawQuery is inherited: a bare `?` (ForceQuery) is not.
+		{Name: "get-force-query-fragment-exact", Method: "GET", Headers: auth, Start: "/a/b?", Script: map[string]step{
+			"/a/b?": {302, "#f"}}},
+		{Name: "get-force-query-bare-fragment-exact", Method: "GET", Headers: auth, Start: "/a/b?", Script: map[string]step{
+			"/a/b?": {302, "#"}}},
+		// User info is never sent in the URL: each hop whose URL carries it (a relative
+		// Location inherits it) sends it unescaped as Basic auth, unless the request
+		// already has an Authorization header.
+		{Name: "get-user-info-hops-exact", Method: "GET", Headers: accept, User: str("u:p"), Start: "/u1", Script: map[string]step{
+			"/u1": {302, "/u2"}, "/u2": {302, "OTHER/u3"}}},
+		{Name: "get-user-info-empty-name-exact", Method: "GET", Headers: accept, User: str(":tok"), Start: "/u1"},
+		{Name: "get-user-info-empty-exact", Method: "GET", Headers: accept, User: str(""), Start: "/u1"},
+		{Name: "get-user-info-not-utf8-exact", Method: "GET", Headers: accept, User: str("u%FF:p"), Start: "/u1"},
+		{Name: "get-user-info-escaped-exact", Method: "GET", Headers: accept, User: str("a%40b:p%3Aq+r"), Start: "/u1"},
+		{Name: "get-user-info-with-authorization-exact", Method: "GET", Headers: auth, User: str("u:p"), Start: "/u1"},
+		// A bare `?` reference takes ForceQuery from itself and drops the base query.
+		{Name: "get-bare-query-reference-exact", Method: "GET", Headers: auth, Start: "/q1?x=1", Script: map[string]step{
+			"/q1?x=1": {302, "?"}}},
+		// A Location's own user info is Basic auth on another host too; on the same host
+		// an Authorization header the request carries wins over it.
+		{Name: "get-user-info-cross-host-location-exact", Method: "GET", Headers: accept, User: str("u:p"), Start: "/x1", Script: map[string]step{
+			"/x1": {302, "http://w:z@OTHERHOST/x2"}}},
+		{Name: "get-user-info-same-host-location-bearer-exact", Method: "GET", Headers: auth, User: str("u:p"), Start: "/y1", Script: map[string]step{
+			"/y1": {302, "http://v:q@MAINHOST/y2"}}},
+		// Go writes the Host header with the port as written: an empty one on a redirect
+		// (the first hop drops it), or the scheme's default. cliproxy-rs refuses these.
+		{Name: "get-empty-then-default-port-location-exact", Method: "GET", Headers: auth, Start: "/p1", DialMain: true, Script: map[string]step{
+			"/p1": {302, "http://127.0.0.1:/p2"}, "/p2": {302, "http://127.0.0.1:80/p3"}}},
+		{Name: "get-default-port-source-exact", Method: "GET", Headers: auth, Start: "/p3", Target: "http://127.0.0.1:80/p3", DialMain: true},
+		{Name: "get-empty-port-source-exact", Method: "GET", Headers: auth, Start: "/p4", Target: "http://127.0.0.1:/p4", DialMain: true, Script: map[string]step{
+			"/p4": {302, "/p5"}}},
 		{Name: "put-empty-body", Method: "PUT", Body: str(""), Headers: auth},
 		{Name: "delete-nil-body", Method: "DELETE", Headers: auth},
 		{Name: "patch-empty-body-307", Method: "PATCH", Body: str(""), Headers: form, Script: map[string]step{

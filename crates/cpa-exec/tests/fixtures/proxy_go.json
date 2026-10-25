@@ -1336,6 +1336,1217 @@
    "disable_compression": false
   },
   {
+   "name": "get-invalid-escape-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/r1": {
+     "status": 302,
+     "location": "/x/%zz/c.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/r1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 0,
+   "error": true,
+   "start": "/r1",
+   "disable_compression": false
+  },
+  {
+   "name": "get-invalid-host-escape-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/r2": {
+     "status": 302,
+     "location": "//h%41/c.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/r2",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 0,
+   "error": true,
+   "start": "/r2",
+   "disable_compression": false
+  },
+  {
+   "name": "get-opaque-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/r3": {
+     "status": 302,
+     "location": "http:c.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/r3",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 0,
+   "error": true,
+   "start": "/r3",
+   "disable_compression": false
+  },
+  {
+   "name": "get-scheme-relative-path-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/r4": {
+     "status": 302,
+     "location": "http:/c.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/r4",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 0,
+   "error": true,
+   "start": "/r4",
+   "disable_compression": false
+  },
+  {
+   "name": "get-scheme-without-host-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/r5": {
+     "status": 302,
+     "location": "https:/evil.example/c.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/r5",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 0,
+   "error": true,
+   "start": "/r5",
+   "disable_compression": false
+  },
+  {
+   "name": "get-encoded-dots-relative-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/a/../r": {
+     "status": 302,
+     "location": "d.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/%2e%2e/r",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/%2e%2e/d.json",
+     "host": "BASE",
+     "referer": "BASE/a/%2e%2e/r",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/a/%2e%2e/r",
+   "disable_compression": false
+  },
+  {
+   "name": "get-encoded-dots-second-hop-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/m1": {
+     "status": 302,
+     "location": "/m2/%2E%2e/x"
+    },
+    "/m2/../x": {
+     "status": 302,
+     "location": "y?a='1'#f"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/m1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/m2/%2E%2e/x",
+     "host": "BASE",
+     "referer": "BASE/m1",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/m2/%2E%2e/y?a='1'",
+     "host": "BASE",
+     "referer": "BASE/m2/%2E%2e/x",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/m1",
+   "disable_compression": false
+  },
+  {
+   "name": "get-apostrophe-query-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/q": {
+     "status": 302,
+     "location": "/c.json?v='1'\u0026w=a"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/q",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/c.json?v='1'\u0026w=a",
+     "host": "BASE",
+     "referer": "BASE/q",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/q",
+   "disable_compression": false
+  },
+  {
+   "name": "get-fragment-keeps-quoted-query-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/f": {
+     "status": 302,
+     "location": "#frag"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#src",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#frag",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#frag",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#frag",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#frag",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#frag",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#frag",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#frag",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/f?k='v'",
+     "host": "BASE",
+     "referer": "BASE/f?k='v'#frag",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 0,
+   "error": true,
+   "start": "/f?k='v'#src",
+   "disable_compression": false
+  },
+  {
+   "name": "get-triple-slash-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/t": {
+     "status": 302,
+     "location": "///x/c.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/t",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "///x/c.json",
+     "host": "BASE",
+     "referer": "BASE/t",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/t",
+   "disable_compression": false
+  },
+  {
+   "name": "get-backslash-space-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/b": {
+     "status": 302,
+     "location": "/a\\..\\my dir/m|1.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/b",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a%5C..%5Cmy%20dir/m%7C1.json",
+     "host": "BASE",
+     "referer": "BASE/b",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/b",
+   "disable_compression": false
+  },
+  {
+   "name": "get-utf8-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/u": {
+     "status": 302,
+     "location": "/modèles/c.json"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/mod%C3%A8les/c.json",
+     "host": "BASE",
+     "referer": "BASE/u",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/u",
+   "disable_compression": false
+  },
+  {
+   "name": "get-force-query-fragment-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/a/b?": {
+     "status": 302,
+     "location": "#f"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/b?",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/b",
+     "host": "BASE",
+     "referer": "BASE/a/b?",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/a/b?",
+   "disable_compression": false
+  },
+  {
+   "name": "get-force-query-bare-fragment-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/a/b?": {
+     "status": 302,
+     "location": "#"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/b?",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/a/b",
+     "host": "BASE",
+     "referer": "BASE/a/b?",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/a/b?",
+   "disable_compression": false
+  },
+  {
+   "name": "get-user-info-hops-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json"
+   },
+   "script": {
+    "/u1": {
+     "status": 302,
+     "location": "/u2"
+    },
+    "/u2": {
+     "status": 302,
+     "location": "OTHER/u3"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Basic dTpw",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u2",
+     "host": "BASE",
+     "referer": "BASE/u1",
+     "authorization": "Basic dTpw",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u3",
+     "host": "OTHER",
+     "referer": "BASE/u2",
+     "authorization": "",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/u1",
+   "disable_compression": false,
+   "user": "u:p"
+  },
+  {
+   "name": "get-user-info-empty-name-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Basic OnRvaw==",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/u1",
+   "disable_compression": false,
+   "user": ":tok"
+  },
+  {
+   "name": "get-user-info-empty-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Basic Og==",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/u1",
+   "disable_compression": false,
+   "user": ""
+  },
+  {
+   "name": "get-user-info-not-utf8-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Basic df86cA==",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/u1",
+   "disable_compression": false,
+   "user": "u%FF:p"
+  },
+  {
+   "name": "get-user-info-escaped-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Basic YUBiOnA6cSty",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/u1",
+   "disable_compression": false,
+   "user": "a%40b:p%3Aq+r"
+  },
+  {
+   "name": "get-user-info-with-authorization-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/u1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/u1",
+   "disable_compression": false,
+   "user": "u:p"
+  },
+  {
+   "name": "get-bare-query-reference-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/q1?x=1": {
+     "status": 302,
+     "location": "?"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/q1?x=1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/q1?",
+     "host": "BASE",
+     "referer": "BASE/q1?x=1",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/q1?x=1",
+   "disable_compression": false
+  },
+  {
+   "name": "get-user-info-cross-host-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json"
+   },
+   "script": {
+    "/x1": {
+     "status": 302,
+     "location": "http://w:z@OTHERHOST/x2"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/x1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Basic dTpw",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/x2",
+     "host": "OTHER",
+     "referer": "BASE/x1",
+     "authorization": "Basic dzp6",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/x1",
+   "disable_compression": false,
+   "user": "u:p"
+  },
+  {
+   "name": "get-user-info-same-host-location-bearer-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/y1": {
+     "status": 302,
+     "location": "http://v:q@MAINHOST/y2"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/y1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/y2",
+     "host": "BASE",
+     "referer": "BASE/y1",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/y1",
+   "disable_compression": false,
+   "user": "u:p"
+  },
+  {
+   "name": "get-empty-then-default-port-location-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/p1": {
+     "status": 302,
+     "location": "http://127.0.0.1:/p2"
+    },
+    "/p2": {
+     "status": 302,
+     "location": "http://127.0.0.1:80/p3"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/p1",
+     "host": "BASE",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/p2",
+     "host": "127.0.0.1:",
+     "referer": "BASE/p1",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/p3",
+     "host": "127.0.0.1:80",
+     "referer": "http://127.0.0.1:/p2",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/p1",
+   "disable_compression": false,
+   "dial_main": true
+  },
+  {
+   "name": "get-default-port-source-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": null,
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/p3",
+     "host": "127.0.0.1:80",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/p3",
+   "disable_compression": false,
+   "target": "http://127.0.0.1:80/p3",
+   "dial_main": true
+  },
+  {
+   "name": "get-empty-port-source-exact",
+   "method": "GET",
+   "body": null,
+   "headers": {
+    "Accept": "application/json",
+    "Authorization": "Bearer fake-token"
+   },
+   "script": {
+    "/p4": {
+     "status": 302,
+     "location": "/p5"
+    }
+   },
+   "hops": [
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/p4",
+     "host": "127.0.0.1",
+     "referer": "",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    },
+    {
+     "user_agent": "Go-http-client/1.1",
+     "has_user_agent": true,
+     "accept_encoding": "gzip",
+     "method": "GET",
+     "path": "/p5",
+     "host": "127.0.0.1",
+     "referer": "http://127.0.0.1/p4",
+     "authorization": "Bearer fake-token",
+     "content_type": "",
+     "content_length": "",
+     "body": ""
+    }
+   ],
+   "status": 200,
+   "error": false,
+   "start": "/p4",
+   "disable_compression": false,
+   "target": "http://127.0.0.1:/p4",
+   "dial_main": true
+  },
+  {
    "name": "put-empty-body",
    "method": "PUT",
    "body": "",
