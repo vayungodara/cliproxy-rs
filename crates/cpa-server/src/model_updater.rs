@@ -203,6 +203,14 @@ enum ReadError {
     Invalid,
 }
 
+/// The first request Go sends for `source`, when it would go out as Go sends it
+/// ([`cpa_exec::proxy::go_target`]); http.NewRequest drops the first hop's empty port.
+fn go_target_of(source: &str) -> Option<axum::http::Uri> {
+    let mut url = cpa_core::config::go_url::Escaped::parse(source)?;
+    url.remove_empty_port();
+    cpa_exec::proxy::go_target(&url)
+}
+
 /// Go `readCatalogSource`: an absolute path is read from disk, anything else is fetched
 /// with Go's request target (`URL.RequestURI`) and must answer 200. Either is capped at
 /// 8 MiB.
@@ -217,12 +225,7 @@ async fn read_source(source: &str) -> Result<Vec<u8>, ReadError> {
             .map_err(|_| ReadError::File)?;
         data
     } else {
-        let target = cpa_core::config::go_url::Escaped::parse(source).and_then(|mut url| {
-            // http.NewRequest drops the first hop's empty port.
-            url.remove_empty_port();
-            cpa_exec::proxy::go_target(&url)
-        });
-        if target.is_none() {
+        if go_target_of(source).is_none() {
             return Err(ReadError::Rewritten);
         }
         // A client per read: reads are hours apart and the client is tied to no runtime.
@@ -752,11 +755,8 @@ mod tests {
             assert_eq!(read_source(source).await, Err(ReadError::Rewritten), "{source}");
         }
         // http.NewRequest drops the first hop's empty port, so Go's Host header has none
-        // either: the source is sent, to loopback port 80.
-        assert_ne!(
-            read_source("http://127.0.0.1:/catalog.json").await,
-            Err(ReadError::Rewritten)
-        );
+        // either: the source is accepted. Not sent: port 80 belongs to no test.
+        assert!(go_target_of("http://127.0.0.1:/catalog.json").is_some());
         for path in ["/dots", "/backslash"] {
             assert!(fetch(format!("http://{addr}{path}")).await.is_ok(), "{path}");
         }
