@@ -22,7 +22,7 @@ Columns:
 | Translation to and from Claude | 17 | 13 | 4 | 0 | 0 | 0 |
 | Payload rules | 1 | 1 | 0 | 0 | 0 | 0 |
 | Codex | 19 | 18 | 1 | 0 | 0 | 0 |
-| Gemini, Vertex and AI Studio | 20 | 14 | 4 | 0 | 2 | 0 |
+| Gemini, Vertex and AI Studio | 20 | 15 | 4 | 0 | 1 | 0 |
 | xAI | 8 | 2 | 6 | 0 | 0 | 0 |
 | OpenAI-compatible and Responses translation | 6 | 0 | 6 | 0 | 0 | 0 |
 | Devin and Meta | 8 | 0 | 8 | 0 | 0 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **121** | **99** | **0** | **65** | **3** |
+| **All** | **288** | **122** | **99** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -167,7 +167,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`5ec31442`](https://github.com/router-for-me/CLIProxyAPI/commit/5ec31442) | fix(gemini): handle split usage metadata and max tokens in responses translation | yes | ported here | M (+183 −77) | split usage metadata and max tokens in Responses translation: usage merges field by field, the terminal event waits for usage or `[DONE]`, `MAX_TOKENS` ends `response.incomplete`; the executors end a read error without the synthetic `[DONE]`, and AI Studio streams on any 2xx first status and ends with a relayed non-2xx answer; checked by the re-recorded `openai-response-gemini`, `openai-response-antigravity` goldens and the v8.0.35 Gemini, Vertex and AI Studio executor overlays |
 | [`ed4d972e`](https://github.com/router-for-me/CLIProxyAPI/commit/ed4d972e) | fix(responses): complete reasoning summary stream lifecycle events | yes | ported here | S (+32 −13) | Interactions to Responses: reasoning summary part added, text done and part done events, one joined summary; checked by the re-recorded `openai-response-interactions` goldens |
 | [`e1e3a811`](https://github.com/router-for-me/CLIProxyAPI/commit/e1e3a811) | fix(gemini): enforce object type on schema nodes with properties | yes | ported here | S (+36 −0) | `type: object` on schema nodes with properties; replayed by `crates/cpa-common/tests/fixtures/gemini_schema.json.gz` (Go's v8.0.35 cleaner suite through all seven cleaners: mined literals plus the inputs its tests build) |
-| [`dbc4aad9`](https://github.com/router-for-me/CLIProxyAPI/commit/dbc4aad9) | fix(gemini): ignore context cancellation after terminal chunk in Vertex stream | yes | nothing to port | S (+43 −0) | Vertex: cancellation after the terminal chunk; cliproxy-rs already records a stream the client drops as a success (`usage_record.rs` `Ending::Done`), after the terminal chunk as Go now does (before it too, where Go records `context canceled`) |
+| [`dbc4aad9`](https://github.com/router-for-me/CLIProxyAPI/commit/dbc4aad9) | fix(gemini): ignore context cancellation after terminal chunk in Vertex stream | yes | ported here | S (+43 −0) | Vertex: cancellation after the terminal chunk stays a success; a client that goes away before it (and on Gemini API keys at any point) fails the attempt with `context canceled` (499), as Go's scanner does, while AI Studio's relay closes quietly and succeeds (`gemini.rs` `fail_on_client_drop`); checked by Go-recorded `*client_drop*` scenarios in the v8.0.35 Gemini, Vertex and AI Studio overlays; the credential result differs (DIFFERENCES-FROM-GO.md) |
 | [`f51624aa`](https://github.com/router-for-me/CLIProxyAPI/commit/f51624aa) | fix(translator): report unsendable user turn attachments in openai responses to interactions | yes | to port | L (+1462 −356) | Responses to Interactions: unsendable attachments reported |
 | [`0f96f568`](https://github.com/router-for-me/CLIProxyAPI/commit/0f96f568) | refactor(translator): update openai and interactions request converters to return errors | no | to port | L (+126 −231) | request converters return errors (refactor behind f51624aa) |
 | [`2d5351b3`](https://github.com/router-for-me/CLIProxyAPI/commit/2d5351b3) | feat(vertex): add support for native gemini interactions api | yes | to port | L (+591 −110) | Vertex native Interactions API |

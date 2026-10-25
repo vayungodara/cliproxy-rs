@@ -388,6 +388,46 @@
         "output_tokens": 2,
         "total_tokens": 5
       }
+    },
+    {
+      "name": "stream_client_drop",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "stream",
+      "replies": [
+        {
+          "type": "stream_start",
+          "payload": {
+            "headers": {
+              "Content-Type": [
+                "text/event-stream"
+              ]
+            },
+            "status": 200
+          }
+        },
+        {
+          "type": "stream_chunk",
+          "payload": {
+            "data": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash-002\",\"responseId\":\"r1\"}"
+          }
+        }
+      ],
+      "frames": [
+        "{\"id\":\"ID\",\"type\":\"http_request\",\"payload\":{\"body\":\"{\\\"contents\\\":[{\\\"role\\\":\\\"user\\\",\\\"parts\\\":[{\\\"text\\\":\\\"hi\\\"}]}],\\\"model\\\":\\\"gemini-2.5-flash\\\",\\\"safetySettings\\\":[{\\\"category\\\":\\\"HARM_CATEGORY_HARASSMENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_HATE_SPEECH\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_SEXUALLY_EXPLICIT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_DANGEROUS_CONTENT\\\",\\\"threshold\\\":\\\"OFF\\\"},{\\\"category\\\":\\\"HARM_CATEGORY_CIVIC_INTEGRITY\\\",\\\"threshold\\\":\\\"BLOCK_NONE\\\"}]}\",\"headers\":{\"Content-Type\":[\"application/json\"]},\"method\":\"POST\",\"sent_at\":\"SENT_AT\",\"url\":\"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\"}}\n"
+      ],
+      "chunks": [
+        "{\"choices\": [{\"delta\": {\"content\": \"he\",\"reasoning_content\": null,\"role\": \"assistant\",\"tool_calls\": null},\"finish_reason\": null,\"index\": 0,\"native_finish_reason\": null}],\"created\": 0,\"id\": \"r1\",\"model\": \"gemini-2.5-flash-002\",\"object\": \"chat.completion.chunk\"}"
+      ],
+      "usage": {
+        "reasoning_effort": "",
+        "response_model": "gemini-2.5-flash-002",
+        "input_tokens": 3,
+        "output_tokens": 0,
+        "total_tokens": 3
+      },
+      "cancel_when_idle": true
     }
   ]
 }

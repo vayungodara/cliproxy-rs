@@ -58,6 +58,9 @@ type reply struct {
 	Body    string      `json:"body"`
 	// Missing bytes are promised beyond Body: the connection closes mid-stream.
 	Missing int `json:"missing,omitempty"`
+	// Stall keeps the connection open after Body (with Missing) until the client
+	// closes it: the executor waits on the upstream read.
+	Stall bool `json:"stall,omitempty"`
 }
 
 type errOut struct {
@@ -99,6 +102,9 @@ type scenario struct {
 	Error    *errOut  `json:"error,omitempty"`
 	// Usage is the record the executor's UsageReporter published, if any.
 	Usage *usageOut `json:"usage,omitempty"`
+	// CancelWhenIdle cancels the request context once the stream has delivered nothing
+	// for a while (a client that goes away mid-stream), then drains it.
+	CancelWhenIdle bool `json:"cancel_when_idle,omitempty"`
 }
 
 // usageOut is the part of a published usage.Record the executor decides: the parsed
@@ -114,6 +120,8 @@ type usageOut struct {
 	ResponseModel       string `json:"response_model"`
 	ReasoningEffort     string `json:"reasoning_effort"`
 	Failed              bool   `json:"failed"`
+	FailStatus          int    `json:"fail_status,omitempty"`
+	FailBody            string `json:"fail_body,omitempty"`
 }
 
 // usageCapture receives every record the default usage manager dispatches.
@@ -136,6 +144,7 @@ func awaitUsage(name string) *usageOut {
 			InputTokens: d.InputTokens, OutputTokens: d.OutputTokens, ReasoningTokens: d.ReasoningTokens,
 			CachedTokens: d.CachedTokens, CacheReadTokens: d.CacheReadTokens, CacheCreationTokens: d.CacheCreationTokens,
 			TotalTokens: d.TotalTokens, ResponseModel: r.ResponseModel, ReasoningEffort: r.ReasoningEffort, Failed: r.Failed,
+			FailStatus: r.Fail.StatusCode, FailBody: r.Fail.Body,
 		}
 	case <-time.After(300 * time.Millisecond):
 		return nil
@@ -252,6 +261,10 @@ func (c *capture) handle(conn net.Conn, rep reply) {
 	out.WriteString("Connection: close\r\n\r\n")
 	out.WriteString(rep.Body)
 	_, _ = stream.Write(out.Bytes())
+	if rep.Stall {
+		_ = stream.SetReadDeadline(time.Now().Add(5 * time.Second))
+		_, _ = io.Copy(io.Discard, stream)
+	}
 }
 
 type tlsMaterial struct {
@@ -515,17 +528,36 @@ func run(s *scenario, plain, proxy *capture, keys map[string]string) {
 			s.Output = string(resp.Payload)
 		}
 	case "stream":
-		result, errExec := exec.ExecuteStream(ctx, auth, req, opts)
+		streamCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		result, errExec := exec.ExecuteStream(streamCtx, auth, req, opts)
 		if errExec != nil {
 			s.Error = statusOf(errExec)
 			break
 		}
-		for chunk := range result.Chunks {
-			if chunk.Err != nil {
-				s.Error = statusOf(chunk.Err)
-				continue
+		chunks := result.Chunks
+		for chunks != nil {
+			var idle <-chan time.Time
+			if s.CancelWhenIdle && streamCtx.Err() == nil {
+				idle = time.After(200 * time.Millisecond)
 			}
-			s.Chunks = append(s.Chunks, string(chunk.Payload))
+			select {
+			case chunk, ok := <-chunks:
+				if !ok {
+					chunks = nil
+					continue
+				}
+				if streamCtx.Err() != nil {
+					continue // the client is gone; nothing more reaches it
+				}
+				if chunk.Err != nil {
+					s.Error = statusOf(chunk.Err)
+					continue
+				}
+				s.Chunks = append(s.Chunks, string(chunk.Payload))
+			case <-idle:
+				cancel()
+			}
 		}
 	case "count":
 		resp, errExec := exec.CountTokens(ctx, auth, req, opts)

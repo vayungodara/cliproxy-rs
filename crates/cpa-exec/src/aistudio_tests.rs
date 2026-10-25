@@ -130,14 +130,22 @@ async fn go_reference_scenarios() {
                 Err(e) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
                 Ok(response) => match response.body {
                     ResponseBody::Buffered(bytes) => output = Some(String::from_utf8(bytes.to_vec()).unwrap()),
-                    ResponseBody::Stream(mut stream) => {
-                        while let Some(item) = stream.next().await {
-                            match item {
-                                Ok(bytes) => streamed.extend_from_slice(&bytes),
-                                Err(e) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
+                    ResponseBody::Stream(mut stream) => loop {
+                        // `cancel_when_idle`: the client goes away once nothing arrives.
+                        let next = if s["cancel_when_idle"] == true {
+                            match tokio::time::timeout(Duration::from_millis(200), stream.next()).await {
+                                Ok(next) => next,
+                                Err(_) => break,
                             }
+                        } else {
+                            stream.next().await
+                        };
+                        match next {
+                            Some(Ok(bytes)) => streamed.extend_from_slice(&bytes),
+                            Some(Err(e)) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
+                            None => break,
                         }
-                    }
+                    },
                 },
             }
             (output, streamed, error)

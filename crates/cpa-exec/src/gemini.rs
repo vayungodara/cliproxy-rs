@@ -576,7 +576,9 @@ impl GeminiExecutor {
                 body: ResponseBody::Buffered(out),
             });
         }
-        let output = Output::new(req, to, &body).with_claude_stream_errors();
+        let output = Output::new(req, to, &body)
+            .with_claude_stream_errors()
+            .fail_on_client_drop(false);
         let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
         let stream = gemini_lines(lines, output, Format::Gemini);
         Ok(ExecResponse {
@@ -797,6 +799,21 @@ pub(crate) struct Output {
     claude_errors: bool,
     /// The first such event as a 502, ending the stream once the upstream is drained.
     retained: Option<ExecError>,
+    /// See [`Output::fail_on_client_drop`].
+    drop_rule: DropRule,
+}
+
+/// What a stream records when the client goes away before it ended.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+enum DropRule {
+    /// Nothing here; the server's end-of-attempt record (a success) stands.
+    #[default]
+    Off,
+    /// Go's Gemini scanner: the canceled request fails the pending upstream read with
+    /// `context canceled`, published as a 499 failure without usage.
+    Always,
+    /// Vertex (Go dbc4aad9): the same, unless a terminal chunk was already produced.
+    BeforeTerminal { terminal_delivered: bool },
 }
 
 impl Output {
@@ -842,7 +859,27 @@ impl Output {
             capture: req.capture().clone(),
             claude_errors: false,
             retained: None,
+            drop_rule: DropRule::Off,
         }
+    }
+
+    /// Go's scanner error when the client goes away mid-stream: a drop before the
+    /// stream ended publishes `context canceled` (499) without usage and logs it as the
+    /// response error. With `terminal_exempt` (Vertex, Go dbc4aad9) a drop after a
+    /// terminal chunk was produced stays a success.
+    // ponytail: Go fails only when the cancellation interrupts the upstream read; one
+    // that finds the executor handing a chunk to a client that stopped reading returns
+    // quietly and publishes a success. That race is not modelled: every drop before
+    // the end is the read case. Upgrade path: track the stream's await point.
+    pub(crate) fn fail_on_client_drop(mut self, terminal_exempt: bool) -> Self {
+        self.drop_rule = if terminal_exempt {
+            DropRule::BeforeTerminal {
+                terminal_delivered: false,
+            }
+        } else {
+            DropRule::Always
+        };
+        self
     }
 
     /// Go 7f2f17d7: a translated Claude `error` event is forwarded, then ends the stream
@@ -850,6 +887,20 @@ impl Output {
     pub(crate) fn with_claude_stream_errors(mut self) -> Self {
         self.claude_errors = self.client == Format::Claude;
         self
+    }
+
+    /// The client went away before the stream ended (see [`Output::fail_on_client_drop`]).
+    fn client_dropped(&self) {
+        let fail = match self.drop_rule {
+            DropRule::Off => false,
+            DropRule::Always => true,
+            DropRule::BeforeTerminal { terminal_delivered } => !terminal_delivered,
+        };
+        if fail {
+            // Go's RecordAPIResponseError and PublishFailure of the scanner error.
+            self.capture.record(CaptureEvent::ResponseError("context canceled"));
+            self.usage.publish_failure(499, "context canceled");
+        }
     }
 
     /// helps.StopTranslatedClaudeStream: the retained error, published with the usage
@@ -934,6 +985,11 @@ impl Output {
         self.frame(&mut out);
         self.post_process(&mut out);
         self.capture_claude_error(&out);
+        if let DropRule::BeforeTerminal { terminal_delivered } = &mut self.drop_rule
+            && !*terminal_delivered
+        {
+            *terminal_delivered = out.iter().any(|chunk| is_terminal_chunk(chunk));
+        }
         self.checked(out)
     }
 
@@ -1023,6 +1079,10 @@ pub(crate) trait LineState: Send + 'static {
     }
     /// Client frames still pending when a terminal error is written.
     fn flush(&mut self) -> Vec<Bytes>;
+    /// The [`Output`] whose [`Output::fail_on_client_drop`] rule applies, if any.
+    fn output(&self) -> Option<&Output> {
+        None
+    }
 }
 
 /// Runs `state` over `lines`. A stop is terminal; a scanner error is reported after the
@@ -1031,28 +1091,32 @@ pub(crate) trait LineState: Send + 'static {
 /// writing the error).
 pub(crate) fn drive<S: LineState>(lines: ExecStream, state: S) -> ExecStream {
     futures_util::stream::unfold(
-        (lines, state, VecDeque::<Result<Bytes, ExecError>>::new(), false),
-        |(mut lines, mut state, mut ready, mut ended)| async move {
+        (
+            lines,
+            Driven { state, settled: false },
+            VecDeque::<Result<Bytes, ExecError>>::new(),
+        ),
+        |(mut lines, mut driven, mut ready)| async move {
             loop {
                 if let Some(item) = ready.pop_front() {
                     if item.is_err() {
                         ready.clear();
-                        ended = true;
                     }
-                    return Some((item, (lines, state, ready, ended)));
+                    return Some((item, (lines, driven, ready)));
                 }
-                if ended {
+                if driven.settled {
                     return None;
                 }
                 let scanned = lines.next().await;
+                let state = &mut driven.state;
                 let emit = match &scanned {
                     Some(Ok(line)) => state.line(line),
                     Some(Err(_)) => {
-                        ended = true;
+                        driven.settled = true;
                         state.end_after_error()
                     }
                     None => {
-                        ended = true;
+                        driven.settled = true;
                         state.end()
                     }
                 };
@@ -1061,12 +1125,62 @@ pub(crate) fn drive<S: LineState>(lines: ExecStream, state: S) -> ExecStream {
                     (Some(error), _) | (None, Some(Err(error))) => error,
                     _ => continue,
                 };
+                driven.settled = true;
                 ready.extend(state.flush().into_iter().map(Ok));
                 ready.push_back(Err(error));
             }
         },
     )
     .boxed()
+}
+
+/// isGeminiVertexTerminalStreamChunk: a client chunk carrying `[DONE]`, a terminal
+/// Responses or Claude event, or a finish reason.
+fn is_terminal_chunk(chunk: &[u8]) -> bool {
+    chunk.split(|b| *b == b'\n').any(|line| {
+        let trimmed = cpa_common::gostr::trim_space(line);
+        if trimmed == b"data: [DONE]" || trimmed == b"[DONE]" {
+            return true;
+        }
+        let Some(payload) = sse::json_payload(line) else {
+            return false;
+        };
+        let kind = gj::get(payload, "type").bytes();
+        if matches!(
+            kind.as_ref(),
+            b"response.completed" | b"response.incomplete" | b"response.done" | b"message_stop"
+        ) {
+            return true;
+        }
+        [
+            "choices.0.finish_reason",
+            "response.choices.0.finish_reason",
+            "candidates.0.finishReason",
+            "response.candidates.0.finishReason",
+        ]
+        .iter()
+        .any(|path| {
+            let reason = gj::get(payload, *path);
+            reason.exists() && !cpa_common::gostr::trim_space(&reason.bytes()).is_empty()
+        })
+    })
+}
+
+/// A driven [`LineState`]; dropped before its outcome settled (end of the upstream, an
+/// error or a stop), it is a client that went away mid-stream.
+struct Driven<S: LineState> {
+    state: S,
+    settled: bool,
+}
+
+impl<S: LineState> Drop for Driven<S> {
+    fn drop(&mut self) {
+        if !self.settled
+            && let Some(output) = self.state.output()
+        {
+            output.client_dropped();
+        }
+    }
 }
 
 /// The streamGenerateContent loop of Gemini and Antigravity upstreams: usage filtering
@@ -1133,6 +1247,10 @@ impl LineState for GeminiLines {
 
     fn flush(&mut self) -> Vec<Bytes> {
         self.output.flush_frames()
+    }
+
+    fn output(&self) -> Option<&Output> {
+        Some(&self.output)
     }
 }
 

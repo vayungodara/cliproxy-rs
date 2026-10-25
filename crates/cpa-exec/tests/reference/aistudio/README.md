@@ -29,10 +29,12 @@ GOFLAGS=-mod=mod GOPROXY=off go run . <repo>/crates/cpa-exec/tests/fixtures/aist
 (`ae3ee3be`, clean checkout) with the same generator; the Rust test replaces the
 `6fecc6e` recordings of the same names with them and adds the new ones (the Claude
 `MALFORMED_FUNCTION_CALL` error of `7f2f17d7`, and `5ec31442`'s 2xx first status,
-late non-2xx `http_response` and `[DONE]` at the stream end). Every case still runs;
+late non-2xx `http_response` and `[DONE]` at the stream end, and `stream_client_drop`: the
+generator cancels the request once the stream is idle, and Go's relay closes the stream
+without an error, so the record is a success). Every case still runs;
 `RSFIX_ONLY` (a Go regexp on the name) selects the ones written:
 
 ```
-RSFIX_ONLY='^(stream_claude_bare|stream_codex_no_pair|stream_first_status_201|stream_http_response_error_after_start|stream_responses_http_response|execute_claude_malformed|stream_claude_malformed|stream_claude_malformed_then_relay_error)$' \
+RSFIX_ONLY='^(stream_claude_bare|stream_codex_no_pair|stream_first_status_201|stream_http_response_error_after_start|stream_responses_http_response|execute_claude_malformed|stream_claude_malformed|stream_claude_malformed_then_relay_error|stream_client_drop)$' \
   GOFLAGS=-mod=mod GOPROXY=off go run . <repo>/crates/cpa-exec/tests/fixtures/aistudio_go_v8.0.35.json
 ```
