@@ -1,0 +1,49 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Reference: https://docs.coderabbit.ai/reference/configuration
+# Reviews run only on PRs labelled "coderabbit", or on an "@coderabbitai review" comment.
+reviews:
+  profile: assertive
+  review_status: false
+  auto_review:
+    enabled: false
+    labels:
+      - "coderabbit"
+    auto_incremental_review: false
+    drafts: false
+  path_filters:
+    - "!vendor/**"
+    - "!Cargo.lock"
+    - "!ui/package-lock.json"
+    - "!ui/dist/**"
+    - "!ui/dist-panel/**"
+    - "!docs/parity-audit/status.md"
+    - "!crates/cpa-core/src/config/schema.json"
+    - "!crates/**/tests/fixtures/**"
+    - "!crates/**/testdata/**"
+    - "!**/*_go.json"
+    - "!harness/evidence/**"
+    - "!bench/results/**"
+  path_instructions:
+    - path: "crates/**/*.rs"
+      instructions: |
+        - Check that behaviour matches Go CLIProxyAPI v8.0.35 (commit ae3ee3be): HTTP routes, status codes, response shapes and headers, config.yaml and credential file formats, and the v8 Management API. Flag a difference that has no entry in docs/DIFFERENCES-FROM-GO.md or an explicit partial or missing item in docs/parity-audit/manual.tsv.
+        - Check that a Rust value never silently differs from Go's for the same input. Refusing an input Go accepts is acceptable only with a DIFFERENCES-FROM-GO.md entry.
+        - Check that request preparation and config loading stay linear in input size: flag code that rescans a JSON body or YAML document for each element.
+        - Check that tests use local mock upstreams and a private auth-dir, and cannot reach the network or ~/.cli-proxy-api.
+    - path: "{crates/cpa-exec/src/claude.rs,crates/cpa-exec/src/claude/**,crates/cpa-translate/src/*claude*.rs,crates/cpa-server/src/claude.rs,crates/cpa-common/src/cache.rs,crates/cpa-common/src/signature/claude*.rs}"
+      instructions: |
+        - Check every change to the bytes sent to Claude upstream: system blocks, tool order and definitions, message content, cache_control placement, headers and beta flags, field order and whitespace. Any change before the last cache breakpoint invalidates prompt caching for existing sessions; flag it unless the PR description states it.
+        - Check that bodies that pass through are forwarded byte for byte and not re-serialized.
+        - Check that no keepalive or other extra inference request is added.
+    - path: "{crates/cpa-core/src/credential.rs,crates/cpa-core/src/config.rs,crates/cpa-core/src/config/**,crates/cpa-server/src/management.rs,crates/cpa-server/src/management/**,crates/cpa-store/**,crates/**/*auth*.rs,crates/**/*oauth*.rs,crates/**/*login*.rs,crates/**/*tokens*.rs,crates/**/*siwc*.rs,crates/cpa-server/src/realtime/secrets.rs}"
+      instructions: |
+        - Check that credential and config writes never log, echo or return secrets: API keys, client keys, tokens, refresh tokens, cookies and management keys.
+        - Check that credential and config writes are safe against concurrent edits: another writer, a reload or a token refresh must not lose an update or leave a partly written file.
+        - Check that a refresh token is never spent twice where Go would spend it once.
+    - path: "{crates/**/*refresh*.rs,crates/**/watching.rs,crates/**/runtime.rs,crates/**/*siwc*.rs,crates/cpa-server/src/cooldown_store.rs,crates/cpa-server/src/management.rs,crates/cpa-plugin/src/**,crates/cpa-home/src/**}"
+      instructions: |
+        - Check lock, refresh and reload code for races and deadlocks: lock order, locks held across an await or blocking I/O, waits that shutdown cannot cancel, and state read before a lock and used after it.
+        - Check that a config reload or credential change during a request cannot mix two snapshots in one request.
+  tools:
+    clippy:
+      enabled: true
