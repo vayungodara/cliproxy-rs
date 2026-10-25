@@ -550,7 +550,7 @@ impl VertexExecutor {
         }
         let output = Output::new(req, Format::Gemini, &body)
             .with_claude_stream_errors()
-            .fail_on_client_drop(true);
+            .fail_on_client_drop(g::DropRule::BeforeTerminal { delivered: false });
         let lines = g::captured_lines(proxy::lines(upstream.body, g::MAX_LINE), capture.clone());
         let stream = g::drive(lines, RawLines(output));
         Ok(ExecResponse {

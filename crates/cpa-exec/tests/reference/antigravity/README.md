@@ -24,3 +24,9 @@ cd "$copy" && GOTOOLCHAIN=local GOPROXY=off go run ./cmd/antigravity-goldens out
 
 For the v8.0.27 scenarios, archive `v8.0.27` instead and run
 `ANTIGRAVITY_GO_SET=v8.0.27 go run -tags v8027 ./cmd/antigravity-goldens out.json`.
+`../../fixtures/antigravity_v8_0_35_go.json` holds the scenarios of `v8_0_35.go`, recorded
+the same way from v8.0.35 (`ae3ee3be303fb07fb8173279923413005bf32177`) with
+`ANTIGRAVITY_GO_SET=v8.0.35 go run -tags v8035 ./cmd/antigravity-goldens out.json`: a
+client that goes away mid-stream (the upstream `stall`s after its body and the generator
+cancels the request once the stream is idle; the usage record carries Go's
+`fail_status` and `fail_body`). Its `requestId` is random; the replay normalizes it.

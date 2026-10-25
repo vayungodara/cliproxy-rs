@@ -578,7 +578,7 @@ impl GeminiExecutor {
         }
         let output = Output::new(req, to, &body)
             .with_claude_stream_errors()
-            .fail_on_client_drop(false);
+            .fail_on_client_drop(DropRule::Always);
         let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
         let stream = gemini_lines(lines, output, Format::Gemini);
         Ok(ExecResponse {
@@ -666,7 +666,7 @@ impl GeminiExecutor {
             return Err(error_from(capture, upstream).await);
         }
         let response_headers = upstream.headers.clone();
-        let output = Output::new(req, to, &body);
+        let output = Output::new(req, to, &body).fail_on_client_drop(DropRule::Always);
         let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
         let stream = interactions_lines(lines, output);
         Ok(ExecResponse {
@@ -805,15 +805,19 @@ pub(crate) struct Output {
 
 /// What a stream records when the client goes away before it ended.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
-enum DropRule {
+pub(crate) enum DropRule {
     /// Nothing here; the server's end-of-attempt record (a success) stands.
     #[default]
     Off,
-    /// Go's Gemini scanner: the canceled request fails the pending upstream read with
-    /// `context canceled`, published as a 499 failure without usage.
+    /// Go's Gemini and Interactions scanners: the canceled request fails the pending
+    /// upstream read with `context canceled`, published as a 499 failure without usage.
     Always,
     /// Vertex (Go dbc4aad9): the same, unless a terminal chunk was already produced.
-    BeforeTerminal { terminal_delivered: bool },
+    BeforeTerminal { delivered: bool },
+    /// Antigravity: as Vertex, but an upstream payload with a finish reason is terminal
+    /// too, and the failure keeps the usage seen so far (Go's deferred
+    /// `streamUsage.PublishFailure`).
+    Antigravity { delivered: bool },
 }
 
 impl Output {
@@ -864,21 +868,14 @@ impl Output {
     }
 
     /// Go's scanner error when the client goes away mid-stream: a drop before the
-    /// stream ended publishes `context canceled` (499) without usage and logs it as the
-    /// response error. With `terminal_exempt` (Vertex, Go dbc4aad9) a drop after a
-    /// terminal chunk was produced stays a success.
+    /// stream ended publishes `context canceled` (499) and logs it as the response
+    /// error, as `rule` says.
     // ponytail: Go fails only when the cancellation interrupts the upstream read; one
     // that finds the executor handing a chunk to a client that stopped reading returns
     // quietly and publishes a success. That race is not modelled: every drop before
     // the end is the read case. Upgrade path: track the stream's await point.
-    pub(crate) fn fail_on_client_drop(mut self, terminal_exempt: bool) -> Self {
-        self.drop_rule = if terminal_exempt {
-            DropRule::BeforeTerminal {
-                terminal_delivered: false,
-            }
-        } else {
-            DropRule::Always
-        };
+    pub(crate) fn fail_on_client_drop(mut self, rule: DropRule) -> Self {
+        self.drop_rule = rule;
         self
     }
 
@@ -891,15 +888,20 @@ impl Output {
 
     /// The client went away before the stream ended (see [`Output::fail_on_client_drop`]).
     fn client_dropped(&self) {
-        let fail = match self.drop_rule {
-            DropRule::Off => false,
-            DropRule::Always => true,
-            DropRule::BeforeTerminal { terminal_delivered } => !terminal_delivered,
+        let (fail, with_usage) = match self.drop_rule {
+            DropRule::Off => (false, false),
+            DropRule::Always => (true, false),
+            DropRule::BeforeTerminal { delivered } => (!delivered, false),
+            DropRule::Antigravity { delivered } => (!delivered, true),
         };
         if fail {
             // Go's RecordAPIResponseError and PublishFailure of the scanner error.
             self.capture.record(CaptureEvent::ResponseError("context canceled"));
-            self.usage.publish_failure(499, "context canceled");
+            if with_usage {
+                self.usage.publish_failure_with_usage(499, "context canceled");
+            } else {
+                self.usage.publish_failure(499, "context canceled");
+            }
         }
     }
 
@@ -985,10 +987,17 @@ impl Output {
         self.frame(&mut out);
         self.post_process(&mut out);
         self.capture_claude_error(&out);
-        if let DropRule::BeforeTerminal { terminal_delivered } = &mut self.drop_rule
-            && !*terminal_delivered
-        {
-            *terminal_delivered = out.iter().any(|chunk| is_terminal_chunk(chunk));
+        match &mut self.drop_rule {
+            DropRule::BeforeTerminal { delivered } if !*delivered => {
+                *delivered = out.iter().any(|chunk| is_terminal_chunk(chunk));
+            }
+            DropRule::Antigravity { delivered } if !*delivered => {
+                let finished = ["candidates.0.finishReason", "response.candidates.0.finishReason"]
+                    .iter()
+                    .any(|path| !cpa_common::gostr::trim_space(&gj::get(payload, *path).bytes()).is_empty());
+                *delivered = finished || out.iter().any(|chunk| is_terminal_chunk(chunk));
+            }
+            _ => {}
         }
         self.checked(out)
     }
@@ -1359,6 +1368,10 @@ impl LineState for InteractionsLines {
 
     fn flush(&mut self) -> Vec<Bytes> {
         self.output.flush_frames()
+    }
+
+    fn output(&self) -> Option<&Output> {
+        Some(&self.output)
     }
 }
 
