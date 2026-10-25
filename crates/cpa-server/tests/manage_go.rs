@@ -1300,9 +1300,9 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 219);
+        assert_eq!(compared, 222);
         eprintln!("credentials: {bytes_compared} of {compared} steps compared byte for byte");
-        assert_eq!(bytes_compared, 171, "steps compared byte for byte");
+        assert_eq!(bytes_compared, 174, "steps compared byte for byte");
     }
 
     /// Pending v8.0.35 drift outside the config saver. Each pin names its scenario and
@@ -1338,8 +1338,9 @@ mod creds {
             ("runtime_credentials", 6) => request("POST", "/routing/cooldown/reset", None),
             _ => {}
         }
-        // Go 7b0319fb (Sign in with ChatGPT): codex auth files get an empty
-        // `<name>.lock` side file. Credentials owner.
+        // Go 7b0319fb (Sign in with ChatGPT): a codex auth file's save leaves an empty
+        // `<name>.lock` side file, its credential lock, as cliproxy-rs's does. This pins
+        // which steps Go recorded them at.
         if let Some(files) = step["files"].as_object_mut() {
             let mut locks: Vec<&str> = Vec::new();
             if inventory && (19..=88).contains(&i) {
@@ -1354,11 +1355,21 @@ mod creds {
             if name == "save_bytes" && i >= 3 {
                 locks.push("raw-codex.json.lock");
             }
+            // Codex uploads: saved under the lock of the file they wrote.
+            for (step, lock) in [
+                (22, "raw-up-codex-off.json.lock"),
+                (21, "raw-up-codex-same.json.lock"),
+                (20, "raw-up-codex.json.lock"),
+            ] {
+                if name == "save_bytes" && i >= step {
+                    locks.push(lock);
+                }
+            }
             let mut recorded: Vec<String> = files.keys().filter(|f| f.ends_with(".lock")).cloned().collect();
             recorded.sort();
             assert_eq!(recorded, locks, "{at}: Go's lock files");
             for lock in locks {
-                assert_eq!(files.remove(lock), Some(json!("raw:")), "{at}: {lock}");
+                assert_eq!(files[lock], json!("raw:"), "{at}: {lock}");
             }
         }
         step

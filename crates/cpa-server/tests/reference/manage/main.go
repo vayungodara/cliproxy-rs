@@ -1751,6 +1751,11 @@ func credScenarios() []credScenario {
 			call(http.MethodPatch, "/credentials/status", `{"name":"raw-reload.json","disabled":true}`),
 			call(http.MethodPatch, "/credentials/fields", `{"name":"raw-codex-blank.json","disabled":"true"}`),
 			get("/credentials?name=raw-codex-blank.json"),
+			// A Codex upload is written as sent, then saved under its credential lock:
+			// json.Marshal of the merged record unless the file holds exactly those bytes.
+			call(http.MethodPost, "/credentials?name=raw-up-codex.json", "{\n  \"type\": \"codex\",\n  \"email\": \"u@example.invalid\",\n  \"access_token\": \"fake-up\",\n  \"proxy-url\": \"http://p.example.invalid\",\n  \"note\": \"<&>\",\n  \"n\": 1.0\n}\n"),
+			call(http.MethodPost, "/credentials?name=raw-up-codex-same.json", `{"access_token":"fake-up","disabled":false,"type":"codex"}`),
+			call(http.MethodPost, "/credentials?name=raw-up-codex-off.json", `{"type":"codex","access_token":"fake-up","disabled":true}`),
 		},
 	}, {
 		Name: "api_call_and_usage", Echo: true,

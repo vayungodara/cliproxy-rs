@@ -914,9 +914,14 @@ fn resync(state: &Management) {
     state.publish((*state.rt.config()).clone(), None);
 }
 
-/// Go `writeAuthFile`: validate as Go's `buildAuthFromFileData` does, then persist. An
-/// invalid file is the client's error (`Err((true, _))`, Go `errInvalidAuthFile`, 400).
-fn store_file(state: &Management, name: &str, data: &[u8], v8: bool) -> Result<(), (bool, String)> {
+/// An upload ready to write: its path, bytes and credential, and whether it is a Codex
+/// record.
+type Upload = (PathBuf, Vec<u8>, Option<Credential>, bool);
+
+/// Go `buildAuthFromFileData`'s checks on an upload, and the bytes Go's store writes.
+/// An invalid file is the client's error (`Err((true, _))`, Go `errInvalidAuthFile`,
+/// 400).
+fn prepare_upload(state: &Management, name: &str, data: &[u8]) -> Result<Upload, (bool, String)> {
     let cfg = state.rt.config();
     let base = Path::new(name)
         .file_name()
@@ -958,11 +963,97 @@ fn store_file(state: &Management, name: &str, data: &[u8], v8: bool) -> Result<(
     } else {
         serde_json::to_vec(&persisted).map_err(|e| (false, e.to_string()))?
     };
+    let provider = synthesized.as_ref().map_or("", |c| c.provider.as_str());
+    let codex = codex_record(provider, &canonical);
+    Ok((dst, bytes, synthesized, codex))
+}
+
+/// [`store_file`] off the async workers, waiting for a Codex file's lock in between.
+async fn store(
+    state: &Arc<Management>,
+    job: impl FnMut(&Management, &mut CodexLock) -> Result<Result<(), (bool, String)>, PathBuf> + Send + 'static,
+) -> Result<(), (bool, String)> {
+    with_codex_lock(state, job)
+        .await
+        .unwrap_or_else(|e| Err((false, format!("failed to write file: {e}"))))
+}
+
+/// Go `writeAuthFile`: validate ([`prepare_upload`]), then persist. A Codex record is
+/// written under its file's credential lock, as Go's store saves it; the outer `Err`
+/// names a file whose lock another holder has ([`with_codex_lock`]).
+fn store_file(
+    state: &Management,
+    name: &str,
+    data: &[u8],
+    v8: bool,
+    lock: &mut CodexLock,
+) -> Result<Result<(), (bool, String)>, PathBuf> {
+    let (dst, bytes, synthesized, codex) = match prepare_upload(state, name, data) {
+        Ok(prepared) => prepared,
+        Err(e) => return Ok(Err(e)),
+    };
+    if !codex {
+        let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
+        if v8 {
+            state.oauth.invalidate_siwc(&dst);
+        }
+        if let Err(e) = write_file(&dst, &bytes) {
+            return Ok(Err((false, format!("failed to write file: {e}"))));
+        }
+        publish_stored(state, dst, &bytes, synthesized);
+        return Ok(Ok(()));
+    }
+    // Go writes the upload as sent, then saves its record under the file's credential
+    // lock (`PersistCodexAuthFile`), which re-reads the file: a refresh holding the lock
+    // meanwhile patches its new tokens onto the upload, and the save keeps them. A rerun
+    // holds the lock its first attempt waited for, after that write.
+    if !lock.holds(&dst) {
+        let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
+        if v8 {
+            state.oauth.invalidate_siwc(&dst);
+        }
+        if let Err(e) = write_file(&dst, data) {
+            return Ok(Err((false, format!("failed to write file: {e}"))));
+        }
+    }
+    match lock.hold(&dst) {
+        Ok(()) => {}
+        Err(PatchError::LockBusy(path)) => return Err(path),
+        Err(e) => return Ok(Err((false, format!("failed to write file: {e:?}")))),
+    }
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
     if v8 {
         state.oauth.invalidate_siwc(&dst);
     }
-    write_file(&dst, &bytes).map_err(|e| (false, format!("failed to write file: {e}")))?;
+    // Go's metadata branch: the upload as decoded, the disk's credentials merged in, the
+    // record's flag, then `json.Marshal`, written unless the file holds those bytes.
+    let disabled = synthesized.as_ref().is_some_and(|c| c.disabled);
+    let object = |b: &[u8]| GoValue::parse_f64(b).and_then(|v| v.into_object().ok());
+    let mut doc = object(data).unwrap_or_default();
+    let existing = std::fs::read(&dst).ok();
+    if let Some(disk) = existing.as_deref().and_then(object).filter(|d| !d.is_empty()) {
+        merge_codex_from_disk(&disk, &mut doc);
+    }
+    doc.insert("disabled".into(), GoValue::Bool(disabled));
+    normalize_go(&mut doc);
+    let bytes = GoValue::Object(doc).marshal();
+    // Go's store does not recreate a disabled record's file that is gone.
+    let write = existing.as_ref().map_or(!disabled, |old| *old != bytes);
+    if write && let Err(e) = write_file(&dst, &bytes) {
+        return Ok(Err((false, format!("failed to write file: {e}"))));
+    }
+    let cfg = state.rt.config();
+    let synthesized = match credentials::from_file(&cfg, &cfg.auth_dir, &dst, &bytes) {
+        Ok(merged) => merged,
+        Err(_) => synthesized,
+    };
+    publish_stored(state, dst, &bytes, synthesized);
+    Ok(Ok(()))
+}
+
+/// Publishes an upload stored as `bytes` at `dst`, and records whether a synthesizer
+/// claimed it.
+fn publish_stored(state: &Management, dst: PathBuf, bytes: &[u8], synthesized: Option<Credential>) {
     {
         let mut fallbacks = state.fallbacks.lock().unwrap_or_else(PoisonError::into_inner);
         if synthesized.is_none() {
@@ -971,9 +1062,8 @@ fn store_file(state: &Management, name: &str, data: &[u8], v8: bool) -> Result<(
             fallbacks.remove(&dst);
         }
     }
-    let written: [u8; 32] = <sha2::Sha256 as sha2::Digest>::digest(&bytes).into();
+    let written: [u8; 32] = <sha2::Sha256 as sha2::Digest>::digest(bytes).into();
     state.publish_upload((*state.rt.config()).clone(), None, synthesized.map(|c| (c, written)));
-    Ok(())
 }
 
 pub(crate) async fn upload(
@@ -1013,16 +1103,19 @@ pub(crate) async fn upload(
             Ok(files) => files,
             Err(e) => return fail(StatusCode::BAD_REQUEST, format!("invalid multipart form: {e}")),
         };
-        let store_part = |part: &multipart::FilePart| -> Result<String, (bool, String)> {
+        let store_part = async |part: &multipart::FilePart| -> Result<String, (bool, String)> {
             let name = multipart::go_base(part.filename.trim()).to_owned();
             if !ends_json(&name) {
                 return Err((true, "file must be .json".into()));
             }
-            store_file(&state, &name, &part.data, v8).map(|()| name)
+            let (file, data) = (name.clone(), part.data.to_vec());
+            store(&state, move |state, lock| store_file(state, &file, &data, v8, lock))
+                .await
+                .map(|()| name)
         };
         return match files.len() {
             0 => fail(StatusCode::BAD_REQUEST, "no files uploaded"),
-            1 => match store_part(&files[0]) {
+            1 => match store_part(&files[0]).await {
                 Ok(_) => reply(StatusCode::OK, [("status", "ok".into())]),
                 Err((true, msg)) => fail(StatusCode::BAD_REQUEST, msg),
                 Err((false, msg)) => fail(StatusCode::INTERNAL_SERVER_ERROR, msg),
@@ -1031,7 +1124,7 @@ pub(crate) async fn upload(
                 let mut uploaded = Vec::new();
                 let mut failed = Vec::new();
                 for part in &files {
-                    match store_part(part) {
+                    match store_part(part).await {
                         Ok(name) => uploaded.push(Value::from(name)),
                         Err((_, msg)) => {
                             let name = multipart::go_base(&part.filename);
@@ -1071,12 +1164,10 @@ pub(crate) async fn upload(
     if !ends_json(&name) {
         return fail(StatusCode::BAD_REQUEST, "name must end with .json");
     }
-    let result = tokio::task::spawn_blocking(move || store_file(&state, &name, &body, v8)).await;
-    match result {
-        Ok(Ok(())) => reply(StatusCode::OK, [("status", "ok".into())]),
-        Ok(Err((true, msg))) => fail(StatusCode::BAD_REQUEST, msg),
-        Ok(Err((false, msg))) => fail(StatusCode::INTERNAL_SERVER_ERROR, msg),
-        Err(_) => fail(StatusCode::INTERNAL_SERVER_ERROR, "internal error"),
+    match store(&state, move |state, lock| store_file(state, &name, &body, v8, lock)).await {
+        Ok(()) => reply(StatusCode::OK, [("status", "ok".into())]),
+        Err((true, msg)) => fail(StatusCode::BAD_REQUEST, msg),
+        Err((false, msg)) => fail(StatusCode::INTERNAL_SERVER_ERROR, msg),
     }
 }
 
@@ -1483,18 +1574,18 @@ pub(crate) async fn status(State(state): State<Arc<Management>>, body: Result<Fi
             Err(e) => patch_error(Some(e)),
         };
     }
-    tokio::task::spawn_blocking(move || {
+    let saved = with_codex_lock(&state, move |state, lock| {
         let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
         if plugin_virtual(&target) {
             // Go: only through the source file's name, which toggles the file and every
             // credential parsed from it; a parsed credential alone cannot be changed.
             if !names_virtual_source(&name, &target) {
-                return fail(StatusCode::CONFLICT, PLUGIN_VIRTUAL);
+                return Ok(fail(StatusCode::CONFLICT, PLUGIN_VIRTUAL));
             }
-            return virtual_source_status(&state, &target, disabled);
+            return Ok(virtual_source_status(state, &target, disabled));
         }
         if matches!(target.source, Source::Config { .. }) {
-            return match toggle_config_key(&state, &target.id, disabled) {
+            return Ok(match toggle_config_key(state, &target.id, disabled) {
                 Ok(true) => reply(
                     StatusCode::OK,
                     [
@@ -1509,32 +1600,36 @@ pub(crate) async fn status(State(state): State<Arc<Management>>, body: Result<Fi
                     StatusCode::INTERNAL_SERVER_ERROR,
                     format!("failed to update config api key: {e}"),
                 ),
-            };
+            });
         }
         // Go v8.0.35 `Manager.Modify`: the flag lands on the record as it is now, so a
         // token refresh between the lookup and the write does not fail the toggle.
-        let mut current = target;
+        let mut current = target.clone();
         for _ in 0..16 {
             let mut metadata = current.metadata.clone();
             metadata.insert("disabled".into(), disabled.into());
-            match save_file_backed(&state, &current, &metadata, &[]) {
+            match save_file_backed(state, &current, &metadata, &[], lock) {
                 Ok(()) => {
-                    note_disabled(&state, &current.id, Some(disabled));
-                    return reply(StatusCode::OK, [("status", "ok".into()), ("disabled", disabled.into())]);
+                    note_disabled(state, &current.id, Some(disabled));
+                    return Ok(reply(
+                        StatusCode::OK,
+                        [("status", "ok".into()), ("disabled", disabled.into())],
+                    ));
                 }
+                Err(PatchError::LockBusy(path)) => return Err(path),
                 Err(PatchError::Stale { .. }) => match state.rt.store().get(&current.id) {
                     Some(c) => current = c,
-                    None => return patch_error(Some(PatchError::NotFound)),
+                    None => return Ok(patch_error(Some(PatchError::NotFound))),
                 },
-                Err(e) => return patch_error(Some(e)),
+                Err(e) => return Ok(patch_error(Some(e))),
             }
         }
-        patch_error(Some(PatchError::Stale {
+        Ok(patch_error(Some(PatchError::Stale {
             current: current.revision,
-        }))
+        })))
     })
-    .await
-    .unwrap_or_else(|_| patch_error(None))
+    .await;
+    saved.unwrap_or_else(|e| patch_error(Some(PatchError::Io(e))))
 }
 
 /// Go `patchPluginVirtualSourceStatus`: writes `disabled` into the source file (Go's
@@ -1774,23 +1869,33 @@ pub(crate) async fn fields(State(state): State<Arc<Management>>, body: Result<Fi
         }
     }
     fields.retain(|f| f.path != "request_retry");
-    tokio::task::spawn_blocking(move || {
+    let saved = with_codex_lock(&state, move |state, lock| {
         let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
         // ponytail: a credential removed and re-added under the same ID takes the edit;
         // Go's registration epoch refuses it (404). Bounded so a busy record cannot spin.
-        (0..16)
-            .find_map(|_| apply_fields(&state, &name, &fields, retry))
-            .unwrap_or_else(|| fail(StatusCode::CONFLICT, "stale credential"))
+        for _ in 0..16 {
+            if let Some(done) = apply_fields(state, &name, &fields, retry, lock)? {
+                return Ok(done);
+            }
+        }
+        Ok(fail(StatusCode::CONFLICT, "stale credential"))
     })
-    .await
-    .unwrap_or_else(|_| patch_error(None))
+    .await;
+    saved.unwrap_or_else(|e| patch_error(Some(PatchError::Io(e))))
 }
 
 /// One attempt of [`fields`] on the credential as it is now; `None` when a concurrent
 /// update (a token refresh, say) changed it first, so the caller re-reads and retries.
 /// Go v8.0.35 `Manager.Modify` (`d69962e4`) applies the edit to the current record
-/// for the same reason instead of failing.
-fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<Option<i64>>) -> Option<Response> {
+/// for the same reason instead of failing. `Err` names a Codex file whose lock another
+/// holder has ([`with_codex_lock`]).
+fn apply_fields(
+    state: &Management,
+    name: &str,
+    fields: &[Field],
+    retry: Option<Option<i64>>,
+    lock: &mut CodexLock,
+) -> Result<Option<Response>, PathBuf> {
     let root = |p: &str| p.split('.').next().unwrap_or_default().trim().to_owned();
     let all = state.rt.store().snapshot();
     let Some(target) = all
@@ -1799,15 +1904,15 @@ fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<
         .or_else(|| all.iter().find(|c| file_name(c).as_deref() == Some(name)))
         .cloned()
     else {
-        return Some(fail(StatusCode::NOT_FOUND, "auth file not found"));
+        return Ok(Some(fail(StatusCode::NOT_FOUND, "auth file not found")));
     };
     // Go d69962e4 and 3e309fb4: config credentials are edited through the config
     // endpoints, not as auth files.
     if matches!(target.source, Source::Config { .. }) {
-        return Some(fail(StatusCode::NOT_FOUND, "auth file not found"));
+        return Ok(Some(fail(StatusCode::NOT_FOUND, "auth file not found")));
     }
     if plugin_virtual(&target) {
-        return Some(fail(StatusCode::CONFLICT, PLUGIN_VIRTUAL));
+        return Ok(Some(fail(StatusCode::CONFLICT, PLUGIN_VIRTUAL)));
     }
     // Start from Go's normalized metadata so aliases persist under canonical names.
     let mut meta = target.metadata.clone();
@@ -1822,38 +1927,41 @@ fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<
     let mut literals: Vec<(Vec<String>, GoValue)> = Vec::new();
     for Field { path, value, raw } in fields {
         if path.is_empty() {
-            return Some(fail(StatusCode::BAD_REQUEST, "field name is required"));
+            return Ok(Some(fail(StatusCode::BAD_REQUEST, "field name is required")));
         }
         if root(path) == "excluded_models" {
             if path != "excluded_models" {
-                return Some(fail(
+                return Ok(Some(fail(
                     StatusCode::BAD_REQUEST,
                     "excluded_models does not support nested fields",
-                ));
+                )));
             }
             let strings = value.as_array().is_some_and(|l| l.iter().all(Value::is_string));
             if !value.is_null() && !strings {
-                return Some(fail(
+                return Ok(Some(fail(
                     StatusCode::BAD_REQUEST,
                     "excluded_models must be a string array or null",
-                ));
+                )));
             }
         }
         if path == "weight" {
             if value.is_null() {
                 meta.remove("weight");
             } else if !value.is_number() {
-                return Some(fail(StatusCode::BAD_REQUEST, "weight must be an integer"));
+                return Ok(Some(fail(StatusCode::BAD_REQUEST, "weight must be an integer")));
             } else {
                 match credentials::parse_weight(value) {
                     Ok(w) => {
                         meta.insert("weight".into(), w.into());
                     }
-                    Err(e) => return Some(fail(StatusCode::BAD_REQUEST, e)),
+                    Err(e) => return Ok(Some(fail(StatusCode::BAD_REQUEST, e))),
                 }
             }
         } else if root(path) == "weight" {
-            return Some(fail(StatusCode::BAD_REQUEST, "weight does not support nested fields"));
+            return Ok(Some(fail(
+                StatusCode::BAD_REQUEST,
+                "weight does not support nested fields",
+            )));
         } else if path == "headers" {
             if merge_headers(&mut meta, value) {
                 // Go stores anything but a string map as decoded.
@@ -1862,7 +1970,10 @@ fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<
         } else {
             let parts: Vec<&str> = path.split('.').map(str::trim).collect();
             if parts.iter().any(|p| p.is_empty()) {
-                return Some(fail(StatusCode::BAD_REQUEST, format!("invalid field path: {path}")));
+                return Ok(Some(fail(
+                    StatusCode::BAD_REQUEST,
+                    format!("invalid field path: {path}"),
+                )));
             }
             set_path(&mut meta, &parts, value.clone());
             literals.push((parts.iter().map(|p| (*p).to_owned()).collect(), raw.clone()));
@@ -1881,7 +1992,7 @@ fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<
         changed = true;
     }
     if !changed {
-        return Some(fail(StatusCode::BAD_REQUEST, "no fields to update"));
+        return Ok(Some(fail(StatusCode::BAD_REQUEST, "no fields to update")));
     }
     let mut roots: Vec<String> = fields.iter().map(|f| root(&f.path)).collect();
     if retry.is_some() {
@@ -1901,10 +2012,10 @@ fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<
         return match result {
             Ok(_) => {
                 note_disabled(state, &target.id, disabled_note);
-                Some(reply(StatusCode::OK, [("status", "ok".into())]))
+                Ok(Some(reply(StatusCode::OK, [("status", "ok".into())])))
             }
-            Err(PatchError::Stale { .. }) => None,
-            Err(e) => Some(patch_error(Some(e))),
+            Err(PatchError::Stale { .. }) => Ok(None),
+            Err(e) => Ok(Some(patch_error(Some(e)))),
         };
     }
     // Go's file store writes the auth's disabled flag on every save; a patched
@@ -1924,14 +2035,82 @@ fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<
     }
     let mut next = target.metadata.clone();
     patch.apply(&mut next);
-    match save_file_backed(state, &target, &next, &literals) {
+    match save_file_backed(state, &target, &next, &literals, lock) {
         Ok(()) => {
             note_disabled(state, &target.id, disabled_note);
-            Some(reply(StatusCode::OK, [("status", "ok".into())]))
+            Ok(Some(reply(StatusCode::OK, [("status", "ok".into())])))
         }
-        Err(PatchError::Stale { .. }) => None,
-        Err(e) => Some(patch_error(Some(e))),
+        Err(PatchError::LockBusy(path)) => Err(path),
+        Err(PatchError::Stale { .. }) => Ok(None),
+        Err(e) => Ok(Some(patch_error(Some(e)))),
     }
+}
+
+/// Go stores a record under its file's credential lock when its provider or metadata
+/// type is `codex` (`PersistCodexAuthFile`), token-less records included.
+fn codex_record(provider: &str, metadata: &Map<String, Value>) -> bool {
+    provider.trim().go_eq_fold("codex")
+        || metadata
+            .get("type")
+            .and_then(Value::as_str)
+            .is_some_and(|t| t.trim().go_eq_fold("codex"))
+}
+
+/// The Codex credential lock a management write holds ([`with_codex_lock`]).
+#[derive(Default)]
+pub(super) struct CodexLock(Option<(PathBuf, std::fs::File)>);
+
+impl CodexLock {
+    /// Holds the credential lock of the Codex file at `path` without waiting for it:
+    /// [`PatchError::LockBusy`] when another holder has it.
+    fn holds(&self, path: &Path) -> bool {
+        self.0.as_ref().is_some_and(|(held, _)| held == path)
+    }
+
+    pub(super) fn hold(&mut self, path: &Path) -> Result<(), PatchError> {
+        if self.holds(path) {
+            return Ok(());
+        }
+        self.0 = None;
+        let file = cpa_exec::codex_siwc_bind::open_lock_file(path).map_err(PatchError::Io)?;
+        if !cpa_exec::codex_siwc_bind::try_lock(&file).map_err(PatchError::Io)? {
+            return Err(PatchError::LockBusy(path.to_owned()));
+        }
+        self.0 = Some((path.to_owned(), file));
+        Ok(())
+    }
+}
+
+/// Runs `job` on a blocking thread, and again each time it stops at a Codex file whose
+/// credential lock another holder has (`Err` with its path): the wait for that lock
+/// happens here, off `disk` and the blocking pool, and the next run holds it. A refresh
+/// holds the lock through its grants and never takes `disk`, so a write waiting for the
+/// lock under `disk` would stall every config write, upload and watcher reload behind
+/// it. `Err` here is a wait that failed: shutdown, or a lock file that cannot be opened.
+pub(super) async fn with_codex_lock<T: Send + 'static>(
+    state: &Arc<Management>,
+    mut job: impl FnMut(&Management, &mut CodexLock) -> Result<T, PathBuf> + Send + 'static,
+) -> Result<T, String> {
+    let mut lock = CodexLock::default();
+    // Bounded like the stale-record retries: a lock that keeps changing hands fails.
+    for _ in 0..16 {
+        let worker = state.clone();
+        let (returned, out) = tokio::task::spawn_blocking(move || {
+            let out = job(&worker, &mut lock);
+            ((job, lock), out)
+        })
+        .await
+        .map_err(|_| "internal error".to_owned())?;
+        let path = match out {
+            Ok(done) => return Ok(done),
+            Err(path) => path,
+        };
+        job = returned.0;
+        drop(returned.1);
+        let file = state.rt.lock_codex_file(&path).await?;
+        lock = CodexLock(Some((path, file)));
+    }
+    Err("the credential lock kept changing hands".into())
 }
 
 /// Go `Manager.Modify` for an auth file: writes `metadata` and registers the file's
@@ -1947,7 +2126,9 @@ fn apply_fields(state: &Management, name: &str, fields: &[Field], retry: Option<
 /// from while the file still holds them, with any token refresh's values in place. A
 /// non-integer number with neither refuses the save (docs/DIFFERENCES-FROM-GO.md). An equal document leaves the file as it is, and
 /// the record is published all the same. Codex records go through
-/// `PersistCodexAuthFile`, which keeps the disk's credentials first.
+/// `PersistCodexAuthFile`, which keeps the disk's credentials first, under the file's
+/// credential lock, which `lock` holds or this takes without waiting
+/// ([`PatchError::LockBusy`] when another holder has it). Blocking.
 ///
 /// [`Provenance`]: crate::runtime::Provenance
 fn save_file_backed(
@@ -1955,8 +2136,15 @@ fn save_file_backed(
     target: &Credential,
     metadata: &Map<String, Value>,
     literals: &[(Vec<String>, GoValue)],
+    lock: &mut CodexLock,
 ) -> Result<(), PatchError> {
     let path = path_of(target).ok_or(PatchError::ConfigBacked)?;
+    // Go `PersistCodexAuthFile`: a Codex record is read, merged and written under the
+    // file's credential lock, so a refresh holding it (here or in another process)
+    // lands before this read or after this write, never between.
+    if codex_record(&target.provider, metadata) {
+        lock.hold(path)?;
+    }
     let existing = std::fs::read(path).ok();
     let held: Option<[u8; 32]> = existing
         .as_deref()
@@ -2812,6 +3000,120 @@ mod tests {
         serde_json::from_slice(&std::fs::read(dir.join(file)).unwrap()).unwrap()
     }
 
+    /// Go `PersistCodexAuthFile`: a fields patch of a Codex file whose credential lock
+    /// another process holds (its refresh) waits for it, then reads the rotated file and
+    /// keeps its tokens beside the edit. It waits holding neither `disk` nor a blocking
+    /// thread, so config writes, uploads and reloads go on meanwhile.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_save_waits_for_the_credential_lock() {
+        let (state, dir) = management(
+            "codex-lock",
+            &[(
+                "codex.json",
+                r#"{"type":"codex","access_token":"A","refresh_token":"rA","disabled":false}"#,
+            )],
+        );
+        let path = dir.join("codex.json");
+        let lock = cpa_exec::codex_siwc_bind::lock_file(&path).unwrap();
+        let body = Bytes::from(r#"{"name":"codex.json","priority":7}"#);
+        let save = tokio::spawn(fields(State(state.clone()), Ok(FirstJson(body))));
+        crate::runtime::tests::lock_waited(&path).await;
+        assert!(state.disk.try_lock().is_ok(), "the waiting save does not hold disk");
+        assert!(!save.is_finished(), "the save waits for the lock");
+        // The other process's refresh, under its lock.
+        std::fs::write(
+            &path,
+            r#"{"type":"codex","access_token":"C","refresh_token":"rC","disabled":false}"#,
+        )
+        .unwrap();
+        drop(lock);
+        let saved = tokio::time::timeout(std::time::Duration::from_secs(5), save)
+            .await
+            .expect("the save goes on once the lock is free")
+            .unwrap();
+        assert_eq!(saved.status(), StatusCode::OK);
+        let disk = on_disk(&dir, "codex.json");
+        assert_eq!(
+            (&disk["access_token"], &disk["refresh_token"], &disk["priority"]),
+            (&"C".into(), &"rC".into(), &7.into())
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A Codex save waiting for a credential lock another process holds gives up at
+    /// shutdown, so the exit does not wait on that process, and leaves the file alone.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_save_stops_waiting_for_the_lock_at_shutdown() {
+        let original = r#"{"type":"codex","access_token":"A","disabled":false}"#;
+        let (state, dir) = management("codex-lock-stop", &[("codex.json", original)]);
+        let path = dir.join("codex.json");
+        let held = cpa_exec::codex_siwc_bind::lock_file(&path).unwrap();
+        let body = Bytes::from(r#"{"name":"codex.json","disabled":true}"#);
+        let save = tokio::spawn(status(State(state.clone()), Ok(FirstJson(body))));
+        crate::runtime::tests::lock_waited(&path).await;
+        state.rt.shutdown_codex_refreshes().await;
+        let saved = tokio::time::timeout(std::time::Duration::from_secs(5), save)
+            .await
+            .expect("the save stops waiting")
+            .unwrap();
+        assert_eq!(saved.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        let body = axum::body::to_bytes(saved.into_body(), usize::MAX).await.unwrap();
+        assert!(
+            String::from_utf8_lossy(&body).contains("shutting down while waiting for the credential lock"),
+            "{body:?}"
+        );
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), original);
+        assert!(!state.rt.store().get("codex.json").unwrap().disabled);
+        drop(held);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Go writes a Codex upload as sent, then saves its record through its store under
+    /// the file's credential lock (leaving `<name>.lock`), waiting for another holder;
+    /// other uploads take none. A refresh holding the lock meanwhile rotates the tokens
+    /// in the uploaded file, and the save keeps them: the spent refresh token does not
+    /// come back.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn a_codex_upload_waits_for_the_credential_lock() {
+        let (state, dir) = management("codex-upload-lock", &[]);
+        let path = dir.join("up-codex.json");
+        let held = cpa_exec::codex_siwc_bind::lock_file(&path).unwrap();
+        let sent = br#"{"type":"codex","access_token":"a1","refresh_token":"r1","priority":7}"#;
+        let data = sent.to_vec();
+        let upload = tokio::spawn({
+            let state = state.clone();
+            async move { store(&state, move |s, l| store_file(s, "up-codex.json", &data, true, l)).await }
+        });
+        crate::runtime::tests::lock_waited(&path).await;
+        assert!(state.disk.try_lock().is_ok(), "the waiting upload does not hold disk");
+        assert_eq!(std::fs::read(&path).unwrap(), sent, "written as sent before the lock");
+        // The refresh holding the lock patches its grant onto the uploaded file.
+        std::fs::write(
+            &path,
+            r#"{"type":"codex","access_token":"a2","refresh_token":"r2","priority":7}"#,
+        )
+        .unwrap();
+        drop(held);
+        tokio::time::timeout(std::time::Duration::from_secs(5), upload)
+            .await
+            .expect("the upload goes on once the lock is free")
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            std::fs::read_to_string(&path).unwrap(),
+            r#"{"access_token":"a2","disabled":false,"priority":7,"refresh_token":"r2","type":"codex"}"#
+        );
+        let stored = state.rt.store().get("up-codex.json").unwrap();
+        assert_eq!(stored.str("refresh_token"), Some("r2"));
+        let data = br#"{"type":"claude","access_token":"B"}"#.to_vec();
+        store(&state, move |s, l| store_file(s, "up-claude.json", &data, true, l))
+            .await
+            .unwrap();
+        assert!(dir.join("up-codex.json.lock").exists());
+        assert!(!dir.join("up-claude.json.lock").exists());
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     /// Go's store leaves a file whose document is unchanged alone (`jsonEqual`, numbers
     /// as float64): no new inode or mtime, and the record is published all the same.
     #[cfg(unix)]
@@ -2831,7 +3133,14 @@ mod tests {
         let current = state.rt.store().get("a.json").unwrap();
         let literals = [(vec!["x".to_owned()], GoValue::Number("-0".into()))];
         std::thread::sleep(std::time::Duration::from_millis(20));
-        save_file_backed(&state, &current, &current.metadata, &literals).unwrap();
+        save_file_backed(
+            &state,
+            &current,
+            &current.metadata,
+            &literals,
+            &mut CodexLock::default(),
+        )
+        .unwrap();
         assert_eq!(stamp(), before);
         // Go's manager publishes the record all the same.
         assert!(state.rt.store().get("a.json").unwrap().revision > current.revision);
@@ -2869,7 +3178,7 @@ mod tests {
         let mut meta = a.metadata.clone();
         meta.insert("disabled".into(), true.into());
         std::thread::sleep(std::time::Duration::from_millis(20));
-        save_file_backed(&state, &a, &meta, &[]).unwrap();
+        save_file_backed(&state, &a, &meta, &[], &mut CodexLock::default()).unwrap();
         assert_eq!(stamp("a.json"), before);
         assert!(state.rt.store().get("a.json").unwrap().disabled);
 
@@ -2884,13 +3193,13 @@ mod tests {
             GoValue::Number("9007199254740993".into()),
         )];
         std::thread::sleep(std::time::Duration::from_millis(20));
-        save_file_backed(&state, &b, &meta, &literals).unwrap();
+        save_file_backed(&state, &b, &meta, &literals, &mut CodexLock::default()).unwrap();
         assert_eq!(stamp("b.json"), before);
         let b = state.rt.store().get("b.json").unwrap();
         assert_eq!(b.metadata["request_retry"], 9_007_199_254_740_993_u64);
         let mut meta = b.metadata.clone();
         meta.insert("disabled".into(), true.into());
-        save_file_backed(&state, &b, &meta, &[]).unwrap();
+        save_file_backed(&state, &b, &meta, &[], &mut CodexLock::default()).unwrap();
         assert_eq!(
             std::fs::read_to_string(dir.join("b.json")).unwrap(),
             r#"{"disabled":true,"request_retry":9007199254740993,"type":"claude"}"#
@@ -2915,7 +3224,7 @@ mod tests {
             let current = state.rt.store().get(id).unwrap();
             let mut next = current.metadata.clone();
             next.extend(meta);
-            save_file_backed(&state, &current, &next, literals).unwrap();
+            save_file_backed(&state, &current, &next, literals, &mut CodexLock::default()).unwrap();
         };
         let exact = |id: &str| {
             let literals = [(
@@ -2980,7 +3289,7 @@ mod tests {
             let current = state.rt.store().get(id).unwrap();
             let mut meta = current.metadata.clone();
             meta.insert("disabled".into(), true.into());
-            save_file_backed(&state, &current, &meta, &[])
+            save_file_backed(&state, &current, &meta, &[], &mut CodexLock::default())
         };
         // The saved integer survives bytes appended behind the watcher's back.
         let a = state.rt.store().get("a.json").unwrap();
@@ -2990,7 +3299,7 @@ mod tests {
             vec!["request_retry".to_owned()],
             GoValue::Number("9007199254740993".into()),
         )];
-        save_file_backed(&state, &a, &meta, &literals).unwrap();
+        save_file_backed(&state, &a, &meta, &literals, &mut CodexLock::default()).unwrap();
         let mut text = std::fs::read(dir.join("a.json")).unwrap();
         text.extend_from_slice(b"  \n");
         std::fs::write(dir.join("a.json"), text).unwrap();
@@ -3040,7 +3349,7 @@ mod tests {
                 }
                 meta
             };
-            let stale = save_file_backed(&state, &read, &edit(&read), &[]);
+            let stale = save_file_backed(&state, &read, &edit(&read), &[], &mut CodexLock::default());
             assert!(matches!(stale, Err(PatchError::Stale { .. })), "{stale:?}");
             assert_eq!(on_disk(&dir, "a.json")["access_token"], token.as_str());
             assert_eq!(
@@ -3048,7 +3357,7 @@ mod tests {
                 token.as_str()
             );
             let current = state.rt.store().get("a.json").unwrap();
-            save_file_backed(&state, &current, &edit(&current), &[]).unwrap();
+            save_file_backed(&state, &current, &edit(&current), &[], &mut CodexLock::default()).unwrap();
             let saved = on_disk(&dir, "a.json");
             assert_eq!(
                 (saved["access_token"].as_str(), &saved[format!("note_{round}")]),
@@ -3121,7 +3430,15 @@ mod tests {
         credentials::with_thread_plugin_auth_parser(Arc::new(Nothing), || {
             let token = |state: &Management| state.rt.store().get("a.json").unwrap().metadata["access_token"].clone();
             assert_eq!(token(&state), "fake-0");
-            store_file(&state, "a.json", br#"{"type":"claude","access_token":"fake-1"}"#, true).unwrap();
+            store_file(
+                &state,
+                "a.json",
+                br#"{"type":"claude","access_token":"fake-1"}"#,
+                true,
+                &mut CodexLock::default(),
+            )
+            .unwrap()
+            .unwrap();
             assert_eq!(token(&state), "fake-1");
         });
         std::fs::remove_dir_all(dir).unwrap();
@@ -3149,7 +3466,15 @@ mod tests {
                 state.rt.config().auth_dir.clone(),
                 Box::new(move || refresh(&refreshing, "a.json", "fake-refreshed")),
             ));
-            store_file(&state, "a.json", br#"{"type":"claude","access_token":"fake-1"}"#, true).unwrap();
+            store_file(
+                &state,
+                "a.json",
+                br#"{"type":"claude","access_token":"fake-1"}"#,
+                true,
+                &mut CodexLock::default(),
+            )
+            .unwrap()
+            .unwrap();
             let stored = state.rt.store().get("a.json").unwrap();
             assert_eq!(stored.provider, "claude");
             assert_eq!(stored.metadata["access_token"], "fake-refreshed");

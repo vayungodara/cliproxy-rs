@@ -1513,6 +1513,8 @@ async fn serve(
         }
         pprof.shutdown().await;
         advertiser.shutdown().await;
+        // A Codex refresh holding a credential file's lock writes its tokens first.
+        rt.shutdown_codex_refreshes().await;
     };
     tokio::pin!(cleanup);
     if server_done {

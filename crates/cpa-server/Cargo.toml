@@ -29,7 +29,7 @@ serde_yaml_ng.workspace = true
 socket2.workspace = true
 tokio.workspace = true
 tokio-btls = "0.5.6"
-tokio-util = "0.7"
+tokio-util = { version = "0.7", features = ["rt"] }
 url = "2"
 tower-service = "0.3"
 tracing.workspace = true

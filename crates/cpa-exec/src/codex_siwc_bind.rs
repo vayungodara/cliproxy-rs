@@ -158,6 +158,27 @@ pub fn with_file_lock<T>(path: &Path, f: impl FnOnce() -> Result<T, String>) -> 
 /// The lock of [`with_file_lock`], held until the returned file is dropped (closing it
 /// releases the lock). Blocking.
 pub fn lock_file(path: &Path) -> Result<std::fs::File, String> {
+    let (file, lock_path) = open_lock(path)?;
+    lock(&file, true).map_err(|e| format!("failed to acquire flock on {}: {e}", lock_path.display()))?;
+    Ok(file)
+}
+
+/// The lock file of [`lock_file`], open but not yet locked; [`try_lock`] takes it.
+pub fn open_lock_file(path: &Path) -> Result<std::fs::File, String> {
+    open_lock(path).map(|(file, _)| file)
+}
+
+/// Takes the lock on a file [`open_lock_file`] opened, if no one holds it: `false`
+/// when another holder has it. Never blocks.
+pub fn try_lock(file: &std::fs::File) -> Result<bool, String> {
+    match lock(file, false) {
+        Ok(()) => Ok(true),
+        Err(e) if would_block(&e) => Ok(false),
+        Err(e) => Err(format!("failed to acquire credential lock: {e}")),
+    }
+}
+
+fn open_lock(path: &Path) -> Result<(std::fs::File, PathBuf), String> {
     let mut lock_path = lock_base(path).into_os_string();
     lock_path.push(".lock");
     let lock_path = PathBuf::from(lock_path);
@@ -168,16 +189,20 @@ pub fn lock_file(path: &Path) -> Result<std::fs::File, String> {
     let file = options
         .open(&lock_path)
         .map_err(|e| format!("failed to open credential lock file {}: {e}", lock_path.display()))?;
-    lock_exclusive(&file).map_err(|e| format!("failed to acquire flock on {}: {e}", lock_path.display()))?;
-    Ok(file)
+    Ok((file, lock_path))
 }
 
 #[cfg(unix)]
-fn lock_exclusive(file: &std::fs::File) -> std::io::Result<()> {
+fn lock(file: &std::fs::File, wait: bool) -> std::io::Result<()> {
     use std::os::fd::AsRawFd;
+    let operation = if wait {
+        libc::LOCK_EX
+    } else {
+        libc::LOCK_EX | libc::LOCK_NB
+    };
     loop {
         // SAFETY: a valid open descriptor; flock touches no memory.
-        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } == 0 {
+        if unsafe { libc::flock(file.as_raw_fd(), operation) } == 0 {
             return Ok(());
         }
         let error = std::io::Error::last_os_error();
@@ -187,22 +212,25 @@ fn lock_exclusive(file: &std::fs::File) -> std::io::Result<()> {
     }
 }
 
+#[cfg(unix)]
+fn would_block(error: &std::io::Error) -> bool {
+    error.kind() == std::io::ErrorKind::WouldBlock
+}
+
 #[cfg(windows)]
-fn lock_exclusive(file: &std::fs::File) -> std::io::Result<()> {
+fn lock(file: &std::fs::File, wait: bool) -> std::io::Result<()> {
     use std::os::windows::io::AsRawHandle;
-    use windows_sys::Win32::Storage::FileSystem::{LOCKFILE_EXCLUSIVE_LOCK, LockFileEx};
+    use windows_sys::Win32::Storage::FileSystem::{LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY, LockFileEx};
+    let flags = if wait {
+        LOCKFILE_EXCLUSIVE_LOCK
+    } else {
+        LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY
+    };
     // Go locks the first byte; overlapping ranges conflict, so the two interoperate.
     // SAFETY: a valid open handle and a zeroed OVERLAPPED that outlives the call.
     let ok = unsafe {
         let mut overlapped: windows_sys::Win32::System::IO::OVERLAPPED = std::mem::zeroed();
-        LockFileEx(
-            file.as_raw_handle() as _,
-            LOCKFILE_EXCLUSIVE_LOCK,
-            0,
-            1,
-            0,
-            &mut overlapped,
-        )
+        LockFileEx(file.as_raw_handle() as _, flags, 0, 1, 0, &mut overlapped)
     };
     if ok == 0 {
         Err(std::io::Error::last_os_error())
@@ -211,9 +239,20 @@ fn lock_exclusive(file: &std::fs::File) -> std::io::Result<()> {
     }
 }
 
+#[cfg(windows)]
+fn would_block(error: &std::io::Error) -> bool {
+    // ERROR_LOCK_VIOLATION
+    error.raw_os_error() == Some(33)
+}
+
 #[cfg(not(any(unix, windows)))]
-fn lock_exclusive(_: &std::fs::File) -> std::io::Result<()> {
+fn lock(_: &std::fs::File, _: bool) -> std::io::Result<()> {
     Ok(())
+}
+
+#[cfg(not(any(unix, windows)))]
+fn would_block(_: &std::io::Error) -> bool {
+    false
 }
 
 /// Go `filepath.Clean`, lexically.
