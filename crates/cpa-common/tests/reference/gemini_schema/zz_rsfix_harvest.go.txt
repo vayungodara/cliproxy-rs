@@ -1,0 +1,26 @@
+package util
+
+import (
+	"encoding/json"
+	"os"
+	"sync"
+)
+
+var rsfixHarvestMu sync.Mutex
+
+// rsfixHarvest appends one cleaner input to $RSFIX_SCHEMA_HARVEST as a JSON string line.
+func rsfixHarvest(s string) {
+	path := os.Getenv("RSFIX_SCHEMA_HARVEST")
+	if path == "" {
+		return
+	}
+	rsfixHarvestMu.Lock()
+	defer rsfixHarvestMu.Unlock()
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	line, _ := json.Marshal(s)
+	f.Write(append(line, '\n'))
+}
