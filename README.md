@@ -164,11 +164,18 @@ Not in cliproxy-rs yet:
 
 On 23 October 2026, 67 minutes after 0.3.0 started on the maintainer's server, it had answered all 592 requests since start with status 200. Its resident memory was 43.9 MB, and its peak since start 63.7 MB. This is a field observation of real traffic, so it can't be reproduced on demand; [BENCHMARKS.md](docs/BENCHMARKS.md#field-memory) records how it was read.
 
-In the [Claude soak](docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory), cliproxy-rs held 29 MB 30 seconds after 3,000 requests averaging 306 KB, and 43 MB after 600 requests averaging 1.9 MB. In an hour of the [field mix](docs/BENCHMARKS.md#field-mix-claude-codex-and-count_tokens) (Claude, Codex and count_tokens requests averaging 1 MB from 4 sessions), its resting RSS stayed between 80.6 and 97.6 MB and it peaked at 169.0 MB, where 0.2.0 rested between 128.2 and 145.4 MB and peaked at 220.1 MB; each build ran on its own CI runner, at the same time. [Two 32 MB tokenizers](https://dev.to/vayun/two-32-mb-tokenizers-hunting-a-memory-floor-in-a-rust-proxy-4hfl) explains how that floor was found and what is still unexplained.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/perf-claude-soak-dark.svg">
+    <img src="docs/img/perf-claude-soak-light.svg" alt="Bar chart of the Claude soak on 4 October 2026, servers run one after another on the same VM. 3,000 requests, 306 KB on average, peak RSS: Go 115.1 and 107.6 MB, cliproxy-rs 64.2 and 63.4 MB; RSS 30 s after the load: Go 80.4 and 81.6 MB, cliproxy-rs 29.0 and 29.0 MB. 600 requests, 1.9 MB on average, peak RSS: Go 263.9 MB, cliproxy-rs 176.9 MB; RSS 30 s after the load: Go 183.5 MB, cliproxy-rs 42.7 MB." width="880">
+  </picture>
+</p>
 
-On the [small-request benchmark](docs/BENCHMARKS.md#setup), the launch build answered its first request in 15 to 46 ms over three rounds, and Go in 104 to 453 ms in the same run. Go took 45 to 98 ms in quieter runs. The launch build served 793 translated streams/s against Go's 564.
+In the [Claude soak](docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory) of 4 October 2026, the cliproxy-rs build of that day (first released in 0.1.2) and CLIProxyAPI 6fecc6e ran one after another on the same VM. With 3,000 requests averaging 306 KB, cliproxy-rs peaked at 63.4 and 64.2 MB and held 29.0 MB 30 seconds later; Go peaked at 107.6 and 115.1 MB and held 80.4 and 81.6 MB. With 600 requests averaging 1.9 MB, cliproxy-rs peaked at 176.9 MB and held 42.7 MB, and Go at 263.9 and 183.5 MB.
 
-Go won non-streaming throughput: 1,568 requests/s against 1,168, with 0.62 ms of CPU per request against 0.85 ms. Go also won plain streaming throughput, 916 against 833 streams/s. With 256 slow streams, cliproxy-rs had a worse p99 latency: 1,414.5 ms against Go's 1,272.2 ms. These synthetic results are from the 0.1.0 launch build. [BENCHMARKS.md](docs/BENCHMARKS.md) records the methods, raw results and later Claude measurements.
+Go won elsewhere. In the 0.1.0 launch build's synthetic runs, Go served 1,568 non-streaming requests/s against 1,168, with 0.62 ms of CPU per request against 0.85 ms, and 916 plain streams/s against 833. With 256 slow streams, cliproxy-rs had the worse p99 latency: 1,414.5 ms against Go's 1,272.2 ms.
+
+[BENCHMARKS.md](docs/BENCHMARKS.md) has the methods, raw results and later measurements, including the [field mix](docs/BENCHMARKS.md#field-mix-claude-codex-and-count_tokens) against earlier releases. [Two 32 MB tokenizers](https://dev.to/vayun/two-32-mb-tokenizers-hunting-a-memory-floor-in-a-rust-proxy-4hfl) explains how its memory floor was found.
 
 ## Documentation
 
