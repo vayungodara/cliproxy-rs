@@ -27,7 +27,7 @@ Columns:
 | OpenAI-compatible and Responses translation | 6 | 0 | 6 | 0 | 0 | 0 |
 | Devin and Meta | 8 | 0 | 8 | 0 | 0 | 0 |
 | Credentials, selection and cooldowns | 22 | 9 | 11 | 0 | 2 | 0 |
-| Model registry and catalogs | 11 | 7 | 3 | 0 | 1 | 0 |
+| Model registry and catalogs | 11 | 9 | 1 | 0 | 1 | 0 |
 | Config and Management API | 15 | 11 | 4 | 0 | 0 | 0 |
 | Plugins | 12 | 0 | 12 | 0 | 0 | 0 |
 | Server, handlers and streaming | 12 | 4 | 8 | 0 | 0 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **91** | **131** | **0** | **63** | **3** |
+| **All** | **288** | **93** | **129** | **0** | **63** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -253,8 +253,8 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 
 | Commit | Subject | User-visible | This PR | Size | Notes |
 |---|---|---|---|---|---|
-| [`1672be5d`](https://github.com/router-for-me/CLIProxyAPI/commit/1672be5d) | feat(registry): support custom model catalog sources and dynamic reload | yes | to port | L (+361 −287) | custom model catalog sources and reload |
-| [`01e28567`](https://github.com/router-for-me/CLIProxyAPI/commit/01e28567) | fix(registry): disable Devin catalog for home builds | yes | to port | S (+3 −1) | no Devin catalog in Home builds |
+| [`1672be5d`](https://github.com/router-for-me/CLIProxyAPI/commit/1672be5d) | feat(registry): support custom model catalog sources and dynamic reload | yes | ported here | L (+361 −287) | custom model catalog sources and reload (#180) |
+| [`01e28567`](https://github.com/router-for-me/CLIProxyAPI/commit/01e28567) | fix(registry): disable Devin catalog for home builds | yes | ported here | S (+3 −1) | no Devin catalog in Home builds (#180) |
 | [`18b6cc8a`](https://github.com/router-for-me/CLIProxyAPI/commit/18b6cc8a) | refactor(registry): use model getters for Devin and Meta | no | nothing to port | S (+2 −3) | Go refactor |
 | [`bbcd5734`](https://github.com/router-for-me/CLIProxyAPI/commit/bbcd5734) | fix(registry): treat credential_quota as quota cooldown in model availability | yes | to port | S (+23 −13) | `credential_quota` counts as a quota cooldown in availability |
 | [`4c159069`](https://github.com/router-for-me/CLIProxyAPI/commit/4c159069) | feat(registry): add muse-wonder-1.0 models | yes | ported here | M (+62 −0) | ported: the Meta section carries `muse-wonder-1.0` and its contributor variant (catalog synced to v8.0.35) |

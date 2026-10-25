@@ -56,6 +56,10 @@ pub struct Runtime {
     config_changed: tokio::sync::watch::Sender<()>,
     /// Codex refresh transactions in flight ([`Runtime::shutdown_codex_refreshes`]).
     codex_refreshes: CodexRefreshes,
+    /// The model catalog updaters' policy, once started (`model_updater::start`).
+    catalogs: Mutex<Option<crate::model_updater::Session>>,
+    /// Serializes config commits through their catalog reconfigure.
+    config_commit: Mutex<()>,
 }
 
 /// The Codex refresh transactions under a credential file's lock: shutdown stops the
@@ -117,6 +121,8 @@ impl Runtime {
             deny_external: Default::default(),
             config_changed: tokio::sync::watch::Sender::new(()),
             codex_refreshes: CodexRefreshes::default(),
+            catalogs: Mutex::default(),
+            config_commit: Mutex::default(),
         };
         rt.publish_policy(policy);
         rt.store.configure_cooldown_store(cooldown_dir);
@@ -175,34 +181,75 @@ impl Runtime {
         self.config.read().unwrap_or_else(PoisonError::into_inner).clone()
     }
 
+    /// Starts the model catalog updaters for this runtime's lifetime under the commit
+    /// mutex, so no commit is configured before or skipped by the startup configure.
+    pub(crate) fn start_catalogs(&self, session: crate::model_updater::Session) {
+        let commit = self.config_commit.lock().unwrap_or_else(PoisonError::into_inner);
+        session.configure(&self.config(), true);
+        let previous = self
+            .catalogs
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .replace(session);
+        drop(commit);
+        drop(previous);
+    }
+
+    /// Whether [`Runtime::publish_config_and_policy`] would commit `config`: Go
+    /// `commitConfigUpdate` rejects the whole update over invalid catalog sources.
+    /// Callers that apply other state before publishing check this first.
+    pub(crate) fn accepts_config(config: &Config) -> bool {
+        match cpa_core::config::validate_catalog_sources(config.document.get("models")) {
+            Ok(()) => true,
+            Err(error) => {
+                tracing::warn!("rejected invalid model catalog sources: {error}");
+                false
+            }
+        }
+    }
+
     /// Resolves after the next config publish.
     pub fn subscribe_config(&self) -> tokio::sync::watch::Receiver<()> {
         self.config_changed.subscribe()
     }
 
     /// Replaces the config and the scheduler policy derived from it. Requests already
-    /// running keep their snapshot.
-    pub fn publish_config(&self, config: Config) {
+    /// running keep their snapshot. False when the config was rejected and nothing
+    /// changed ([`Runtime::accepts_config`]).
+    pub fn publish_config(&self, config: Config) -> bool {
         let policy = crate::management::policy(&config);
-        self.publish_config_and_policy(config, policy);
+        self.publish_config_and_policy(config, policy)
     }
 
-    /// Integration should use this when publishing parsed routing settings too.
-    pub fn publish_config_and_policy(&self, config: Config, mut policy: Policy) {
+    /// Integration should use this when publishing parsed routing settings too. False
+    /// when the config was rejected and nothing changed.
+    pub fn publish_config_and_policy(&self, config: Config, mut policy: Policy) -> bool {
+        if !Self::accepts_config(&config) {
+            return false;
+        }
         policy.compat_disable_cooling = crate::scheduler::compat_cooling(&config);
         let (enabled, strict) = signature_cache_config(&config);
         cpa_translate::set_antigravity_signature_cache_config(enabled, strict);
         let dir = cooldown_dir(&config, &policy);
         let ws_auth = crate::relay::ws_auth(&config);
         let config = Arc::new(config);
+        // Commits are serialized, so the catalogs are configured in commit order; the
+        // config lock itself is released first, as Go releases cfgMu before
+        // `UpdateModelCatalogSources`, so readers never wait on a catalog publish.
+        let commit = self.config_commit.lock().unwrap_or_else(PoisonError::into_inner);
         let previous = {
             // The plugin worker is told under the same lock, so concurrent publishes
             // reach it in the order they replaced the config.
             let mut current = self.config.write().unwrap_or_else(PoisonError::into_inner);
             let previous = std::mem::replace(&mut *current, config.clone());
-            self.plugins.config_published(config);
+            self.plugins.config_published(config.clone());
             previous
         };
+        // Go `UpdateModelCatalogSources`; the reads stay async.
+        if let Some(catalogs) = self.catalogs.lock().unwrap_or_else(PoisonError::into_inner).as_ref() {
+            catalogs.configure(&config, false);
+        }
+        drop(commit);
         // Go's websocket auth change handler: turning ws-auth on ends the relay sessions
         // that connected without a key.
         if ws_auth && !crate::relay::ws_auth(&previous) {
@@ -211,6 +258,7 @@ impl Runtime {
         self.publish_policy(policy);
         self.store.configure_cooldown_store(dir);
         self.config_changed.send_replace(());
+        true
     }
 
     /// A coherent config/policy pair for the entire route attempt loop.

@@ -20,7 +20,8 @@ use serde_json::{Map, Value};
 use super::ModelInfo;
 use crate::gostr::GoStr;
 
-const EMBEDDED: &[u8] = include_bytes!("devin_models.json");
+/// The devin_models.json built into the binary.
+pub static EMBEDDED: &[u8] = include_bytes!("devin_models.json");
 const BUILTIN_SWE16_SLOW_ID: &str = "devin/swe-1-6-slow";
 
 /// One Go `registry.ModelInfo` as the Devin catalog decodes and publishes it.

@@ -839,9 +839,9 @@ impl Connection {
         // prewarm and dispatch decisions.
         let client = cpa_common::codex_client::Settings::from_config(&cfg);
         // The spawn_agent model list comes from the Codex client catalog.
-        // Cost: one header check, then one `Once` check, per turn.
+        // Cost: one header check, then one atomic load, per turn.
         if cpa_common::codex_client::multi_agent_client(&self.headers, client.optimize_multi_agent_v2) {
-            crate::model_updater::codex_client_catalog_wanted(&self.rt);
+            crate::model_updater::codex_client_catalog_wanted();
         }
         if client.optimize_multi_agent_v2 || client.orphan_delegation {
             let prepared =
