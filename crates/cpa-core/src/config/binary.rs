@@ -60,12 +60,12 @@ pub(super) fn go_base64(text: &[u8]) -> Option<Vec<u8>> {
 /// docs) and binary bytes that are not UTF-8, which a setting cannot hold.
 /// With `literals`, a plain scalar in a [`literal_field`] is its text, as Go's typed
 /// decode reads it into the config; `text` is the value at those keys of the config
-/// (empty for a whole file). A `json` management body takes a quoted `<<` key as a
-/// merge: Go saves its JSON keys plain.
-pub(super) fn decode(text: &str, value: &mut Value, literals: Option<&[&str]>, json: bool) -> anyhow::Result<()> {
+/// (empty for a whole file). See [`Mode`] for what else `mode` changes.
+pub(super) fn decode(text: &str, value: &mut Value, literals: Option<&[&str]>, mode: Mode) -> anyhow::Result<()> {
     // Without a tag, an anchor, a `<<` key or a collection key, serde_yaml_ng reads the
     // file as yaml.v3 does here.
-    if !text.contains(['!', '&'])
+    if mode != Mode::Plugins
+        && !text.contains(['!', '&'])
         && !needs_walk(value)
         && !literals.is_some_and(|at| scalar_literal_field(value, &mut at.iter().map(|k| Some(*k)).collect()))
     {
@@ -83,7 +83,7 @@ pub(super) fn decode(text: &str, value: &mut Value, literals: Option<&[&str]>, j
         found: Vec::new(),
         copies: 0,
         visits: 0,
-        json,
+        mode,
     };
     if let Some(root) = walk.events.next() {
         walk.node(root, &mut Vec::new(), false)?;
@@ -221,6 +221,11 @@ fn named<K: AsRef<str>>(keys: &[Option<K>]) -> Vec<Option<&str>> {
 /// `match`/`not-match` values, which reach requests with them.
 fn literal_field<K: AsRef<str>>(keys: &[Option<K>]) -> bool {
     super::schema::is_string(&super::document::v8_path(&named(keys)))
+}
+
+/// Whether `keys` lead into a `plugins.configs` entry.
+fn plugin_config<K: AsRef<str>>(keys: &[Option<K>]) -> bool {
+    matches!(named(keys).as_slice(), [Some("plugins"), Some("configs"), Some(_), ..])
 }
 
 /// Whether `keys` lead to a plugin's `store.version` or `store.release-tag`.
@@ -428,9 +433,22 @@ struct Walk {
     copies: usize,
     /// How many anchor entries aliases visited, [`MAX_VISITS`] at most.
     visits: usize,
-    /// Whether `text` is a JSON management body, whose `<<` keys are quoted.
-    json: bool,
+    mode: Mode,
 }
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Mode {
+    /// A config file: literals are its string settings.
+    File,
+    /// A JSON management body, whose `<<` keys are merges: Go saves its keys plain.
+    Body,
+    /// Literals are the scalars of plugin configs, as Go hands a plugin its raw node,
+    /// tagged [`PLAIN`]: `007` is a string to serde_yaml_ng too, but quoted it is another.
+    Plugins,
+}
+
+/// The tag of a plain scalar's text in [`Mode::Plugins`].
+pub const PLAIN: &str = "!cpa-plain";
 
 impl Walk {
     fn next(&mut self) -> anyhow::Result<Event> {
@@ -453,7 +471,9 @@ impl Walk {
         let field = match &self.last_field {
             Some((last, field)) if last.as_slice() == keys => *field,
             _ => {
-                let field = if at.is_empty() {
+                let field = if self.mode == Mode::Plugins {
+                    plugin_config(keys)
+                } else if at.is_empty() {
                     literal_field(keys)
                 } else {
                     literal_field(&[at.as_slice(), keys].concat())
@@ -509,10 +529,17 @@ impl Walk {
                         kind
                     } {
                         let text = String::from_utf8(value).ok().context("config YAML is not UTF-8")?;
+                        let mut value = Value::String(text);
+                        if self.mode == Mode::Plugins {
+                            value = Value::Tagged(Box::new(serde_yaml_ng::value::TaggedValue {
+                                tag: serde_yaml_ng::value::Tag::new(PLAIN),
+                                value,
+                            }));
+                        }
                         self.found.push(Found {
                             path: path.clone(),
                             keys: self.keys.clone(),
-                            value: Value::String(text),
+                            value,
                             kind,
                         });
                     }
@@ -576,7 +603,7 @@ impl Walk {
                         // quoted one is refused here, a tagged one below.
                         let merge = matches!(&event, Event::Scalar { tag: None, value, .. } if value == b"<<");
                         ensure!(
-                            !merge || self.json || matches!(event, Event::Scalar { plain: true, .. }),
+                            !merge || self.mode == Mode::Body || matches!(event, Event::Scalar { plain: true, .. }),
                             QUOTED_MERGE_KEY
                         );
                         let name: Rc<str> = match &event {

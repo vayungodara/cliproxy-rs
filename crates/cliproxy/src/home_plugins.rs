@@ -50,7 +50,7 @@ fn sync_key(cfg: &SyncConfig) -> String {
         cfg.auth_revision
     );
     for (id, node) in &cfg.configs {
-        let item = cpa_plugin::config::item_config(id, node);
+        let item = cpa_plugin::config::item_config(id, node, None);
         let _ = writeln!(
             key,
             "plugin={}\nenabled={}\npriority={}",

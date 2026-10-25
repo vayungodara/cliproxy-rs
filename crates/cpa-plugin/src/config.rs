@@ -239,8 +239,8 @@ pub fn configured_dir(document: &Value) -> String {
         .unwrap_or_default()
 }
 
-/// Go `runtimeConfigFromConfig`.
-pub fn runtime_config(document: &Value) -> Result<RuntimeConfig, String> {
+/// Go `runtimeConfigFromConfig`. `raw` is [`cpa_core::config::Config::plugin_configs`].
+pub fn runtime_config(document: &Value, raw: &Value) -> Result<RuntimeConfig, String> {
     let mut out = RuntimeConfig {
         enabled: false,
         dir: PathBuf::from("plugins"),
@@ -257,15 +257,16 @@ pub fn runtime_config(document: &Value) -> Result<RuntimeConfig, String> {
     if let Some(Value::Mapping(configs)) = get(plugins, "configs") {
         for (key, node) in configs {
             let id = yaml_string(key);
-            out.items.insert(id.clone(), item_config(&id, node));
+            out.items.insert(id.clone(), item_config(&id, node, raw.get(key)));
         }
     }
     Ok(out)
 }
 
 /// One `plugins.configs.<id>` entry (Go `PluginInstanceConfig.UnmarshalYAML` and
-/// `runtimeConfigYAML`). A null entry is the zero config.
-pub fn item_config(id: &str, node: &Value) -> ItemConfig {
+/// `runtimeConfigYAML`). A null entry is the zero config. `raw` is the entry with each
+/// plain scalar as its YAML text, which the plugin gets.
+pub fn item_config(id: &str, node: &Value, raw: Option<&Value>) -> ItemConfig {
     let mut enabled = false;
     let mut priority = 0;
     if let Value::Mapping(map) = node {
@@ -283,7 +284,7 @@ pub fn item_config(id: &str, node: &Value) -> ItemConfig {
         enabled,
         priority,
         version: desired_version(node),
-        config_yaml: config_yaml(node, enabled, priority),
+        config_yaml: config_yaml(node, raw, enabled, priority),
     }
 }
 
@@ -318,11 +319,12 @@ pub fn normalize_version(version: &str) -> String {
 }
 
 /// Go `runtimeConfigYAML` / `normalizedConfigNode`: the subtree with `enabled` and
-/// `priority` appended when missing.
+/// `priority` appended when missing. Go marshals the raw node, so a plain scalar keeps its
+/// text (`1.50`, `1e3`, `0x1F`), taken from `raw`.
 ///
-/// ponytail: rendered by serde_yaml_ng, so comments and yaml.v3's four-space indent are
-/// not reproduced; plugins parse the YAML, so the values are what matters.
-fn config_yaml(node: &Value, enabled: bool, priority: i64) -> Vec<u8> {
+/// ponytail: comments, styles and yaml.v3's four-space indent are not reproduced;
+/// plugins parse the YAML, so the values are what matters.
+fn config_yaml(node: &Value, raw: Option<&Value>, enabled: bool, priority: i64) -> Vec<u8> {
     let rendered = match node {
         Value::Null => {
             let mut map = Mapping::new();
@@ -342,7 +344,8 @@ fn config_yaml(node: &Value, enabled: bool, priority: i64) -> Vec<u8> {
         }
         other => other.clone(),
     };
-    let text = serde_yaml_ng::to_string(&rendered).unwrap_or_default();
+    let mut text = String::new();
+    emit(&mut text, &rendered, raw, 0);
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return DEFAULT_CONFIG_YAML.as_bytes().to_vec();
@@ -350,6 +353,96 @@ fn config_yaml(node: &Value, enabled: bool, priority: i64) -> Vec<u8> {
     let mut out = trimmed.as_bytes().to_vec();
     out.push(b'\n');
     out
+}
+
+/// Writes `node` as block YAML at `indent`, a plain scalar as its text in `raw` (the same
+/// tree with those texts tagged [`cpa_core::config::PLAIN_SCALAR`]).
+fn emit(out: &mut String, node: &Value, raw: Option<&Value>, indent: usize) {
+    let pad = " ".repeat(indent);
+    match node {
+        Value::Mapping(map) if !map.is_empty() => {
+            let raw = raw.and_then(Value::as_mapping);
+            for (key, value) in map {
+                out.push_str(&pad);
+                out.push_str(&scalar(key, None));
+                out.push(':');
+                child(out, value, raw.and_then(|r| r.get(key)), indent);
+            }
+        }
+        Value::Sequence(items) if !items.is_empty() => {
+            let raw = raw.and_then(Value::as_sequence);
+            for (i, item) in items.iter().enumerate() {
+                out.push_str(&pad);
+                out.push('-');
+                child(out, item, raw.and_then(|r| r.get(i)), indent);
+            }
+        }
+        Value::Tagged(tagged) if !matches!(tagged.value, Value::Mapping(_) | Value::Sequence(_)) => {
+            out.push_str(&pad);
+            out.push_str(&scalar(node, raw));
+            out.push('\n');
+        }
+        Value::Tagged(tagged) => {
+            out.push_str(&pad);
+            out.push_str(&tagged.tag.to_string());
+            out.push('\n');
+            let raw = raw.map(|r| match r {
+                Value::Tagged(t) => &t.value,
+                other => other,
+            });
+            emit(out, &tagged.value, raw, indent + 2);
+        }
+        other => {
+            out.push_str(&pad);
+            out.push_str(&scalar(other, raw));
+            out.push('\n');
+        }
+    }
+}
+
+/// The rest of a `key:` or `-` line, and the collection below it.
+fn child(out: &mut String, value: &Value, raw: Option<&Value>, indent: usize) {
+    match value {
+        Value::Mapping(m) if !m.is_empty() => {
+            out.push('\n');
+            emit(out, value, raw, indent + 2);
+        }
+        Value::Sequence(s) if !s.is_empty() => {
+            out.push('\n');
+            emit(out, value, raw, indent + 2);
+        }
+        Value::Tagged(t)
+            if matches!(&t.value, Value::Mapping(m) if !m.is_empty())
+                || matches!(&t.value, Value::Sequence(s) if !s.is_empty()) =>
+        {
+            out.push('\n');
+            emit(out, value, raw, indent + 2);
+        }
+        _ => {
+            out.push(' ');
+            out.push_str(&scalar(value, raw));
+            out.push('\n');
+        }
+    }
+}
+
+fn scalar(value: &Value, raw: Option<&Value>) -> String {
+    match (value, raw) {
+        (_, Some(Value::Tagged(t))) if t.tag == cpa_core::config::PLAIN_SCALAR => match &t.value {
+            Value::String(text) => text.clone(),
+            other => serde_yaml_ng::to_string(other)
+                .unwrap_or_default()
+                .trim_end()
+                .to_owned(),
+        },
+        (Value::String(s), _) if s.contains('\n') => serde_json::to_string(s).unwrap_or_default(),
+        (Value::Mapping(_), _) => "{}".to_owned(),
+        (Value::Sequence(_), _) => "[]".to_owned(),
+        _ => serde_yaml_ng::to_string(value)
+            .unwrap_or_default()
+            .trim_end()
+            .to_owned(),
+    }
 }
 
 /// Go `desiredPluginVersions`.
@@ -382,7 +475,7 @@ mod tests {
             "plugins:\n  configs:\n    x:\n      store:\n        <<: !keep {version: 1.2.3}\n",
         ] {
             let cfg = cpa_core::config::Config::parse(yaml).unwrap_or_else(|e| panic!("{yaml}: {e:#}"));
-            let item = item_config("x", &cfg.document["plugins"]["configs"]["x"]);
+            let item = item_config("x", &cfg.document["plugins"]["configs"]["x"], None);
             assert_eq!(item.version, "1.2.3", "{yaml}");
         }
     }
@@ -454,9 +547,12 @@ mod tests {
     /// `PluginInstanceConfig.UnmarshalYAML`.
     #[test]
     fn items_follow_go() {
-        let rc = runtime_config(&doc(
-            "plugins:\n  enabled: true\n  dir: /p\n  configs:\n    a:\n      mode: fast\n    b:\n      enabled: yes\n      priority: 7\n      store:\n        release-tag: v1.2.3\n    c:\n",
-        ))
+        let rc = runtime_config(
+            &doc(
+                "plugins:\n  enabled: true\n  dir: /p\n  configs:\n    a:\n      mode: fast\n    b:\n      enabled: yes\n      priority: 7\n      store:\n        release-tag: v1.2.3\n    c:\n",
+            ),
+            &Value::Null,
+        )
         .unwrap();
         assert!(rc.enabled);
         assert_eq!(rc.dir, PathBuf::from("/p"));
@@ -473,13 +569,33 @@ mod tests {
         assert_eq!(String::from_utf8_lossy(&rc.items["c"].config_yaml), DEFAULT_CONFIG_YAML);
     }
 
+    /// Go v8.0.35 hands a plugin its raw config node (`runtimeConfigYAML`), so each plain
+    /// scalar keeps its text; for this config Go prints `threshold: 1.50`, `name: 1e3`,
+    /// `hex: 0x1F`, `oct: 007`, `flag: True`, `list: [1.50, 'q', -0]` and `q: '1.50'`.
+    #[test]
+    fn plugins_get_their_scalars_as_written() {
+        let cfg = cpa_core::config::Config::parse(
+            "plugins:\n  enabled: true\n  configs:\n    p:\n      threshold: 1.50\n      name: 1e3\n      hex: 0x1F\n      oct: 007\n      flag: True\n      list: [1.50, 'q', -0]\n      nested:\n        s: \"x: y\"\n        q: '1.50'\n",
+        )
+        .unwrap();
+        let rc = runtime_config(&cfg.document, &cfg.plugin_configs).unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(&rc.items["p"].config_yaml),
+            "threshold: 1.50\nname: 1e3\nhex: 0x1F\noct: 007\nflag: True\nlist:\n  - 1.50\n  - q\n  - -0\nnested:\n  s: 'x: y'\n  q: '1.50'\nenabled: false\npriority: 0\n"
+        );
+    }
+
     #[test]
     fn disabled_section_keeps_defaults() {
-        let rc = runtime_config(&doc("plugins:\n  enabled: false\n  configs:\n    a: {}\n")).unwrap();
+        let rc = runtime_config(
+            &doc("plugins:\n  enabled: false\n  configs:\n    a: {}\n"),
+            &Value::Null,
+        )
+        .unwrap();
         assert!(!rc.enabled);
         assert!(rc.items.is_empty());
         assert_eq!(rc.dir, PathBuf::from("plugins"));
-        assert!(!runtime_config(&doc("port: 1\n")).unwrap().enabled);
+        assert!(!runtime_config(&doc("port: 1\n"), &Value::Null).unwrap().enabled);
     }
 
     #[test]

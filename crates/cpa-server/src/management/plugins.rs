@@ -155,7 +155,7 @@ impl PluginsView {
         if let Some(Yaml::Mapping(items)) = plugins.and_then(|p| p.get("configs")) {
             for (key, node) in items {
                 let id = pcfg::yaml_string(key);
-                configs.insert(id.clone(), (pcfg::item_config(&id, node), node.clone()));
+                configs.insert(id.clone(), (pcfg::item_config(&id, node, None), node.clone()));
             }
         }
         Self { enabled, dir, configs }
@@ -499,7 +499,7 @@ fn ok_status() -> Response {
 /// The current subtree for `id` as Go's `pluginConfigNode` sees it.
 pub(super) fn current_node(doc: &ConfigDocument, id: &str) -> Mapping {
     let raw = doc.get(&["plugins", "configs", id]).cloned().unwrap_or(Yaml::Null);
-    config_node(&pcfg::item_config(id, &raw), &raw)
+    config_node(&pcfg::item_config(id, &raw, None), &raw)
 }
 
 pub(super) fn set_node(doc: &mut ConfigDocument, id: &str, node: Mapping) -> Res<()> {
