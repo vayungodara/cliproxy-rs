@@ -4862,6 +4862,44 @@ async fn v0_config_yaml_saves_by_submitted_version() {
     }
 }
 
+/// A v8 YAML upload keeps string settings written as plain numbers as written: the
+/// saved file holds `0x1F` and `1.50`, the runtime loads that text, and the JSON view
+/// answers the YAML numbers, as Go does.
+#[tokio::test]
+async fn v8_yaml_upload_keeps_string_settings_written_as_numbers() {
+    let f = Fixture::new("v8-yaml-literals");
+    let (base, server) = f.server().await;
+    let hash = f.rt.config().management.secret_key.clone();
+    let body = private_config(
+        "server: {github-token: 0x1F}\noauth: {model-alias: {codex: [{name: 1.50, alias: b}]}}\n",
+        &f.dir.join("auth"),
+        &hash,
+        false,
+    );
+    let (status, text) = call(&base, wreq::Method::PUT, "/v8/management/config.yaml", &body).await;
+    assert_eq!(status, 200, "{text}");
+    let file = f.file();
+    assert!(
+        file.contains("github-token: 0x1F") && file.contains("name: 1.50"),
+        "{file}"
+    );
+    let cfg = cpa_core::config::Config::parse(&file).unwrap();
+    assert_eq!(cfg.document["server"]["github-token"].as_str(), Some("0x1F"));
+    assert_eq!(
+        cfg.document["oauth"]["model-alias"]["codex"][0]["name"].as_str(),
+        Some("1.50")
+    );
+    let (_, view) = call(&base, wreq::Method::GET, "/v8/management/config", "").await;
+    let view: serde_json::Value = serde_json::from_str(&view).unwrap();
+    assert_eq!(view["server"]["github-token"], serde_json::json!(31), "{view}");
+    assert_eq!(
+        view["oauth"]["model-alias"]["codex"][0]["name"],
+        serde_json::json!(1.5),
+        "{view}"
+    );
+    server.abort();
+}
+
 /// v0 saves of a legacy file keep the text of its `!!binary` values (an alias of one
 /// included), and the runtime holds their decoded text.
 #[tokio::test]

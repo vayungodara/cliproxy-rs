@@ -965,7 +965,8 @@ fn config_sync_locked(
     };
     if method == Method::GET {
         // Go v8.0.35 (3be5fa44): a historical path reads the canonical values, with
-        // the file's YAML types.
+        // the file's YAML types. Cost: a GET parses the file twice, for the write
+        // document (`stored`) and for this view.
         let mut view = match ConfigDocument::view(&original) {
             Ok(view) => view,
             Err(e) => return invalid_config(StatusCode::INTERNAL_SERVER_ERROR, e),
@@ -1056,11 +1057,12 @@ fn config_sync_locked(
         }
         // Go keeps a `!!binary` node tagged through the update, after the root shape
         // check; decoding it for the save fails on invalid base64 with an invalid
-        // config (400).
+        // config (400). A string setting written as a plain number keeps its text, as
+        // the write document holds it ([`ConfigDocument::parse`]).
         if yaml {
             value = match std::str::from_utf8(body)
                 .map_err(anyhow::Error::from)
-                .and_then(cpa_core::config::yaml_value)
+                .and_then(cpa_core::config::config_value)
             {
                 Ok(v) => v,
                 Err(e) => return invalid_config(StatusCode::BAD_REQUEST, e),
