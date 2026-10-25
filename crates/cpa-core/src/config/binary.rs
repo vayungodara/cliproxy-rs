@@ -450,6 +450,29 @@ pub(super) enum Mode {
 /// The tag of a plain scalar's text in [`Mode::Plugins`].
 pub const PLAIN: &str = "!cpa-plain";
 
+/// `text` as a YAML double-quoted scalar that reads back as `text`: line breaks, C0 and
+/// C1 controls, DEL, U+2028, U+2029 and U+FEFF escaped.
+pub fn double_quoted(text: &str) -> String {
+    let mut out = String::with_capacity(text.len() + 2);
+    out.push('"');
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\t' => out.push_str("\\t"),
+            '\r' => out.push_str("\\r"),
+            '\u{2028}' => out.push_str("\\L"),
+            '\u{2029}' => out.push_str("\\P"),
+            '\u{feff}' => out.push_str("\\uFEFF"),
+            c if c < ' ' || ('\u{7f}'..='\u{9f}').contains(&c) => out.push_str(&format!("\\x{:02X}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
 impl Walk {
     fn next(&mut self) -> anyhow::Result<Event> {
         self.events.next().context("config YAML ended early")
@@ -465,6 +488,27 @@ impl Walk {
     /// A literal at `keys`, if it is kept: it is a [`literal_field`], or it is anchored,
     /// so an alias may make it one. Decided here, not over the tree afterwards, so the
     /// cost stays linear in the file and the aliases' copies.
+    /// A literal's value: its text, or in [`Mode::Plugins`] the YAML that writes it as
+    /// Go writes the raw node, tagged [`PLAIN`]: a standard tag stays (`!!float 1.50`),
+    /// and a quoted scalar it tags stays quoted.
+    fn text_value(&self, text: String, tag: Option<&[u8]>, plain: bool) -> Value {
+        if self.mode != Mode::Plugins {
+            return Value::String(text);
+        }
+        let text = match tag.and_then(|t| t.strip_prefix(b"tag:yaml.org,2002:")) {
+            Some(name) => {
+                let name = String::from_utf8_lossy(name);
+                let text = if plain { text } else { double_quoted(&text) };
+                format!("!!{name} {text}")
+            }
+            None => text,
+        };
+        Value::Tagged(Box::new(serde_yaml_ng::value::TaggedValue {
+            tag: serde_yaml_ng::value::Tag::new(PLAIN),
+            value: Value::String(text),
+        }))
+    }
+
     fn literal(&mut self, keys: &[Key], anchored: bool) -> Option<Kind> {
         let at = self.literals.as_ref()?;
         // The items of one list share their keys.
@@ -498,15 +542,11 @@ impl Walk {
                 let anchored = anchor.is_some() || self.anchored > 0;
                 let literal = match &tag {
                     // yaml.v3 reads a scalar tagged as a number or boolean into a string
-                    // field as its text, as it does an untagged one. A plugin's tagged
-                    // scalar keeps its parsed type, which the tag gives (`!!float 1`).
-                    Some(tag) => {
-                        self.mode != Mode::Plugins
-                            && matches!(
-                                tag.as_slice(),
-                                b"tag:yaml.org,2002:int" | b"tag:yaml.org,2002:float" | b"tag:yaml.org,2002:bool"
-                            )
-                    }
+                    // field as its text, as it does an untagged one.
+                    Some(tag) => matches!(
+                        tag.as_slice(),
+                        b"tag:yaml.org,2002:int" | b"tag:yaml.org,2002:float" | b"tag:yaml.org,2002:bool"
+                    ),
                     None => plain && !is_null(&value) && !resolves_to_text(&value),
                 };
                 // yaml.v3's layout code matches keys by their node, tag included
@@ -520,7 +560,7 @@ impl Walk {
                             let found = Found {
                                 path: Vec::new(),
                                 keys: Vec::new(),
-                                value: Value::String(text),
+                                value: self.text_value(text, None, true),
                                 kind: Kind::Literal(false),
                             };
                             self.anchors.insert(name.clone(), vec![found]);
@@ -533,13 +573,7 @@ impl Walk {
                         kind
                     } {
                         let text = String::from_utf8(value).ok().context("config YAML is not UTF-8")?;
-                        let mut value = Value::String(text);
-                        if self.mode == Mode::Plugins {
-                            value = Value::Tagged(Box::new(serde_yaml_ng::value::TaggedValue {
-                                tag: serde_yaml_ng::value::Tag::new(PLAIN),
-                                value,
-                            }));
-                        }
+                        let value = self.text_value(text, tag.as_deref(), plain);
                         self.found.push(Found {
                             path: path.clone(),
                             keys: self.keys.clone(),

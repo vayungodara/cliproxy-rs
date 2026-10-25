@@ -22,7 +22,7 @@ mod schema;
 mod text;
 mod trusted;
 mod validate;
-pub use binary::PLAIN as PLAIN_SCALAR;
+pub use binary::{PLAIN as PLAIN_SCALAR, double_quoted as yaml_double_quoted};
 pub use document::{ConfigDocument, archive_comments, credential_error, is_v8_layout, v8_group_error, v8_layout_error};
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
@@ -58,11 +58,19 @@ fn plugin_configs(text: &str, root: &Mapping) -> Value {
         expand_merges(&mut value)?;
         anyhow::Ok(value)
     };
-    // The same text already loaded, so this reads it too.
-    raw()
-        .ok()
-        .and_then(|v| v.get("plugins")?.get("configs").cloned())
-        .unwrap_or(Value::Null)
+    match raw() {
+        Ok(v) => v
+            .get("plugins")
+            .and_then(|p| p.get("configs"))
+            .cloned()
+            .unwrap_or(Value::Null),
+        // The same text loaded, so only a limit this read alone hits (alias copies of
+        // plugin scalars) gets here.
+        Err(e) => {
+            tracing::warn!("plugin configs keep their parsed values: {e:#}");
+            Value::Null
+        }
+    }
 }
 
 /// A management write's body, the value at `keys` of the config: Go parses it as YAML
@@ -183,7 +191,7 @@ pub struct Config {
     pub oauth_only: std::collections::BTreeSet<String>,
     /// `plugins.configs` as Go hands each plugin its raw node (pluginhost
     /// `runtimeConfigYAML`): a plain scalar that is not plain text to serde_yaml_ng is its
-    /// YAML text tagged [`PLAIN_SCALAR`] (`1.50`, `1e3`, `0x1F`, `007`), where
+    /// YAML text tagged [`PLAIN_SCALAR`] (`1.50`, `1e3`, `0x1F`, `007`, `!!float 1`), where
     /// [`Config::document`] holds what serde_yaml_ng reads. Null without plugin configs.
     pub plugin_configs: Value,
     /// Values derived from this snapshot, built on first use ([`Config::derived`]).
