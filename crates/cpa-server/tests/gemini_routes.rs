@@ -69,6 +69,10 @@ async fn proxy() -> (String, Arc<Seen>) {
 
 /// The router with Gemini and Interactions keys whose base URL is `up`.
 async fn proxy_to(up: &str) -> String {
+    serve(router(runtime_to(up))).await
+}
+
+fn runtime_to(up: &str) -> Arc<cpa_server::Runtime> {
     let config = Config::parse(&format!(
         "access:\n  api-keys: [client-key]\napi-keys:\n  gemini:\n    - base-url: {up}/\n      headers:\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n      keys:\n        - api-key: AIza-fake-upstream\n  interactions:\n    - base-url: {up}\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-interactions\n"
     ))
@@ -81,8 +85,7 @@ async fn proxy_to(up: &str) -> String {
         openai: Default::default(),
         google: Default::default(),
     };
-    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
-    serve(router(rt)).await
+    Arc::new(cpa_server::testing::runtime(config, credentials, executors))
 }
 
 async fn post(url: &str, path: &str, body: &str) -> (u16, String, String) {
@@ -269,6 +272,52 @@ async fn claude_stream_malformed_function_call_writes_one_error_event() {
     assert_eq!(status, 200, "{text}");
     assert_eq!(text.matches("event: error").count(), 1, "{text}");
     assert!(text.contains(r#""type":"api_error""#), "{text}");
+}
+
+/// A client that goes away mid-stream while the upstream holds its stream open: Go's
+/// scanner fails with `context canceled`, which the usage record carries as a 499 without
+/// tokens (cpa-exec replays the Go recordings of each case).
+#[tokio::test]
+async fn client_drop_mid_stream_records_context_canceled() {
+    let app = axum::Router::new().fallback(|| async {
+        let first =
+            futures_util::stream::once(async { Ok::<_, std::io::Error>(Bytes::from(format!("data: {CHUNK}\n\n"))) });
+        let body =
+            axum::body::Body::from_stream(futures_util::StreamExt::chain(first, futures_util::stream::pending()));
+        ([("content-type", "text/event-stream")], body).into_response()
+    });
+    let rt = runtime_to(&serve(app).await);
+    let queue = rt.usage_queue();
+    queue.configure(
+        true,
+        &Config::parse("observability: {usage: {usage-statistics-enabled: true}}\n").unwrap(),
+    );
+    let url = serve(router(rt.clone())).await;
+    let res = wreq::Client::new()
+        .post(format!("{url}/v1beta/models/flash:streamGenerateContent?alt=sse"))
+        .header("authorization", "Bearer client-key")
+        .body(HI)
+        .send()
+        .await
+        .unwrap();
+    let mut chunks = res.bytes_stream();
+    let first = futures_util::StreamExt::next(&mut chunks).await.unwrap().unwrap();
+    assert!(first.starts_with(b"data: "), "{first:?}");
+    drop(chunks);
+    let mut records = Vec::new();
+    for _ in 0..200 {
+        records = queue.pop_oldest(10);
+        if !records.is_empty() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(records.len(), 1, "one attempt");
+    let got: serde_json::Value = serde_json::from_slice(&records[0]).unwrap();
+    assert_eq!(got["failed"], true, "{got}");
+    assert_eq!(got["fail"]["status_code"], 499, "{got}");
+    assert_eq!(got["fail"]["body"], "context canceled", "{got}");
+    assert_eq!(got["tokens"]["total_tokens"], 0, "{got}");
 }
 
 /// The `usage_*` scenarios of the Go executor fixtures through the real router: the

@@ -35,6 +35,8 @@ pub(crate) fn resolved_model(s: &Value) -> Option<cpa_core::exec::ResolvedModel>
 pub(crate) struct UsageReports {
     effort: Mutex<Option<String>>,
     responses: Mutex<usize>,
+    /// A failure the executor published itself: status and body.
+    failure: Mutex<Option<(u16, String)>>,
 }
 
 impl UsageReports {
@@ -56,10 +58,30 @@ impl UsageReports {
             // No record: Go failed before its reporter existed, so nothing was sent.
             None => assert_eq!(*self.responses.lock().unwrap(), 0, "{name}: no reporter in Go"),
         }
+        // A client that went away mid-stream: Go's record failed with the executor's
+        // error, or succeeded, which Rust leaves to the server's end-of-attempt record.
+        if s["cancel_when_idle"] == true {
+            let usage = &s["usage"];
+            let want = (usage["failed"] == true).then(|| {
+                (
+                    usage["fail_status"].as_u64().unwrap() as u16,
+                    usage["fail_body"].as_str().unwrap().to_owned(),
+                )
+            });
+            assert_eq!(*self.failure.lock().unwrap(), want, "{name}: executor failure on drop");
+        }
     }
 }
 
 impl cpa_core::exec::UsageObserver for UsageReports {
+    fn publish_failure(&self, status: u16, body: &str) {
+        self.failure.lock().unwrap().get_or_insert((status, body.to_owned()));
+    }
+
+    fn publish_failure_with_usage(&self, status: u16, body: &str) {
+        self.publish_failure(status, body);
+    }
+
     fn response_body(&self, _: Format, _: &[u8]) {
         *self.responses.lock().unwrap() += 1;
     }
@@ -230,8 +252,15 @@ pub(crate) fn check_attempt(
     } else {
         assert_eq!(chunks, vec![reply_body.to_vec()], "{name}: response body");
     }
+    // A client gone mid-read: Go records the canceled read when it fails the attempt
+    // with it (UsageReports::check compares that failure).
+    if reply["stall"] == true {
+        if let Some(Captured::Error(text)) = events.front() {
+            assert_eq!(text, "context canceled", "{name}: response error");
+            events.pop_front();
+        }
     // A reply cut short (`missing` bytes): Go's RecordAPIResponseError of the scanner.
-    if reply["missing"].as_u64().unwrap_or(0) > 0 {
+    } else if reply["missing"].as_u64().unwrap_or(0) > 0 {
         match events.pop_front() {
             Some(Captured::Error(text)) => assert_eq!(text, "unexpected EOF", "{name}: response error"),
             other => panic!("{name}: expected the read error, got {other:?}"),
@@ -276,6 +305,7 @@ impl Mock {
             })
             .unwrap_or_default();
         let up_missing = up["missing"].as_u64().unwrap_or(0) as usize;
+        let stall = up["stall"] == true;
         let mut body = up["body"].as_str().unwrap().as_bytes().to_vec();
         if up["gzip"].as_bool() == Some(true) {
             use async_compression::tokio::bufread::GzipEncoder;
@@ -324,6 +354,12 @@ impl Mock {
             out.extend_from_slice(b"Connection: close\r\n\r\n");
             out.extend_from_slice(&body);
             let _ = write.write_all(&out).await;
+            if stall {
+                // `stall`: the connection stays open until the client closes it.
+                let mut rest = Vec::new();
+                let wait = reader.read_to_end(&mut rest);
+                let _ = tokio::time::timeout(std::time::Duration::from_secs(5), wait).await;
+            }
             let _ = write.shutdown().await;
         });
         Self { addr, raw }
@@ -544,14 +580,22 @@ async fn go_reference_scenarios() {
             Err(e) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
             Ok(response) => match response.body {
                 ResponseBody::Buffered(bytes) => output = Some(String::from_utf8(bytes.to_vec()).unwrap()),
-                ResponseBody::Stream(mut stream) => {
-                    while let Some(item) = stream.next().await {
-                        match item {
-                            Ok(bytes) => streamed.extend_from_slice(&bytes),
-                            Err(e) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
+                ResponseBody::Stream(mut stream) => loop {
+                    // `cancel_when_idle`: the client goes away once nothing arrives.
+                    let next = if s["cancel_when_idle"] == true {
+                        match tokio::time::timeout(std::time::Duration::from_millis(200), stream.next()).await {
+                            Ok(next) => next,
+                            Err(_) => break,
                         }
+                    } else {
+                        stream.next().await
+                    };
+                    match next {
+                        Some(Ok(bytes)) => streamed.extend_from_slice(&bytes),
+                        Some(Err(e)) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
+                        None => break,
                     }
-                }
+                },
             },
         }
         let want_error = s["error"].as_object().map(|e| {
@@ -793,6 +837,7 @@ async fn pending_responses_frame_is_flushed_before_terminal_error() {
         capture: Default::default(),
         claude_errors: false,
         retained: None,
+        drop_rule: Default::default(),
     };
     let lines = futures_util::stream::iter([
         Ok(Bytes::from_static(br#"data: {"a":1}"#)),
@@ -864,6 +909,7 @@ async fn apply_patch_hooks_follow_go_order() {
             capture: Default::default(),
             claude_errors: false,
             retained: None,
+            drop_rule: Default::default(),
         };
         let lines = futures_util::stream::iter([
             Ok(Bytes::from_static(br#"data: {"a":1}"#)),

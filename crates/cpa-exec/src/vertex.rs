@@ -368,6 +368,10 @@ impl LineState for RawLines {
         self.0.end_after_error()
     }
 
+    fn output(&self) -> Option<&Output> {
+        Some(&self.0)
+    }
+
     fn flush(&mut self) -> Vec<Bytes> {
         self.0.flush_frames()
     }
@@ -544,7 +548,9 @@ impl VertexExecutor {
                 body: ResponseBody::Buffered(out),
             });
         }
-        let output = Output::new(req, Format::Gemini, &body).with_claude_stream_errors();
+        let output = Output::new(req, Format::Gemini, &body)
+            .with_claude_stream_errors()
+            .fail_on_client_drop(true);
         let lines = g::captured_lines(proxy::lines(upstream.body, g::MAX_LINE), capture.clone());
         let stream = g::drive(lines, RawLines(output));
         Ok(ExecResponse {

@@ -88,6 +88,9 @@ func scenarios() []scenario {
 		// v8.0.35 (5ec31442): any 2xx first status streams; a relayed non-2xx answer
 		// after the start ends the stream with its status; the stream end and a relayed
 		// answer feed the translator [DONE].
+		// The client goes away mid-stream: the relay closes the stream without an error,
+		// and Go publishes the usage seen so far as a success.
+		with(s("stream_client_drop", "stream", "openai", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, streamStart(200), chunk(chunk1)), func(s *scenario) { s.CancelWhenIdle = true }),
 		s("stream_first_status_201", "stream", "gemini", "gemini-2.5-flash", userHi, streamStart(201), chunk(chunk1), chunk(chunk2), streamEnd),
 		s("stream_http_response_error_after_start", "stream", "openai", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, streamStart(200), chunk(chunk1), httpResponse(502, `{"error":"bad gateway"}`)),
 		s("stream_responses_http_response", "stream", "openai-response", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","stream":true,"input":"hi"}`, httpResponse(200, chunk2)),

@@ -90,9 +90,13 @@ async fn answer<S: AsyncRead + AsyncWrite + Unpin>(stream: S, reply: &Value, sin
         "Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
         body.len() + missing
     ));
-    let stream = reader.get_mut();
-    let _ = stream.write_all(out.as_bytes()).await;
-    let _ = stream.shutdown().await;
+    let _ = reader.get_mut().write_all(out.as_bytes()).await;
+    if reply["stall"] == true {
+        // `stall`: the connection stays open until the client closes it.
+        let mut rest = Vec::new();
+        let _ = tokio::time::timeout(std::time::Duration::from_secs(5), reader.read_to_end(&mut rest)).await;
+    }
+    let _ = reader.get_mut().shutdown().await;
 }
 
 /// Answers connections in order with the scripted replies; with `tls`, each connection
@@ -262,10 +266,20 @@ async fn go_reference_scenarios() {
                 ResponseBody::Buffered(bytes) => output = Some(String::from_utf8(bytes.to_vec()).unwrap()),
                 ResponseBody::Stream(mut stream) => {
                     mid_stream = true;
-                    while let Some(item) = stream.next().await {
-                        match item {
-                            Ok(bytes) => streamed.extend_from_slice(&bytes),
-                            Err(e) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
+                    loop {
+                        // `cancel_when_idle`: the client goes away once nothing arrives.
+                        let next = if s["cancel_when_idle"] == true {
+                            match tokio::time::timeout(std::time::Duration::from_millis(200), stream.next()).await {
+                                Ok(next) => next,
+                                Err(_) => break,
+                            }
+                        } else {
+                            stream.next().await
+                        };
+                        match next {
+                            Some(Ok(bytes)) => streamed.extend_from_slice(&bytes),
+                            Some(Err(e)) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
+                            None => break,
                         }
                     }
                 }

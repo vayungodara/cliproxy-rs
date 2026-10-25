@@ -44,6 +44,9 @@ type usageOut struct {
 	InputTokens     int64  `json:"input_tokens"`
 	OutputTokens    int64  `json:"output_tokens"`
 	TotalTokens     int64  `json:"total_tokens"`
+	Failed          bool   `json:"failed,omitempty"`
+	FailStatus      int    `json:"fail_status,omitempty"`
+	FailBody        string `json:"fail_body,omitempty"`
 }
 
 type scenario struct {
@@ -68,6 +71,9 @@ type scenario struct {
 	Chunks []string  `json:"chunks,omitempty"`
 	Error  *errOut   `json:"error,omitempty"`
 	Usage  *usageOut `json:"usage,omitempty"`
+	// CancelWhenIdle cancels the request context once the stream has delivered nothing
+	// for a while (a client that goes away mid-stream), then drains it.
+	CancelWhenIdle bool `json:"cancel_when_idle,omitempty"`
 }
 
 type usageCapture chan coreusage.Record
@@ -159,17 +165,36 @@ func run(s *scenario, manager *wsrelay.Manager, provider string, b *browser) {
 			s.Output = string(resp.Payload)
 		}
 	case "stream":
-		result, err := exec.ExecuteStream(ctx, auth, req, opts)
+		streamCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		result, err := exec.ExecuteStream(streamCtx, auth, req, opts)
 		if err != nil {
 			s.Error = statusOf(err)
 			break
 		}
-		for chunk := range result.Chunks {
-			if chunk.Err != nil {
-				s.Error = statusOf(chunk.Err)
-				continue
+		chunks := result.Chunks
+		for chunks != nil {
+			var idle <-chan time.Time
+			if s.CancelWhenIdle && streamCtx.Err() == nil {
+				idle = time.After(200 * time.Millisecond)
 			}
-			s.Chunks = append(s.Chunks, string(chunk.Payload))
+			select {
+			case chunk, ok := <-chunks:
+				if !ok {
+					chunks = nil
+					continue
+				}
+				if streamCtx.Err() != nil {
+					continue // the client is gone; nothing more reaches it
+				}
+				if chunk.Err != nil {
+					s.Error = statusOf(chunk.Err)
+					continue
+				}
+				s.Chunks = append(s.Chunks, string(chunk.Payload))
+			case <-idle:
+				cancel()
+			}
 		}
 	case "count":
 		resp, err := exec.CountTokens(ctx, auth, req, opts)
@@ -193,7 +218,7 @@ func run(s *scenario, manager *wsrelay.Manager, provider string, b *browser) {
 		if r.TraceID != s.Name {
 			panic(fmt.Sprintf("%s: usage record of %q", s.Name, r.TraceID))
 		}
-		s.Usage = &usageOut{ReasoningEffort: r.ReasoningEffort, ResponseModel: r.ResponseModel, InputTokens: r.Detail.InputTokens, OutputTokens: r.Detail.OutputTokens, TotalTokens: r.Detail.TotalTokens}
+		s.Usage = &usageOut{ReasoningEffort: r.ReasoningEffort, ResponseModel: r.ResponseModel, InputTokens: r.Detail.InputTokens, OutputTokens: r.Detail.OutputTokens, TotalTokens: r.Detail.TotalTokens, Failed: r.Failed, FailStatus: r.Fail.StatusCode, FailBody: r.Fail.Body}
 	case <-time.After(300 * time.Millisecond):
 	}
 }

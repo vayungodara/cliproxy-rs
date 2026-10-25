@@ -114,6 +114,13 @@ func g(name, op, model, requested, payload string, up *upstream) scenario {
 const malformedJSON = `{"candidates":[{"content":{"role":"model","parts":[{"text":"partial"}]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":2,"totalTokenCount":6},"modelVersion":"gemini-2.5-flash","responseId":"rm"}`
 const malformedChunk = `{"candidates":[{"content":{"role":"model","parts":[]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash","responseId":"r1"}`
 
+// stall promises bytes beyond up's body and keeps the connection open.
+func stall(up *upstream) *upstream {
+	up.Missing = 40
+	up.Stall = true
+	return up
+}
+
 // with2 promises missing bytes beyond up's body.
 func with2(up *upstream, missing int) *upstream {
 	up.Missing = missing
@@ -293,6 +300,10 @@ func scenarios() []scenario {
 		// v8.0.35 (5ec31442): a read error ends the stream without the synthetic [DONE].
 		with(g("responses_stream_read_error", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, with2(sse("data: "+sseChunk1+"\n\n"), 40)), func(s *scenario) { s.Source = "openai-response" }),
 		with(g("claude_stream_read_error", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, with2(sse("data: "+sseChunk1+"\n\n"), 40)), func(s *scenario) { s.Source = "claude" }),
+		// The client goes away while the executor waits on the upstream: Go's scanner
+		// fails with context canceled (before and after the finish reason alike).
+		with(g("stream_client_drop_mid_read", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}],"stream":true}`, stall(sse("data: "+sseChunk1+"\n\n"))), func(s *scenario) { s.Source = "openai"; s.CancelWhenIdle = true }),
+		with(g("stream_client_drop_after_finish", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}],"stream":true}`, stall(sse("data: "+sseChunk1+"\n\ndata: "+sseChunk2+"\n\n"))), func(s *scenario) { s.Source = "openai"; s.CancelWhenIdle = true }),
 		// v8.0.35 (15d2148b): a final model turn whose function response carries media
 		// gets the empty user turn after it.
 		g("gen_trailing_function_response_media", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"user","parts":[{"text":"q"}]},{"role":"model","parts":[{"functionResponse":{"name":"f","response":{"x":1},"parts":[{"inlineData":{"mimeType":"image/png","data":"AAAA"}}]}}]}]`, ""), jsonOK),
