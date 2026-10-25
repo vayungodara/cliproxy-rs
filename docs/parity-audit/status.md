@@ -18,7 +18,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 |---|---:|---:|---:|---:|
 | M1 | 151 | 74 | 72 | 5 |
 | M2 | 189 | 106 | 83 | 0 |
-| M3 | 424 | 219 | 199 | 6 |
+| M3 | 424 | 217 | 201 | 6 |
 | M4 | 589 | 262 | 322 | 5 |
 | M5 | 331 | 225 | 105 | 1 |
 | M6 | 267 | 151 | 107 | 9 |
@@ -30,7 +30,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | plugins | 8 | 76 | M6-0192, M6-0211, M6-0213, M6-0220, M6-0240, M6-0241, M6-0249, M6-0250 |
 | server | 6 | 285 | M4-0371, M4-0372, M4-0512, M4-0515, M4-0580, M5-0316 |
 | claude | 5 | 64 | M1-0121, M1-0124, M1-0125, M1-0126, M1-0127 |
-| google | 3 | 73 | M3-0058, M3-0059, M3-0361 |
+| google | 3 | 75 | M3-0058, M3-0059, M3-0361 |
 | codex | 3 | 71 | M3-0362, M3-0363, M3-0364 |
 | openai-xai | 1 | 29 | M6-0217 |
 | manage | 0 | 129 | — |
@@ -592,8 +592,8 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 | M3-0082 | api-keys.interactions[].keys[].models[].is-compat | covered | read in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/src/codex_request.rs (+3); set in crates/cpa-core/src/registry/dynamic.rs, crates/cpa-exec/tests/fixtures/gemini_go.json (+3) |  | heuristic: key name match |
 | M3-0083 | api-keys.interactions[].keys[].models[].thinking.min | covered | read in crates/cpa-common/src/thinking/tests.rs, crates/cpa-core/src/registry.rs (+4); set in crates/cpa-common/tests/fixtures/go_calls.jsonl.gz, crates/cpa-common/tests/fixtures/go_thinking_matrix.jsonl.gz (+7) |  | heuristic: key name match |
 | M3-0084 | api-keys.interactions[].keys[].models[].thinking.max | covered | read in crates/cpa-common/src/codex_catalog.rs, crates/cpa-common/src/codex_client.rs (+10); set in crates/cpa-common/src/thinking/mod.rs, crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (+11) |  | heuristic: key name match |
-| M3-0085 | api-keys.interactions[].keys[].models[].thinking.zero-allowed | covered | read in crates/cpa-core/src/registry.rs; set in crates/cpa-exec/tests/fixtures/vertex_go_v8.0.35.json |  | heuristic: key name match |
-| M3-0086 | api-keys.interactions[].keys[].models[].thinking.dynamic-allowed | covered | read in crates/cpa-core/src/registry.rs; set in crates/cpa-exec/tests/fixtures/vertex_go_v8.0.35.json |  | heuristic: key name match |
+| M3-0085 | api-keys.interactions[].keys[].models[].thinking.zero-allowed | partial | read in crates/cpa-core/src/registry.rs; no test sets it for an interactions key (vertex_go_v8.0.35.json only names a Vertex key option `interactions` next to Vertex zero-allowed models) | google | No test configures it through config.yaml. |
+| M3-0086 | api-keys.interactions[].keys[].models[].thinking.dynamic-allowed | partial | read in crates/cpa-core/src/registry.rs; no test sets it for an interactions key (vertex_go_v8.0.35.json only names a Vertex key option `interactions` next to Vertex dynamic-allowed models) | google | No test configures it through config.yaml. |
 | M3-0087 | api-keys.interactions[].keys[].models[].thinking.levels | covered | read in crates/cpa-common/src/thinking/tests.rs, crates/cpa-core/src/registry.rs (+4); set in crates/cpa-common/src/thinking/mod.rs, crates/cpa-common/tests/fixtures/go_calls.jsonl.gz (+10) |  | heuristic: key name match |
 | M3-0088 | api-keys.interactions[].keys[].headers | covered | read in crates/cpa-core/src/config/credentials.rs; set in crates/cpa-exec/src/antigravity_tests.rs, crates/cpa-exec/src/claude/testdata/go_unit.json (+23) |  | heuristic: key name match |
 | M3-0089 | api-keys.codex[].keys[].api-key | covered | read in crates/cpa-core/src/config/credentials.rs; set in crates/cliproxy/src/home.rs, crates/cliproxy/tests/fixtures/tui_go.json (+46) |  | heuristic: key name match |
