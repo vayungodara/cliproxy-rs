@@ -1915,6 +1915,7 @@ mod tests {
             model: "gemini-antigravity-1",
             original_request: original,
             translated_request: b"",
+            tool_search: false,
         };
         let calls = [
             ("external_external_read_file", "external_read_file"),

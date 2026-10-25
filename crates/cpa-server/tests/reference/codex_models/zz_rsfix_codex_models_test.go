@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
+	responsesclaude "github.com/router-for-me/CLIProxyAPI/v8/internal/translator/claude/openai/responses"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/watcher/synthesizer"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers"
 	"github.com/router-for-me/CLIProxyAPI/v8/sdk/api/handlers/openai"
@@ -153,6 +155,80 @@ func TestRSFixCodexBuiltins(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "codex_builtins_go.json"), append(data, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// upstream.claude.tool-search on (here through its legacy spelling): supports_search_tool
+// stays for a pure Claude model only when every credential serving it supports native
+// tool search for its execution model. Writes codex_tool_search_go.json.
+const rsfixCodexToolSearchConfig = `claude:
+  tool-search: true
+claude-api-key:
+  - api-key: sk-FAKE-claude-origin
+    models:
+      - name: claude-sonnet-4-6
+        alias: sonnet-native
+      - name: claude-sonnet-4-0
+        alias: sonnet-legacy
+  - api-key: sk-FAKE-claude-trusted
+    base-url: http://127.0.0.1:1
+    native-tool-search: true
+    models:
+      - name: claude-opus-4-6
+        alias: opus-trusted
+      - name: claude-opus-4-6
+        alias: opus-mixed
+  - api-key: sk-FAKE-claude-gateway
+    base-url: http://127.0.0.1:1
+    models:
+      - name: claude-haiku-4-5
+        alias: haiku-gateway
+      - name: claude-opus-4-6
+        alias: opus-mixed
+`
+
+func TestRSFixCodexToolSearch(t *testing.T) {
+	dir := os.Getenv("RSFIX_OUT")
+	if dir == "" {
+		t.Skip("RSFIX_OUT not set")
+	}
+	gin.SetMode(gin.TestMode)
+	cfg, err := config.ParseConfigBytes([]byte(rsfixCodexToolSearchConfig))
+	if err != nil {
+		t.Fatal(err)
+	}
+	responsesclaude.SetClientToolSearchEnabled(cfg.Claude.ToolSearch)
+	defer responsesclaude.SetClientToolSearchEnabled(false)
+	auths, err := synthesizer.NewConfigSynthesizer().Synthesize(&synthesizer.SynthesisContext{
+		Config: cfg, Now: time.Unix(1, 0), IDGenerator: synthesizer.NewStableIDGenerator(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	service := &Service{cfg: cfg}
+	registry := GlobalModelRegistry()
+	manager := coreauth.NewManager(nil, nil, nil)
+	manager.SetConfig(cfg)
+	manager.RegisterExecutor(executor.NewClaudeExecutor(cfg))
+	for _, auth := range auths {
+		if _, err := manager.Register(t.Context(), auth); err != nil {
+			t.Fatal(err)
+		}
+		service.registerModelsForAuth(t.Context(), auth)
+		defer registry.UnregisterClient(auth.ID)
+	}
+	h := openai.NewOpenAIAPIHandler(handlers.NewBaseAPIHandlers(&cfg.SDKConfig, manager))
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/v1/models?client_version=0.150.0", nil)
+	h.OpenAIModels(c)
+	out := map[string]string{"config": rsfixCodexToolSearchConfig, "0.150.0": rec.Body.String()}
+	data, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "codex_tool_search_go.json"), append(data, '\n'), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

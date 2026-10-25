@@ -251,11 +251,13 @@ pub trait Registry {
 
 /// `BuildResponseForClientWithToolCapabilities`: `{"models": [...]}` for `available`
 /// (Go's `GetAvailableModels("openai")` maps). `apply_patch` is set when the
-/// `client.codex.enable-apply-patch` capability check applies.
+/// `client.codex.enable-apply-patch` capability check applies, `tool_search` while
+/// `upstream.claude.tool-search` is on (`SupportsNativeToolSearchForModel`).
 pub fn build_response(
     available: &[Map],
     registry: &dyn Registry,
     apply_patch: Option<&dyn Fn(&str) -> bool>,
+    tool_search: Option<&dyn Fn(&str) -> bool>,
     optimize_multi_agent_v2: bool,
     client_version: &str,
 ) -> GoValue {
@@ -263,6 +265,7 @@ pub fn build_response(
         available,
         registry,
         apply_patch,
+        tool_search,
         optimize_multi_agent_v2,
         client_version,
     )
@@ -281,6 +284,7 @@ fn build_models(
     available: &[Map],
     registry: &dyn Registry,
     apply_patch: Option<&dyn Fn(&str) -> bool>,
+    tool_search: Option<&dyn Fn(&str) -> bool>,
     optimize: bool,
     version: &str,
 ) -> Option<Vec<Map>> {
@@ -312,7 +316,8 @@ fn build_models(
             if let Some(thinking) = thinking_support(model) {
                 apply_thinking(&mut entry, &thinking, version);
             }
-            apply_provider_capabilities(&mut entry, &id, true, registry);
+            apply_provider_capabilities(&mut entry, &id, registry);
+            apply_search_tool(&mut entry, &id, true, registry, tool_search);
             apply_web_search(&mut entry, &id, registry, version);
             sanitize_reasoning(&mut entry, version);
             apply_visibility(&mut entry, &id);
@@ -327,7 +332,7 @@ fn build_models(
         let mut entry = templates.default.clone();
         apply_model_metadata(&mut entry, &id, model, optimize, version, registry);
         apply_max_tokens(&mut entry, model);
-        apply_provider_capabilities(&mut entry, &id, false, registry);
+        apply_search_tool(&mut entry, &id, false, registry, tool_search);
         apply_web_search(&mut entry, &id, registry, version);
         sanitize_reasoning(&mut entry, version);
         apply_visibility(&mut entry, &id);
@@ -547,19 +552,12 @@ fn apply_web_search(entry: &mut Map, id: &str, registry: &dyn Registry, version:
 }
 
 /// `applyCodexClientProviderCapabilities`.
-fn apply_provider_capabilities(entry: &mut Map, id: &str, template: bool, registry: &dyn Registry) {
-    if !template {
-        apply_search_tool(entry, id, false, registry);
-        return;
-    }
+fn apply_provider_capabilities(entry: &mut Map, id: &str, registry: &dyn Registry) {
     if !pure_codex(id, registry) {
-        entry.insert("supports_search_tool".into(), GoValue::Bool(false));
         entry.insert("prefer_websockets".into(), GoValue::Bool(false));
         entry.insert("service_tiers".into(), GoValue::Array(Vec::new()));
         null_required_options(entry);
-        return;
     }
-    apply_search_tool(entry, id, true, registry);
 }
 
 /// `nullCodexClientRequiredOptions`: keys Codex requires, cleared for non-Codex models,
@@ -597,18 +595,35 @@ fn compact_instructions(entry: &mut Map) {
     entry.insert("model_messages".into(), GoValue::Object(messages));
 }
 
-/// `isPureCodexProvider`: served, and only by Codex.
-fn pure_codex(id: &str, registry: &dyn Registry) -> bool {
-    let providers = providers(id, registry);
-    !providers.is_empty() && providers.iter().all(|p| p.trim().eq_ignore_ascii_case("codex"))
+/// `allCodexClientProvidersAre`: served, and only by `name`.
+fn all_providers_are(providers: &[String], name: &str) -> bool {
+    !providers.is_empty() && providers.iter().all(|p| p.trim().go_eq_fold(name))
 }
 
-/// `applyCodexClientSearchToolSupport`.
-fn apply_search_tool(entry: &mut Map, id: &str, template: bool, registry: &dyn Registry) {
+/// `isPureCodexProvider`: served, and only by Codex.
+fn pure_codex(id: &str, registry: &dyn Registry) -> bool {
+    all_providers_are(&providers(id, registry), "codex")
+}
+
+/// `applyCodexClientSearchToolSupport`: `supports_search_tool` stays only where every
+/// route can close Codex's client tool_search loop: a pure Codex template model, or a
+/// pure Claude model whose every credential has native tool search (`tool_search`, set
+/// while `upstream.claude.tool-search` is on).
+fn apply_search_tool(
+    entry: &mut Map,
+    id: &str,
+    template: bool,
+    registry: &dyn Registry,
+    tool_search: Option<&dyn Fn(&str) -> bool>,
+) {
     if !matches!(entry.get("supports_search_tool"), Some(GoValue::Bool(true))) {
         return;
     }
-    if !template || !pure_codex(id, registry) {
+    let providers = providers(id, registry);
+    if all_providers_are(&providers, "claude") && tool_search.is_some_and(|supports| supports(id)) {
+        return;
+    }
+    if !template || !all_providers_are(&providers, "codex") {
         entry.insert("supports_search_tool".into(), GoValue::Bool(false));
     }
 }

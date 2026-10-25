@@ -1,0 +1,1074 @@
+{
+ "login": {
+  "callback_parse": [
+   {
+    "input": "",
+    "nil": true
+   },
+   {
+    "input": "   ",
+    "nil": true
+   },
+   {
+    "input": "http://localhost:54545/callback?code=c1\u0026state=s1",
+    "code": "c1",
+    "state": "s1"
+   },
+   {
+    "input": "localhost:54545/callback?code=c2\u0026state=s2",
+    "code": "c2",
+    "state": "s2"
+   },
+   {
+    "input": "?code=c3\u0026state=s3",
+    "code": "c3",
+    "state": "s3"
+   },
+   {
+    "input": "code=c4\u0026state=s4",
+    "code": "c4",
+    "state": "s4"
+   },
+   {
+    "input": "c5#s5",
+    "err": "callback URL missing code"
+   },
+   {
+    "input": "http://localhost/callback?code=c6%23s6",
+    "code": "c6",
+    "state": "s6"
+   },
+   {
+    "input": "http://localhost/callback#code=c7\u0026state=s7",
+    "code": "c7",
+    "state": "s7"
+   },
+   {
+    "input": "http://localhost/callback?code=c8\u0026state=s8#state=ignored\u0026error=e",
+    "code": "c8",
+    "state": "s8",
+    "error": "e"
+   },
+   {
+    "input": "http://localhost/callback?error_description=only+desc",
+    "error": "only desc"
+   },
+   {
+    "input": "http://localhost/callback?error=denied\u0026error_description=why",
+    "error": "denied",
+    "desc": "why"
+   },
+   {
+    "input": "http://localhost/callback?state=s9",
+    "err": "callback URL missing code"
+   },
+   {
+    "input": "justtext",
+    "err": "invalid callback URL"
+   },
+   {
+    "input": "http://[::1/bad",
+    "err": "parse \"http://[::1/bad\": missing ']' in host"
+   }
+  ],
+  "file_names": [
+   {
+    "email": "a@example.invalid",
+    "organization": "",
+    "account": "",
+    "out": "claude-a@example.invalid.json"
+   },
+   {
+    "email": " a@example.invalid ",
+    "organization": "",
+    "account": "acct-1",
+    "out": "claude-ba36a4ed-a@example.invalid.json"
+   },
+   {
+    "email": "a@example.invalid",
+    "organization": " org-1 ",
+    "account": "acct-1",
+    "out": "claude-c24787a7-a@example.invalid.json"
+   }
+  ],
+  "server": [
+   {
+    "method": "GET",
+    "target": "/callback?code=abc%23frag\u0026state=xyz",
+    "status": 302,
+    "content_type": "text/html; charset=utf-8",
+    "location": "/success",
+    "body": "\u003ca href=\"/success\"\u003eFound\u003c/a\u003e.\n\n"
+   },
+   {
+    "method": "GET",
+    "target": "/callback?error=access_denied\u0026error_description=nope",
+    "status": 400,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "OAuth error: access_denied\n"
+   },
+   {
+    "method": "GET",
+    "target": "/callback?state=xyz",
+    "status": 400,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "No authorization code received\n"
+   },
+   {
+    "method": "GET",
+    "target": "/callback?code=abc",
+    "status": 400,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "No state parameter received\n"
+   },
+   {
+    "method": "POST",
+    "target": "/callback?code=abc\u0026state=xyz",
+    "status": 405,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "Method not allowed\n"
+   },
+   {
+    "method": "GET",
+    "target": "/success",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n    \u003cmeta charset=\"UTF-8\"\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"\u003e\n    \u003ctitle\u003eAuthentication Successful - Claude\u003c/title\u003e\n    \u003clink rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E\"\u003e\n    \u003cstyle\u003e\n        * {\n            box-sizing: border-box;\n        }\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            min-height: 100vh;\n            margin: 0;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            padding: 1rem;\n        }\n        .container {\n            text-align: center;\n            background: white;\n            padding: 2.5rem;\n            border-radius: 12px;\n            box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n            max-width: 480px;\n            width: 100%;\n            animation: slideIn 0.3s ease-out;\n        }\n        @keyframes slideIn {\n            from {\n                opacity: 0;\n                transform: translateY(-20px);\n            }\n            to {\n                opacity: 1;\n                transform: translateY(0);\n            }\n        }\n        .success-icon {\n            width: 64px;\n            height: 64px;\n            margin: 0 auto 1.5rem;\n            background: #10b981;\n            border-radius: 50%;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            color: white;\n            font-size: 2rem;\n            font-weight: bold;\n        }\n        h1 {\n            color: #1f2937;\n            margin-bottom: 1rem;\n            font-size: 1.75rem;\n            font-weight: 600;\n        }\n        .subtitle {\n            color: #6b7280;\n            margin-bottom: 1.5rem;\n            font-size: 1rem;\n            line-height: 1.5;\n        }\n        .setup-notice {\n            background: #fef3c7;\n            border: 1px solid #f59e0b;\n            border-radius: 6px;\n            padding: 1rem;\n            margin: 1rem 0;\n        }\n        .setup-notice h3 {\n            color: #92400e;\n            margin: 0 0 0.5rem 0;\n            font-size: 1rem;\n        }\n        .setup-notice p {\n            color: #92400e;\n            margin: 0;\n            font-size: 0.875rem;\n        }\n        .setup-notice a {\n            color: #1d4ed8;\n            text-decoration: none;\n        }\n        .setup-notice a:hover {\n            text-decoration: underline;\n        }\n        .actions {\n            display: flex;\n            gap: 1rem;\n            justify-content: center;\n            flex-wrap: wrap;\n            margin-top: 2rem;\n        }\n        .button {\n            padding: 0.75rem 1.5rem;\n            border-radius: 8px;\n            font-size: 0.875rem;\n            font-weight: 500;\n            text-decoration: none;\n            transition: all 0.2s;\n            cursor: pointer;\n            border: none;\n            display: inline-flex;\n            align-items: center;\n            gap: 0.5rem;\n        }\n        .button-primary {\n            background: #3b82f6;\n            color: white;\n        }\n        .button-primary:hover {\n            background: #2563eb;\n            transform: translateY(-1px);\n        }\n        .button-secondary {\n            background: #f3f4f6;\n            color: #374151;\n            border: 1px solid #d1d5db;\n        }\n        .button-secondary:hover {\n            background: #e5e7eb;\n        }\n        .countdown {\n            color: #9ca3af;\n            font-size: 0.75rem;\n            margin-top: 1rem;\n        }\n        .footer {\n            margin-top: 2rem;\n            padding-top: 1.5rem;\n            border-top: 1px solid #e5e7eb;\n            color: #9ca3af;\n            font-size: 0.75rem;\n        }\n        .footer a {\n            color: #3b82f6;\n            text-decoration: none;\n        }\n        .footer a:hover {\n            text-decoration: underline;\n        }\n    \u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n    \u003cdiv class=\"container\"\u003e\n        \u003cdiv class=\"success-icon\"\u003e✓\u003c/div\u003e\n        \u003ch1\u003eAuthentication Successful!\u003c/h1\u003e\n        \u003cp class=\"subtitle\"\u003eYou have successfully authenticated with Claude. You can now close this window and return to your terminal to continue.\u003c/p\u003e\n        \n        \n        \n        \u003cdiv class=\"actions\"\u003e\n            \u003cbutton class=\"button button-primary\" onclick=\"window.close()\"\u003e\n                \u003cspan\u003eClose Window\u003c/span\u003e\n            \u003c/button\u003e\n            \u003ca href=\"https://console.anthropic.com/\" target=\"_blank\" class=\"button button-secondary\"\u003e\n                \u003cspan\u003eOpen Platform\u003c/span\u003e\n                \u003cspan\u003e↗\u003c/span\u003e\n            \u003c/a\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"countdown\"\u003e\n            This window will close automatically in \u003cspan id=\"countdown\"\u003e10\u003c/span\u003e seconds\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"footer\"\u003e\n            \u003cp\u003ePowered by \u003ca href=\"https://chatgpt.com\" target=\"_blank\"\u003eChatGPT\u003c/a\u003e\u003c/p\u003e\n        \u003c/div\u003e\n    \u003c/div\u003e\n    \n    \u003cscript\u003e\n        let countdown = 10;\n        const countdownElement = document.getElementById('countdown');\n        \n        const timer = setInterval(() =\u003e {\n            countdown--;\n            countdownElement.textContent = countdown;\n            \n            if (countdown \u003c= 0) {\n                clearInterval(timer);\n                window.close();\n            }\n        }, 1000);\n        \n        // Close window when user presses Escape\n        document.addEventListener('keydown', (e) =\u003e {\n            if (e.key === 'Escape') {\n                window.close();\n            }\n        });\n        \n        // Focus the close button for keyboard accessibility\n        document.querySelector('.button-primary').focus();\n    \u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e"
+   },
+   {
+    "method": "GET",
+    "target": "/success?setup_required=true\u0026platform_url=https%3A%2F%2Fplatform.example.invalid%2F",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n    \u003cmeta charset=\"UTF-8\"\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"\u003e\n    \u003ctitle\u003eAuthentication Successful - Claude\u003c/title\u003e\n    \u003clink rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E\"\u003e\n    \u003cstyle\u003e\n        * {\n            box-sizing: border-box;\n        }\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            min-height: 100vh;\n            margin: 0;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            padding: 1rem;\n        }\n        .container {\n            text-align: center;\n            background: white;\n            padding: 2.5rem;\n            border-radius: 12px;\n            box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n            max-width: 480px;\n            width: 100%;\n            animation: slideIn 0.3s ease-out;\n        }\n        @keyframes slideIn {\n            from {\n                opacity: 0;\n                transform: translateY(-20px);\n            }\n            to {\n                opacity: 1;\n                transform: translateY(0);\n            }\n        }\n        .success-icon {\n            width: 64px;\n            height: 64px;\n            margin: 0 auto 1.5rem;\n            background: #10b981;\n            border-radius: 50%;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            color: white;\n            font-size: 2rem;\n            font-weight: bold;\n        }\n        h1 {\n            color: #1f2937;\n            margin-bottom: 1rem;\n            font-size: 1.75rem;\n            font-weight: 600;\n        }\n        .subtitle {\n            color: #6b7280;\n            margin-bottom: 1.5rem;\n            font-size: 1rem;\n            line-height: 1.5;\n        }\n        .setup-notice {\n            background: #fef3c7;\n            border: 1px solid #f59e0b;\n            border-radius: 6px;\n            padding: 1rem;\n            margin: 1rem 0;\n        }\n        .setup-notice h3 {\n            color: #92400e;\n            margin: 0 0 0.5rem 0;\n            font-size: 1rem;\n        }\n        .setup-notice p {\n            color: #92400e;\n            margin: 0;\n            font-size: 0.875rem;\n        }\n        .setup-notice a {\n            color: #1d4ed8;\n            text-decoration: none;\n        }\n        .setup-notice a:hover {\n            text-decoration: underline;\n        }\n        .actions {\n            display: flex;\n            gap: 1rem;\n            justify-content: center;\n            flex-wrap: wrap;\n            margin-top: 2rem;\n        }\n        .button {\n            padding: 0.75rem 1.5rem;\n            border-radius: 8px;\n            font-size: 0.875rem;\n            font-weight: 500;\n            text-decoration: none;\n            transition: all 0.2s;\n            cursor: pointer;\n            border: none;\n            display: inline-flex;\n            align-items: center;\n            gap: 0.5rem;\n        }\n        .button-primary {\n            background: #3b82f6;\n            color: white;\n        }\n        .button-primary:hover {\n            background: #2563eb;\n            transform: translateY(-1px);\n        }\n        .button-secondary {\n            background: #f3f4f6;\n            color: #374151;\n            border: 1px solid #d1d5db;\n        }\n        .button-secondary:hover {\n            background: #e5e7eb;\n        }\n        .countdown {\n            color: #9ca3af;\n            font-size: 0.75rem;\n            margin-top: 1rem;\n        }\n        .footer {\n            margin-top: 2rem;\n            padding-top: 1.5rem;\n            border-top: 1px solid #e5e7eb;\n            color: #9ca3af;\n            font-size: 0.75rem;\n        }\n        .footer a {\n            color: #3b82f6;\n            text-decoration: none;\n        }\n        .footer a:hover {\n            text-decoration: underline;\n        }\n    \u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n    \u003cdiv class=\"container\"\u003e\n        \u003cdiv class=\"success-icon\"\u003e✓\u003c/div\u003e\n        \u003ch1\u003eAuthentication Successful!\u003c/h1\u003e\n        \u003cp class=\"subtitle\"\u003eYou have successfully authenticated with Claude. You can now close this window and return to your terminal to continue.\u003c/p\u003e\n        \n        \n        \u003cdiv class=\"setup-notice\"\u003e\n            \u003ch3\u003eAdditional Setup Required\u003c/h3\u003e\n            \u003cp\u003eTo complete your setup, please visit the \u003ca href=\"https://platform.example.invalid/\" target=\"_blank\"\u003eClaude\u003c/a\u003e to configure your account.\u003c/p\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"actions\"\u003e\n            \u003cbutton class=\"button button-primary\" onclick=\"window.close()\"\u003e\n                \u003cspan\u003eClose Window\u003c/span\u003e\n            \u003c/button\u003e\n            \u003ca href=\"https://platform.example.invalid/\" target=\"_blank\" class=\"button button-secondary\"\u003e\n                \u003cspan\u003eOpen Platform\u003c/span\u003e\n                \u003cspan\u003e↗\u003c/span\u003e\n            \u003c/a\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"countdown\"\u003e\n            This window will close automatically in \u003cspan id=\"countdown\"\u003e10\u003c/span\u003e seconds\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"footer\"\u003e\n            \u003cp\u003ePowered by \u003ca href=\"https://chatgpt.com\" target=\"_blank\"\u003eChatGPT\u003c/a\u003e\u003c/p\u003e\n        \u003c/div\u003e\n    \u003c/div\u003e\n    \n    \u003cscript\u003e\n        let countdown = 10;\n        const countdownElement = document.getElementById('countdown');\n        \n        const timer = setInterval(() =\u003e {\n            countdown--;\n            countdownElement.textContent = countdown;\n            \n            if (countdown \u003c= 0) {\n                clearInterval(timer);\n                window.close();\n            }\n        }, 1000);\n        \n        // Close window when user presses Escape\n        document.addEventListener('keydown', (e) =\u003e {\n            if (e.key === 'Escape') {\n                window.close();\n            }\n        });\n        \n        // Focus the close button for keyboard accessibility\n        document.querySelector('.button-primary').focus();\n    \u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e"
+   },
+   {
+    "method": "POST",
+    "target": "/success",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "body": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n    \u003cmeta charset=\"UTF-8\"\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"\u003e\n    \u003ctitle\u003eAuthentication Successful - Claude\u003c/title\u003e\n    \u003clink rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E\"\u003e\n    \u003cstyle\u003e\n        * {\n            box-sizing: border-box;\n        }\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            min-height: 100vh;\n            margin: 0;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            padding: 1rem;\n        }\n        .container {\n            text-align: center;\n            background: white;\n            padding: 2.5rem;\n            border-radius: 12px;\n            box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n            max-width: 480px;\n            width: 100%;\n            animation: slideIn 0.3s ease-out;\n        }\n        @keyframes slideIn {\n            from {\n                opacity: 0;\n                transform: translateY(-20px);\n            }\n            to {\n                opacity: 1;\n                transform: translateY(0);\n            }\n        }\n        .success-icon {\n            width: 64px;\n            height: 64px;\n            margin: 0 auto 1.5rem;\n            background: #10b981;\n            border-radius: 50%;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            color: white;\n            font-size: 2rem;\n            font-weight: bold;\n        }\n        h1 {\n            color: #1f2937;\n            margin-bottom: 1rem;\n            font-size: 1.75rem;\n            font-weight: 600;\n        }\n        .subtitle {\n            color: #6b7280;\n            margin-bottom: 1.5rem;\n            font-size: 1rem;\n            line-height: 1.5;\n        }\n        .setup-notice {\n            background: #fef3c7;\n            border: 1px solid #f59e0b;\n            border-radius: 6px;\n            padding: 1rem;\n            margin: 1rem 0;\n        }\n        .setup-notice h3 {\n            color: #92400e;\n            margin: 0 0 0.5rem 0;\n            font-size: 1rem;\n        }\n        .setup-notice p {\n            color: #92400e;\n            margin: 0;\n            font-size: 0.875rem;\n        }\n        .setup-notice a {\n            color: #1d4ed8;\n            text-decoration: none;\n        }\n        .setup-notice a:hover {\n            text-decoration: underline;\n        }\n        .actions {\n            display: flex;\n            gap: 1rem;\n            justify-content: center;\n            flex-wrap: wrap;\n            margin-top: 2rem;\n        }\n        .button {\n            padding: 0.75rem 1.5rem;\n            border-radius: 8px;\n            font-size: 0.875rem;\n            font-weight: 500;\n            text-decoration: none;\n            transition: all 0.2s;\n            cursor: pointer;\n            border: none;\n            display: inline-flex;\n            align-items: center;\n            gap: 0.5rem;\n        }\n        .button-primary {\n            background: #3b82f6;\n            color: white;\n        }\n        .button-primary:hover {\n            background: #2563eb;\n            transform: translateY(-1px);\n        }\n        .button-secondary {\n            background: #f3f4f6;\n            color: #374151;\n            border: 1px solid #d1d5db;\n        }\n        .button-secondary:hover {\n            background: #e5e7eb;\n        }\n        .countdown {\n            color: #9ca3af;\n            font-size: 0.75rem;\n            margin-top: 1rem;\n        }\n        .footer {\n            margin-top: 2rem;\n            padding-top: 1.5rem;\n            border-top: 1px solid #e5e7eb;\n            color: #9ca3af;\n            font-size: 0.75rem;\n        }\n        .footer a {\n            color: #3b82f6;\n            text-decoration: none;\n        }\n        .footer a:hover {\n            text-decoration: underline;\n        }\n    \u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n    \u003cdiv class=\"container\"\u003e\n        \u003cdiv class=\"success-icon\"\u003e✓\u003c/div\u003e\n        \u003ch1\u003eAuthentication Successful!\u003c/h1\u003e\n        \u003cp class=\"subtitle\"\u003eYou have successfully authenticated with Claude. You can now close this window and return to your terminal to continue.\u003c/p\u003e\n        \n        \n        \n        \u003cdiv class=\"actions\"\u003e\n            \u003cbutton class=\"button button-primary\" onclick=\"window.close()\"\u003e\n                \u003cspan\u003eClose Window\u003c/span\u003e\n            \u003c/button\u003e\n            \u003ca href=\"https://console.anthropic.com/\" target=\"_blank\" class=\"button button-secondary\"\u003e\n                \u003cspan\u003eOpen Platform\u003c/span\u003e\n                \u003cspan\u003e↗\u003c/span\u003e\n            \u003c/a\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"countdown\"\u003e\n            This window will close automatically in \u003cspan id=\"countdown\"\u003e10\u003c/span\u003e seconds\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"footer\"\u003e\n            \u003cp\u003ePowered by \u003ca href=\"https://chatgpt.com\" target=\"_blank\"\u003eChatGPT\u003c/a\u003e\u003c/p\u003e\n        \u003c/div\u003e\n    \u003c/div\u003e\n    \n    \u003cscript\u003e\n        let countdown = 10;\n        const countdownElement = document.getElementById('countdown');\n        \n        const timer = setInterval(() =\u003e {\n            countdown--;\n            countdownElement.textContent = countdown;\n            \n            if (countdown \u003c= 0) {\n                clearInterval(timer);\n                window.close();\n            }\n        }, 1000);\n        \n        // Close window when user presses Escape\n        document.addEventListener('keydown', (e) =\u003e {\n            if (e.key === 'Escape') {\n                window.close();\n            }\n        });\n        \n        // Focus the close button for keyboard accessibility\n        document.querySelector('.button-primary').focus();\n    \u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e"
+   },
+   {
+    "method": "GET",
+    "target": "/other",
+    "status": 404,
+    "content_type": "text/plain; charset=utf-8",
+    "nosniff": "nosniff",
+    "body": "404 page not found\n"
+   }
+  ],
+  "setup_notice": "\n        \u003cdiv class=\"setup-notice\"\u003e\n            \u003ch3\u003eAdditional Setup Required\u003c/h3\u003e\n            \u003cp\u003eTo complete your setup, please visit the \u003ca href=\"{{PLATFORM_URL}}\" target=\"_blank\"\u003eClaude\u003c/a\u003e to configure your account.\u003c/p\u003e\n        \u003c/div\u003e",
+  "success_html": "\u003c!DOCTYPE html\u003e\n\u003chtml lang=\"en\"\u003e\n\u003chead\u003e\n    \u003cmeta charset=\"UTF-8\"\u003e\n    \u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"\u003e\n    \u003ctitle\u003eAuthentication Successful - Claude\u003c/title\u003e\n    \u003clink rel=\"icon\" type=\"image/svg+xml\" href=\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'%3E%3Cpath d='M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'/%3E%3C/svg%3E\"\u003e\n    \u003cstyle\u003e\n        * {\n            box-sizing: border-box;\n        }\n        body {\n            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;\n            display: flex;\n            justify-content: center;\n            align-items: center;\n            min-height: 100vh;\n            margin: 0;\n            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n            padding: 1rem;\n        }\n        .container {\n            text-align: center;\n            background: white;\n            padding: 2.5rem;\n            border-radius: 12px;\n            box-shadow: 0 10px 25px rgba(0,0,0,0.1);\n            max-width: 480px;\n            width: 100%;\n            animation: slideIn 0.3s ease-out;\n        }\n        @keyframes slideIn {\n            from {\n                opacity: 0;\n                transform: translateY(-20px);\n            }\n            to {\n                opacity: 1;\n                transform: translateY(0);\n            }\n        }\n        .success-icon {\n            width: 64px;\n            height: 64px;\n            margin: 0 auto 1.5rem;\n            background: #10b981;\n            border-radius: 50%;\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            color: white;\n            font-size: 2rem;\n            font-weight: bold;\n        }\n        h1 {\n            color: #1f2937;\n            margin-bottom: 1rem;\n            font-size: 1.75rem;\n            font-weight: 600;\n        }\n        .subtitle {\n            color: #6b7280;\n            margin-bottom: 1.5rem;\n            font-size: 1rem;\n            line-height: 1.5;\n        }\n        .setup-notice {\n            background: #fef3c7;\n            border: 1px solid #f59e0b;\n            border-radius: 6px;\n            padding: 1rem;\n            margin: 1rem 0;\n        }\n        .setup-notice h3 {\n            color: #92400e;\n            margin: 0 0 0.5rem 0;\n            font-size: 1rem;\n        }\n        .setup-notice p {\n            color: #92400e;\n            margin: 0;\n            font-size: 0.875rem;\n        }\n        .setup-notice a {\n            color: #1d4ed8;\n            text-decoration: none;\n        }\n        .setup-notice a:hover {\n            text-decoration: underline;\n        }\n        .actions {\n            display: flex;\n            gap: 1rem;\n            justify-content: center;\n            flex-wrap: wrap;\n            margin-top: 2rem;\n        }\n        .button {\n            padding: 0.75rem 1.5rem;\n            border-radius: 8px;\n            font-size: 0.875rem;\n            font-weight: 500;\n            text-decoration: none;\n            transition: all 0.2s;\n            cursor: pointer;\n            border: none;\n            display: inline-flex;\n            align-items: center;\n            gap: 0.5rem;\n        }\n        .button-primary {\n            background: #3b82f6;\n            color: white;\n        }\n        .button-primary:hover {\n            background: #2563eb;\n            transform: translateY(-1px);\n        }\n        .button-secondary {\n            background: #f3f4f6;\n            color: #374151;\n            border: 1px solid #d1d5db;\n        }\n        .button-secondary:hover {\n            background: #e5e7eb;\n        }\n        .countdown {\n            color: #9ca3af;\n            font-size: 0.75rem;\n            margin-top: 1rem;\n        }\n        .footer {\n            margin-top: 2rem;\n            padding-top: 1.5rem;\n            border-top: 1px solid #e5e7eb;\n            color: #9ca3af;\n            font-size: 0.75rem;\n        }\n        .footer a {\n            color: #3b82f6;\n            text-decoration: none;\n        }\n        .footer a:hover {\n            text-decoration: underline;\n        }\n    \u003c/style\u003e\n\u003c/head\u003e\n\u003cbody\u003e\n    \u003cdiv class=\"container\"\u003e\n        \u003cdiv class=\"success-icon\"\u003e✓\u003c/div\u003e\n        \u003ch1\u003eAuthentication Successful!\u003c/h1\u003e\n        \u003cp class=\"subtitle\"\u003eYou have successfully authenticated with Claude. You can now close this window and return to your terminal to continue.\u003c/p\u003e\n        \n        {{SETUP_NOTICE}}\n        \n        \u003cdiv class=\"actions\"\u003e\n            \u003cbutton class=\"button button-primary\" onclick=\"window.close()\"\u003e\n                \u003cspan\u003eClose Window\u003c/span\u003e\n            \u003c/button\u003e\n            \u003ca href=\"{{PLATFORM_URL}}\" target=\"_blank\" class=\"button button-secondary\"\u003e\n                \u003cspan\u003eOpen Platform\u003c/span\u003e\n                \u003cspan\u003e↗\u003c/span\u003e\n            \u003c/a\u003e\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"countdown\"\u003e\n            This window will close automatically in \u003cspan id=\"countdown\"\u003e10\u003c/span\u003e seconds\n        \u003c/div\u003e\n        \n        \u003cdiv class=\"footer\"\u003e\n            \u003cp\u003ePowered by \u003ca href=\"https://chatgpt.com\" target=\"_blank\"\u003eChatGPT\u003c/a\u003e\u003c/p\u003e\n        \u003c/div\u003e\n    \u003c/div\u003e\n    \n    \u003cscript\u003e\n        let countdown = 10;\n        const countdownElement = document.getElementById('countdown');\n        \n        const timer = setInterval(() =\u003e {\n            countdown--;\n            countdownElement.textContent = countdown;\n            \n            if (countdown \u003c= 0) {\n                clearInterval(timer);\n                window.close();\n            }\n        }, 1000);\n        \n        // Close window when user presses Escape\n        document.addEventListener('keydown', (e) =\u003e {\n            if (e.key === 'Escape') {\n                window.close();\n            }\n        });\n        \n        // Focus the close button for keyboard accessibility\n        document.querySelector('.button-primary').focus();\n    \u003c/script\u003e\n\u003c/body\u003e\n\u003c/html\u003e"
+ },
+ "scenarios": [
+  {
+   "name": "tool-search-native-key",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": true,
+   "count": false,
+   "reply": {
+    "status": 200,
+    "content_type": "text/event-stream",
+    "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": [
+    {
+     "url": "http://gateway.invalid/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "text/event-stream"
+      ],
+      [
+       "Accept-Encoding",
+       "identity"
+      ],
+      [
+       "Anthropic-Version",
+       "2023-06-01"
+      ],
+      [
+       "Authorization",
+       "Bearer gw-FAKE-KEY"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "codex_cli_rs/0.120.0"
+      ]
+     ],
+     "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64000,\"messages\":[{\"role\":\"user\",\"content\":\"What is the weather?\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"ts_1\",\"name\":\"tool_search\",\"input\":{\"query\": \"weather\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"ts_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"get_weather\"}]},{\"type\":\"text\",\"text\":\"In Paris\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"55e9ece81587998141c993cce878af4f799b5fc96dfe156a8c3deca18f115b92\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"Be brief.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"shell\",\"description\":\"Run a command\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"}},{\"name\":\"tool_search\",\"description\":\"Find tools\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"}},{\"name\":\"tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"get_weather\",\"description\":\"Weather\",\"input_schema\":{\"properties\":{\"city\":{\"type\":\"string\"}},\"type\":\"object\"},\"defer_loading\":true}]}",
+     "reply": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+   ],
+   "output": [
+    "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"in_progress\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{}}}\n\n",
+    "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":0,\"item\":{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"completed\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{\"query\":\"weather\",\"limit\":2}}}\n\n",
+    "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":5,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"completed\",\"background\":false,\"error\":null,\"instructions\":\"Be brief.\",\"model\":\"claude-sonnet-4-6\",\"tools\":[{\"description\":\"Run a command\",\"name\":\"shell\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"},\"type\":\"function\"},{\"description\":\"Find tools\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}],\"output\":[{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"completed\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{\"query\":\"weather\",\"limit\":2}}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7}}}\n\n"
+   ]
+  },
+  {
+   "name": "tool-search-native-key-non-stream",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": false, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": false,
+   "count": false,
+   "reply": {
+    "status": 200,
+    "content_type": "text/event-stream",
+    "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": [
+    {
+     "url": "http://gateway.invalid/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "text/event-stream"
+      ],
+      [
+       "Accept-Encoding",
+       "identity"
+      ],
+      [
+       "Anthropic-Version",
+       "2023-06-01"
+      ],
+      [
+       "Authorization",
+       "Bearer gw-FAKE-KEY"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "codex_cli_rs/0.120.0"
+      ]
+     ],
+     "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64000,\"messages\":[{\"role\":\"user\",\"content\":\"What is the weather?\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"ts_1\",\"name\":\"tool_search\",\"input\":{\"query\": \"weather\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"ts_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"get_weather\"}]},{\"type\":\"text\",\"text\":\"In Paris\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"55e9ece81587998141c993cce878af4f799b5fc96dfe156a8c3deca18f115b92\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"Be brief.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"shell\",\"description\":\"Run a command\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"}},{\"name\":\"tool_search\",\"description\":\"Find tools\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"}},{\"name\":\"tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"get_weather\",\"description\":\"Weather\",\"input_schema\":{\"properties\":{\"city\":{\"type\":\"string\"}},\"type\":\"object\"},\"defer_loading\":true}]}",
+     "reply": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+   ],
+   "output": [
+    "{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"completed\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{\"query\":\"weather\",\"limit\":2}}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7},\"instructions\":\"Be brief.\",\"model\":\"claude-sonnet-4-6\",\"tools\":[{\"description\":\"Run a command\",\"name\":\"shell\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"},\"type\":\"function\"},{\"description\":\"Find tools\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}]}"
+   ]
+  },
+  {
+   "name": "tool-search-native-oauth",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\n",
+   "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": true,
+   "count": false,
+   "reply": {
+    "status": 200,
+    "content_type": "text/event-stream",
+    "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": [
+    {
+     "url": "https://api.anthropic.com/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "application/json"
+      ],
+      [
+       "Accept-Encoding",
+       "gzip, deflate, br, zstd"
+      ],
+      [
+       "Authorization",
+       "Bearer sk-ant-oat01-FAKE-LOCAL-ONLY"
+      ],
+      [
+       "Connection",
+       "keep-alive"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "claude-cli/2.1.280 (external, cli)"
+      ],
+      [
+       "X-Claude-Code-Session-Id",
+       "2ab92bb7-d4e9-58d7-a034-08d19c2f88e2"
+      ],
+      [
+       "X-Stainless-Arch",
+       "arm64"
+      ],
+      [
+       "X-Stainless-Lang",
+       "js"
+      ],
+      [
+       "X-Stainless-OS",
+       "MacOS"
+      ],
+      [
+       "X-Stainless-Package-Version",
+       "0.112.1"
+      ],
+      [
+       "X-Stainless-Retry-Count",
+       "0"
+      ],
+      [
+       "X-Stainless-Runtime",
+       "node"
+      ],
+      [
+       "X-Stainless-Runtime-Version",
+       "v26.3.0"
+      ],
+      [
+       "X-Stainless-Timeout",
+       "600"
+      ],
+      [
+       "anthropic-beta",
+       "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,advanced-tool-use-2025-11-20,effort-2025-11-24,extended-cache-ttl-2025-04-11,cache-diagnosis-2026-04-07"
+      ],
+      [
+       "anthropic-dangerous-direct-browser-access",
+       "true"
+      ],
+      [
+       "anthropic-version",
+       "2023-06-01"
+      ],
+      [
+       "x-app",
+       "cli"
+      ],
+      [
+       "x-client-request-id",
+       "d72bf31e-4cdd-4f74-88dc-9050b5560479"
+      ]
+     ],
+     "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-25.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n\u003c/system-reminder\u003e\\n\\n\"},{\"type\":\"text\",\"text\":\"\u003csystem-reminder\u003e\\nBe brief.\\n\u003c/system-reminder\u003e\"},{\"type\":\"text\",\"text\":\"What is the weather?\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"ts_1\",\"name\":\"mcp__private_pattern__success_tool_search\",\"input\":{\"query\": \"weather\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"ts_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__private_pattern__alcohol_get_weather\"}]},{\"type\":\"text\",\"text\":\"In Paris\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\\\",\\\"session_id\\\":\\\"2ab92bb7-d4e9-58d7-a034-08d19c2f88e2\\\"}\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.853; cc_entrypoint=cli; cch=707c2; cc_prompt_id=e3787cce-36f0-4dde-997b-6f0f15f1432e; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"tools\":[{\"name\":\"mcp__private_pattern__giant_shell\",\"description\":\"Run a command\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"}},{\"name\":\"mcp__private_pattern__success_tool_search\",\"description\":\"Find tools\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"}},{\"name\":\"mcp__private_pattern__over_tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"mcp__private_pattern__alcohol_get_weather\",\"description\":\"Weather\",\"input_schema\":{\"properties\":{\"city\":{\"type\":\"string\"}},\"type\":\"object\"},\"defer_loading\":true}],\"diagnostics\":{\"previous_message_id\":null}}",
+     "reply": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+   ],
+   "output": [
+    "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"in_progress\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{}}}\n\n",
+    "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":0,\"item\":{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"completed\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{\"query\":\"weather\",\"limit\":2}}}\n\n",
+    "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":5,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"completed\",\"background\":false,\"error\":null,\"instructions\":\"Be brief.\",\"model\":\"claude-sonnet-4-6\",\"tools\":[{\"description\":\"Run a command\",\"name\":\"shell\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"},\"type\":\"function\"},{\"description\":\"Find tools\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}],\"output\":[{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"completed\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{\"query\":\"weather\",\"limit\":2}}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7}}}\n\n"
+   ]
+  },
+  {
+   "name": "tool-search-fallback-key",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": true,
+   "count": false,
+   "reply": {
+    "status": 200,
+    "content_type": "text/event-stream",
+    "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": [
+    {
+     "url": "http://gateway.invalid/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "text/event-stream"
+      ],
+      [
+       "Accept-Encoding",
+       "identity"
+      ],
+      [
+       "Anthropic-Version",
+       "2023-06-01"
+      ],
+      [
+       "Authorization",
+       "Bearer gw-FAKE-KEY"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "codex_cli_rs/0.120.0"
+      ]
+     ],
+     "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"What is the weather?\"},{\"type\":\"text\",\"text\":\"In Paris\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"55e9ece81587998141c993cce878af4f799b5fc96dfe156a8c3deca18f115b92\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"Be brief.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"shell\",\"description\":\"Run a command\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"}}]}",
+     "reply": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+   ],
+   "output": [
+    "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"in_progress\",\"arguments\":\"\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}}\n\n",
+    "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"sequence_number\":4,\"item_id\":\"fc_toolu_ts1\",\"output_index\":0,\"delta\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}\n\n",
+    "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"sequence_number\":5,\"item_id\":\"fc_toolu_ts1\",\"output_index\":0,\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}\n\n",
+    "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":6,\"output_index\":0,\"item\":{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}}\n\n",
+    "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":7,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"completed\",\"background\":false,\"error\":null,\"instructions\":\"Be brief.\",\"model\":\"claude-sonnet-4-6\",\"tools\":[{\"description\":\"Run a command\",\"name\":\"shell\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7}}}\n\n"
+   ]
+  },
+  {
+   "name": "tool-search-fallback-legacy-model",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-0",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-0\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": true,
+   "count": false,
+   "reply": {
+    "status": 200,
+    "content_type": "text/event-stream",
+    "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": [
+    {
+     "url": "http://gateway.invalid/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "text/event-stream"
+      ],
+      [
+       "Accept-Encoding",
+       "identity"
+      ],
+      [
+       "Anthropic-Version",
+       "2023-06-01"
+      ],
+      [
+       "Authorization",
+       "Bearer gw-FAKE-KEY"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "codex_cli_rs/0.120.0"
+      ]
+     ],
+     "body": "{\"model\":\"claude-sonnet-4-0\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"What is the weather?\"},{\"type\":\"text\",\"text\":\"In Paris\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"55e9ece81587998141c993cce878af4f799b5fc96dfe156a8c3deca18f115b92\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"Be brief.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"shell\",\"description\":\"Run a command\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"}}]}",
+     "reply": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+   ],
+   "output": [
+    "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-0\"}}\n\n",
+    "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-0\"}}\n\n",
+    "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"in_progress\",\"arguments\":\"\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}}\n\n",
+    "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"sequence_number\":4,\"item_id\":\"fc_toolu_ts1\",\"output_index\":0,\"delta\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}\n\n",
+    "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"sequence_number\":5,\"item_id\":\"fc_toolu_ts1\",\"output_index\":0,\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}\n\n",
+    "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":6,\"output_index\":0,\"item\":{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}}\n\n",
+    "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":7,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"completed\",\"background\":false,\"error\":null,\"instructions\":\"Be brief.\",\"model\":\"claude-sonnet-4-0\",\"tools\":[{\"description\":\"Run a command\",\"name\":\"shell\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7}}}\n\n"
+   ]
+  },
+  {
+   "name": "tool-search-off",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": true,
+   "count": false,
+   "reply": {
+    "status": 200,
+    "content_type": "text/event-stream",
+    "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": [
+    {
+     "url": "http://gateway.invalid/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "text/event-stream"
+      ],
+      [
+       "Accept-Encoding",
+       "identity"
+      ],
+      [
+       "Anthropic-Version",
+       "2023-06-01"
+      ],
+      [
+       "Authorization",
+       "Bearer gw-FAKE-KEY"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "codex_cli_rs/0.120.0"
+      ]
+     ],
+     "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"What is the weather?\"},{\"type\":\"text\",\"text\":\"In Paris\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"55e9ece81587998141c993cce878af4f799b5fc96dfe156a8c3deca18f115b92\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"Be brief.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"shell\",\"description\":\"Run a command\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"}}]}",
+     "reply": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+   ],
+   "output": [
+    "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"in_progress\",\"arguments\":\"\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}}\n\n",
+    "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"sequence_number\":4,\"item_id\":\"fc_toolu_ts1\",\"output_index\":0,\"delta\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}\n\n",
+    "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"sequence_number\":5,\"item_id\":\"fc_toolu_ts1\",\"output_index\":0,\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}\n\n",
+    "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":6,\"output_index\":0,\"item\":{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}}\n\n",
+    "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":7,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"completed\",\"background\":false,\"error\":null,\"instructions\":\"Be brief.\",\"model\":\"claude-sonnet-4-6\",\"tools\":[{\"description\":\"Run a command\",\"name\":\"shell\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"},\"type\":\"function\"},{\"description\":\"Find tools\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}],\"output\":[{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7}}}\n\n"
+   ]
+  },
+  {
+   "name": "tool-search-native-key-without-tool-search",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}]}",
+   "stream": true,
+   "count": false,
+   "reply": {
+    "status": 200,
+    "content_type": "text/event-stream",
+    "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": [
+    {
+     "url": "http://gateway.invalid/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "text/event-stream"
+      ],
+      [
+       "Accept-Encoding",
+       "identity"
+      ],
+      [
+       "Anthropic-Version",
+       "2023-06-01"
+      ],
+      [
+       "Authorization",
+       "Bearer gw-FAKE-KEY"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "codex_cli_rs/0.120.0"
+      ]
+     ],
+     "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"What is the weather?\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"55e9ece81587998141c993cce878af4f799b5fc96dfe156a8c3deca18f115b92\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"Be brief.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"shell\",\"description\":\"Run a command\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"}}]}",
+     "reply": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+   ],
+   "output": [
+    "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"in_progress\",\"arguments\":\"\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}}\n\n",
+    "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"sequence_number\":4,\"item_id\":\"fc_toolu_ts1\",\"output_index\":0,\"delta\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}\n\n",
+    "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"sequence_number\":5,\"item_id\":\"fc_toolu_ts1\",\"output_index\":0,\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}\n\n",
+    "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":6,\"output_index\":0,\"item\":{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}}\n\n",
+    "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":7,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"completed\",\"background\":false,\"error\":null,\"instructions\":\"Be brief.\",\"model\":\"claude-sonnet-4-6\",\"tools\":[{\"description\":\"Run a command\",\"name\":\"shell\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"fc_toolu_ts1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\",\"call_id\":\"toolu_ts1\",\"name\":\"tool_search\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7}}}\n\n"
+   ]
+  },
+  {
+   "name": "tool-search-fallback-count",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": false,
+   "count": true,
+   "reply": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": "{\"input_tokens\":42}",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": null,
+   "output": [
+    "{\"input_tokens\":33}"
+   ]
+  },
+  {
+   "name": "tool-search-native-count",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": false,
+   "count": true,
+   "reply": {
+    "status": 200,
+    "content_type": "application/json",
+    "body": "{\"input_tokens\":42}",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": null,
+   "output": [
+    "{\"input_tokens\":128}"
+   ]
+  },
+  {
+   "name": "tool-search-native-payload-rule-is-final",
+   "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nrequests:\n  payload:\n    override:\n      - models:\n          - name: '*'\n        params:\n          tools.3.defer_loading: false\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+   "client_key": "client-key-1",
+   "model": "claude-sonnet-4-6",
+   "headers": [
+    [
+     "Authorization",
+     "Bearer client-key-1"
+    ],
+    [
+     "Content-Type",
+     "application/json"
+    ],
+    [
+     "User-Agent",
+     "codex_cli_rs/0.120.0"
+    ]
+   ],
+   "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+   "stream": true,
+   "count": false,
+   "reply": {
+    "status": 200,
+    "content_type": "text/event-stream",
+    "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+    "headers": [
+     [
+      "Request-Id",
+      "req_fixture_ts"
+     ]
+    ]
+   },
+   "source": "openai-response",
+   "date": "2026-10-25",
+   "upstream": [
+    {
+     "url": "http://gateway.invalid/v1/messages?beta=true",
+     "headers": [
+      [
+       "Accept",
+       "text/event-stream"
+      ],
+      [
+       "Accept-Encoding",
+       "identity"
+      ],
+      [
+       "Anthropic-Version",
+       "2023-06-01"
+      ],
+      [
+       "Authorization",
+       "Bearer gw-FAKE-KEY"
+      ],
+      [
+       "Content-Type",
+       "application/json"
+      ],
+      [
+       "User-Agent",
+       "codex_cli_rs/0.120.0"
+      ]
+     ],
+     "body": "{\"model\":\"claude-sonnet-4-6\",\"max_tokens\":64000,\"messages\":[{\"role\":\"user\",\"content\":\"What is the weather?\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"ts_1\",\"name\":\"tool_search\",\"input\":{\"query\": \"weather\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"ts_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"get_weather\"}]},{\"type\":\"text\",\"text\":\"In Paris\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"55e9ece81587998141c993cce878af4f799b5fc96dfe156a8c3deca18f115b92\"},\"stream\":true,\"system\":[{\"type\":\"text\",\"text\":\"Be brief.\",\"cache_control\":{\"type\":\"ephemeral\"}}],\"tools\":[{\"name\":\"shell\",\"description\":\"Run a command\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"}},{\"name\":\"tool_search\",\"description\":\"Find tools\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"}},{\"name\":\"tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"get_weather\",\"description\":\"Weather\",\"input_schema\":{\"properties\":{\"city\":{\"type\":\"string\"}},\"type\":\"object\"},\"defer_loading\":false}]}",
+     "reply": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    }
+   ],
+   "output": [
+    "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-6\"}}\n\n",
+    "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"in_progress\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{}}}\n\n",
+    "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":0,\"item\":{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"completed\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{\"query\":\"weather\",\"limit\":2}}}\n\n",
+    "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":5,\"response\":{\"id\":\"msg_go_ts\",\"object\":\"response\",\"created_at\":1792931537,\"status\":\"completed\",\"background\":false,\"error\":null,\"instructions\":\"Be brief.\",\"model\":\"claude-sonnet-4-6\",\"tools\":[{\"description\":\"Run a command\",\"name\":\"shell\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"type\":\"object\"},\"type\":\"function\"},{\"description\":\"Find tools\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}],\"output\":[{\"id\":\"tsc_toolu_ts1\",\"type\":\"tool_search_call\",\"status\":\"completed\",\"call_id\":\"toolu_ts1\",\"execution\":\"client\",\"arguments\":{\"query\":\"weather\",\"limit\":2}}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":7}}}\n\n"
+   ]
+  }
+ ],
+ "sjson": [
+  {
+   "op": "raw",
+   "json": "{\"a\":1 }",
+   "path": "b",
+   "value": "2",
+   "out": "{\"a\":1 ,\"b\":2}"
+  },
+  {
+   "op": "raw",
+   "json": "{}",
+   "path": "b",
+   "value": "2",
+   "out": "{\"b\":2}"
+  },
+  {
+   "op": "raw",
+   "json": " { } ",
+   "path": "b",
+   "value": "2",
+   "out": "{ \"b\":2}"
+  },
+  {
+   "op": "raw",
+   "json": "{\"a\":{\"x\":1}}",
+   "path": "a.x",
+   "value": "true",
+   "out": "{\"a\":{\"x\":true}}"
+  },
+  {
+   "op": "raw",
+   "json": "{\"a\":1}",
+   "path": "m.user_id",
+   "value": "\"u\"",
+   "out": "{\"a\":1,\"m\":{\"user_id\":\"u\"}}"
+  },
+  {
+   "op": "raw",
+   "json": "{\"a\":[1,2]}",
+   "path": "a.3",
+   "value": "9",
+   "out": "{\"a\":[1,2,null,9]}"
+  },
+  {
+   "op": "raw",
+   "json": "{\"a\":[]}",
+   "path": "a.1",
+   "value": "9",
+   "out": "{\"a\":[null,9]}"
+  },
+  {
+   "op": "raw",
+   "json": "{\"a\":[1]}",
+   "path": "a.-1",
+   "value": "9",
+   "out": "{\"a\":[1,9]}"
+  },
+  {
+   "op": "raw",
+   "json": "{\"a\":[{\"b\":1}]}",
+   "path": "a.0.c.d",
+   "value": "[]",
+   "out": "{\"a\":[{\"b\":1,\"c\":{\"d\":[]}}]}"
+  },
+  {
+   "op": "raw",
+   "json": "{\n  \"a\": 1\n}\n",
+   "path": "z",
+   "value": "0",
+   "out": "{\n  \"a\": 1\n,\"z\":0}"
+  },
+  {
+   "op": "delete",
+   "json": "{\"a\":1, \"b\":2,\"c\":3}",
+   "path": "b",
+   "out": "{\"a\":1,\"c\":3}"
+  },
+  {
+   "op": "delete",
+   "json": "{\"a\":1, \"b\":2}",
+   "path": "a",
+   "out": "{ \"b\":2}"
+  },
+  {
+   "op": "delete",
+   "json": "{ \"a\" : 1 }",
+   "path": "a",
+   "out": "{ }"
+  },
+  {
+   "op": "delete",
+   "json": "{\"a\":[1,2,3]}",
+   "path": "a.0",
+   "out": "{\"a\":[2,3]}"
+  },
+  {
+   "op": "delete",
+   "json": "{\"a\":[1,2,3]}",
+   "path": "a.2",
+   "out": "{\"a\":[1,2]}"
+  },
+  {
+   "op": "delete",
+   "json": "{\"a\":[1, 2 ,3]}",
+   "path": "a.1",
+   "out": "{\"a\":[1 ,3]}"
+  },
+  {
+   "op": "delete",
+   "json": "{\"a\":1}",
+   "path": "zz",
+   "out": "{\"a\":1}"
+  },
+  {
+   "op": "delete",
+   "json": "{\"a\":{\"b\":{\"c\":1,\"d\":2}}}",
+   "path": "a.b.d",
+   "out": "{\"a\":{\"b\":{\"c\":1}}}"
+  },
+  {
+   "op": "delete",
+   "json": "{\"a\" :1 , \"b\":{\"x\":[]} }",
+   "path": "b.x",
+   "out": "{\"a\" :1 , \"b\":{} }"
+  },
+  {
+   "op": "string",
+   "json": "{\"a\":1}",
+   "path": "t",
+   "value": "x\u003cy",
+   "out": "{\"a\":1,\"t\":\"x\u003cy\"}"
+  },
+  {
+   "op": "string",
+   "json": "{\"a\":1}",
+   "path": "t",
+   "value": "é\u003c\u0026\u003e\u2028\u0001\"\\\n",
+   "out": "{\"a\":1,\"t\":\"é\\u003c\\u0026\\u003e\\u2028\\u0001\\\"\\\\\\n\"}"
+  },
+  {
+   "op": "string",
+   "json": "{\"a\":\"old\"}",
+   "path": "a",
+   "value": "new",
+   "out": "{\"a\":\"new\"}"
+  },
+  {
+   "op": "string",
+   "json": "{\"a\":1}",
+   "path": "t",
+   "value": "b\bf\fu\u000b",
+   "out": "{\"a\":1,\"t\":\"b\\bf\\fu\\u000b\"}"
+  }
+ ],
+ "source": "CLIProxyAPI v8.0.35 (ae3ee3be303fb07fb8173279923413005bf32177) ClaudeExecutor, in-process; see tests/reference/claude/README.md"
+}

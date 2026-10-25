@@ -203,3 +203,47 @@ each sent body's CCH signs that body.
 go run . "$crate/tests/reference/claude/scenarios-v8.0.35.json" \
   "$crate/src/claude/testdata/go_executor_v8.0.35.json" 'v8.0.35 (ae3ee3be303fb07fb8173279923413005bf32177)'
 ```
+
+## tool_search recording
+
+`../../../src/claude/testdata/go_executor_tool_search.json` runs `scenarios-tool-search.json`
+(Responses requests with Codex `tool_search`, through Anthropic's origin, a key with
+`native-tool-search`, an untrusted gateway, a legacy model, the switch off, a payload rule
+and count_tokens) through v8.0.35's executor. The server, not the executor, publishes
+`upstream.claude.tool-search` to Go's translator, so this recording also copies
+`tool_search_hook.go`, which does that after each scenario's config load.
+`claude::tests::tool_search_scenarios_match_go` compares the upstream requests and
+`claude::tests::tool_search_responses_match_go` the translated answers.
+
+```sh
+reference=/absolute/path/to/CLIProxyAPI   # at v8.0.35
+crate=/absolute/path/to/cliproxy-rs/crates/cpa-exec
+tmp=$(mktemp -d)
+cp "$crate/tests/reference/claude/main.go" "$crate/tests/reference/claude/tool_search_hook.go" "$tmp/"
+(
+  cd "$tmp"
+  go mod init github.com/router-for-me/CLIProxyAPI/v8/fixture
+  go mod edit -require=github.com/router-for-me/CLIProxyAPI/v8@v8.0.0
+  go mod edit -replace=github.com/router-for-me/CLIProxyAPI/v8="$reference"
+  go mod tidy
+  go run . "$crate/tests/reference/claude/scenarios-tool-search.json" \
+    "$crate/src/claude/testdata/go_executor_tool_search.json" "v8.0.35 ($(git -C "$reference" rev-parse HEAD))"
+)
+```
+
+`../../../src/claude/testdata/go_unit_tool_search.json` holds Go's own v8.0.35
+`claude_executor_tool_search_test.go`, recorded by `unit/record.py` and replayed by
+`claude::go_unit::v8_0_35_tool_search` through the executor's real Execute, ExecuteStream
+and CountTokens paths. Go's tests set `upstream.claude.tool-search` process-wide;
+`unit/zz_rsfix_tool_search_test.go` (added with `RSFIX_EXTRA`) writes the value Go pinned
+for each call into its recorded config, where cliproxy-rs reads it.
+`TestClaudeExecutor_SupportsNativeToolSearch` and the local count of
+`TestClaudeExecutor_NativeToolSearchCountTokensLocalFallback` call the executor without a
+recorded wrapper; `native_tool_search_support_matches_go` and the `tool-search-fallback-count`
+scenario cover them.
+
+```sh
+RSFIX_REFERENCE="v8.0.35 ($(git -C "$reference" rev-parse HEAD))" \
+RSFIX_FILES=claude_executor_tool_search_test.go RSFIX_EXTRA=zz_rsfix_tool_search_test.go \
+  python3 "$crate/tests/reference/claude/unit/record.py" "$reference" "$crate/src/claude/testdata/go_unit_tool_search.json"
+```

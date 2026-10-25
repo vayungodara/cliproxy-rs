@@ -105,6 +105,7 @@ remote-management: {allow-remote: true, disable-control-panel: true, disable-aut
 		[2]string{"gemini-api-key: [{api-key: fixture-key, models: [{name: a, thinking: {}}]}]\n", "gemini-api-key: [{api-key: fixture-key, models: [{name: a, thinking: {levels: []}}]}]\n"},
 		[2]string{"api-keys: [' fixture-one ']\n", "api-keys: [fixture-one]\n"},
 		[2]string{"proxy-url: http://user:password@same.test/old\n", "proxy-url: http://user:password@same.test/new\n"},
+		[2]string{"claude: {tool-search: false}\nclaude-api-key: [{api-key: fixture-key}]\n", "upstream: {claude: {tool-search: true}}\nclaude-api-key: [{api-key: fixture-key, native-tool-search: true}]\n"},
 	)
 	for _, section := range []string{"default", "default-raw", "override", "override-raw", "filter"} {
 		for _, field := range []string{"match", "not-match"} {

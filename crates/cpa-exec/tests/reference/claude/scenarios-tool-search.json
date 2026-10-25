@@ -1,0 +1,362 @@
+[
+ {
+  "name": "tool-search-native-key",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": true,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "text/event-stream",
+   "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-native-key-non-stream",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": false,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "text/event-stream",
+   "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": false, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-native-oauth",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\n",
+  "auth_file": "{\"type\": \"claude\", \"access_token\": \"sk-ant-oat01-FAKE-LOCAL-ONLY\", \"refresh_token\": \"sk-ant-ort01-FAKE-LOCAL-ONLY\", \"id_token\": \"\", \"email\": \"fixture@example.invalid\", \"account_uuid\": \"aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee\", \"organization_uuid\": \"12345678-1234-4234-8234-123456789abc\", \"organization_name\": \"Fixture\", \"claude_device_ids\": [\"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"], \"expired\": \"2099-01-01T00:00:00Z\", \"last_refresh\": \"2026-10-01T00:00:00Z\"}",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": true,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "text/event-stream",
+   "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-fallback-key",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": true,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "text/event-stream",
+   "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-fallback-legacy-model",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-0",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": true,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "text/event-stream",
+   "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-0\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-off",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": true,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "text/event-stream",
+   "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-native-key-without-tool-search",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": true,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "text/event-stream",
+   "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-fallback-count",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": false,
+  "count": true,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"input_tokens\":42}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-native-count",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": false,
+  "count": true,
+  "reply": {
+   "status": 200,
+   "content_type": "application/json",
+   "body": "{\"input_tokens\":42}",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ },
+ {
+  "name": "tool-search-native-payload-rule-is-final",
+  "config": "config-version: 8\naccess:\n  api-keys: [client-key-1]\noauth:\n  auth-dir: AUTH_DIR\nrequests:\n  payload:\n    override:\n      - models:\n          - name: '*'\n        params:\n          tools.3.defer_loading: false\nupstream:\n  claude:\n    tool-search: true\napi-keys:\n  claude:\n    - base-url: http://gateway.invalid\n      keys:\n        - api-key: gw-FAKE-KEY\n          native-tool-search: true\n",
+  "auth_file": "",
+  "client_key": "client-key-1",
+  "model": "claude-sonnet-4-6",
+  "headers": [
+   [
+    "Authorization",
+    "Bearer client-key-1"
+   ],
+   [
+    "Content-Type",
+    "application/json"
+   ],
+   [
+    "User-Agent",
+    "codex_cli_rs/0.120.0"
+   ]
+  ],
+  "stream": true,
+  "count": false,
+  "reply": {
+   "status": 200,
+   "content_type": "text/event-stream",
+   "body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_go_ts\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"claude-sonnet-4-6\",\"content\":[],\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"tool_use\",\"id\":\"toolu_ts1\",\"name\":\"tool_search\",\"input\":{}}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"query\\\":\\\"weather\\\",\\\"limit\\\":2}\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"tool_use\"},\"usage\":{\"output_tokens\":4}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+   "headers": [
+    [
+     "Request-Id",
+     "req_fixture_ts"
+    ]
+   ]
+  },
+  "body": "{\"model\": \"claude-sonnet-4-6\", \"instructions\": \"Be brief.\", \"stream\": true, \"tools\": [{\"type\": \"function\", \"name\": \"shell\", \"description\": \"Run a command\", \"parameters\": {\"type\": \"object\", \"properties\": {\"cmd\": {\"type\": \"string\"}}}}, {\"type\": \"tool_search\", \"execution\": \"client\", \"description\": \"Find tools\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}], \"input\": [{\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"What is the weather?\"}]}, {\"type\": \"tool_search_call\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"arguments\": {\"query\": \"weather\"}}, {\"type\": \"tool_search_output\", \"call_id\": \"ts_1\", \"execution\": \"client\", \"tools\": [{\"type\": \"function\", \"name\": \"get_weather\", \"description\": \"Weather\", \"parameters\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}}, \"defer_loading\": true}]}, {\"type\": \"message\", \"role\": \"user\", \"content\": [{\"type\": \"input_text\", \"text\": \"In Paris\"}]}]}",
+  "source": "openai-response"
+ }
+]

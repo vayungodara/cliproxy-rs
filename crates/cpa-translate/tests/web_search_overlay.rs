@@ -37,7 +37,11 @@ impl Overlay for Registry {
 
 fn searches(model: &str) -> bool {
     let body = br#"{"input":"q","tools":[{"type":"web_search"}]}"#;
-    let ctx = RequestCtx { model, stream: false };
+    let ctx = RequestCtx {
+        model,
+        stream: false,
+        tool_search: false,
+    };
     let out = translate_request(Format::OpenAIResponse, Format::Gemini, &ctx, body).unwrap();
     String::from_utf8(out).unwrap().contains(r#""googleSearch":{}"#)
 }

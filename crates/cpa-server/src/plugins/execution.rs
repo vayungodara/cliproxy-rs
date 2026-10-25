@@ -256,6 +256,8 @@ async fn run_executor(
     let host = rt.plugins();
     let count = call.operation == Operation::CountTokens;
     let stream = call.stream && !count;
+    // upstream.claude.tool-search, pinned for this call's request and response.
+    let tool_search = cpa_exec::claude::tool_search_enabled(&rt.config());
     // Counting answers in the entry format (Go passes the handler type twice).
     let response = if count { handler_type(call) } else { response_type(call) };
     let adapter = host.executor_adapter(plugin_id).await.map_err(|e| local(0, e))?;
@@ -274,6 +276,7 @@ async fn run_executor(
             &call.model,
             &call.body,
             stream,
+            tool_search,
         )
         .map_err(Failure::Exec)?
     };
@@ -300,7 +303,7 @@ async fn run_executor(
         .map_err(call_failure)?;
         return Ok(Done::Buffered {
             headers: header_map(&resp.headers),
-            body: translate_response(&negotiated, &request, resp.payload),
+            body: translate_response(&negotiated, &request, resp.payload, tool_search),
         });
     }
     let opened = host
@@ -315,6 +318,7 @@ async fn run_executor(
         scope,
         |error| ExecError::local(0, FailureScope::Request, error),
         None,
+        tool_search,
     );
     let first = match rest.next().await {
         Some(Ok(event)) => Some(event),
@@ -346,6 +350,8 @@ pub(crate) async fn execute_credential(
     let host = rt.plugins();
     let count = req.operation == Operation::CountTokens;
     let stream = req.stream && !count;
+    // upstream.claude.tool-search, pinned for this call's request and response.
+    let tool_search = cpa_exec::claude::tool_search_enabled(&rt.config());
     let source = handler_type(call);
     let response = if count { source } else { response_type(call) };
     // Go creates the attempt's reporter before `prepareExecutorCall`, so a failure to
@@ -365,6 +371,7 @@ pub(crate) async fn execute_credential(
             &req.model,
             &req.body,
             stream,
+            tool_search,
         )?
     };
     // Go `storageJSONFromAuth` without a plugin token storage: the metadata as JSON.
@@ -430,7 +437,12 @@ pub(crate) async fn execute_credential(
         return Ok(cpa_core::exec::ExecResponse {
             status: 200,
             headers: header_map(&resp.headers),
-            body: cpa_core::exec::ResponseBody::Buffered(translate_response(&negotiated, &request, resp.payload)),
+            body: cpa_core::exec::ResponseBody::Buffered(translate_response(
+                &negotiated,
+                &request,
+                resp.payload,
+                tool_search,
+            )),
         });
     }
     let opened = host
@@ -448,6 +460,7 @@ pub(crate) async fn execute_credential(
             scope,
             |error| attempt_error(0, error),
             Some(req.usage.clone()),
+            tool_search,
         )),
     })
 }
@@ -545,8 +558,19 @@ pub(crate) fn execution_metadata(call: &Call, model: &str) -> Metadata {
 /// Go `sdktranslator.TranslateRequestEnvelope` between two executor format names
 /// (`prepareExecutorCall`). A refusal, such as an unsupported content part, is a
 /// request-scoped 400 and nothing is sent, as on the built-in path.
-fn translate_request(from: &str, to: &str, model: &str, body: &Bytes, stream: bool) -> Result<Bytes, ExecError> {
-    let ctx = cpa_translate::RequestCtx { model, stream };
+fn translate_request(
+    from: &str,
+    to: &str,
+    model: &str,
+    body: &Bytes,
+    stream: bool,
+    tool_search: bool,
+) -> Result<Bytes, ExecError> {
+    let ctx = cpa_translate::RequestCtx {
+        model,
+        stream,
+        tool_search,
+    };
     cpa_translate::translate_request_named(from, to, &ctx, body)
         .map(Bytes::from)
         .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
@@ -577,7 +601,7 @@ fn ensure_usage(responses: bool, payload: Bytes) -> Bytes {
 }
 
 /// Go `translateExecutorResponse` (non-stream).
-fn translate_response(n: &Negotiated, req: &ExecutorRequest, payload: Bytes) -> Bytes {
+fn translate_response(n: &Negotiated, req: &ExecutorRequest, payload: Bytes, tool_search: bool) -> Bytes {
     let responses = n.requested == Format::OpenAIResponse.as_str();
     if n.requested.is_empty() || n.output == n.requested {
         return ensure_usage(responses, payload);
@@ -594,6 +618,7 @@ fn translate_response(n: &Negotiated, req: &ExecutorRequest, payload: Bytes) -> 
         model: &req.model,
         original_request: original,
         translated_request: &req.payload,
+        tool_search,
     };
     let out = match pair {
         Some(pair) => (pair.non_stream)(&ctx, &payload).map(Bytes::from).unwrap_or(payload),
@@ -614,6 +639,7 @@ fn translate_stream(
     scope: Scope,
     chunk_error: fn(String) -> ExecError,
     usage: Option<cpa_core::exec::UsageSink>,
+    tool_search: bool,
 ) -> ExecStream {
     let translating = !n.requested.is_empty() && n.output != n.requested;
     let native = translating
@@ -631,6 +657,7 @@ fn translate_stream(
                 model: &req.model,
                 original_request: original,
                 translated_request: &req.payload,
+                tool_search,
             };
             cpa_translate::hooked_go_stream(&n.requested, &n.output, &ctx)
         })

@@ -546,6 +546,7 @@
         "claude": {
           "fields": {
             "model-level-cooling": "bool",
+            "tool-search": "bool",
             "disable-claude-cloak-mode": "bool",
             "header-defaults": {
               "fields": {
@@ -1153,6 +1154,7 @@
                       "list": "string"
                     },
                     "rebuild-mid-system-message": "bool",
+                    "native-tool-search": "bool",
                     "disable-cooling": {
                       "optional": "bool"
                     },

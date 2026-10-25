@@ -82,6 +82,7 @@ fn ctx(stream: bool) -> RequestCtx<'static> {
     RequestCtx {
         model: "gemini-3.6-flash",
         stream,
+        tool_search: false,
     }
 }
 
@@ -89,6 +90,7 @@ const RESPONSE_CTX: ResponseCtx<'static> = ResponseCtx {
     model: "m",
     original_request: b"{}",
     translated_request: b"{}",
+    tool_search: false,
 };
 
 /// Go `TestTranslateRequest_PluginTranslatorOnlyWhenNativeMissing`: Codex to Gemini has
@@ -118,6 +120,7 @@ fn a_plugin_request_translator_runs_only_without_a_native_pair() {
         &RequestCtx {
             model: "claude-x",
             stream: false,
+            tool_search: false,
         },
         body,
     )
@@ -163,6 +166,7 @@ fn plugin_normalizers_wrap_the_native_translators() {
         &RequestCtx {
             model: "gpt",
             stream: false,
+            tool_search: false,
         },
         request,
     )
@@ -340,6 +344,7 @@ fn configuration_update_changes_are_tracked_across_the_normalizer() {
             &RequestCtx {
                 model: "m",
                 stream: false,
+                tool_search: false,
             },
             body,
         )

@@ -654,6 +654,10 @@ func main() {
 		applyPatchResponses(os.Args[2])
 		return
 	}
+	if os.Args[3] == "tool_search" {
+		toolSearchFixtures(os.Args[1], os.Args[2])
+		return
+	}
 	// Pairs are regenerated as their ports land, so each file names the commit it
 	// came from.
 	head, err := exec.Command("git", "-C", os.Args[1], "rev-parse", "--short=8", "HEAD").Output()

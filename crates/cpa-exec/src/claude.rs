@@ -43,6 +43,7 @@ mod signing;
 mod stream;
 mod telemetry;
 mod thread;
+mod tool_search;
 
 use cpa_core::gostr::GoStr;
 use std::sync::Arc;
@@ -343,6 +344,7 @@ impl ClaudeExecutor {
     /// Execute / ExecuteStream around the compat thinking replay: restore before
     /// translation; `generate_with` clears applied replay the upstream rejected.
     async fn generate(&self, ctx: Ctx<'_>, mut req: ExecRequest) -> Result<ExecResponse, ExecError> {
+        ctx.tool_search_fallback(&mut req);
         let attr = |k: &str| ctx.credential.attributes.get(k).map(String::as_str).unwrap_or_default();
         let gate = replay::Gate {
             credential: ctx.credential,
@@ -389,8 +391,16 @@ impl ClaudeExecutor {
         if ctx.upstream_model != ctx.base_model {
             req.usage.upstream_model(&ctx.upstream_model);
         }
-        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
-        let original_translated = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
+        let tool_search = ctx.tool_search();
+        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat, tool_search)?;
+        let original_translated = translate::original(
+            &req,
+            &translated,
+            ctx.codex,
+            &ctx.base_model,
+            ctx.is_compat,
+            ctx.tool_search(),
+        )?;
         tracing::trace!(target: "cpa_latency", stage = "translated");
         let mut prepared = ctx
             .prepare_messages(&req, &translated, &original_translated, upstream_stream)
@@ -526,11 +536,17 @@ impl ClaudeExecutor {
                 ..response
             },
         };
-        translate::response(req, translated, response).await
+        translate::response(req, translated, response, tool_search).await
     }
 
-    async fn count_tokens(&self, ctx: Ctx<'_>, req: ExecRequest, upstream: bool) -> Result<ExecResponse, ExecError> {
-        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat)?;
+    async fn count_tokens(
+        &self,
+        ctx: Ctx<'_>,
+        mut req: ExecRequest,
+        upstream: bool,
+    ) -> Result<ExecResponse, ExecError> {
+        ctx.tool_search_fallback(&mut req);
+        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat, ctx.tool_search())?;
         // sdktranslator.TranslateTokenCount(to=claude, responseFormat, count, raw).
         let render = |raw: &[u8]| {
             let count = rawjson::get(&String::from_utf8_lossy(raw), "input_tokens").i64();
@@ -541,7 +557,14 @@ impl ClaudeExecutor {
                 raw,
             ))
         };
-        let original = translate::count_original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat)?;
+        let original = translate::count_original(
+            &req,
+            &translated,
+            ctx.codex,
+            &ctx.base_model,
+            ctx.is_compat,
+            ctx.tool_search(),
+        )?;
         if !upstream && (ctx.api_key.trim().is_empty() || !ctx.first_party) {
             let mut body = ctx.apply_thinking(&req, String::from_utf8_lossy(&translated).into_owned())?;
             if ctx.rebuild_mid_system() {
@@ -964,6 +987,42 @@ fn identity_seed(credential: &Credential) -> String {
     } else {
         format!("auth-id|{id}")
     }
+}
+
+/// `upstream.claude.tool-search` (Go `ClientToolSearchEnabled`), for translations outside
+/// this executor that Go reads it in.
+pub fn tool_search_enabled(cfg: &Config) -> bool {
+    Settings::from_config(cfg).tool_search
+}
+
+/// `ClaudeExecutor.SupportsNativeToolSearch` under `cfg` (the Codex catalog's
+/// per-credential check): whether a credential takes Codex tool_search natively for an
+/// upstream model.
+pub fn native_tool_search(cfg: &Config) -> impl Fn(&Credential, &str) -> bool + use<> {
+    let settings = Settings::from_config(cfg);
+    move |credential, upstream_model| supports_native_tool_search(&settings, credential, upstream_model)
+}
+
+/// `supportsNativeToolSearch`: Anthropic's origin (or no base URL), else a key or
+/// credential trusted with `native-tool-search`, for a model that has tool search, while
+/// `upstream.claude.tool-search` is on.
+fn supports_native_tool_search(settings: &Settings, credential: &Credential, upstream_model: &str) -> bool {
+    if !settings.tool_search || tool_search::model_lacks(upstream_model) {
+        return false;
+    }
+    let attr = |k: &str| credential.attributes.get(k).map(String::as_str).unwrap_or_default();
+    let base = attr("base_url").trim();
+    if base.is_empty() || tokens::first_party(base) || attr("native_tool_search").trim().go_eq_fold("true") {
+        return true;
+    }
+    // claudeCreds: the configured key, else the OAuth access token.
+    let api_key = match attr("api_key") {
+        "" => credential.str("access_token").unwrap_or_default(),
+        key => key,
+    };
+    settings
+        .key_for(api_key, attr("base_url"))
+        .is_some_and(|k| k.native_tool_search)
 }
 
 /// `thinking.ParseSuffix`: `model(level)` → `model`.
@@ -1683,6 +1742,39 @@ impl<'a> Ctx<'a> {
                         .unwrap_or_default(),
                 )
                 .is_some_and(|k| k.rebuild_mid_system_message)
+    }
+
+    /// `upstream.claude.tool-search` of this run's config snapshot: Go pins it in the
+    /// request context, so the fallback and both translations agree across a reload.
+    fn tool_search(&self) -> bool {
+        self.settings.tool_search
+    }
+
+    fn supports_native_tool_search(&self) -> bool {
+        supports_native_tool_search(&self.settings, self.credential, &self.upstream_model)
+    }
+
+    /// `applyNativeToolSearchFallback`: a Responses request with tool_search whose
+    /// credential cannot use native tool search loses it before translation, so it
+    /// translates as it did before tool_search support.
+    fn tool_search_fallback(&self, req: &mut ExecRequest) {
+        if req.source_format != Format::OpenAIResponse
+            || !self.tool_search()
+            || !(tool_search::has(&req.body) || tool_search::has(&req.original_body))
+            || self.supports_native_tool_search()
+        {
+            return;
+        }
+        if let Some(body) = tool_search::stripped(&req.body) {
+            req.body = body;
+        }
+        if let Some(body) = tool_search::stripped(&req.original_body) {
+            req.original_body = body;
+        }
+        tracing::debug!(
+            "claude executor: native tool search unavailable, removed tool_search from request (model={})",
+            self.upstream_model
+        );
     }
 
     /// `claudeDiagnosticsCredentialIdentity`.

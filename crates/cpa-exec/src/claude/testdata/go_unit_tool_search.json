@@ -1,0 +1,1725 @@
+{
+ "files": {
+  "claude_executor_tool_search_test.go": {
+   "TestClaudeExecutor_NativeToolSearchFallbackMatchesDev": [
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "base_url": "https://gateway.example.com",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}",
+        "headers": {
+         "Accept": [
+          "text/event-stream"
+         ],
+         "Accept-Encoding": [
+          "identity"
+         ],
+         "Anthropic-Version": [
+          "2023-06-01"
+         ],
+         "Authorization": [
+          "Bearer key-123"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ]
+        },
+        "host": "gateway.example.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://gateway.example.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"}]}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "base_url": "https://gateway.example.com",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}",
+        "headers": {
+         "Accept": [
+          "text/event-stream"
+         ],
+         "Accept-Encoding": [
+          "identity"
+         ],
+         "Anthropic-Version": [
+          "2023-06-01"
+         ],
+         "Authorization": [
+          "Bearer key-123"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ]
+        },
+        "host": "gateway.example.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://gateway.example.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"}]}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "base_url": "https://gateway.example.com",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": [
+       {
+        "error": null,
+        "payload": "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-5\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-5\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"ok\",\"logprobs\":[]}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"ok\",\"logprobs\":[]}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"}],\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2}}}\n\n"
+       }
+      ],
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}",
+        "headers": {
+         "Accept": [
+          "text/event-stream"
+         ],
+         "Accept-Encoding": [
+          "identity"
+         ],
+         "Anthropic-Version": [
+          "2023-06-01"
+         ],
+         "Authorization": [
+          "Bearer key-123"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ]
+        },
+        "host": "gateway.example.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://gateway.example.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute_stream",
+     "headers": {},
+     "kind": "execute_stream",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      }
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "base_url": "https://gateway.example.com",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": [
+       {
+        "error": null,
+        "payload": "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-5\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-5\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"ok\",\"logprobs\":[]}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"ok\",\"logprobs\":[]}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"}],\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2}}}\n\n"
+       }
+      ],
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}",
+        "headers": {
+         "Accept": [
+          "text/event-stream"
+         ],
+         "Accept-Encoding": [
+          "identity"
+         ],
+         "Anthropic-Version": [
+          "2023-06-01"
+         ],
+         "Authorization": [
+          "Bearer key-123"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ]
+        },
+        "host": "gateway.example.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://gateway.example.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute_stream",
+     "headers": {},
+     "kind": "execute_stream",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      }
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "base_url": "https://gateway.example.com",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}",
+        "headers": {
+         "Accept": [
+          "text/event-stream"
+         ],
+         "Accept-Encoding": [
+          "identity"
+         ],
+         "Anthropic-Version": [
+          "2023-06-01"
+         ],
+         "Authorization": [
+          "Bearer key-123"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ]
+        },
+        "host": "gateway.example.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://gateway.example.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}",
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"}]}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "base_url": "https://gateway.example.com",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}",
+        "headers": {
+         "Accept": [
+          "text/event-stream"
+         ],
+         "Accept-Encoding": [
+          "identity"
+         ],
+         "Anthropic-Version": [
+          "2023-06-01"
+         ],
+         "Authorization": [
+          "Bearer key-123"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ]
+        },
+        "host": "gateway.example.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://gateway.example.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}}],\"stream\":false}",
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"}]}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-opus-4-1-20250805\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ],
+         "X-Api-Key": [
+          "key-123"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-opus-4-1-20250805",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"}]}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-opus-4-1-20250805\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}}]}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ],
+         "X-Api-Key": [
+          "key-123"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-opus-4-1-20250805",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"}]}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-opus-4-1-20250805\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":\"create a calendar event\"}],\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}}]}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ],
+         "X-Api-Key": [
+          "key-123"
+         ],
+         "anthropic-beta": [
+          "token-counting-2024-11-01"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "{\"input_tokens\":18}",
+        "response_headers": {
+         "Content-Type": [
+          "application/json"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "count_tokens",
+     "headers": {},
+     "kind": "count_tokens",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-opus-4-1-20250805",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "application/json"
+       ]
+      },
+      "payload": "{\"input_tokens\":18}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-opus-4-1-20250805\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":\"create a calendar event\"}],\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}}]}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ],
+         "X-Api-Key": [
+          "key-123"
+         ],
+         "anthropic-beta": [
+          "token-counting-2024-11-01"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "{\"input_tokens\":18}",
+        "response_headers": {
+         "Content-Type": [
+          "application/json"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "count_tokens",
+     "headers": {},
+     "kind": "count_tokens",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-opus-4-1-20250805",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "application/json"
+       ]
+      },
+      "payload": "{\"input_tokens\":18}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "base_url": "https://gateway.example.com",
+       "cloak_mode": "never",
+       "native_tool_search": "true"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":\"create a calendar event\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_search_1\",\"name\":\"tool_search\",\"input\":{\"query\":\"calendar\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_search_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__codex_apps__calendar_create_event\"}],\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}},{\"name\":\"tool_search\",\"description\":\"Search deferred tools.\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}},{\"name\":\"tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"mcp__codex_apps__calendar_create_event\",\"description\":\"Create a calendar event.\",\"input_schema\":{\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"],\"type\":\"object\"},\"defer_loading\":true}]}",
+        "headers": {
+         "Accept": [
+          "text/event-stream"
+         ],
+         "Accept-Encoding": [
+          "identity"
+         ],
+         "Anthropic-Version": [
+          "2023-06-01"
+         ],
+         "Authorization": [
+          "Bearer key-123"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ]
+        },
+        "host": "gateway.example.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://gateway.example.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"},{\"description\":\"Search deferred tools.\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}]}"
+     },
+     "test_helper": null
+    }
+   ],
+   "TestClaudeExecutor_NativeToolSearchOAuthAliasesReferences": [
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "sk-ant-oat-test"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": {
+       "account_uuid": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+      },
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"<system-reminder>\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-25.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n</system-reminder>\\n\\n\"},{\"type\":\"text\",\"text\":\"create a calendar event\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_search_1\",\"name\":\"mcp__select_sight__scrap_tool_search\",\"input\":{\"query\":\"calendar\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_search_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__codex_apps__calendar_create_event\"}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"5c7934001a97174538337a4560072251d261218fe2288adb8e9d713ca2ed7dee\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\\\",\\\"session_id\\\":\\\"b404a6d9-5023-5b3c-b68b-9ff72da38b46\\\"}\"},\"stream\":true,\"tools\":[{\"name\":\"mcp__select_sight__push_exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}},{\"name\":\"mcp__select_sight__scrap_tool_search\",\"description\":\"Search deferred tools.\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"}},{\"name\":\"mcp__select_sight__master_tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"mcp__codex_apps__calendar_create_event\",\"description\":\"Create a calendar event.\",\"input_schema\":{\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"],\"type\":\"object\"},\"defer_loading\":true}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.283; cc_entrypoint=cli; cch=6151d; cc_prompt_id=ebb599d3-6b98-4fcc-bc9c-99d7dcbd62b9; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null}}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Authorization": [
+          "Bearer sk-ant-oat-test"
+         ],
+         "Connection": [
+          "keep-alive"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "claude-cli/2.1.280 (external, cli)"
+         ],
+         "X-Claude-Code-Session-Id": [
+          "b404a6d9-5023-5b3c-b68b-9ff72da38b46"
+         ],
+         "X-Stainless-Arch": [
+          "arm64"
+         ],
+         "X-Stainless-Lang": [
+          "js"
+         ],
+         "X-Stainless-OS": [
+          "MacOS"
+         ],
+         "X-Stainless-Package-Version": [
+          "0.112.1"
+         ],
+         "X-Stainless-Retry-Count": [
+          "0"
+         ],
+         "X-Stainless-Runtime": [
+          "node"
+         ],
+         "X-Stainless-Runtime-Version": [
+          "v26.3.0"
+         ],
+         "X-Stainless-Timeout": [
+          "600"
+         ],
+         "anthropic-beta": [
+          "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,advanced-tool-use-2025-11-20,effort-2025-11-24,extended-cache-ttl-2025-04-11,cache-diagnosis-2026-04-07"
+         ],
+         "anthropic-dangerous-direct-browser-access": [
+          "true"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ],
+         "x-app": [
+          "cli"
+         ],
+         "x-client-request-id": [
+          "3692b7d4-c767-4833-b217-7322a90daa32"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"},{\"description\":\"Search deferred tools.\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}]}"
+     },
+     "test_helper": null
+    }
+   ],
+   "TestClaudeExecutor_NativeToolSearchOAuthAliasesRenamedReferences": [
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "sk-ant-oat-test"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": {
+       "account_uuid": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+      },
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"<system-reminder>\\nAs you answer the user's questions, you can use the following context:\\n# currentDate\\nToday's date is 2026-10-25.\\n\\n      IMPORTANT: this context may or may not be relevant to your tasks. You should not respond to this context unless it is highly relevant to your task.\\n</system-reminder>\\n\\n\"},{\"type\":\"text\",\"text\":\"look up order 7\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_search_1\",\"name\":\"mcp__select_sight__scrap_tool_search\",\"input\":{\"query\":\"order\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_search_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__select_sight__elephant_lookup_order\"}],\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}]}],\"metadata\":{\"user_id\":\"{\\\"device_id\\\":\\\"d5674ce72b5b717da9a9a66c149a2e4057a758ccbdc486865cf97a93636504c7\\\",\\\"account_uuid\\\":\\\"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa\\\",\\\"session_id\\\":\\\"6580fa4d-0e56-5376-beb1-a7eaacb7c961\\\"}\"},\"stream\":true,\"tools\":[{\"name\":\"mcp__select_sight__push_exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}},{\"name\":\"mcp__select_sight__scrap_tool_search\",\"description\":\"Search deferred tools.\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"}},{\"name\":\"mcp__select_sight__master_tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"mcp__select_sight__elephant_lookup_order\",\"description\":\"Look up an order.\",\"input_schema\":{\"properties\":{\"id\":{\"type\":\"string\"}},\"required\":[\"id\"],\"type\":\"object\"},\"defer_loading\":true}],\"system\":[{\"type\":\"text\",\"text\":\"x-anthropic-billing-header: cc_version=2.1.280.853; cc_entrypoint=cli; cch=8d6d3; cc_prompt_id=ab38ecd6-67eb-4bdb-b38d-ae023c0a1786; cc_turn_origin=human;\"},{\"type\":\"text\",\"text\":\"You are Claude Code, Anthropic's official CLI for Claude.\",\"cache_control\":{\"type\":\"ephemeral\",\"ttl\":\"1h\"}}],\"diagnostics\":{\"previous_message_id\":null}}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Authorization": [
+          "Bearer sk-ant-oat-test"
+         ],
+         "Connection": [
+          "keep-alive"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "claude-cli/2.1.280 (external, cli)"
+         ],
+         "X-Claude-Code-Session-Id": [
+          "6580fa4d-0e56-5376-beb1-a7eaacb7c961"
+         ],
+         "X-Stainless-Arch": [
+          "arm64"
+         ],
+         "X-Stainless-Lang": [
+          "js"
+         ],
+         "X-Stainless-OS": [
+          "MacOS"
+         ],
+         "X-Stainless-Package-Version": [
+          "0.112.1"
+         ],
+         "X-Stainless-Retry-Count": [
+          "0"
+         ],
+         "X-Stainless-Runtime": [
+          "node"
+         ],
+         "X-Stainless-Runtime-Version": [
+          "v26.3.0"
+         ],
+         "X-Stainless-Timeout": [
+          "600"
+         ],
+         "anthropic-beta": [
+          "claude-code-20250219,oauth-2025-04-20,interleaved-thinking-2025-05-14,redact-thinking-2026-02-12,thinking-token-count-2026-05-13,context-management-2025-06-27,prompt-caching-scope-2026-01-05,advanced-tool-use-2025-11-20,effort-2025-11-24,extended-cache-ttl-2025-04-11,cache-diagnosis-2026-04-07"
+         ],
+         "anthropic-dangerous-direct-browser-access": [
+          "true"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ],
+         "x-app": [
+          "cli"
+         ],
+         "x-client-request-id": [
+          "c07f2c1a-2f57-461a-bac2-707192d50f85"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"look up order 7\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"order\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"function\",\"name\":\"lookup_order\",\"description\":\"Look up an order.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"string\"}},\"required\":[\"id\"]}}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"},{\"description\":\"Search deferred tools.\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}]}"
+     },
+     "test_helper": null
+    }
+   ],
+   "TestClaudeExecutor_NativeToolSearchOfficialSendsReferences": [
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":\"create a calendar event\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_search_1\",\"name\":\"tool_search\",\"input\":{\"query\":\"calendar\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_search_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__codex_apps__calendar_create_event\"}],\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}},{\"name\":\"tool_search\",\"description\":\"Search deferred tools.\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}},{\"name\":\"tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"mcp__codex_apps__calendar_create_event\",\"description\":\"Create a calendar event.\",\"input_schema\":{\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"],\"type\":\"object\"},\"defer_loading\":true}]}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ],
+         "X-Api-Key": [
+          "key-123"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"},{\"description\":\"Search deferred tools.\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}]}"
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": [
+       {
+        "error": null,
+        "payload": "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"claude-sonnet-4-5\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"in_progress\",\"output\":[],\"model\":\"claude-sonnet-4-5\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"ok\",\"logprobs\":[]}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"ok\",\"logprobs\":[]}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_msg_1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}}\n\n"
+       },
+       {
+        "error": null,
+        "payload": "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"},{\"description\":\"Search deferred tools.\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}],\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2}}}\n\n"
+       }
+      ],
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":\"create a calendar event\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_search_1\",\"name\":\"tool_search\",\"input\":{\"query\":\"calendar\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_search_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__codex_apps__calendar_create_event\"}],\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}},{\"name\":\"tool_search\",\"description\":\"Search deferred tools.\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}},{\"name\":\"tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"mcp__codex_apps__calendar_create_event\",\"description\":\"Create a calendar event.\",\"input_schema\":{\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"],\"type\":\"object\"},\"defer_loading\":true}]}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ],
+         "X-Api-Key": [
+          "key-123"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute_stream",
+     "headers": {},
+     "kind": "execute_stream",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      }
+     },
+     "test_helper": null
+    },
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":\"create a calendar event\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_search_1\",\"name\":\"tool_search\",\"input\":{\"query\":\"calendar\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_search_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__codex_apps__calendar_create_event\"}]}]}],\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}},{\"name\":\"tool_search\",\"description\":\"Search deferred tools.\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"}},{\"name\":\"tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"mcp__codex_apps__calendar_create_event\",\"description\":\"Create a calendar event.\",\"input_schema\":{\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"],\"type\":\"object\"},\"defer_loading\":true}]}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ],
+         "X-Api-Key": [
+          "key-123"
+         ],
+         "anthropic-beta": [
+          "token-counting-2024-11-01"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "{\"input_tokens\":18}",
+        "response_headers": {
+         "Content-Type": [
+          "application/json"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages/count_tokens?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "count_tokens",
+     "headers": {},
+     "kind": "count_tokens",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "application/json"
+       ]
+      },
+      "payload": "{\"input_tokens\":18}"
+     },
+     "test_helper": null
+    }
+   ],
+   "TestClaudeExecutor_NativeToolSearchPayloadRuleIsFinal": [
+    {
+     "auth": {
+      "attributes": {
+       "api_key": "key-123",
+       "cloak_mode": "never"
+      },
+      "disabled": false,
+      "id": "",
+      "label": "",
+      "metadata": null,
+      "prefix": "",
+      "provider": "",
+      "proxy_url": ""
+     },
+     "caller": "",
+     "config": "claude:\n    tool-search: true\ncredential-concurrency:\n    busy-retry-max: 0s\n    busy-retry-min: 0s\n    cleanup-interval: 0s\n    cpa-cancel-bound: 0s\n    cpa-heartbeat-timeout: 0s\n    reclaim-grace: 0s\n    release-flush-interval: 0s\n    release-max-backoff: 0s\npayload:\n    override:\n        - models:\n            - name: '*'\n          params:\n            tools.3.defer_loading: false\n",
+     "date": "2026-10-25",
+     "exchanges": {
+      "chunks": null,
+      "exchanges": [
+       {
+        "body": "{\"model\":\"claude-sonnet-4-5\",\"max_tokens\":32000,\"messages\":[{\"role\":\"user\",\"content\":\"create a calendar event\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"tool_use\",\"id\":\"call_search_1\",\"name\":\"tool_search\",\"input\":{\"query\":\"calendar\"}}]},{\"role\":\"user\",\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"call_search_1\",\"content\":[{\"type\":\"tool_reference\",\"tool_name\":\"mcp__codex_apps__calendar_create_event\"}],\"cache_control\":{\"type\":\"ephemeral\"}}]}],\"metadata\":{\"user_id\":\"9b08c69653d737ccfdfd1d575cdecaeef5060855a33a1b2bc500b2adbb72c78e\"},\"stream\":true,\"tools\":[{\"name\":\"exec_command\",\"description\":\"Run a command.\",\"input_schema\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"}},{\"name\":\"tool_search\",\"description\":\"Search deferred tools.\",\"input_schema\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"cache_control\":{\"type\":\"ephemeral\"}},{\"name\":\"tool_search_deferred_anchor\",\"description\":\"Placeholder that is never loaded; tool search returns the real tools.\",\"input_schema\":{\"type\":\"object\",\"properties\":{}},\"defer_loading\":true},{\"name\":\"mcp__codex_apps__calendar_create_event\",\"description\":\"Create a calendar event.\",\"input_schema\":{\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"],\"type\":\"object\"},\"defer_loading\":false}]}",
+        "headers": {
+         "Accept": [
+          "application/json"
+         ],
+         "Accept-Encoding": [
+          "gzip, deflate, br, zstd"
+         ],
+         "Content-Type": [
+          "application/json"
+         ],
+         "User-Agent": [
+          "CLIProxyAPI/dev"
+         ],
+         "X-Api-Key": [
+          "key-123"
+         ],
+         "anthropic-version": [
+          "2023-06-01"
+         ]
+        },
+        "host": "api.anthropic.com",
+        "method": "POST",
+        "response_body": "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m\",\"content\":[],\"stop_reason\":null,\"usage\":{\"input_tokens\":1,\"output_tokens\":0}}}\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"ok\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\"},\"usage\":{\"output_tokens\":1}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n",
+        "response_headers": {
+         "Content-Type": [
+          "text/event-stream"
+         ]
+        },
+        "status": 200,
+        "url": "https://api.anthropic.com/v1/messages?beta=true"
+       }
+      ]
+     },
+     "executor": {
+      "has_model_normalizer": false,
+      "has_profile_fetcher": false
+     },
+     "fn": "execute",
+     "headers": {},
+     "kind": "execute",
+     "options": {
+      "alt": "",
+      "metadata": {},
+      "original_request": null,
+      "response_format": "",
+      "source_format": "openai-response",
+      "stream": false
+     },
+     "proxy": false,
+     "request": {
+      "format": "",
+      "metadata": {},
+      "model": "claude-sonnet-4-5",
+      "payload": "{\"model\":\"claude-sonnet-4-5\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"create a calendar event\"}]},{\"type\":\"tool_search_call\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"arguments\":{\"query\":\"calendar\"}},{\"type\":\"tool_search_output\",\"call_id\":\"call_search_1\",\"status\":\"completed\",\"execution\":\"client\",\"tools\":[{\"type\":\"namespace\",\"name\":\"mcp__codex_apps__\",\"description\":\"Apps.\",\"tools\":[{\"type\":\"function\",\"name\":\"calendar_create_event\",\"description\":\"Create a calendar event.\",\"strict\":false,\"defer_loading\":true,\"parameters\":{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\"}},\"required\":[\"title\"]}}]}]}],\"tools\":[{\"type\":\"function\",\"name\":\"exec_command\",\"description\":\"Run a command.\",\"strict\":false,\"parameters\":{\"type\":\"object\",\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"]}},{\"type\":\"tool_search\",\"execution\":\"client\",\"description\":\"Search deferred tools.\",\"parameters\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"]}}],\"stream\":false}"
+     },
+     "result": {
+      "error": null,
+      "headers": {
+       "Content-Type": [
+        "text/event-stream"
+       ]
+      },
+      "payload": "{\"id\":\"msg_1\",\"object\":\"response\",\"created_at\":1792936300,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"output\":[{\"id\":\"msg_msg_1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":1,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":2},\"model\":\"claude-sonnet-4-5\",\"tools\":[{\"description\":\"Run a command.\",\"name\":\"exec_command\",\"parameters\":{\"properties\":{\"cmd\":{\"type\":\"string\"}},\"required\":[\"cmd\"],\"type\":\"object\"},\"strict\":false,\"type\":\"function\"},{\"description\":\"Search deferred tools.\",\"execution\":\"client\",\"parameters\":{\"properties\":{\"query\":{\"type\":\"string\"}},\"required\":[\"query\"],\"type\":\"object\"},\"type\":\"tool_search\"}]}"
+     },
+     "test_helper": null
+    }
+   ]
+  }
+ },
+ "go_failures": [],
+ "source": "CLIProxyAPI v8.0.35 (ae3ee3be303fb07fb8173279923413005bf32177), Go's own tests in internal/runtime/executor"
+}

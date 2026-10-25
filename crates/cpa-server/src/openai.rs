@@ -138,7 +138,11 @@ pub async fn chat_completions(
         && let Some(pair) = cpa_translate::pair(Format::OpenAIResponse, Format::OpenAI)
     {
         let model = gojson::gjson_string(fields.get("model"));
-        let ctx = cpa_translate::RequestCtx { model: &model, stream };
+        let ctx = cpa_translate::RequestCtx {
+            model: &model,
+            stream,
+            tool_search: false,
+        };
         if let Ok(converted) = (pair.request)(&ctx, &body) {
             body = Bytes::from(converted);
             stream = peek(&body)

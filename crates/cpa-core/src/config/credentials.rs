@@ -142,6 +142,7 @@ struct Key {
     alpha_search: bool,
     disable_codex_cloaking: Option<bool>,
     rebuild_mid_system_message: bool,
+    native_tool_search: bool,
     fingerprint_profile: String,
 }
 
@@ -227,6 +228,7 @@ fn decode(item: &serde_yaml_ng::Mapping) -> Key {
         alpha_search: boolean(get("alpha-search")).unwrap_or(false),
         disable_codex_cloaking: boolean(get("disable-codex-cloaking")),
         rebuild_mid_system_message: boolean(get("rebuild-mid-system-message")).unwrap_or(false),
+        native_tool_search: boolean(get("native-tool-search")).unwrap_or(false),
         fingerprint_profile: text(get("fingerprint-profile")),
     }
 }
@@ -608,6 +610,9 @@ fn synthesize(cfg: &Config) -> Vec<(Credential, Option<KeyLocation>)> {
         }
         if k.rebuild_mid_system_message {
             d.attrs.insert("rebuild_mid_system_message".into(), "true".into());
+        }
+        if k.native_tool_search {
+            d.attrs.insert("native_tool_search".into(), "true".into());
         }
         let profile = k.fingerprint_profile.trim().go_lower();
         if !profile.is_empty() {

@@ -62,8 +62,9 @@ const PATHS: &[(&str, &str)] = &[
     ("codex.response-steering", "upstream.codex.response-steering"),
     ("codex", "oauth.providers.codex"),
     ("codex-header-defaults", "oauth.providers.codex.header-defaults"),
-    // Go walks the declared fields: ClaudeConfig and ClaudeCode have one each.
+    // Go walks the declared fields of ClaudeConfig and ClaudeCode.
     ("claude.model-level-cooling", "upstream.claude.model-level-cooling"),
+    ("claude.tool-search", "upstream.claude.tool-search"),
     (
         "claude-code.disable-cloaking-model-list",
         "upstream.claude.disable-cloaking-model-list",

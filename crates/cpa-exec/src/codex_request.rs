@@ -396,6 +396,7 @@ fn translate_request(req: &ExecRequest, call: Call, is_compat: bool) -> Result<(
     let ctx = cpa_translate::RequestCtx {
         model: &model,
         stream: matches!(call, Call::Stream | Call::Websocket),
+        tool_search: false,
     };
     // `translateCodexRequestPairWithUpdateIntent`: an is-compat model's Claude requests
     // use the compat translator, with no client headers or config (Go passes nil).

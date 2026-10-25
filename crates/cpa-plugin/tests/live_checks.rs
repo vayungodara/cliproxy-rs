@@ -311,6 +311,7 @@ async fn the_host_as_translator_hooks_normalizes_requests() {
             &cpa_translate::RequestCtx {
                 model: "m",
                 stream: false,
+                tool_search: false,
             },
             br#"{"model":"m","messages":[]}"#,
         )

@@ -59,6 +59,15 @@ openai-response:codex pair with an executor-owned bridge. Scenarios ported from 
 carry the Go test's name; the rest are edge cases. Every op's payloads and error text are
 recorded, and `tests/apply_patch_responses.rs` replays them.
 
+`tool_search` (in place of the pair list) writes `../fixtures/claude_tool_search.json`:
+every `openai-response-claude.json` fixture recorded again with
+`upstream.claude.tool-search` on (`SetClientToolSearchEnabled(true)`, as Go's tool_search
+tests run). It keeps the fixtures whose output then differs from the recorded one
+(compared with both recordings' dynamic values masked), plus every fixture mined from
+`claude_openai-responses_tool_search_test.go`, and prints how many differ.
+`golden.rs` `tool_search_goldens` replays the whole pair file with the switch on, taking
+those fixtures from the new file. Run it after the pair file is regenerated.
+
 Regenerate with a temporary module whose import path sits inside the reference module's
 internal-package boundary. The reference checkout stays unchanged:
 
@@ -82,6 +91,7 @@ for line in sys.stdin:
   go run . "$reference" "$crate/tests/fixtures/pairs" $pairs
   go run . "$reference" "$crate/tests/fixtures/pairs" sdk
   go run . "$reference" "$crate/tests/fixtures/pairs" apply_patch_responses
+  go run . "$reference" "$crate/tests/fixtures/pairs" tool_search
 )
 rm -rf "$tmp"
 ```

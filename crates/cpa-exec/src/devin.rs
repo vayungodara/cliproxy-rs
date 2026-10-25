@@ -416,6 +416,7 @@ impl DevinExecutor {
                 &cpa_translate::RequestCtx {
                     model: &req.model,
                     stream: req.stream,
+                    tool_search: false,
                 },
                 &req.body,
             )
@@ -548,6 +549,7 @@ impl DevinExecutor {
             model: &req.model,
             original_request: &ctx_original,
             translated_request: &req.body,
+            tool_search: false,
         };
         if req.stream {
             let translator = pair.map(|pair| crate::translate::stream(pair, &ctx, &req));

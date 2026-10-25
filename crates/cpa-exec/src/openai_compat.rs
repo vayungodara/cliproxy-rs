@@ -148,9 +148,19 @@ fn translate_body(
     is_compat: bool,
 ) -> Result<Vec<u8>, ExecError> {
     let client = crate::codex_client::Client::new(&req.headers, cfg, "", is_compat);
-    crate::codex_client::translate_request(req.source_format, target, &RequestCtx { model, stream }, body, &client)
-        .map(|t| t.body)
-        .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
+    crate::codex_client::translate_request(
+        req.source_format,
+        target,
+        &RequestCtx {
+            model,
+            stream,
+            tool_search: false,
+        },
+        body,
+        &client,
+    )
+    .map(|t| t.body)
+    .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))
 }
 
 /// `opts.OriginalRequest`, else the payload.
@@ -341,6 +351,7 @@ impl OpenAICompatExecutor {
                         model: &req.model,
                         original_request: &original,
                         translated_request: &body,
+                        tool_search: false,
                     },
                     &req,
                 ),
@@ -382,6 +393,7 @@ impl OpenAICompatExecutor {
             model: &req.model,
             original_request: &original,
             translated_request: &body,
+            tool_search: false,
         };
         let mut out = match response_pair {
             Some(pair) => (pair.non_stream)(&ctx, &raw)

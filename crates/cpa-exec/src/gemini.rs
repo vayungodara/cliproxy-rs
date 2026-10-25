@@ -148,7 +148,11 @@ pub(crate) fn translate(
     stream: bool,
     compat: bool,
 ) -> Result<Vec<u8>, ExecError> {
-    let ctx = RequestCtx { model, stream };
+    let ctx = RequestCtx {
+        model,
+        stream,
+        tool_search: false,
+    };
     let client = crate::codex_client::Client::new(&req.headers, cfg, "", compat);
     deep_stack(body, || {
         crate::codex_client::translate_request(req.source_format, target, &ctx, body, &client).map(|t| t.body)
@@ -443,6 +447,7 @@ pub(crate) fn translate_non_stream(
         model: &req.model,
         original_request: original_request(req),
         translated_request: translated,
+        tool_search: false,
     };
     let mut out = match cpa_translate::pair(response, upstream) {
         Some(pair) => (pair.non_stream)(&ctx, data).map_err(|_| bad_gateway())?,
@@ -800,6 +805,7 @@ impl Output {
             model: &req.model,
             original_request: original_request(req),
             translated_request: translated,
+            tool_search: false,
         };
         let mut translator = cpa_translate::stream_with(client, upstream, &ctx, options).unwrap_or_else(|| {
             Box::new(Unregistered {

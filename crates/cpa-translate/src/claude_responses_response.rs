@@ -10,7 +10,8 @@ use crate::apply_patch::CallState;
 use crate::{
     Error, Registered, RequestCtx, ResponseCtx,
     claude_responses::{
-        REDACTED_THINKING_PREFIX, ToolNames, split_qualified_call, tool_descriptors, tool_winners, web_search_call_id,
+        REDACTED_THINKING_PREFIX, TOOL_SEARCH_ID_PREFIX, ToolNames, split_qualified_call, tool_descriptors,
+        tool_winners, web_search_call_id,
     },
     common::{self, now_unix, sse_event, trim_space},
     stream::GoStream,
@@ -27,11 +28,13 @@ pub static PAIR: Registered = registered!(
 );
 
 fn request(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
-    crate::claude_responses::convert(ctx.model, body, ctx.stream, false)
+    crate::claude_responses::convert(ctx.model, body, ctx.stream, false, ctx.tool_search)
 }
 
 struct Winner {
     custom: bool,
+    /// The client tool_search declaration.
+    tool_search: bool,
     apply_patch: bool,
     /// The declaration's local name and namespace (an apply_patch call's identity).
     local_name: Vec<u8>,
@@ -41,12 +44,14 @@ struct Winner {
 struct Tools {
     winners: HashMap<Vec<u8>, Winner>,
     names: ToolNames,
+    /// `upstream.claude.tool-search` as pinned for this response.
+    tool_search: bool,
 }
 
 impl Tools {
-    fn new(request: &[u8]) -> Self {
+    fn new(request: &[u8], tool_search: bool) -> Self {
         let root = gj::parse(request);
-        let descriptors = tool_descriptors(&root);
+        let descriptors = tool_descriptors(&root, tool_search);
         let winners = tool_winners(&descriptors)
             .into_iter()
             .map(|(name, order)| {
@@ -56,6 +61,7 @@ impl Tools {
                 let local_name = if d.direct { d.name.clone() } else { d.child_name.clone() };
                 let winner = Winner {
                     custom,
+                    tool_search: d.client_search,
                     apply_patch,
                     local_name,
                     namespace: d.namespace.clone(),
@@ -65,8 +71,19 @@ impl Tools {
             .collect();
         Tools {
             winners,
-            names: ToolNames::build(&root),
+            names: ToolNames::build(&root, tool_search),
+            tool_search,
         }
+    }
+
+    /// isToolSearch: a Claude tool name that maps to the client tool_search declaration.
+    fn is_tool_search(&self, name: &[u8]) -> bool {
+        self.winner(name).is_some_and(|w| w.tool_search)
+    }
+
+    /// common.SetResponsesToolCallIdentity with the request's namespace split.
+    fn identity(&self, item: Vec<u8>, request: &[u8], qualified: &[u8], path: &str) -> Vec<u8> {
+        with_identity(item, request, qualified, path, self.tool_search)
     }
 
     fn winner(&self, claude_name: &[u8]) -> Option<&Winner> {
@@ -129,8 +146,8 @@ pub(crate) fn pick_request<'a>(original: &'a [u8], translated: &'a [u8]) -> &'a 
 }
 
 /// common.SetResponsesToolCallIdentity with the request's namespace split.
-fn with_identity(mut item: Vec<u8>, request: &[u8], qualified: &[u8], path: &str) -> Vec<u8> {
-    let (name, namespace) = split_qualified_call(request, qualified);
+fn with_identity(mut item: Vec<u8>, request: &[u8], qualified: &[u8], path: &str, tool_search: bool) -> Vec<u8> {
+    let (name, namespace) = split_qualified_call(request, qualified, tool_search);
     let at = |key: &str| {
         if path.is_empty() {
             key.to_owned()
@@ -439,7 +456,7 @@ pub fn go_stream(ctx: &ResponseCtx<'_>) -> Box<dyn GoStream> {
         model: ctx.model.as_bytes().to_vec(),
         original: ctx.original_request.to_vec(),
         translated: ctx.translated_request.to_vec(),
-        tools: Tools::new(&request),
+        tools: Tools::new(&request, ctx.tool_search),
         request,
         completed: false,
         tool_error: false,
@@ -587,6 +604,17 @@ impl State {
         let custom = self.tools.winner(&name).is_some_and(|w| w.custom);
         self.func_custom.insert(idx, custom);
         let output_index = self.function_output_index(idx);
+        if self.tools.is_tool_search(&name) {
+            self.func_item_added.insert(idx);
+            let seq = self.next_seq();
+            let item = tool_search_call_item(&call_id, "in_progress", b"");
+            return Ok(vec![tool_search_call_event(
+                "response.output_item.added",
+                seq,
+                output_index,
+                &item,
+            )]);
+        }
         let (mut item, prefix): (Vec<u8>, &[u8]) = if custom {
             (br#"{"type":"response.output_item.added","sequence_number":0,"output_index":0,"item":{"id":"","type":"custom_tool_call","status":"in_progress","input":"","call_id":"","name":""}}"#.to_vec(), b"ctc_")
         } else {
@@ -607,7 +635,7 @@ impl State {
         }
         gj::set_str(&mut item, "item.id", &item_id);
         gj::set_str(&mut item, "item.call_id", &call_id);
-        item = with_identity(item, &self.request, &name, "item");
+        item = self.tools.identity(item, &self.request, &name, "item");
         let seq = self.next_seq();
         gj::set_int(&mut item, "sequence_number", seq);
         gj::set_int(&mut item, "output_index", output_index);
@@ -616,7 +644,7 @@ impl State {
     }
 
     fn emit_pending_args(&mut self, idx: i64) -> Vec<Vec<u8>> {
-        if !self.func_item_added.contains(&idx) || self.tool_error {
+        if !self.func_item_added.contains(&idx) || self.tool_error || self.tools.is_tool_search(&self.name(idx)) {
             return vec![];
         }
         let sent = self.func_args_sent.get(&idx).copied().unwrap_or(0);
@@ -663,14 +691,28 @@ impl State {
         let output_index = self.function_output_index(idx);
         let custom = self.func_custom.get(&idx).copied().unwrap_or(false);
         let mut args = self.func_args.get(&idx).cloned().unwrap_or_default();
-        if !custom && args.is_empty() && status == "completed" {
-            args = b"{}".to_vec();
-        }
         let mut call_id = self.call_id(idx);
         if call_id.is_empty() {
             call_id = self.current_fc_id.clone();
         }
         let name = self.name(idx);
+        if self.tools.is_tool_search(&name) {
+            let status = tool_search_call_status(status, &args);
+            self.func_item_status.insert(idx, status);
+            let seq = self.next_seq();
+            let item = tool_search_call_item(&call_id, status, &args);
+            out.push(tool_search_call_event(
+                "response.output_item.done",
+                seq,
+                output_index,
+                &item,
+            ));
+            self.in_func_block = false;
+            return Ok(out);
+        }
+        if !custom && args.is_empty() && status == "completed" {
+            args = b"{}".to_vec();
+        }
         let id = [&b"ctc_"[..], &call_id].concat();
         let mut input = vec![];
         if custom {
@@ -716,7 +758,7 @@ impl State {
             gj::set_str(&mut item, "item.status", status);
             gj::set_str(&mut item, "item.input", &input);
             gj::set_str(&mut item, "item.call_id", &call_id);
-            item = with_identity(item, &self.request, &name, "item");
+            item = self.tools.identity(item, &self.request, &name, "item");
             out.push(event("response.output_item.done", &item));
         } else {
             let id = [&b"fc_"[..], &call_id].concat();
@@ -737,7 +779,7 @@ impl State {
             gj::set_str(&mut item, "item.status", status);
             gj::set_str_no_html(&mut item, "item.arguments", &args);
             gj::set_str(&mut item, "item.call_id", &call_id);
-            item = with_identity(item, &self.request, &name, "item");
+            item = self.tools.identity(item, &self.request, &name, "item");
             out.push(event("response.output_item.done", &item));
         }
         self.in_func_block = false;
@@ -1274,7 +1316,9 @@ impl State {
             }
             let name = self.name(idx);
             let index = self.func_output_indices.get(&idx).copied().unwrap_or(0);
-            let item = if custom {
+            let item = if self.tools.is_tool_search(&name) {
+                tool_search_call_item(&call_id, status, &args)
+            } else if custom {
                 let mut item =
                     br#"{"id":"","type":"custom_tool_call","status":"completed","input":"","call_id":"","name":""}"#
                         .to_vec();
@@ -1286,7 +1330,7 @@ impl State {
                 };
                 gj::set_str(&mut item, "input", input);
                 gj::set_str(&mut item, "call_id", &call_id);
-                with_identity(item, &self.request, &name, "")
+                self.tools.identity(item, &self.request, &name, "")
             } else {
                 let mut item =
                     br#"{"id":"","type":"function_call","status":"completed","arguments":"","call_id":"","name":""}"#
@@ -1295,7 +1339,7 @@ impl State {
                 gj::set_str(&mut item, "status", status);
                 gj::set_str_no_html(&mut item, "arguments", &args);
                 gj::set_str(&mut item, "call_id", &call_id);
-                with_identity(item, &self.request, &name, "")
+                self.tools.identity(item, &self.request, &name, "")
             };
             gj::set_raw(&mut outputs, &format!("arr.{index}"), item);
         }
@@ -1476,7 +1520,7 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     let (body, native_model) = common::claude_messages_json_to_sse(body);
     let body = &*body;
     let request = pick_request(ctx.original_request, ctx.translated_request);
-    let tools = Tools::new(request);
+    let tools = Tools::new(request, ctx.tool_search);
     let mut out = br#"{"id":"","object":"response","created_at":0,"status":"completed","background":false,"error":null,"incomplete_details":null,"output":[],"usage":{"input_tokens":0,"input_tokens_details":{"cached_tokens":0},"output_tokens":0,"output_tokens_details":{},"total_tokens":0}}"#.to_vec();
     let (mut response_id, mut created_at, mut stop) = (vec![], 0, vec![]);
     let mut usage = Usage::default();
@@ -1546,7 +1590,9 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                     }
                     b"tool_use" => {
                         let name = cb.get("name").bytes().into_owned();
-                        let kind = if tools.winner(&name).is_some_and(|w| w.custom) {
+                        let kind = if tools.is_tool_search(&name) {
+                            "tool_search_call"
+                        } else if tools.winner(&name).is_some_and(|w| w.custom) {
                             "custom_tool_call"
                         } else {
                             "function_call"
@@ -1580,10 +1626,10 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                         if tools.is_apply_patch(&items[i].name) && snapshot_errors.contains(&idx) {
                             return Err(patch_failure());
                         }
-                        let prefix: &[u8] = if items[i].kind == "custom_tool_call" {
-                            b"ctc_"
-                        } else {
-                            b"fc_"
+                        let prefix: &[u8] = match items[i].kind {
+                            "custom_tool_call" => b"ctc_",
+                            "tool_search_call" => TOOL_SEARCH_ID_PREFIX,
+                            _ => b"fc_",
                         };
                         items[i].id = [prefix, &items[i].call_id].concat();
                     }
@@ -1629,7 +1675,10 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                         }
                     }
                     b"input_json_delta"
-                        if matches!(kind, Some("function_call" | "custom_tool_call" | "web_search_call")) =>
+                        if matches!(
+                            kind,
+                            Some("function_call" | "custom_tool_call" | "tool_search_call" | "web_search_call")
+                        ) =>
                     {
                         let pj = d.get("partial_json");
                         if pj.exists() {
@@ -1721,6 +1770,9 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                 }
                 item
             }
+            "tool_search_call" => {
+                tool_search_call_item(&it.call_id, tool_search_call_status(item_status, &it.args), &it.args)
+            }
             "custom_tool_call" => {
                 let mut item =
                     br#"{"id":"","type":"custom_tool_call","status":"completed","input":"","call_id":"","name":""}"#
@@ -1738,7 +1790,7 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                 };
                 gj::set_str(&mut item, "input", input);
                 gj::set_str(&mut item, "call_id", &it.call_id);
-                with_identity(item, request, &it.name, "")
+                tools.identity(item, request, &it.name, "")
             }
             _ => {
                 let mut args = it.args.clone();
@@ -1752,7 +1804,7 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                 gj::set_str(&mut item, "status", item_status);
                 gj::set_str_no_html(&mut item, "arguments", &args);
                 gj::set_str(&mut item, "call_id", &it.call_id);
-                with_identity(item, request, &it.name, "")
+                tools.identity(item, request, &it.name, "")
             }
         };
         outputs.push(item);
@@ -1785,4 +1837,42 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
         );
     }
     Ok(out)
+}
+
+/// toolSearchCallStatus: a completed call whose arguments are not a JSON object is
+/// incomplete, so a truncated search is never presented as finished.
+fn tool_search_call_status(status: &'static str, arguments: &[u8]) -> &'static str {
+    if status == "completed" && !is_json_object(arguments) {
+        "incomplete"
+    } else {
+        status
+    }
+}
+
+fn is_json_object(raw: &[u8]) -> bool {
+    gj::valid(raw) && gj::parse(raw).is_object()
+}
+
+/// buildResponsesToolSearchCallItem: the tool_search_call item Codex parses.
+fn tool_search_call_item(call_id: &[u8], status: &str, arguments: &[u8]) -> Vec<u8> {
+    let mut item =
+        br#"{"id":"","type":"tool_search_call","status":"","call_id":"","execution":"client","arguments":{}}"#.to_vec();
+    gj::set_str(&mut item, "id", [TOOL_SEARCH_ID_PREFIX, call_id].concat());
+    gj::set_str(&mut item, "status", status);
+    gj::set_str(&mut item, "call_id", call_id);
+    if is_json_object(arguments) {
+        gj::set_raw(&mut item, "arguments", arguments);
+    }
+    item
+}
+
+/// toolSearchCallEvent: Responses has no argument deltas for tool_search_call; Codex
+/// dispatches the search from output_item.done.
+fn tool_search_call_event(name: &str, seq: i64, output_index: i64, item: &[u8]) -> Vec<u8> {
+    let mut payload = br#"{"type":"","sequence_number":0,"output_index":0,"item":{}}"#.to_vec();
+    gj::set_str(&mut payload, "type", name);
+    gj::set_int(&mut payload, "sequence_number", seq);
+    gj::set_int(&mut payload, "output_index", output_index);
+    gj::set_raw(&mut payload, "item", item);
+    event(name, &payload)
 }
