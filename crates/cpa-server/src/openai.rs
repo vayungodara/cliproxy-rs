@@ -134,16 +134,11 @@ pub async fn chat_completions(
     let fields = peek(&body);
     let mut stream = fields.get("stream") == Some(&Value::Bool(true));
     // Go converts Responses-shaped payloads sent to this route into Chat Completions.
-    if responses_shaped(&body)
-        && let Some(pair) = cpa_translate::pair(Format::OpenAIResponse, Format::OpenAI)
-    {
+    // Like Go, the handler ignores the conversion's refusal of an emptied user turn and
+    // sends the converted body.
+    if responses_shaped(&body) {
         let model = gojson::gjson_string(fields.get("model"));
-        let ctx = cpa_translate::RequestCtx {
-            model: &model,
-            stream,
-            tool_search: false,
-        };
-        if let Ok(converted) = (pair.request)(&ctx, &body) {
+        if let Ok(converted) = cpa_translate::responses_to_chat_completions_body(&model, &body, stream) {
             body = Bytes::from(converted);
             stream = peek(&body)
                 .get("stream")

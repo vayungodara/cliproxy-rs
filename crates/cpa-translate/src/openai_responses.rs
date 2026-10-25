@@ -970,6 +970,14 @@ impl Conversation<'_> {
 
 /// ConvertOpenAIResponsesRequestToOpenAIChatCompletions.
 pub(crate) fn convert(model: &str, raw: &[u8], stream: bool) -> Result<Vec<u8>, crate::Error> {
+    let (out, refused) = convert_with_refusal(model, raw, stream);
+    refused.map(|()| out)
+}
+
+/// convertOpenAIResponsesRequestToOpenAIChatCompletions: the body, and separately the
+/// refusal of a user turn left empty. Go's Chat Completions handler ignores the refusal
+/// and sends the body (`ConvertOpenAIResponsesRequestToOpenAIChatCompletions`).
+pub(crate) fn convert_with_refusal(model: &str, raw: &[u8], stream: bool) -> (Vec<u8>, Result<(), crate::Error>) {
     let mut out = br#"{"model":"","messages":[],"stream":false}"#.to_vec();
     let root = gj::parse(raw);
     let index = ToolIndex::new(&root);
@@ -1127,5 +1135,5 @@ pub(crate) fn convert(model: &str, raw: &[u8], stream: bool) -> Result<Vec<u8>, 
             gj::set_str(&mut out, "reasoning_effort", &effort);
         }
     }
-    conversation.drops.result().map(|()| out)
+    (out, conversation.drops.result())
 }

@@ -424,10 +424,6 @@ fn check(client: Format, upstream: Format, f: &Value, bytes: bool, tool_search: 
 /// replayed at v8.0.35 by the named golden instead.
 const SUPERSEDED: &[(&str, &str)] = &[
     (
-        "openai->codex codex-events/non-stream/0",
-        "16d98881 joins every output_text part: codex_chat_go.json pair_codex_events_non_stream_0",
-    ),
-    (
         "interactions->antigravity interactions/parts/media",
         "f51624aa reads an Interactions part's uri as file_uri; \
          the same fixture recorded at v8.0.35 matches",
