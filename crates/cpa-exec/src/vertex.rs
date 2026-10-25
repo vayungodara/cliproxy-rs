@@ -458,35 +458,41 @@ impl VertexExecutor {
     ) -> Result<ExecResponse, ExecError> {
         let body = g::interactions_body(req, cfg)?;
         let (key, mut base) = api_creds(credential);
-        let mut headers = GoHeaders::new();
-        headers.set("Content-Type", "application/json");
-        let project = if key.is_empty() {
+        let (project, account) = if key.is_empty() {
             let Auth::ServiceAccount { project, account, .. } = service_account(credential)? else {
                 unreachable!("service_account answers a service account")
             };
             if let Some(attr) = credential.attributes.get("base_url").filter(|b| !b.is_empty()) {
                 base = attr.trim().to_owned();
             }
-            let token = vertex_auth::access_token(&self.client(credential, cfg), &account, (self.now)())
-                .await
-                .map_err(|error| {
-                    tracing::error!(%error, "vertex executor: interactions access token error");
-                    g::status_err(500, "internal server error")
-                })?;
-            if token.trim().is_empty() {
-                return Err(g::status_err(401, "missing access token"));
-            }
-            headers.set("Authorization", format!("Bearer {token}"));
-            project
+            (project, Some(account))
         } else {
-            headers.set("x-goog-api-key", key);
-            credential.str("project_id").unwrap_or_default().to_owned()
+            (credential.str("project_id").unwrap_or_default().to_owned(), None)
         };
-        g::set_custom_headers(&mut headers, credential, req);
-        g::interactions_revision(&mut headers, req);
+        // Go builds the request before the token exchange: a URL it rejects fails
+        // without a token request.
         let url = interactions_url(&base, &project, req.stream);
         check_url(&url)?;
         let client = self.client(credential, cfg);
+        let mut headers = GoHeaders::new();
+        headers.set("Content-Type", "application/json");
+        match account {
+            Some(account) => {
+                let token = vertex_auth::access_token(&client, &account, (self.now)())
+                    .await
+                    .map_err(|error| {
+                        tracing::error!(%error, "vertex executor: interactions access token error");
+                        g::status_err(500, "internal server error")
+                    })?;
+                if token.trim().is_empty() {
+                    return Err(g::status_err(401, "missing access token"));
+                }
+                headers.set("Authorization", format!("Bearer {token}"));
+            }
+            None => headers.set("x-goog-api-key", key),
+        }
+        g::set_custom_headers(&mut headers, credential, req);
+        g::interactions_revision(&mut headers, req);
         g::interactions_exchange(req, credential, PROVIDER, &client, &url, headers, body).await
     }
 

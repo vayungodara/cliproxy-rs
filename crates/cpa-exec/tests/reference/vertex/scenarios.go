@@ -405,6 +405,17 @@ requests:
           custom_rule_param: enforced_after_all_transforms
 `
 		}),
+		// The URL is built and checked before the token exchange; an empty token from the
+		// exchange is Go's answer, not a request without credentials.
+		with(sa("int_sa_bad_project", "execute", "", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, token, interactionsJSON), func(s *scenario) {
+			s.Source = "interactions"
+			s.Metadata["interactions"] = true
+			s.Metadata["project_id"] = "p%zz"
+		}),
+		with(sa("int_sa_empty_token", "execute", "", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json; charset=utf-8"}}, Body: `{"access_token":"","expires_in":3599,"token_type":"Bearer"}`}, interactionsJSON), func(s *scenario) {
+			s.Source = "interactions"
+			s.Metadata["interactions"] = true
+		}),
 		with(sa("int_file_access_token_project", "execute", "", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, interactionsJSON), func(s *scenario) {
 			s.Source = "interactions"
 			s.Metadata["interactions"] = true

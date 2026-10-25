@@ -1831,6 +1831,138 @@
         "reasoning_effort": "",
         "failed": false
       }
+    },
+    {
+      "name": "int_sa_bad_project",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "interactions": true,
+        "project_id": "p%zz",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "error": {
+        "status": 0,
+        "message": "parse \"https://aiplatform.googleapis.com/v1beta1/projects/p%zz/locations/global/interactions\": invalid URL escape \"%zz\""
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "parse \"https://aiplatform.googleapis.com/v1beta1/projects/p%zz/locations/global/interactions\": invalid URL escape \"%zz\""
+      }
+    },
+    {
+      "name": "int_sa_empty_token",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "interactions": true,
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjU2OTEsImlhdCI6MTc5Mjk2MjA5MX0.pUxyhQSEwk211lrB1rX8u1-FrspcQLfGSZskvJkv7eIyixkz1Sw0WRML23kAxP_fGyUDJTAwJvBYyyuSML1kHqanCaKnTNVET4kjFCqaOPqI5XiJD4rfEg9uUwiAymGmMlqq5-l06yFAzxcnfIipCIBjSjNncd6Nx3bhaRe8uJyqSlFIlrZMsyniHQMuPngscQFCNcYAb86D2ngIYFDXxcKGt6hHuymfFOaWhdU1ArpVlmJBMERMQk96mZ3kUqJPH7zDryM1nBpZyuT40muHUqGtuNldIfBaRZHUkjK47vWgMt4cW_khMM4hls1BbT8FtGkfgAP-haQ-M32LKFSKDA\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+      ],
+      "error": {
+        "status": 401,
+        "message": "missing access token"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 401,
+        "fail_body": "missing access token"
+      }
     }
   ]
 }
