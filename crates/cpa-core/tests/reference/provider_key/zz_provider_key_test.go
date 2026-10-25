@@ -35,6 +35,12 @@ func TestZZProviderKey(t *testing.T) {
 		{Name: "prefixed-provider-key", Provider: "openai-compatibility", Attributes: map[string]string{"compat_name": "Acme", "provider_key": "openai-compatible-ACME"}},
 		{Name: "label", Provider: "openai-compatibility", Label: "Acme", Attributes: map[string]string{}},
 		{Name: "label-other-case", Provider: "OpenAI-Compatibility", Label: "ACME", Attributes: map[string]string{}},
+		{Name: "compatibility-provider-key", Provider: "openai-compatibility", Attributes: map[string]string{"compat_name": " Acme ", "provider_key": "OpenAI-Compatibility"}},
+		{Name: "compatibility-provider-key-other-provider", Provider: "zed", Attributes: map[string]string{"compat_name": "ACME", "provider_key": "openai-compatibility"}},
+		{Name: "compatibility-provider-key-label", Provider: "openai-compatibility", Label: "Acme", Attributes: map[string]string{"provider_key": "OpenAI-Compatibility"}},
+		{Name: "unnamed-provider", Provider: "Acme", Attributes: map[string]string{}},
+		{Name: "unnamed-provider-provider-key", Provider: "Acme", Attributes: map[string]string{"provider_key": "Foo"}},
+		{Name: "unmatched-provider-provider-key", Provider: "zed", Attributes: map[string]string{"provider_key": "Foo"}},
 	}
 	for i := range cases {
 		c := &cases[i]
