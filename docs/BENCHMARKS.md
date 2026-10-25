@@ -12,6 +12,8 @@ A later field report from 0.2.0, serving Claude and Codex with 1 to 2 MB prompts
 
 A report from 0.2.2, serving a coding agent on a Claude subscription with prompts of about 2 MB, showed peaks of 530 MB RSS and a `VmHWM` of 613 MB. It prompted the [cloaked large-prompt](#large-prompts-through-cloaking-bursts-and-peaks) soak: requests waiting for their first token each held up to four copies of their body, and glibc kept the copies of one burst resident into the next.
 
+On 2026-10-23, the 0.3.0 release binary on the maintainer's Linux server was read once from `/proc`, 67 minutes after it started at 07:30 UTC. `VmRSS` was 43.9 MB and `VmHWM` 63.7 MB. Its journal recorded 592 requests since start, all with status 200, and no error or warning lines. Like the 2026-10-05 reading, this is a field observation of real traffic and can't be reproduced on demand.
+
 ## Setup
 
 Measured on 2026-10-03.
@@ -176,7 +178,7 @@ Large prompts (1.9 MB requests), one round.
 - On 306 KB requests this change uses about a third of master's CPU per request and half of Go's, and adds about 20 ms to the time to first byte against Go's 36 to 40 ms and master's 79 to 97 ms. Its throughput (20 requests per second) is close to the 21.4 the fake upstream allows on its own.
 - 30 seconds after the load it holds 29 MB against master's 45 to 50 MB and Go's 80 to 82 MB. Peak RSS barely moved (63 to 64 MB against 66 to 67 MB): the peak is the requests in flight, and trimming only returns what they leave behind.
 - With 1.9 MB prompts master was more than three times slower than Go to first byte; this change's TTFB p50 is 40% lower than Go's, and it holds 43 MB after the run against Go's 184 MB and master's 158 MB.
-- Raw results, including the allocator and trim comparisons: [`bench/results/2026-10-04-messages.jsonl`](../bench/results/2026-10-04-messages.jsonl). The `session` field groups runs that were measured together.
+- Raw results, including the allocator and trim comparisons: [`bench/results/2026-10-04-messages.jsonl`](../bench/results/2026-10-04-messages.jsonl). The `session` field groups runs that were measured together. [`bench/chart.py`](../bench/chart.py) draws the README chart from this file's `final` session.
 
 ## Field mix: Claude, Codex and count_tokens
 
