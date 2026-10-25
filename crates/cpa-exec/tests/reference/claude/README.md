@@ -203,3 +203,30 @@ each sent body's CCH signs that body.
 go run . "$crate/tests/reference/claude/scenarios-v8.0.35.json" \
   "$crate/src/claude/testdata/go_executor_v8.0.35.json" 'v8.0.35 (ae3ee3be303fb07fb8173279923413005bf32177)'
 ```
+
+## tool_search recording
+
+`../../../src/claude/testdata/go_executor_tool_search.json` runs `scenarios-tool-search.json`
+(Responses requests with Codex `tool_search`, through Anthropic's origin, a key with
+`native-tool-search`, an untrusted gateway, a legacy model, the switch off, a payload rule
+and count_tokens) through v8.0.35's executor. The server, not the executor, publishes
+`upstream.claude.tool-search` to Go's translator, so this recording also copies
+`tool_search_hook.go`, which does that after each scenario's config load.
+`claude::tests::tool_search_scenarios_match_go` compares the upstream requests and
+`claude::tests::tool_search_responses_match_go` the translated answers.
+
+```sh
+reference=/absolute/path/to/CLIProxyAPI   # at v8.0.35
+crate=/absolute/path/to/cliproxy-rs/crates/cpa-exec
+tmp=$(mktemp -d)
+cp "$crate/tests/reference/claude/main.go" "$crate/tests/reference/claude/tool_search_hook.go" "$tmp/"
+(
+  cd "$tmp"
+  go mod init github.com/router-for-me/CLIProxyAPI/v8/fixture
+  go mod edit -require=github.com/router-for-me/CLIProxyAPI/v8@v8.0.0
+  go mod edit -replace=github.com/router-for-me/CLIProxyAPI/v8="$reference"
+  go mod tidy
+  go run . "$crate/tests/reference/claude/scenarios-tool-search.json" \
+    "$crate/src/claude/testdata/go_executor_tool_search.json" "v8.0.35 ($(git -C "$reference" rev-parse HEAD))"
+)
+```

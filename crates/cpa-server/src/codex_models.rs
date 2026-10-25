@@ -59,10 +59,47 @@ pub fn response(rt: &Runtime, client_version: &str) -> Response {
     } else {
         None
     };
+    // Go `SupportsNativeToolSearchForModel`, consulted while upstream.claude.tool-search
+    // is on: every enabled credential serving the model (else its unprefixed ID) is a
+    // Claude credential with native tool search for its execution model.
+    let credentials = rt.store().snapshot();
+    let aliases = crate::registry::global_aliases(&cfg);
+    let claude_native = cpa_exec::claude::native_tool_search(&cfg);
+    let native_search = |model: &str| {
+        let serving = |model: &str| -> Vec<&cpa_core::credential::Credential> {
+            credentials
+                .iter()
+                .filter(|c| !model.is_empty() && !c.disabled && registry.client_supports(&c.id, model))
+                .map(|c| &**c)
+                .collect()
+        };
+        let mut model = model.trim();
+        let mut found = serving(model);
+        if found.is_empty()
+            && let Some((_, base)) = model.split_once('/')
+        {
+            model = base.trim();
+            found = serving(model);
+        }
+        !found.is_empty()
+            && found.iter().all(|c| {
+                c.provider == "claude" && rt.executors.supports(&c.provider) && {
+                    let (models, _) = crate::registry::execution_models(&aliases, c, model);
+                    let upstream = models.first().map(|m| m.trim()).filter(|m| !m.is_empty());
+                    claude_native(c, upstream.unwrap_or(model))
+                }
+            })
+    };
+    let tool_search: Option<&dyn Fn(&str) -> bool> = if flag(&cfg, &["upstream", "claude", "tool-search"]) {
+        Some(&native_search)
+    } else {
+        None
+    };
     let body = codex_catalog::build_response(
         &available,
         &facts,
         capability,
+        tool_search,
         flag(&cfg, &["client", "codex", "optimize-multi-agent-v2"]),
         client_version,
     );

@@ -108,29 +108,39 @@ func TestRSFixCodexCatalog(t *testing.T) {
 	}
 	applyPatch := map[string]bool{"gpt-5.5": true, "gpt-6-sol": true, "compat-vision": true, "compat-plain": true, "devin/swe-1": true, "gpt-image-2": true, "img-model": true}
 	applyPatchFn := func(id string) bool { return applyPatch[id] }
+	// SupportsNativeToolSearchForModel while upstream.claude.tool-search is on.
+	toolSearch := map[string]bool{"gpt-5.4": true, "claude-sonnet-4-6": true, "my-alias": true}
+	toolSearchFn := func(id string) bool { return toolSearch[id] }
 
 	type vector struct {
 		Optimize   bool   `json:"optimize"`
 		Version    string `json:"version"`
 		ApplyPatch bool   `json:"apply_patch"`
+		ToolSearch bool   `json:"tool_search,omitempty"`
 		Out        string `json:"out"`
 	}
 	var vectors []vector
 	for _, c := range []struct {
 		optimize, patch bool
 		version         string
+		toolSearch      bool
 	}{
-		{false, false, ""}, {true, true, "0.150.0"}, {false, true, "0.143.9"}, {true, false, "cpa"}, {false, false, "v0.144.0-beta+1"},
+		{false, false, "", false}, {true, true, "0.150.0", false}, {false, true, "0.143.9", false}, {true, false, "cpa", false}, {false, false, "v0.144.0-beta+1", false},
+		{false, false, "", true},
 	} {
 		var patchFn ApplyPatchCapabilityForModelFunc
 		if c.patch {
 			patchFn = applyPatchFn
 		}
-		out, err := MarshalCompact(BuildResponseForClientWithToolCapabilities(available, reg.GetModelProviders, webSearchFn, patchFn, nil, c.optimize, c.version))
+		var searchFn ToolSearchCapabilityForModelFunc
+		if c.toolSearch {
+			searchFn = toolSearchFn
+		}
+		out, err := MarshalCompact(BuildResponseForClientWithToolCapabilities(available, reg.GetModelProviders, webSearchFn, patchFn, searchFn, c.optimize, c.version))
 		if err != nil {
 			t.Fatal(err)
 		}
-		vectors = append(vectors, vector{Optimize: c.optimize, Version: c.version, ApplyPatch: c.patch, Out: string(out)})
+		vectors = append(vectors, vector{Optimize: c.optimize, Version: c.version, ApplyPatch: c.patch, ToolSearch: c.toolSearch, Out: string(out)})
 	}
 
 	validation := []map[string]string{}
@@ -152,7 +162,7 @@ func TestRSFixCodexCatalog(t *testing.T) {
 
 	data, err := json.MarshalIndent(map[string]any{
 		"available": available, "providers": providers, "lookups": lookups,
-		"web_search": webSearch, "apply_patch": applyPatch, "vectors": vectors, "validation": validation,
+		"web_search": webSearch, "apply_patch": applyPatch, "tool_search": toolSearch, "vectors": vectors, "validation": validation,
 	}, "", "  ")
 	if err != nil {
 		t.Fatal(err)

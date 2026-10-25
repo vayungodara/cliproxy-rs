@@ -115,9 +115,19 @@ fn translate(
     stream: bool,
     body: &[u8],
 ) -> Result<Vec<u8>, ExecError> {
-    crate::codex_client::translate_request(req.source_format, to, &RequestCtx { model, stream }, body, client)
-        .map(|t| t.body)
-        .map_err(|e| bad_request(e.to_string()))
+    crate::codex_client::translate_request(
+        req.source_format,
+        to,
+        &RequestCtx {
+            model,
+            stream,
+            tool_search: false,
+        },
+        body,
+        client,
+    )
+    .map(|t| t.body)
+    .map_err(|e| bad_request(e.to_string()))
 }
 
 /// `preserveXAIResponsesOutputControls`: output limits and sampling controls the

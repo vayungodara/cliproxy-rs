@@ -728,6 +728,7 @@ mod tests {
             model: "m",
             original_request: b"",
             translated_request: b"",
+            tool_search: false,
         };
         let mut s = (crate::pair(Format::Gemini, Format::Interactions).unwrap().stream)(&ctx);
         let text = |t: &str| {

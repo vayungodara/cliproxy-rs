@@ -75,14 +75,18 @@ fn catalogs_match_go() {
     let registry = Recorded(&fixture);
     let patch_table = &fixture["apply_patch"];
     let patch = |id: &str| patch_table[id].as_bool().unwrap_or(false);
+    let search_table = &fixture["tool_search"];
+    let search = |id: &str| search_table[id].as_bool().unwrap_or(false);
     let vectors = fixture["vectors"].as_array().unwrap();
-    assert_eq!(vectors.len(), 5);
+    assert_eq!(vectors.len(), 6);
     for v in vectors {
         let capability: Option<&dyn Fn(&str) -> bool> = if v["apply_patch"] == true { Some(&patch) } else { None };
+        let tool_search: Option<&dyn Fn(&str) -> bool> = if v["tool_search"] == true { Some(&search) } else { None };
         let out = build_response(
             &available,
             &registry,
             capability,
+            tool_search,
             v["optimize"].as_bool().unwrap(),
             v["version"].as_str().unwrap(),
         );

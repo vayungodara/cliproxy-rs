@@ -112,7 +112,7 @@ fn is_custom_patch(original: &[u8], item: &Res<'_>) -> bool {
         return false;
     }
     let root = gj::parse(original);
-    let descriptors = tool_descriptors(&root);
+    let descriptors = tool_descriptors(&root, false);
     tool_winners(&descriptors)
         .get(&name)
         .is_some_and(|&w| apply_patch::is_custom_tool(&descriptors[w].tool))
@@ -719,6 +719,7 @@ mod tests {
             model: "gpt-5.5",
             original_request: b"",
             translated_request: b"",
+            tool_search: false,
         };
         for case in go["streams"].as_array().unwrap() {
             let mut stream = go_stream(&ctx);

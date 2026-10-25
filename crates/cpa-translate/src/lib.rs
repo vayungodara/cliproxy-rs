@@ -188,7 +188,7 @@ pub fn claude_to_openai_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result
 /// Claude request, but unsigned reasoning history is kept for compatibility endpoints.
 pub fn responses_to_claude_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
     deep_stack(levels(&[body]), || {
-        claude_responses::convert(ctx.model, body, ctx.stream, true)
+        claude_responses::convert(ctx.model, body, ctx.stream, true, ctx.tool_search)
     })
 }
 
@@ -211,6 +211,9 @@ impl std::error::Error for Error {}
 pub struct RequestCtx<'a> {
     pub model: &'a str,
     pub stream: bool,
+    /// `upstream.claude.tool-search` as pinned for this request (Go
+    /// `WithClientToolSearch`): Codex client tool_search on the Responses -> Claude pair.
+    pub tool_search: bool,
 }
 
 /// Request-scoped inputs available to response transforms.
@@ -218,6 +221,8 @@ pub struct ResponseCtx<'a> {
     pub model: &'a str,
     pub original_request: &'a [u8],
     pub translated_request: &'a [u8],
+    /// The request's pinned `upstream.claude.tool-search` ([`RequestCtx::tool_search`]).
+    pub tool_search: bool,
 }
 
 pub trait StreamTranslator: Send {

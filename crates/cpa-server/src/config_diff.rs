@@ -437,6 +437,7 @@ pub(crate) fn details(old_cfg: &Config, new_cfg: &Config) -> Vec<String> {
         ("codex.stream-bootstrap-timeout", 't'),
         ("client.codex.optimize-multi-agent-v2", 'b'),
         ("codex.orphan-delegation-compatibility", 'b'),
+        ("claude.tool-search", 'b'),
         ("xai.inject-x-search", 'b'),
         ("codex.live-media-relay.enabled", 'b'),
         ("codex.live-media-relay.max-sessions", 'i'),
@@ -628,6 +629,13 @@ fn provider_changes(out: &mut Vec<String>, old: &Value, new: &Value, family: &st
                 &format!("{prefix}.rebuild-mid-system-message"),
                 &o["rebuild-mid-system-message"],
                 &n["rebuild-mid-system-message"],
+                'b',
+            );
+            changed(
+                out,
+                &format!("{prefix}.native-tool-search"),
+                &o["native-tool-search"],
+                &n["native-tool-search"],
                 'b',
             );
             changed(

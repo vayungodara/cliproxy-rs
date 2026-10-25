@@ -120,13 +120,29 @@ async fn pipeline_reproduces_go_upstream_captures() {
         let req = enrich(request(case));
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = "2026-10-02".into();
-        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+        let translated =
+            translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat, ctx.tool_search()).unwrap();
         let prepared = if req.operation == Operation::CountTokens {
-            let baseline =
-                translate::count_original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+            let baseline = translate::count_original(
+                &req,
+                &translated,
+                ctx.codex,
+                &ctx.base_model,
+                ctx.is_compat,
+                ctx.tool_search(),
+            )
+            .unwrap();
             ctx.prepare_count(&req, &translated, &baseline).await.unwrap()
         } else {
-            let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+            let original = translate::original(
+                &req,
+                &translated,
+                ctx.codex,
+                &ctx.base_model,
+                ctx.is_compat,
+                ctx.tool_search(),
+            )
+            .unwrap();
             ctx.prepare_messages(&req, &translated, &original, req.stream)
                 .await
                 .unwrap()
@@ -610,6 +626,176 @@ async fn v8_0_35_payload_barrier_scenarios_match_go() {
     scenarios_match_go(fixture, "v8.0.35", |_| true).await;
 }
 
+/// `upstream.claude.tool-search` on Responses requests (Go v8.0.35): native tool search
+/// on Anthropic's origin and on keys with `native-tool-search`, the pre-tool_search
+/// translation elsewhere, for legacy models and with the switch off.
+#[tokio::test]
+async fn tool_search_scenarios_match_go() {
+    let fixture = include_str!("testdata/go_executor_tool_search.json");
+    assert!(fixture.contains(r#""source": "CLIProxyAPI v8.0.35 "#));
+    scenarios_match_go(fixture, "tool-search", |_| true).await;
+}
+
+/// Go `TestClaudeExecutor_SupportsNativeToolSearch`: which credentials take Codex
+/// tool_search natively, while the switch is on (and none while it is off).
+#[test]
+fn native_tool_search_support_matches_go() {
+    const GATEWAY: &str = "https://gateway.example.test";
+    let on = "upstream:\n  claude:\n    tool-search: true\n";
+    let forced =
+        format!("{on}claude-api-key:\n  - api-key: k\n    base-url: {GATEWAY}\n    native-tool-search: true\n");
+    type Case<'a> = (&'a str, &'a str, &'a [(&'a str, &'a str)], &'a str, bool);
+    let cases: &[Case] = &[
+        ("default origin", on, &[("api_key", "k")], "claude-sonnet-4-5", true),
+        (
+            "explicit anthropic",
+            on,
+            &[("api_key", "k"), ("base_url", "https://api.anthropic.com")],
+            "claude-sonnet-4-5",
+            true,
+        ),
+        (
+            "anthropic with port",
+            on,
+            &[("api_key", "k"), ("base_url", "https://api.anthropic.com:443/")],
+            "claude-sonnet-4-5",
+            true,
+        ),
+        (
+            "plain http anthropic",
+            on,
+            &[("api_key", "k"), ("base_url", "http://api.anthropic.com")],
+            "claude-sonnet-4-5",
+            false,
+        ),
+        (
+            "gateway",
+            on,
+            &[("api_key", "k"), ("base_url", GATEWAY)],
+            "claude-sonnet-4-5",
+            false,
+        ),
+        (
+            "gateway forced by attribute",
+            on,
+            &[("api_key", "k"), ("base_url", GATEWAY), ("native_tool_search", "TRUE")],
+            "claude-sonnet-4-5",
+            true,
+        ),
+        (
+            "gateway forced by config",
+            &forced,
+            &[("api_key", "k"), ("base_url", GATEWAY)],
+            "claude-sonnet-4-5",
+            true,
+        ),
+        (
+            "legacy model on anthropic",
+            on,
+            &[("api_key", "k")],
+            "claude-opus-4-1-20250805",
+            false,
+        ),
+        (
+            "legacy model on forced gateway",
+            on,
+            &[("api_key", "k"), ("base_url", GATEWAY), ("native_tool_search", "true")],
+            "claude-3-7-sonnet-20250219",
+            false,
+        ),
+        ("switch off", "", &[("api_key", "k")], "claude-sonnet-4-5", false),
+    ];
+    for (name, cfg, attrs, model, want) in cases {
+        let mut credential = harness_credential();
+        credential.attributes = attrs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect();
+        let supports = native_tool_search(&Config::parse(cfg).unwrap());
+        assert_eq!(supports(&credential, model), *want, "{name}");
+    }
+}
+
+/// The same Go recordings through `execute` against a loopback upstream: the response
+/// translation reads the request's tool-search switch, so a native tool_search tool_use
+/// answers as a tool_search_call and a fallback one as a plain function call.
+#[tokio::test]
+async fn tool_search_responses_match_go() {
+    let fixture: Value = serde_json::from_str(include_str!("testdata/go_executor_tool_search.json")).unwrap();
+    let created = regex::Regex::new(r#""created_at":\d+"#).unwrap();
+    for name in ["tool-search-native-key-non-stream", "tool-search-fallback-key"] {
+        let scenario = fixture["scenarios"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["name"] == name)
+            .unwrap();
+        let reply = scenario["reply"]["body"].as_str().unwrap().to_owned();
+        let router = axum::Router::new().fallback(move || {
+            let reply = reply.clone();
+            async move { ([(http::header::CONTENT_TYPE, "text/event-stream")], reply) }
+        });
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        let dir = std::env::temp_dir().join(format!("cpa-claude-tool-search-{name}-{}", std::process::id()));
+        let text = scenario["config"]
+            .as_str()
+            .unwrap()
+            .replace("AUTH_DIR", dir.join("auth").to_str().unwrap())
+            .replace("http://gateway.invalid", &base);
+        let cfg = Config::parse(&text).unwrap();
+        let credential = cpa_core::config::credentials::load(&cfg)
+            .into_iter()
+            .find(|c| c.provider == "claude")
+            .unwrap();
+        let body = Bytes::from(scenario["body"].as_str().unwrap().to_owned());
+        let req = ExecRequest {
+            operation: Operation::Generate,
+            source_format: Format::OpenAIResponse,
+            response_format: Format::OpenAIResponse,
+            stream_payloads: false,
+            requested_model: "claude-sonnet-4-6".into(),
+            model: "claude-sonnet-4-6".into(),
+            original_body: body.clone(),
+            body,
+            stream: scenario["stream"].as_bool().unwrap(),
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            resolved_model: None,
+            usage: Default::default(),
+            request_path: String::new(),
+            headers: Default::default(),
+            caller: Caller {
+                principal: "client-key-1".into(),
+                source: "authorization",
+                provider: String::new(),
+            },
+        };
+        let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+        let output: Vec<String> = match executor.execute(&credential, req, &cfg).await.unwrap().body {
+            ResponseBody::Buffered(b) => vec![String::from_utf8(b.to_vec()).unwrap()],
+            ResponseBody::Stream(events) => {
+                events
+                    .map(|c| String::from_utf8(c.unwrap().to_vec()).unwrap())
+                    .collect()
+                    .await
+            }
+        };
+        let go: Vec<String> = scenario["output"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|o| o.as_str().unwrap().to_owned())
+            .collect();
+        let mask = |v: &[String]| -> Vec<String> {
+            v.iter()
+                .map(|o| created.replace_all(o, r#""created_at":0"#).into_owned())
+                .collect()
+        };
+        assert_eq!(mask(&output), mask(&go), "{name}");
+    }
+}
+
 /// 6fecc6e scenarios whose outcome now follows Go v8.0.27: the v8.0.27 fixture runs
 /// each of them again and holds the answer the executor gives now.
 const FOLLOWS_V8_0_27: &[&str] = &[
@@ -794,10 +980,13 @@ async fn scenarios_match_go(fixture: &str, run: &str, selected: fn(&str) -> bool
                 provider: String::new(),
             },
         };
-        let req = enrich(req);
+        let mut req = enrich(req);
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
-        let translated = translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+        // generate() and count_tokens() drop tool_search before anything else.
+        ctx.tool_search_fallback(&mut req);
+        let translated =
+            translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat, ctx.tool_search()).unwrap();
         if let (true, true, Some(output)) = (count, scenario["upstream"].is_null(), scenario["output"].as_array()) {
             // Counted locally: Go answered without an upstream request.
             let response = executor.count_tokens(ctx, req, false).await.unwrap();
@@ -812,12 +1001,27 @@ async fn scenarios_match_go(fixture: &str, run: &str, selected: fn(&str) -> bool
             continue;
         }
         let prepared = if count {
-            let baseline =
-                translate::count_original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+            let baseline = translate::count_original(
+                &req,
+                &translated,
+                ctx.codex,
+                &ctx.base_model,
+                ctx.is_compat,
+                ctx.tool_search(),
+            )
+            .unwrap();
             ctx.prepare_count(&req, &translated, &baseline).await
         } else {
             // generate(): translated clients always stream upstream.
-            let original = translate::original(&req, &translated, ctx.codex, &ctx.base_model, ctx.is_compat).unwrap();
+            let original = translate::original(
+                &req,
+                &translated,
+                ctx.codex,
+                &ctx.base_model,
+                ctx.is_compat,
+                ctx.tool_search(),
+            )
+            .unwrap();
             ctx.prepare_messages(&req, &translated, &original, stream || source != Format::Claude)
                 .await
         };

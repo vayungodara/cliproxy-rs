@@ -99,6 +99,23 @@ async fn catalog_matches_go_for_config_models() {
     }
 }
 
+/// upstream.claude.tool-search on (tests/reference/codex_models `TestRSFixCodexToolSearch`):
+/// a Claude model advertises the search tool only when every credential serving it has
+/// native tool search for its execution model (Anthropic's origin, a trusted key, not a
+/// legacy model).
+#[tokio::test]
+async fn tool_search_catalog_matches_go() {
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/codex_tool_search_go.json")).unwrap();
+    let (status, _, body) = get("/v1/models?client_version=0.150.0", fixture["config"].as_str().unwrap()).await;
+    assert_eq!(status, 200);
+    let want: Value = serde_json::from_str(fixture["0.150.0"].as_str().unwrap()).unwrap();
+    let (got, want) = (body["models"].as_array().unwrap(), want["models"].as_array().unwrap());
+    assert_eq!(got.len(), want.len());
+    for (g, w) in got.iter().zip(want) {
+        assert_eq!(g, w, "{}", w["slug"]);
+    }
+}
+
 /// A Codex API key without configured models serves the Pro catalog plus the gpt-image-*
 /// built-ins (Go `WithCodexBuiltins`), as Go's `/v1/models` lists them
 /// (tests/reference/codex_models `TestRSFixCodexBuiltins`). Compared as a set: list order

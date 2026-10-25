@@ -562,7 +562,11 @@ impl AntigravityExecutor {
 
     /// `TranslateRequestEnvelopeWithCodexMultiAgentV2` of the working payload.
     fn translate(&self, req: &ExecRequest, cfg: &Config, model: &str, stream: bool) -> Result<Vec<u8>, ExecError> {
-        let ctx = RequestCtx { model, stream };
+        let ctx = RequestCtx {
+            model,
+            stream,
+            tool_search: false,
+        };
         let client = crate::codex_client::Client::new(&req.headers, cfg, "", false);
         let info = req.resolved_model.as_ref().map(|r| &r.info);
         gemini::deep_stack(&req.body, || {

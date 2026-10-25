@@ -95,6 +95,7 @@ fn run(s: &Value) -> (Vec<Got>, Option<String>) {
                 model: s["model"].as_str().unwrap(),
                 original_request: &original,
                 translated_request: &translated,
+                tool_search: false,
             };
             let bridged = s["bridged"].as_bool().unwrap_or(false);
             let codex = pair(Format::OpenAIResponse, Format::Codex).unwrap();

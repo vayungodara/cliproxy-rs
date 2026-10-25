@@ -683,6 +683,7 @@ fn count_tokens(req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecErr
     let ctx = cpa_translate::RequestCtx {
         model: &model,
         stream: false,
+        tool_search: false,
     };
     let translated = crate::codex_client::translate_request(req.source_format, Format::Codex, &ctx, &req.body, &client)
         .map_err(|e| ExecError::local(400, FailureScope::Request, e.to_string()))?;
@@ -891,6 +892,7 @@ fn non_stream_output(
                 model: &req.model,
                 original_request: &req.original_body,
                 translated_request: translated.as_bytes(),
+                tool_search: false,
             };
             (pair.non_stream)(&ctx, completed.as_bytes()).unwrap_or_default()
         }
@@ -937,6 +939,7 @@ fn translate_stream(req: &ExecRequest, translated: &str, upstream: ExecStream) -
         model: &req.model,
         original_request: &req.original_body,
         translated_request: translated.as_bytes(),
+        tool_search: false,
     };
     let translator = crate::translate::stream(pair, &ctx, req);
     let original = if req.original_body.is_empty() {

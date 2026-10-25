@@ -27,11 +27,16 @@ fn compatible_claude_signature(raw: &[u8]) -> Option<Vec<u8>> {
 
 /// Refuses a request whose user turn is left empty by file or audio parts Claude cannot
 /// receive (f51624aa).
+/// `tool_search` is `upstream.claude.tool-search` as pinned for the request: with it,
+/// Codex client tool_search (`{"type":"tool_search","execution":"client"}`) becomes a
+/// Claude tool and its history a tool_use/tool_result pair (claude_openai-responses_
+/// tool_search.go); without it the translation predates tool_search support.
 pub(crate) fn convert(
     model: &str,
     input: &[u8],
     stream: bool,
     preserve_thinking: bool,
+    tool_search: bool,
 ) -> Result<Vec<u8>, crate::Error> {
     let raw = normalize_codex_agent_messages(input);
     let mut drops = common::UserTurnDrops::default();
@@ -117,7 +122,12 @@ pub(crate) fn convert(
     let instruction = common::claude_structured_output_instruction(&format);
     append_system(&mut system, &instruction, None);
 
-    let names = ToolNames::build(&root);
+    let descriptors = tool_descriptors(&root, tool_search);
+    let winners = tool_winners(&descriptors);
+    let names = ToolNames::with_descriptors(&root, &descriptors, &winners);
+    // Native tool search declares discovered tools as deferred and replays search
+    // results as tool_reference blocks, which keeps the cached prefix.
+    let native = client_search_wins(&descriptors);
     let mut pending = Pending::default();
     let mut items: Vec<Res<'_>> = vec![];
     if input_items.exists() {
@@ -224,6 +234,30 @@ pub(crate) fn convert(
                 }
                 pending.parts(b"user", vec![tool_result_content(result, &output)]);
             }
+            b"tool_search_call" if tool_search => {
+                let Some((tool_use, raw_id)) = tool_search_call_to_claude(item, &names.claude_name(TOOL_SEARCH)) else {
+                    continue;
+                };
+                emitted_uses.insert(raw_id);
+                pending.tool_use(tool_use);
+            }
+            b"tool_search_output" if tool_search => {
+                let raw_id = trim_space(&item.get("call_id").bytes()).to_vec();
+                if !raw_id.is_empty() && !emitted_results.insert(raw_id.clone()) {
+                    continue;
+                }
+                if raw_id.is_empty() || !emitted_uses.contains(&raw_id) {
+                    let mut text = br#"{"type":"text","text":""}"#.to_vec();
+                    gj::set_str(&mut text, "text", tool_search_output_text(item, &names));
+                    pending.parts(b"user", vec![text]);
+                    continue;
+                }
+                let mut result = br#"{"type":"tool_result","tool_use_id":"","content":""}"#.to_vec();
+                gj::set_str(&mut result, "tool_use_id", common::sanitize_claude_tool_id(&raw_id));
+                let content = tool_search_output_content(item, &names, &descriptors, &winners, native);
+                gj::set_raw(&mut result, "content", content);
+                pending.parts(b"user", vec![result]);
+            }
             _ => {}
         }
     }
@@ -249,21 +283,32 @@ pub(crate) fn convert(
 
     let mut included: HashSet<Vec<u8>> = HashSet::new();
     let mut tools = vec![];
-    let descriptors = tool_descriptors(&root);
-    let winners = tool_winners(&descriptors);
+    // The deferred anchor goes between declared and discovered tools, so each
+    // discovery only appends to tools[].
+    let mut anchor_index = None;
     for d in &descriptors {
         if winners.get(&d.name) != Some(&d.order) {
             continue;
         }
-        let Some(tool) = descriptor_to_claude(d, &names.claude_name(&d.name)) else {
+        let Some(mut tool) = descriptor_to_claude(d, &names.claude_name(&d.name)) else {
             continue;
         };
+        if native && d.priority == DISCOVERED {
+            anchor_index.get_or_insert(tools.len());
+            // Anthropic rejects cache_control on deferred tools.
+            gj::delete(&mut tool, "cache_control");
+            gj::set_bool(&mut tool, "defer_loading", true);
+        }
         let name = gj::get(&tool, "name").bytes().into_owned();
         if !name.is_empty() {
             included.insert(d.name.clone());
             included.insert(name);
         }
         tools.push(tool);
+    }
+    if native && !tools.iter().any(|t| gj::get(t, "name").str() == DEFERRED_ANCHOR_NAME) {
+        let at = anchor_index.unwrap_or(tools.len());
+        tools.insert(at, DEFERRED_ANCHOR.to_vec());
     }
     let name_map = tool_name_map(&descriptors, &winners, &included);
     if !tools.is_empty() {
@@ -1085,14 +1130,23 @@ pub(crate) struct Descriptor<'a> {
     pub namespace: Vec<u8>,
     pub kind: Vec<u8>,
     pub tool: Res<'a>,
+    /// 0 top-level tools, 1 additional_tools, [`DISCOVERED`] tool_search_output results.
     pub priority: u8,
     pub direct: bool,
     pub order: usize,
+    /// The Codex client tool_search declaration, which exists only with tool search on.
+    pub client_search: bool,
 }
 
-/// responsesToolDescriptors: top-level tools, then additional_tools items, with
-/// namespace children qualified.
-pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
+/// Tools a tool_search_output loaded rank after every declared tool, so they append to
+/// tools[] in discovery order.
+const DISCOVERED: u8 = 2;
+
+/// responsesToolDescriptors: top-level tools, then additional_tools items, then (with
+/// tool search) the tools tool_search_output items loaded, with namespace children
+/// qualified. While the client tool_search declaration owns its name, declared
+/// `defer_loading` tools stay hidden until a tool_search_output loads them.
+pub(crate) fn tool_descriptors<'a>(root: &Res<'a>, tool_search: bool) -> Vec<Descriptor<'a>> {
     let mut sources: Vec<(Res<'a>, u8)> = vec![];
     let tools = root.get("tools");
     if tools.is_array() {
@@ -1109,8 +1163,51 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
             }
             true
         });
+        if tool_search {
+            input.each(|_, item| {
+                if item.get("type").str() == "tool_search_output" {
+                    let tools = item.get("tools");
+                    if tools.is_array() {
+                        sources.push((tools, DISCOVERED));
+                    }
+                }
+                true
+            });
+        }
     }
     let mut out: Vec<Descriptor<'a>> = vec![];
+    for (tools, priority) in sources {
+        append_descriptors(&mut out, &tools, priority, tool_search);
+    }
+    if !client_search_wins(&out) {
+        return out;
+    }
+    let mut kept: Vec<Descriptor<'a>> = Vec::with_capacity(out.len());
+    for mut d in out {
+        if d.priority != DISCOVERED && d.tool.get("defer_loading").bool() {
+            continue;
+        }
+        d.order = kept.len();
+        kept.push(d);
+    }
+    kept
+}
+
+/// responsesClientToolSearchWins: the client tool_search declaration owns the
+/// `tool_search` name. A same-named function that wins instead leaves no search tool,
+/// so deferred tools must stay declared.
+fn client_search_wins(descriptors: &[Descriptor<'_>]) -> bool {
+    let mut winner: Option<&Descriptor<'_>> = None;
+    for d in descriptors.iter().filter(|d| d.name == TOOL_SEARCH) {
+        if winner.is_none_or(|w| precedes(d, w)) {
+            winner = Some(d);
+        }
+    }
+    winner.is_some_and(|w| w.client_search)
+}
+
+/// appendResponsesToolDescriptors: the descriptors of one tools array.
+fn append_descriptors<'a>(out: &mut Vec<Descriptor<'a>>, tools: &Res<'a>, priority: u8, tool_search: bool) {
     let add = |out: &mut Vec<Descriptor<'a>>,
                tool: Res<'a>,
                name: Vec<u8>,
@@ -1132,14 +1229,15 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
             priority,
             direct,
             order,
+            client_search: false,
         });
     };
-    for (tools, priority) in sources {
+    {
         tools.each(|_, tool| {
             let kind = trim_space(&tool.get("type").bytes()).to_vec();
             match kind.as_slice() {
                 b"" | b"function" => add(
-                    &mut out,
+                    out,
                     tool.clone(),
                     tool_name(&tool),
                     vec![],
@@ -1149,7 +1247,7 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
                     true,
                 ),
                 b"custom" => add(
-                    &mut out,
+                    out,
                     tool.clone(),
                     tool_name(&tool),
                     vec![],
@@ -1175,7 +1273,7 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
                                 _ => return true,
                             };
                             add(
-                                &mut out,
+                                out,
                                 child.clone(),
                                 qualified,
                                 child_name,
@@ -1188,6 +1286,25 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
                         });
                     }
                 }
+                b"tool_search" if tool_search => {
+                    // Hosted search cannot run on Claude, and the raw declaration must
+                    // never reach Claude, so only client search is kept.
+                    if is_client_tool_search(&tool) {
+                        add(
+                            out,
+                            tool.clone(),
+                            TOOL_SEARCH.to_vec(),
+                            vec![],
+                            vec![],
+                            b"tool_search",
+                            priority,
+                            true,
+                        );
+                        if let Some(last) = out.last_mut() {
+                            last.client_search = true;
+                        }
+                    }
+                }
                 b"web_search" => {
                     let access = tool.get("external_web_access");
                     if access.exists() && !access.bool() {
@@ -1197,49 +1314,37 @@ pub(crate) fn tool_descriptors<'a>(root: &Res<'a>) -> Vec<Descriptor<'a>> {
                     if name.is_empty() {
                         name = b"web_search".to_vec();
                     }
-                    add(
-                        &mut out,
-                        tool.clone(),
-                        name,
-                        vec![],
-                        vec![],
-                        b"web_search",
-                        priority,
-                        true,
-                    );
+                    add(out, tool.clone(), name, vec![], vec![], b"web_search", priority, true);
                 }
                 _ => {
                     if !unsupported_builtin(&kind) {
                         let name = trim_space(&tool.get("name").bytes()).to_vec();
-                        add(&mut out, tool.clone(), name, vec![], vec![], &kind, priority, true);
+                        add(out, tool.clone(), name, vec![], vec![], &kind, priority, true);
                     }
                 }
             }
             true
         });
     }
-    out
 }
 
-/// responsesToolWinners: per name, top-level beats additional_tools, direct beats
-/// namespaced, then first wins.
+/// responsesToolDescriptorPrecedes: top-level beats additional_tools beats discovered,
+/// direct beats namespaced, then first wins.
+fn precedes(d: &Descriptor<'_>, c: &Descriptor<'_>) -> bool {
+    if d.priority != c.priority {
+        d.priority < c.priority
+    } else if d.direct != c.direct {
+        d.direct
+    } else {
+        d.order < c.order
+    }
+}
+
+/// responsesToolWinners: the descriptor each name resolves to ([`precedes`]).
 pub(crate) fn tool_winners(descriptors: &[Descriptor<'_>]) -> HashMap<Vec<u8>, usize> {
     let mut winners: HashMap<Vec<u8>, usize> = HashMap::new();
     for d in descriptors {
-        let better = match winners.get(&d.name) {
-            None => true,
-            Some(&w) => {
-                let c = &descriptors[w];
-                if d.priority != c.priority {
-                    d.priority < c.priority
-                } else if d.direct != c.direct {
-                    d.direct
-                } else {
-                    d.order < c.order
-                }
-            }
-        };
-        if better {
+        if winners.get(&d.name).is_none_or(|&w| precedes(d, &descriptors[w])) {
             winners.insert(d.name.clone(), d.order);
         }
     }
@@ -1294,6 +1399,9 @@ fn descriptor_to_claude(d: &Descriptor<'_>, claude_name: &[u8]) -> Option<Vec<u8
         name = d.name.clone();
     }
     let name = trim_space(&name).to_vec();
+    if d.client_search {
+        return Some(tool_search_tool_to_claude(&d.tool, claude_name));
+    }
     let fallback = || common::sanitize_claude_function_name(&tool_name(&d.tool));
     match d.kind.as_slice() {
         b"function" => {
@@ -1383,16 +1491,24 @@ fn valid_claude_name(name: &[u8]) -> bool {
 }
 
 impl ToolNames {
-    pub(crate) fn build(root: &Res<'_>) -> Self {
-        let descriptors = tool_descriptors(root);
+    pub(crate) fn build(root: &Res<'_>, tool_search: bool) -> Self {
+        let descriptors = tool_descriptors(root, tool_search);
         let winners = tool_winners(&descriptors);
+        Self::with_descriptors(root, &descriptors, &winners)
+    }
+
+    pub(crate) fn with_descriptors(
+        root: &Res<'_>,
+        descriptors: &[Descriptor<'_>],
+        winners: &HashMap<Vec<u8>, usize>,
+    ) -> Self {
         let mut names = ToolNames {
             to_claude: HashMap::new(),
             from_claude: HashMap::new(),
         };
         let mut taken: HashSet<Vec<u8>> = HashSet::new();
         let mut declared = vec![];
-        for d in &descriptors {
+        for d in descriptors {
             if winners.get(&d.name) != Some(&d.order) {
                 continue;
             }
@@ -1498,15 +1614,15 @@ fn history_tool_identities(root: &Res<'_>) -> Vec<Vec<u8>> {
 
 /// splitResponsesQualifiedFunctionCallFromRequest: a Claude tool name back to the
 /// client's `(name, namespace)`.
-pub(crate) fn split_qualified_call(request: &[u8], qualified: &[u8]) -> (Vec<u8>, Vec<u8>) {
+pub(crate) fn split_qualified_call(request: &[u8], qualified: &[u8], tool_search: bool) -> (Vec<u8>, Vec<u8>) {
     let qualified = trim_space(qualified);
     if qualified.is_empty() {
         return (vec![], vec![]);
     }
     let root = gj::parse(request);
-    let descriptors = tool_descriptors(&root);
+    let descriptors = tool_descriptors(&root, tool_search);
     let winners = tool_winners(&descriptors);
-    let identity = ToolNames::build(&root).identity(qualified);
+    let identity = ToolNames::with_descriptors(&root, &descriptors, &winners).identity(qualified);
     match winners.get(&identity).map(|&o| &descriptors[o]) {
         Some(d) if !d.direct => (d.child_name.clone(), d.namespace.clone()),
         _ => (identity, vec![]),
@@ -1603,4 +1719,146 @@ fn attach_citations(block: Vec<u8>, annotations: &Res<'_>) -> Vec<u8> {
     } else {
         block
     }
+}
+
+// ---------------------------------------------------------------------------------------
+// Tool search (claude_openai-responses_tool_search.go)
+//
+// Codex declares client-executed tool search as {"type":"tool_search","execution":
+// "client"} and keeps deferred tools out of tools[]. The model calls it through a
+// tool_search_call item, Codex runs the search and replays a tool_search_output item
+// whose tools[] become callable from then on. Claude has no counterpart, so the
+// declaration becomes an ordinary tool, the call and output a tool_use/tool_result pair,
+// and every tool discovered in history is declared on later requests.
+//
+// With native tool search, discovered tools are declared with defer_loading and
+// referenced through tool_reference blocks. Anthropic keeps the prompt cache when
+// deferred tools are added, but not when a request goes from no deferred tool to one,
+// so a constant deferred anchor is declared from the first request on and discoveries
+// only append after it (97ba1e89).
+
+/// Both the declaration type and the tool name, as Codex names the tool after its type.
+pub(crate) const TOOL_SEARCH: &[u8] = b"tool_search";
+/// Codex's item id prefix for tool_search_call.
+pub(crate) const TOOL_SEARCH_ID_PREFIX: &[u8] = b"tsc_";
+/// The constant deferred tool declared with native tool search; nothing references it.
+const DEFERRED_ANCHOR_NAME: &str = "tool_search_deferred_anchor";
+const DEFERRED_ANCHOR: &[u8] = br#"{"name":"tool_search_deferred_anchor","description":"Placeholder that is never loaded; tool search returns the real tools.","input_schema":{"type":"object","properties":{}},"defer_loading":true}"#;
+const TOOL_SEARCH_SCHEMA: &[u8] = br#"{"type":"object","properties":{"query":{"type":"string","description":"Search query for deferred tools."},"limit":{"type":"number","description":"Maximum number of tools to return."}},"required":["query"],"additionalProperties":false}"#;
+
+/// isResponsesClientToolSearch: hosted (server) search cannot run on Claude.
+fn is_client_tool_search(tool: &Res<'_>) -> bool {
+    trim_space(&tool.get("type").bytes()) == TOOL_SEARCH && trim_space(&tool.get("execution").bytes()) == b"client"
+}
+
+/// convertResponsesToolSearchToolToClaude: the client's declared schema, with the
+/// required string `query` Codex parses.
+fn tool_search_tool_to_claude(tool: &Res<'_>, claude_name: &[u8]) -> Vec<u8> {
+    let parameters = tool.get("parameters");
+    let mut schema = if parameters.is_object() {
+        common::normalize_claude_tool_input_schema(Some(&parameters.raw))
+    } else {
+        TOOL_SEARCH_SCHEMA.to_vec()
+    };
+    if gj::get(&schema, "properties.query.type").str() != "string" {
+        gj::set_raw(
+            &mut schema,
+            "properties.query",
+            br#"{"type":"string","description":"Search query for deferred tools."}"#,
+        );
+    }
+    let required = gj::get(&schema, "required");
+    if !(required.is_array()
+        && required
+            .array()
+            .iter()
+            .any(|r| r.kind == Kind::String && &*r.s == b"query"))
+    {
+        gj::set_str(&mut schema, "required.-1", "query");
+    }
+    let mut t = br#"{"name":"","description":"","input_schema":{}}"#.to_vec();
+    gj::set_str(&mut t, "name", claude_name);
+    gj::set_str(&mut t, "description", tool_description(tool));
+    gj::set_raw(&mut t, "input_schema", schema);
+    t
+}
+
+/// convertResponsesToolSearchCallToClaude: a client tool_search_call as an assistant
+/// tool_use, with its raw call id. Hosted calls have no call id.
+fn tool_search_call_to_claude(item: &Res<'_>, claude_name: &[u8]) -> Option<(Vec<u8>, Vec<u8>)> {
+    let call_id = trim_space(&item.get("call_id").bytes()).to_vec();
+    if call_id.is_empty() || trim_space(&item.get("execution").bytes()) != b"client" {
+        return None;
+    }
+    let mut tool_use = br#"{"type":"tool_use","id":"","name":"","input":{}}"#.to_vec();
+    gj::set_str(&mut tool_use, "id", common::sanitize_claude_tool_id(&call_id));
+    gj::set_str(&mut tool_use, "name", claude_name);
+    let arguments = item.get("arguments");
+    let decoded;
+    let arguments = if arguments.kind == Kind::String {
+        decoded = arguments.s.to_vec();
+        gj::parse(&decoded)
+    } else {
+        arguments
+    };
+    if arguments.is_object() {
+        gj::set_raw(&mut tool_use, "input", &arguments.raw);
+    }
+    Some((tool_use, call_id))
+}
+
+/// The descriptors of the tools a tool_search_output loaded.
+fn discovered<'a>(item: &Res<'a>) -> Vec<Descriptor<'a>> {
+    let tools = item.get("tools");
+    let mut out = vec![];
+    append_descriptors(&mut out, &tools, DISCOVERED, true);
+    out
+}
+
+/// responsesToolSearchOutputText: discovered tools for the model, by name; their
+/// definitions are declared in tools[].
+fn tool_search_output_text(item: &Res<'_>, names: &ToolNames) -> Vec<u8> {
+    let found: Vec<Vec<u8>> = discovered(item).iter().map(|d| names.claude_name(&d.name)).collect();
+    if found.is_empty() {
+        return b"No matching tools were found.".to_vec();
+    }
+    [&b"Tools now available to call: "[..], &found.join(&b", "[..]), b"."].concat()
+}
+
+/// responsesToolSearchOutputContent: the raw tool_result content of a paired
+/// tool_search_output. With native tool search, a tool_reference for each tool that
+/// loads only through search, so Claude expands its deferred definition here; tools
+/// declared directly need none, and without any the text summary is used.
+fn tool_search_output_content(
+    item: &Res<'_>,
+    names: &ToolNames,
+    descriptors: &[Descriptor<'_>],
+    winners: &HashMap<Vec<u8>, usize>,
+    native: bool,
+) -> Vec<u8> {
+    if native {
+        let mut references = vec![];
+        let mut seen = HashSet::new();
+        for d in discovered(item) {
+            let Some(winner) = winners.get(&d.name).map(|&w| &descriptors[w]) else {
+                continue;
+            };
+            if winner.priority != DISCOVERED || !matches!(winner.kind.as_slice(), b"function" | b"custom") {
+                continue;
+            }
+            let claude_name = names.claude_name(&d.name);
+            if !seen.insert(claude_name.clone()) {
+                continue;
+            }
+            let mut reference = br#"{"type":"tool_reference","tool_name":""}"#.to_vec();
+            gj::set_str(&mut reference, "tool_name", claude_name);
+            references.push(reference);
+        }
+        if !references.is_empty() {
+            return gj::join(&references);
+        }
+    }
+    let mut text = br#"{"text":""}"#.to_vec();
+    gj::set_str(&mut text, "text", tool_search_output_text(item, names));
+    gj::get(&text, "text").raw.to_vec()
 }

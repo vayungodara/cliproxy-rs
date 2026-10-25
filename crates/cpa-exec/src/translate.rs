@@ -31,8 +31,9 @@ pub(crate) fn request(
     codex: cpa_common::codex_client::Settings,
     model: &str,
     is_compat: bool,
+    tool_search: bool,
 ) -> Result<Bytes, ExecError> {
-    translate_body(req, &req.body, codex, model, is_compat)
+    translate_body(req, &req.body, codex, model, is_compat, tool_search)
 }
 
 /// Go `originalTranslated` from `TranslateRequestPairWithAPIKeyModelCompatibility`: the
@@ -47,6 +48,7 @@ pub(crate) fn original(
     codex: cpa_common::codex_client::Settings,
     model: &str,
     is_compat: bool,
+    tool_search: bool,
 ) -> Result<Bytes, ExecError> {
     // Go reuses the translation when both payloads are the same slice; equal bytes
     // translate identically.
@@ -61,7 +63,7 @@ pub(crate) fn original(
         // only the working body sets (such as `max_tokens`) suppresses a default Go would
         // apply. No server path sends distinct bodies that refuse only the baseline today.
         // Return the partial body with translator errors if one does.
-        match translate_body(req, &req.original_body, codex, model, is_compat) {
+        match translate_body(req, &req.original_body, codex, model, is_compat, tool_search) {
             Ok(original) => (&req.original_body, original),
             Err(_) => (&req.body, translated.clone()),
         }
@@ -92,6 +94,7 @@ pub(crate) fn count_original(
     codex: cpa_common::codex_client::Settings,
     model: &str,
     is_compat: bool,
+    tool_search: bool,
 ) -> Result<Bytes, ExecError> {
     // Equal bytes translate alike except for generated tool-call IDs (a call without an
     // `id` gets a random one in each translation, claude_chat_request.rs `tool_use`),
@@ -100,7 +103,7 @@ pub(crate) fn count_original(
     if req.original_body.is_empty() || req.original_body == req.body {
         return Ok(translated.clone());
     }
-    translate_body(req, &req.original_body, codex, model, is_compat)
+    translate_body(req, &req.original_body, codex, model, is_compat, tool_search)
 }
 
 fn translate_body(
@@ -109,10 +112,12 @@ fn translate_body(
     codex: cpa_common::codex_client::Settings,
     model: &str,
     is_compat: bool,
+    tool_search: bool,
 ) -> Result<Bytes, ExecError> {
     let ctx = RequestCtx {
         model,
         stream: req.stream || req.source_format != Format::Claude,
+        tool_search,
     };
     let client = crate::codex_client::Client {
         headers: &req.headers,
@@ -125,10 +130,12 @@ fn translate_body(
         .map_err(error)
 }
 
+/// `tool_search` is the request's pinned `upstream.claude.tool-search`.
 pub(crate) async fn response(
     req: ExecRequest,
     translated: Bytes,
     mut response: ExecResponse,
+    tool_search: bool,
 ) -> Result<ExecResponse, ExecError> {
     let pair = cpa_translate::pair(req.response_format, Format::Claude);
     if pair.is_none() && req.response_format != Format::Claude {
@@ -139,7 +146,7 @@ pub(crate) async fn response(
         ));
     }
     if let Some(pair) = pair {
-        response.body = transform(pair, req, translated, response.body).await?;
+        response.body = transform(pair, req, translated, response.body, tool_search).await?;
     }
     Ok(response)
 }
@@ -149,11 +156,13 @@ async fn transform(
     req: ExecRequest,
     translated: Bytes,
     body: ResponseBody,
+    tool_search: bool,
 ) -> Result<ResponseBody, ExecError> {
     let context = ResponseCtx {
         model: &req.model,
         original_request: &req.original_body,
         translated_request: &translated,
+        tool_search,
     };
     // EnsureResponsesUsageDetails on every translated Responses payload.
     let responses = req.response_format == Format::OpenAIResponse && req.operation == Operation::Generate;
@@ -422,6 +431,7 @@ mod tests {
             req(false, Operation::Generate),
             before_aliases.clone(),
             ResponseBody::Stream(stream(&[b"SSE-one", b"SSE-two"])),
+            false,
         )
         .await
         .unwrap();
@@ -431,6 +441,7 @@ mod tests {
             req(false, Operation::CountTokens),
             before_aliases,
             ResponseBody::Buffered(Bytes::from_static(br#"{"input_tokens":7}"#)),
+            false,
         )
         .await
         .unwrap();
@@ -444,6 +455,7 @@ mod tests {
             req(true, Operation::Generate),
             Bytes::from_static(b"translated-before-aliases"),
             ResponseBody::Stream(stream(&[b"skip", b"one"])),
+            false,
         )
         .await
         .unwrap();
@@ -643,6 +655,7 @@ mod tests {
             request,
             Bytes::new(),
             ResponseBody::Buffered(Bytes::from_static(b"{}")),
+            false,
         )
         .await
         .err()
@@ -660,11 +673,14 @@ mod tests {
         );
         req.body = Bytes::from_static(br#"{"model":"m","max_tokens":5,"messages":[{"role":"user","content":"hi"}]}"#);
         let codex = Default::default();
-        let translated = request(&req, codex, "m", false).unwrap();
-        assert_eq!(original(&req, &translated, codex, "m", false).unwrap(), translated);
+        let translated = request(&req, codex, "m", false, false).unwrap();
+        assert_eq!(
+            original(&req, &translated, codex, "m", false, false).unwrap(),
+            translated
+        );
         // The working payload's refusal still counts.
         std::mem::swap(&mut req.body, &mut req.original_body);
-        assert!(request(&req, codex, "m", false).is_err());
+        assert!(request(&req, codex, "m", false, false).is_err());
     }
 
     #[test]
@@ -673,11 +689,11 @@ mod tests {
         request.source_format = Format::Claude;
         request.body = Bytes::from_static(br#"{  "model" : "claude", "messages": [] }"#);
         assert_eq!(
-            super::request(&request, Default::default(), "claude", false).unwrap(),
+            super::request(&request, Default::default(), "claude", false, false).unwrap(),
             request.body
         );
         assert_eq!(
-            super::request(&request, Default::default(), "claude-base", false).unwrap(),
+            super::request(&request, Default::default(), "claude-base", false, false).unwrap(),
             br#"{  "model" : "claude-base", "messages": [] }"#.as_slice()
         );
     }

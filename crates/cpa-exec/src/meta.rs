@@ -333,6 +333,7 @@ fn response_ctx<'a>(req: &'a ExecRequest, translated: &'a [u8]) -> ResponseCtx<'
         model: &req.model,
         original_request: original(req),
         translated_request: translated,
+        tool_search: false,
     }
 }
 
@@ -382,6 +383,7 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
             &RequestCtx {
                 model: &base_model,
                 stream,
+                tool_search: false,
             },
             body,
             &client,

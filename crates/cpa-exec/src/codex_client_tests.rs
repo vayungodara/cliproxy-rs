@@ -51,6 +51,7 @@ fn replays_go_translation_and_optimization() {
                 let ctx = RequestCtx {
                     model: "test-model",
                     stream: true,
+                    tool_search: false,
                 };
                 let got = translate_request(from, to, &ctx, input, &client).unwrap();
                 assert_eq!(

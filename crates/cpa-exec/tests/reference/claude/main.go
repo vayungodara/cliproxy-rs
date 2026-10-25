@@ -231,6 +231,10 @@ func localDate(cfg *config.Config, auth *cliproxyauth.Auth) string {
 	return time.Now().In(location).Format("2006-01-02")
 }
 
+// afterLoad applies what the server does on a config reload beyond the executor's
+// own config; set by an optional extra file (tool_search_hook.go for v8.0.35).
+var afterLoad func(*config.Config)
+
 func run(root string, s scenario) result {
 	dir := filepath.Join(root, s.Name)
 	must(os.MkdirAll(filepath.Join(dir, "auth"), 0o700))
@@ -241,6 +245,9 @@ func run(root string, s scenario) result {
 	}
 	cfg, err := config.LoadConfig(filepath.Join(dir, "config.yaml"))
 	must(err)
+	if afterLoad != nil {
+		afterLoad(cfg)
+	}
 	sctx := &synthesizer.SynthesisContext{Config: cfg, AuthDir: filepath.Join(dir, "auth"), Now: time.Now(), IDGenerator: synthesizer.NewStableIDGenerator()}
 	var auths []*cliproxyauth.Auth
 	fromConfig, err := synthesizer.NewConfigSynthesizer().Synthesize(sctx)

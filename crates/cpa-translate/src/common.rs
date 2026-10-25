@@ -1337,6 +1337,7 @@ mod tests {
             let ctx = crate::RequestCtx {
                 model: "m",
                 stream: false,
+                tool_search: false,
             };
             crate::translate_request(
                 cpa_core::format::Format::Claude,

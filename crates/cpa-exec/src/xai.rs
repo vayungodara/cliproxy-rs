@@ -353,6 +353,7 @@ fn translate_non_stream(req: &ExecRequest, p: &Prepared, to: Format, data: &[u8]
         model: &req.model,
         original_request: &p.original_payload,
         translated_request: &p.body,
+        tool_search: false,
     };
     let out = match cpa_translate::pair(req.response_format, to) {
         Some(pair) => (pair.non_stream)(&ctx, data).map_err(|_| apply_patch_error())?,
@@ -998,6 +999,7 @@ impl Pipeline {
                     model: &req.model,
                     original_request: &p.original_payload,
                     translated_request: &p.body,
+                    tool_search: false,
                 },
                 req,
             ),

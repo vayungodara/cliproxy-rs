@@ -27,6 +27,7 @@ pub(crate) struct ClaudeKey {
     pub cloak: Option<Cloak>,
     pub fingerprint_profile: String,
     pub rebuild_mid_system_message: bool,
+    pub native_tool_search: bool,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -42,6 +43,8 @@ pub(crate) struct Settings {
     pub header_defaults: HeaderDefaults,
     pub disable_cloak_mode: bool,
     pub model_level_cooling: bool,
+    /// `upstream.claude.tool-search`: Codex client tool_search on Responses routes.
+    pub tool_search: bool,
     pub keys: Vec<ClaudeKey>,
 }
 
@@ -77,6 +80,7 @@ impl Settings {
         };
         s.disable_cloak_mode = flag(claude.and_then(|c| c.get("disable-claude-cloak-mode")));
         s.model_level_cooling = flag(claude.and_then(|c| c.get("model-level-cooling")));
+        s.tool_search = flag(claude.and_then(|c| c.get("tool-search")));
         s
     }
 
@@ -120,6 +124,7 @@ fn keys(doc: &Value) -> Vec<ClaudeKey> {
                 cloak,
                 fingerprint_profile: text(key.get("fingerprint-profile")),
                 rebuild_mid_system_message: flag(key.get("rebuild-mid-system-message")),
+                native_tool_search: flag(key.get("native-tool-search")),
             });
         }
     }

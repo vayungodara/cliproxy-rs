@@ -37,7 +37,11 @@ fn thinking(model: &str, effort: &str) -> String {
     let out = translate_request(
         Format::OpenAI,
         Format::Claude,
-        &RequestCtx { model, stream: false },
+        &RequestCtx {
+            model,
+            stream: false,
+            tool_search: false,
+        },
         body.as_bytes(),
     )
     .unwrap();

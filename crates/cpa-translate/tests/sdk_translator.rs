@@ -67,6 +67,7 @@ fn fallbacks_match_go() {
                 let ctx = RequestCtx {
                     model: v["model"].as_str().unwrap_or_default(),
                     stream: false,
+                    tool_search: false,
                 };
                 translate_request(client, upstream, &ctx, &input).unwrap()
             }

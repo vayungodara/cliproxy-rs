@@ -18,7 +18,7 @@ Columns:
 | Claude: thread continuation | 4 | 4 | 0 | 0 | 0 | 0 |
 | Claude: rate limits and error answers | 2 | 2 | 0 | 0 | 0 | 0 |
 | Claude: other executor work | 13 | 5 | 8 | 0 | 0 | 0 |
-| Claude: Responses tool_search | 13 | 0 | 13 | 0 | 0 | 0 |
+| Claude: Responses tool_search | 13 | 13 | 0 | 0 | 0 | 0 |
 | Translation to and from Claude | 17 | 13 | 4 | 0 | 0 | 0 |
 | Payload rules | 1 | 1 | 0 | 0 | 0 | 0 |
 | Codex | 19 | 18 | 1 | 0 | 0 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **93** | **129** | **0** | **63** | **3** |
+| **All** | **288** | **106** | **116** | **0** | **63** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -94,19 +94,19 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 
 | Commit | Subject | User-visible | This PR | Size | Notes |
 |---|---|---|---|---|---|
-| [`58c0f6a2`](https://github.com/router-for-me/CLIProxyAPI/commit/58c0f6a2) | feat(claude): support Codex client tool_search on the Responses API | yes | to port | L (+295 −74) | Codex `tool_search` as Anthropic native tool search |
-| [`a68ad134`](https://github.com/router-for-me/CLIProxyAPI/commit/a68ad134) | fix(claude): address tool_search review findings | yes | to port | M (+67 −33) | follow-up fixes to the above |
-| [`48ad3487`](https://github.com/router-for-me/CLIProxyAPI/commit/48ad3487) | feat(executor): add Responses tool_search strip and legacy model helpers | yes | to port | M (+158 −0) | helpers that strip `tool_search` for unsupported routes |
-| [`aeec5e97`](https://github.com/router-for-me/CLIProxyAPI/commit/aeec5e97) | feat(claude): emit native deferred tools and tool_reference for tool_search | yes | to port | S (+40 −4) | deferred tools and `tool_reference` blocks |
-| [`ae33711c`](https://github.com/router-for-me/CLIProxyAPI/commit/ae33711c) | feat(config): add native-tool-search switch for Claude API keys | yes | to port | S (+12 −0) | `native-tool-search` switch per Claude API key |
-| [`52992659`](https://github.com/router-for-me/CLIProxyAPI/commit/52992659) | feat(claude): fall back to pre-tool-search translation on unsupported upstreams | yes | to port | M (+52 −0) | fallback translation for unsupported upstreams |
-| [`11f04c20`](https://github.com/router-for-me/CLIProxyAPI/commit/11f04c20) | feat(codex): advertise tool search only for natively supported Claude routes | yes | to port | M (+135 −20) | Codex model catalog advertises tool search per route |
-| [`8eed08ef`](https://github.com/router-for-me/CLIProxyAPI/commit/8eed08ef) | fix(claude): drop cache_control from deferred tool_search tools | yes | to port | S (+2 −0) | no `cache_control` on deferred tools |
-| [`77e3d0d3`](https://github.com/router-for-me/CLIProxyAPI/commit/77e3d0d3) | feat(config): add upstream.claude.tool-search switch | yes | to port | S (+18 −1) | `upstream.claude.tool-search` switch |
-| [`956c3da1`](https://github.com/router-for-me/CLIProxyAPI/commit/956c3da1) | feat(claude): gate Responses tool_search translation behind upstream.claude.tool-search | yes | to port | M (+52 −14) | translation gated behind the switch |
-| [`03a3cfec`](https://github.com/router-for-me/CLIProxyAPI/commit/03a3cfec) | feat(claude): honor upstream.claude.tool-search in executor, catalog and server | yes | to port | S (+29 −5) | executor, catalog and server honour the switch |
-| [`29bd0415`](https://github.com/router-for-me/CLIProxyAPI/commit/29bd0415) | fix(claude): pin upstream.claude.tool-search per request | yes | to port | M (+130 −64) | switch pinned per request |
-| [`97ba1e89`](https://github.com/router-for-me/CLIProxyAPI/commit/97ba1e89) | fix(claude): keep prompt cache when tool_search discovers the first deferred tool | yes | to port | S (+37 −3) | keep prompt cache when tool_search discovers the first deferred tool |
+| [`58c0f6a2`](https://github.com/router-for-me/CLIProxyAPI/commit/58c0f6a2) | feat(claude): support Codex client tool_search on the Responses API | yes | ported here | L (+295 −74) | Codex `tool_search` as Anthropic native tool search; replays Go's tool_search translator tests with the switch on (`claude_tool_search.json`) |
+| [`a68ad134`](https://github.com/router-for-me/CLIProxyAPI/commit/a68ad134) | fix(claude): address tool_search review findings | yes | ported here | M (+67 −33) | follow-up fixes to the above; same goldens |
+| [`48ad3487`](https://github.com/router-for-me/CLIProxyAPI/commit/48ad3487) | feat(executor): add Responses tool_search strip and legacy model helpers | yes | ported here | M (+158 −0) | `tool_search` strip and legacy-model helpers (`claude/tool_search.rs`); replays their Go tests |
+| [`aeec5e97`](https://github.com/router-for-me/CLIProxyAPI/commit/aeec5e97) | feat(claude): emit native deferred tools and tool_reference for tool_search | yes | ported here | S (+40 −4) | deferred tools and `tool_reference` blocks; same goldens |
+| [`ae33711c`](https://github.com/router-for-me/CLIProxyAPI/commit/ae33711c) | feat(config): add native-tool-search switch for Claude API keys | yes | ported here | S (+12 −0) | `native-tool-search` per Claude API key: attribute, executor check and reload summary |
+| [`52992659`](https://github.com/router-for-me/CLIProxyAPI/commit/52992659) | feat(claude): fall back to pre-tool-search translation on unsupported upstreams | yes | ported here | M (+52 −0) | Responses requests lose `tool_search` before translation on unsupported credentials and legacy models, in Messages and count_tokens; Go-recorded executor scenarios (`go_executor_tool_search.json`) |
+| [`11f04c20`](https://github.com/router-for-me/CLIProxyAPI/commit/11f04c20) | feat(codex): advertise tool search only for natively supported Claude routes | yes | ported here | M (+135 −20) | Codex catalog `supports_search_tool` per serving credential; Go vectors and a Go-recorded config catalog. Home catalog part not ported: Home's Codex catalog itself is not (`models.rs`) |
+| [`8eed08ef`](https://github.com/router-for-me/CLIProxyAPI/commit/8eed08ef) | fix(claude): drop cache_control from deferred tool_search tools | yes | ported here | S (+2 −0) | no `cache_control` on deferred tools; same goldens |
+| [`77e3d0d3`](https://github.com/router-for-me/CLIProxyAPI/commit/77e3d0d3) | feat(config): add upstream.claude.tool-search switch | yes | ported here | S (+18 −1) | `upstream.claude.tool-search` (legacy `claude.tool-search`), off by default; reload summary |
+| [`956c3da1`](https://github.com/router-for-me/CLIProxyAPI/commit/956c3da1) | feat(claude): gate Responses tool_search translation behind upstream.claude.tool-search | yes | ported here | M (+52 −14) | off keeps the earlier translation: the pair goldens replay unchanged, and Go's output differs with the switch on only for requests that use `tool_search` |
+| [`03a3cfec`](https://github.com/router-for-me/CLIProxyAPI/commit/03a3cfec) | feat(claude): honor upstream.claude.tool-search in executor, catalog and server | yes | ported here | S (+29 −5) | executor, catalog and plugin executors read the switch from the request's config snapshot; no process-wide switch |
+| [`29bd0415`](https://github.com/router-for-me/CLIProxyAPI/commit/29bd0415) | fix(claude): pin upstream.claude.tool-search per request | yes | ported here | M (+130 −64) | the switch is read once per request, so the fallback and both translations agree across a reload |
+| [`97ba1e89`](https://github.com/router-for-me/CLIProxyAPI/commit/97ba1e89) | fix(claude): keep prompt cache when tool_search discovers the first deferred tool | yes | ported here | S (+37 −3) | the deferred anchor is declared from the first native request, so a first discovery only appends to `tools` |
 
 ## Translation to and from Claude
 
