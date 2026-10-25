@@ -964,8 +964,13 @@ fn config_sync_locked(
         suffix.split('/').collect()
     };
     if method == Method::GET {
-        // Go v8.0.35 (3be5fa44): a historical path reads the canonical values.
-        let mut view = doc.clone();
+        // Go v8.0.35 (3be5fa44): a historical path reads the canonical values, with
+        // the file's YAML types.
+        let mut view = match ConfigDocument::view(&original) {
+            Ok(view) => view,
+            Err(e) => return invalid_config(StatusCode::INTERNAL_SERVER_ERROR, e),
+        };
+        view.archive_unknown();
         view.project_aliases(&parts);
         if yaml {
             return match doc.render_preserving(&basis) {
@@ -1217,7 +1222,7 @@ pub(crate) fn v0_save(
         Err(_) => return error(500, "read_failed"),
     };
     // Go's saver works on the alias- and merge-expanded root mapping (`flattenV8`).
-    let mut root = match cpa_core::config::yaml_value(&original) {
+    let mut root = match cpa_core::config::config_value(&original) {
         Ok(v) => v,
         Err(e) => return invalid_config(StatusCode::INTERNAL_SERVER_ERROR, e),
     };
