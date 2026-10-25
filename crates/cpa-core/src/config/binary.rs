@@ -35,6 +35,9 @@ const PLUGIN_PIN: &str =
 /// More alias copies of rewritten scalars than a config has; alias chains past it are
 /// refused. Each scalar written in the file counts once and is not limited.
 const MAX_COPIES: usize = 1 << 20;
+/// More entries than aliases of a config visit, kept or not: copies an alias drops (a
+/// number that lands outside a string setting) still cost a step each.
+const MAX_VISITS: usize = 1 << 22;
 
 /// Go's `base64.StdEncoding` as yaml.v3 applies it: padding required, unused bits
 /// ignored, CR and LF skipped. `None` for invalid data.
@@ -74,6 +77,7 @@ pub(super) fn decode(text: &str, value: &mut Value, literals: bool) -> anyhow::R
         keys: Vec::new(),
         found: Vec::new(),
         copies: 0,
+        visits: 0,
     };
     if let Some(root) = walk.events.next() {
         walk.node(root, &mut Vec::new(), false)?;
@@ -416,6 +420,8 @@ struct Walk {
     found: Vec<Found>,
     /// How many of them are alias copies.
     copies: usize,
+    /// How many anchor entries aliases visited, [`MAX_VISITS`] at most.
+    visits: usize,
 }
 
 impl Walk {
@@ -518,6 +524,8 @@ impl Walk {
             }
             Event::Alias(name) => {
                 ensure!(!key, UNSUPPORTED_KEY);
+                self.visits += self.anchors.get(&name).map_or(0, Vec::len);
+                ensure!(self.visits <= MAX_VISITS, "config YAML aliases expand too far");
                 let copies = self.anchors.get(&name).cloned().unwrap_or_default();
                 for mut below in copies {
                     let keys = [self.keys.as_slice(), &below.keys].concat();

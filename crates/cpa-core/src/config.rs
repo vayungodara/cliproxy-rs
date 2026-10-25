@@ -1190,6 +1190,18 @@ mod tests {
         assert_eq!(doc["oauth-excluded-models"]["c"][7], Value::from("7"));
     }
 
+    /// Aliases whose copies no string setting keeps are bounded too: 2,048 aliases of a
+    /// 2,049-number anchor outside any string setting visit just over the limit and are
+    /// refused, where each would otherwise copy the whole anchor. Go refuses such a file
+    /// as excessive aliasing.
+    #[test]
+    fn dropped_alias_copies_are_bounded() {
+        let numbers = vec!["0"; 2049].join(", ");
+        let text = format!("x: &x [{numbers}]\nzz-ignored: [{}]\n", vec!["*x"; 2048].join(", "));
+        let err = config_value(&text).unwrap_err();
+        assert_eq!(err.to_string(), "config YAML aliases expand too far");
+    }
+
     /// Only alias copies count toward the alias limit: a list of more numbers than that,
     /// anchored (so kept for its aliases) or an exclusion list, loads as in Go.
     #[test]
