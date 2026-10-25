@@ -1300,9 +1300,9 @@ mod creds {
             }
             let _ = std::fs::remove_dir_all(&dir);
         }
-        assert_eq!(compared, 219);
+        assert_eq!(compared, 222);
         eprintln!("credentials: {bytes_compared} of {compared} steps compared byte for byte");
-        assert_eq!(bytes_compared, 171, "steps compared byte for byte");
+        assert_eq!(bytes_compared, 174, "steps compared byte for byte");
     }
 
     /// Pending v8.0.35 drift outside the config saver. Each pin names its scenario and
@@ -1354,6 +1354,16 @@ mod creds {
             }
             if name == "save_bytes" && i >= 3 {
                 locks.push("raw-codex.json.lock");
+            }
+            // Codex uploads: saved under the lock of the file they wrote.
+            for (step, lock) in [
+                (22, "raw-up-codex-off.json.lock"),
+                (21, "raw-up-codex-same.json.lock"),
+                (20, "raw-up-codex.json.lock"),
+            ] {
+                if name == "save_bytes" && i >= step {
+                    locks.push(lock);
+                }
             }
             let mut recorded: Vec<String> = files.keys().filter(|f| f.ends_with(".lock")).cloned().collect();
             recorded.sort();
