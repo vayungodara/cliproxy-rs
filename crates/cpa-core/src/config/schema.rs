@@ -1,4 +1,4 @@
-//! Field shapes generated from Go structs at 6fecc6e. Runtime defaults and provider
+//! Field shapes generated from Go structs at ae3ee3be. Runtime defaults and provider
 //! sanitizers are separate; this does not claim to replace those normalizers.
 use crate::gostr::GoStr;
 use anyhow::{Context, bail};

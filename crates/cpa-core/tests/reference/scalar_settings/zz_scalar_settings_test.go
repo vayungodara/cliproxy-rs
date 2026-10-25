@@ -113,6 +113,23 @@ oauth:
 `, Checks: []check{
 			{Go: "oauth-model-alias.codex.0.name", Rust: "oauth.model-alias.codex.0.name"},
 		}},
+		{Name: "v8.0.35-fields", YAML: `oauth: {providers: {codex: {signin-with-chatgpt-identifier: 1.50}}}
+client: {codex: {web-search-result-cache: {ttl: 007}}}
+routing: {session-affinity-rebind-on: 0x1F}
+upstream: {claude: {header-defaults: {anthropic-beta-append: [1.50], anthropic-beta-strip: [true]}}}
+api-keys:
+  claude:
+    - base-url: http://127.0.0.1:1
+      models: [{name: m, alias: a, thinking: {disable-type: 1.0}}]
+      keys: [{api-key: k}]
+`, Checks: []check{
+			{Go: "codex.signin-with-chatgpt-identifier", Rust: "oauth.providers.codex.signin-with-chatgpt-identifier"},
+			{Go: "client.codex.web-search-result-cache.ttl", Rust: "client.codex.web-search-result-cache.ttl"},
+			{Go: "routing.session-affinity-rebind-on", Rust: "routing.session-affinity-rebind-on"},
+			{Go: "claude-header-defaults.anthropic-beta-append.0", Rust: "upstream.claude.header-defaults.anthropic-beta-append.0"},
+			{Go: "claude-header-defaults.anthropic-beta-strip.0", Rust: "upstream.claude.header-defaults.anthropic-beta-strip.0"},
+			{Go: "claude-api-key.0.models.0.thinking.disable-type", Rust: "api-keys.claude.0.models.0.thinking.disable-type"},
+		}},
 	}
 	for i := range cases {
 		cfg, err := ParseConfigBytes([]byte(cases[i].YAML))
