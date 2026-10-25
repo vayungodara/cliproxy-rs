@@ -20,6 +20,7 @@
 use std::collections::{HashMap, HashSet};
 use std::ffi::CStr;
 use std::mem::MaybeUninit;
+use std::rc::Rc;
 
 use anyhow::{Context, bail, ensure};
 use serde_yaml_ng::Value;
@@ -56,7 +57,7 @@ pub(super) fn go_base64(text: &[u8]) -> Option<Vec<u8>> {
 pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     // Without a tag, an anchor, a `<<` key or a collection key, serde_yaml_ng reads the
     // file as yaml.v3 does here.
-    if !text.contains(['!', '&']) && !needs_walk(value) && !scalar_model_name(value, true) {
+    if !text.contains(['!', '&']) && !needs_walk(value) && !scalar_literal_field(value, &mut Vec::new()) {
         return Ok(());
     }
     let mut walk = Walk {
@@ -64,6 +65,8 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
         defined: HashSet::new(),
         sequences: HashSet::new(),
         anchors: HashMap::new(),
+        bases: Vec::new(),
+        keys: Vec::new(),
         found: Vec::new(),
     };
     if let Some(root) = walk.events.next() {
@@ -73,22 +76,19 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     // `!!binary` pin, aliased or merged in too, keeps its base64 text there and fails
     // the version grammar; refused rather than read decoded.
     ensure!(
-        !walk
-            .found
-            .iter()
-            .any(|(p, _, kind)| *kind == Kind::Binary && plugin_pin(value, p)),
+        !walk.found.iter().any(|f| f.kind == Kind::Binary && plugin_pin(&f.keys)),
         PLUGIN_PIN
     );
     // yaml.v3 reads any plain scalar into a string field as its text; serde_yaml_ng
     // reads a number or boolean (`1.50`, `0x1F`, `007`, `true`) as that value, whose text
-    // differs. Model names and aliases take the text.
+    // differs. The fields of [`literal_field`] take the text.
     let mut found: Vec<Found> = walk
         .found
         .into_iter()
-        .filter(|(p, _, kind)| *kind != Kind::Literal || model_name(value, p))
+        .filter(|f| f.kind != Kind::Literal || literal_field(&f.keys, true))
         .collect();
     // Paths are entry or item positions; patch them in one ordered pass.
-    found.sort_by(|a, b| a.0.cmp(&b.0));
+    found.sort_by(|a, b| a.path.cmp(&b.path));
     apply(value, 0, &found)
 }
 
@@ -106,11 +106,11 @@ fn needs_walk(value: &Value) -> bool {
 }
 
 fn apply(node: &mut Value, depth: usize, patches: &[Found]) -> anyhow::Result<()> {
-    let Some((path, replacement, _)) = patches.first() else {
+    let Some(first) = patches.first() else {
         return Ok(());
     };
-    if path.len() == depth {
-        *node = replacement.clone();
+    if first.path.len() == depth {
+        *node = first.value.clone();
         return Ok(());
     }
     let mut node = node;
@@ -127,7 +127,7 @@ fn apply(node: &mut Value, depth: usize, patches: &[Found]) -> anyhow::Result<()
         if rest.is_empty() {
             break;
         }
-        let n = rest.iter().take_while(|(p, _, _)| p[depth] == i).count();
+        let n = rest.iter().take_while(|f| f.path[depth] == i).count();
         apply(child, depth + 1, &rest[..n])?;
         rest = &rest[n..];
     }
@@ -135,76 +135,33 @@ fn apply(node: &mut Value, depth: usize, patches: &[Found]) -> anyhow::Result<()
     Ok(())
 }
 
-/// Whether `value` holds a model name or alias (see [`model_name`]) that serde_yaml_ng
-/// read as a number or boolean.
-fn scalar_model_name(value: &Value, root: bool) -> bool {
-    let Value::Mapping(m) = value else {
-        return matches!(value, Value::Sequence(items) if items.iter().any(|v| scalar_model_name(v, false)));
-    };
-    m.iter().any(|(k, v)| match (k.as_str(), v) {
-        (Some("plugins"), _) if root => false,
-        (Some("models"), Value::Sequence(items)) => items.iter().any(|item| {
-            ["name", "alias"]
-                .iter()
-                .any(|key| matches!(item.get(key), Some(Value::Number(_) | Value::Bool(_))))
+/// Whether `value`, with no merge keys or aliases, holds a number or boolean in a
+/// [`literal_field`]. `keys` leads to `value`.
+fn scalar_literal_field<'a>(value: &'a Value, keys: &mut Vec<Option<&'a str>>) -> bool {
+    match value {
+        Value::Mapping(m) => m.iter().any(|(k, v)| {
+            // A key that is not a string still names a mapping entry.
+            keys.push(Some(k.as_str().unwrap_or("")));
+            let found = scalar_literal_field(v, keys);
+            keys.pop();
+            found
         }),
-        _ => scalar_model_name(v, false),
-    })
-}
-
-/// Whether `path` (entry or item positions in `root`) is a `models[].name` or
-/// `models[].alias`, merge keys skipped: a Go string in every config struct that has
-/// one. Untyped data is left alone: plugin configs, and a payload rule's `params` and
-/// `match`/`not-match` values, which reach requests with their YAML types.
-fn model_name(root: &Value, path: &[usize]) -> bool {
-    let keys = named_keys(root, path);
-    keys.first() != Some(&Some("plugins"))
-        && !keys.iter().any(|k| matches!(k, Some("params" | "match" | "not-match")))
-        && matches!(keys.as_slice(), [.., Some("models"), None, Some("name" | "alias")])
-}
-
-/// Whether `path` (entry or item positions in `root`) is a plugin's `store.version` or
-/// `store.release-tag`, merge keys skipped.
-fn plugin_pin(root: &Value, path: &[usize]) -> bool {
-    matches!(
-        named_keys(root, path).as_slice(),
-        [
-            Some("plugins"),
-            Some("configs"),
-            Some(_),
-            Some("store"),
-            Some("version" | "release-tag")
-        ]
-    )
-}
-
-/// The keys along `path` (`None` for a list item), merge keys and the list items of a
-/// `<<: [...]` skipped; empty where the path leaves `root`.
-fn named_keys<'a>(root: &'a Value, path: &[usize]) -> Vec<Option<&'a str>> {
-    let mut keys = Vec::new();
-    let mut node = root;
-    for &i in path {
-        while let Value::Tagged(tagged) = node {
-            node = &tagged.value;
-        }
-        match node {
-            Value::Mapping(m) => {
-                let Some((key, value)) = m.iter().nth(i) else {
-                    return Vec::new();
-                };
-                keys.push(key.as_str());
-                node = value;
-            }
-            Value::Sequence(items) => {
-                let Some(item) = items.get(i) else { return Vec::new() };
-                keys.push(None);
-                node = item;
-            }
-            _ => return Vec::new(),
-        }
+        Value::Sequence(items) => items.iter().any(|v| {
+            keys.push(None);
+            let found = scalar_literal_field(v, keys);
+            keys.pop();
+            found
+        }),
+        Value::Number(_) | Value::Bool(_) => literal_field(keys, true),
+        _ => false,
     }
-    let mut named = Vec::new();
-    let mut keys = keys.into_iter().peekable();
+}
+
+/// `keys` (a mapping key, or `None` for a list item, per step) without merge keys and
+/// the list items of a `<<: [...]`.
+fn named<K: AsRef<str>>(keys: &[Option<K>]) -> Vec<Option<&str>> {
+    let mut named = Vec::with_capacity(keys.len());
+    let mut keys = keys.iter().map(|k| k.as_ref().map(AsRef::as_ref)).peekable();
     while let Some(key) = keys.next() {
         if key == Some("<<") {
             // `<<: [*a, *b]`: the list item is part of the merge too.
@@ -214,6 +171,77 @@ fn named_keys<'a>(root: &'a Value, path: &[usize]) -> Vec<Option<&'a str>> {
         }
     }
     named
+}
+
+/// Whether the scalar at `keys` is a Go string field that cliproxy-rs reads by name and
+/// yaml.v3 reads as its source text: a `models[].name` or `models[].alias`, an
+/// `excluded-models` item, and the name, alias or item of a channel's `oauth`
+/// `model-alias` or `excluded-models` (or the legacy `oauth-model-alias` and
+/// `oauth-excluded-models`). Untyped data is left alone: plugin configs, and a payload
+/// rule's `params` and `match`/`not-match` values, which reach requests with their YAML
+/// types. With `whole` false, `keys` starts below an anchor whose aliases decide the
+/// rest: whether some position could make the scalar such a field.
+fn literal_field<K: AsRef<str>>(keys: &[Option<K>], whole: bool) -> bool {
+    #[derive(Clone, Copy)]
+    enum Step {
+        Key(&'static str),
+        AnyKey,
+        Item,
+        NameOrAlias,
+    }
+    use Step::*;
+    // Patterns that may sit anywhere, then patterns from the root.
+    const ANYWHERE: &[&[Step]] = &[&[Key("models"), Item, NameOrAlias], &[Key("excluded-models"), Item]];
+    const ROOTED: &[&[Step]] = &[
+        &[Key("oauth"), Key("model-alias"), AnyKey, Item, NameOrAlias],
+        &[Key("oauth"), Key("excluded-models"), AnyKey, Item],
+        &[Key("oauth-model-alias"), AnyKey, Item, NameOrAlias],
+        &[Key("oauth-excluded-models"), AnyKey, Item],
+    ];
+    let keys = named(keys);
+    if keys.iter().any(|k| matches!(k, Some("params" | "match" | "not-match")))
+        || (whole && keys.first() == Some(&Some("plugins")))
+    {
+        return false;
+    }
+    let fits = |pattern: &[Step], keys: &[Option<&str>]| {
+        pattern.len() == keys.len()
+            && pattern.iter().zip(keys).all(|(step, key)| match (step, key) {
+                (Key(want), Some(key)) => want == key,
+                (AnyKey, Some(_)) | (Item, None) => true,
+                (NameOrAlias, Some(key)) => matches!(*key, "name" | "alias"),
+                _ => false,
+            })
+    };
+    // The pattern's last `n` steps against the keys' last `n`.
+    let tail = |pattern: &[Step], n: usize| fits(&pattern[pattern.len() - n..], &keys[keys.len() - n..]);
+    ANYWHERE.iter().any(|p| {
+        if keys.len() >= p.len() {
+            tail(p, p.len())
+        } else {
+            !whole && tail(p, keys.len())
+        }
+    }) || ROOTED.iter().any(|p| {
+        if whole {
+            fits(p, &keys)
+        } else {
+            keys.len() <= p.len() && tail(p, keys.len())
+        }
+    })
+}
+
+/// Whether `keys` lead to a plugin's `store.version` or `store.release-tag`.
+fn plugin_pin<K: AsRef<str>>(keys: &[Option<K>]) -> bool {
+    matches!(
+        named(keys).as_slice(),
+        [
+            Some("plugins"),
+            Some("configs"),
+            Some(_),
+            Some("store"),
+            Some("version" | "release-tag")
+        ]
+    )
 }
 
 /// The document's node events, in order, without stream and document markers.
@@ -362,16 +390,26 @@ fn rewrite(tag: &[u8], plain: bool, value: Vec<u8>) -> anyhow::Result<Option<Val
     }))
 }
 
-/// A rewritten scalar: its path (entry or item positions), the value yaml.v3 reads, and
-/// what made it.
-type Found = (Vec<usize>, Value, Kind);
+/// A rewritten scalar.
+#[derive(Clone)]
+struct Found {
+    /// Entry or item positions.
+    path: Vec<usize>,
+    /// The mapping key, or `None` for a list item, at each position.
+    keys: Vec<Key>,
+    /// What yaml.v3 reads.
+    value: Value,
+    kind: Kind,
+}
+
+type Key = Option<Rc<str>>;
 
 #[derive(Clone, Copy, PartialEq)]
 enum Kind {
     Tag,
     Binary,
-    /// The text of an untagged plain scalar serde_yaml_ng may read as a number or
-    /// boolean; applied only to a model name or alias.
+    /// The text of a plain scalar serde_yaml_ng may read as a number or boolean, or of
+    /// one tagged `!!int`, `!!float` or `!!bool`; applied only to a [`literal_field`].
     Literal,
 }
 
@@ -382,6 +420,10 @@ struct Walk {
     sequences: HashSet<Vec<u8>>,
     /// Each anchor's rewritten scalars, by their path below it.
     anchors: HashMap<Vec<u8>, Vec<Found>>,
+    /// The path lengths of the anchored collections around the current node.
+    bases: Vec<usize>,
+    /// The key of each position in the current path.
+    keys: Vec<Key>,
     /// Rewritten scalars, by their path from the root.
     found: Vec<Found>,
 }
@@ -398,6 +440,19 @@ impl Walk {
         Ok(())
     }
 
+    /// Whether a literal at `keys` is kept: it is a [`literal_field`], or an alias of
+    /// the anchor around it (at `base`) could make it one. Decided here, not over the
+    /// tree afterwards, so the cost stays linear in the file and the aliases' copies.
+    fn keeps(keys: &[Key], base: Option<usize>) -> bool {
+        literal_field(keys, true) || base.is_some_and(|base| literal_field(&keys[base..], false))
+    }
+
+    fn push(&mut self, found: Found) -> anyhow::Result<()> {
+        ensure!(self.found.len() < MAX_REWRITES, "config YAML aliases expand too far");
+        self.found.push(found);
+        Ok(())
+    }
+
     fn node(&mut self, event: Event, path: &mut Vec<usize>, key: bool) -> anyhow::Result<()> {
         let start = self.found.len();
         let anchor = match event {
@@ -408,32 +463,63 @@ impl Walk {
                 value,
             } => {
                 self.define(&anchor)?;
-                if let Some(tag) = tag {
-                    // yaml.v3's layout code matches keys by their node, tag included
-                    // (`!!str <<` is no merge key).
-                    ensure!(!key, UNSUPPORTED_KEY);
+                let base = if anchor.is_some() {
+                    Some(path.len())
+                } else {
+                    self.bases.last().copied()
+                };
+                let literal = match &tag {
+                    // yaml.v3 reads a scalar tagged as a number or boolean into a string
+                    // field as its text, as it does an untagged one.
+                    Some(tag) => matches!(
+                        tag.as_slice(),
+                        b"tag:yaml.org,2002:int" | b"tag:yaml.org,2002:float" | b"tag:yaml.org,2002:bool"
+                    ),
+                    None => plain && !is_null(&value) && !resolves_to_text(&value),
+                };
+                // yaml.v3's layout code matches keys by their node, tag included
+                // (`!!str <<` is no merge key).
+                ensure!(tag.is_none() || !key, UNSUPPORTED_KEY);
+                if literal {
+                    if !key && Self::keeps(&self.keys, base) {
+                        let text = String::from_utf8(value).ok().context("config YAML is not UTF-8")?;
+                        self.push(Found {
+                            path: path.clone(),
+                            keys: self.keys.clone(),
+                            value: Value::String(text),
+                            kind: Kind::Literal,
+                        })?;
+                    }
+                } else if let Some(tag) = tag {
                     let kind = match tag.as_slice() {
                         b"tag:yaml.org,2002:binary" | b"!!binary" => Kind::Binary,
                         _ => Kind::Tag,
                     };
                     if let Some(v) = rewrite(&tag, plain, value)? {
-                        self.found.push((path.clone(), v, kind));
+                        self.push(Found {
+                            path: path.clone(),
+                            keys: self.keys.clone(),
+                            value: v,
+                            kind,
+                        })?;
                     }
-                } else if plain && !key && !is_null(&value) && !resolves_to_text(&value) {
-                    let text = String::from_utf8(value).ok().context("config YAML is not UTF-8")?;
-                    self.found.push((path.clone(), Value::String(text), Kind::Literal));
                 }
                 anchor
             }
             Event::Alias(name) => {
                 ensure!(!key, UNSUPPORTED_KEY);
                 let copies = self.anchors.get(&name).cloned().unwrap_or_default();
-                ensure!(
-                    self.found.len() + copies.len() <= MAX_REWRITES,
-                    "config YAML aliases expand too far"
-                );
-                for (below, v, kind) in copies {
-                    self.found.push(([path.as_slice(), &below].concat(), v, kind));
+                let base = self.bases.last().copied();
+                for below in copies {
+                    let keys = [self.keys.as_slice(), &below.keys].concat();
+                    if below.kind == Kind::Literal && !Self::keeps(&keys, base) {
+                        continue;
+                    }
+                    self.push(Found {
+                        path: [path.as_slice(), &below.path].concat(),
+                        keys,
+                        ..below
+                    })?;
                 }
                 None
             }
@@ -443,6 +529,9 @@ impl Walk {
                 self.define(&anchor)?;
                 if let Some(name) = anchor.as_ref().filter(|_| !mapping) {
                     self.sequences.insert(name.clone());
+                }
+                if anchor.is_some() {
+                    self.bases.push(path.len());
                 }
                 let mut i = 0;
                 loop {
@@ -458,6 +547,10 @@ impl Walk {
                             !merge || matches!(event, Event::Scalar { plain: true, .. }),
                             QUOTED_MERGE_KEY
                         );
+                        let name: Rc<str> = match &event {
+                            Event::Scalar { value, .. } => String::from_utf8_lossy(value).into(),
+                            _ => "".into(),
+                        };
                         self.node(event, path, true)?;
                         let value = self.next()?;
                         // yaml.v3 `merge`: an alias operand must name a mapping.
@@ -465,13 +558,19 @@ impl Walk {
                             ensure!(!self.sequences.contains(name), super::MERGE_NOT_MAPS);
                         }
                         path.push(i);
+                        self.keys.push(Some(name));
                         self.node(value, path, false)?;
                     } else {
                         path.push(i);
+                        self.keys.push(None);
                         self.node(event, path, false)?;
                     }
                     path.pop();
+                    self.keys.pop();
                     i += 1;
+                }
+                if anchor.is_some() {
+                    self.bases.pop();
                 }
                 anchor
             }
@@ -480,7 +579,11 @@ impl Walk {
         if let Some(name) = anchor {
             let below = self.found[start..]
                 .iter()
-                .map(|(p, v, kind)| (p[path.len()..].to_vec(), v.clone(), *kind))
+                .map(|f| Found {
+                    path: f.path[path.len()..].to_vec(),
+                    keys: f.keys[path.len()..].to_vec(),
+                    ..f.clone()
+                })
                 .collect();
             self.anchors.insert(name, below);
         }

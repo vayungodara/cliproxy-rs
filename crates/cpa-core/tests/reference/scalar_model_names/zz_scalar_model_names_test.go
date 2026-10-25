@@ -32,8 +32,35 @@ func TestZZScalarModelNames(t *testing.T) {
       models: [{name: .5, alias: +12}, {name: 0o17}, {name: yes, alias: o1}, {name: 2001-12-14, alias: o2}]
 `
 	legacy := "codex-api-key:\n  - api-key: lk\n    base-url: http://127.0.0.1:2\n    models: [{name: 2.50, alias: False}]\n"
+	// Exclusions, OAuth model aliases and tagged scalars, which yaml.v3 also reads as
+	// their text; an anchor in a header value aliased as a model name.
+	lists := `api-keys:
+  claude:
+    - headers: {x-v: &h 0x2A}
+      models: [{name: claude-x, alias: 2.50}, {name: claude-y, alias: y}, {name: !!float 1.50, alias: !!int 0x1F}, {name: !!bool True, alias: t1}, {name: *h, alias: h1}]
+      excluded-models: &ex [2.50, 1e3]
+      keys: [{api-key: ek}]
+    - models: [{name: claude-q, alias: 1e3}, {name: claude-r, alias: r}]
+      excluded-models: *ex
+      keys: [{api-key: ek2}]
+oauth:
+  model-alias:
+    claude: [{name: 1.50, alias: 007}, {name: claude-z, alias: !!bool true}]
+    codex: [{name: c, alias: &a 0x10}, {name: d, alias: *a}]
+  excluded-models:
+    claude: [2.50, !!int 0x1F, false]
+`
+	legacyLists := `claude-api-key:
+  - api-key: lk2
+    models: [{name: a, alias: 2.50}, {name: b, alias: bb}]
+    excluded-models: [2.50]
+oauth-model-alias:
+  codex: [{name: 1.50, alias: 1e3}]
+oauth-excluded-models:
+  codex: [0x1F]
+`
 	out := map[string]any{}
-	for name, text := range map[string]string{"yaml": yaml, "legacy": legacy} {
+	for name, text := range map[string]string{"yaml": yaml, "legacy": legacy, "lists": lists, "legacy-lists": legacyLists} {
 		cfg, err := config.ParseConfigBytes([]byte(text))
 		if err != nil {
 			t.Fatal(err)
@@ -60,7 +87,20 @@ func TestZZScalarModelNames(t *testing.T) {
 			}
 			GlobalModelRegistry().UnregisterClient(auth.ID)
 		}
-		out[name] = map[string]any{"yaml": text, "models": models}
+		section := map[string]any{"yaml": text, "models": models}
+		if len(cfg.OAuthExcludedModels) > 0 {
+			section["oauth-excluded-models"] = cfg.OAuthExcludedModels
+		}
+		if len(cfg.OAuthModelAlias) > 0 {
+			aliases := map[string][][2]string{}
+			for channel, entries := range cfg.OAuthModelAlias {
+				for _, e := range entries {
+					aliases[channel] = append(aliases[channel], [2]string{e.Name, e.Alias})
+				}
+			}
+			section["oauth-model-alias"] = aliases
+		}
+		out[name] = section
 	}
 	data, _ := json.MarshalIndent(out, "", "  ")
 	if err := os.WriteFile(os.Getenv("CPA_FIXTURE_OUT"), append(data, '\n'), 0o644); err != nil {

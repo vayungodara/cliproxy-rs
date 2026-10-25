@@ -1131,4 +1131,52 @@ mod tests {
         assert_eq!(resolve_auth_dir("~other/x"), home().join("other/x"));
         assert_eq!(resolve_auth_dir("/abs"), PathBuf::from("/abs"));
     }
+
+    /// Plain numbers that are no model name, alias or exclusion cost one step each: 16
+    /// times the entries must cost far less than 256 times the time (a search from the
+    /// root per number). Both sizes run in this process, so the ratio does not depend on
+    /// the machine.
+    #[test]
+    fn yaml_literals_scale_linearly() {
+        let time = |n: usize| {
+            let params: Vec<String> = (0..n).map(|i| format!("k{i}: 1.50")).collect();
+            let text = format!(
+                "x: &a 1\nrequests: {{payload: {{override: [{{models: [{{name: 0x1F}}], params: {{{}}}}}]}}}}\n",
+                params.join(", ")
+            );
+            (0..3)
+                .map(|_| {
+                    let start = std::time::Instant::now();
+                    let doc = yaml_value(&text).unwrap();
+                    let rule = &doc["requests"]["payload"]["override"][0];
+                    assert_eq!(rule["models"][0]["name"], Value::from("0x1F"));
+                    assert_eq!(rule["params"][format!("k{}", n - 1).as_str()], Value::from(1.5));
+                    start.elapsed()
+                })
+                .min()
+                .unwrap()
+        };
+        let (small, large) = (time(1000), time(16000));
+        let ratio = large.as_secs_f64() / small.as_secs_f64().max(1e-9);
+        assert!(
+            ratio < 64.0,
+            "16x the entries took {ratio:.0}x the time ({small:?} to {large:?})"
+        );
+    }
+
+    /// The aliases of an anchored list of numbers count toward the alias limit only where
+    /// they land in a model name, alias or exclusion: yaml.v3 decodes 1,024 aliases of a
+    /// 1,024-number list.
+    #[test]
+    fn unused_number_aliases_do_not_expand_too_far() {
+        let numbers: Vec<String> = (0..1024).map(|i| i.to_string()).collect();
+        let text = format!(
+            "a: &l [{}]\nb: [{}]\nc: {{excluded-models: *l}}\n",
+            numbers.join(", "),
+            vec!["*l"; 1024].join(", ")
+        );
+        let doc = yaml_value(&text).unwrap();
+        assert_eq!(doc["b"][1023][1023], Value::from(1023));
+        assert_eq!(doc["c"]["excluded-models"][7], Value::from("7"));
+    }
 }

@@ -10,6 +10,84 @@
     },
     "yaml": "codex-api-key:\n  - api-key: lk\n    base-url: http://127.0.0.1:2\n    models: [{name: 2.50, alias: False}]\n"
   },
+  "legacy-lists": {
+    "models": {
+      "lk2": [
+        [
+          "bb",
+          "b"
+        ]
+      ]
+    },
+    "oauth-excluded-models": {
+      "codex": [
+        "0x1f"
+      ]
+    },
+    "oauth-model-alias": {
+      "codex": [
+        [
+          "1.50",
+          "1e3"
+        ]
+      ]
+    },
+    "yaml": "claude-api-key:\n  - api-key: lk2\n    models: [{name: a, alias: 2.50}, {name: b, alias: bb}]\n    excluded-models: [2.50]\noauth-model-alias:\n  codex: [{name: 1.50, alias: 1e3}]\noauth-excluded-models:\n  codex: [0x1F]\n"
+  },
+  "lists": {
+    "models": {
+      "ek": [
+        [
+          "y",
+          "claude-y"
+        ],
+        [
+          "0x1F",
+          "1.50"
+        ],
+        [
+          "t1",
+          "True"
+        ],
+        [
+          "h1",
+          "0x2A"
+        ]
+      ],
+      "ek2": [
+        [
+          "r",
+          "claude-r"
+        ]
+      ]
+    },
+    "oauth-excluded-models": {
+      "claude": [
+        "2.50",
+        "0x1f",
+        "false"
+      ]
+    },
+    "oauth-model-alias": {
+      "claude": [
+        [
+          "1.50",
+          "007"
+        ],
+        [
+          "claude-z",
+          "true"
+        ]
+      ],
+      "codex": [
+        [
+          "c",
+          "0x10"
+        ]
+      ]
+    },
+    "yaml": "api-keys:\n  claude:\n    - headers: {x-v: \u0026h 0x2A}\n      models: [{name: claude-x, alias: 2.50}, {name: claude-y, alias: y}, {name: !!float 1.50, alias: !!int 0x1F}, {name: !!bool True, alias: t1}, {name: *h, alias: h1}]\n      excluded-models: \u0026ex [2.50, 1e3]\n      keys: [{api-key: ek}]\n    - models: [{name: claude-q, alias: 1e3}, {name: claude-r, alias: r}]\n      excluded-models: *ex\n      keys: [{api-key: ek2}]\noauth:\n  model-alias:\n    claude: [{name: 1.50, alias: 007}, {name: claude-z, alias: !!bool true}]\n    codex: [{name: c, alias: \u0026a 0x10}, {name: d, alias: *a}]\n  excluded-models:\n    claude: [2.50, !!int 0x1F, false]\n"
+  },
   "yaml": {
     "models": {
       "ck": [

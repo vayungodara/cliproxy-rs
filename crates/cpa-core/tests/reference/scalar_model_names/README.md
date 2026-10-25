@@ -3,7 +3,9 @@
 `../../fixtures/scalar_model_names_go.json` holds the models CLIProxyAPI v8.0.35
 (`ae3ee3be`) registers, and the upstream model each executes as, for config entries
 whose model names and aliases are plain YAML scalars that are not strings (`0x1F`,
-`1.50`, `007`, `true`, aliased and merged in too, in the v8 and legacy layouts).
+`1.50`, `007`, `true`, aliased and merged in too, in the v8 and legacy layouts), or
+tagged `!!int`, `!!float` or `!!bool`. The `lists` sections also hold `excluded-models`
+written that way, and the parsed `oauth-excluded-models` and `oauth-model-alias`.
 yaml.v3 reads each into the string field as its text. `config::credentials` tests
 replay it.
 

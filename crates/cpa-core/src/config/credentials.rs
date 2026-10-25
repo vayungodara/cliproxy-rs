@@ -1691,13 +1691,25 @@ mod tests {
 
     /// yaml.v3 reads a plain scalar into a string field as its text, so a model name or
     /// alias written as a number or boolean (`0x1F`, `1.50`, `007`, `true`, aliased or
-    /// merged in too) registers and executes as written (tests/reference/scalar_model_names).
+    /// merged in too) registers and executes as written, and so do exclusions and OAuth
+    /// model aliases (tests/reference/scalar_model_names).
     #[test]
     fn scalar_model_names_keep_their_yaml_text() {
         let go: Json = serde_json::from_str(include_str!("../../tests/fixtures/scalar_model_names_go.json")).unwrap();
-        for section in ["yaml", "legacy"] {
+        for section in ["yaml", "legacy", "lists", "legacy-lists"] {
             let cfg = Config::parse(go[section]["yaml"].as_str().unwrap()).unwrap();
             let aliases = crate::registry::dynamic::global_aliases(&cfg);
+            // Exclusions and OAuth model aliases, where Go has them.
+            if let Some(want) = go[section].get("oauth-excluded-models") {
+                assert_eq!(serde_json::to_value(oauth_excluded(&cfg)).unwrap(), *want, "{section}");
+            }
+            if let Some(want) = go[section].get("oauth-model-alias") {
+                let got: HashMap<&String, Vec<[&String; 2]>> = aliases
+                    .iter()
+                    .map(|(channel, entries)| (channel, entries.iter().map(|e| [&e.name, &e.alias]).collect()))
+                    .collect();
+                assert_eq!(serde_json::to_value(got).unwrap(), *want, "{section}");
+            }
             let mut got = serde_json::Map::new();
             for c in from_config(&cfg) {
                 let models: Vec<Json> = crate::registry::dynamic::models_for(&cfg, &aliases, &c, 0)
