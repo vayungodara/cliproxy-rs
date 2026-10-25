@@ -107,12 +107,46 @@ pub fn for_gemini_json_schema(schema: &[u8]) -> Vec<u8> {
 
 /// InlineLocalRefs.
 pub fn inline_local_refs(schema: &[u8]) -> Vec<u8> {
-    inline_refs(schema.to_vec())
+    on_ref_stack(schema, || inline_refs(schema.to_vec()))
 }
 
+/// Runs `f` on a scoped thread with Go's maximum goroutine stack (1 GiB, reserved, not
+/// committed) when `schema` holds a `"$ref"`. Inlining nests each expansion inside its
+/// reference, so a chain of definitions in a small input expands to thousands of levels
+/// (about 6,000 within the budget), and the passes recurse per level like Go's, whose
+/// stacks grow. Input-depth guards cannot see that. Cost: one thread spawn per schema with
+/// a reference, on the request path of every Gemini, Vertex, AI Studio, Antigravity, xAI
+/// and Kimi request whose tool schemas carry one.
+fn on_ref_stack<T: Send>(schema: &[u8], f: impl FnOnce() -> T + Send) -> T {
+    if !contains_seq(schema, br#""$ref""#) {
+        return f();
+    }
+    std::thread::scope(|scope| {
+        let handle = std::thread::Builder::new()
+            .name("schema-refs".into())
+            .stack_size(1 << 30)
+            .spawn_scoped(scope, f)
+            .expect("spawn the schema inlining thread");
+        handle.join().unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    })
+}
+
+/// cleanJSONSchema.
+///
+/// ponytail: the passes keep Go's algorithmic shape, which is superlinear: each pass walks
+/// the schema and re-reads it by path, and a budget-filling schema takes about 10 s per
+/// tool schema in Go (the uncharged type and nullable fallback copies grow roughly
+/// cubically). The ceiling is Go's own; the upgrade path is a linear rewrite of the
+/// cleaner, with the work moved off the tokio workers.
 fn clean(schema: &[u8], options: Options) -> Vec<u8> {
+    on_ref_stack(schema, || clean_inner(schema, options))
+}
+
+fn clean_inner(schema: &[u8], options: Options) -> Vec<u8> {
     let mut s = normalize_malformed_schema_objects(schema.to_vec(), options.add_missing_array_items);
-    // Every cleaner removes $defs/definitions later, so local references expand on every route.
+    // Every cleaner removes $defs/definitions later, so local references expand on every
+    // route. Per request this costs one decode and re-encode of each schema with a
+    // `"$ref"` (none without one), and up to the 256 KiB budget of copies.
     s = inline_refs_for_clean(s);
     s = convert_refs_to_hints(s, options.antigravity_semantics);
     s = convert_const_to_enum(s);
@@ -784,6 +818,33 @@ const MAX_FALLBACK_DESCRIPTION_BYTES: usize = 512;
 
 type Active = std::collections::HashSet<String>;
 
+/// The inlining budget of one call, and each reference's target size. Targets never
+/// change within a call, so a reference used many times is sized once (Go sizes it on
+/// every use, which is 14 s for 8,000 references to one 300 KB definition).
+struct Budget {
+    left: usize,
+    sizes: HashMap<String, usize>,
+}
+
+impl Budget {
+    fn new() -> Self {
+        Self {
+            left: MAX_INLINED_SCHEMA_BYTES,
+            sizes: HashMap::new(),
+        }
+    }
+
+    /// targetExpansionSize of `reference`'s `target`, memoized.
+    fn target_size(&mut self, reference: &str, target: &GoValue, for_clean: bool) -> usize {
+        if let Some(size) = self.sizes.get(reference) {
+            return *size;
+        }
+        let size = target_expansion_size(target, for_clean);
+        self.sizes.insert(reference.to_owned(), size);
+        size
+    }
+}
+
 fn is_name_map_keyword(key: &str) -> bool {
     matches!(
         key,
@@ -804,7 +865,7 @@ fn inline_refs(json: Vec<u8>) -> Vec<u8> {
     let Some(root) = decode_first(&json) else {
         return json;
     };
-    let mut budget = MAX_INLINED_SCHEMA_BYTES;
+    let mut budget = Budget::new();
     resolve_schema_root(&root, &mut budget, false).marshal()
 }
 
@@ -817,7 +878,7 @@ fn inline_refs_for_clean(json: Vec<u8>) -> Vec<u8> {
     let Some(root) = decode_first(&json) else {
         return json;
     };
-    let mut budget = MAX_INLINED_SCHEMA_BYTES;
+    let mut budget = Budget::new();
     if let GoValue::Object(map) = &root
         && map.len() == 1
         && let Some(inner @ GoValue::Object(_)) = map.get("schema")
@@ -832,7 +893,7 @@ fn inline_refs_for_clean(json: Vec<u8>) -> Vec<u8> {
 
 /// resolveSchemaRoot: the schema body resolves before the definition containers, which
 /// cleaning drops altogether, so the budget is spent on what is kept.
-fn resolve_schema_root(root: &GoValue, budget: &mut usize, for_clean: bool) -> GoValue {
+fn resolve_schema_root(root: &GoValue, budget: &mut Budget, for_clean: bool) -> GoValue {
     let GoValue::Object(root_map) = root else {
         return resolve_local_refs(root, root, &mut Active::new(), budget, for_clean);
     };
@@ -857,9 +918,9 @@ fn resolve_schema_root(root: &GoValue, budget: &mut usize, for_clean: bool) -> G
         && reference.starts_with("#/")
         && let Some(target) = resolve_pointer(root, reference)
     {
-        let size = target_expansion_size(target, for_clean);
-        if size <= *budget {
-            *budget -= size;
+        let size = budget.target_size(reference, target, for_clean);
+        if size <= budget.left {
+            budget.left -= size;
             let mut active = Active::from([reference.clone()]);
             match resolve_local_refs(root, target, &mut active, budget, for_clean).into_object() {
                 Ok(mut merged) => {
@@ -979,7 +1040,7 @@ fn resolve_local_refs(
     root: &GoValue,
     value: &GoValue,
     active: &mut Active,
-    budget: &mut usize,
+    budget: &mut Budget,
     for_clean: bool,
 ) -> GoValue {
     match value {
@@ -1000,13 +1061,13 @@ fn resolve_local_refs(
                     ));
                 }
                 // Each reference charges its stored target; nested references charge their own.
-                let size = target_expansion_size(target, for_clean);
-                if size > *budget {
+                let size = budget.target_size(reference, target, for_clean);
+                if size > budget.left {
                     return GoValue::Object(resolve_ref_fallback(
                         root, node, target, reference, active, budget, for_clean,
                     ));
                 }
-                *budget -= size;
+                budget.left -= size;
                 active.insert(reference.clone());
                 let resolved = resolve_local_refs(root, target, active, budget, for_clean);
                 active.remove(reference);
@@ -1049,7 +1110,7 @@ fn resolve_ref_fallback(
     target: &GoValue,
     reference: &str,
     active: &mut Active,
-    budget: &mut usize,
+    budget: &mut Budget,
     for_clean: bool,
 ) -> Map {
     let mut out = cyclic_ref_fallback(node, target, reference);
@@ -1060,14 +1121,14 @@ fn resolve_ref_fallback(
         && !node.contains_key("description")
     {
         let cost = json_string_encoded_size(description);
-        if cost > *budget {
+        if cost > budget.left {
             let hint = [&b"See: "[..], &ref_name(reference.as_bytes())].concat();
             out.insert(
                 "description".into(),
                 GoValue::String(String::from_utf8_lossy(&hint).into_owned()),
             );
         } else {
-            *budget -= cost;
+            budget.left -= cost;
         }
     }
     for (key, item) in node {
@@ -1090,7 +1151,7 @@ fn resolve_schema_entry(
     key: &str,
     item: &GoValue,
     active: &mut Active,
-    budget: &mut usize,
+    budget: &mut Budget,
     for_clean: bool,
 ) -> GoValue {
     if is_literal_value_keyword(key.as_bytes()) {

@@ -105,7 +105,9 @@ var extra = []string{
 	`{"properties":{"l":{"$ref":"#/$defs/L"},"m":{"type":"array"}},"$defs":{"L":{"type":"array"}}}`,
 	`{"dependencies":{"a":{"properties":{"x-k":{"type":"string"}}},"b":["a"]},"properties":{"p":{"discriminator":{"propertyName":"k"},"readOnly":true,"writeOnly":false,"contentMediaType":"text/plain","contentEncoding":"base64","type":"string"}}}`,
 	`{"$defs":{"A":{"type":"object","description":"` + strings.Repeat("d", 600) + `","properties":{"s":{"$ref":"#/$defs/A"}}}},"$ref":"#/$defs/A","title":"root"}`,
-	`{"properties":{"a":{"$ref":"#/$defs/A","description":"own"},"b":{"$ref":"#/$defs/A"}},"$defs":{"A":{"type":"object","description":"<&>` + "\u2028\n\x01" + `","properties":{"s":{"$ref":"#/$defs/A"}}}}}`,
+	`{"properties":{"a":{"$ref":"#/$defs/A","description":"own"},"b":{"$ref":"#/$defs/A"}},"$defs":{"A":{"type":"object","description":"<&>\"q\\b\u2028\n\t\u0001\u001f` + "\u2028\u00e9\u4e2d" + `","properties":{"s":{"$ref":"#/$defs/A"}}}}}`,
+	// The claude->antigravity tools/schema/11 tool schema (golden.rs SUPERSEDED).
+	`{"type":"object","properties":{"list":{"type":"array","items":true,"prefixItems":[true,false,{"type":"object"}],"contains":{"type":"object"}}},"additionalProperties":true,"propertyNames":true,"unevaluatedProperties":false,"anyOf":[true,{"type":"object","properties":{"z":{"type":"object"}}}],"not":{"type":"object"},"if":true,"then":{"type":"object"},"else":false,"$defs":{"d":{"type":"object"},"e":true},"definitions":{"f":{"type":"object"}},"dependentSchemas":{"g":true},"dependencies":{"h":["x"],"i":{"type":"object"}}}`,
 }
 
 func mine(path string) []string {

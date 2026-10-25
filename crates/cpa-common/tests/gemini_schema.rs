@@ -76,3 +76,37 @@ fn antigravity_response_matches_go() {
 fn inline_local_refs_matches_go() {
     matches_go("inline_local_refs", gs::inline_local_refs);
 }
+
+/// A chain of 1,000 definitions in a 5-deep schema expands to about 2,000 nesting levels
+/// within the inlining budget. Inlining and cleaning run on their own deep stack, so a
+/// caller on a 2 MiB worker stack completes instead of aborting.
+#[test]
+fn a_definition_chain_expands_on_a_small_stack() {
+    const N: usize = 1000;
+    let mut defs = String::new();
+    for i in 0..N {
+        defs += &format!(
+            r##""D{i}":{{"type":"object","properties":{{"a":{{"$ref":"#/$defs/D{}"}}}}}},"##,
+            i + 1
+        );
+    }
+    defs += &format!(r#""D{N}":{{"type":"string"}}"#);
+    let schema = format!(
+        r##"{{"type":"object","properties":{{"x":{{"type":"object","properties":{{"y":{{"$ref":"#/$defs/D0"}}}}}}}},"$defs":{{{defs}}}}}"##
+    );
+    let (cleaned, inlined) = std::thread::Builder::new()
+        .stack_size(2 << 20)
+        .spawn(move || {
+            (
+                gs::for_gemini(schema.as_bytes()),
+                gs::inline_local_refs(schema.as_bytes()),
+            )
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+    for out in [&cleaned, &inlined] {
+        let expanded = out.windows(5).filter(|w| w == br#""a":{"#).count();
+        assert!(expanded >= N, "{expanded} of {N} references expanded");
+    }
+}
