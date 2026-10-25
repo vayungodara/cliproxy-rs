@@ -303,8 +303,11 @@ func rsfixBegin(kind string, e *ClaudeExecutor, ctx context.Context, auth *clipr
 	}
 	ctx = context.WithValue(ctx, "cliproxy.roundtripper", http.RoundTripper(&rsfixRT{inner: inner, call: call}))
 	var configYAML string
-	if e.cfg != nil {
-		configYAML = rsfixConfigYAML(e.cfg)
+	if cfg := e.cfg; cfg != nil {
+		if rsfixConfigHook != nil {
+			cfg = rsfixConfigHook(ctx, cfg)
+		}
+		configYAML = rsfixConfigYAML(cfg)
 	}
 	var authRecord any
 	if auth != nil {
@@ -341,6 +344,11 @@ func rsfixBegin(kind string, e *ClaudeExecutor, ctx context.Context, auth *clipr
 	rsfixRecord(kind, record)
 	return ctx, record, call
 }
+
+// rsfixConfigHook, when an extra recorder file sets it, returns the config to record
+// for a call: settings the executor reads from outside its config (a process-wide
+// switch) written into a copy.
+var rsfixConfigHook func(ctx context.Context, cfg *config.Config) *config.Config
 
 // rsfixConfigYAML is the test's config struct as YAML without zero-valued leaves.
 // Go's tests build config.Config literals whose zero fields the executor reads as

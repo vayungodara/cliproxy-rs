@@ -983,10 +983,6 @@ async fn scenarios_match_go(fixture: &str, run: &str, selected: fn(&str) -> bool
         let mut req = enrich(req);
         let mut ctx = Ctx::new(&executor, &credential, &req, &cfg, Default::default());
         ctx.today = scenario["date"].as_str().unwrap().into();
-        // generate() and count_tokens() drop tool_search before anything else.
-        ctx.tool_search_fallback(&mut req);
-        let translated =
-            translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat, ctx.tool_search()).unwrap();
         if let (true, true, Some(output)) = (count, scenario["upstream"].is_null(), scenario["output"].as_array()) {
             // Counted locally: Go answered without an upstream request.
             let response = executor.count_tokens(ctx, req, false).await.unwrap();
@@ -1000,6 +996,11 @@ async fn scenarios_match_go(fixture: &str, run: &str, selected: fn(&str) -> bool
             );
             continue;
         }
+        // The stages below run inside generate() and count_tokens(), which drop
+        // tool_search first; count_tokens() itself is driven above and in go_unit.
+        ctx.tool_search_fallback(&mut req);
+        let translated =
+            translate::request(&req, ctx.codex, &ctx.base_model, ctx.is_compat, ctx.tool_search()).unwrap();
         let prepared = if count {
             let baseline = translate::count_original(
                 &req,

@@ -4,7 +4,8 @@
 Usage: record.py <CLIProxyAPI checkout at 6fecc6e> <output.json>
 
 Environment: RSFIX_FILES (comma-separated) replaces DEFAULT_FILES, RSFIX_ONLY (a regular
-expression) selects tests by name, and RSFIX_REFERENCE (default 6fecc6e) names the
+expression) selects tests by name, RSFIX_EXTRA (comma-separated) adds recorder files from
+this directory, and RSFIX_REFERENCE (default 6fecc6e) names the
 checkout in the output; see ../README.md for the v8.0.27 recording.
 
 Copies the checkout's tracked files to a scratch directory under /tmp, rewrites call
@@ -110,6 +111,9 @@ def main() -> None:
         recorder = f.read()
     with open(os.path.join(scratch, PKG, "zz_rsfix_claude_test.go"), "w", encoding="utf-8") as f:
         f.write(recorder)
+    # RSFIX_EXTRA: more recorder files from this directory (comma-separated).
+    for name in [f for f in os.environ.get("RSFIX_EXTRA", "").split(",") if f]:
+        shutil.copy(os.path.join(HERE, name), os.path.join(scratch, PKG, name))
     raw = os.path.join(scratch, "records.json")
     only = os.environ.get("RSFIX_ONLY")
     selected = [t for t in tests if not only or re.search(only, t)]

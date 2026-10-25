@@ -230,3 +230,20 @@ cp "$crate/tests/reference/claude/main.go" "$crate/tests/reference/claude/tool_s
     "$crate/src/claude/testdata/go_executor_tool_search.json" "v8.0.35 ($(git -C "$reference" rev-parse HEAD))"
 )
 ```
+
+`../../../src/claude/testdata/go_unit_tool_search.json` holds Go's own v8.0.35
+`claude_executor_tool_search_test.go`, recorded by `unit/record.py` and replayed by
+`claude::go_unit::v8_0_35_tool_search` through the executor's real Execute, ExecuteStream
+and CountTokens paths. Go's tests set `upstream.claude.tool-search` process-wide;
+`unit/zz_rsfix_tool_search_test.go` (added with `RSFIX_EXTRA`) writes the value Go pinned
+for each call into its recorded config, where cliproxy-rs reads it.
+`TestClaudeExecutor_SupportsNativeToolSearch` and the local count of
+`TestClaudeExecutor_NativeToolSearchCountTokensLocalFallback` call the executor without a
+recorded wrapper; `native_tool_search_support_matches_go` and the `tool-search-fallback-count`
+scenario cover them.
+
+```sh
+RSFIX_REFERENCE="v8.0.35 ($(git -C "$reference" rev-parse HEAD))" \
+RSFIX_FILES=claude_executor_tool_search_test.go RSFIX_EXTRA=zz_rsfix_tool_search_test.go \
+  python3 "$crate/tests/reference/claude/unit/record.py" "$reference" "$crate/src/claude/testdata/go_unit_tool_search.json"
+```

@@ -33,6 +33,13 @@ fn fixture_v8_0_35() -> &'static Value {
     FIXTURE.get_or_init(|| serde_json::from_str(include_str!("testdata/go_unit_v8.0.35.json")).unwrap())
 }
 
+/// Go's v8.0.35 `claude_executor_tool_search_test.go`, recorded with the
+/// `upstream.claude.tool-search` value Go pinned for each call in its config.
+fn fixture_tool_search() -> &'static Value {
+    static FIXTURE: OnceLock<Value> = OnceLock::new();
+    FIXTURE.get_or_init(|| serde_json::from_str(include_str!("testdata/go_unit_tool_search.json")).unwrap())
+}
+
 /// 6fecc6e recordings replaced by their v8.0.35 recording: ad9e456d `disableThinking`
 /// replaces the whole `thinking` object, and the payload rules run once, last (868e137).
 const SUPERSEDED: &[&str] = &[
@@ -227,6 +234,7 @@ fn go_assertions_held_while_recording() {
     assert_eq!(fixture()["go_failures"], serde_json::json!([]));
     assert_eq!(fixture_v8_0_27()["go_failures"], serde_json::json!([]));
     assert_eq!(fixture_v8_0_35()["go_failures"], serde_json::json!([]));
+    assert_eq!(fixture_tool_search()["go_failures"], serde_json::json!([]));
 }
 
 macro_rules! go_file {
@@ -381,3 +389,11 @@ go_file_v8_0_35!(
     v8_0_35_payload_review,
     "payload_review_test.go"
 );
+
+/// Codex tool_search through the executor (Execute, ExecuteStream and an upstream
+/// CountTokens): native references on Anthropic's origin and OAuth aliases, the
+/// pre-tool_search body on a gateway, with an original request and for a legacy model.
+#[tokio::test]
+async fn v8_0_35_tool_search() {
+    replay_file(fixture_tool_search(), "claude_executor_tool_search_test.go").await;
+}
