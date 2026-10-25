@@ -32,7 +32,7 @@ pub use schema::{coerce_typed_scalars, go_bool, go_int};
 /// a view or a save candidate sees the tagged values the loader sees.
 pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
     let mut value = serde_yaml_ng::from_str::<Value>(text)?;
-    binary::decode(text, &mut value, None)?;
+    binary::decode(text, &mut value, None, false)?;
     Ok(value)
 }
 
@@ -42,7 +42,7 @@ pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
 /// read the file's nodes.
 pub fn config_value(text: &str) -> anyhow::Result<Value> {
     let mut value = serde_yaml_ng::from_str::<Value>(text)?;
-    binary::decode(text, &mut value, Some(&[]))?;
+    binary::decode(text, &mut value, Some(&[]), false)?;
     Ok(value)
 }
 
@@ -73,7 +73,7 @@ pub fn body_value(text: &str, keys: &[&str]) -> anyhow::Result<Value> {
     }
     let parsed = serde_yaml_ng::from_str::<Value>(text)?;
     let mut value = parsed.clone();
-    binary::decode(text, &mut value, Some(keys))?;
+    binary::decode(text, &mut value, Some(keys), true)?;
     keep_written(&mut value, parsed);
     Ok(value)
 }

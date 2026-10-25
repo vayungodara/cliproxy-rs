@@ -4926,6 +4926,17 @@ async fn json_numbers_in_string_settings_keep_their_text() {
         Some("1e3"),
         "{file}"
     );
+    // A JSON `<<` key is a merge for Go, which saves it plain; its number keeps the text.
+    let body = r#"{"oauth":{"model-alias":{"codex":[{"<<":{"name":1.50},"alias":"b"}]}}}"#;
+    let (status, text) = call(&base, wreq::Method::PATCH, "/v8/management/config", body).await;
+    assert_eq!(status, 200, "{text}");
+    let file = f.file();
+    let cfg = cpa_core::config::Config::parse(&file).unwrap();
+    assert_eq!(
+        cfg.document["oauth"]["model-alias"]["codex"][0]["name"].as_str(),
+        Some("1.50"),
+        "{file}"
+    );
     let (status, text) = call(
         &base,
         wreq::Method::PUT,

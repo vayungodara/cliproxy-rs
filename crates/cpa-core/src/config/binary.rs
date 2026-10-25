@@ -60,8 +60,9 @@ pub(super) fn go_base64(text: &[u8]) -> Option<Vec<u8>> {
 /// docs) and binary bytes that are not UTF-8, which a setting cannot hold.
 /// With `literals`, a plain scalar in a [`literal_field`] is its text, as Go's typed
 /// decode reads it into the config; `text` is the value at those keys of the config
-/// (empty for a whole file).
-pub(super) fn decode(text: &str, value: &mut Value, literals: Option<&[&str]>) -> anyhow::Result<()> {
+/// (empty for a whole file). A `json` management body takes a quoted `<<` key as a
+/// merge: Go saves its JSON keys plain.
+pub(super) fn decode(text: &str, value: &mut Value, literals: Option<&[&str]>, json: bool) -> anyhow::Result<()> {
     // Without a tag, an anchor, a `<<` key or a collection key, serde_yaml_ng reads the
     // file as yaml.v3 does here.
     if !text.contains(['!', '&'])
@@ -82,6 +83,7 @@ pub(super) fn decode(text: &str, value: &mut Value, literals: Option<&[&str]>) -
         found: Vec::new(),
         copies: 0,
         visits: 0,
+        json,
     };
     if let Some(root) = walk.events.next() {
         walk.node(root, &mut Vec::new(), false)?;
@@ -426,6 +428,8 @@ struct Walk {
     copies: usize,
     /// How many anchor entries aliases visited, [`MAX_VISITS`] at most.
     visits: usize,
+    /// Whether `text` is a JSON management body, whose `<<` keys are quoted.
+    json: bool,
 }
 
 impl Walk {
@@ -572,7 +576,7 @@ impl Walk {
                         // quoted one is refused here, a tagged one below.
                         let merge = matches!(&event, Event::Scalar { tag: None, value, .. } if value == b"<<");
                         ensure!(
-                            !merge || matches!(event, Event::Scalar { plain: true, .. }),
+                            !merge || self.json || matches!(event, Event::Scalar { plain: true, .. }),
                             QUOTED_MERGE_KEY
                         );
                         let name: Rc<str> = match &event {
