@@ -1039,10 +1039,6 @@ mod tests {
         assert_eq!(null.routing.retry.request_retry, 0);
     }
 
-    /// Go `shared_upstream_test.go` (52d5507d): the legacy, canonical `upstream` and
-    /// historical `oauth.providers` layouts load the same shared settings for OAuth and
-    /// API-key views alike, migrate without their aliases, and keep the Codex header
-    /// defaults OAuth-only.
     /// v8.0.35 `buildV8Paths` moves the legacy `claude.session-date-pin-days` to
     /// `upstream.claude`.
     #[test]
@@ -1052,6 +1048,10 @@ mod tests {
         assert_eq!(doc.value()["upstream"]["claude"]["session-date-pin-days"], 3);
     }
 
+    /// Go `shared_upstream_test.go` (52d5507d): the legacy, canonical `upstream` and
+    /// historical `oauth.providers` layouts load the same shared settings for OAuth and
+    /// API-key views alike, migrate without their aliases, and keep the Codex header
+    /// defaults OAuth-only.
     #[test]
     fn shared_upstream_layouts_agree_and_migrate() {
         let keys = "api-keys: {codex: [{base-url: https://example.invalid, keys: [{api-key: test-key, disable-codex-cloaking: false}]}]}\n";
