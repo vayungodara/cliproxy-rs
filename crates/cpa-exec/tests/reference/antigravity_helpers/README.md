@@ -5,7 +5,7 @@ seven request helpers of the Antigravity executor, with Go's results:
 `validateAntigravityRequestSignatures` (with the signature-cache settings in force),
 `sanitizeAntigravityGeminiRequestSignatures`,
 `normalizeAntigravityGeminiFunctionResponseRoles`,
-`repairAntigravityGeminiFunctionResponseNames`, `sanitizeAntigravityRequestSchemas`,
+`repairAntigravityGeminiFunctionResponseNames`, `sanitizeAntigravityRequestSchemasForModel` (with its Claude flag),
 `shouldResolveAntigravityWebSearchGroundingURLs` and `resolveAntigravityRequestBaseURL`.
 `antigravity_request::tests::helpers_match_go` replays each call.
 

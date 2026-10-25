@@ -209,7 +209,7 @@ pub(crate) fn finish_request(model: &str, mut body: Vec<u8>) -> Vec<u8> {
     let claude = model.contains("claude");
     if needs_schema_sanitization(&body) {
         let antigravity_schema = claude || model.contains("gemini-3-pro") || model.contains("gemini-3.1-pro");
-        body = sanitize_request_schemas(body, antigravity_schema);
+        body = sanitize_request_schemas(body, antigravity_schema, claude);
     }
     if claude {
         gj::set_str(&mut body, "request.toolConfig.functionCallingConfig.mode", "VALIDATED");
@@ -248,22 +248,24 @@ fn needs_schema_sanitization(body: &[u8]) -> bool {
         })
 }
 
-/// `sanitizeAntigravityRequestSchemas`: declaration schemas, then generation schemas.
-pub(crate) fn sanitize_request_schemas(body: Vec<u8>, antigravity_schema: bool) -> Vec<u8> {
-    let body = sanitize_tool_schemas(body, antigravity_schema);
+/// `sanitizeAntigravityRequestSchemasForModel`: declaration schemas, then generation
+/// schemas. For a Claude model, parameter schemas flatten multi-branch unions, which the
+/// Antigravity Claude backend rejects.
+pub(crate) fn sanitize_request_schemas(body: Vec<u8>, antigravity_schema: bool, claude: bool) -> Vec<u8> {
+    let body = sanitize_tool_schemas(body, antigravity_schema, claude);
     sanitize_generation_schemas(body)
 }
 
 /// `sanitizeAntigravityToolSchemas`: the rewrites run on a document holding only
 /// `request.tools`, which then replaces the request's tools once when changed.
-fn sanitize_tool_schemas(body: Vec<u8>, antigravity_schema: bool) -> Vec<u8> {
+fn sanitize_tool_schemas(body: Vec<u8>, antigravity_schema: bool, claude: bool) -> Vec<u8> {
     let tools = gj::get(&body, "request.tools");
     if !tools.is_array() {
         return body;
     }
     let original = tools.raw().to_vec();
     let document = [&b"{\"request\":{\"tools\":"[..], &original, b"}}"].concat();
-    let document = sanitize_tool_schema_document(document, antigravity_schema);
+    let document = sanitize_tool_schema_document(document, antigravity_schema, claude);
     let cleaned = gj::get(&document, "request.tools");
     if !cleaned.is_array() || cleaned.raw() == original.as_slice() {
         return body;
@@ -280,7 +282,7 @@ fn sanitize_tool_schemas(body: Vec<u8>, antigravity_schema: bool) -> Vec<u8> {
 // ponytail: when one tool object repeats `functionDeclarations` (or its snake_case key),
 // only the first occurrence is cleaned, where Go's path edits can land on either. JSON
 // encoders do not repeat keys; fall back to Go's path edits if a client ever does.
-fn sanitize_tool_schema_document(document: Vec<u8>, antigravity_schema: bool) -> Vec<u8> {
+fn sanitize_tool_schema_document(document: Vec<u8>, antigravity_schema: bool, claude: bool) -> Vec<u8> {
     let tools = gj::get(&document, "request.tools");
     if !tools.is_array() {
         return document;
@@ -296,7 +298,7 @@ fn sanitize_tool_schema_document(document: Vec<u8>, antigravity_schema: bool) ->
         lists.sort_by_key(|(_, declarations)| declarations.index);
         for (key, declarations) in &lists {
             for (j, declaration) in declarations.array().iter().enumerate() {
-                let cleaned = sanitize_declaration(declaration.raw(), antigravity_schema);
+                let cleaned = sanitize_declaration(declaration.raw(), antigravity_schema, claude);
                 if cleaned != declaration.raw() {
                     edits.push(Replace::new(
                         &document,
@@ -313,7 +315,7 @@ fn sanitize_tool_schema_document(document: Vec<u8>, antigravity_schema: bool) ->
 }
 
 /// The edits [`sanitize_tool_schema_document`] makes to one declaration, in Go's order.
-fn sanitize_declaration(declaration: &[u8], antigravity_schema: bool) -> Vec<u8> {
+fn sanitize_declaration(declaration: &[u8], antigravity_schema: bool, claude: bool) -> Vec<u8> {
     let mut declaration = declaration.to_vec();
     let value = gj::get(&declaration, "parametersJsonSchema");
     if value.exists() {
@@ -330,8 +332,13 @@ fn sanitize_declaration(declaration: &[u8], antigravity_schema: bool) -> Vec<u8>
         if !schema.is_object() {
             continue;
         }
+        // Only parameter schemas become Claude's custom.input_schema upstream.
         let cleaned = nested_clean(schema.raw(), |s| {
-            cpa_common::gemini_schema::for_antigravity_tool(s, antigravity_schema)
+            if claude && key.starts_with("parameters") {
+                cpa_common::gemini_schema::for_antigravity_claude_tool(s, antigravity_schema)
+            } else {
+                cpa_common::gemini_schema::for_antigravity_tool(s, antigravity_schema)
+            }
         });
         if cleaned == schema.raw() {
             continue;
@@ -1251,7 +1258,11 @@ mod tests {
                 "sanitize_signatures" => sanitize_gemini_signatures(s("model"), input),
                 "normalize_roles" => normalize_function_response_roles(input),
                 "repair_names" => repair_function_response_names(input),
-                "sanitize_schemas" => sanitize_request_schemas(input, r["flag"].as_bool().unwrap_or(false)),
+                "sanitize_schemas" => sanitize_request_schemas(
+                    input,
+                    r["flag"].as_bool().unwrap_or(false),
+                    r["claude"].as_bool().unwrap_or(false),
+                ),
                 "resolves_grounding" => {
                     let got = resolves_grounding_urls(from(), s("original").as_bytes(), &input);
                     assert_eq!(got, r["bool"].as_bool().unwrap_or(false), "{test}: {fun}");
@@ -1275,6 +1286,10 @@ mod tests {
             *ran.entry(fun.into()).or_default() += 1;
         }
         assert_eq!(ran.len(), 7, "fixture lost a helper: {ran:?}");
+        assert!(
+            records.iter().any(|r| r["claude"] == true),
+            "fixture lost the Claude-model schema cleaning"
+        );
         assert!(records.len() >= 600, "fixture lost cases: {}", records.len());
     }
 
@@ -1346,7 +1361,7 @@ mod tests {
     fn tool_schemas_are_cleaned_in_one_pass() {
         let declaration = r#"{"name":"t","parametersJsonSchema":{"type":"object","$schema":"x","properties":{"a":{"type":["string","null"]}},"additionalProperties":false}}"#;
         let one = format!(r#"{{"request":{{"tools":[{{"functionDeclarations":[{declaration}]}}]}}}}"#);
-        let one = sanitize_request_schemas(one.into_bytes(), true);
+        let one = sanitize_request_schemas(one.into_bytes(), true, false);
         let cleaned = gj::get(&one, "request.tools.0.functionDeclarations.0").raw().to_vec();
         let cleaned = String::from_utf8(cleaned).unwrap();
         assert!(cleaned.contains(r#""parameters":"#) && !cleaned.contains("parametersJsonSchema"));
@@ -1357,7 +1372,7 @@ mod tests {
             )
         };
         let started = std::time::Instant::now();
-        let many = sanitize_request_schemas(body(declaration).into_bytes(), true);
+        let many = sanitize_request_schemas(body(declaration).into_bytes(), true, false);
         assert!(
             started.elapsed() < std::time::Duration::from_secs(5),
             "{:?}",

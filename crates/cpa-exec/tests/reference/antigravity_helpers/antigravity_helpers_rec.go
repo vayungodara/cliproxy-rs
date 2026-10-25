@@ -21,6 +21,7 @@ type helperRecord struct {
 	In         string            `json:"in,omitempty"`
 	Original   string            `json:"original,omitempty"`
 	Flag       bool              `json:"flag,omitempty"`
+	Claude     bool              `json:"claude,omitempty"`
 	CacheOn    bool              `json:"cache_on"`
 	Strict     bool              `json:"strict"`
 	Attributes map[string]string `json:"attributes,omitempty"`
@@ -95,9 +96,9 @@ func shouldResolveAntigravityWebSearchGroundingURLs(from sdktranslator.Format, o
 	return out
 }
 
-func sanitizeAntigravityRequestSchemas(payloadStr string, useAntigravitySchema bool) string {
-	out := sanitizeAntigravityRequestSchemasInner(payloadStr, useAntigravitySchema)
-	recordHelper(helperRecord{Fn: "sanitize_schemas", In: payloadStr, Flag: useAntigravitySchema, Out: out})
+func sanitizeAntigravityRequestSchemasForModel(payloadStr string, useAntigravitySchema, isClaudeModel bool) string {
+	out := sanitizeAntigravityRequestSchemasForModelInner(payloadStr, useAntigravitySchema, isClaudeModel)
+	recordHelper(helperRecord{Fn: "sanitize_schemas", In: payloadStr, Flag: useAntigravitySchema, Claude: isClaudeModel, Out: out})
 	return out
 }
 
