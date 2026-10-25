@@ -2518,6 +2518,8 @@ func interactionsAntigravityRequests(model string) []fixture {
 		"rewrite/native-parts": `{"tools":[{"name":"a b"}],"input":[{"type":"user_input","role":"model","parts":[{"functionCall":{"name":"a b"}},{"functionResponse":{"name":5}}]}]}`,
 		"rewrite/allowed":      `{"tools":[{"name":"a b"}],"tool_choice":{"type":"tool","name":"a b"},"input":"x"}`,
 		"safety":               `{"safetySettings":[{"category":"c"}],"input":"x"}`,
+		// f51624aa: a user turn left empty by a file_id document is refused.
+		"user-turn/document-file-id": `{"input":[{"type":"user_input","content":[{"type":"document","file_id":"f"}]}]}`,
 	}
 	var names []string
 	for name := range inputs {

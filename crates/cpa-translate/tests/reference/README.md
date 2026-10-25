@@ -9,15 +9,18 @@ that commit instead: the pairs translating to and from Claude
 (`ae3ee3be`) and say so, as do `openai-gemini`, re-recorded for the v8.0.35 schema cleaner,
 `openai-response-gemini`, `openai-response-antigravity` and
 `openai-response-interactions`, re-recorded for the v8.0.35 Gemini Responses translator,
-and `interactions-gemini`, `gemini-interactions`, `interactions-interactions` and
-`openai-interactions`, re-recorded for the v8.0.35 refusal of emptied user turns. Regenerate those files from a v8.0.35 checkout and the others
+and `interactions-gemini`, `gemini-interactions`, `interactions-interactions`,
+`openai-interactions`, `openai-codex` and `openai-response-openai`, re-recorded for the
+v8.0.35 refusal of emptied user turns. `interactions-antigravity` is still a `6fecc6e`
+file except for its last fixture, `user-turn/document-file-id`, which was recorded at
+v8.0.35 and stays PENDING until that port lands. Regenerate those files from a v8.0.35 checkout and the others
 from `6fecc6e`, each with its own harvest: run the script below once per reference, with
 `pairs` restricted to that reference's files (as written, it lists every pair file, which
 would rewrite the other reference's files too). The generator builds against v8.0.35, whose
 `...WithCompat` converters return an error; a `6fecc6e` file needs the generator as it was
 before that change (`git log -- tests/reference`).
 
-A request Go refuses (v8.0.35's `ErrIfNothingLeft`: a user turn left empty because its
+A request Go refuses (v8.0.35's `UserTurnDrops`: a user turn left empty because its
 attachments cannot be sent) is recorded as `request_error`, and the Rust error must carry
 the same message. `PENDING` in `golden.rs` names the fixtures of these files that wait
 for a later port, with the Go commits they need; every fixture an entry names must still fail, so a port that
