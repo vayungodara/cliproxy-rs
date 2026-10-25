@@ -21,9 +21,23 @@ pub fn sjson_string(s: &str) -> String {
     }
 }
 
-/// `json.Marshal` of a value decoded into `map[string]any`: object keys sorted.
+/// `json.Marshal` of a value decoded into `map[string]any`: object keys sorted, and a
+/// float written as Go writes a float64 (`1`, `-0`, `100000000000000000000`, `1e+21`).
 pub fn sorted(v: &Value) -> String {
-    String::from_utf8(cpa_common::json::GoValue::from_json(v).marshal()).expect("valid UTF-8 in, valid UTF-8 out")
+    use cpa_common::json::GoValue;
+    fn go(v: &Value) -> GoValue {
+        match v {
+            Value::Number(n) if n.is_f64() => GoValue::Number(
+                n.as_f64()
+                    .and_then(cpa_common::json::json_float)
+                    .unwrap_or_else(|| n.to_string()),
+            ),
+            Value::Array(items) => GoValue::Array(items.iter().map(go).collect()),
+            Value::Object(map) => GoValue::Object(map.iter().map(|(k, v)| (k.clone(), go(v))).collect()),
+            other => GoValue::from_json(other),
+        }
+    }
+    String::from_utf8(go(v).marshal()).expect("valid UTF-8 in, valid UTF-8 out")
 }
 
 /// An ordered object, for Go structs: fields render in insertion order.

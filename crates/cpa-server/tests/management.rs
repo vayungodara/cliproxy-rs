@@ -4957,6 +4957,25 @@ async fn json_numbers_in_string_settings_keep_their_text() {
     server.abort();
 }
 
+/// The v8 JSON views write a YAML float as Go's `json.Marshal` writes a float64.
+#[tokio::test]
+async fn v8_views_write_floats_as_go() {
+    let f = Fixture::from_yaml("view-floats", |auth, hash| {
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\nplugins:\n  configs:\n    p: {{a: 1.0, b: -0.0, c: 1e20, d: 1.5, e: 1e21, f: 0.0000001, g: 7}}\n",
+            auth.display()
+        )
+    });
+    let (base, server) = f.server().await;
+    let (status, view) = call(&base, wreq::Method::GET, "/v8/management/config/plugins/configs/p", "").await;
+    assert_eq!(status, 200, "{view}");
+    assert_eq!(
+        view,
+        r#"{"a":1,"b":-0,"c":100000000000000000000,"d":1.5,"e":1e+21,"f":1e-7,"g":7}"#
+    );
+    server.abort();
+}
+
 /// v0 saves of a legacy file keep the text of its `!!binary` values (an alias of one
 /// included), and the runtime holds their decoded text.
 #[tokio::test]
