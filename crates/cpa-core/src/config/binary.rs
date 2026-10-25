@@ -32,8 +32,9 @@ const QUOTED_MERGE_KEY: &str = "a quoted << mapping key in the config file is no
 const REPEATED_ANCHOR: &str = "a YAML anchor name is defined more than once in the config file";
 const PLUGIN_PIN: &str =
     "a plugin's store.version or store.release-tag in the config file is a !!binary value, which is not supported";
-/// More rewritten scalars than a config has; alias chains past it are refused.
-const MAX_REWRITES: usize = 1 << 20;
+/// More alias copies of rewritten scalars than a config has; alias chains past it are
+/// refused. Each scalar written in the file counts once and is not limited.
+const MAX_COPIES: usize = 1 << 20;
 
 /// Go's `base64.StdEncoding` as yaml.v3 applies it: padding required, unused bits
 /// ignored, CR and LF skipped. `None` for invalid data.
@@ -68,6 +69,7 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
         bases: Vec::new(),
         keys: Vec::new(),
         found: Vec::new(),
+        copies: 0,
     };
     if let Some(root) = walk.events.next() {
         walk.node(root, &mut Vec::new(), false)?;
@@ -177,9 +179,9 @@ fn named<K: AsRef<str>>(keys: &[Option<K>]) -> Vec<Option<&str>> {
 /// yaml.v3 reads as its source text: a `models[].name` or `models[].alias`, an
 /// `excluded-models` item, and the name, alias or item of a channel's `oauth`
 /// `model-alias` or `excluded-models` (or the legacy `oauth-model-alias` and
-/// `oauth-excluded-models`). Untyped data is left alone: plugin configs, and a payload
-/// rule's `params` and `match`/`not-match` values, which reach requests with their YAML
-/// types. With `whole` false, `keys` starts below an anchor whose aliases decide the
+/// `oauth-excluded-models`). Untyped data is left alone: plugin configs, and below a
+/// payload rule's `params` and `match`/`not-match` values, which reach requests with
+/// their YAML types, the fields that may sit anywhere. With `whole` false, `keys` starts below an anchor whose aliases decide the
 /// rest: whether some position could make the scalar such a field.
 fn literal_field<K: AsRef<str>>(keys: &[Option<K>], whole: bool) -> bool {
     #[derive(Clone, Copy)]
@@ -199,9 +201,7 @@ fn literal_field<K: AsRef<str>>(keys: &[Option<K>], whole: bool) -> bool {
         &[Key("oauth-excluded-models"), AnyKey, Item],
     ];
     let keys = named(keys);
-    if keys.iter().any(|k| matches!(k, Some("params" | "match" | "not-match")))
-        || (whole && keys.first() == Some(&Some("plugins")))
-    {
+    if whole && keys.first() == Some(&Some("plugins")) {
         return false;
     }
     let fits = |pattern: &[Step], keys: &[Option<&str>]| {
@@ -215,19 +215,22 @@ fn literal_field<K: AsRef<str>>(keys: &[Option<K>], whole: bool) -> bool {
     };
     // The pattern's last `n` steps against the keys' last `n`.
     let tail = |pattern: &[Step], n: usize| fits(&pattern[pattern.len() - n..], &keys[keys.len() - n..]);
-    ANYWHERE.iter().any(|p| {
-        if keys.len() >= p.len() {
-            tail(p, p.len())
-        } else {
-            !whole && tail(p, keys.len())
-        }
-    }) || ROOTED.iter().any(|p| {
-        if whole {
-            fits(p, &keys)
-        } else {
-            keys.len() <= p.len() && tail(p, keys.len())
-        }
-    })
+    let untyped = keys.iter().any(|k| matches!(k, Some("params" | "match" | "not-match")));
+    !untyped
+        && ANYWHERE.iter().any(|p| {
+            if keys.len() >= p.len() {
+                tail(p, p.len())
+            } else {
+                !whole && tail(p, keys.len())
+            }
+        })
+        || ROOTED.iter().any(|p| {
+            if whole {
+                fits(p, &keys)
+            } else {
+                keys.len() <= p.len() && tail(p, keys.len())
+            }
+        })
 }
 
 /// Whether `keys` lead to a plugin's `store.version` or `store.release-tag`.
@@ -426,6 +429,8 @@ struct Walk {
     keys: Vec<Key>,
     /// Rewritten scalars, by their path from the root.
     found: Vec<Found>,
+    /// How many of them are alias copies.
+    copies: usize,
 }
 
 impl Walk {
@@ -445,12 +450,6 @@ impl Walk {
     /// tree afterwards, so the cost stays linear in the file and the aliases' copies.
     fn keeps(keys: &[Key], base: Option<usize>) -> bool {
         literal_field(keys, true) || base.is_some_and(|base| literal_field(&keys[base..], false))
-    }
-
-    fn push(&mut self, found: Found) -> anyhow::Result<()> {
-        ensure!(self.found.len() < MAX_REWRITES, "config YAML aliases expand too far");
-        self.found.push(found);
-        Ok(())
     }
 
     fn node(&mut self, event: Event, path: &mut Vec<usize>, key: bool) -> anyhow::Result<()> {
@@ -483,12 +482,12 @@ impl Walk {
                 if literal {
                     if !key && Self::keeps(&self.keys, base) {
                         let text = String::from_utf8(value).ok().context("config YAML is not UTF-8")?;
-                        self.push(Found {
+                        self.found.push(Found {
                             path: path.clone(),
                             keys: self.keys.clone(),
                             value: Value::String(text),
                             kind: Kind::Literal,
-                        })?;
+                        });
                     }
                 } else if let Some(tag) = tag {
                     let kind = match tag.as_slice() {
@@ -496,12 +495,12 @@ impl Walk {
                         _ => Kind::Tag,
                     };
                     if let Some(v) = rewrite(&tag, plain, value)? {
-                        self.push(Found {
+                        self.found.push(Found {
                             path: path.clone(),
                             keys: self.keys.clone(),
                             value: v,
                             kind,
-                        })?;
+                        });
                     }
                 }
                 anchor
@@ -515,11 +514,13 @@ impl Walk {
                     if below.kind == Kind::Literal && !Self::keeps(&keys, base) {
                         continue;
                     }
-                    self.push(Found {
+                    self.copies += 1;
+                    ensure!(self.copies <= MAX_COPIES, "config YAML aliases expand too far");
+                    self.found.push(Found {
                         path: [path.as_slice(), &below.path].concat(),
                         keys,
                         ..below
-                    })?;
+                    });
                 }
                 None
             }

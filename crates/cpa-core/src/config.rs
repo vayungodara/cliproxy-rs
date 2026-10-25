@@ -1165,8 +1165,8 @@ mod tests {
     }
 
     /// The aliases of an anchored list of numbers count toward the alias limit only where
-    /// they land in a model name, alias or exclusion: yaml.v3 decodes 1,024 aliases of a
-    /// 1,024-number list.
+    /// they land in a model name, alias or exclusion. (yaml.v3 refuses this many aliases
+    /// as excessive aliasing; the limit here is the copies they make.)
     #[test]
     fn unused_number_aliases_do_not_expand_too_far() {
         let numbers: Vec<String> = (0..1024).map(|i| i.to_string()).collect();
@@ -1178,5 +1178,20 @@ mod tests {
         let doc = yaml_value(&text).unwrap();
         assert_eq!(doc["b"][1023][1023], Value::from(1023));
         assert_eq!(doc["c"]["excluded-models"][7], Value::from("7"));
+    }
+
+    /// Only alias copies count toward the alias limit: a list of more numbers than that,
+    /// anchored (so kept for its aliases) or an exclusion list, loads as in Go.
+    #[test]
+    fn written_numbers_do_not_count_toward_the_alias_limit() {
+        let numbers = vec!["0"; (1 << 20) + 1].join(", ");
+        let doc = yaml_value(&format!(
+            "x: &l [{numbers}]
+oauth-excluded-models: {{c: [{numbers}]}}
+"
+        ))
+        .unwrap();
+        assert_eq!(doc["x"][1 << 20], Value::from(0));
+        assert_eq!(doc["oauth-excluded-models"]["c"][1 << 20], Value::from("0"));
     }
 }

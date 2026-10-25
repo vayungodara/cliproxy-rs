@@ -33,8 +33,10 @@ func TestZZScalarModelNames(t *testing.T) {
 `
 	legacy := "codex-api-key:\n  - api-key: lk\n    base-url: http://127.0.0.1:2\n    models: [{name: 2.50, alias: False}]\n"
 	// Exclusions, OAuth model aliases and tagged scalars, which yaml.v3 also reads as
-	// their text; an anchor in a header value aliased as a model name.
-	lists := `api-keys:
+	// their text; an anchor in a header value aliased as a model name, anchors outside
+	// any such field aliased as exclusions, and OAuth channels named like payload keys.
+	lists := `x: &l [2.50]
+api-keys:
   claude:
     - headers: {x-v: &h 0x2A}
       models: [{name: claude-x, alias: 2.50}, {name: claude-y, alias: y}, {name: !!float 1.50, alias: !!int 0x1F}, {name: !!bool True, alias: t1}, {name: *h, alias: h1}]
@@ -43,12 +45,17 @@ func TestZZScalarModelNames(t *testing.T) {
     - models: [{name: claude-q, alias: 1e3}, {name: claude-r, alias: r}]
       excluded-models: *ex
       keys: [{api-key: ek2}]
+    - models: [{name: claude-s, alias: 2.50}, {name: claude-t, alias: t}]
+      excluded-models: *l
+      keys: [{api-key: ek3}]
 oauth:
   model-alias:
     claude: [{name: 1.50, alias: 007}, {name: claude-z, alias: !!bool true}]
     codex: [{name: c, alias: &a 0x10}, {name: d, alias: *a}]
+    params: [{name: 1.50, alias: 007}]
   excluded-models:
     claude: [2.50, !!int 0x1F, false]
+    match: [2.50]
 `
 	legacyLists := `claude-api-key:
   - api-key: lk2
@@ -56,8 +63,8 @@ oauth:
     excluded-models: [2.50]
 oauth-model-alias:
   codex: [{name: 1.50, alias: 1e3}]
-oauth-excluded-models:
-  codex: [0x1F]
+m: &m {codex: [0x1F]}
+oauth-excluded-models: *m
 `
 	out := map[string]any{}
 	for name, text := range map[string]string{"yaml": yaml, "legacy": legacy, "lists": lists, "legacy-lists": legacyLists} {
