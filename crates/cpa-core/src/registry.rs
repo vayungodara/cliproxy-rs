@@ -14,7 +14,8 @@ pub mod dynamic;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-const MODELS_JSON: &str = include_str!("registry/models.json");
+/// The models.json built into the binary.
+pub static MODELS_JSON: &str = include_str!("registry/models.json");
 
 /// Channels searched by [`Catalog::lookup`], in Go's `LookupStaticModelInfo` order
 /// (internal/registry/model_definitions.go). `gemini-cli`, `codex-free`, `codex-team` and
@@ -650,14 +651,24 @@ fn changed_providers(old: &Catalog, new: &Catalog) -> Vec<String> {
     changed
 }
 
+/// Go `validateCatalogBytes`: whether [`refresh_catalog`] would accept `json`.
+pub fn validate_catalog_json(json: &str) -> Result<(), String> {
+    checked_catalog(json).map(drop)
+}
+
+fn checked_catalog(json: &str) -> Result<Map<String, Value>, String> {
+    let root: Map<String, Value> = serde_json::from_str(json).map_err(|e| e.to_string())?;
+    check_catalog_members(json)?;
+    decode_catalog(&root)?;
+    validate_catalog(&root)?;
+    Ok(root)
+}
+
 /// Go `tryRefreshModels` after a fetch: parses and validates a remote models.json,
 /// keeps the current `meta` section when the remote one is empty, and swaps it in when
 /// it differs. Returns the changed providers (Go's refresh callback argument).
 pub fn refresh_catalog(json: &str) -> Result<Vec<String>, String> {
-    let mut root: Map<String, Value> = serde_json::from_str(json).map_err(|e| e.to_string())?;
-    check_catalog_members(json)?;
-    decode_catalog(&root)?;
-    validate_catalog(&root)?;
+    let mut root = checked_catalog(json)?;
     let old = pinned();
     if root.get("meta").and_then(Value::as_array).is_none_or(Vec::is_empty) && !old.channel("meta").is_empty() {
         let meta = old
