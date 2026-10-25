@@ -489,7 +489,7 @@ pub fn translate_request_envelope_tracked(
         return translate_request_tracked(client, upstream, ctx, body);
     }
     translate_registered(client, upstream, ctx, body, |body| {
-        Ok(antigravity_responses::request_envelope(ctx, body, model_info))
+        antigravity_responses::request_envelope(ctx, body, model_info)
     })
 }
 

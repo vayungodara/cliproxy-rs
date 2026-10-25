@@ -17521,6 +17521,83 @@
      "event: response.failed\ndata: {\"type\":\"response.failed\",\"response\":{\"id\":\"interaction_test_id\",\"object\":\"response\",\"status\":\"failed\",\"model\":\"devin/kimi-k3\",\"output\":[],\"error\":{\"message\":\"permission denied\",\"code\":\"403\",\"type\":\"server_error\"}},\"sequence_number\":2}\n\n"
     ]
    ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_KeepsTurnWithTextBesideAttachment:114",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"keep me\"},{\"type\":\"input_file\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_KeepsTurnWithTextBesideAttachment:114#2",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"keep me\"},{\"type\":\"input_audio\",\"input_audio\":{\"format\":\"wav\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_MapsBytesAndUrls:146",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_file\",\"filename\":\"a.pdf\",\"file_data\":\"data:application/pdf;base64,JVBERi0xLjQK\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"filename\":\"a.pdf\",\"mime_type\":\"application/pdf\",\"data\":\"JVBERi0xLjQK\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_MapsBytesAndUrls:146#2",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_file\",\"file_url\":\"https://example.test/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"file_url\":\"https://example.test/a.pdf\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_MapsBytesAndUrls:146#3",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"UklGRg==\",\"format\":\"wav\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"data\":\"UklGRg==\",\"mime_type\":\"audio/wav\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_BareFileItemStaysADocument:162",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"input_file\",\"filename\":\"a.pdf\",\"file_data\":\"data:application/pdf;base64,JVBERi0xLjQK\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"filename\":\"a.pdf\",\"mime_type\":\"application/pdf\",\"data\":\"JVBERi0xLjQK\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_DeveloperAttachmentIsNotAUserTurn:174",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_file\",\"file_id\":\"file-1\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"next\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"next\"}]}]}"
+    ]
+   ]
   }
  ],
  "reference": "ae3ee3be",

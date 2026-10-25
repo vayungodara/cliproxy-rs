@@ -3,7 +3,7 @@
 
 use crate::{
     Error, Registered, RequestCtx,
-    common::{self, UserTurnDrops, go_lower, sanitize_function_name, trim_space},
+    common::{self, UserTurnDrops, gemini_part_is_sendable, go_lower, sanitize_function_name, trim_space},
     gemini::{self, attach_default_safety_settings},
     gemini_chat_request::content_node,
     gemini_claude_response as response, openai_claude,
@@ -373,22 +373,4 @@ fn message_contents(
     if !parts.is_empty() {
         contents.push(content_node(&role, &parts));
     }
-}
-
-/// GeminiPartIsSendable: blank text is forwarded but gives the model nothing to read.
-fn gemini_part_is_sendable(part: &[u8]) -> bool {
-    let part = gj::parse(part);
-    let text = part.get("text");
-    !text.exists()
-        || !trim_space(&text.bytes()).is_empty()
-        || [
-            "functionCall",
-            "functionResponse",
-            "inlineData",
-            "inline_data",
-            "fileData",
-            "file_data",
-        ]
-        .iter()
-        .any(|key| part.get(key).exists())
 }

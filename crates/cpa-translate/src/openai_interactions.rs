@@ -5,14 +5,14 @@
 
 use cpa_common::json::{self as gj, Kind, Res};
 
-use crate::common::{go_lower, normalize_openai_file_data, trim_space};
+use crate::common::{UserTurnDrops, go_lower, normalize_openai_file_data, trim_space};
 use crate::openai_interactions_response as response;
 use crate::{Registered, gemini_interactions::first_existing};
 
 /// OpenAI client, Interactions upstream.
 pub static OPENAI_TO_INTERACTIONS: Registered = registered!(
     OpenAI -> Interactions,
-    request: |ctx, body| Ok(openai_to_interactions(ctx.model, body, ctx.stream)),
+    request: |ctx, body| openai_to_interactions(ctx.model, body, ctx.stream),
     non_stream: response::interactions_to_openai_non_stream,
     go_stream: response::interactions_to_openai_stream,
     token_count: None,
@@ -98,7 +98,7 @@ fn copy_raw(out: &mut Vec<u8>, path: &str, value: &Res<'_>) {
 // OpenAI Chat request -> Interactions request
 
 /// ConvertOpenAIRequestToInteractions.
-pub(crate) fn openai_to_interactions(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
+pub(crate) fn openai_to_interactions(model: &str, raw: &[u8], stream: bool) -> Result<Vec<u8>, crate::Error> {
     let root = gj::parse(raw);
     let mut out = br#"{"model":"","input":[]}"#.to_vec();
     let model = first_nonblank(&[model.as_bytes(), &root.get("model").bytes()]);
@@ -122,7 +122,7 @@ pub(crate) fn openai_to_interactions(model: &str, raw: &[u8], stream: bool) -> V
     }
     copy_raw(&mut out, "agent_config", &root.get("agent_config"));
     let antigravity = is_antigravity(&model);
-    append_messages(&mut out, &root.get("messages"), antigravity);
+    let refused = append_messages(&mut out, &root.get("messages"), antigravity);
     copy_generation_config(&mut out, &root, antigravity);
     let tools = root.get("tools");
     if tools.is_array() {
@@ -135,14 +135,16 @@ pub(crate) fn openai_to_interactions(model: &str, raw: &[u8], stream: bool) -> V
             gj::set_raw(&mut out, "tools", gj::join(&items));
         }
     }
-    out
+    refused.map(|()| out)
 }
 
-/// appendOpenAIMessagesToInteractions.
-fn append_messages(out: &mut Vec<u8>, messages: &Res<'_>, antigravity: bool) {
+/// appendOpenAIMessagesToInteractions, with the refusal of a user turn left empty by
+/// a file or audio part Interactions cannot receive.
+fn append_messages(out: &mut Vec<u8>, messages: &Res<'_>, antigravity: bool) -> Result<(), crate::Error> {
     if !messages.is_array() {
-        return;
+        return Ok(());
     }
+    let mut drops = UserTurnDrops::default();
     let mut items = vec![];
     let mut system = vec![];
     let mut names: std::collections::HashMap<Vec<u8>, Vec<u8>> = std::collections::HashMap::new();
@@ -165,7 +167,7 @@ fn append_messages(out: &mut Vec<u8>, messages: &Res<'_>, antigravity: bool) {
                         items.push(text_step("thought", &text));
                     }
                 }
-                items.extend(content_step("model_output", &message.get("content")));
+                items.extend(content_step("model_output", &message.get("content"), None));
                 let calls = message.get("tool_calls");
                 if calls.is_array() {
                     calls.each(|_, call| {
@@ -180,7 +182,7 @@ fn append_messages(out: &mut Vec<u8>, messages: &Res<'_>, antigravity: bool) {
                 }
             }
             b"tool" | b"function" => items.push(tool_result(&message, antigravity, &names)),
-            _ => items.extend(content_step("user_input", &message.get("content"))),
+            _ => items.extend(content_step("user_input", &message.get("content"), Some(&mut drops))),
         }
         true
     });
@@ -188,6 +190,7 @@ fn append_messages(out: &mut Vec<u8>, messages: &Res<'_>, antigravity: bool) {
         gj::set_str(out, "system_instruction", &system);
     }
     gj::set_items(out, "input", &items);
+    drops.result()
 }
 
 /// interactionsTextStep.
@@ -258,24 +261,53 @@ pub(crate) fn tool_call_step(call: &Res<'_>, antigravity: bool) -> Option<Vec<u8
     Some(step)
 }
 
-/// openAIChatContentStep.
-fn content_step(kind: &str, content: &Res<'_>) -> Option<Vec<u8>> {
+/// openAIChatContentStep. `drops` (user content only) closes the user turn: an
+/// attachment that cannot be sent is recorded, and any sendable part keeps the turn;
+/// an empty text part is forwarded but is not sendable.
+fn content_step(kind: &str, content: &Res<'_>, mut drops: Option<&mut UserTurnDrops>) -> Option<Vec<u8>> {
     let mut items = vec![];
+    let mut sendable = 0;
     if content.kind == Kind::String {
         let text = string(content);
-        if text.is_empty() {
-            return None;
+        if !text.is_empty() {
+            let mut part = br#"{"type":"text","text":""}"#.to_vec();
+            gj::set_str(&mut part, "text", &text);
+            items.push(part);
+            sendable += 1;
         }
-        let mut part = br#"{"type":"text","text":""}"#.to_vec();
-        gj::set_str(&mut part, "text", &text);
-        items.push(part);
-    } else if content.is_array() {
-        content.each(|_, part| {
-            items.extend(chat_part_to_interactions(&part));
-            true
-        });
-    } else if content.is_object() {
-        items.extend(chat_part_to_interactions(content));
+    } else {
+        let mut add = |part: &Res<'_>| match chat_part_to_interactions(part) {
+            Some(converted) => {
+                if gj::get(&converted, "type").bytes().as_ref() != b"text"
+                    || !gj::get(&converted, "text").bytes().is_empty()
+                {
+                    sendable += 1;
+                }
+                items.push(converted);
+            }
+            None => {
+                let kind = chat_part_type(part);
+                if let Some(drops) = drops.as_deref_mut()
+                    && matches!(
+                        kind.as_slice(),
+                        b"file" | b"input_file" | b"document" | b"input_audio" | b"audio"
+                    )
+                {
+                    drops.drop_part(&String::from_utf8_lossy(&kind));
+                }
+            }
+        };
+        if content.is_array() {
+            content.each(|_, part| {
+                add(&part);
+                true
+            });
+        } else if content.is_object() {
+            add(content);
+        }
+    }
+    if let Some(drops) = drops {
+        drops.end_turn(sendable);
     }
     if items.is_empty() {
         return None;
@@ -297,13 +329,18 @@ fn input_audio_mime(format: &[u8]) -> &'static str {
     }
 }
 
+/// openAIChatPartType.
+fn chat_part_type(part: &Res<'_>) -> Vec<u8> {
+    let kind = go_lower(trim_space(&part.get("type").bytes()));
+    if kind.is_empty() && part.get("text").exists() {
+        return b"text".to_vec();
+    }
+    kind
+}
+
 /// openAIChatContentPartToInteractions.
 fn chat_part_to_interactions(part: &Res<'_>) -> Option<Vec<u8>> {
-    let mut kind = go_lower(trim_space(&part.get("type").bytes()));
-    if kind.is_empty() && part.get("text").exists() {
-        kind = b"text".to_vec();
-    }
-    match kind.as_slice() {
+    match chat_part_type(part).as_slice() {
         b"text" | b"input_text" | b"output_text" => {
             let mut out = br#"{"type":"text","text":""}"#.to_vec();
             gj::set_str(&mut out, "text", part.get("text").bytes());

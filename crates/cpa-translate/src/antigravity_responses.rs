@@ -17,7 +17,7 @@ use crate::{Error, Registered, RequestCtx, ResponseCtx, thinking};
 
 pub static PAIR: Registered = registered!(
     OpenAIResponse -> Antigravity,
-    request: |ctx, body| Ok(convert(ctx.model, body, None)),
+    request: |ctx, body| convert(ctx.model, body, None),
     non_stream: non_stream,
     go_stream: go_stream,
     token_count: None,
@@ -28,11 +28,15 @@ const WEB_SEARCH_INSTRUCTION: &str = "You are a search engine bot. You will be g
 /// ConvertOpenAIResponsesRequestEnvelopeToAntigravity with the request-scoped model info
 /// the Antigravity executor resolves for the selected credential (`None` is Go's plain
 /// TranslateRequest).
-pub(crate) fn request_envelope(ctx: &RequestCtx<'_>, body: &[u8], model_info: Option<&ModelInfo>) -> Vec<u8> {
+pub(crate) fn request_envelope(
+    ctx: &RequestCtx<'_>,
+    body: &[u8],
+    model_info: Option<&ModelInfo>,
+) -> Result<Vec<u8>, Error> {
     convert(ctx.model, body, model_info)
 }
 
-fn convert(model: &str, raw: &[u8], model_info: Option<&ModelInfo>) -> Vec<u8> {
+fn convert(model: &str, raw: &[u8], model_info: Option<&ModelInfo>) -> Result<Vec<u8>, Error> {
     let root = gj::parse(raw);
     if ws::has_only_web_search_tools(&root)
         && supports_native_web_search(model, model_info)
@@ -40,12 +44,12 @@ fn convert(model: &str, raw: &[u8], model_info: Option<&ModelInfo>) -> Vec<u8> {
     {
         return web_search_request(model, raw);
     }
-    let mut out = crate::gemini_responses::convert(model, raw);
+    let mut out = crate::gemini_responses::convert(model, raw)?;
     strip_google_search(&mut out);
     let out = rewrite_claude_reasoning(model, raw, out);
     let mut out = crate::antigravity_gemini::convert(model, &out);
     strip_google_search(&mut out);
-    enable_thinking_summary(raw, out)
+    Ok(enable_thinking_summary(raw, out))
 }
 
 /// antigravitySupportsNativeResponsesWebSearch: the request-scoped capability, else the
@@ -82,15 +86,15 @@ fn supports_native_web_search(model: &str, model_info: Option<&ModelInfo>) -> bo
 }
 
 /// buildAntigravityResponsesWebSearchRequest.
-fn web_search_request(model: &str, raw: &[u8]) -> Vec<u8> {
+fn web_search_request(model: &str, raw: &[u8]) -> Result<Vec<u8>, Error> {
     let domains = ws::allowed_domains(&gj::parse(raw));
-    let out = crate::gemini_responses::convert(model, raw);
+    let out = crate::gemini_responses::convert(model, raw)?;
     let out = rewrite_claude_reasoning(model, raw, out);
     let mut out = crate::antigravity_gemini::convert(model, &out);
     gj::set_str(&mut out, "requestType", "web_search");
     ensure_web_search_tool(&mut out, &domains);
     ensure_web_search_instruction(&mut out);
-    enable_thinking_summary(raw, out)
+    Ok(enable_thinking_summary(raw, out))
 }
 
 /// ensureAntigravityResponsesWebSearchTool: one Google Search tool, replacing the first

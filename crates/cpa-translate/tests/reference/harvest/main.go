@@ -5,7 +5,9 @@
 // Usage: go run ./harvest COPY_ROOT
 //
 // It renames every converter registered in internal/translator/**/init.go (request,
-// stream, non-stream), every exported `...WithCompat` request converter, and
+// stream, non-stream) and the unexported checked form of a registered request converter
+// (convertXRequestToY, which returns the refusal), every exported `...WithCompat` request
+// converter, and
 // sdk/translator's TranslateRequest/TranslateRequestEnvelope/TranslateStream/TranslateNonStream to
 // harvestOrig_<Name>, and adds a same-signature wrapper that logs the call before
 // forwarding it. Only calls made directly from a `_test.go` file are logged, with the
@@ -28,6 +30,15 @@ import (
 )
 
 const module = "github.com/router-for-me/CLIProxyAPI/v8"
+
+// checkedForm is the unexported converter a registered ConvertXRequestToY wraps.
+func checkedForm(name string) string {
+	rest, ok := strings.CutPrefix(name, "Convert")
+	if !ok {
+		return ""
+	}
+	return "convert" + rest
+}
 
 const recorder = `// Package harvest logs converter calls made from Go tests (generated; scratch copy only).
 package harvest
@@ -240,6 +251,12 @@ func main() {
 			}
 			if name := call.Args[2].(*ast.Ident).Name; name != "nil" {
 				add(dir, name)
+				// Tests also call the unexported checked form directly (convertXRequestToY).
+				for _, decl := range funcDecls(dir) {
+					if decl.Name.Name == checkedForm(name) {
+						add(dir, decl.Name.Name)
+					}
+				}
 			} else {
 				// The request is registered as an envelope; tests call its byte form.
 				for _, decl := range funcDecls(dir) {

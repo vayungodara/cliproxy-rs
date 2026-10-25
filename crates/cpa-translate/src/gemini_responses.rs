@@ -15,7 +15,9 @@ use cpa_common::signature::{self as sig, BlockKind, Provider};
 use sha2::{Digest, Sha256};
 
 use crate::claude_responses::{extract_call_id, normalize_tool_call_outputs, qualify_namespace_name};
-use crate::common::{file_ext, go_lower, normalize_openai_file_data, sanitize_function_name, trim_space};
+use crate::common::{
+    UserTurnDrops, file_ext, go_lower, normalize_openai_file_data, sanitize_function_name, trim_space,
+};
 use crate::gemini::{set_function_response_raw, set_function_response_result};
 use crate::gemini_chat_request::{content_node as content, text_part};
 use crate::gemini_web_search as ws;
@@ -1777,6 +1779,23 @@ fn eq_fold(value: &[u8], token: &str) -> bool {
     String::from_utf8_lossy(value).go_eq_fold(token)
 }
 
+/// isResponsesAttachmentPartType: a part that carries a file, image, audio or video.
+fn is_attachment_part_type(kind: &[u8]) -> bool {
+    matches!(
+        go_lower(trim_space(kind)).as_slice(),
+        b"input_image"
+            | b"image_url"
+            | b"image"
+            | b"input_audio"
+            | b"audio"
+            | b"input_video"
+            | b"video_url"
+            | b"video"
+            | b"input_file"
+            | b"file"
+    )
+}
+
 fn effective_role(role: &[u8]) -> Vec<u8> {
     if role.is_empty() {
         return b"user".to_vec();
@@ -1788,7 +1807,8 @@ fn effective_role(role: &[u8]) -> Vec<u8> {
 }
 
 /// ConvertOpenAIResponsesRequestToGemini.
-pub(crate) fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
+pub(crate) fn convert(model: &str, raw: &[u8]) -> Result<Vec<u8>, crate::Error> {
+    let mut drops = UserTurnDrops::default();
     let mut native = sig::provider_from_model_name(model) == Provider::Gemini;
     let mut out = br#"{"contents":[]}"#.to_vec();
     let root = gj::parse(raw);
@@ -1837,7 +1857,7 @@ pub(crate) fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
         native |= has_carrier;
         let items = normalize_tool_call_outputs(items);
         let items = pair_reasoning_with_function_calls(&items);
-        let mut contents = convert_items(&items, native, &forward, &mut system_parts);
+        let mut contents = convert_items(&items, native, &forward, &mut system_parts, &mut drops);
         contents = coalesce_model_contents(contents);
         contents = merge_adjacent_user_contents(contents);
         gj::set_items(&mut out, "contents", &contents);
@@ -1894,7 +1914,8 @@ pub(crate) fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
     if native {
         result = sig::sanitize_gemini_request_thought_signatures(&result, "contents");
     }
-    strip_trailing_model_prefill(result)
+    let result = strip_trailing_model_prefill(result);
+    drops.result().map(|()| result)
 }
 
 /// The `input` loop of ConvertOpenAIResponsesRequestToGemini.
@@ -1903,6 +1924,7 @@ fn convert_items(
     native: bool,
     forward: &HashMap<Vec<u8>, Vec<u8>>,
     system_parts: &mut Vec<Vec<u8>>,
+    drops: &mut UserTurnDrops,
 ) -> Vec<Vec<u8>> {
     let mut contents: Vec<Vec<u8>> = vec![];
     let mut names_by_call: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
@@ -2024,6 +2046,8 @@ fn convert_items(
                 if !parts_to_process.is_empty() {
                     let mut current_role: Vec<u8> = vec![];
                     let mut current_parts: Vec<Vec<u8>> = vec![];
+                    // Counts the user parts this item really sends; an empty text part does not.
+                    let mut user_sendable = 0;
                     for part in &parts_to_process {
                         let mut part_type = item_type(part);
                         if part_type.is_empty() {
@@ -2041,15 +2065,30 @@ fn convert_items(
                             current_role.clear();
                         }
                         if current_role.is_empty() {
-                            current_role = eff_role;
+                            current_role = eff_role.clone();
                         }
-                        let built = match part_type.as_slice() {
+                        let (built, sends) = match part_type.as_slice() {
                             b"input_text" | b"output_text" | b"text" => {
                                 let text = part.get("text");
-                                text.exists().then(|| text_part(&text.bytes()))
+                                (
+                                    text.exists().then(|| text_part(&text.bytes())),
+                                    !text.bytes().is_empty(),
+                                )
                             }
-                            _ => part_from_block(part),
+                            _ => {
+                                let built = part_from_block(part);
+                                if built.is_none() && eff_role == b"user" && is_attachment_part_type(&part_type) {
+                                    // Gemini has no field for a bare file id and no way to
+                                    // fetch the bytes, so the attachment cannot be sent.
+                                    drops.drop_part(&String::from_utf8_lossy(&part_type));
+                                }
+                                let sends = built.is_some();
+                                (built, sends)
+                            }
                         };
+                        if sends && eff_role == b"user" {
+                            user_sendable += 1;
+                        }
                         if let Some(built) = built.filter(|p| !p.is_empty()) {
                             current_parts.push(built);
                         }
@@ -2057,6 +2096,7 @@ fn convert_items(
                     if !current_role.is_empty() && !current_parts.is_empty() {
                         contents.push(content(&current_role, &current_parts));
                     }
+                    drops.end_turn(user_sendable);
                 } else if content_value.kind == Kind::String {
                     contents.push(content(effective_role(&role), &[text_part(&content_value.s)]));
                 }
@@ -2217,7 +2257,7 @@ mod tests {
     #[test]
     fn discovered_tools_are_listed_once() {
         let raw = br#"{"tools":[{"type":"tool_search","execution":"client"}],"input":[{"type":"tool_search_call","call_id":"ts1","arguments":{"query":"q"}},{"type":"tool_search_output","call_id":"ts1","tools":[{"type":"function","name":"b"},{"type":"namespace","name":"ns","tools":[{"type":"function","name":"run"}]},{"type":"function","name":"b"},{"type":"function","name":"ns__run"},{"type":"function","name":"a"}]}]}"#;
-        let out = String::from_utf8(super::convert("gemini-2.5-flash", raw)).unwrap();
+        let out = String::from_utf8(super::convert("gemini-2.5-flash", raw).unwrap()).unwrap();
         assert!(
             out.contains(r#"{\"status\":\"completed\",\"tools\":[\"b\",\"ns__run\",\"a\"]}"#),
             "{out}"

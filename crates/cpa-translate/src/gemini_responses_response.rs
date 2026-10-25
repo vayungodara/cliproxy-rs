@@ -30,7 +30,7 @@ use crate::{Error, ResponseCtx};
 
 pub static PAIR: crate::Registered = registered!(
     OpenAIResponse -> Gemini,
-    request: |ctx, body| Ok(crate::gemini_responses::convert(ctx.model, body)),
+    request: |ctx, body| crate::gemini_responses::convert(ctx.model, body),
     non_stream: non_stream,
     go_stream: go_stream,
     token_count: None,
