@@ -18,6 +18,8 @@ struct Options {
     remove_tool_title: bool,
     remove_gemini_metadata: bool,
     flatten_unions: bool,
+    /// Flatten multi-branch anyOf/oneOf unions to one branch instead of preserving them.
+    flatten_multi_branch_unions: bool,
     force_enum_string_type: bool,
     drop_all_enums: bool,
     drop_boolean_enums: bool,
@@ -33,6 +35,16 @@ pub fn for_antigravity(schema: &[u8]) -> Vec<u8> {
 
 /// CleanJSONSchemaForAntigravityTool.
 pub fn for_antigravity_tool(schema: &[u8], require_placeholder: bool) -> Vec<u8> {
+    antigravity_tool(schema, require_placeholder, false)
+}
+
+/// CleanJSONSchemaForAntigravityClaudeTool: the Antigravity tool cleaner for Claude models,
+/// which flattens multi-branch unions because that backend rejects them.
+pub fn for_antigravity_claude_tool(schema: &[u8], require_placeholder: bool) -> Vec<u8> {
+    antigravity_tool(schema, require_placeholder, true)
+}
+
+fn antigravity_tool(schema: &[u8], require_placeholder: bool, flatten_multi_branch_unions: bool) -> Vec<u8> {
     clean(
         schema,
         Options {
@@ -41,6 +53,7 @@ pub fn for_antigravity_tool(schema: &[u8], require_placeholder: bool) -> Vec<u8>
             antigravity_semantics: true,
             remove_tool_title: !require_placeholder,
             flatten_unions: true,
+            flatten_multi_branch_unions,
             drop_all_enums: true,
             ..Options::default()
         },
@@ -94,14 +107,47 @@ pub fn for_gemini_json_schema(schema: &[u8]) -> Vec<u8> {
 
 /// InlineLocalRefs.
 pub fn inline_local_refs(schema: &[u8]) -> Vec<u8> {
-    inline_refs(schema.to_vec())
+    on_ref_stack(schema, || inline_refs(schema.to_vec()))
 }
 
-fn clean(schema: &[u8], options: Options) -> Vec<u8> {
-    let mut s = normalize_malformed_schema_objects(schema.to_vec(), options.add_missing_array_items);
-    if options.antigravity_semantics {
-        s = inline_refs(s);
+/// Runs `f` on a scoped thread with Go's maximum goroutine stack (1 GiB, reserved, not
+/// committed) when `schema` holds a `"$ref"`. Inlining nests each expansion inside its
+/// reference, so a chain of definitions in a small input expands to thousands of levels
+/// (about 6,000 within the budget), and the passes recurse per level like Go's, whose
+/// stacks grow. Input-depth guards cannot see that. Cost: one thread spawn per schema with
+/// a reference, on the request path of every Gemini, Vertex, AI Studio, Antigravity, xAI
+/// and Kimi request whose tool schemas carry one.
+fn on_ref_stack<T: Send>(schema: &[u8], f: impl FnOnce() -> T + Send) -> T {
+    if !contains_seq(schema, br#""$ref""#) {
+        return f();
     }
+    std::thread::scope(|scope| {
+        let handle = std::thread::Builder::new()
+            .name("schema-refs".into())
+            .stack_size(1 << 30)
+            .spawn_scoped(scope, f)
+            .expect("spawn the schema inlining thread");
+        handle.join().unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+    })
+}
+
+/// cleanJSONSchema.
+///
+/// ponytail: the passes keep Go's algorithmic shape, which is superlinear: each pass walks
+/// the schema and re-reads it by path, and a budget-filling schema takes about 10 s per
+/// tool schema in Go (the uncharged type and nullable fallback copies grow roughly
+/// cubically). The ceiling is Go's own; the upgrade path is a linear rewrite of the
+/// cleaner, with the work moved off the tokio workers.
+fn clean(schema: &[u8], options: Options) -> Vec<u8> {
+    on_ref_stack(schema, || clean_inner(schema, options))
+}
+
+fn clean_inner(schema: &[u8], options: Options) -> Vec<u8> {
+    let mut s = normalize_malformed_schema_objects(schema.to_vec(), options.add_missing_array_items);
+    // Every cleaner removes $defs/definitions later, so local references expand on every
+    // route. Per request this costs one decode and re-encode of each schema with a
+    // `"$ref"` (none without one), and up to the 256 KiB budget of copies.
+    s = inline_refs_for_clean(s);
     s = convert_refs_to_hints(s, options.antigravity_semantics);
     s = convert_const_to_enum(s);
     s = convert_enum_values_to_strings(s, options.force_enum_string_type);
@@ -117,7 +163,11 @@ fn clean(schema: &[u8], options: Options) -> Vec<u8> {
     s = merge_conditionals(s);
     s = merge_all_of(s);
     if options.flatten_unions {
-        s = flatten_any_of_one_of(s);
+        s = flatten_any_of_one_of(
+            s,
+            options.preserve_standard_constraints,
+            options.flatten_multi_branch_unions,
+        );
     }
     s = flatten_type_arrays(s, options.antigravity_semantics);
     s = remove_unsupported_keywords(s, options);
@@ -128,7 +178,8 @@ fn clean(schema: &[u8], options: Options) -> Vec<u8> {
         s = remove_keywords(s, &[b"title"]);
     }
     s = cleanup_required_fields(s);
-    s = sanitize_array_items(s);
+    s = sanitize_object_properties(s);
+    s = sanitize_array_items(s, options.add_missing_array_items);
     if options.add_placeholder {
         s = add_empty_schema_placeholder(s);
     }
@@ -204,10 +255,11 @@ fn depth_sorted(mut paths: Vec<Vec<u8>>) -> Vec<Vec<u8>> {
     paths
 }
 
-/// util.Walk: every path (keys escaped) whose last key equals `field`, in document order.
+/// util.WalkSchema: every path (keys escaped) whose last key equals `field`, in document
+/// order, without descending into literal values.
 fn find_paths(json: &[u8], field: &[u8]) -> Vec<Vec<u8>> {
     let mut paths = vec![];
-    walk_fields(&gj::parse(json), b"", &mut |key, path| {
+    walk_fields(&gj::parse(json), b"", true, &mut |key, path| {
         if key == field {
             paths.push(path.to_vec());
         }
@@ -217,7 +269,7 @@ fn find_paths(json: &[u8], field: &[u8]) -> Vec<Vec<u8>> {
 
 fn find_paths_by_fields(json: &[u8], fields: &[&[u8]]) -> HashMap<Vec<u8>, Vec<Vec<u8>>> {
     let mut paths: HashMap<Vec<u8>, Vec<Vec<u8>>> = HashMap::new();
-    walk_fields(&gj::parse(json), b"", &mut |key, path| {
+    walk_fields(&gj::parse(json), b"", true, &mut |key, path| {
         if fields.contains(&key) {
             paths.entry(key.to_vec()).or_default().push(path.to_vec());
         }
@@ -229,7 +281,7 @@ fn find_paths_by_fields(json: &[u8], fields: &[&[u8]]) -> HashMap<Vec<u8>, Vec<V
 /// in document order.
 pub fn walk(value: &Res<'_>, field: &[u8]) -> Vec<Vec<u8>> {
     let mut paths = vec![];
-    walk_fields(value, b"", &mut |key, path| {
+    walk_fields(value, b"", false, &mut |key, path| {
         if key == field {
             paths.push(path.to_vec());
         }
@@ -237,7 +289,9 @@ pub fn walk(value: &Res<'_>, field: &[u8]) -> Vec<Vec<u8>> {
     paths
 }
 
-fn walk_fields(value: &Res<'_>, path: &[u8], visit: &mut dyn FnMut(&[u8], &[u8])) {
+/// `schema_aware` (WalkSchema) records a literal keyword but does not descend into its value,
+/// except under a name map, where the key is a property name.
+fn walk_fields(value: &Res<'_>, path: &[u8], schema_aware: bool, visit: &mut dyn FnMut(&[u8], &[u8])) {
     if value.kind != Kind::Json {
         return;
     }
@@ -245,9 +299,16 @@ fn walk_fields(value: &Res<'_>, path: &[u8], visit: &mut dyn FnMut(&[u8], &[u8])
         let key = key.bytes();
         let child_path = join_path(path, &escape_key(&key));
         visit(&key, &child_path);
-        walk_fields(&child, &child_path, visit);
+        if !(schema_aware && is_literal_value_keyword(&key) && !is_property_definition(path)) {
+            walk_fields(&child, &child_path, schema_aware, visit);
+        }
         true
     });
+}
+
+/// literalValueKeywords: their values are client data, never subschemas.
+fn is_literal_value_keyword(key: &[u8]) -> bool {
+    matches!(key, b"default" | b"example" | b"examples" | b"const" | b"enum")
 }
 
 /// isPropertyDefinition: an odd run of trailing name-map keywords means `path` is a map
@@ -259,7 +320,12 @@ fn is_property_definition(path: &[u8]) -> bool {
         .take_while(|seg| {
             matches!(
                 unescape_key(seg).as_slice(),
-                b"properties" | b"patternProperties" | b"dependentSchemas" | b"$defs" | b"definitions"
+                b"properties"
+                    | b"patternProperties"
+                    | b"dependentSchemas"
+                    | b"dependencies"
+                    | b"$defs"
+                    | b"definitions"
             )
         })
         .count();
@@ -559,7 +625,12 @@ fn repair_node(node: &Map, add_items: bool) -> (Map, bool) {
     }
 
     if let Some(GoValue::Object(props)) = clone.get("properties") {
-        let (repaired, promoted, props_modified) = repair_property_map(props, add_items);
+        let props = props.clone();
+        if !clone.contains_key("type") {
+            clone.insert("type".into(), GoValue::String("object".into()));
+            modified = true;
+        }
+        let (repaired, promoted, props_modified) = repair_property_map(&props, add_items);
         if props_modified {
             clone.insert("properties".into(), GoValue::Object(repaired));
             modified = true;
@@ -570,7 +641,8 @@ fn repair_node(node: &Map, add_items: bool) -> (Map, bool) {
         }
     }
 
-    if add_items {
+    // A node still holding a $ref gets neither: both would clobber the target during inlining.
+    if add_items && matches!(clone.get("$ref"), None | Some(GoValue::Null)) {
         if is_array_type(clone.get("type")) {
             if !clone.contains_key("items") {
                 let mut items = Map::new();
@@ -738,6 +810,54 @@ fn repair_property_map(props: &Map, add_items: bool) -> (Map, Vec<String>, bool)
 // ---------------------------------------------------------------------------------------
 // Phase 1: references, enums and hints
 
+/// maxInlinedSchemaBytes: shared definitions fan out once per reference, so expansions past
+/// this budget degrade to a typed hint like cycles do.
+const MAX_INLINED_SCHEMA_BYTES: usize = 256 * 1024;
+/// maxFallbackDescriptionBytes: the longest target description a degraded reference copies.
+const MAX_FALLBACK_DESCRIPTION_BYTES: usize = 512;
+
+type Active = std::collections::HashSet<String>;
+
+/// The inlining budget of one call, and each reference's target size. Targets never
+/// change within a call, so a reference used many times is sized once (Go sizes it on
+/// every use, which is 14 s for 8,000 references to one 300 KB definition).
+struct Budget {
+    left: usize,
+    sizes: HashMap<String, usize>,
+}
+
+impl Budget {
+    fn new() -> Self {
+        Self {
+            left: MAX_INLINED_SCHEMA_BYTES,
+            sizes: HashMap::new(),
+        }
+    }
+
+    /// targetExpansionSize of `reference`'s `target`, memoized.
+    fn target_size(&mut self, reference: &str, target: &GoValue, for_clean: bool) -> usize {
+        if let Some(size) = self.sizes.get(reference) {
+            return *size;
+        }
+        let size = target_expansion_size(target, for_clean);
+        self.sizes.insert(reference.to_owned(), size);
+        size
+    }
+}
+
+fn is_name_map_keyword(key: &str) -> bool {
+    matches!(
+        key,
+        "properties" | "patternProperties" | "dependentSchemas" | "dependencies" | "$defs" | "definitions"
+    )
+}
+
+fn is_definitions(key: &str) -> bool {
+    key == "$defs" || key == "definitions"
+}
+
+/// inlineLocalRefs: every reference gets its own copy while the budget lasts, sibling
+/// keywords override the target, and cycles end as a typed hint.
 fn inline_refs(json: Vec<u8>) -> Vec<u8> {
     if !contains_seq(&json, br#""$ref""#) {
         return json;
@@ -745,42 +865,309 @@ fn inline_refs(json: Vec<u8>) -> Vec<u8> {
     let Some(root) = decode_first(&json) else {
         return json;
     };
-    let mut active = std::collections::HashSet::new();
-    resolve_refs(&root, &root, &mut active).marshal()
+    let mut budget = Budget::new();
+    resolve_schema_root(&root, &mut budget, false).marshal()
 }
 
-fn resolve_refs(root: &GoValue, value: &GoValue, active: &mut std::collections::HashSet<String>) -> GoValue {
+/// inlineLocalRefsForClean: inside the single-key `{"schema": ...}` carrier, references
+/// resolve against the inner schema.
+fn inline_refs_for_clean(json: Vec<u8>) -> Vec<u8> {
+    if !contains_seq(&json, br#""$ref""#) {
+        return json;
+    }
+    let Some(root) = decode_first(&json) else {
+        return json;
+    };
+    let mut budget = Budget::new();
+    if let GoValue::Object(map) = &root
+        && map.len() == 1
+        && let Some(inner @ GoValue::Object(_)) = map.get("schema")
+    {
+        let resolved = resolve_schema_root(inner, &mut budget, true);
+        let mut out = Map::new();
+        out.insert("schema".into(), resolved);
+        return GoValue::Object(out).marshal();
+    }
+    resolve_schema_root(&root, &mut budget, true).marshal()
+}
+
+/// resolveSchemaRoot: the schema body resolves before the definition containers, which
+/// cleaning drops altogether, so the budget is spent on what is kept.
+fn resolve_schema_root(root: &GoValue, budget: &mut Budget, for_clean: bool) -> GoValue {
+    let GoValue::Object(root_map) = root else {
+        return resolve_local_refs(root, root, &mut Active::new(), budget, for_clean);
+    };
+    let mut out = Map::new();
+    for (key, item) in root_map {
+        match key.as_str() {
+            "$defs" | "definitions" => {
+                if !for_clean {
+                    out.insert(key.clone(), GoValue::Null); // resolved after the body
+                }
+            }
+            "$ref" => {
+                out.insert(key.clone(), item.clone());
+            }
+            _ => {
+                let resolved = resolve_schema_entry(root, key, item, &mut Active::new(), budget, for_clean);
+                out.insert(key.clone(), resolved);
+            }
+        }
+    }
+    if let Some(GoValue::String(reference)) = root_map.get("$ref")
+        && reference.starts_with("#/")
+        && let Some(target) = resolve_pointer(root, reference)
+    {
+        let size = budget.target_size(reference, target, for_clean);
+        if size <= budget.left {
+            budget.left -= size;
+            let mut active = Active::from([reference.clone()]);
+            match resolve_local_refs(root, target, &mut active, budget, for_clean).into_object() {
+                Ok(mut merged) => {
+                    for (key, value) in std::mem::take(&mut out) {
+                        if key != "$ref" {
+                            merged.insert(key, value);
+                        }
+                    }
+                    out = merged;
+                }
+                Err(_) => {
+                    out = resolve_ref_fallback(root, &out, target, reference, &mut Active::new(), budget, for_clean)
+                }
+            }
+        } else {
+            out = resolve_ref_fallback(root, &out, target, reference, &mut Active::new(), budget, for_clean);
+        }
+        out.remove("$ref");
+    }
+    if !for_clean {
+        for key in ["$defs", "definitions"] {
+            if let Some(item) = root_map.get(key) {
+                let resolved = resolve_schema_entry(root, key, item, &mut Active::new(), budget, false);
+                out.insert(key.into(), resolved);
+            }
+        }
+    }
+    GoValue::Object(out)
+}
+
+/// targetExpansionSize: when cleaning, definitions inside the target are deleted later, so
+/// they cost nothing.
+fn target_expansion_size(value: &GoValue, for_clean: bool) -> usize {
+    if for_clean {
+        clean_expansion_size(value, false)
+    } else {
+        json_value_size(value)
+    }
+}
+
+fn clean_expansion_size(value: &GoValue, in_name_map: bool) -> usize {
+    const CAP: usize = MAX_INLINED_SCHEMA_BYTES + 1;
     match value {
-        GoValue::Array(items) => GoValue::Array(items.iter().map(|i| resolve_refs(root, i, active)).collect()),
+        GoValue::Array(items) => {
+            let mut size = 2;
+            for item in items {
+                size += clean_expansion_size(item, false) + 1;
+                if size > CAP {
+                    return CAP;
+                }
+            }
+            size
+        }
+        GoValue::Object(map) => {
+            let mut size = 2;
+            for (key, item) in map {
+                if !in_name_map && is_definitions(key) {
+                    continue;
+                }
+                let child = if !in_name_map && is_literal_value_keyword(key.as_bytes()) {
+                    json_value_size(item)
+                } else {
+                    clean_expansion_size(item, !in_name_map && is_name_map_keyword(key))
+                };
+                size += json_string_encoded_size(key) + 1 + child + 1;
+                if size > CAP {
+                    return CAP;
+                }
+            }
+            size
+        }
+        scalar => json_value_size(scalar),
+    }
+}
+
+/// jsonValueSize: the bytes encoding/json writes for a decoded value.
+fn json_value_size(value: &GoValue) -> usize {
+    match value {
+        GoValue::Null => 4,
+        GoValue::Bool(_) => 5,
+        GoValue::Number(n) => n.len(),
+        GoValue::String(s) => json_string_encoded_size(s),
+        GoValue::Array(items) => 2 + items.iter().map(|i| json_value_size(i) + 1).sum::<usize>(),
+        GoValue::Object(map) => {
+            2 + map
+                .iter()
+                .map(|(k, v)| json_string_encoded_size(k) + 1 + json_value_size(v) + 1)
+                .sum::<usize>()
+        }
+    }
+}
+
+/// jsonStringEncodedSize: with encoding/json's HTML escaping.
+fn json_string_encoded_size(s: &str) -> usize {
+    let b = s.as_bytes();
+    let mut size = 2;
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        size += match c {
+            b'\n' | b'\r' | b'\t' => 2,
+            0..0x20 => 6,
+            b'"' | b'\\' => 2,
+            b'<' | b'>' | b'&' => 6,
+            0xe2 if i + 2 < b.len() && b[i + 1] == 0x80 && matches!(b[i + 2], 0xa8 | 0xa9) => {
+                i += 2;
+                6
+            }
+            _ => 1,
+        };
+        i += 1;
+    }
+    size
+}
+
+fn resolve_local_refs(
+    root: &GoValue,
+    value: &GoValue,
+    active: &mut Active,
+    budget: &mut Budget,
+    for_clean: bool,
+) -> GoValue {
+    match value {
+        GoValue::Array(items) => GoValue::Array(
+            items
+                .iter()
+                .map(|i| resolve_local_refs(root, i, active, budget, for_clean))
+                .collect(),
+        ),
         GoValue::Object(node) => {
             if let Some(GoValue::String(reference)) = node.get("$ref")
                 && reference.starts_with("#/")
                 && let Some(target) = resolve_pointer(root, reference)
             {
                 if active.contains(reference) {
-                    return GoValue::Object(cyclic_ref_fallback(node, target, reference));
+                    return GoValue::Object(resolve_ref_fallback(
+                        root, node, target, reference, active, budget, for_clean,
+                    ));
                 }
+                // Each reference charges its stored target; nested references charge their own.
+                let size = budget.target_size(reference, target, for_clean);
+                if size > budget.left {
+                    return GoValue::Object(resolve_ref_fallback(
+                        root, node, target, reference, active, budget, for_clean,
+                    ));
+                }
+                budget.left -= size;
                 active.insert(reference.clone());
-                let resolved = resolve_refs(root, target, active);
+                let resolved = resolve_local_refs(root, target, active, budget, for_clean);
                 active.remove(reference);
                 if let Ok(target_map) = resolved.into_object() {
-                    let mut out = target_map;
-                    for (key, item) in node {
-                        if key != "$ref" {
-                            out.insert(key.clone(), resolve_refs(root, item, active));
+                    let mut out = Map::new();
+                    for (key, item) in target_map {
+                        if !(for_clean && is_definitions(&key)) {
+                            out.insert(key, item);
                         }
+                    }
+                    for (key, item) in node {
+                        if key == "$ref" || (for_clean && is_definitions(key)) {
+                            continue;
+                        }
+                        let resolved = resolve_schema_entry(root, key, item, active, budget, for_clean);
+                        out.insert(key.clone(), resolved);
                     }
                     return GoValue::Object(out);
                 }
             }
-            GoValue::Object(
-                node.iter()
-                    .map(|(k, v)| (k.clone(), resolve_refs(root, v, active)))
-                    .collect(),
-            )
+            let mut out = Map::new();
+            for (key, item) in node {
+                if for_clean && is_definitions(key) {
+                    continue;
+                }
+                let resolved = resolve_schema_entry(root, key, item, active, budget, for_clean);
+                out.insert(key.clone(), resolved);
+            }
+            GoValue::Object(out)
         }
         other => other.clone(),
     }
+}
+
+/// resolveRefFallback: a reference that cannot expand (cycle or spent budget) becomes a
+/// typed hint, and its sibling subschemas still resolve.
+fn resolve_ref_fallback(
+    root: &GoValue,
+    node: &Map,
+    target: &GoValue,
+    reference: &str,
+    active: &mut Active,
+    budget: &mut Budget,
+    for_clean: bool,
+) -> Map {
+    let mut out = cyclic_ref_fallback(node, target, reference);
+    if let GoValue::Object(target_map) = target
+        && let Some(GoValue::String(description)) = target_map.get("description")
+        && !description.is_empty()
+        && description.len() <= MAX_FALLBACK_DESCRIPTION_BYTES
+        && !node.contains_key("description")
+    {
+        let cost = json_string_encoded_size(description);
+        if cost > budget.left {
+            let hint = [&b"See: "[..], &ref_name(reference.as_bytes())].concat();
+            out.insert(
+                "description".into(),
+                GoValue::String(String::from_utf8_lossy(&hint).into_owned()),
+            );
+        } else {
+            budget.left -= cost;
+        }
+    }
+    for (key, item) in node {
+        if key == "$ref" || key == "description" {
+            continue;
+        }
+        if for_clean && is_definitions(key) {
+            out.remove(key);
+            continue;
+        }
+        let resolved = resolve_schema_entry(root, key, item, active, budget, for_clean);
+        out.insert(key.clone(), resolved);
+    }
+    out
+}
+
+/// resolveSchemaEntry: literal values are copied verbatim; name-map entries are subschemas.
+fn resolve_schema_entry(
+    root: &GoValue,
+    key: &str,
+    item: &GoValue,
+    active: &mut Active,
+    budget: &mut Budget,
+    for_clean: bool,
+) -> GoValue {
+    if is_literal_value_keyword(key.as_bytes()) {
+        return item.clone();
+    }
+    if is_name_map_keyword(key)
+        && let GoValue::Object(names) = item
+    {
+        return GoValue::Object(
+            names
+                .iter()
+                .map(|(name, v)| (name.clone(), resolve_local_refs(root, v, active, budget, for_clean)))
+                .collect(),
+        );
+    }
+    resolve_local_refs(root, item, active, budget, for_clean)
 }
 
 fn resolve_pointer<'a>(root: &'a GoValue, reference: &str) -> Option<&'a GoValue> {
@@ -804,6 +1191,9 @@ fn cyclic_ref_fallback(node: &Map, target: &GoValue, reference: &str) -> Map {
     if let GoValue::Object(target) = target {
         for key in ["type", "nullable", "description"] {
             if let Some(v) = target.get(key) {
+                if key == "description" && matches!(v, GoValue::String(d) if d.len() > MAX_FALLBACK_DESCRIPTION_BYTES) {
+                    continue;
+                }
                 out.insert(key.into(), v.clone());
             }
         }
@@ -827,8 +1217,11 @@ fn cyclic_ref_fallback(node: &Map, target: &GoValue, reference: &str) -> Map {
 
 fn convert_refs_to_hints(mut json: Vec<u8>, preserve_siblings: bool) -> Vec<u8> {
     for p in depth_sorted(find_paths(&json, b"$ref")) {
-        let name = ref_name(&gj::get(&json, &p).bytes());
         let parent = trim_suffix(&p, b".$ref").to_vec();
+        if is_property_definition(&parent) {
+            continue; // a property literally named "$ref"
+        }
+        let name = ref_name(&gj::get(&json, &p).bytes());
         let mut hint = [&b"See: "[..], &name].concat();
         if !preserve_siblings {
             let existing = gj::get(&json, &description_path(&parent)).bytes().into_owned();
@@ -1135,60 +1528,207 @@ fn select_best(items: &[Res<'_>]) -> (usize, Vec<Vec<u8>>) {
     (best.0, types)
 }
 
-fn flatten_any_of_one_of(mut json: Vec<u8>) -> Vec<u8> {
-    for key in [&b"anyOf"[..], b"oneOf"] {
-        for p in depth_sorted(find_paths(&json, key)) {
-            let arr = gj::get(&json, &p).into_owned();
-            if !arr.is_array() {
-                continue;
+fn is_required_only_union_branch(item: &Res<'_>) -> bool {
+    item.is_object()
+        && item.get("required").exists()
+        && ["type", "properties", "items", "enum", "anyOf", "oneOf", "allOf"]
+            .iter()
+            .all(|k| !item.get(k).exists())
+}
+
+/// materializeRequiredOnlyBranch: a `{"required": [...]}` branch becomes an object branch
+/// with the parent's definitions of those properties.
+fn materialize_required_only_branch(item: &Res<'_>, parent_props: &Res<'_>) -> Option<Vec<u8>> {
+    if !parent_props.is_object() {
+        return None;
+    }
+    let required = get_strings(&item.raw, b"required");
+    if required.is_empty() {
+        return None;
+    }
+    let mut raw = item.raw.to_vec();
+    for name in &required {
+        let escaped = escape_key(name);
+        let prop = parent_props.get(&escaped);
+        if !prop.exists() {
+            return None;
+        }
+        gj::set_raw(&mut raw, &[&b"properties."[..], &escaped].concat(), &prop.raw);
+    }
+    gj::set_str(&mut raw, "type", "object");
+    Some(gj::parse(&raw).raw.to_vec())
+}
+
+fn is_null_only_branch(item: &Res<'_>) -> bool {
+    if item.get("properties").exists() || item.get("items").exists() {
+        return false;
+    }
+    let t = item.get("type");
+    if t.kind == Kind::String {
+        return t.bytes().as_ref() == b"null";
+    }
+    t.is_array() && !t.array().is_empty() && t.array().iter().all(|e| e.bytes().as_ref() == b"null")
+}
+
+/// partitionUnionBranches: the non-null branches (raw), whether a null branch was seen,
+/// and whether any branch was dropped or rewritten.
+fn partition_union_branches(items: &[Res<'_>], parent_props: &Res<'_>) -> (Vec<Vec<u8>>, bool, bool) {
+    let (mut non_null, mut has_null, mut filtered) = (vec![], false, false);
+    for item in items {
+        if item.kind == Kind::True {
+            non_null.push(b"{}".to_vec());
+            filtered = true;
+        } else if !item.is_object() {
+            filtered = true;
+        } else if is_null_only_branch(item) {
+            has_null = true;
+        } else if is_required_only_union_branch(item) {
+            if let Some(materialized) = materialize_required_only_branch(item, parent_props) {
+                non_null.push(materialized);
             }
-            let items = arr.array();
-            if items.is_empty() {
-                continue;
-            }
-            let parent_path = trim_suffix(&p, &[b".", key].concat()).to_vec();
-            let parent = if parent_path.is_empty() {
-                gj::parse(&json).into_owned()
+            filtered = true;
+        } else {
+            non_null.push(item.raw.to_vec());
+        }
+    }
+    (non_null, has_null, filtered)
+}
+
+/// flattenAnyOfOneOf: multi-branch unions are kept (oneOf becomes anyOf on native Schema
+/// carriers) unless `flatten_multi_branch`; other unions project onto the strongest branch.
+fn flatten_any_of_one_of(mut json: Vec<u8>, preserve_one_of: bool, flatten_multi_branch: bool) -> Vec<u8> {
+    let mut by_field = find_paths_by_fields(&json, &[b"oneOf", b"anyOf"]);
+    let mut paths = by_field.remove(&b"oneOf"[..]).unwrap_or_default();
+    paths.extend(by_field.remove(&b"anyOf"[..]).unwrap_or_default());
+    for p in depth_sorted(paths) {
+        let key: &[u8] = if p == b"oneOf" || p.ends_with(b".oneOf") {
+            b"oneOf"
+        } else {
+            b"anyOf"
+        };
+        let arr = gj::get(&json, &p).into_owned();
+        if !arr.is_array() || arr.array().is_empty() {
+            continue;
+        }
+        let parent_path = trim_suffix(&p, &[b".", key].concat()).to_vec();
+        if is_property_definition(&parent_path) {
+            continue;
+        }
+        let parent = if parent_path.is_empty() {
+            gj::parse(&json).into_owned()
+        } else {
+            gj::get(&json, &parent_path).into_owned()
+        };
+        // A native Schema has a single anyOf: a sibling oneOf moves to a hint.
+        if key == b"oneOf" && !flatten_multi_branch && !preserve_one_of && parent.get("anyOf").is_array() {
+            json = append_hint(json, &parent_path, &[&b"oneOf: "[..], &arr.raw].concat());
+            json = delete(json, &p);
+            continue;
+        }
+        let items = arr.array();
+        let parent_props = parent.get("properties");
+        let (non_null, has_null, filtered) = partition_union_branches(&items, &parent_props);
+        // An earlier pass may already have recorded the null branch as nullable:true.
+        let nullable = has_null || parent.get("nullable").bool();
+
+        if non_null.len() >= 2 && !flatten_multi_branch {
+            let target_key: &[u8] = if key == b"oneOf" && !preserve_one_of {
+                b"anyOf"
             } else {
-                gj::get(&json, &parent_path).into_owned()
+                key
             };
-            let has_null = items.iter().any(|i| type_of(i) == b"null");
-            if parent.get("properties").is_object() {
-                for item in &items {
-                    let branch = item.get("properties");
-                    if branch.is_object() {
-                        branch.each(|prop_key, prop_value| {
-                            let dest = join_path(
-                                &parent_path,
-                                &[&b"properties."[..], &escape_key(&prop_key.bytes())].concat(),
-                            );
-                            json = merge_missing_schema(std::mem::take(&mut json), &dest, &prop_value);
-                            true
-                        });
+            if target_key != key || has_null || filtered {
+                // sjson.SetBytes with []json.RawMessage: Marshal compacts each branch.
+                let mut list = b"[".to_vec();
+                for (i, raw) in non_null.iter().enumerate() {
+                    if i > 0 {
+                        list.push(b',');
                     }
+                    list.extend(gj::compact(raw, true));
                 }
-                if has_null {
-                    gj::set_bool(&mut json, &join_path(&parent_path, b"nullable"), true);
+                list.push(b']');
+                gj::set_raw(&mut json, &join_path(&parent_path, target_key), &list);
+                if target_key != key {
+                    json = delete(json, &p);
                 }
+            }
+            if has_null {
+                gj::set_bool(&mut json, &join_path(&parent_path, b"nullable"), true);
+                json = append_hint(json, &parent_path, b"(nullable)");
+            }
+            continue;
+        }
+
+        if parent_props.is_object() {
+            for raw in &non_null {
+                let branch = gj::parse(raw);
+                let branch_props = branch.get("properties");
+                if branch_props.is_object() {
+                    branch_props.each(|prop_key, prop_value| {
+                        let dest = join_path(
+                            &parent_path,
+                            &[&b"properties."[..], &escape_key(&prop_key.bytes())].concat(),
+                        );
+                        json = merge_missing_schema(std::mem::take(&mut json), &dest, &prop_value);
+                        true
+                    });
+                }
+            }
+            if nullable {
+                gj::set_bool(&mut json, &join_path(&parent_path, b"nullable"), true);
+            }
+            if parent.get("type").bytes().is_empty() {
+                gj::set_str(&mut json, &join_path(&parent_path, b"type"), "object");
+            }
+            json = delete(json, &p);
+            continue;
+        }
+
+        if non_null.is_empty() {
+            if !has_null {
                 json = delete(json, &p);
                 continue;
             }
+            let mut selected = br#"{"type":"null"}"#.to_vec();
             let parent_desc = gj::get(&json, &description_path(&parent_path)).bytes().into_owned();
-            let (best, types) = select_best(&items);
-            let mut selected = items[best].raw.to_vec();
-            if has_null && type_of(&items[best]) != b"null" {
-                gj::set_bool(&mut selected, "nullable", true);
-            }
             if !parent_desc.is_empty() {
                 selected = merge_description_raw(&selected, &parent_desc);
             }
-            if types.len() > 1 {
-                let hint = [&b"Accepts: "[..], &types.join(&b" | "[..])].concat();
-                let merged = merge_hint(&gj::get(&selected, "description").bytes(), &hint);
-                gj::set_str(&mut selected, "description", merged);
-            }
             json = set_raw_at(json, &parent_path, &selected);
+            continue;
         }
+
+        let parsed: Vec<Res<'_>> = non_null.iter().map(|raw| gj::parse(raw)).collect();
+        let null_branch = gj::parse(br#"{"type":"null"}"#);
+        let all_types = if filtered || non_null.len() >= 2 {
+            let mut candidates = parsed.clone();
+            if has_null {
+                candidates.push(null_branch);
+            }
+            select_best(&candidates).1
+        } else {
+            select_best(&items).1
+        };
+        let parent_desc = gj::get(&json, &description_path(&parent_path)).bytes().into_owned();
+        let mut selected = non_null[select_best(&parsed).0].clone();
+        if nullable {
+            gj::set_bool(&mut selected, "nullable", true);
+        }
+        if !parent_desc.is_empty() {
+            selected = merge_description_raw(&selected, &parent_desc);
+        }
+        let hint = if all_types.len() > 1 {
+            Some([&b"Accepts: "[..], &all_types.join(&b" | "[..])].concat())
+        } else if nullable {
+            Some(b"(nullable)".to_vec())
+        } else {
+            None
+        };
+        if let Some(hint) = hint {
+            let merged = merge_hint(&gj::get(&selected, "description").bytes(), &hint);
+            gj::set_str(&mut selected, "description", merged);
+        }
+        json = set_raw_at(json, &parent_path, &selected);
     }
     json
 }
@@ -1220,6 +1760,9 @@ fn flatten_type_arrays(mut json: Vec<u8>, preserve_native_nullable: bool) -> Vec
             b"string".to_vec()
         } else if gj::get(&json, &items_path).exists() && non_null.iter().any(|t| t == b"array") {
             b"array".to_vec()
+        } else if gj::get(&json, &join_path(&parent, b"properties")).exists() && non_null.iter().any(|t| t == b"object")
+        {
+            b"object".to_vec()
         } else {
             non_null[0].clone()
         };
@@ -1312,6 +1855,9 @@ fn remove_unsupported_keywords(json: Vec<u8>, options: Options) -> Vec<u8> {
         b"$dynamicAnchor",
         b"propertyNames",
         b"patternProperties",
+        b"dependentRequired",
+        b"dependentSchemas",
+        b"dependencies",
         b"if",
         b"then",
         b"else",
@@ -1321,10 +1867,15 @@ fn remove_unsupported_keywords(json: Vec<u8>, options: Options) -> Vec<u8> {
         b"prefill",
         b"deprecated",
         b"encrypted",
+        b"discriminator",
+        b"readOnly",
+        b"writeOnly",
         b"additionalItems",
         b"unevaluatedProperties",
         b"unevaluatedItems",
         b"contentSchema",
+        b"contentMediaType",
+        b"contentEncoding",
     ]);
     if options.antigravity_semantics {
         keywords.push(b"not");
@@ -1360,6 +1911,8 @@ fn walk_extensions(value: &Res<'_>, path: &[u8], paths: &mut Vec<Vec<u8>>) {
             let child_path = join_path(path, &escape_key(&key));
             if key.starts_with(b"x-") && !is_property_definition(path) {
                 paths.push(child_path);
+            } else if is_literal_value_keyword(&key) && !is_property_definition(path) {
+                // literal values are client data
             } else {
                 walk_extensions(&child, &child_path, paths);
             }
@@ -1446,7 +1999,24 @@ fn cleanup_required_fields(mut json: Vec<u8>) -> Vec<u8> {
     json
 }
 
-fn sanitize_array_items(mut json: Vec<u8>) -> Vec<u8> {
+/// sanitizeObjectProperties: a node declaring `properties` is typed `object`.
+fn sanitize_object_properties(mut json: Vec<u8>) -> Vec<u8> {
+    for p in depth_sorted(find_paths(&json, b"properties")) {
+        let parent = trim_suffix(&p, b".properties").to_vec();
+        if is_property_definition(&parent) || !gj::get(&json, &p).is_object() {
+            continue;
+        }
+        let type_path = join_path(&parent, b"type");
+        if !gj::get(&json, &type_path).bytes().eq_ignore_ascii_case(b"object") {
+            gj::set_str(&mut json, &type_path, "object");
+        }
+    }
+    json
+}
+
+/// sanitizeArrayItems; with `add_missing`, an array node still lacking `items` after
+/// reference inlining gets Phase 0's placeholder.
+fn sanitize_array_items(mut json: Vec<u8>, add_missing: bool) -> Vec<u8> {
     for p in depth_sorted(find_paths(&json, b"items")) {
         let parent = trim_suffix(&p, b".items").to_vec();
         if is_property_definition(&parent) {
@@ -1460,7 +2030,34 @@ fn sanitize_array_items(mut json: Vec<u8>) -> Vec<u8> {
             gj::delete(&mut json, &p);
         }
     }
+    if !add_missing {
+        return json;
+    }
+    for p in depth_sorted(find_paths(&json, b"type")) {
+        let parent = trim_suffix(&p, b".type").to_vec();
+        if is_property_definition(&parent) || !is_array_declared(&gj::get(&json, &p)) {
+            continue;
+        }
+        if gj::get(&json, &join_path(&parent, b"items")).exists()
+            || gj::get(&json, &join_path(&parent, b"$ref")).exists()
+        {
+            continue;
+        }
+        gj::set_raw(&mut json, &join_path(&parent, b"items"), br#"{"type":"string"}"#);
+    }
     json
+}
+
+/// isArrayDeclaredType on a gjson value.
+fn is_array_declared(t: &Res<'_>) -> bool {
+    match t.kind {
+        Kind::String => t.bytes().eq_ignore_ascii_case(b"array"),
+        _ if t.is_array() => t
+            .array()
+            .iter()
+            .any(|i| i.kind == Kind::String && i.bytes().eq_ignore_ascii_case(b"array")),
+        _ => false,
+    }
 }
 
 fn add_empty_schema_placeholder(mut json: Vec<u8>) -> Vec<u8> {
@@ -1474,6 +2071,11 @@ fn add_empty_schema_placeholder(mut json: Vec<u8>) -> Vec<u8> {
         let required_path = join_path(&parent, b"required");
         let required = gj::get(&json, &required_path);
         let has_required = required.is_array() && !required.array().is_empty();
+        if gj::get(&json, &join_path(&parent, b"anyOf")).is_array()
+            || gj::get(&json, &join_path(&parent, b"oneOf")).is_array()
+        {
+            continue;
+        }
         if !props.exists() || (props.is_object() && props.map().is_empty()) {
             let reason = join_path(&props_path, b"reason");
             gj::set_str(&mut json, &[&reason[..], b".type"].concat(), "string");
@@ -1497,4 +2099,31 @@ fn add_empty_schema_placeholder(mut json: Vec<u8>) -> Vec<u8> {
         }
     }
     json
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Go's TestIssue6732_CleanInliningStripsDefinitionsFromIntermediate: the cleaning
+    /// inliner drops definition containers, so a large unused definition is never copied
+    /// into the intermediate document, and both references still expand.
+    #[test]
+    fn clean_inlining_strips_definitions_from_intermediate() {
+        let person = format!(
+            r#"{{"type":"object","properties":{{"name":{{"type":"string"}}}},"$defs":{{"Unused":{{"type":"string","description":"{}"}}}}}}"#,
+            "x".repeat(280 * 1024)
+        );
+        let input = format!(
+            r##"{{"type":"object","properties":{{"p0":{{"$ref":"#/$defs/Person"}},"p1":{{"$ref":"#/$defs/Person"}}}},"$defs":{{"Person":{person}}}}}"##
+        );
+        let got = inline_refs_for_clean(input.into_bytes());
+        assert!(got.len() < 64 * 1024, "intermediate is {} bytes", got.len());
+        assert!(!gj::get(&got, "$defs").exists());
+        assert!(!gj::get(&got, "properties.p0.$defs").exists());
+        assert_eq!(
+            gj::get(&got, "properties.p1.properties.name.type").bytes().as_ref(),
+            b"string"
+        );
+    }
 }

@@ -198,9 +198,14 @@ const PENDING: &[(&str, &str, &str)] = &[
         "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
     ),
     (
-        "claude->gemini",
-        "tools/schema/11",
-        "Gemini schema cleaners: dependent keywords and multi-branch unions (9126772d, a0fd8448)",
+        "openai->gemini",
+        "TestConvertOpenAIRequestToGemini_FileID:29:envelope",
+        "unsendable OpenAI to Gemini attachments refused (3b69068e, f51624aa)",
+    ),
+    (
+        "openai->gemini",
+        "TestOpenAIToGeminiRegistryCarriesTheImageURLRefusal:83:envelope",
+        "unsendable OpenAI to Gemini attachments refused (3b69068e, f51624aa)",
     ),
 ];
 
@@ -412,10 +417,17 @@ fn check(client: Format, upstream: Format, f: &Value, bytes: bool, tool_search: 
 
 /// Pair fixtures (recorded at 6fecc6e) whose behaviour a later Go commit changed, each
 /// replayed at v8.0.35 by the named golden instead.
-const SUPERSEDED: &[(&str, &str)] = &[(
-    "openai->codex codex-events/non-stream/0",
-    "16d98881 joins every output_text part: codex_chat_go.json pair_codex_events_non_stream_0",
-)];
+const SUPERSEDED: &[(&str, &str)] = &[
+    (
+        "openai->codex codex-events/non-stream/0",
+        "16d98881 joins every output_text part: codex_chat_go.json pair_codex_events_non_stream_0",
+    ),
+    (
+        "claude->antigravity tools/schema/11",
+        "the v8.0.35 schema cleaner (a0fd8448, c558d320): cpa-common gemini_schema.json.gz; \
+         the same fixture recorded at v8.0.35 matches",
+    ),
+];
 
 #[test]
 fn reference_goldens() {
@@ -491,7 +503,7 @@ fn reference_goldens() {
         failures.is_empty(),
         "{} of {total} fixtures failed:\n{}",
         failures.len(),
-        failures[..failures.len().min(12)].join("\n")
+        failures[..failures.len().min(400)].join("\n")
     );
 }
 
@@ -540,7 +552,7 @@ fn tool_search_goldens() {
         failures.is_empty(),
         "{} fixtures failed:\n{}",
         failures.len(),
-        failures[..failures.len().min(12)].join("\n")
+        failures[..failures.len().min(400)].join("\n")
     );
 }
 

@@ -15,6 +15,6 @@ patch('antigravity_executor.go', [
     ('func shouldResolveAntigravityWebSearchGroundingURLs(from', 'func shouldResolveAntigravityWebSearchGroundingURLsInner(from'),
 ])
 patch('antigravity_executor_request.go', [
-    ('func sanitizeAntigravityRequestSchemas(payloadStr', 'func sanitizeAntigravityRequestSchemasInner(payloadStr'),
+    ('func sanitizeAntigravityRequestSchemasForModel(payloadStr', 'func sanitizeAntigravityRequestSchemasForModelInner(payloadStr'),
     ('func resolveAntigravityRequestBaseURL(auth', 'func resolveAntigravityRequestBaseURLInner(auth'),
 ])

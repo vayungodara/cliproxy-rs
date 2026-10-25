@@ -21,7 +21,7 @@ use std::sync::Arc;
 
 use bytes::Bytes;
 use cpa_common::gostr::GoStr;
-use cpa_common::json::{self as gj, GoValue, Kind, Res};
+use cpa_common::json::{self as gj, Kind, Res};
 use cpa_common::thinking::{ModelCaps, RequestThinking, apply_request_thinking, parse_suffix};
 use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch};
@@ -1109,7 +1109,7 @@ fn normalize_parameters_schema(raw: &[u8]) -> Vec<u8> {
     if go_trim_space(raw).is_empty() {
         return raw.to_vec();
     }
-    let mut params = inline_local_refs(raw);
+    let mut params = cpa_common::gemini_schema::inline_local_refs(raw);
     for container in ["$defs", "definitions"] {
         if gj::get(&params, container).exists() {
             gj::delete(&mut params, container);
@@ -1119,102 +1119,6 @@ fn normalize_parameters_schema(raw: &[u8]) -> Vec<u8> {
         gj::set_str(&mut params, "type", "object");
     }
     params
-}
-
-/// `util.InlineLocalRefs`: expand `#/` JSON pointers against the original schema; sibling
-/// keywords override the target and cycles become a "See: <name>" hint.
-pub(crate) fn inline_local_refs(raw: &[u8]) -> Vec<u8> {
-    if !raw.windows(6).any(|w| w == b"\"$ref\"") {
-        return raw.to_vec();
-    }
-    let Some(root) = GoValue::parse(go_trim_space(raw)) else {
-        return raw.to_vec();
-    };
-    let mut active = std::collections::HashSet::new();
-    resolve_refs(&root, &root, &mut active).marshal()
-}
-
-fn resolve_refs(root: &GoValue, value: &GoValue, active: &mut std::collections::HashSet<String>) -> GoValue {
-    match value {
-        GoValue::Array(items) => GoValue::Array(items.iter().map(|i| resolve_refs(root, i, active)).collect()),
-        GoValue::Object(node) => {
-            if let Some(GoValue::String(reference)) = node.get("$ref")
-                && reference.starts_with("#/")
-                && let Some(target) = json_pointer(root, reference)
-            {
-                if active.contains(reference) {
-                    return cyclic_fallback(node, target, reference);
-                }
-                active.insert(reference.clone());
-                let resolved = resolve_refs(root, target, active);
-                active.remove(reference);
-                if let Ok(mut out) = resolved.into_object() {
-                    for (key, item) in node {
-                        if key != "$ref" {
-                            out.insert(key.clone(), resolve_refs(root, item, active));
-                        }
-                    }
-                    return GoValue::Object(out);
-                }
-            }
-            GoValue::Object(
-                node.iter()
-                    .map(|(k, v)| (k.clone(), resolve_refs(root, v, active)))
-                    .collect(),
-            )
-        }
-        other => other.clone(),
-    }
-}
-
-fn json_pointer<'a>(root: &'a GoValue, reference: &str) -> Option<&'a GoValue> {
-    let mut current = root;
-    for raw in reference.strip_prefix("#/").unwrap_or(reference).split('/') {
-        let part = raw.replace("~1", "/").replace("~0", "~");
-        current = match current {
-            GoValue::Object(map) => map.get(&part)?,
-            GoValue::Array(items) => items.get(part.parse::<usize>().ok()?)?,
-            _ => return None,
-        };
-    }
-    Some(current)
-}
-
-fn cyclic_fallback(node: &std::collections::BTreeMap<String, GoValue>, target: &GoValue, reference: &str) -> GoValue {
-    let mut out = std::collections::BTreeMap::new();
-    if let GoValue::Object(target) = target {
-        for key in ["type", "nullable", "description"] {
-            if let Some(value) = target.get(key) {
-                out.insert(key.to_owned(), value.clone());
-            }
-        }
-    }
-    for (key, value) in node {
-        if key != "$ref" {
-            out.insert(key.clone(), value.clone());
-        }
-    }
-    let name = reference
-        .rfind('/')
-        .filter(|i| i + 1 < reference.len())
-        .map(|i| reference[i + 1..].replace("~1", "/").replace("~0", "~"))
-        .unwrap_or_else(|| reference.to_owned());
-    let hint = format!("See: {name}");
-    let description = match out.get("description") {
-        Some(GoValue::String(existing)) if !existing.is_empty() => {
-            if existing == &hint
-                || existing.starts_with(&format!("{hint} ("))
-                || existing.contains(&format!("({hint})"))
-            {
-                existing.clone()
-            } else {
-                format!("{existing} ({hint})")
-            }
-        }
-        _ => hint,
-    };
-    out.insert("description".into(), GoValue::String(description));
-    GoValue::Object(out)
 }
 
 /// `normalizeKimiTemperature`: Kimi accepts only 0.6 without thinking and 1.0 with it.

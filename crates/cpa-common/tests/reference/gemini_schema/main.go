@@ -6,10 +6,24 @@
 // Run from a module whose import path sits inside the reference module (see
 // crates/cpa-translate/tests/reference/README.md):
 //
-//	go run . /path/to/CLIProxyAPI /path/to/cliproxy-rs/crates/cpa-common/tests/fixtures/gemini_schema.json
+//	go run . /path/to/CLIProxyAPI /path/to/cliproxy-rs/crates/cpa-common/tests/fixtures/gemini_schema.json.gz
+//
+// The budget cases from Go's tests expand to its 256 KiB inlining limit, so the fixture is
+// gzipped.
+//
+// An optional third argument names a harvest file: one JSON string per line, each an input
+// that Go's own internal/util tests passed to cleanJSONSchema or InlineLocalRefs. It covers
+// the inputs those tests build in code rather than as literals. To harvest, in a scratch
+// worktree of the reference (never the reference itself), copy zz_rsfix_harvest.go.txt to
+// internal/util/zz_rsfix_harvest.go, add `rsfixHarvest(jsonStr)` as the first statement of
+// cleanJSONSchema and InlineLocalRefs, and run
+//
+//	RSFIX_SCHEMA_HARVEST=/tmp/harvest.jsonl go test ./internal/util/
 package main
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"go/ast"
 	"go/parser"
@@ -18,6 +32,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/util"
 	"github.com/tidwall/gjson"
@@ -78,6 +93,21 @@ var extra = []string{
 	`{"properties":{"big":{"type":"integer","default":9007199254740993,"minimum":1e400}}}`,
 	`{"items":[{"type":"string"}],"type":"object"}`, `{"type":"array","items":{"type":"object","properties":{"x":{"type":["null","string"]}}}}`,
 	`{"dependencies":{"a":true,"b":{"foo":{}}},"dependentSchemas":{"c":true},"unevaluatedProperties":true,"contentSchema":true,"prefixItems":[true]}`,
+	// v8.0.35: reference inlining on every route, literal values, union preservation.
+	`{"schema":{"type":"object","properties":{"a":{"$ref":"#/$defs/A"}},"$defs":{"A":{"type":"string","description":"inner"}}}}`,
+	`{"type":"object","properties":{"$ref":{"type":"string"},"default":{"type":"object","properties":{"x":{"$ref":"#/$defs/X"}}}},"$defs":{"X":{"type":"integer"}}}`,
+	`{"type":"object","properties":{"a":{"type":"object","default":{"$ref":"#/$defs/X","x-y":1,"anyOf":[1],"properties":{"q":{}}},"examples":[{"x-k":{"$ref":"#/z"}}]}},"$defs":{"X":{"type":"integer"}}}`,
+	`{"anyOf":[{"type":"string"},{"type":"integer"}],"oneOf":[{"type":"boolean"},{"type":"number"}]}`,
+	`{"type":"object","properties":{"a":{},"b":{"type":"string"}},"anyOf":[{"required":["a"]},{"required":["b"]}]}`,
+	`{"type":"object","properties":{"a":{"type":"string"}},"oneOf":[{"required":["a"]},{"required":["zz"]}]}`,
+	`{"properties":{"u":{"anyOf":[true,{"type":"string"},{"type":"null"}],"nullable":true},"v":{"oneOf":[{"type":"null"},{"type":["null"]}]},"w":{"anyOf":[5,{"type":"null"}]},"z":{"anyOf":[{"type":"integer"},{"type":"object","properties":{"k":{}}},{"type":"null"}],"description":"pick"}}}`,
+	`{"type":"array","$ref":"#/$defs/L","$defs":{"L":{"type":"array","items":{"type":"integer"}}}}`,
+	`{"properties":{"l":{"$ref":"#/$defs/L"},"m":{"type":"array"}},"$defs":{"L":{"type":"array"}}}`,
+	`{"dependencies":{"a":{"properties":{"x-k":{"type":"string"}}},"b":["a"]},"properties":{"p":{"discriminator":{"propertyName":"k"},"readOnly":true,"writeOnly":false,"contentMediaType":"text/plain","contentEncoding":"base64","type":"string"}}}`,
+	`{"$defs":{"A":{"type":"object","description":"` + strings.Repeat("d", 600) + `","properties":{"s":{"$ref":"#/$defs/A"}}}},"$ref":"#/$defs/A","title":"root"}`,
+	`{"properties":{"a":{"$ref":"#/$defs/A","description":"own"},"b":{"$ref":"#/$defs/A"}},"$defs":{"A":{"type":"object","description":"<&>\"q\\b\u2028\n\t\u0001\u001f` + "\u2028\u00e9\u4e2d" + `","properties":{"s":{"$ref":"#/$defs/A"}}}}}`,
+	// The claude->antigravity tools/schema/11 tool schema (golden.rs SUPERSEDED).
+	`{"type":"object","properties":{"list":{"type":"array","items":true,"prefixItems":[true,false,{"type":"object"}],"contains":{"type":"object"}}},"additionalProperties":true,"propertyNames":true,"unevaluatedProperties":false,"anyOf":[true,{"type":"object","properties":{"z":{"type":"object"}}}],"not":{"type":"object"},"if":true,"then":{"type":"object"},"else":false,"$defs":{"d":{"type":"object"},"e":true},"definitions":{"f":{"type":"object"}},"dependentSchemas":{"g":true},"dependencies":{"h":["x"],"i":{"type":"object"}}}`,
 }
 
 func mine(path string) []string {
@@ -104,13 +134,51 @@ func mine(path string) []string {
 	return out
 }
 
+func harvested(path string) []string {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		panic(err)
+	}
+	var out []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		if line == "" {
+			continue
+		}
+		var s string
+		if err := json.Unmarshal([]byte(line), &s); err != nil {
+			panic(err)
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func dedupe(inputs []string) []string {
+	seen := map[string]bool{}
+	out := inputs[:0]
+	for _, s := range inputs {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
 func main() {
 	inputs := append(mine(filepath.Join(os.Args[1], "internal/util/gemini_schema_test.go")), extra...)
+	if len(os.Args) > 3 {
+		inputs = append(inputs, harvested(os.Args[3])...)
+	}
+	inputs = dedupe(inputs)
 	fns := map[string]func(string) string{
-		"gemini":               util.CleanJSONSchemaForGemini,
-		"gemini_json_schema":   util.CleanJSONSchemaForGeminiJSONSchema,
-		"antigravity":          util.CleanJSONSchemaForAntigravity,
-		"antigravity_tool":     func(s string) string { return util.CleanJSONSchemaForAntigravityTool(s, false) },
+		"gemini":             util.CleanJSONSchemaForGemini,
+		"gemini_json_schema": util.CleanJSONSchemaForGeminiJSONSchema,
+		"antigravity":        util.CleanJSONSchemaForAntigravity,
+		"antigravity_tool":   func(s string) string { return util.CleanJSONSchemaForAntigravityTool(s, false) },
+		"antigravity_claude_tool": func(s string) string {
+			return util.CleanJSONSchemaForAntigravityClaudeTool(s, false)
+		},
 		"antigravity_response": util.CleanJSONSchemaForAntigravityResponse,
 		"inline_local_refs":    util.InlineLocalRefs,
 	}
@@ -131,7 +199,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	if err := os.WriteFile(os.Args[2], append(raw, '\n'), 0o644); err != nil {
+	raw = append(raw, '\n')
+	if strings.HasSuffix(os.Args[2], ".gz") {
+		// gzip.Writer leaves the header's mtime zero, so the file is reproducible.
+		var buf bytes.Buffer
+		zw, _ := gzip.NewWriterLevel(&buf, gzip.BestCompression)
+		zw.Write(raw)
+		zw.Close()
+		raw = buf.Bytes()
+	}
+	if err := os.WriteFile(os.Args[2], raw, 0o644); err != nil {
 		panic(err)
 	}
 	println(len(out), "schemas")
