@@ -5,10 +5,10 @@
 `true`), in the v8 and legacy layouts, through an anchored mapping key, and in fields
 added in v8.0.35. yaml.v3 reads each into the Go string as its text. There is no case for
 `upstream.claude.header-defaults.client-request-id`: Go's `SanitizeClaudeHeaderDefaults`
-resets any value other than `on`, `off` or `passthrough` to empty, so a number's text
-never reaches the config. Each check names the field by its Go YAML
-path (`ParseConfigBytes`, read by reflection) and by its v8 path in cliproxy-rs.
-`config` tests replay it.
+lowercases and trims it (`ON` is `on`, `' off '` is `off`), then resets any value other
+than `on`, `off` or `passthrough` to empty, so a number's text never reaches the config.
+Each check names the field by its Go YAML path (`ParseConfigBytes`, read by reflection)
+and by its v8 path in cliproxy-rs. `config` tests replay it.
 
 Regenerate with Go 1.26.4, network denied, by overlaying the test into the reference
 checkout (which stays unmodified):

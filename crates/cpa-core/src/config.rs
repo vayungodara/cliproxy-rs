@@ -1017,6 +1017,15 @@ mod tests {
     /// historical `oauth.providers` layouts load the same shared settings for OAuth and
     /// API-key views alike, migrate without their aliases, and keep the Codex header
     /// defaults OAuth-only.
+    /// v8.0.35 `buildV8Paths` moves the legacy `claude.session-date-pin-days` to
+    /// `upstream.claude`.
+    #[test]
+    fn legacy_session_date_pin_days_migrates() {
+        let doc = ConfigDocument::parse("claude: {tool-search: true, session-date-pin-days: 3}\n").unwrap();
+        assert!(doc.value().get("claude").is_none(), "{:?}", doc.value());
+        assert_eq!(doc.value()["upstream"]["claude"]["session-date-pin-days"], 3);
+    }
+
     #[test]
     fn shared_upstream_layouts_agree_and_migrate() {
         let keys = "api-keys: {codex: [{base-url: https://example.invalid, keys: [{api-key: test-key, disable-codex-cloaking: false}]}]}\n";

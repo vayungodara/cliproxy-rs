@@ -65,6 +65,7 @@ def merge(old, new):
         for key, value in new["fields"].items():
             old["fields"][key] = merge(old["fields"][key], value) if key in old["fields"] else value
         return old
+    assert old == new, f"conflicting shapes {old} and {new}"
     return new
 
 def put(path, value):
