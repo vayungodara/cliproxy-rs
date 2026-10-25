@@ -8,6 +8,10 @@
 //! - API keys (`api-keys.vertex`, or a file credential's `access_token`): `x-goog-api-key`
 //!   at `<base-url>/v1/publishers/google/models/<model>`, base URL used as configured.
 //!
+//! An Interactions client on a credential that opted in (`interactions`) instead reaches
+//! the native Interactions API at `/v1beta1/interactions`, built as the Gemini executor
+//! builds it (Go 2d5351b3).
+//!
 //! Unlike the Gemini API-key executor, Vertex translates without the is-compat variants,
 //! does not cap `maxOutputTokens`, strips Responses tool-call IDs, sends Imagen models to
 //! `:predict`, and hands every scanned stream line to the translator unfiltered.
@@ -113,6 +117,40 @@ fn auth_for(credential: &Credential) -> Result<Auth, ExecError> {
         return service_account(credential);
     }
     Ok(Auth::ApiKey { key, base })
+}
+
+/// Go 2d5351b3 `shouldExecuteVertexInteractions`: an Interactions client on a credential
+/// that opted into the native API (`interactions` attribute true or 1, or a file's
+/// `interactions` / `native_interactions`).
+fn native_interactions(credential: &Credential, source: Format) -> bool {
+    if source != Format::Interactions {
+        return false;
+    }
+    let attr = credential.attributes.get("interactions").map(|v| v.trim());
+    // strings.EqualFold with "true": no letter of it has a non-ASCII fold partner but
+    // the Kelvin sign, which "true" lacks.
+    if attr.is_some_and(|v| v.go_eq_fold("true") || v == "1") {
+        return true;
+    }
+    ["interactions", "native_interactions"]
+        .iter()
+        .any(|k| credential.metadata.get(*k) == Some(&Value::Bool(true)))
+}
+
+/// `vertexInteractionsURL`.
+fn interactions_url(base: &str, project: &str, stream: bool) -> String {
+    let base = base.trim();
+    let base = if base.is_empty() { DEFAULT_API_KEY_BASE } else { base }.trim_end_matches('/');
+    let project = project.trim();
+    let mut url = if project.is_empty() {
+        format!("{base}/v1beta1/interactions")
+    } else {
+        format!("{base}/v1beta1/projects/{project}/locations/global/interactions")
+    };
+    if stream {
+        url.push_str("?alt=sse");
+    }
+    url
 }
 
 /// `vertexBaseURL`.
@@ -402,8 +440,60 @@ impl VertexExecutor {
         if req.alt.as_deref() == Some(g::COMPACT_ALT) {
             return Err(g::status_err(501, "/responses/compact not supported"));
         }
+        if native_interactions(credential, req.source_format) {
+            return self.interactions(credential, &req, cfg).await;
+        }
         let auth = auth_for(credential)?;
         self.generate(credential, &req, cfg, &auth).await
+    }
+
+    /// Go 2d5351b3 `executeInteractions` / `executeInteractionsStream`: the Interactions
+    /// request as the Gemini executor builds it, at `<base>/v1beta1/interactions`
+    /// (under `projects/<project>/locations/global` when a project is known).
+    async fn interactions(
+        &self,
+        credential: &Credential,
+        req: &ExecRequest,
+        cfg: &Config,
+    ) -> Result<ExecResponse, ExecError> {
+        let body = g::interactions_body(req, cfg)?;
+        let (key, mut base) = api_creds(credential);
+        let (project, account) = if key.is_empty() {
+            let Auth::ServiceAccount { project, account, .. } = service_account(credential)? else {
+                unreachable!("service_account answers a service account")
+            };
+            if let Some(attr) = credential.attributes.get("base_url").filter(|b| !b.is_empty()) {
+                base = attr.trim().to_owned();
+            }
+            (project, Some(account))
+        } else {
+            (credential.str("project_id").unwrap_or_default().to_owned(), None)
+        };
+        // Go builds the request before the token exchange: a URL it rejects fails
+        // without a token request.
+        let url = interactions_url(&base, &project, req.stream);
+        check_url(&url)?;
+        let client = self.client(credential, cfg);
+        let mut headers = GoHeaders::new();
+        headers.set("Content-Type", "application/json");
+        match account {
+            Some(account) => {
+                let token = vertex_auth::access_token(&client, &account, (self.now)())
+                    .await
+                    .map_err(|error| {
+                        tracing::error!(%error, "vertex executor: interactions access token error");
+                        g::status_err(500, "internal server error")
+                    })?;
+                if token.trim().is_empty() {
+                    return Err(g::status_err(401, "missing access token"));
+                }
+                headers.set("Authorization", format!("Bearer {token}"));
+            }
+            None => headers.set("x-goog-api-key", key),
+        }
+        g::set_custom_headers(&mut headers, credential, req);
+        g::interactions_revision(&mut headers, req);
+        g::interactions_exchange(req, credential, PROVIDER, &client, &url, headers, body).await
     }
 
     /// Content-Type, the credential (API key, or a fresh access token) and the custom
@@ -550,7 +640,7 @@ impl VertexExecutor {
         }
         let output = Output::new(req, Format::Gemini, &body)
             .with_claude_stream_errors()
-            .fail_on_client_drop(true);
+            .fail_on_client_drop(g::DropRule::BeforeTerminal { delivered: false });
         let lines = g::captured_lines(proxy::lines(upstream.body, g::MAX_LINE), capture.clone());
         let stream = g::drive(lines, RawLines(output));
         Ok(ExecResponse {

@@ -144,6 +144,8 @@ struct Key {
     rebuild_mid_system_message: bool,
     native_tool_search: bool,
     fingerprint_profile: String,
+    /// `vertex-api-key` `interactions` (Go 2d5351b3): native Interactions routing.
+    interactions: bool,
 }
 
 const SHARED: &[&str] = &[
@@ -228,6 +230,7 @@ fn decode(item: &serde_yaml_ng::Mapping) -> Key {
         alpha_search: boolean(get("alpha-search")).unwrap_or(false),
         disable_codex_cloaking: boolean(get("disable-codex-cloaking")),
         rebuild_mid_system_message: boolean(get("rebuild-mid-system-message")).unwrap_or(false),
+        interactions: boolean(get("interactions")).unwrap_or(false),
         native_tool_search: boolean(get("native-tool-search")).unwrap_or(false),
         fingerprint_profile: text(get("fingerprint-profile")),
     }
@@ -687,6 +690,9 @@ fn synthesize(cfg: &Config) -> Vec<(Credential, Option<KeyLocation>)> {
         }
         if !key.is_empty() {
             attrs.insert("api_key".into(), key.into());
+        }
+        if k.interactions {
+            attrs.insert("interactions".into(), "true".into());
         }
         for (name, value) in &k.headers {
             attrs.insert(format!("header:{name}"), value.clone());

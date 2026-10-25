@@ -1,7 +1,8 @@
 //! Differential tests against `tests/fixtures/antigravity_go.json` `executor`, produced by
 //! the real Go `AntigravityExecutor` (tests/reference/antigravity/executor.go), and
 //! `antigravity_v8_0_27_go.json`, the behaviour ported from Go v8.0.27 recorded the same
-//! way from that tree (tests/reference/antigravity/v8_0_27.go). Each
+//! way from that tree (tests/reference/antigravity/v8_0_27.go), and
+//! `antigravity_v8_0_35_go.json`, likewise from v8.0.35 (v8_0_35.go). Each
 //! scenario replays the scripted upstream answer to the Rust executor and compares the
 //! raw upstream request, the output, the client stream bytes, errors and the capture
 //! of the attempt. Expected values come only from Go. Scenarios run in fixture order on
@@ -194,6 +195,15 @@ async fn go_v8_0_27_scenarios() {
     assert_eq!(replay_go_scenarios(scenarios).await, scenarios.len());
 }
 
+/// The scenarios recorded from Go v8.0.35 for the behaviour ported from it.
+#[tokio::test]
+async fn go_v8_0_35_scenarios() {
+    let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/antigravity_v8_0_35_go.json")).unwrap();
+    assert_eq!(fixture["go"], "v8.0.35");
+    let scenarios = fixture["executor"].as_array().unwrap();
+    assert_eq!(replay_go_scenarios(scenarios).await, scenarios.len());
+}
+
 /// Go v8.0.27 (4e4dede4): a payload split over stream lines is joined before its served
 /// model is observed, so the usage record names the model Go's record names; no part of
 /// it is read as a usage line.
@@ -287,16 +297,24 @@ async fn replay_go_scenarios(scenarios: &[Value]) -> usize {
             Err(e) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned(), e.retry_after)),
             Ok(response) => match response.body {
                 ResponseBody::Buffered(bytes) => output = Some(String::from_utf8(bytes.to_vec()).unwrap()),
-                ResponseBody::Stream(mut stream) => {
-                    while let Some(item) = stream.next().await {
-                        match item {
-                            Ok(bytes) => streamed.extend_from_slice(&bytes),
-                            Err(e) => {
-                                error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned(), e.retry_after))
-                            }
+                ResponseBody::Stream(mut stream) => loop {
+                    // `cancel_when_idle`: the client goes away once nothing arrives.
+                    let next = if s["cancel_when_idle"] == true {
+                        match tokio::time::timeout(std::time::Duration::from_millis(200), stream.next()).await {
+                            Ok(next) => next,
+                            Err(_) => break,
                         }
+                    } else {
+                        stream.next().await
+                    };
+                    match next {
+                        Some(Ok(bytes)) => streamed.extend_from_slice(&bytes),
+                        Some(Err(e)) => {
+                            error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned(), e.retry_after))
+                        }
+                        None => break,
                     }
-                }
+                },
             },
         }
         let want_error = s["error"].as_object();

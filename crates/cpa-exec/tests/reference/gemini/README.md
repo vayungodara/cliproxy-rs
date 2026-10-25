@@ -102,13 +102,14 @@ countTokens; the name is kept so it replaces the old recording), the Claude
 `MALFORMED_FUNCTION_CALL` error of `7f2f17d7` (with `usage_claude_stream_non_terminal_usage`
 and `stream_usage_trace_id`, whose usage now comes from the raw line), `5ec31442`'s read
 errors without `[DONE]`, `15d2148b`'s function responses carrying media, and a client
-that goes away mid-stream (`stream_client_drop_*`: the upstream `stall`s after its body and
+that goes away mid-stream (`stream_client_drop_*` and the Interactions
+`int_stream_client_drop_*`: the upstream `stall`s after its body and
 the generator cancels the request once the stream is idle; the usage record then carries
 Go's `fail_status` and `fail_body`). Every case
 still runs; `RSFIX_ONLY` (a Go regexp on the name) selects the ones written:
 
 ```sh
-RSFIX_ONLY='^(count_payload_rules_not_applied|stream_usage_trace_id|claude_malformed_function_call_execute|claude_malformed_function_call_stream|openai_malformed_function_call_execute|responses_stream_read_error|claude_stream_read_error|gen_trailing_function_response_media|gen_trailing_function_response_file|gen_trailing_user_function_response_media|usage_claude_stream_non_terminal_usage|usage_claude_stream_malformed_function_call|stream_client_drop_mid_read|stream_client_drop_after_finish)$' \
+RSFIX_ONLY='^(count_payload_rules_not_applied|stream_usage_trace_id|claude_malformed_function_call_execute|claude_malformed_function_call_stream|openai_malformed_function_call_execute|responses_stream_read_error|claude_stream_read_error|gen_trailing_function_response_media|gen_trailing_function_response_file|gen_trailing_user_function_response_media|usage_claude_stream_non_terminal_usage|usage_claude_stream_malformed_function_call|stream_client_drop_mid_read|stream_client_drop_after_finish|int_stream_client_drop_mid_read|int_stream_client_drop_after_completed)$' \
   go run . "$crate/tests/fixtures/gemini_go_v8.0.35.json"
 ```
 

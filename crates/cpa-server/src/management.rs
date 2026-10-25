@@ -1067,6 +1067,12 @@ fn config_sync_locked(
                 Ok(v) => v,
                 Err(e) => return invalid_config(StatusCode::BAD_REQUEST, e),
             };
+        } else if let Ok(v) = std::str::from_utf8(body)
+            .map_err(anyhow::Error::from)
+            .and_then(|text| cpa_core::config::body_value(text, &parts))
+        {
+            // A JSON number in a string setting saves as Go saves its node: its text.
+            value = v;
         }
         // A YAML upload is alias-normalized first, where a scalar merge fails (Go
         // `NormalizeV8ConfigAliases`, 400). JSON keys are quoted, so Go keeps `<<` as a

@@ -34,6 +34,9 @@ type upstream struct {
 	// Missing is how many bytes the declared Content-Length promises beyond Body: the
 	// connection closes early, a read error mid-stream.
 	Missing int `json:"missing,omitempty"`
+	// Stall keeps the connection open after Body until the client closes it: a stream
+	// whose upstream stays silent.
+	Stall bool `json:"stall,omitempty"`
 }
 
 type execError struct {
@@ -53,6 +56,8 @@ type usageOut struct {
 	ResponseModel   string `json:"response_model"`
 	ReasoningEffort string `json:"reasoning_effort"`
 	Failed          bool   `json:"failed"`
+	FailStatus      int    `json:"fail_status,omitempty"`
+	FailBody        string `json:"fail_body,omitempty"`
 }
 
 type usageCapture chan coreusage.Record
@@ -72,6 +77,7 @@ func awaitUsage(name string) *usageOut {
 			InputTokens: d.InputTokens, OutputTokens: d.OutputTokens, ReasoningTokens: d.ReasoningTokens,
 			CachedTokens: d.CachedTokens, TotalTokens: d.TotalTokens, ResponseModel: r.ResponseModel,
 			ReasoningEffort: r.ReasoningEffort, Failed: r.Failed,
+			FailStatus: r.Fail.StatusCode, FailBody: r.Fail.Body,
 		}
 	case <-time.After(300 * time.Millisecond):
 		return nil
@@ -120,6 +126,9 @@ type execScenario struct {
 	Chunks   []string   `json:"chunks,omitempty"`
 	Error    *execError `json:"error,omitempty"`
 	Usage    *usageOut  `json:"usage,omitempty"`
+	// CancelWhenIdle cancels the request context once the stream has delivered nothing
+	// for 200 ms: a client that goes away mid-stream.
+	CancelWhenIdle bool `json:"cancel_when_idle,omitempty"`
 }
 
 type creditsHint struct {
@@ -166,6 +175,9 @@ func captureOnce(ln net.Listener, up *upstream, done chan<- string) {
 	out.WriteString("Connection: close\r\n\r\n")
 	out.WriteString(up.Body)
 	_, _ = conn.Write(out.Bytes())
+	if up.Stall {
+		_, _ = io.Copy(io.Discard, conn)
+	}
 	done <- raw.String()
 }
 
@@ -269,17 +281,36 @@ func runExec(s *execScenario) {
 			s.Output = string(resp.Payload)
 		}
 	case "stream":
-		result, errExec := exec.ExecuteStream(ctx, auth, req, opts)
+		streamCtx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		result, errExec := exec.ExecuteStream(streamCtx, auth, req, opts)
 		if errExec != nil {
 			s.Error = execErrorOf(errExec)
 			break
 		}
-		for chunk := range result.Chunks {
-			if chunk.Err != nil {
-				s.Error = execErrorOf(chunk.Err)
-				continue
+		chunks := result.Chunks
+		for chunks != nil {
+			var idle <-chan time.Time
+			if s.CancelWhenIdle && streamCtx.Err() == nil {
+				idle = time.After(200 * time.Millisecond)
 			}
-			s.Chunks = append(s.Chunks, string(chunk.Payload))
+			select {
+			case chunk, ok := <-chunks:
+				if !ok {
+					chunks = nil
+					continue
+				}
+				if streamCtx.Err() != nil {
+					continue // the client is gone; nothing more reaches it
+				}
+				if chunk.Err != nil {
+					s.Error = execErrorOf(chunk.Err)
+					continue
+				}
+				s.Chunks = append(s.Chunks, string(chunk.Payload))
+			case <-idle:
+				cancel()
+			}
 		}
 	case "count":
 		resp, errExec := exec.CountTokens(ctx, auth, req, opts)

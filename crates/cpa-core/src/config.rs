@@ -32,7 +32,7 @@ pub use schema::{coerce_typed_scalars, go_bool, go_int};
 /// a view or a save candidate sees the tagged values the loader sees.
 pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
     let mut value = serde_yaml_ng::from_str::<Value>(text)?;
-    binary::decode(text, &mut value, false)?;
+    binary::decode(text, &mut value, None, false)?;
     Ok(value)
 }
 
@@ -42,7 +42,39 @@ pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
 /// read the file's nodes.
 pub fn config_value(text: &str) -> anyhow::Result<Value> {
     let mut value = serde_yaml_ng::from_str::<Value>(text)?;
-    binary::decode(text, &mut value, true)?;
+    binary::decode(text, &mut value, Some(&[]), false)?;
+    Ok(value)
+}
+
+/// A management write's body, the value at `keys` of the config: Go parses it as YAML
+/// nodes and saves their text, so a number or boolean in a string setting whose text the
+/// save would not write back (`1.50`, `1e3`) is that text. One the save writes back as
+/// it is (`5`, `true`) keeps its YAML type, so the saved file and its views stay Go's.
+pub fn body_value(text: &str, keys: &[&str]) -> anyhow::Result<Value> {
+    fn keep_written(literal: &mut Value, parsed: Value) {
+        match (literal, parsed) {
+            (Value::Mapping(l), Value::Mapping(p)) => {
+                for ((_, l), (_, p)) in l.iter_mut().zip(p) {
+                    keep_written(l, p);
+                }
+            }
+            (Value::Sequence(l), Value::Sequence(p)) => {
+                for (l, p) in l.iter_mut().zip(p) {
+                    keep_written(l, p);
+                }
+            }
+            (l @ Value::String(_), p @ (Value::Number(_) | Value::Bool(_)))
+                if l.as_str() == Some(go_string(&p).as_str()) =>
+            {
+                *l = p;
+            }
+            _ => {}
+        }
+    }
+    let parsed = serde_yaml_ng::from_str::<Value>(text)?;
+    let mut value = parsed.clone();
+    binary::decode(text, &mut value, Some(keys), true)?;
+    keep_written(&mut value, parsed);
     Ok(value)
 }
 

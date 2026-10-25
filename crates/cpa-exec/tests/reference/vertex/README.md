@@ -56,12 +56,15 @@ API-key base URLs, `ceb4397f`'s trailing thought-only turns, the Claude
 two Responses answers whose usage keys moved, and a client that goes away mid-stream:
 `key_stream_client_drop_*`, whose reply `stall`s after its body while the generator
 cancels the request once the stream is idle, before and after the terminal chunk of
-`dbc4aad9`; their usage records carry Go's `fail_status` and `fail_body`). Every case still runs; `RSFIX_ONLY`
+`dbc4aad9`; their usage records carry Go's `fail_status` and `fail_body`), and the native
+Interactions routes of `2d5351b3` (`int_*`: API keys with and without `interactions`, a
+service account with and without the opt-in, a file access token with a project, payload
+rules for the `interactions` protocol, and an OpenAI client that stays on `generateContent`). Every case still runs; `RSFIX_ONLY`
 (a Go regexp on the name) selects the ones written, and `RSFIX_KEYS` names the full
 recording whose private keys the service-account scenarios sign with, so their token
 requests match it:
 
 ```sh
-RSFIX_KEYS="$crate/tests/fixtures/vertex_go.json" RSFIX_ONLY='^(key_stream_trailing_slash_base|key_publishers_prefix_base|key_publishers_prefix_count|key_version_suffix_base|key_execute_single_thought_turn|key_stream_single_thought_turn|key_stream_trailing_thought_turns|key_stream_trailing_thought_dropped|key_execute_thought_function_call_kept|key_claude_malformed_execute|key_claude_malformed_stream|sa_responses_tool_ids_stripped|key_codex_tool_integer_types|key_responses_stream_read_error|key_stream_client_drop_mid_read|key_stream_client_drop_after_terminal)$' \
+RSFIX_KEYS="$crate/tests/fixtures/vertex_go.json" RSFIX_ONLY='^(key_stream_trailing_slash_base|key_publishers_prefix_base|key_publishers_prefix_count|key_version_suffix_base|key_execute_single_thought_turn|key_stream_single_thought_turn|key_stream_trailing_thought_turns|key_stream_trailing_thought_dropped|key_execute_thought_function_call_kept|key_claude_malformed_execute|key_claude_malformed_stream|sa_responses_tool_ids_stripped|key_codex_tool_integer_types|key_responses_stream_read_error|key_stream_client_drop_mid_read|key_stream_client_drop_after_terminal|int_key_execute|int_key_stream|int_key_upstream_error|int_key_not_opted_in|int_key_openai_client_not_native|int_sa_execute|int_sa_stream_native_flag|int_sa_not_opted_in|int_key_payload_rules|int_sa_bad_project|int_sa_empty_token|int_file_access_token_project)$' \
   go run . "$crate/tests/fixtures/vertex_go_v8.0.35.json"
 ```

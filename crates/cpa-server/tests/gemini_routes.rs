@@ -67,6 +67,16 @@ async fn proxy() -> (String, Arc<Seen>) {
     (proxy_to(&up).await, seen)
 }
 
+/// A private `auth-dir` line: without one, credential loading reads the real
+/// `~/.cli-proxy-api`.
+fn auth_dir_line() -> String {
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("cpa-gemini-routes-{}-{n}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    format!("auth-dir: {}\n", dir.display())
+}
+
 /// The router with Gemini and Interactions keys whose base URL is `up`.
 async fn proxy_to(up: &str) -> String {
     serve(router(runtime_to(up))).await
@@ -74,7 +84,8 @@ async fn proxy_to(up: &str) -> String {
 
 fn runtime_to(up: &str) -> Arc<cpa_server::Runtime> {
     let config = Config::parse(&format!(
-        "access:\n  api-keys: [client-key]\napi-keys:\n  gemini:\n    - base-url: {up}/\n      headers:\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n      keys:\n        - api-key: AIza-fake-upstream\n  interactions:\n    - base-url: {up}\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-interactions\n"
+        "{}access:\n  api-keys: [client-key]\napi-keys:\n  gemini:\n    - base-url: {up}/\n      headers:\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n      keys:\n        - api-key: AIza-fake-upstream\n  interactions:\n    - base-url: {up}\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-interactions\n",
+        auth_dir_line()
     ))
     .unwrap();
     let credentials = cpa_core::config::credentials::from_config(&config);
@@ -203,7 +214,8 @@ async fn vertex_api_key_routes_alias() {
     let seen = Arc::new(Seen::default());
     let up = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
     let config = Config::parse(&format!(
-        "access:\n  api-keys: [client-key]\napi-keys:\n  vertex:\n    - base-url: {up}/api\n      models:\n        - name: gemini-2.5-flash\n          alias: vflash\n      keys:\n        - api-key: vk-fake\n"
+        "{}access:\n  api-keys: [client-key]\napi-keys:\n  vertex:\n    - base-url: {up}/api\n      models:\n        - name: gemini-2.5-flash\n          alias: vflash\n      keys:\n        - api-key: vk-fake\n",
+        auth_dir_line()
     ))
     .unwrap();
     let credentials = cpa_core::config::credentials::from_config(&config);
@@ -226,6 +238,42 @@ async fn vertex_api_key_routes_alias() {
     );
     assert_eq!(key.as_deref(), Some("vk-fake"));
     assert!(body.contains(r#""model":"gemini-2.5-flash""#), "{body}");
+}
+
+/// Go 2d5351b3 TestInteractionsVertexModelUsesNativeInteractionsEndpoint: an
+/// Interactions request for a Vertex key with `interactions: true` reaches Vertex's
+/// native Interactions endpoint with the client's input.
+#[tokio::test]
+async fn vertex_interactions_key_uses_native_endpoint() {
+    let seen = Arc::new(Seen::default());
+    let up = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
+    let config = Config::parse(&format!(
+        "{}access:\n  api-keys: [client-key]\napi-keys:\n  vertex:\n    - base-url: {up}/api\n      models:\n        - name: gemini-3.8-flash\n      keys:\n        - api-key: vk-fake\n          interactions: true\n",
+        auth_dir_line()
+    ))
+    .unwrap();
+    let credentials = cpa_core::config::credentials::from_config(&config);
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
+    let url = serve(router(rt)).await;
+    let (status, _, text) = post(
+        &url,
+        "/v1beta/interactions",
+        r#"{"model":"gemini-3.8-flash","input":"hi vertex"}"#,
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    assert_eq!(text, INTERACTION);
+    let (path, key, _, body, _) = seen.lock().unwrap()[0].clone();
+    assert_eq!(path, "/api/v1beta1/interactions");
+    assert_eq!(key.as_deref(), Some("vk-fake"));
+    assert!(body.contains(r#""input":"hi vertex""#), "{body}");
 }
 
 /// Replays one scripted upstream answer (status, headers, body) to every request.
@@ -357,7 +405,8 @@ async fn usage_records_match_go() {
             let reply = s.get("upstream").unwrap_or_else(|| &s["replies"][0]);
             let up = scripted(reply).await;
             let config = format!(
-                "access:\n  api-keys: [client-key]\n{}",
+                "{}access:\n  api-keys: [client-key]\n{}",
+                auth_dir_line(),
                 s["config"]
                     .as_str()
                     .unwrap()

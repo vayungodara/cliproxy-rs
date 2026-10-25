@@ -90,6 +90,8 @@ api-keys:
           alias: "kimi-k2"
 ```
 
+A `vertex` key with `interactions: true` sends Interactions clients (`/v1beta/interactions`) to Vertex's native Interactions API (`/v1beta1/interactions`) instead of translating them to `generateContent`. A Vertex service-account file opts in the same way with `"interactions": true` or `"native_interactions": true` at the top level. When the credential names a project (a service account's `project_id`, or a file's `project_id` next to its `access_token`), the path is `/v1beta1/projects/<project>/locations/global/interactions`; the credential's `location` is ignored, and the host is the configured `base-url` or `https://aiplatform.googleapis.com`.
+
 ## routing
 
 How the server picks an account for each request. [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md) explains these in detail.

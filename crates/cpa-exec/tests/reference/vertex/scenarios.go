@@ -120,6 +120,42 @@ api-keys:
         - api-key: vk-fake-usage
 `
 
+// interactionsKeyConfig opts its first key into native Interactions (2d5351b3); the
+// second key does not.
+const interactionsKeyConfig = `
+api-keys:
+  vertex:
+    - base-url: http://UPSTREAM/api/
+      headers:
+        X-Static: static-vertex
+      models:
+        - name: gemini-3-pro-preview
+          alias: vertex-int
+      keys:
+        - api-key: vk-fake-int
+          interactions: true
+        - api-key: vk-fake-plain
+`
+
+const interactionsOK = `{"id":"int_1","model":"gemini-3-pro-preview","status":"completed","outputs":[{"type":"text","text":"ok"}],"usage":{"total_input_tokens":3,"total_output_tokens":1,"total_tokens":4}}`
+
+var interactionsJSON = reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: interactionsOK}
+
+var interactionsSSE = reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: strings.Join([]string{
+	"event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\n",
+	": ping\n\n",
+	"event: step.delta\r\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\r\n\r\n",
+	"{\"event_type\":\"bare\"}\n\n",
+	"data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\n",
+	"event: done\ndata: [DONE]\n\n",
+}, "")}
+
+const interactionsInput = `{"model":"vertex-int","input":[{"type":"user_input","id":"s1","content":[{"type":"text","text":"hi","id":"p1"}]},{"type":"function_call","id":"c2","call_id":"c2x","name":"g","arguments":{}}],"generation_config":{"temperature":1}}`
+
+func interactionsKey(name, op, model, payload string, replies ...reply) scenario {
+	return scenario{Name: name, Config: interactionsKeyConfig, ConfigAuth: 0, Model: model, RequestedModel: "vertex-int", Payload: payload, Source: "interactions", Op: op, Via: "plain", Replies: replies}
+}
+
 func usageKey(name, source, op, payload string, replies ...reply) scenario {
 	return scenario{Name: name, Config: usageKeyConfig, ConfigAuth: 0, Model: "gemini-2.5-flash", RequestedModel: "u-vflash", Payload: payload, Source: source, Op: op, Via: "plain", Replies: replies}
 }
@@ -331,6 +367,61 @@ func scenarios1(hi string) []scenario {
 			reply{Status: 200, Body: "data: " + `{"candidates":[{"content":{"role":"model","parts":[{"text":"he"}]},"index":0}],"usageMetadata":{"promptTokenCount":7,"candidatesTokenCount":1,"totalTokenCount":8},"modelVersion":"gemini-2.5-flash-004"}` + "\n\ndata: " + `{"candidates":[{"content":{"role":"model","parts":[{"text":"llo"}]},"finishReason":"STOP","index":0}],"modelVersion":"gemini-2.5-flash-004"}` + "\n\n"}),
 		usageKey("usage_key_claude_execute_thinking", "claude", "execute", `{"model":"u-vflash","max_tokens":64,"thinking":{"type":"enabled","budget_tokens":2048},"messages":[{"role":"user","content":"hi"}]}`,
 			reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":30,"candidatesTokenCount":12,"thoughtsTokenCount":6,"cachedContentTokenCount":9,"totalTokenCount":48},"modelVersion":"gemini-2.5-flash-005"}`}),
+		// v8.0.35 (2d5351b3): native Vertex Interactions for an Interactions client on a
+		// credential that opted in: an API key (no project: /v1beta1/interactions), a
+		// service account and a file access token with a project (global location).
+		with(interactionsKey("int_key_execute", "execute", "gemini-3-pro-preview(high)", interactionsInput, interactionsJSON), func(s *scenario) {
+			s.Headers = map[string]string{"Api-Revision": "client-rev"}
+		}),
+		interactionsKey("int_key_stream", "stream", "gemini-3-pro-preview", `{"model":"vertex-int","input":"hi","stream":true}`, interactionsSSE),
+		interactionsKey("int_key_upstream_error", "execute", "gemini-3-pro-preview", `{"model":"vertex-int","input":"hi"}`, reply{Status: 429, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"error":{"code":429,"message":"slow"}}`}),
+		// Not opted in, or not an Interactions client: the generateContent path.
+		with(interactionsKey("int_key_not_opted_in", "execute", "gemini-3-pro-preview", `{"model":"vertex-int","input":"hi"}`, jsonOK), func(s *scenario) { s.ConfigAuth = 1 }),
+		with(interactionsKey("int_key_openai_client_not_native", "execute", "gemini-3-pro-preview", `{"model":"vertex-int","messages":[{"role":"user","content":"hi"}]}`, jsonOK), func(s *scenario) { s.Source = "openai" }),
+		with(sa("int_sa_execute", "execute", "us-east5", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, token, interactionsJSON), func(s *scenario) {
+			s.Source = "interactions"
+			s.Metadata["interactions"] = true
+		}),
+		with(sa("int_sa_stream_native_flag", "stream", "", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi","stream":true}`, token, interactionsSSE), func(s *scenario) {
+			s.Source = "interactions"
+			s.Metadata["native_interactions"] = true
+		}),
+		// Go's TestGeminiVertexInteractions_RegionalServiceAccount_UsesStandardBridge and
+		// _PayloadRulesOrdering: no opt-in keeps a service account on generateContent;
+		// payload rules for the interactions protocol apply to the native body.
+		with(sa("int_sa_not_opted_in", "execute", "europe-west1", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi regional"}`, token, jsonOK), func(s *scenario) {
+			s.Source = "interactions"
+		}),
+		with(interactionsKey("int_key_payload_rules", "execute", "gemini-3-pro-preview", `{"model":"vertex-int","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}]}`, interactionsJSON), func(s *scenario) {
+			s.Config = interactionsKeyConfig + `
+requests:
+  payload:
+    override:
+      - models:
+          - name: gemini-3-pro-preview
+            protocol: interactions
+            from-protocol: interactions
+        params:
+          custom_rule_param: enforced_after_all_transforms
+`
+		}),
+		// The URL is built and checked before the token exchange; an empty token from the
+		// exchange is Go's answer, not a request without credentials.
+		with(sa("int_sa_bad_project", "execute", "", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, token, interactionsJSON), func(s *scenario) {
+			s.Source = "interactions"
+			s.Metadata["interactions"] = true
+			s.Metadata["project_id"] = "p%zz"
+		}),
+		with(sa("int_sa_empty_token", "execute", "", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json; charset=utf-8"}}, Body: `{"access_token":"","expires_in":3599,"token_type":"Bearer"}`}, interactionsJSON), func(s *scenario) {
+			s.Source = "interactions"
+			s.Metadata["interactions"] = true
+		}),
+		with(sa("int_file_access_token_project", "execute", "", "gemini-3-pro-preview", `{"model":"gemini-3-pro-preview","input":"hi"}`, interactionsJSON), func(s *scenario) {
+			s.Source = "interactions"
+			s.Metadata["interactions"] = true
+			s.Metadata["access_token"] = "ya29.from-file"
+			delete(s.Metadata, "service_account")
+		}),
 		with(key("key_codex_tool_integer_types", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"tools":[{"type":"function","name":"shell","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"}}}}]}`, jsonOK), func(s *scenario) {
 			s.Source = "openai-response"
 			s.Headers = map[string]string{"User-Agent": "codex_cli_rs/0.50.0 (Mac OS 15.0)"}

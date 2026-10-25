@@ -578,7 +578,7 @@ impl GeminiExecutor {
         }
         let output = Output::new(req, to, &body)
             .with_claude_stream_errors()
-            .fail_on_client_drop(false);
+            .fail_on_client_drop(DropRule::Always);
         let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
         let stream = gemini_lines(lines, output, Format::Gemini);
         Ok(ExecResponse {
@@ -595,85 +595,12 @@ impl GeminiExecutor {
         req: &ExecRequest,
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
-        let target = parse_suffix(&req.model).model_name;
-        let (from, to) = (req.source_format, Format::Interactions);
-        let resolved = resolved(req);
-        let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-        // Interactions clients are sent as they are, without the registry normalizer.
-        let (original_translated, mut body) = if from == Format::Interactions {
-            (original_request(req).to_vec(), req.body.to_vec())
-        } else {
-            translate_pair(req, cfg, to, &target, compat)?
-        };
-        if gj::get(&body, "model").exists() && !target.is_empty() {
-            body = payload::set_str_if_different(body, "model", &target);
-        }
-        // applyGeminiInteractionsThinking: the Gemini applier family for the target.
-        body = apply_thinking(req, body, from, to, "gemini", resolved.as_ref())?;
-        body = payload::sanitize_interactions_input_ids(body);
-        if req.stream {
-            body = payload::set_bool_if_different(body, "stream", true);
-        }
-        body = Barrier {
-            executor: "",
-            model: &target,
-            protocol: "interactions",
-            root: "",
-            original: &original_translated,
-        }
-        .apply(cfg, req, body);
+        let body = interactions_body(req, cfg)?;
         let url = format!("{}/{API_VERSION}/interactions", base_url(credential));
         let mut headers = request_headers(credential, req);
-        // applyGeminiInteractionsRequestHeaders, then applyGeminiInteractionsRevisionHeader.
-        if headers.get("Api-Revision").is_none_or(str::is_empty)
-            && let Some(revision) = req
-                .headers
-                .get("Api-Revision")
-                .and_then(|v| v.to_str().ok())
-                .filter(|v| !v.is_empty())
-        {
-            headers.set("Api-Revision", revision);
-        }
-        if headers.get("Api-Revision").is_none_or(str::is_empty) {
-            headers.set("Api-Revision", INTERACTIONS_REVISION);
-        }
-        let capture = req.capture();
+        interactions_revision(&mut headers, req);
         let client = self.client(credential, cfg);
-        // One buffer for the send, the request log and the translators below.
-        let body = Bytes::from(body);
-        let upstream = send_captured(
-            capture,
-            credential,
-            identifier(credential),
-            &client,
-            &url,
-            headers,
-            body.clone(),
-            req.stream,
-        )
-        .await?;
-        if !req.stream {
-            let (response_headers, data) = read_then_check(capture, upstream).await?;
-            req.usage.response_body(to, &data);
-            let out = translate_non_stream(req, to, &body, &data)?;
-            return Ok(ExecResponse {
-                status: 200,
-                headers: response_headers,
-                body: ResponseBody::Buffered(out),
-            });
-        }
-        if !(200..300).contains(&upstream.status) {
-            return Err(error_from(capture, upstream).await);
-        }
-        let response_headers = upstream.headers.clone();
-        let output = Output::new(req, to, &body);
-        let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
-        let stream = interactions_lines(lines, output);
-        Ok(ExecResponse {
-            status: 200,
-            headers: response_headers,
-            body: ResponseBody::Stream(stream),
-        })
+        interactions_exchange(req, credential, identifier(credential), &client, &url, headers, body).await
     }
 
     /// `CountTokens`: the translated request without tools, generation and safety
@@ -805,15 +732,19 @@ pub(crate) struct Output {
 
 /// What a stream records when the client goes away before it ended.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
-enum DropRule {
+pub(crate) enum DropRule {
     /// Nothing here; the server's end-of-attempt record (a success) stands.
     #[default]
     Off,
-    /// Go's Gemini scanner: the canceled request fails the pending upstream read with
-    /// `context canceled`, published as a 499 failure without usage.
+    /// Go's Gemini and Interactions scanners: the canceled request fails the pending
+    /// upstream read with `context canceled`, published as a 499 failure without usage.
     Always,
     /// Vertex (Go dbc4aad9): the same, unless a terminal chunk was already produced.
-    BeforeTerminal { terminal_delivered: bool },
+    BeforeTerminal { delivered: bool },
+    /// Antigravity: as Vertex, but an upstream payload with a finish reason is terminal
+    /// too, and the failure keeps the usage seen so far (Go's deferred
+    /// `streamUsage.PublishFailure`).
+    Antigravity { delivered: bool },
 }
 
 impl Output {
@@ -864,21 +795,14 @@ impl Output {
     }
 
     /// Go's scanner error when the client goes away mid-stream: a drop before the
-    /// stream ended publishes `context canceled` (499) without usage and logs it as the
-    /// response error. With `terminal_exempt` (Vertex, Go dbc4aad9) a drop after a
-    /// terminal chunk was produced stays a success.
+    /// stream ended publishes `context canceled` (499) and logs it as the response
+    /// error, as `rule` says.
     // ponytail: Go fails only when the cancellation interrupts the upstream read; one
     // that finds the executor handing a chunk to a client that stopped reading returns
     // quietly and publishes a success. That race is not modelled: every drop before
     // the end is the read case. Upgrade path: track the stream's await point.
-    pub(crate) fn fail_on_client_drop(mut self, terminal_exempt: bool) -> Self {
-        self.drop_rule = if terminal_exempt {
-            DropRule::BeforeTerminal {
-                terminal_delivered: false,
-            }
-        } else {
-            DropRule::Always
-        };
+    pub(crate) fn fail_on_client_drop(mut self, rule: DropRule) -> Self {
+        self.drop_rule = rule;
         self
     }
 
@@ -891,15 +815,20 @@ impl Output {
 
     /// The client went away before the stream ended (see [`Output::fail_on_client_drop`]).
     fn client_dropped(&self) {
-        let fail = match self.drop_rule {
-            DropRule::Off => false,
-            DropRule::Always => true,
-            DropRule::BeforeTerminal { terminal_delivered } => !terminal_delivered,
+        let (fail, with_usage) = match self.drop_rule {
+            DropRule::Off => (false, false),
+            DropRule::Always => (true, false),
+            DropRule::BeforeTerminal { delivered } => (!delivered, false),
+            DropRule::Antigravity { delivered } => (!delivered, true),
         };
         if fail {
             // Go's RecordAPIResponseError and PublishFailure of the scanner error.
             self.capture.record(CaptureEvent::ResponseError("context canceled"));
-            self.usage.publish_failure(499, "context canceled");
+            if with_usage {
+                self.usage.publish_failure_with_usage(499, "context canceled");
+            } else {
+                self.usage.publish_failure(499, "context canceled");
+            }
         }
     }
 
@@ -985,10 +914,17 @@ impl Output {
         self.frame(&mut out);
         self.post_process(&mut out);
         self.capture_claude_error(&out);
-        if let DropRule::BeforeTerminal { terminal_delivered } = &mut self.drop_rule
-            && !*terminal_delivered
-        {
-            *terminal_delivered = out.iter().any(|chunk| is_terminal_chunk(chunk));
+        match &mut self.drop_rule {
+            DropRule::BeforeTerminal { delivered } if !*delivered => {
+                *delivered = out.iter().any(|chunk| is_terminal_chunk(chunk));
+            }
+            DropRule::Antigravity { delivered } if !*delivered => {
+                let finished = ["candidates.0.finishReason", "response.candidates.0.finishReason"]
+                    .iter()
+                    .any(|path| !cpa_common::gostr::trim_space(&gj::get(payload, *path).bytes()).is_empty());
+                *delivered = finished || out.iter().any(|chunk| is_terminal_chunk(chunk));
+            }
+            _ => {}
         }
         self.checked(out)
     }
@@ -1310,6 +1246,104 @@ pub(crate) fn line_event(line: &[u8]) -> Vec<u8> {
     [line, LINE_END].concat()
 }
 
+/// The Interactions request body (Go 2d5351b3's shared helpers, as the Gemini and Vertex
+/// executors build it): Interactions clients as they are, others translated; the
+/// target model, thinking, input-ID repair, `stream` and the payload rules.
+pub(crate) fn interactions_body(req: &ExecRequest, cfg: &Config) -> Result<Bytes, ExecError> {
+    let target = parse_suffix(&req.model).model_name;
+    let (from, to) = (req.source_format, Format::Interactions);
+    let resolved = resolved(req);
+    let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
+    // Interactions clients are sent as they are, without the registry normalizer.
+    let (original_translated, mut body) = if from == Format::Interactions {
+        (original_request(req).to_vec(), req.body.to_vec())
+    } else {
+        translate_pair(req, cfg, to, &target, compat)?
+    };
+    if gj::get(&body, "model").exists() && !target.is_empty() {
+        body = payload::set_str_if_different(body, "model", &target);
+    }
+    // applyGeminiInteractionsThinking: the Gemini applier family for the target.
+    body = apply_thinking(req, body, from, to, "gemini", resolved.as_ref())?;
+    body = payload::sanitize_interactions_input_ids(body);
+    if req.stream {
+        body = payload::set_bool_if_different(body, "stream", true);
+    }
+    body = Barrier {
+        executor: "",
+        model: &target,
+        protocol: "interactions",
+        root: "",
+        original: &original_translated,
+    }
+    .apply(cfg, req, body);
+    Ok(Bytes::from(body))
+}
+
+/// applyGeminiInteractionsRequestHeaders, then applyGeminiInteractionsRevisionHeader.
+pub(crate) fn interactions_revision(headers: &mut GoHeaders, req: &ExecRequest) {
+    if headers.get("Api-Revision").is_none_or(str::is_empty)
+        && let Some(revision) = req
+            .headers
+            .get("Api-Revision")
+            .and_then(|v| v.to_str().ok())
+            .filter(|v| !v.is_empty())
+    {
+        headers.set("Api-Revision", revision);
+    }
+    if headers.get("Api-Revision").is_none_or(str::is_empty) {
+        headers.set("Api-Revision", INTERACTIONS_REVISION);
+    }
+}
+
+/// Sends an Interactions request and answers it: the translated body, or the
+/// Interactions stream loop.
+pub(crate) async fn interactions_exchange(
+    req: &ExecRequest,
+    credential: &Credential,
+    provider: &str,
+    client: &wreq::Client,
+    url: &str,
+    headers: GoHeaders,
+    body: Bytes,
+) -> Result<ExecResponse, ExecError> {
+    let to = Format::Interactions;
+    let capture = req.capture();
+    let upstream = send_captured(
+        capture,
+        credential,
+        provider,
+        client,
+        url,
+        headers,
+        body.clone(),
+        req.stream,
+    )
+    .await?;
+    if !req.stream {
+        let (response_headers, data) = read_then_check(capture, upstream).await?;
+        req.usage.response_body(to, &data);
+        let out = translate_non_stream(req, to, &body, &data)?;
+        return Ok(ExecResponse {
+            status: 200,
+            headers: response_headers,
+            body: ResponseBody::Buffered(out),
+        });
+    }
+    if !(200..300).contains(&upstream.status) {
+        return Err(error_from(capture, upstream).await);
+    }
+    let response_headers = upstream.headers.clone();
+    let output = Output::new(req, to, &body).fail_on_client_drop(DropRule::Always);
+    let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
+    let stream = interactions_lines(lines, output);
+    Ok(ExecResponse {
+        status: 200,
+        headers: response_headers,
+        body: ResponseBody::Stream(stream),
+    })
+}
+
 /// The Interactions stream loop. The translator groups the lines into SSE frames at
 /// blank lines (`stream::Framed`): Interactions clients get each frame as sent, others
 /// its translated payload. At EOF the pending frame is emitted (Go's final emitFrame),
@@ -1359,6 +1393,10 @@ impl LineState for InteractionsLines {
 
     fn flush(&mut self) -> Vec<Bytes> {
         self.output.flush_frames()
+    }
+
+    fn output(&self) -> Option<&Output> {
+        Some(&self.output)
     }
 }
 

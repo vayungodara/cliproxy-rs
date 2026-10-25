@@ -1096,6 +1096,873 @@
         "failed": false
       },
       "cancel_when_idle": true
+    },
+    {
+      "name": "int_key_execute",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/api/\n      headers:\n        X-Static: static-vertex\n      models:\n        - name: gemini-3-pro-preview\n          alias: vertex-int\n      keys:\n        - api-key: vk-fake-int\n          interactions: true\n        - api-key: vk-fake-plain\n",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview(high)",
+      "requested_model": "vertex-int",
+      "payload": "{\"model\":\"vertex-int\",\"input\":[{\"type\":\"user_input\",\"id\":\"s1\",\"content\":[{\"type\":\"text\",\"text\":\"hi\",\"id\":\"p1\"}]},{\"type\":\"function_call\",\"id\":\"c2\",\"call_id\":\"c2x\",\"name\":\"g\",\"arguments\":{}}],\"generation_config\":{\"temperature\":1}}",
+      "source": "interactions",
+      "op": "execute",
+      "headers": {
+        "Api-Revision": "client-rev"
+      },
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1beta1/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 227\r\nApi-Revision: client-rev\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-int\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"function_call\",\"id\":\"c2\",\"name\":\"g\",\"arguments\":{}}],\"generation_config\":{\"temperature\":1,\"thinking_level\":\"high\"}}"
+      ],
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_key_stream",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/api/\n      headers:\n        X-Static: static-vertex\n      models:\n        - name: gemini-3-pro-preview\n          alias: vertex-int\n      keys:\n        - api-key: vk-fake-int\n          interactions: true\n        - api-key: vk-fake-plain\n",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "requested_model": "vertex-int",
+      "payload": "{\"model\":\"vertex-int\",\"input\":\"hi\",\"stream\":true}",
+      "source": "interactions",
+      "op": "stream",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\n: ping\n\nevent: step.delta\r\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\r\n\r\n{\"event_type\":\"bare\"}\n\ndata: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\nevent: done\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1beta1/interactions?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 59\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-int\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}"
+      ],
+      "chunks": [
+        "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\n",
+        ": ping\n\n",
+        "event: step.delta\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\n\n",
+        "{\"event_type\":\"bare\"}\n\n",
+        "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\n",
+        "event: done\ndata: [DONE]\n\n"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_key_upstream_error",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/api/\n      headers:\n        X-Static: static-vertex\n      models:\n        - name: gemini-3-pro-preview\n          alias: vertex-int\n      keys:\n        - api-key: vk-fake-int\n          interactions: true\n        - api-key: vk-fake-plain\n",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "requested_model": "vertex-int",
+      "payload": "{\"model\":\"vertex-int\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 429,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"error\":{\"code\":429,\"message\":\"slow\"}}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1beta1/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-int\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}"
+      ],
+      "error": {
+        "status": 429,
+        "message": "{\"error\":{\"code\":429,\"message\":\"slow\"}}"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 429,
+        "fail_body": "{\"error\":{\"code\":429,\"message\":\"slow\"}}"
+      }
+    },
+    {
+      "name": "int_key_not_opted_in",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/api/\n      headers:\n        X-Static: static-vertex\n      models:\n        - name: gemini-3-pro-preview\n          alias: vertex-int\n      keys:\n        - api-key: vk-fake-int\n          interactions: true\n        - api-key: vk-fake-plain\n",
+      "config_auth": 1,
+      "model": "gemini-3-pro-preview",
+      "requested_model": "vertex-int",
+      "payload": "{\"model\":\"vertex-int\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-3-pro-preview:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 85\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-plain\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}"
+      ],
+      "output": "{\"id\":\"r1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-pro-preview\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_key_openai_client_not_native",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/api/\n      headers:\n        X-Static: static-vertex\n      models:\n        - name: gemini-3-pro-preview\n          alias: vertex-int\n      keys:\n        - api-key: vk-fake-int\n          interactions: true\n        - api-key: vk-fake-plain\n",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "requested_model": "vertex-int",
+      "payload": "{\"model\":\"vertex-int\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-3-pro-preview:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 421\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-int\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-3-pro-preview\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"id\":\"r1\",\"object\":\"chat.completion\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":1,\"total_tokens\":4,\"prompt_tokens\":3}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_sa_execute",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "interactions": true,
+        "location": "us-east5",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjQxNTUsImlhdCI6MTc5Mjk2MDU1NX0.Etsep2Z_zTWqx9v_wiDJXjOyyN8BG-ZHiaijZZLUWAOrlRQnK6PiCJoOnoLh-5F7U4mNjcYHtu8pn6qc6QT95ogeO0haarttiTwwTv18ZVsDwJjiUb3hidsPFjFd2c31Elqgfh8wuiOutbUlwRIe5_FWdxBG9iKSUah9lNLTelfYj0vRg5i2gEQc4_7n_kHLNxAUAXy--F0OC4x7JyN2jVlCN6YD6nW_pVuPyzPXgRR4aqvG2ClDgGG23yiWLZTh_eP30ijMqNxqAaMnuZIoUOIHhYWzSo_B75fGGZi1lBVUwzZM4YrviuQWDO4U8FDgqMalET1X16tW8M6Ox3K9Lg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1beta1/projects/proj-1/locations/global/interactions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}"
+      ],
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_sa_stream_native_flag",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "native_interactions": true,
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}",
+      "source": "interactions",
+      "op": "stream",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\n: ping\n\nevent: step.delta\r\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\r\n\r\n{\"event_type\":\"bare\"}\n\ndata: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\nevent: done\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjQxNTUsImlhdCI6MTc5Mjk2MDU1NX0.Etsep2Z_zTWqx9v_wiDJXjOyyN8BG-ZHiaijZZLUWAOrlRQnK6PiCJoOnoLh-5F7U4mNjcYHtu8pn6qc6QT95ogeO0haarttiTwwTv18ZVsDwJjiUb3hidsPFjFd2c31Elqgfh8wuiOutbUlwRIe5_FWdxBG9iKSUah9lNLTelfYj0vRg5i2gEQc4_7n_kHLNxAUAXy--F0OC4x7JyN2jVlCN6YD6nW_pVuPyzPXgRR4aqvG2ClDgGG23yiWLZTh_eP30ijMqNxqAaMnuZIoUOIHhYWzSo_B75fGGZi1lBVUwzZM4YrviuQWDO4U8FDgqMalET1X16tW8M6Ox3K9Lg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1beta1/projects/proj-1/locations/global/interactions?alt=sse HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 59\r\nApi-Revision: 2026-05-20\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}"
+      ],
+      "chunks": [
+        "event: interaction.created\ndata: {\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\"}}\n\n",
+        ": ping\n\n",
+        "event: step.delta\ndata: {\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"hi\"}}\n\n",
+        "{\"event_type\":\"bare\"}\n\n",
+        "data: {\"event_type\":\"interaction.completed\",\"interaction\":{\"id\":\"int_1\",\"status\":\"completed\",\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":2}}}\n\n",
+        "event: done\ndata: [DONE]\n\n"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_sa_not_opted_in",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "europe-west1",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi regional\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:aea7cca7b20998963da609ba6422ecadebc5dc05c68358a9a7e87128fd85899c",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjQxNTUsImlhdCI6MTc5Mjk2MDU1NX0.Etsep2Z_zTWqx9v_wiDJXjOyyN8BG-ZHiaijZZLUWAOrlRQnK6PiCJoOnoLh-5F7U4mNjcYHtu8pn6qc6QT95ogeO0haarttiTwwTv18ZVsDwJjiUb3hidsPFjFd2c31Elqgfh8wuiOutbUlwRIe5_FWdxBG9iKSUah9lNLTelfYj0vRg5i2gEQc4_7n_kHLNxAUAXy--F0OC4x7JyN2jVlCN6YD6nW_pVuPyzPXgRR4aqvG2ClDgGG23yiWLZTh_eP30ijMqNxqAaMnuZIoUOIHhYWzSo_B75fGGZi1lBVUwzZM4YrviuQWDO4U8FDgqMalET1X16tW8M6Ox3K9Lg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/europe-west1/publishers/google/models/gemini-3-pro-preview:generateContent HTTP/1.1\r\nHost: europe-west1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 94\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi regional\"}]}]}"
+      ],
+      "output": "{\"id\":\"r1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-pro-preview\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_key_payload_rules",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/api/\n      headers:\n        X-Static: static-vertex\n      models:\n        - name: gemini-3-pro-preview\n          alias: vertex-int\n      keys:\n        - api-key: vk-fake-int\n          interactions: true\n        - api-key: vk-fake-plain\n\nrequests:\n  payload:\n    override:\n      - models:\n          - name: gemini-3-pro-preview\n            protocol: interactions\n            from-protocol: interactions\n        params:\n          custom_rule_param: enforced_after_all_transforms\n",
+      "config_auth": 0,
+      "model": "gemini-3-pro-preview",
+      "requested_model": "vertex-int",
+      "payload": "{\"model\":\"vertex-int\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}]}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "resolved": {
+        "info": {
+          "id": "gemini-3-pro-preview",
+          "object": "model",
+          "created": 1737158400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 3 Pro Preview",
+          "name": "models/gemini-3-pro-preview",
+          "version": "3.0",
+          "description": "Gemini 3 Pro Preview",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "min": 128,
+            "max": 32768,
+            "dynamic_allowed": true,
+            "levels": [
+              "low",
+              "high"
+            ]
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1beta1/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 173\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-int\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"custom_rule_param\":\"enforced_after_all_transforms\"}"
+      ],
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_file_access_token_project",
+      "config_auth": -1,
+      "metadata": {
+        "access_token": "ya29.from-file",
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "interactions": true,
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "requests": [
+        "POST /v1beta1/projects/proj-1/locations/global/interactions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: ya29.from-file\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}"
+      ],
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "int_sa_bad_project",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "interactions": true,
+        "project_id": "p%zz",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "error": {
+        "status": 0,
+        "message": "parse \"https://aiplatform.googleapis.com/v1beta1/projects/p%zz/locations/global/interactions\": invalid URL escape \"%zz\""
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "parse \"https://aiplatform.googleapis.com/v1beta1/projects/p%zz/locations/global/interactions\": invalid URL escape \"%zz\""
+      }
+    },
+    {
+      "name": "int_sa_empty_token",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "interactions": true,
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjU2OTEsImlhdCI6MTc5Mjk2MjA5MX0.pUxyhQSEwk211lrB1rX8u1-FrspcQLfGSZskvJkv7eIyixkz1Sw0WRML23kAxP_fGyUDJTAwJvBYyyuSML1kHqanCaKnTNVET4kjFCqaOPqI5XiJD4rfEg9uUwiAymGmMlqq5-l06yFAzxcnfIipCIBjSjNncd6Nx3bhaRe8uJyqSlFIlrZMsyniHQMuPngscQFCNcYAb86D2ngIYFDXxcKGt6hHuymfFOaWhdU1ArpVlmJBMERMQk96mZ3kUqJPH7zDryM1nBpZyuT40muHUqGtuNldIfBaRZHUkjK47vWgMt4cW_khMM4hls1BbT8FtGkfgAP-haQ-M32LKFSKDA\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+      ],
+      "error": {
+        "status": 401,
+        "message": "missing access token"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 401,
+        "fail_body": "missing access token"
+      }
     }
   ]
 }
