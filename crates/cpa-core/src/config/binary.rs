@@ -59,11 +59,16 @@ pub(super) fn go_base64(text: &[u8]) -> Option<Vec<u8>> {
 /// invalid base64 as Go does, and refuses what it does not follow (see the module
 /// docs) and binary bytes that are not UTF-8, which a setting cannot hold.
 /// With `literals`, a plain scalar in a [`literal_field`] is its text, as Go's typed
-/// decode reads it into the config.
-pub(super) fn decode(text: &str, value: &mut Value, literals: bool) -> anyhow::Result<()> {
+/// decode reads it into the config; `text` is the value at those keys of the config
+/// (empty for a whole file). A `json` management body takes a quoted `<<` key as a
+/// merge: Go saves its JSON keys plain.
+pub(super) fn decode(text: &str, value: &mut Value, literals: Option<&[&str]>, json: bool) -> anyhow::Result<()> {
     // Without a tag, an anchor, a `<<` key or a collection key, serde_yaml_ng reads the
     // file as yaml.v3 does here.
-    if !text.contains(['!', '&']) && !needs_walk(value) && !(literals && scalar_literal_field(value, &mut Vec::new())) {
+    if !text.contains(['!', '&'])
+        && !needs_walk(value)
+        && !literals.is_some_and(|at| scalar_literal_field(value, &mut at.iter().map(|k| Some(*k)).collect()))
+    {
         return Ok(());
     }
     let mut walk = Walk {
@@ -73,11 +78,12 @@ pub(super) fn decode(text: &str, value: &mut Value, literals: bool) -> anyhow::R
         anchors: HashMap::new(),
         anchored: 0,
         last_field: None,
-        literals,
+        literals: literals.map(|at| at.iter().map(|k| Some(Rc::from(*k))).collect()),
         keys: Vec::new(),
         found: Vec::new(),
         copies: 0,
         visits: 0,
+        json,
     };
     if let Some(root) = walk.events.next() {
         walk.node(root, &mut Vec::new(), false)?;
@@ -412,8 +418,8 @@ struct Walk {
     anchored: usize,
     /// The keys [`Self::literal`] last judged, and whether they are a [`literal_field`].
     last_field: Option<(Vec<Key>, bool)>,
-    /// Whether literals are read at all.
-    literals: bool,
+    /// Whether literals are read at all, and the config keys the text sits at.
+    literals: Option<Vec<Key>>,
     /// The key of each position in the current path.
     keys: Vec<Key>,
     /// Rewritten scalars, by their path from the root.
@@ -422,6 +428,8 @@ struct Walk {
     copies: usize,
     /// How many anchor entries aliases visited, [`MAX_VISITS`] at most.
     visits: usize,
+    /// Whether `text` is a JSON management body, whose `<<` keys are quoted.
+    json: bool,
 }
 
 impl Walk {
@@ -440,14 +448,16 @@ impl Walk {
     /// so an alias may make it one. Decided here, not over the tree afterwards, so the
     /// cost stays linear in the file and the aliases' copies.
     fn literal(&mut self, keys: &[Key], anchored: bool) -> Option<Kind> {
-        if !self.literals {
-            return None;
-        }
+        let at = self.literals.as_ref()?;
         // The items of one list share their keys.
         let field = match &self.last_field {
             Some((last, field)) if last.as_slice() == keys => *field,
             _ => {
-                let field = literal_field(keys);
+                let field = if at.is_empty() {
+                    literal_field(keys)
+                } else {
+                    literal_field(&[at.as_slice(), keys].concat())
+                };
                 self.last_field = Some((keys.to_vec(), field));
                 field
             }
@@ -566,7 +576,7 @@ impl Walk {
                         // quoted one is refused here, a tagged one below.
                         let merge = matches!(&event, Event::Scalar { tag: None, value, .. } if value == b"<<");
                         ensure!(
-                            !merge || matches!(event, Event::Scalar { plain: true, .. }),
+                            !merge || self.json || matches!(event, Event::Scalar { plain: true, .. }),
                             QUOTED_MERGE_KEY
                         );
                         let name: Rc<str> = match &event {

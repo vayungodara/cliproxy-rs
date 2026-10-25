@@ -4900,6 +4900,63 @@ async fn v8_yaml_upload_keeps_string_settings_written_as_numbers() {
     server.abort();
 }
 
+/// A JSON number written into a string setting saves as Go saves the body's node, its
+/// text: `1.50` and `1e3` load as written, not as 1.5 and 1000.0. One the save writes
+/// back as it is (`5`) stays a number in the file and the views.
+#[tokio::test]
+async fn json_numbers_in_string_settings_keep_their_text() {
+    let f = Fixture::new("json-literals");
+    let (base, server) = f.server().await;
+    let (status, text) = call(
+        &base,
+        wreq::Method::PUT,
+        "/v8/management/config/server/github-token",
+        "1.50",
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    let body = r#"{"oauth":{"model-alias":{"codex":[{"name":1e3,"alias":"b"}]}}}"#;
+    let (status, text) = call(&base, wreq::Method::PATCH, "/v8/management/config", body).await;
+    assert_eq!(status, 200, "{text}");
+    let file = f.file();
+    let cfg = cpa_core::config::Config::parse(&file).unwrap();
+    assert_eq!(cfg.document["server"]["github-token"].as_str(), Some("1.50"), "{file}");
+    assert_eq!(
+        cfg.document["oauth"]["model-alias"]["codex"][0]["name"].as_str(),
+        Some("1e3"),
+        "{file}"
+    );
+    // A JSON `<<` key is a merge for Go, which saves it plain; its number keeps the text.
+    let body = r#"{"oauth":{"model-alias":{"codex":[{"<<":{"name":1.50},"alias":"b"}]}}}"#;
+    let (status, text) = call(&base, wreq::Method::PATCH, "/v8/management/config", body).await;
+    assert_eq!(status, 200, "{text}");
+    let file = f.file();
+    let cfg = cpa_core::config::Config::parse(&file).unwrap();
+    assert_eq!(
+        cfg.document["oauth"]["model-alias"]["codex"][0]["name"].as_str(),
+        Some("1.50"),
+        "{file}"
+    );
+    let (status, text) = call(
+        &base,
+        wreq::Method::PUT,
+        "/v8/management/config/server/github-token",
+        "5",
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    assert!(f.file().contains("github-token: 5\n"), "{}", f.file());
+    let (_, view) = call(
+        &base,
+        wreq::Method::GET,
+        "/v8/management/config/server/github-token",
+        "",
+    )
+    .await;
+    assert_eq!(view, "5");
+    server.abort();
+}
+
 /// v0 saves of a legacy file keep the text of its `!!binary` values (an alias of one
 /// included), and the runtime holds their decoded text.
 #[tokio::test]
