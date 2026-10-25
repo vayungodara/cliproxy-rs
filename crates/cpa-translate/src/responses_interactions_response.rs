@@ -589,7 +589,15 @@ impl ToResponses {
                 if !signature.is_empty() {
                     gj::set_str(&mut added, "item.encrypted_content", &signature);
                 }
-                vec![sse_event("response.output_item.added", &added)]
+                let mut part = br#"{"type":"response.reasoning_summary_part.added","item_id":"","output_index":0,"summary_index":0,"part":{"type":"summary_text","text":""}}"#.to_vec();
+                let seq = self.next_seq();
+                gj::set_int(&mut part, "sequence_number", seq);
+                gj::set_str(&mut part, "item_id", &item_id);
+                gj::set_int(&mut part, "output_index", index);
+                vec![
+                    sse_event("response.output_item.added", &added),
+                    sse_event("response.reasoning_summary_part.added", &part),
+                ]
             }
             _ => vec![],
         }
@@ -645,10 +653,10 @@ impl ToResponses {
                 if !text.is_empty() {
                     self.summaries.entry(index).or_default().push(text.clone());
                 }
-                let mut payload =
-                    br#"{"type":"response.reasoning_summary_text.delta","output_index":0,"delta":""}"#.to_vec();
+                let mut payload = br#"{"type":"response.reasoning_summary_text.delta","item_id":"","output_index":0,"summary_index":0,"delta":""}"#.to_vec();
                 let seq = self.next_seq();
                 gj::set_int(&mut payload, "sequence_number", seq);
+                gj::set_str(&mut payload, "item_id", self.item_id(index));
                 gj::set_int(&mut payload, "output_index", index);
                 gj::set_str(&mut payload, "delta", &text);
                 vec![sse_event("response.reasoning_summary_text.delta", &payload)]
@@ -715,16 +723,23 @@ impl ToResponses {
 
     /// responsesReasoningItem.
     fn reasoning_item(&self, index: i64) -> Vec<u8> {
-        let mut item = br#"{"id":"","type":"reasoning","encrypted_content":"","summary":[]}"#.to_vec();
+        let mut item =
+            br#"{"id":"","type":"reasoning","status":"completed","encrypted_content":"","summary":[]}"#.to_vec();
         gj::set_str(&mut item, "id", self.item_id(index));
         let signature = encrypted_content(&self.encrypted.get(&index).cloned().unwrap_or_default());
         if !signature.is_empty() {
             gj::set_str(&mut item, "encrypted_content", &signature);
         }
-        if let Some(summaries) = self.summaries.get(&index) {
-            gj::set_items(&mut item, "summary", &summary_parts(summaries));
-        }
+        gj::set_items(&mut item, "summary", &summary_parts(&[self.summary_text(index)]));
         item
+    }
+
+    /// The reasoning summary deltas of an item, joined.
+    fn summary_text(&self, index: i64) -> Vec<u8> {
+        self.summaries
+            .get(&index)
+            .map(|parts| parts.concat())
+            .unwrap_or_default()
     }
 
     /// responsesCompletedOutputItem.
@@ -939,13 +954,32 @@ impl ToResponses {
                 events.push(sse_event("response.output_item.done", &done));
                 events
             }
-            _ => {
+            kind => {
+                let mut events = vec![];
+                if kind == b"thought" {
+                    let text = self.summary_text(index);
+                    let mut text_done = br#"{"type":"response.reasoning_summary_text.done","item_id":"","output_index":0,"summary_index":0,"text":""}"#.to_vec();
+                    let seq = self.next_seq();
+                    gj::set_int(&mut text_done, "sequence_number", seq);
+                    gj::set_str(&mut text_done, "item_id", &item_id);
+                    gj::set_int(&mut text_done, "output_index", index);
+                    gj::set_str(&mut text_done, "text", &text);
+                    let mut part_done = br#"{"type":"response.reasoning_summary_part.done","item_id":"","output_index":0,"summary_index":0,"part":{"type":"summary_text","text":""}}"#.to_vec();
+                    let seq = self.next_seq();
+                    gj::set_int(&mut part_done, "sequence_number", seq);
+                    gj::set_str(&mut part_done, "item_id", &item_id);
+                    gj::set_int(&mut part_done, "output_index", index);
+                    gj::set_str(&mut part_done, "part.text", &text);
+                    events.push(sse_event("response.reasoning_summary_text.done", &text_done));
+                    events.push(sse_event("response.reasoning_summary_part.done", &part_done));
+                }
                 let mut done = br#"{"type":"response.output_item.done","output_index":0,"item":{}}"#.to_vec();
                 let seq = self.next_seq();
                 gj::set_int(&mut done, "sequence_number", seq);
                 gj::set_int(&mut done, "output_index", index);
                 gj::set_raw(&mut done, "item", self.reasoning_item(index));
-                vec![sse_event("response.output_item.done", &done)]
+                events.push(sse_event("response.output_item.done", &done));
+                events
             }
         }
     }

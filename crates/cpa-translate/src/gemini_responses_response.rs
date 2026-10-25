@@ -11,6 +11,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use cpa_common::gostr::GoStr;
 use cpa_common::json::{self as gj, Res};
 
 use crate::apply_patch::{self, CallState};
@@ -52,7 +53,10 @@ fn unwrap_request_root(root: Res<'_>) -> Res<'_> {
 fn unwrap_response_root(root: Res<'_>) -> Res<'_> {
     let resp = root.get("response");
     if resp.exists()
-        && (resp.get("candidates").exists() || resp.get("responseId").exists() || resp.get("usageMetadata").exists())
+        && (resp.get("candidates").exists()
+            || resp.get("responseId").exists()
+            || resp.get("usageMetadata").exists()
+            || resp.get("cpaUsageMetadata").exists())
     {
         resp
     } else {
@@ -292,7 +296,68 @@ fn resolve_identity(
 struct CompletedMessage {
     id: Vec<u8>,
     text: Vec<u8>,
+    status: &'static str,
     annotations: Vec<Vec<u8>>,
+}
+
+/// geminiResponsesUsage (Go 5ec31442): Gemini usage frames are cumulative snapshots,
+/// so each field keeps its latest value across `usageMetadata` and `cpaUsageMetadata`.
+#[derive(Default)]
+struct Usage {
+    present: bool,
+    prompt: i64,
+    candidates: i64,
+    thoughts: i64,
+    total: i64,
+    cached: i64,
+}
+
+impl Usage {
+    fn merge(&mut self, root: &Res<'_>) -> bool {
+        let mut metadata = root.get("usageMetadata");
+        if !metadata.exists() {
+            metadata = root.get("cpaUsageMetadata");
+        }
+        if !metadata.exists() {
+            return false;
+        }
+        self.present = true;
+        for (name, value) in [
+            ("promptTokenCount", &mut self.prompt),
+            ("candidatesTokenCount", &mut self.candidates),
+            ("thoughtsTokenCount", &mut self.thoughts),
+            ("totalTokenCount", &mut self.total),
+            ("cachedContentTokenCount", &mut self.cached),
+        ] {
+            let v = metadata.get(name);
+            if v.exists() {
+                *value = v.int();
+            }
+        }
+        true
+    }
+
+    fn json(&self) -> Vec<u8> {
+        let mut out = br#"{"input_tokens":0,"input_tokens_details":{"cached_tokens":0},"output_tokens":0,"output_tokens_details":{"reasoning_tokens":0},"total_tokens":0}"#.to_vec();
+        gj::set_int(&mut out, "input_tokens", self.prompt);
+        gj::set_int(&mut out, "input_tokens_details.cached_tokens", self.cached);
+        gj::set_int(&mut out, "output_tokens", self.candidates.wrapping_add(self.thoughts));
+        gj::set_int(&mut out, "output_tokens_details.reasoning_tokens", self.thoughts);
+        gj::set_int(&mut out, "total_tokens", self.total);
+        out
+    }
+}
+
+/// geminiResponsesTerminalState: `MAX_TOKENS` ends the response as incomplete.
+fn terminal_state(finish_reason: &[u8]) -> (&'static str, &'static str, Option<&'static str>) {
+    if String::from_utf8_lossy(trim_space(finish_reason)).go_eq_fold("MAX_TOKENS") {
+        return (
+            "response.incomplete",
+            "incomplete",
+            Some(r#"{"reason":"max_output_tokens"}"#),
+        );
+    }
+    ("response.completed", "completed", None)
 }
 
 struct CompletedReasoning {
@@ -313,6 +378,11 @@ struct State {
     created_at: i64,
     started: bool,
     completed: bool,
+    /// The first source finish, kept across a usage-only tail or `[DONE]`.
+    finish_reason: Vec<u8>,
+    usage: Usage,
+    /// Go's per-call `messageStatus`: the terminal status while finishing.
+    message_status: &'static str,
 
     msg_opened: bool,
     msg_closed: bool,
@@ -341,6 +411,9 @@ struct State {
     func_args: BTreeMap<i64, Vec<u8>>,
     func_input: HashMap<i64, Vec<u8>>,
     func_custom: HashMap<i64, bool>,
+    func_tool_search: HashSet<i64>,
+    /// This chunk's `candidates.0.finishReason`.
+    chunk_finish_reason: Vec<u8>,
     func_names: HashMap<i64, Vec<u8>>,
     func_namespaces: HashMap<i64, Vec<u8>>,
     func_call_ids: HashMap<i64, Vec<u8>>,
@@ -675,6 +748,11 @@ impl State {
             }
         }
         let id = self.current_msg_id.clone();
+        let status = if self.message_status.is_empty() {
+            "completed"
+        } else {
+            self.message_status
+        };
         self.emit_new_citations(self.msg_index, &id, &citations, out);
         let mut done = br#"{"type":"response.output_text.done","sequence_number":0,"item_id":"","output_index":0,"content_index":0,"text":"","logprobs":[]}"#.to_vec();
         let seq = self.next_seq();
@@ -698,6 +776,7 @@ impl State {
         gj::set_int(&mut item_done, "sequence_number", seq);
         gj::set_int(&mut item_done, "output_index", self.msg_index);
         gj::set_str(&mut item_done, "item.id", &id);
+        gj::set_str(&mut item_done, "item.status", status);
         gj::set_str(&mut item_done, "item.content.0.text", &full);
         if !citations.is_empty() {
             gj::set_raw(&mut item_done, "item.content.0.annotations", gj::join(&citations));
@@ -708,6 +787,7 @@ impl State {
             CompletedMessage {
                 id,
                 text: full,
+                status,
                 annotations: citations,
             },
         );
@@ -1130,7 +1210,7 @@ impl State {
         let index = self.next_index;
         self.next_index += 1;
         self.func_args.entry(index).or_default();
-        if identity.apply_patch {
+        if identity.apply_patch || identity.tool_search {
             self.func_call_ids.insert(index, upstream_id);
         }
         if self.func_call_ids.get(&index).is_none_or(Vec::is_empty) {
@@ -1146,6 +1226,9 @@ impl State {
         self.func_names.insert(index, name.clone());
         self.func_namespaces.insert(index, namespace.clone());
         self.func_custom.insert(index, identity.custom);
+        if identity.tool_search {
+            self.func_tool_search.insert(index);
+        }
         let args = if fc.get("args").exists() {
             args_raw
         } else {
@@ -1156,7 +1239,27 @@ impl State {
             buffer.extend_from_slice(&args);
         }
 
-        if identity.custom {
+        if identity.tool_search {
+            let finish = if self.chunk_finish_reason.is_empty() {
+                &self.finish_reason
+            } else {
+                &self.chunk_finish_reason
+            };
+            let status = if finish.is_empty() {
+                "completed"
+            } else {
+                terminal_state(finish).1
+            };
+            let item = tool_search_call_item(&call_id, "in_progress", &args);
+            let seq = self.next_seq();
+            out.push(tool_search_call_event("response.output_item.added", seq, index, &item));
+            if !self.func_done.contains(&index) {
+                let item = tool_search_call_item(&call_id, status, &args);
+                let seq = self.next_seq();
+                out.push(tool_search_call_event("response.output_item.done", seq, index, &item));
+                self.func_done.insert(index);
+            }
+        } else if identity.custom {
             let item_id = [&b"ctc_"[..], &call_id].concat();
             let mut input = unwrap_custom_tool_input(&args);
             let mut patch: Option<CallState> = None;
@@ -1282,11 +1385,18 @@ impl State {
         out.push(event("response.output_item.done", &item_done));
     }
 
-    fn finish(&mut self, root: &Res<'_>, out: &mut Vec<Vec<u8>>) {
+    /// The terminal response, once the source finished and usage arrived or the stream
+    /// ended (Go 5ec31442 defers it across a usage-only tail).
+    fn finish(&mut self, done: bool, has_usage: bool, out: &mut Vec<Vec<u8>>) {
         if let Some(err) = self.evidence.pending_identity_error(&self.identities) {
             self.failed(err, out);
             return;
         }
+        if !done && !has_usage {
+            return;
+        }
+        let (event_type, status, incomplete_details) = terminal_state(&self.finish_reason);
+        self.message_status = status;
         if !self.pending_reasoning_signature.is_empty() {
             let pending = std::mem::take(&mut self.pending_reasoning_signature);
             self.emit_trailing_detached_reasoning(&pending, out);
@@ -1306,7 +1416,17 @@ impl State {
             let call_id = self.func_call_ids.get(&index).cloned().unwrap_or_default();
             let name = self.func_names.get(&index).cloned().unwrap_or_default();
             let namespace = self.func_namespaces.get(&index).cloned().unwrap_or_default();
-            if self.func_custom.get(&index).copied().unwrap_or(false) {
+            if self.func_tool_search.contains(&index) {
+                let args = self
+                    .func_args
+                    .get(&index)
+                    .filter(|a| !a.is_empty())
+                    .cloned()
+                    .unwrap_or(b"{}".to_vec());
+                let item = tool_search_call_item(&call_id, status, &args);
+                let seq = self.next_seq();
+                out.push(tool_search_call_event("response.output_item.done", seq, index, &item));
+            } else if self.func_custom.get(&index).copied().unwrap_or(false) {
                 let input = self.func_input.get(&index).cloned().unwrap_or_default();
                 let item_id = [&b"ctc_"[..], &call_id].concat();
                 let mut input_done = br#"{"type":"response.custom_tool_call_input.done","sequence_number":0,"item_id":"","output_index":0,"input":""}"#.to_vec();
@@ -1338,6 +1458,11 @@ impl State {
         }
 
         let mut completed = br#"{"type":"response.completed","sequence_number":0,"response":{"id":"","object":"response","created_at":0,"status":"completed","background":false,"error":null}}"#.to_vec();
+        gj::set_str(&mut completed, "type", event_type);
+        gj::set_str(&mut completed, "response.status", status);
+        if let Some(details) = incomplete_details {
+            gj::set_raw(&mut completed, "response.incomplete_details", details);
+        }
         let seq = self.next_seq();
         gj::set_int(&mut completed, "sequence_number", seq);
         gj::set_str(&mut completed, "response.id", &self.response_id);
@@ -1365,7 +1490,7 @@ impl State {
                 gj::set_str(&mut item, "summary.0.text", &r.text);
                 outputs.push(item);
             } else if let Some(m) = self.completed_messages.get(&index) {
-                outputs.push(message_item(&m.id, &m.text, &m.annotations));
+                outputs.push(message_item(&m.id, &m.text, m.status, &m.annotations));
             } else if let Some((id, signature)) = self.detached_reasoning.get(&index) {
                 let mut item = br#"{"id":"","type":"reasoning","encrypted_content":"","summary":[]}"#.to_vec();
                 gj::set_str(&mut item, "id", id);
@@ -1374,7 +1499,15 @@ impl State {
             } else if let Some(call_id) = self.func_call_ids.get(&index).filter(|c| !c.is_empty()) {
                 let name = self.func_names.get(&index).cloned().unwrap_or_default();
                 let namespace = self.func_namespaces.get(&index).cloned().unwrap_or_default();
-                if self.func_custom.get(&index).copied().unwrap_or(false) {
+                if self.func_tool_search.contains(&index) {
+                    let args = self
+                        .func_args
+                        .get(&index)
+                        .filter(|a| !a.is_empty())
+                        .cloned()
+                        .unwrap_or(b"{}".to_vec());
+                    outputs.push(tool_search_call_item(call_id, status, &args));
+                } else if self.func_custom.get(&index).copied().unwrap_or(false) {
                     let input = self.func_input.get(&index).cloned().unwrap_or_default();
                     outputs.push(custom_call_item(call_id, &input, &name, &namespace));
                 } else {
@@ -1394,23 +1527,53 @@ impl State {
         if self.ws_done {
             gj::set_int(&mut completed, "response.tool_usage.web_search.num_requests", 1);
         }
-        let usage = root.get("usageMetadata");
-        if usage.exists() {
-            set_usage(&mut completed, "response.usage.", &usage, true);
+        if self.usage.present {
+            gj::set_raw(&mut completed, "response.usage", self.usage.json());
         }
-        out.push(event("response.completed", &completed));
+        out.push(event(event_type, &completed));
         self.completed = true;
     }
 }
 
-fn message_item(id: &[u8], text: &[u8], annotations: &[Vec<u8>]) -> Vec<u8> {
+fn message_item(id: &[u8], text: &[u8], status: &str, annotations: &[Vec<u8>]) -> Vec<u8> {
     let mut item = br#"{"id":"","type":"message","status":"completed","content":[{"type":"output_text","annotations":[],"logprobs":[],"text":""}],"role":"assistant"}"#.to_vec();
     gj::set_str(&mut item, "id", id);
+    gj::set_str(&mut item, "status", status);
     gj::set_str(&mut item, "content.0.text", text);
     if !annotations.is_empty() {
         gj::set_raw(&mut item, "content.0.annotations", gj::join(annotations));
     }
     item
+}
+
+/// buildOpenAIResponsesToolSearchCallItem: a completed call whose arguments are not a JSON
+/// object is incomplete.
+fn tool_search_call_item(call_id: &[u8], status: &str, args: &[u8]) -> Vec<u8> {
+    let args = trim_space(args);
+    let object = gj::valid(args) && gj::parse(args).is_object();
+    let status = if status == "completed" && !object {
+        "incomplete"
+    } else {
+        status
+    };
+    let mut item =
+        br#"{"id":"","type":"tool_search_call","status":"","execution":"client","call_id":"","arguments":{}}"#.to_vec();
+    gj::set_str(&mut item, "id", [&b"ts_"[..], call_id].concat());
+    gj::set_str(&mut item, "status", status);
+    gj::set_str(&mut item, "call_id", call_id);
+    if object {
+        gj::set_raw(&mut item, "arguments", args);
+    }
+    item
+}
+
+fn tool_search_call_event(name: &str, seq: i64, output_index: i64, item: &[u8]) -> Vec<u8> {
+    let mut payload = br#"{"type":"","sequence_number":0,"output_index":0,"item":{}}"#.to_vec();
+    gj::set_str(&mut payload, "type", name);
+    gj::set_int(&mut payload, "sequence_number", seq);
+    gj::set_int(&mut payload, "output_index", output_index);
+    gj::set_raw(&mut payload, "item", item);
+    event(name, &payload)
 }
 
 fn custom_call_item(call_id: &[u8], input: &[u8], name: &[u8], namespace: &[u8]) -> Vec<u8> {
@@ -1433,37 +1596,6 @@ fn function_call_item(call_id: &[u8], args: &[u8], name: &[u8], namespace: &[u8]
     item
 }
 
-/// The usage mapping: prompt tokens in, candidates plus thoughts out. The stream always
-/// writes reasoning and total tokens; the non-stream body only when Gemini sent them.
-fn set_usage(out: &mut Vec<u8>, prefix: &str, usage: &Res<'_>, defaults: bool) {
-    let at = |k: &str| format!("{prefix}{k}");
-    gj::set_int(out, &at("input_tokens"), usage.get("promptTokenCount").int());
-    gj::set_int(
-        out,
-        &at("input_tokens_details.cached_tokens"),
-        usage.get("cachedContentTokenCount").int(),
-    );
-    gj::set_int(
-        out,
-        &at("output_tokens"),
-        usage
-            .get("candidatesTokenCount")
-            .int()
-            .wrapping_add(usage.get("thoughtsTokenCount").int()),
-    );
-    for (key, source) in [
-        ("output_tokens_details.reasoning_tokens", "thoughtsTokenCount"),
-        ("total_tokens", "totalTokenCount"),
-    ] {
-        let v = usage.get(source);
-        if v.exists() {
-            gj::set_int(out, &at(key), v.int());
-        } else if defaults {
-            gj::set_int(out, &at(key), 0);
-        }
-    }
-}
-
 impl GoStream for State {
     fn line(&mut self, line: &[u8]) -> Result<Vec<Vec<u8>>, Error> {
         let mut raw = line;
@@ -1474,11 +1606,15 @@ impl GoStream for State {
         if raw.is_empty() || self.completed {
             return Ok(vec![]);
         }
-        let raw: &[u8] = if raw == b"[DONE]" {
+        let done = raw == b"[DONE]";
+        let raw: &[u8] = if done {
             if !self.started {
                 return Ok(vec![]);
             }
-            br#"{"candidates":[{"finishReason":"STOP"}]}"#
+            if self.finish_reason.is_empty() {
+                self.finish_reason = b"STOP".to_vec();
+            }
+            b"{}"
         } else {
             raw
         };
@@ -1487,10 +1623,13 @@ impl GoStream for State {
             return Ok(vec![]);
         }
         let root = unwrap_response_root(parsed);
+        let has_usage = self.usage.merge(&root);
+        self.message_status = "completed";
         let mut out = vec![];
         if !self.started {
             self.start(&root, &mut out);
         }
+        self.chunk_finish_reason = root.get("candidates.0.finishReason").bytes().into_owned();
         let gm = ws::grounding_metadata(&root);
         if gm.exists() {
             self.grounding_frame(&gm, &mut out);
@@ -1507,9 +1646,12 @@ impl GoStream for State {
         if self.completed {
             return Ok(out);
         }
-        let finish_reason = root.get("candidates.0.finishReason");
-        if finish_reason.exists() && !finish_reason.bytes().is_empty() {
-            self.finish(&root, &mut out);
+        let finish_reason = root.get("candidates.0.finishReason").bytes();
+        if !finish_reason.is_empty() && self.finish_reason.is_empty() {
+            self.finish_reason = finish_reason.into_owned();
+        }
+        if !self.finish_reason.is_empty() {
+            self.finish(done, has_usage, &mut out);
         }
         Ok(out)
     }
@@ -1520,7 +1662,17 @@ impl GoStream for State {
 
     /// FinalizeToolInput: a patch-enabled stream that ends without its terminator fails.
     fn finalize_tool_input(&mut self) -> Vec<Vec<u8>> {
-        if self.tool_error.is_some() || self.completed || !self.identities.values().any(|i| i.apply_patch) {
+        if self.tool_error.is_some() || self.completed {
+            return vec![];
+        }
+        // A validated source finish remains valid while Responses waits for usage.
+        if !self.finish_reason.is_empty() {
+            match self.evidence.pending_identity_error(&self.identities) {
+                None => return vec![],
+                Some(err) => self.tool_error = Some(err),
+            }
+        }
+        if !self.identities.values().any(|i| i.apply_patch) {
             return vec![];
         }
         let mut out = vec![];
@@ -1553,6 +1705,11 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     let mut resp =
         br#"{"id":"","object":"response","created_at":0,"status":"completed","background":false,"error":null,"incomplete_details":null}"#
             .to_vec();
+    let (_, status, incomplete_details) = terminal_state(&root.get("candidates.0.finishReason").bytes());
+    gj::set_str(&mut resp, "status", status);
+    if let Some(details) = incomplete_details {
+        gj::set_raw(&mut resp, "incomplete_details", details);
+    }
     let mut id = root.get("responseId").bytes().into_owned();
     if id.is_empty() {
         id = format!(
@@ -1741,7 +1898,7 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                 let args = fc.get("args");
                 let args = if args.exists() { args.raw.to_vec() } else { vec![] };
                 let upstream_id = evidence.items[evidence_index].upstream_id.clone();
-                let call_id = if identity.apply_patch && !upstream_id.is_empty() {
+                let call_id = if (identity.apply_patch || identity.tool_search) && !upstream_id.is_empty() {
                     upstream_id
                 } else {
                     format!(
@@ -1751,7 +1908,9 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                     )
                     .into_bytes()
                 };
-                let item = if identity.custom {
+                let item = if identity.tool_search {
+                    tool_search_call_item(&call_id, status, &args)
+                } else if identity.custom {
                     let mut input = unwrap_custom_tool_input(&args);
                     if identity.apply_patch {
                         let mut patch = CallState::default();
@@ -1818,6 +1977,7 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     if tool_error.is_some() {
         return Err(Error(apply_patch::UPSTREAM_ERROR_MESSAGE.into()));
     }
+    let active_message = (!message_text.is_empty()).then_some(message_outputs.len());
     flush_reasoning!();
     flush_message!();
 
@@ -1908,7 +2068,8 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
                 }
                 let id = [b"msg_", &rid[..], format!("_{i}").as_bytes()].concat();
                 let annotations = citations.get(&(i as i64)).cloned().unwrap_or_default();
-                outputs.push(message_item(&id, text, &annotations));
+                let status = if active_message == Some(i) { status } else { "completed" };
+                outputs.push(message_item(&id, text, status, &annotations));
             }
             Output::Function(i) => {
                 let (item, signature) = &function_outputs[i];
@@ -1926,9 +2087,9 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> 
     if has_grounding {
         gj::set_int(&mut resp, "tool_usage.web_search.num_requests", 1);
     }
-    let usage = root.get("usageMetadata");
-    if usage.exists() {
-        set_usage(&mut resp, "usage.", &usage, false);
+    let mut usage = Usage::default();
+    if usage.merge(&root) {
+        gj::set_raw(&mut resp, "usage", usage.json());
     }
     Ok(resp)
 }

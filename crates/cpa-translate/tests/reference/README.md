@@ -6,7 +6,9 @@ encoding/json writes invalid UTF-8). A file with a `reference` field was generat
 that commit instead: the pairs translating to and from Claude
 (`openai-claude`, `openai-response-claude`, `gemini-claude`, `interactions-claude`,
 `claude-openai`, `claude-codex`, `claude-gemini`, `claude-interactions`) follow v8.0.35
-(`ae3ee3be`) and say so, as does `openai-gemini`, re-recorded for the v8.0.35 schema cleaner. Regenerate those files from a v8.0.35 checkout and the others
+(`ae3ee3be`) and say so, as do `openai-gemini`, re-recorded for the v8.0.35 schema cleaner,
+and `openai-response-gemini`, `openai-response-antigravity` and
+`openai-response-interactions`, re-recorded for the v8.0.35 Gemini Responses translator. Regenerate those files from a v8.0.35 checkout and the others
 from `6fecc6e`, each with its own harvest: run the script below once per reference, with
 `pairs` restricted to that reference's files (as written, it lists every pair file, which
 would rewrite the other reference's files too). The generator builds against v8.0.35, whose

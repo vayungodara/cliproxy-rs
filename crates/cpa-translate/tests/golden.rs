@@ -123,8 +123,8 @@ fn request_output(result: Result<Vec<u8>, cpa_translate::Error>) -> Vec<u8> {
     result.unwrap_or_else(|e| format!("REFUSED:{}", e.0).into_bytes())
 }
 
-/// Fixtures regenerated at v8.0.35 whose port is still open: pair, exact fixture name (unique
-/// within a pair) and the work that closes them. Every fixture an entry matches must still fail, so the list
+/// Fixtures regenerated at v8.0.35 whose port is still open: pair, fixture name (unique
+/// within a pair; see `pending` for numbered repeats) and the work that closes them. Every fixture an entry matches must still fail, so the list
 /// shrinks as ports land and a listed fixture cannot hide a passing neighbour's regression.
 const PENDING: &[(&str, &str, &str)] = &[
     (
@@ -157,11 +157,66 @@ const PENDING: &[(&str, &str, &str)] = &[
         "TestOpenAIToGeminiRegistryCarriesTheImageURLRefusal:83:envelope",
         "unsendable OpenAI to Gemini attachments refused (3b69068e, f51624aa)",
     ),
+    (
+        "openai-response->gemini",
+        "TestConvertOpenAIResponsesRequestToGemini_InvalidDataURLsRejected:literal#*",
+        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
+    ),
+    (
+        "openai-response->gemini",
+        "TestConvertOpenAIResponsesRequestToGemini_RefusesAnyEmptiedUserTurn:66#*",
+        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
+    ),
+    (
+        "openai-response->gemini",
+        "TestConvertOpenAIResponsesRequestToGemini_ExportedWrapperKeepsAJSONBody:123",
+        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
+    ),
+    (
+        "openai-response->antigravity",
+        "TestConvertOpenAIResponsesRequestToAntigravity_InvalidDataURLsRejected:1425",
+        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
+    ),
+    (
+        "openai-response->antigravity",
+        "TestOpenAIResponsesToAntigravityRegistryCarriesTheRefusal:62:envelope#*",
+        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
+    ),
+    (
+        "openai-response->antigravity",
+        "TestConvertOpenAIResponsesRequestToAntigravity_ExportedWrapperKeepsAJSONBody:107",
+        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
+    ),
+    (
+        "openai-response->interactions",
+        "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#*",
+        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
+    ),
+    (
+        "openai-response->interactions",
+        "TestConvertOpenAIResponsesRequestToInteractions_ExportedWrapperKeepsAJSONBody:181",
+        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
+    ),
+    (
+        "openai-response->interactions",
+        "TestInteractionsApplyPatchTerminalIdentityFallback:32:stream#7",
+        "unique fallback item IDs (b0db5448)",
+    ),
 ];
 
+/// A key names one fixture; a key ending in `#*` names that fixture and its numbered repeats
+/// (`name#2`, `name#3`, ...).
 fn pending(pair: &str, fixture: &Value) -> Option<usize> {
     let name = fixture["name"].as_str().unwrap_or_default();
-    PENDING.iter().position(|(p, key, _)| *p == pair && name == *key)
+    PENDING.iter().position(|(p, key, _)| {
+        *p == pair
+            && match key.strip_suffix("#*") {
+                Some(base) => name
+                    .strip_prefix(base)
+                    .is_some_and(|rest| rest.is_empty() || rest.starts_with('#')),
+                None => name == *key,
+            }
+    })
 }
 
 fn run(client: Format, upstream: Format, f: &Value, bytes: bool, tool_search: bool) -> Vec<Vec<u8>> {
