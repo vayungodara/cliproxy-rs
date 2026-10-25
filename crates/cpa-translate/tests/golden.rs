@@ -148,56 +148,6 @@ const PENDING: &[(&str, &str, &str)] = &[
         "signature replay: Meta Muse envelopes (7a0b7563, cc5682c5, 674dbe8f, a68c7d8e)",
     ),
     (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:630",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:630#2",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeNonStream_MalformedFunctionCallReturnsAPIError:literal",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallAfterThinkingEmitsError:429:stream",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallAfterThinkingEmitsError:calls",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallWithoutUsageAndDuplicateTerminalChunk:470:stream",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeStream_MalformedFunctionCallWithoutUsageAndDuplicateTerminalChunk:calls",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeStream_PartlessMalformedFunctionCallClosesMessage:368:stream",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "TestConvertGeminiResponseToClaudeStream_PartlessMalformedFunctionCallClosesMessage:calls",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
-        "claude->gemini",
-        "gemini-up/finish-reasons",
-        "MALFORMED_FUNCTION_CALL as an API error, with the Gemini executors' 502 half (7f2f17d7)",
-    ),
-    (
         "openai->gemini",
         "TestConvertOpenAIRequestToGemini_FileID:29:envelope",
         "unsendable OpenAI to Gemini attachments refused (3b69068e, f51624aa)",

@@ -73,7 +73,12 @@ fn normalized_frame(frame: &str) -> String {
 
 #[tokio::test]
 async fn go_reference_scenarios() {
-    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    // The scenarios recorded again (or added) at v8.0.35 replace their base recordings.
+    let fixture = crate::payload_barrier::with_v8_0_35(
+        FIXTURE,
+        include_str!("../tests/fixtures/aistudio_go_v8.0.35.json"),
+        "scenarios",
+    );
     let scenarios = fixture["scenarios"].as_array().unwrap();
     assert!(scenarios.len() >= 30, "fixture lost scenarios");
     let relay = Arc::new(Relay::default());
@@ -269,7 +274,27 @@ fn check_capture(s: &Value, events: &[Captured]) {
         "{name}: chunks"
     );
     let errors = rest.iter().filter(|e| matches!(e, Captured::Error(_))).count();
-    let want_errors = replies.iter().filter(|r| r["type"] == "error").count() + usize::from(s["disconnected"] == true);
+    // Go records relay errors, a vanished relay, and (5ec31442) a non-2xx answer relayed
+    // after the stream started.
+    let late_status_errors = replies
+        .iter()
+        .skip(1)
+        .filter(|r| r["type"] == "http_response")
+        .filter(|r| !(200..300).contains(&r["payload"]["status"].as_i64().unwrap_or(0)))
+        .count();
+    // A retained Claude error event (7f2f17d7) ends the stream ahead of the relay error,
+    // which Go then never records.
+    let retained = s["error"]["message"]
+        .as_str()
+        .is_some_and(|m| m.starts_with(r#"{"type":"error""#));
+    let relay_errors = if retained {
+        0
+    } else {
+        replies.iter().filter(|r| r["type"] == "error").count()
+    };
+    let want_errors = relay_errors
+        + usize::from(s["disconnected"] == true)
+        + if s["op"] == "stream" { late_status_errors } else { 0 };
     assert_eq!(errors, want_errors, "{name}: errors in {rest:?}");
 }
 

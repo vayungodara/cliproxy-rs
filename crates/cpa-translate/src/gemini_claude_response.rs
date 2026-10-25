@@ -28,22 +28,24 @@ const TEXT: u8 = 1;
 const THINKING: u8 = 2;
 const TOOL: u8 = 3;
 
-/// resolveGeminiClaudeStopReason. ponytail: MALFORMED_FUNCTION_CALL stays a refusal, as
-/// before 7f2f17d7, until that commit's executor half (502 and a terminal stream error)
-/// lands with the Gemini executors; then it becomes the `api_error` event.
+/// geminiMalformedFunctionCallErrorPayload: the Claude error a `MALFORMED_FUNCTION_CALL`
+/// finish without a tool call becomes (Go 7f2f17d7); the executors answer it with 502.
+const MALFORMED_ERROR: &[u8] =
+    br#"{"type":"error","error":{"type":"api_error","message":"Gemini response finished with MALFORMED_FUNCTION_CALL"}}"#;
+
+/// isGeminiMalformedFunctionCall.
+fn malformed(finish: &[u8], saw_tool_call: bool) -> bool {
+    finish == b"MALFORMED_FUNCTION_CALL" && !saw_tool_call
+}
+
+/// resolveGeminiClaudeStopReason.
 fn stop_reason(finish: &[u8], saw_tool_call: bool) -> &'static str {
     if saw_tool_call {
         return "tool_use";
     }
     match finish {
         b"MAX_TOKENS" => "max_tokens",
-        b"SAFETY"
-        | b"RECITATION"
-        | b"PROHIBITED_CONTENT"
-        | b"SPII"
-        | b"BLOCKLIST"
-        | b"MALFORMED_FUNCTION_CALL"
-        | b"IMAGE_SAFETY" => "refusal",
+        b"SAFETY" | b"RECITATION" | b"PROHIBITED_CONTENT" | b"SPII" | b"BLOCKLIST" | b"IMAGE_SAFETY" => "refusal",
         _ => "end_turn",
     }
 }
@@ -104,6 +106,10 @@ impl GoStream for State {
     fn line(&mut self, raw: &[u8]) -> Result<Vec<Vec<u8>>, Error> {
         let mut out = vec![];
         if raw == b"[DONE]" {
+            if malformed(&self.finish, self.saw_tool_call) {
+                self.malformed_error(&mut out);
+                return Ok(if out.is_empty() { vec![] } else { vec![out] });
+            }
             if self.started && !self.has_content {
                 self.empty_text_block(&mut out);
             }
@@ -113,6 +119,9 @@ impl GoStream for State {
             self.finish_message(&mut out);
             push_event(&mut out, "message_stop", br#"{"type":"message_stop"}"#);
             return Ok(vec![out]);
+        }
+        if malformed(&self.finish, self.saw_tool_call) && self.final_sent {
+            return Ok(vec![]);
         }
         if !self.started {
             let mut start = br#"{"type":"message_start","message":{"id":"msg_1nZdL29xx5MUA1yADyHTEsnR8uuvGzszyY","type":"message","role":"assistant","content":[],"model":"claude-3-5-sonnet-20241022","stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}}"#.to_vec();
@@ -152,6 +161,10 @@ impl GoStream for State {
             self.input_tokens = prompt.wrapping_sub(cached).max(0);
             self.output_tokens = output;
             self.cached_tokens = cached;
+        }
+        if malformed(&self.finish, self.saw_tool_call) && !self.final_sent {
+            self.malformed_error(&mut out);
+            return Ok(vec![out]);
         }
         let has_finish = raw.windows(14).any(|w| w == br#""finishReason""#);
         if usage.exists() && has_finish && !self.final_sent {
@@ -210,6 +223,18 @@ impl State {
         self.start_block(out, "text");
         self.block = TEXT;
         self.has_content = true;
+    }
+
+    /// Closes the open block without advancing and sends the malformed-call error once.
+    fn malformed_error(&mut self, out: &mut Vec<u8>) {
+        if self.block != NONE {
+            self.stop_block(out);
+            self.block = NONE;
+        }
+        if !self.final_sent {
+            push_event(out, "error", MALFORMED_ERROR);
+            self.final_sent = true;
+        }
     }
 
     /// Closes the open block without advancing and sends message_delta once.
@@ -488,6 +513,9 @@ pub fn non_stream(ctx: &ResponseCtx<'_>, raw: &[u8]) -> Result<Vec<u8>, Error> {
         gj::set_raw(&mut out, "content", gj::join(&blocks));
     }
     let finish = root.get("candidates.0.finishReason").bytes();
+    if malformed(&finish, has_call) {
+        return Ok(MALFORMED_ERROR.to_vec());
+    }
     gj::set_str(&mut out, "stop_reason", stop_reason(&finish, has_call));
     if input == 0 && output == 0 && !root.get("usageMetadata").exists() {
         gj::delete(&mut out, "usage");

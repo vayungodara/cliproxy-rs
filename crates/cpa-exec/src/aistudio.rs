@@ -282,6 +282,7 @@ impl AiStudioExecutor {
         }
         req.usage.response_body(Format::Gemini, &resp.body);
         let out = g::translate_non_stream(&req, Format::Gemini, &body, &resp.body)?;
+        g::claude_error(&req, &out)?;
         Ok(ExecResponse {
             status: 200,
             headers: header_map(&resp.headers),
@@ -289,7 +290,7 @@ impl AiStudioExecutor {
         })
     }
 
-    /// `ExecuteStream`: a first event with a non-200 status is an error carrying every
+    /// `ExecuteStream`: a first event with a non-2xx status is an error carrying every
     /// payload until the end; otherwise chunks are translated as they arrive.
     async fn stream(
         &self,
@@ -309,7 +310,7 @@ impl AiStudioExecutor {
             .recv()
             .await
             .ok_or_else(|| fail("wsrelay: stream closed before start".into()))?;
-        if first.status > 0 && first.status != 200 {
+        if first.status > 0 && !(200..300).contains(&first.status) {
             capture_metadata(&capture, first.status, &first.headers);
             if !first.payload.is_empty() {
                 capture.record(CaptureEvent::ResponseChunk(&first.payload));
@@ -344,7 +345,8 @@ impl AiStudioExecutor {
                 whole_events: true,
                 chunk: Some(ensure_colon_spaced_json),
             },
-        );
+        )
+        .with_claude_stream_errors();
         let state = Events {
             output,
             pending: VecDeque::new(),
@@ -443,6 +445,12 @@ impl Events {
             return;
         };
         if let Some(error) = event.error {
+            // A retained Claude error event wins over the relay error (Go 7f2f17d7).
+            let mut retained = Emit::default();
+            if self.output.stop_retained(&mut retained) {
+                self.emit(retained);
+                return;
+            }
             self.capture.record(CaptureEvent::ResponseError(&error));
             self.fail(plain_error(format!("wsrelay: {error}")));
             return;
@@ -455,13 +463,15 @@ impl Events {
         match event.kind.as_str() {
             wsrelay::STREAM_CHUNK if !event.payload.is_empty() => {
                 self.capture.record(CaptureEvent::ResponseChunk(&event.payload));
+                // Go 7f2f17d7 reads usage from the raw payload, before the filter.
+                self.output.usage.response_line(Format::Gemini, &event.payload);
                 let filtered = crate::gemini_stream::filter_sse_usage_metadata(&event.payload);
-                self.output.usage.response_line(Format::Gemini, &filtered);
                 let translated = self.output.translate(&filtered);
                 self.emit(translated);
             }
+            // Go 5ec31442 `finishStream`: the translator also sees `[DONE]`.
             wsrelay::STREAM_END => {
-                let end = self.output.end();
+                let end = self.output.end_with_done();
                 self.emit(end);
                 self.ended = true;
             }
@@ -469,16 +479,27 @@ impl Events {
                 if !event.payload.is_empty() {
                     self.capture.record(CaptureEvent::ResponseChunk(&event.payload));
                 }
+                self.ended = true;
+                // Go 5ec31442: a relayed non-2xx answer ends the stream with its status.
+                if !(200..300).contains(&event.status) {
+                    let error = status_error(event.status, event.payload);
+                    self.capture
+                        .record(CaptureEvent::ResponseError(&String::from_utf8_lossy(&error.body)));
+                    self.fail(error);
+                    return;
+                }
+                self.output.usage.response_body(Format::Gemini, &event.payload);
                 let translated = self.output.translate(&event.payload);
                 if self.emit(translated) {
                     return;
                 }
-                let end = self.output.end();
-                if self.emit(end) {
+                let mut retained = Emit::default();
+                if self.output.stop_retained(&mut retained) {
+                    self.emit(retained);
                     return;
                 }
-                self.output.usage.response_body(Format::Gemini, &event.payload);
-                self.ended = true;
+                let end = self.output.end_with_done();
+                self.emit(end);
             }
             _ => {}
         }

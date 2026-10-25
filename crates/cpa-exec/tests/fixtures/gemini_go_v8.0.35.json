@@ -16,6 +16,860 @@
       },
       "request": "POST /v1beta/models/gemini-2.5-flash-lite:countTokens HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 146\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash-lite\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"generationConfig\":{\"temperature\":0.25,\"topP\":0.5,\"topK\":3}}",
       "output": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
+    },
+    {
+      "name": "stream_usage_trace_id",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"traceId\":\"gem-t1\",\"candidates\":[{\"finishReason\":\"STOP\"}]}\n\ndata: {\"traceId\":\"gem-t1\",\"usageMetadata\":{\"totalTokenCount\":9}}\n\ndata: {\"traceId\":\"gem-t2\",\"usageMetadata\":{\"totalTokenCount\":1},\"response\":{\"usageMetadata\":{\"x\":1}}}\n\ndata: not-json\n\n"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "chunks": [
+        "{\"traceId\":\"gem-t1\",\"candidates\":[{\"finishReason\":\"STOP\"}]}",
+        "{\"traceId\":\"gem-t1\",\"usageMetadata\":{\"totalTokenCount\":9}}",
+        "{\"traceId\":\"gem-t2\",\"response\":{\"cpaUsageMetadata\":{\"x\":1}},\"cpaUsageMetadata\":{\"totalTokenCount\":1}}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 1,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "claude_malformed_function_call_execute",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "claude",
+      "op": "execute",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:claude-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"partial\"}]},\"finishReason\":\"MALFORMED_FUNCTION_CALL\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":4,\"candidatesTokenCount\":2,\"totalTokenCount\":6},\"modelVersion\":\"gemini-2.5-flash\",\"responseId\":\"rm\"}"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "error": {
+        "status": 502,
+        "message": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
+      },
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 6,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true
+      }
+    },
+    {
+      "name": "claude_malformed_function_call_stream",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:claude-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\"MALFORMED_FUNCTION_CALL\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"responseId\":\"r1\"}\n\n"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"r1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}\n\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
+      },
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true
+      }
+    },
+    {
+      "name": "openai_malformed_function_call_execute",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:openai-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"partial\"}]},\"finishReason\":\"MALFORMED_FUNCTION_CALL\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":4,\"candidatesTokenCount\":2,\"totalTokenCount\":6},\"modelVersion\":\"gemini-2.5-flash\",\"responseId\":\"rm\"}"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "output": "{\"id\":\"rm\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"partial\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"malformed_function_call\",\"native_finish_reason\":\"malformed_function_call\"}],\"usage\":{\"completion_tokens\":2,\"total_tokens\":6,\"prompt_tokens\":4}}",
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 6,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "responses_stream_read_error",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\",\"stream\":true}",
+      "source": "openai-response",
+      "op": "stream",
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:openai-response-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
+        "missing": 40
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n"
+      ],
+      "error": {
+        "status": 0,
+        "message": "unexpected EOF"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true
+      }
+    },
+    {
+      "name": "claude_stream_read_error",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:claude-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
+        "missing": 40
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"r1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n"
+      ],
+      "error": {
+        "status": 0,
+        "message": "unexpected EOF"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true
+      }
+    },
+    {
+      "name": "gen_trailing_function_response_media",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"x\":1},\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"AAAA\"}}]}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json; charset=UTF-8"
+          ],
+          [
+            "X-Upstream",
+            "1"
+          ]
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 598\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"x\":1},\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"AAAA\"}}]}}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "gen_trailing_function_response_file",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"assistant\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"x\":1},\"parts\":[{\"file_data\":{\"mimeType\":\"image/png\",\"fileUri\":\"gs://b/a.png\"}}]}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:gemini-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json; charset=UTF-8"
+          ],
+          [
+            "X-Upstream",
+            "1"
+          ]
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 569\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"x\":1},\"parts\":[{\"file_data\":{\"mimeType\":\"image/png\",\"fileUri\":\"gs://b/a.png\"}}]}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "gen_trailing_user_function_response_media",
+      "config": "\nrequests:\n  payload:\n    default:\n      - models:\n          - name: gemini-2.5-flash-lite\n            protocol: gemini\n        params:\n          generationConfig.temperature: 0.25\n          generationConfig.topP: 0.5\n    override:\n      - models:\n          - name: gemini-2.5-flash-lite\n            from-protocol: gemini\n        params:\n          generationConfig.topK: 3\n      - models:\n          - name: gemini-3.1-pro-preview\n            protocol: interactions\n        params:\n          generation_config.seed: 7\n    filter:\n      - models:\n          - name: gemini-2.5-flash-lite\n        params:\n          - generationConfig.stopSequences\napi-keys:\n  gemini:\n    - name: g1\n      base-url: http://UPSTREAM/\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n        - name: gemini-2.5-pro\n          alias: pro-levels\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: flash-compat\n          is-compat: true\n      keys:\n        - api-key: AIza-fake-gemini-1\n    - name: g2\n      base-url: http://UPSTREAM///\n      keys:\n        - api-key: AIza-fake-gemini-2\n    - name: g3\n      base-url: http://UPSTREAM\n      prefix: team\n      headers:\n        X-Session: \"sess-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: pro-team\n          thinking:\n            levels: [low]\n        - alias: gemini-2.5-flash\n      keys:\n        - api-key: AIza-fake-gemini-3\n  interactions:\n    - name: i1\n      base-url: http://UPSTREAM\n      headers:\n        X-Static: static-int\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-int-1\n    - name: i2\n      base-url: http://UPSTREAM/\n      headers:\n        Api-Revision: 2099-01-01\n      keys:\n        - api-key: AIza-fake-int-2\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"f\"}}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"x\":1},\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"AAAA\"}}]}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:b094331019f53d7fb495c351ac4d806f24059e957a709edf3713216bfa6ee3b2",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:gemini-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json; charset=UTF-8"
+          ],
+          [
+            "X-Upstream",
+            "1"
+          ]
+        ],
+        "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 669\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-gemini-1\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"f\"},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"x\":1},\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"AAAA\"}}]}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "usage_claude_stream_non_terminal_usage",
+      "config": "\napi-keys:\n  gemini:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-2.5-flash\n          alias: u-flash\n      keys:\n        - api-key: AIza-fake-usage\n  interactions:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-3-pro-preview\n          alias: u-pro\n      keys:\n        - api-key: AIza-fake-usage-int\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "requested_model": "u-flash",
+      "payload": "{\"model\":\"u-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:claude-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":7,\"totalTokenCount\":12},\"modelVersion\":\"gemini-2.5-flash-003\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"modelVersion\":\"gemini-2.5-flash-003\"}\n\n"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-usage\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1nZdL29xx5MUA1yADyHTEsnR8uuvGzszyY\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash-003\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+      ],
+      "usage": {
+        "input_tokens": 5,
+        "output_tokens": 7,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 12,
+        "response_model": "gemini-2.5-flash-003",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "usage_claude_stream_malformed_function_call",
+      "config": "\napi-keys:\n  gemini:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-2.5-flash\n          alias: u-flash\n      keys:\n        - api-key: AIza-fake-usage\n  interactions:\n    - base-url: http://UPSTREAM\n      models:\n        - name: gemini-3-pro-preview\n          alias: u-pro\n      keys:\n        - api-key: AIza-fake-usage-int\n",
+      "provider": "gemini",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "requested_model": "u-flash",
+      "payload": "{\"model\":\"u-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "gemini",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "needs": [
+        "pair:claude-\u003egemini"
+      ],
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":5,\"candidatesTokenCount\":7,\"totalTokenCount\":12},\"modelVersion\":\"gemini-2.5-flash-003\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\"MALFORMED_FUNCTION_CALL\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"responseId\":\"r1\"}\n\n"
+      },
+      "request": "POST /v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: AIza-fake-usage\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"msg_1nZdL29xx5MUA1yADyHTEsnR8uuvGzszyY\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash-003\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}\n\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
+      },
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true
+      }
     }
   ]
 }

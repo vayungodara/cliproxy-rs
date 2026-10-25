@@ -64,6 +64,11 @@ async fn serve(app: axum::Router) -> String {
 async fn proxy() -> (String, Arc<Seen>) {
     let seen = Arc::new(Seen::default());
     let up = serve(axum::Router::new().fallback(upstream).with_state(seen.clone())).await;
+    (proxy_to(&up).await, seen)
+}
+
+/// The router with Gemini and Interactions keys whose base URL is `up`.
+async fn proxy_to(up: &str) -> String {
     let config = Config::parse(&format!(
         "access:\n  api-keys: [client-key]\napi-keys:\n  gemini:\n    - base-url: {up}/\n      headers:\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-flash\n          alias: flash\n      keys:\n        - api-key: AIza-fake-upstream\n  interactions:\n    - base-url: {up}\n      models:\n        - name: gemini-3-pro-preview\n          alias: native-pro\n      keys:\n        - api-key: AIza-fake-interactions\n"
     ))
@@ -77,7 +82,7 @@ async fn proxy() -> (String, Arc<Seen>) {
         google: Default::default(),
     };
     let rt = Arc::new(cpa_server::testing::runtime(config, credentials, executors));
-    (serve(router(rt)).await, seen)
+    serve(router(rt)).await
 }
 
 async fn post(url: &str, path: &str, body: &str) -> (u16, String, String) {
@@ -247,6 +252,25 @@ async fn scripted(reply: &serde_json::Value) -> String {
     serve(app).await
 }
 
+/// Go 7f2f17d7: a Gemini MALFORMED_FUNCTION_CALL reaches a Claude stream as one `error`
+/// event; the 502 that ends the executor's stream writes no second one.
+#[tokio::test]
+async fn claude_stream_malformed_function_call_writes_one_error_event() {
+    let chunk = r#"{"candidates":[{"content":{"role":"model","parts":[]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5}}"#;
+    let up = scripted(&serde_json::json!({
+        "status": 200,
+        "headers": [["Content-Type", "text/event-stream"]],
+        "body": format!("data: {chunk}\n\n"),
+    }))
+    .await;
+    let url = proxy_to(&up).await;
+    let body = r#"{"model":"flash","max_tokens":64,"stream":true,"messages":[{"role":"user","content":"hi"}]}"#;
+    let (status, _, text) = post(&url, "/v1/messages", body).await;
+    assert_eq!(status, 200, "{text}");
+    assert_eq!(text.matches("event: error").count(), 1, "{text}");
+    assert!(text.contains(r#""type":"api_error""#), "{text}");
+}
+
 /// The `usage_*` scenarios of the Go executor fixtures through the real router: the
 /// record the usage queue stores must carry the tokens, response model and translated
 /// reasoning effort Go's `UsageReporter` published for the same upstream answer. The
@@ -254,13 +278,28 @@ async fn scripted(reply: &serde_json::Value) -> String {
 /// would parse the translated client response instead.
 #[tokio::test]
 async fn usage_records_match_go() {
+    // Each base recording with its v8.0.35 recordings replacing or adding scenarios.
     let fixtures = [
-        include_str!("../../cpa-exec/tests/fixtures/gemini_go.json"),
-        include_str!("../../cpa-exec/tests/fixtures/vertex_go.json"),
+        (
+            include_str!("../../cpa-exec/tests/fixtures/gemini_go.json"),
+            include_str!("../../cpa-exec/tests/fixtures/gemini_go_v8.0.35.json"),
+        ),
+        (
+            include_str!("../../cpa-exec/tests/fixtures/vertex_go.json"),
+            include_str!("../../cpa-exec/tests/fixtures/vertex_go_v8.0.35.json"),
+        ),
     ];
     let mut ran = 0;
-    for fixture in fixtures {
-        let fixture: serde_json::Value = serde_json::from_str(fixture).unwrap();
+    for (base, newer) in fixtures {
+        let mut fixture: serde_json::Value = serde_json::from_str(base).unwrap();
+        let newer: serde_json::Value = serde_json::from_str(newer).unwrap();
+        let cases = fixture["scenarios"].as_array_mut().unwrap();
+        for case in newer["scenarios"].as_array().unwrap() {
+            match cases.iter_mut().find(|c| c["name"] == case["name"]) {
+                Some(slot) => *slot = case.clone(),
+                None => cases.push(case.clone()),
+            }
+        }
         for s in fixture["scenarios"].as_array().unwrap() {
             let name = s["name"].as_str().unwrap();
             if !name.starts_with("usage_") {
@@ -341,7 +380,7 @@ async fn usage_records_match_go() {
             ran += 1;
         }
     }
-    assert_eq!(ran, 7, "usage scenarios in the Go fixtures");
+    assert_eq!(ran, 8, "usage scenarios in the Go fixtures");
 }
 
 /// With session affinity, a Gemini body nested far deeper than any conversation is

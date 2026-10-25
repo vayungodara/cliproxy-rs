@@ -16,9 +16,16 @@ use super::*;
 
 const FIXTURE: &str = include_str!("../tests/fixtures/vertex_go.json");
 
+/// `vertex_go.json` with the API-key scenarios recorded again (or added) at v8.0.35.
 fn fixture() -> &'static Value {
     static PARSED: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
-    PARSED.get_or_init(|| serde_json::from_str(FIXTURE).unwrap())
+    PARSED.get_or_init(|| {
+        crate::payload_barrier::with_v8_0_35(
+            FIXTURE,
+            include_str!("../tests/fixtures/vertex_go_v8.0.35.json"),
+            "scenarios",
+        )
+    })
 }
 
 /// The JWT clock for the scenario running (Go's recorded `iat` + 10 s).
@@ -77,9 +84,11 @@ async fn answer<S: AsyncRead + AsyncWrite + Unpin>(stream: S, reply: &Value, sin
     for h in reply["headers"].as_array().into_iter().flatten() {
         out.push_str(&format!("{}: {}\r\n", h[0].as_str().unwrap(), h[1].as_str().unwrap()));
     }
+    // `missing`: bytes promised beyond the body, a connection closed mid-stream.
+    let missing = reply["missing"].as_u64().unwrap_or(0) as usize;
     out.push_str(&format!(
         "Content-Length: {}\r\nConnection: close\r\n\r\n{body}",
-        body.len()
+        body.len() + missing
     ));
     let stream = reader.get_mut();
     let _ = stream.write_all(out.as_bytes()).await;
@@ -246,11 +255,13 @@ async fn go_reference_scenarios() {
         let mut output = None;
         let mut streamed = Vec::new();
         let mut error = None;
+        let mut mid_stream = false;
         match executor.execute(&cred, req, &cfg).await {
             Err(e) => error = Some((e.status, String::from_utf8_lossy(&e.body).into_owned())),
             Ok(response) => match response.body {
                 ResponseBody::Buffered(bytes) => output = Some(String::from_utf8(bytes.to_vec()).unwrap()),
                 ResponseBody::Stream(mut stream) => {
+                    mid_stream = true;
                     while let Some(item) = stream.next().await {
                         match item {
                             Ok(bytes) => streamed.extend_from_slice(&bytes),
@@ -260,13 +271,19 @@ async fn go_reference_scenarios() {
                 }
             },
         }
-        // A Go error without a status code is answered 500 by Go's handler.
+        // A Go error without a status code is answered 500 by Go's handler. Mid-stream
+        // (a scanner error after the status line) no status reaches the client, so only
+        // the message is compared.
         let want_error = s["error"].as_object().map(|e| {
             let status = e["status"].as_u64().unwrap() as u16;
             (
                 if status == 0 { 500 } else { status },
                 e["message"].as_str().unwrap().to_owned(),
             )
+        });
+        let error = error.map(|(status, message)| match want_error {
+            Some((500, _)) if mid_stream && s["error"]["status"] == 0 => (500, message),
+            _ => (status, message),
         });
         assert_eq!(error, want_error, "{name}: error");
         let norm = |t: &str| {

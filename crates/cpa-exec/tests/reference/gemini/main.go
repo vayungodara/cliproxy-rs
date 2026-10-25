@@ -44,6 +44,8 @@ type upstream struct {
 	Body    string      `json:"body"`
 	// Gzip compresses Body on the wire; the declared encoding is in Headers.
 	Gzip bool `json:"gzip,omitempty"`
+	// Missing bytes are promised beyond Body: the connection closes mid-stream.
+	Missing int `json:"missing,omitempty"`
 }
 
 type errOut struct {
@@ -170,7 +172,7 @@ func capture(ln net.Listener, up *upstream, done chan<- string) {
 	for _, h := range up.Headers {
 		fmt.Fprintf(&out, "%s: %s\r\n", h[0], h[1])
 	}
-	fmt.Fprintf(&out, "Content-Length: %d\r\n", len(payload))
+	fmt.Fprintf(&out, "Content-Length: %d\r\n", len(payload)+up.Missing)
 	out.WriteString("Connection: close\r\n\r\n")
 	out.Write(payload)
 	_, _ = conn.Write(out.Bytes())

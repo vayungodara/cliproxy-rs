@@ -1,0 +1,940 @@
+{
+  "scenarios": [
+    {
+      "name": "key_stream_trailing_slash_base",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 1,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /v2/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-2\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ": keepalive",
+        "",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ""
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_publishers_prefix_base",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/v1/projects/p-1/locations/us-central1/publishers/google/models/\n      keys:\n        - api-key: vk-fake-prefix\n    - base-url: http://UPSTREAM/v1beta1/\n      keys:\n        - api-key: vk-fake-beta\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /v1/projects/p-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-prefix\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ": keepalive",
+        "",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ""
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_publishers_prefix_count",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/v1/projects/p-1/locations/us-central1/publishers/google/models/\n      keys:\n        - api-key: vk-fake-prefix\n    - base-url: http://UPSTREAM/v1beta1/\n      keys:\n        - api-key: vk-fake-beta\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "count",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
+        }
+      ],
+      "requests": [
+        "POST /v1/projects/p-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:countTokens HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 103\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-prefix\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"session_id\":\"sess-1\"}"
+      ],
+      "output": "{\"totalTokens\":5,\"promptTokensDetails\":[{\"modality\":\"TEXT\",\"tokenCount\":5}]}"
+    },
+    {
+      "name": "key_version_suffix_base",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/v1/projects/p-1/locations/us-central1/publishers/google/models/\n      keys:\n        - api-key: vk-fake-prefix\n    - base-url: http://UPSTREAM/v1beta1/\n      keys:\n        - api-key: vk-fake-beta\n",
+      "config_auth": 1,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"session_id\":\"sess-1\"}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "session:sess-1",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /v1beta1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-beta\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_execute_single_thought_turn",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"t\",\"thought\":true}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 415\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_stream_single_thought_turn",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"t\",\"thought\":true}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "stream",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 508\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"t\",\"thought\":true}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ": keepalive",
+        "",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ""
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_stream_trailing_thought_turns",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"t1\",\"thought\":true},{\"text\":\"t2\",\"thought\":\"true\"}]},{\"role\":\"assistant\",\"parts\":[{\"text\":\"t3\",\"thought\":1}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 595\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"t1\",\"thought\":true},{\"text\":\"t2\",\"thought\":\"true\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"t3\",\"thought\":1}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ": keepalive",
+        "",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ""
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_stream_trailing_thought_dropped",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"t\",\"thought\":true}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\r\n\r\n: keepalive\n\ndata:{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 494\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ": keepalive",
+        "",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+        "",
+        ""
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_execute_thought_function_call_kept",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"functionCall\":{\"name\":\"f\",\"args\":{}}}]},{\"role\":\"model\",\"parts\":[{\"text\":\"t\",\"thought\":true}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 590\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:47d2dc35679bcfc314333d8af9a38fc1dc13f5e57163c895584b848c5fcbe929\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"q\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"functionCall\":{\"name\":\"f\",\"args\":{}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_claude_malformed_execute",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "claude",
+      "op": "execute",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[]},\"finishReason\":\"MALFORMED_FUNCTION_CALL\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":4,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "error": {
+        "status": 502,
+        "message": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
+      },
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true
+      }
+    },
+    {
+      "name": "key_claude_malformed_stream",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"x\"}]},\"finishReason\":\"MALFORMED_FUNCTION_CALL\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\"}\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"r1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[],\"model\":\"gemini-2.5-flash\",\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n\n",
+        "",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"x\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: error\ndata: {\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}\n\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
+      },
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true
+      }
+    },
+    {
+      "name": "sa_responses_tool_ids_stripped",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"done\"}],\"tools\":[{\"type\":\"function\",\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"}}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NTE3MjgsImlhdCI6MTc5Mjk0ODEyOH0.w5VPr3AmnvdnScU8QoTVPAijpoXClc9S8mMJGJcspXehmdiH5Nj2uz-p-e8hQl2u8eFedOb500mXlKu49OB3PFNN1y6_KGlp0noy_Z7zk-5TUZHG2VA48Z6hZL3kAP6zzXPsrRWXRdQoa7uupZ1S8M6ddU-8V2UB9QL1iX--X4YLGtpHKvzLKFsub5aEI_757JQIoYy9FSnS0NKxXEw4UgaYreGFtDzKdnZUC2KSJ4jlyqebmYVG8A1rwQe9alPHhIAfFUBrSRk4fBtklZhDHvZKAd8t-JXYn7AxKhBaCifGDUkcjycbpdPG2AtPo_7d8tVqUwUTqUDY7yU_y721Vw\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 755\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"lookup\",\"response\":{\"result\":\"done\"}}}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"lookup\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_codex_tool_integer_types",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"shell\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "headers": {
+        "User-Agent": "codex_cli_rs/0.50.0 (Mac OS 15.0)"
+      },
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 575\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"shell\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"shell\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}},\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_responses_stream_read_error",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\",\"stream\":true}",
+      "source": "openai-response",
+      "op": "stream",
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
+          "missing": 40
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n"
+      ],
+      "error": {
+        "status": 0,
+        "message": "unexpected EOF"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true
+      }
+    }
+  ]
+}

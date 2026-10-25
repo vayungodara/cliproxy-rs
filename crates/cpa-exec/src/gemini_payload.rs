@@ -57,7 +57,8 @@ pub(crate) fn ensure_leading_user_content(body: Vec<u8>, path: &str) -> Vec<u8> 
 }
 
 /// `helps.EnsureGeminiTrailingUserContent`: a final `model`/`assistant` turn gets an
-/// empty user turn after it, unless it carries a function response.
+/// empty user turn after it, unless it carries a function response without nested
+/// media (Antigravity rejects a final function response with media, Go #6524).
 pub(crate) fn ensure_trailing_user_content(body: Vec<u8>, path: &str) -> Vec<u8> {
     let contents = gj::get(&body, path);
     if !contents.is_array() {
@@ -68,15 +69,55 @@ pub(crate) fn ensure_trailing_user_content(body: Vec<u8>, path: &str) -> Vec<u8>
         return body;
     };
     let role = last.get("role").bytes();
-    let has_function_response = {
-        let parts = last.get("parts");
-        parts.is_array() && parts.array().iter().any(|p| p.get("functionResponse").exists())
-    };
-    if !matches!(&*role, b"model" | b"assistant") || has_function_response {
+    if !matches!(&*role, b"model" | b"assistant") {
+        return body;
+    }
+    let parts = last.get("parts");
+    let parts = if parts.is_array() { parts.array() } else { Vec::new() };
+    let has_function_response = parts.iter().any(|p| p.get("functionResponse").exists());
+    let has_media = parts.iter().any(|p| {
+        p.get("functionResponse.parts").array().iter().any(|n| {
+            ["inlineData", "inline_data", "fileData", "file_data"]
+                .iter()
+                .any(|k| n.get(*k).exists())
+        })
+    });
+    if has_function_response && !has_media {
         return body;
     }
     let mut raw: Vec<&[u8]> = items.iter().map(|c| c.raw()).collect();
     raw.push(EMPTY_USER_TURN);
+    let joined = gj::join(&raw);
+    gj::try_set_raw(&body, path, joined).unwrap_or(body)
+}
+
+/// `helps.DropGeminiTrailingThoughtOnlyContent`: trailing `model`/`assistant` turns
+/// whose parts are all thoughts (no function call or response) are removed, keeping at
+/// least one turn.
+pub(crate) fn drop_trailing_thought_only_content(body: Vec<u8>, path: &str) -> Vec<u8> {
+    let contents = gj::get(&body, path);
+    if !contents.is_array() {
+        return body;
+    }
+    let items = contents.array();
+    let thought_only = |c: &gj::Res<'_>| {
+        if !matches!(&*c.get("role").bytes(), b"model" | b"assistant") {
+            return false;
+        }
+        let parts = c.get("parts").array();
+        !parts.is_empty()
+            && parts.iter().all(|p| {
+                p.get("thought").bool() && !p.get("functionCall").exists() && !p.get("functionResponse").exists()
+            })
+    };
+    let mut keep = items.len();
+    while keep > 1 && thought_only(&items[keep - 1]) {
+        keep -= 1;
+    }
+    if keep == items.len() {
+        return body;
+    }
+    let raw: Vec<&[u8]> = items[..keep].iter().map(|c| c.raw()).collect();
     let joined = gj::join(&raw);
     gj::try_set_raw(&body, path, joined).unwrap_or(body)
 }

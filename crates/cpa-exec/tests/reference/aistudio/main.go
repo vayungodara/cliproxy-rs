@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -292,11 +293,28 @@ func main() {
 	for i := range all {
 		run(&all[i], manager, provider, b)
 	}
-	data, err := json.MarshalIndent(map[string]any{"scenarios": all, "decode": decodeVectors(), "encode": encodeVectors()}, "", "  ")
+	out := map[string]any{"scenarios": all, "decode": decodeVectors(), "encode": encodeVectors()}
+	if only := os.Getenv("RSFIX_ONLY"); only != "" {
+		// Every scenario runs, the matching ones are written.
+		out = map[string]any{"scenarios": filterScenarios(all, regexp.MustCompile(only))}
+	}
+	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		panic(err)
 	}
 	if err := os.WriteFile(os.Args[1], append(data, '\n'), 0o644); err != nil {
 		panic(err)
 	}
+}
+
+// filterScenarios keeps the scenarios whose name matches only (RSFIX_ONLY): a partial
+// recording of a later reference, overlaid on the full one by name.
+func filterScenarios(all []scenario, only *regexp.Regexp) []scenario {
+	var kept []scenario
+	for _, s := range all {
+		if only.MatchString(s.Name) {
+			kept = append(kept, s)
+		}
+	}
+	return kept
 }
