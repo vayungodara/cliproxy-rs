@@ -85,6 +85,14 @@ pub(crate) fn original(
     Ok(cpa_common::json::delete_changed(&original, "max_tokens").map_or(original, Bytes::from))
 }
 
+/// The payload-config baseline when its translation was refused: the working
+/// translation, since Go ignores a refusal only the baseline hits (as `original` does).
+// ponytail: Go keeps the refused baseline's partial translation; see `original` for what
+// that changes. Upgrade by returning the partial body with translator errors.
+pub(crate) fn baseline_or_working(original: Result<Vec<u8>, ExecError>, working: &[u8]) -> Vec<u8> {
+    original.unwrap_or_else(|_| working.to_vec())
+}
+
 /// The count_tokens rule baseline (868e137): the client's original payload translated
 /// like the working one, else the working translation (`translated`). Go counts with a
 /// failed translation's partial body; this refuses with its error.

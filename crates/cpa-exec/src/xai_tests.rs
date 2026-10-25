@@ -545,3 +545,38 @@ async fn compact_keeps_a_configured_top_k() {
         assert!(!gj::get(&body, absent).exists(), "{absent}: {wire}");
     }
 }
+
+/// Go ignores a refusal only the original (baseline) body hits
+/// (TranslateRequestPairWithAPIKeyModelCompatibilityAndUpdateIntent): the working body is
+/// the one sent, and only its own refusal refuses the request.
+#[tokio::test]
+async fn a_refused_baseline_alone_does_not_refuse_the_request() {
+    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    let mut s = fixture["scenarios"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == "claude_execute")
+        .unwrap()
+        .clone();
+    s["original"] = Value::String(
+        r#"{"model":"grok-4.3","max_tokens":100,"messages":[{"role":"user","content":[{"type":"container_upload","source":{"type":"file","file_id":"f1"}}]}]}"#.into(),
+    );
+    let run = |s: Value| async move {
+        let mock = Mock::start(&s["upstream"]).await;
+        let addr = mock.addr.clone();
+        let executor = XaiExecutor::default().with_url_rewrite(move |url| redirect(url, &addr));
+        let cfg = Config::parse("").unwrap();
+        let cred = credential(&s, &cfg);
+        let ok = executor
+            .execute(&cred, request(&s, Default::default()), &cfg, false)
+            .await
+            .is_ok();
+        (ok, mock.request())
+    };
+    let (ok, wire) = run(s.clone()).await;
+    assert!(ok);
+    assert!(wire.unwrap().contains("hello"));
+    s["payload"] = s["original"].clone();
+    assert_eq!(run(s).await, (false, None));
+}

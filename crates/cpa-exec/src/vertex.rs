@@ -536,8 +536,9 @@ impl VertexExecutor {
     ) -> Result<(Vec<u8>, Vec<u8>), ExecError> {
         let (from, to) = (req.source_format, Format::Gemini);
         let resolved = g::resolved(req);
-        let original = g::translate(req, cfg, to, base_model, g::original_request(req), req.stream, false)?;
+        let original = g::translate(req, cfg, to, base_model, g::original_request(req), req.stream, false);
         let body = g::translate(req, cfg, to, base_model, &req.body, req.stream, false)?;
+        let original = crate::translate::baseline_or_working(original, &body);
         let mut body = g::apply_thinking(req, body, from, to, PROVIDER, resolved.as_ref())?;
         body = payload::fix_image_aspect_ratio(base_model, body);
         body = payload::set_str_if_different(body, "model", base_model);

@@ -393,8 +393,9 @@ fn prepare(req: &ExecRequest, cfg: &Config, stream: bool) -> Result<Prepared, Ex
     };
     // Go translates the original request first, for payload-rule defaults, then the
     // working one, even when they are equal (a stateful plugin normalizer sees both).
-    let original_translated = translate(original(req))?;
+    let original_translated = translate(original(req));
     let mut body = translate(&req.body)?;
+    let original_translated = crate::translate::baseline_or_working(original_translated, &body);
     // Go `cliproxyauth.ResolvedModelInfo`: capabilities bound to this attempt.
     let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
     let thinking = apply_request_thinking(&RequestThinking {
