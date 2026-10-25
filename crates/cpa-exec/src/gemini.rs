@@ -595,85 +595,12 @@ impl GeminiExecutor {
         req: &ExecRequest,
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
-        let target = parse_suffix(&req.model).model_name;
-        let (from, to) = (req.source_format, Format::Interactions);
-        let resolved = resolved(req);
-        let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
-        // Interactions clients are sent as they are, without the registry normalizer.
-        let (original_translated, mut body) = if from == Format::Interactions {
-            (original_request(req).to_vec(), req.body.to_vec())
-        } else {
-            translate_pair(req, cfg, to, &target, compat)?
-        };
-        if gj::get(&body, "model").exists() && !target.is_empty() {
-            body = payload::set_str_if_different(body, "model", &target);
-        }
-        // applyGeminiInteractionsThinking: the Gemini applier family for the target.
-        body = apply_thinking(req, body, from, to, "gemini", resolved.as_ref())?;
-        body = payload::sanitize_interactions_input_ids(body);
-        if req.stream {
-            body = payload::set_bool_if_different(body, "stream", true);
-        }
-        body = Barrier {
-            executor: "",
-            model: &target,
-            protocol: "interactions",
-            root: "",
-            original: &original_translated,
-        }
-        .apply(cfg, req, body);
+        let body = interactions_body(req, cfg)?;
         let url = format!("{}/{API_VERSION}/interactions", base_url(credential));
         let mut headers = request_headers(credential, req);
-        // applyGeminiInteractionsRequestHeaders, then applyGeminiInteractionsRevisionHeader.
-        if headers.get("Api-Revision").is_none_or(str::is_empty)
-            && let Some(revision) = req
-                .headers
-                .get("Api-Revision")
-                .and_then(|v| v.to_str().ok())
-                .filter(|v| !v.is_empty())
-        {
-            headers.set("Api-Revision", revision);
-        }
-        if headers.get("Api-Revision").is_none_or(str::is_empty) {
-            headers.set("Api-Revision", INTERACTIONS_REVISION);
-        }
-        let capture = req.capture();
+        interactions_revision(&mut headers, req);
         let client = self.client(credential, cfg);
-        // One buffer for the send, the request log and the translators below.
-        let body = Bytes::from(body);
-        let upstream = send_captured(
-            capture,
-            credential,
-            identifier(credential),
-            &client,
-            &url,
-            headers,
-            body.clone(),
-            req.stream,
-        )
-        .await?;
-        if !req.stream {
-            let (response_headers, data) = read_then_check(capture, upstream).await?;
-            req.usage.response_body(to, &data);
-            let out = translate_non_stream(req, to, &body, &data)?;
-            return Ok(ExecResponse {
-                status: 200,
-                headers: response_headers,
-                body: ResponseBody::Buffered(out),
-            });
-        }
-        if !(200..300).contains(&upstream.status) {
-            return Err(error_from(capture, upstream).await);
-        }
-        let response_headers = upstream.headers.clone();
-        let output = Output::new(req, to, &body).fail_on_client_drop(DropRule::Always);
-        let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
-        let stream = interactions_lines(lines, output);
-        Ok(ExecResponse {
-            status: 200,
-            headers: response_headers,
-            body: ResponseBody::Stream(stream),
-        })
+        interactions_exchange(req, credential, identifier(credential), &client, &url, headers, body).await
     }
 
     /// `CountTokens`: the translated request without tools, generation and safety
@@ -1317,6 +1244,104 @@ pub(crate) const LINE_END: &[u8] = b"\r\n";
 
 pub(crate) fn line_event(line: &[u8]) -> Vec<u8> {
     [line, LINE_END].concat()
+}
+
+/// The Interactions request body (Go 2d5351b3's shared helpers, as the Gemini and Vertex
+/// executors build it): Interactions clients as they are, others translated; the
+/// target model, thinking, input-ID repair, `stream` and the payload rules.
+pub(crate) fn interactions_body(req: &ExecRequest, cfg: &Config) -> Result<Bytes, ExecError> {
+    let target = parse_suffix(&req.model).model_name;
+    let (from, to) = (req.source_format, Format::Interactions);
+    let resolved = resolved(req);
+    let compat = resolved.as_ref().is_some_and(|r| r.is_compat);
+    // Interactions clients are sent as they are, without the registry normalizer.
+    let (original_translated, mut body) = if from == Format::Interactions {
+        (original_request(req).to_vec(), req.body.to_vec())
+    } else {
+        translate_pair(req, cfg, to, &target, compat)?
+    };
+    if gj::get(&body, "model").exists() && !target.is_empty() {
+        body = payload::set_str_if_different(body, "model", &target);
+    }
+    // applyGeminiInteractionsThinking: the Gemini applier family for the target.
+    body = apply_thinking(req, body, from, to, "gemini", resolved.as_ref())?;
+    body = payload::sanitize_interactions_input_ids(body);
+    if req.stream {
+        body = payload::set_bool_if_different(body, "stream", true);
+    }
+    body = Barrier {
+        executor: "",
+        model: &target,
+        protocol: "interactions",
+        root: "",
+        original: &original_translated,
+    }
+    .apply(cfg, req, body);
+    Ok(Bytes::from(body))
+}
+
+/// applyGeminiInteractionsRequestHeaders, then applyGeminiInteractionsRevisionHeader.
+pub(crate) fn interactions_revision(headers: &mut GoHeaders, req: &ExecRequest) {
+    if headers.get("Api-Revision").is_none_or(str::is_empty)
+        && let Some(revision) = req
+            .headers
+            .get("Api-Revision")
+            .and_then(|v| v.to_str().ok())
+            .filter(|v| !v.is_empty())
+    {
+        headers.set("Api-Revision", revision);
+    }
+    if headers.get("Api-Revision").is_none_or(str::is_empty) {
+        headers.set("Api-Revision", INTERACTIONS_REVISION);
+    }
+}
+
+/// Sends an Interactions request and answers it: the translated body, or the
+/// Interactions stream loop.
+pub(crate) async fn interactions_exchange(
+    req: &ExecRequest,
+    credential: &Credential,
+    provider: &str,
+    client: &wreq::Client,
+    url: &str,
+    headers: GoHeaders,
+    body: Bytes,
+) -> Result<ExecResponse, ExecError> {
+    let to = Format::Interactions;
+    let capture = req.capture();
+    let upstream = send_captured(
+        capture,
+        credential,
+        provider,
+        client,
+        url,
+        headers,
+        body.clone(),
+        req.stream,
+    )
+    .await?;
+    if !req.stream {
+        let (response_headers, data) = read_then_check(capture, upstream).await?;
+        req.usage.response_body(to, &data);
+        let out = translate_non_stream(req, to, &body, &data)?;
+        return Ok(ExecResponse {
+            status: 200,
+            headers: response_headers,
+            body: ResponseBody::Buffered(out),
+        });
+    }
+    if !(200..300).contains(&upstream.status) {
+        return Err(error_from(capture, upstream).await);
+    }
+    let response_headers = upstream.headers.clone();
+    let output = Output::new(req, to, &body).fail_on_client_drop(DropRule::Always);
+    let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
+    let stream = interactions_lines(lines, output);
+    Ok(ExecResponse {
+        status: 200,
+        headers: response_headers,
+        body: ResponseBody::Stream(stream),
+    })
 }
 
 /// The Interactions stream loop. The translator groups the lines into SSE frames at

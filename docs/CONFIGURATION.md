@@ -90,6 +90,8 @@ api-keys:
           alias: "kimi-k2"
 ```
 
+A `vertex` key with `interactions: true` sends Interactions clients (`/v1beta/interactions`) to Vertex's native Interactions API (`/v1beta1/interactions`) instead of translating them to `generateContent`. A Vertex service-account file opts in the same way with `"interactions": true` at the top level.
+
 ## routing
 
 How the server picks an account for each request. [MULTI-ACCOUNT.md](MULTI-ACCOUNT.md) explains these in detail.

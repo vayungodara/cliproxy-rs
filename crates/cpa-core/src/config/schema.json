@@ -913,6 +913,9 @@
                     },
                     "request-retry": {
                       "optional": "int"
+                    },
+                    "interactions": {
+                      "optional": "bool"
                     }
                   }
                 }

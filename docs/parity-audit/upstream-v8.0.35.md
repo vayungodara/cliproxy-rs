@@ -22,7 +22,7 @@ Columns:
 | Translation to and from Claude | 17 | 13 | 4 | 0 | 0 | 0 |
 | Payload rules | 1 | 1 | 0 | 0 | 0 | 0 |
 | Codex | 19 | 18 | 1 | 0 | 0 | 0 |
-| Gemini, Vertex and AI Studio | 20 | 15 | 4 | 0 | 1 | 0 |
+| Gemini, Vertex and AI Studio | 20 | 16 | 3 | 0 | 1 | 0 |
 | xAI | 8 | 2 | 6 | 0 | 0 | 0 |
 | OpenAI-compatible and Responses translation | 6 | 0 | 6 | 0 | 0 | 0 |
 | Devin and Meta | 8 | 0 | 8 | 0 | 0 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **122** | **99** | **0** | **64** | **3** |
+| **All** | **288** | **123** | **98** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -170,7 +170,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`dbc4aad9`](https://github.com/router-for-me/CLIProxyAPI/commit/dbc4aad9) | fix(gemini): ignore context cancellation after terminal chunk in Vertex stream | yes | ported here | S (+43 −0) | Vertex and Antigravity: cancellation after the terminal chunk stays a success (Antigravity's failure keeps the usage seen so far); a client that goes away before it (and on Gemini API keys and Interactions at any point) fails the attempt with `context canceled` (499), as Go's scanner does, while AI Studio's relay closes quietly and succeeds (`gemini.rs` `fail_on_client_drop`); checked by Go-recorded `*client_drop*` scenarios in the v8.0.35 Gemini (API key and Interactions), Vertex, AI Studio and Antigravity overlays; the credential result differs (DIFFERENCES-FROM-GO.md) |
 | [`f51624aa`](https://github.com/router-for-me/CLIProxyAPI/commit/f51624aa) | fix(translator): report unsendable user turn attachments in openai responses to interactions | yes | to port | L (+1462 −356) | Responses to Interactions: unsendable attachments reported |
 | [`0f96f568`](https://github.com/router-for-me/CLIProxyAPI/commit/0f96f568) | refactor(translator): update openai and interactions request converters to return errors | no | to port | L (+126 −231) | request converters return errors (refactor behind f51624aa) |
-| [`2d5351b3`](https://github.com/router-for-me/CLIProxyAPI/commit/2d5351b3) | feat(vertex): add support for native gemini interactions api | yes | to port | L (+591 −110) | Vertex native Interactions API |
+| [`2d5351b3`](https://github.com/router-for-me/CLIProxyAPI/commit/2d5351b3) | feat(vertex): add support for native gemini interactions api | yes | ported here | L (+591 −110) | Vertex native Interactions for Interactions clients on a credential with `interactions` (config key, or a file's `interactions` / `native_interactions`): `vertex.rs` `interactions`, sharing the Gemini executor's request building (`gemini.rs` `interactions_body`, `interactions_exchange`); checked by the Go-recorded `int_*` scenarios of the v8.0.35 Vertex overlay |
 | [`15d2148b`](https://github.com/router-for-me/CLIProxyAPI/commit/15d2148b) | fix(gemini): ensure trailing user turn for function response with media | yes | ported here | S (+24 −1) | trailing user turn for a function response with media (`gemini_payload.rs`); checked by the v8.0.35 Gemini executor overlay |
 | [`9126772d`](https://github.com/router-for-me/CLIProxyAPI/commit/9126772d) | fix(gemini): strip unsupported dependent schema keywords | yes | ported here | S (+1 −0) | dependent schema keywords stripped; same golden |
 | [`a0fd8448`](https://github.com/router-for-me/CLIProxyAPI/commit/a0fd8448) | fix(schema): preserve multi-branch anyOf/oneOf unions during schema sanitization | yes | ported here | M (+209 −53) | multi-branch schema unions preserved; same golden, and the `openai-gemini` pair re-recorded at v8.0.35 |
