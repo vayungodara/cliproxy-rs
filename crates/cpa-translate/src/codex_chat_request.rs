@@ -3,14 +3,14 @@
 
 use crate::{
     Registered, apply_patch, codex_chat_response as response,
-    common::{go_lower, sanitize, trim_space},
+    common::{UserTurnDrops, go_lower, sanitize, trim_space},
 };
 use cpa_common::json::{self as gj, AnyValue, Kind, Res};
 use std::collections::{HashMap, HashSet};
 
 pub static PAIR: Registered = registered!(
     OpenAI -> Codex,
-    request: |ctx, body| Ok(convert(ctx.model, body, ctx.stream)),
+    request: |ctx, body| convert(ctx.model, body, ctx.stream),
     non_stream: response::non_stream,
     go_stream: response::go_stream,
     token_count: None,
@@ -135,7 +135,8 @@ struct PendingCall {
     consumed: bool,
 }
 
-fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
+fn convert(model: &str, raw: &[u8], stream: bool) -> Result<Vec<u8>, crate::Error> {
+    let mut drops = UserTurnDrops::default();
     let root = gj::parse(raw);
     let tools = root.get("tools");
     let tool_list = tools.array();
@@ -242,8 +243,11 @@ fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
             let text_type = if assistant { "output_text" } else { "input_text" };
             let user = role == b"user";
             let mut parts = vec![];
+            // Counts the parts this user turn really sends; an empty text part does not.
+            let mut sendable = 0;
             let content = m.get("content");
             if content.kind == Kind::String && !content.s.is_empty() {
+                sendable += 1;
                 let mut part = b"{}".to_vec();
                 gj::set_str(&mut part, "type", text_type);
                 gj::set_str(&mut part, "text", &content.s);
@@ -256,6 +260,9 @@ fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
                             gj::set_str(&mut part, "type", text_type);
                             gj::set_str(&mut part, "text", it.get("text").bytes());
                             parts.push(part);
+                            if !it.get("text").bytes().is_empty() {
+                                sendable += 1;
+                            }
                         }
                         b"image_url" if user => {
                             let mut part = b"{}".to_vec();
@@ -265,20 +272,15 @@ fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
                                 gj::set_str(&mut part, "image_url", url.bytes());
                             }
                             parts.push(part);
+                            sendable += 1;
                         }
-                        b"file" if user => {
-                            let data = it.get("file.file_data").bytes();
-                            let filename = it.get("file.filename").bytes();
-                            if !data.is_empty() {
-                                let mut part = b"{}".to_vec();
-                                gj::set_str(&mut part, "type", "input_file");
-                                gj::set_str(&mut part, "file_data", &data);
-                                if !filename.is_empty() {
-                                    gj::set_str(&mut part, "filename", &filename);
-                                }
+                        b"file" if user => match input_file_part(&it) {
+                            Some(part) => {
                                 parts.push(part);
+                                sendable += 1;
                             }
-                        }
+                            None => drops.drop_part("file"),
+                        },
                         b"input_audio" if user => {
                             let data = it.get("input_audio.data").bytes();
                             let format = it.get("input_audio.format").bytes();
@@ -290,11 +292,17 @@ fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
                                     gj::set_str(&mut part, "format", &format);
                                 }
                                 parts.push(part);
+                                sendable += 1;
+                            } else {
+                                drops.drop_part("input_audio");
                             }
                         }
                         _ => {}
                     }
                 }
+            }
+            if user {
+                drops.end_turn(sendable);
             }
             if !assistant || !parts.is_empty() {
                 gj::set_raw(&mut msg, "content", gj::join(&parts));
@@ -489,7 +497,7 @@ fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
         }
     }
     gj::set_bool(&mut out, "store", false);
-    out
+    drops.result().map(|()| out)
 }
 
 /// `shortenCodexCallIDIfNeeded`: an ID over 64 bytes keeps its first bytes (cut without
@@ -581,30 +589,34 @@ fn output_part(item: &Res<'_>) -> Vec<u8> {
             }
             part
         }
-        b"file" => {
-            let (id, data, url) = (
-                item.get("file.file_id").bytes(),
-                item.get("file.file_data").bytes(),
-                item.get("file.file_url").bytes(),
-            );
-            if id.is_empty() && data.is_empty() && url.is_empty() {
-                return fallback_part(item);
-            }
-            let mut part = b"{}".to_vec();
-            gj::set_str(&mut part, "type", "input_file");
-            for (key, value) in [("file_id", &id), ("file_data", &data), ("file_url", &url)] {
-                if !value.is_empty() {
-                    gj::set_str(&mut part, key, value.as_ref());
-                }
-            }
-            let filename = item.get("file.filename").bytes();
-            if !filename.is_empty() {
-                gj::set_str(&mut part, "filename", &filename);
-            }
-            part
-        }
+        b"file" => input_file_part(item).unwrap_or_else(|| fallback_part(item)),
         _ => fallback_part(item),
     }
+}
+
+/// codexInputFilePart: a chat `file` part as an input_file, or None when it names no
+/// file_id, file_data or file_url.
+fn input_file_part(item: &Res<'_>) -> Option<Vec<u8>> {
+    let (id, data, url) = (
+        item.get("file.file_id").bytes(),
+        item.get("file.file_data").bytes(),
+        item.get("file.file_url").bytes(),
+    );
+    if id.is_empty() && data.is_empty() && url.is_empty() {
+        return None;
+    }
+    let mut part = b"{}".to_vec();
+    gj::set_str(&mut part, "type", "input_file");
+    for (key, value) in [("file_id", &id), ("file_data", &data), ("file_url", &url)] {
+        if !value.is_empty() {
+            gj::set_str(&mut part, key, value.as_ref());
+        }
+    }
+    let filename = item.get("file.filename").bytes();
+    if !filename.is_empty() {
+        gj::set_str(&mut part, "filename", &filename);
+    }
+    Some(part)
 }
 
 /// hasToolOutputImagePart.
@@ -634,7 +646,8 @@ mod tests {
                 case["model"].as_str().unwrap(),
                 case["in"].as_str().unwrap().as_bytes(),
                 case["stream"].as_bool().unwrap(),
-            );
+            )
+            .unwrap();
             assert_eq!(
                 String::from_utf8_lossy(&out),
                 case["out"].as_str().unwrap(),

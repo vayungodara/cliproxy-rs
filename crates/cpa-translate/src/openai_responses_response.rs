@@ -20,7 +20,7 @@ use crate::{Error, Registered, ResponseCtx};
 
 pub static PAIR: Registered = registered!(
     OpenAIResponse -> OpenAI,
-    request: |ctx, body| Ok(crate::openai_responses::convert(ctx.model, body, ctx.stream)),
+    request: |ctx, body| crate::openai_responses::convert(ctx.model, body, ctx.stream),
     non_stream: non_stream,
     go_stream: go_stream,
     token_count: None,

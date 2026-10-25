@@ -131,6 +131,25 @@ async fn alias_routes_to_configured_upstream_with_its_key() {
 }
 
 #[tokio::test]
+async fn a_responses_body_whose_user_turn_empties_still_goes_upstream_converted() {
+    // Go's Chat Completions handler ignores the conversion's refusal of an emptied user
+    // turn (openai_handlers.go L134-140) and sends the converted body, not the raw input.
+    let (url, seen) = proxy().await;
+    let (status, _, text) = post(
+        &url,
+        r#"{"model":"fast","input":[{"type":"message","role":"user","content":[{"type":"input_file","file_url":"https://x/a.pdf"}]}]}"#,
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    let seen = seen.0.lock().unwrap().clone();
+    assert_eq!(seen.len(), 1);
+    assert_eq!(
+        seen[0].2,
+        r#"{"model":"up-model","messages":[{"role":"user","content":[]}],"stream":false}"#
+    );
+}
+
+#[tokio::test]
 async fn streaming_requests_usage_and_ends_with_done() {
     let (url, seen) = proxy().await;
     let (status, content_type, text) = post(
