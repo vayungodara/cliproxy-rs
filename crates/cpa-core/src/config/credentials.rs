@@ -1727,7 +1727,7 @@ mod tests {
         }
         // A payload rule's model name is a Go string too, but its params are untyped:
         // a `models` list nested in them keeps its YAML types.
-        let doc = crate::config::yaml_value(
+        let doc = crate::config::config_value(
             "requests:\n  payload:\n    override:\n      - models: [{name: 7}]\n        params: {metadata: {models: [{name: 123, alias: false}]}}\n",
         )
         .unwrap();

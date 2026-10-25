@@ -63,7 +63,7 @@ pub fn load_scan_filters(path: &str) -> Result<(Vec<String>, Vec<String>), Strin
         return Ok(Default::default());
     }
     let refused = |e: anyhow::Error| format!("discovery interface filters in {}: {e}", path.display());
-    let mut doc = cpa_core::config::yaml_value(&text).map_err(refused)?;
+    let mut doc = cpa_core::config::config_value(&text).map_err(refused)?;
     cpa_core::config::expand_merges(&mut doc).map_err(refused)?;
     // yaml.v3 decodes null into zero values and fails on a wrong-kind node anywhere
     // on the path, which drops both lists.

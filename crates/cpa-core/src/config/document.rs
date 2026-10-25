@@ -221,6 +221,61 @@ const SHARED: &[&str] = &[
     "request-scoped-errors",
 ];
 
+/// The v8 path a legacy path (as [`super::binary`] walks it: a key, or `None` for a list
+/// item, per step) moves to in [`ConfigDocument::from_mapping`]; a v8 path as it is.
+pub(super) fn v8_path<'a>(keys: &[Option<&'a str>]) -> Vec<Option<&'a str>> {
+    let mut out = Vec::with_capacity(keys.len() + 3);
+    match keys {
+        [Some(root), None, rest @ ..] if let Some((_, family)) = FAMILIES.iter().find(|(old, _)| old == root) => {
+            out.extend([Some("api-keys"), Some(*family), None]);
+            match rest.first() {
+                Some(Some("api-key-entries")) if *family == "openai-compatibility" => {
+                    out.push(Some("keys"));
+                    out.extend(&rest[1..]);
+                    return out;
+                }
+                Some(Some(field))
+                    if *family != "openai-compatibility" && *field != "base-url" && !SHARED.contains(field) =>
+                {
+                    out.extend([Some("keys"), None]);
+                }
+                _ => {}
+            }
+            out.extend(rest);
+        }
+        [Some("api-keys"), None, ..] => {
+            out.push(Some("access"));
+            out.extend(keys);
+        }
+        _ => {
+            /// The moves split into steps.
+            static MOVES: std::sync::LazyLock<Vec<(Vec<&str>, Vec<&str>)>> = std::sync::LazyLock::new(|| {
+                PATHS
+                    .iter()
+                    .chain(CLIENT_PATHS)
+                    .chain(SHARED_PATHS)
+                    .chain(SHARED_STRUCTS)
+                    .map(|(old, current)| (old.split('.').collect(), current.split('.').collect()))
+                    .collect()
+            });
+            // Most paths start at a root no move names.
+            let moved = MOVES
+                .iter()
+                .filter(|(old, _)| keys.first() == Some(&Some(old[0])))
+                .filter(|(old, _)| old.len() <= keys.len() && old.iter().zip(keys).all(|(o, k)| *k == Some(*o)))
+                .max_by_key(|(old, _)| old.len());
+            match moved {
+                Some((old, current)) => {
+                    out.extend(current.iter().map(|step| Some(*step)));
+                    out.extend(&keys[old.len()..]);
+                }
+                None => out.extend(keys),
+            }
+        }
+    }
+    out
+}
+
 #[derive(Clone)]
 pub struct ConfigDocument(Value);
 

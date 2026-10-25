@@ -27,12 +27,22 @@ pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
 
 /// A config text with its tagged scalars as yaml.v3 decodes them (`!!binary` values
-/// base64-decoded, aliases of them included), merges not yet expanded. The loader and
-/// the management document read config text through here, so a view or a save
-/// candidate sees the values the loader sees.
+/// base64-decoded, aliases of them included), merges not yet expanded. The management
+/// document reads config text through here and the loader through [`config_value`], so
+/// a view or a save candidate sees the tagged values the loader sees.
 pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
     let mut value = serde_yaml_ng::from_str::<Value>(text)?;
-    binary::decode(text, &mut value)?;
+    binary::decode(text, &mut value, false)?;
+    Ok(value)
+}
+
+/// [`yaml_value`] as Go's typed decode reads it into the config: a plain scalar in a Go
+/// string setting is its text (`1.50`, `0x1F`, `true`), where serde_yaml_ng reads a
+/// number or boolean. The management views keep [`yaml_value`]'s YAML types, as Go's
+/// read the file's nodes.
+pub fn config_value(text: &str) -> anyhow::Result<Value> {
+    let mut value = serde_yaml_ng::from_str::<Value>(text)?;
+    binary::decode(text, &mut value, true)?;
     Ok(value)
 }
 
@@ -579,7 +589,7 @@ enum Decode {
 /// before the validators. Its errors name settings, not their values. The layout checks
 /// come first, unwrapped, as in Go.
 fn decode(text: &str, mode: Decode) -> anyhow::Result<(Mapping, ConfigDocument)> {
-    let mut parsed = yaml_value(text)?;
+    let mut parsed = config_value(text)?;
     // Before any migration, as Go expands aliases first.
     expand_merges(&mut parsed)?;
     let root = match parsed {
@@ -1147,7 +1157,7 @@ mod tests {
             (0..3)
                 .map(|_| {
                     let start = std::time::Instant::now();
-                    let doc = yaml_value(&text).unwrap();
+                    let doc = config_value(&text).unwrap();
                     let rule = &doc["requests"]["payload"]["override"][0];
                     assert_eq!(rule["models"][0]["name"], Value::from("0x1F"));
                     assert_eq!(rule["params"][format!("k{}", n - 1).as_str()], Value::from(1.5));
@@ -1171,13 +1181,13 @@ mod tests {
     fn unused_number_aliases_do_not_expand_too_far() {
         let numbers: Vec<String> = (0..1024).map(|i| i.to_string()).collect();
         let text = format!(
-            "a: &l [{}]\nb: [{}]\nc: {{excluded-models: *l}}\n",
+            "a: &l [{}]\nb: [{}]\noauth-excluded-models: {{c: *l}}\n",
             numbers.join(", "),
             vec!["*l"; 1024].join(", ")
         );
-        let doc = yaml_value(&text).unwrap();
+        let doc = config_value(&text).unwrap();
         assert_eq!(doc["b"][1023][1023], Value::from(1023));
-        assert_eq!(doc["c"]["excluded-models"][7], Value::from("7"));
+        assert_eq!(doc["oauth-excluded-models"]["c"][7], Value::from("7"));
     }
 
     /// Only alias copies count toward the alias limit: a list of more numbers than that,
@@ -1185,7 +1195,7 @@ mod tests {
     #[test]
     fn written_numbers_do_not_count_toward_the_alias_limit() {
         let numbers = vec!["0"; (1 << 20) + 1].join(", ");
-        let doc = yaml_value(&format!(
+        let doc = config_value(&format!(
             "x: &l [{numbers}]
 oauth-excluded-models: {{c: [{numbers}]}}
 "
@@ -1193,5 +1203,38 @@ oauth-excluded-models: {{c: [{numbers}]}}
         .unwrap();
         assert_eq!(doc["x"][1 << 20], Value::from(0));
         assert_eq!(doc["oauth-excluded-models"]["c"][1 << 20], Value::from("0"));
+    }
+
+    /// yaml.v3 reads a plain scalar into any Go string setting as its text, so a setting
+    /// written as a number or boolean (`0x1F`, `1.50`, `007`, `true`) keeps it, in the v8
+    /// and legacy layouts and through an anchored key (tests/reference/scalar_settings).
+    #[test]
+    fn scalar_settings_keep_their_yaml_text() {
+        let go: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/scalar_settings_go.json")).unwrap();
+        for case in go["cases"].as_array().unwrap() {
+            let cfg = Config::parse(case["yaml"].as_str().unwrap()).unwrap();
+            for check in case["checks"].as_array().unwrap() {
+                let path = check["rust"].as_str().unwrap();
+                let mut node = &cfg.document;
+                for part in path.split('.') {
+                    node = match part.parse::<usize>() {
+                        Ok(i) => &node[i],
+                        Err(_) => &node[part],
+                    };
+                }
+                assert_eq!(node.as_str(), check["value"].as_str(), "{}: {path}", case["name"]);
+            }
+        }
+        // A model with a display name written as a number registers under its prefix,
+        // both as Go reads them.
+        let cfg = Config::parse(go["cases"][0]["yaml"].as_str().unwrap()).unwrap();
+        let aliases = crate::registry::dynamic::global_aliases(&cfg);
+        let models: Vec<(String, String)> = credentials::from_config(&cfg)
+            .iter()
+            .flat_map(|c| crate::registry::dynamic::models_for(&cfg, &aliases, c, 0))
+            .map(|m| (m.id, m.display_name))
+            .collect();
+        assert!(models.contains(&("0x1F/a".into(), "1.50".into())), "{models:?}");
     }
 }

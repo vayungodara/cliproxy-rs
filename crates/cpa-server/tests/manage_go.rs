@@ -1,6 +1,5 @@
 //! Replays expectations recorded from the pinned Go reference
 //! (tests/reference/manage/main.go -> tests/fixtures/manage_go.json).
-use cpa_core::gostr::GoStr;
 use std::collections::BTreeMap;
 use std::net::SocketAddr;
 use std::path::Path;
@@ -110,12 +109,6 @@ fn yaml_bool_spellings_and_durations_load_like_go() {
                     serde_yaml_ng::Value::String(s) => cpa_core::config::go_bool(s).unwrap_or(false),
                     _ => false,
                 })
-            }
-            // ponytail: serde resolves the YAML 1.2 bool spellings without keeping their
-            // text, so a string field reads `True`/`TRUE` as `true` where Go keeps it.
-            "server.host" if ["True", "TRUE", "False", "FALSE"].contains(&spelling) => {
-                assert_eq!(cfg.host, spelling.go_lower(), "{at}");
-                continue;
             }
             "server.host" => json!(cfg.host),
             // Durations: load acceptance only (nothing consumes them without Home).

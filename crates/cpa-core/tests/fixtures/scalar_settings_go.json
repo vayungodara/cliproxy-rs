@@ -1,0 +1,237 @@
+{
+  "cases": [
+    {
+      "name": "v8",
+      "yaml": "server:\n  host: 1.50\n  github-token: 0x1F\n  discovery: {service-name: 1.0, subtypes: [007], interfaces: {include: [0x1F], exclude: [true]}}\nmanagement: {panel-github-repository: 2024}\naccess: {api-keys: [0x1F, 1.50]}\nrequests:\n  payload:\n    filter: [{models: [{name: m, protocol: 1.0, from-protocol: 2.0, exist: [1.50], not-exist: [007], headers: {x-v: 1.10}}], params: [1.50, 0x1F]}]\noauth:\n  auth-dir: 1.50\n  model-alias: {claude: [{name: m1, alias: a1, display-name: 2024}]}\n  request-scoped-errors: {claude: [{status: 400, match: [1.50], action: stop}]}\n  settings: {claude: [{name: 1.50, alias: 2.50}]}\n  providers: {antigravity: {sensitive-words: [007]}}\nplugins: {store-sources: [1.50]}\napi-keys:\n  claude:\n    - name: 1.50\n      base-url: http://127.0.0.1:1\n      prefix: 0x1F\n      headers: {X-V: 1.10}\n      models: [{name: m, alias: a, display-name: 1.50}]\n      keys: [{api-key: 0x1F, fingerprint-profile: 1.0}]\n  openai-compatibility:\n    - name: 2024\n      base-url: http://127.0.0.1:2\n      keys: [{api-key: 1e3}]\n      models: [{name: om, alias: oa}]\n",
+      "checks": [
+        {
+          "go": "host",
+          "rust": "server.host",
+          "value": "1.50"
+        },
+        {
+          "go": "github-token",
+          "rust": "server.github-token",
+          "value": "0x1F"
+        },
+        {
+          "go": "discovery.service-name",
+          "rust": "server.discovery.service-name",
+          "value": "1.0"
+        },
+        {
+          "go": "discovery.subtypes.0",
+          "rust": "server.discovery.subtypes.0",
+          "value": "007"
+        },
+        {
+          "go": "discovery.interfaces.include.0",
+          "rust": "server.discovery.interfaces.include.0",
+          "value": "0x1F"
+        },
+        {
+          "go": "discovery.interfaces.exclude.0",
+          "rust": "server.discovery.interfaces.exclude.0",
+          "value": "true"
+        },
+        {
+          "go": "remote-management.panel-github-repository",
+          "rust": "management.panel-github-repository",
+          "value": "2024"
+        },
+        {
+          "go": "api-keys.0",
+          "rust": "access.api-keys.0",
+          "value": "0x1F"
+        },
+        {
+          "go": "api-keys.1",
+          "rust": "access.api-keys.1",
+          "value": "1.50"
+        },
+        {
+          "go": "payload.filter.0.models.0.protocol",
+          "rust": "requests.payload.filter.0.models.0.protocol",
+          "value": "1.0"
+        },
+        {
+          "go": "payload.filter.0.models.0.from-protocol",
+          "rust": "requests.payload.filter.0.models.0.from-protocol",
+          "value": "2.0"
+        },
+        {
+          "go": "payload.filter.0.models.0.exist.0",
+          "rust": "requests.payload.filter.0.models.0.exist.0",
+          "value": "1.50"
+        },
+        {
+          "go": "payload.filter.0.models.0.not-exist.0",
+          "rust": "requests.payload.filter.0.models.0.not-exist.0",
+          "value": "007"
+        },
+        {
+          "go": "payload.filter.0.models.0.headers.x-v",
+          "rust": "requests.payload.filter.0.models.0.headers.x-v",
+          "value": "1.10"
+        },
+        {
+          "go": "payload.filter.0.params.0",
+          "rust": "requests.payload.filter.0.params.0",
+          "value": "1.50"
+        },
+        {
+          "go": "payload.filter.0.params.1",
+          "rust": "requests.payload.filter.0.params.1",
+          "value": "0x1F"
+        },
+        {
+          "go": "auth-dir",
+          "rust": "oauth.auth-dir",
+          "value": "1.50"
+        },
+        {
+          "go": "oauth-model-alias.claude.0.display-name",
+          "rust": "oauth.model-alias.claude.0.display-name",
+          "value": "2024"
+        },
+        {
+          "go": "oauth-request-scoped-errors.claude.0.match.0",
+          "rust": "oauth.request-scoped-errors.claude.0.match.0",
+          "value": "1.50"
+        },
+        {
+          "go": "oauth-settings.claude.0.name",
+          "rust": "oauth.settings.claude.0.name",
+          "value": "1.50"
+        },
+        {
+          "go": "oauth-settings.claude.0.alias",
+          "rust": "oauth.settings.claude.0.alias",
+          "value": "2.50"
+        },
+        {
+          "go": "antigravity.sensitive-words.0",
+          "rust": "oauth.providers.antigravity.sensitive-words.0",
+          "value": "007"
+        },
+        {
+          "go": "plugins.store-sources.0",
+          "rust": "plugins.store-sources.0",
+          "value": "1.50"
+        },
+        {
+          "go": "claude-api-key.0.prefix",
+          "rust": "api-keys.claude.0.prefix",
+          "value": "0x1F"
+        },
+        {
+          "go": "claude-api-key.0.headers.X-V",
+          "rust": "api-keys.claude.0.headers.X-V",
+          "value": "1.10"
+        },
+        {
+          "go": "claude-api-key.0.models.0.display-name",
+          "rust": "api-keys.claude.0.models.0.display-name",
+          "value": "1.50"
+        },
+        {
+          "go": "claude-api-key.0.api-key",
+          "rust": "api-keys.claude.0.keys.0.api-key",
+          "value": "0x1F"
+        },
+        {
+          "go": "claude-api-key.0.fingerprint-profile",
+          "rust": "api-keys.claude.0.keys.0.fingerprint-profile",
+          "value": "1.0"
+        },
+        {
+          "go": "openai-compatibility.0.name",
+          "rust": "api-keys.openai-compatibility.0.name",
+          "value": "2024"
+        },
+        {
+          "go": "openai-compatibility.0.api-key-entries.0.api-key",
+          "rust": "api-keys.openai-compatibility.0.keys.0.api-key",
+          "value": "1e3"
+        }
+      ]
+    },
+    {
+      "name": "legacy",
+      "yaml": "host: 1.50\nauth-dir: 007\napi-keys: [0x1F]\ngithub-token: 1.50\nclaude-api-key: [{api-key: 0x1F, prefix: 1.50, base-url: http://127.0.0.1:1, headers: {X-V: 1.10}}]\nopenai-compatibility: [{name: 2024, base-url: http://127.0.0.1:2, api-key-entries: [{api-key: 1e3}]}]\noauth-settings: {claude: [{name: 1.50, alias: 2.50}]}\nproxy-url: 1.50\n",
+      "checks": [
+        {
+          "go": "proxy-url",
+          "rust": "requests.proxy-url",
+          "value": "1.50"
+        },
+        {
+          "go": "host",
+          "rust": "server.host",
+          "value": "1.50"
+        },
+        {
+          "go": "auth-dir",
+          "rust": "oauth.auth-dir",
+          "value": "007"
+        },
+        {
+          "go": "api-keys.0",
+          "rust": "access.api-keys.0",
+          "value": "0x1F"
+        },
+        {
+          "go": "github-token",
+          "rust": "server.github-token",
+          "value": "1.50"
+        },
+        {
+          "go": "claude-api-key.0.api-key",
+          "rust": "api-keys.claude.0.keys.0.api-key",
+          "value": "0x1F"
+        },
+        {
+          "go": "claude-api-key.0.prefix",
+          "rust": "api-keys.claude.0.prefix",
+          "value": "1.50"
+        },
+        {
+          "go": "claude-api-key.0.headers.X-V",
+          "rust": "api-keys.claude.0.headers.X-V",
+          "value": "1.10"
+        },
+        {
+          "go": "openai-compatibility.0.name",
+          "rust": "api-keys.openai-compatibility.0.name",
+          "value": "2024"
+        },
+        {
+          "go": "openai-compatibility.0.api-key-entries.0.api-key",
+          "rust": "api-keys.openai-compatibility.0.keys.0.api-key",
+          "value": "1e3"
+        },
+        {
+          "go": "oauth-settings.claude.0.name",
+          "rust": "oauth.settings.claude.0.name",
+          "value": "1.50"
+        },
+        {
+          "go": "oauth-settings.claude.0.alias",
+          "rust": "oauth.settings.claude.0.alias",
+          "value": "2.50"
+        }
+      ]
+    },
+    {
+      "name": "anchored-key",
+      "yaml": "x: {\u0026k 1.50: v}\noauth:\n  model-alias: {codex: [{name: *k, alias: z}]}\n",
+      "checks": [
+        {
+          "go": "oauth-model-alias.codex.0.name",
+          "rust": "oauth.model-alias.codex.0.name",
+          "value": "1.50"
+        }
+      ]
+    }
+  ]
+}

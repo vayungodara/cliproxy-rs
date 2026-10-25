@@ -105,6 +105,22 @@ pub fn coerce_typed_scalars(value: &mut Value) {
     walk(value, &SCHEMA);
 }
 
+/// Whether the v8 path `keys` (a field or map key, or `None` for a list item, per step)
+/// is a Go `string`, which yaml.v3 decodes any plain scalar into as its text.
+pub(super) fn is_string(keys: &[Option<&str>]) -> bool {
+    let mut schema = &*SCHEMA;
+    for key in keys {
+        schema = schema.get("optional").unwrap_or(schema);
+        let next = match key {
+            None => schema.get("list"),
+            Some(key) => schema.get("map").or_else(|| schema.get("fields")?.get(*key)),
+        };
+        let Some(next) = next else { return false };
+        schema = next;
+    }
+    schema.get("optional").unwrap_or(schema).as_str() == Some("string")
+}
+
 pub(super) fn is_struct(path: &str) -> bool {
     let mut schema = &*SCHEMA;
     for part in path.split('.') {

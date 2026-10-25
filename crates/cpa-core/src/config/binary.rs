@@ -55,10 +55,12 @@ pub(super) fn go_base64(text: &[u8]) -> Option<Vec<u8>> {
 /// merges not yet expanded, to what yaml.v3 reads, aliases of them included. Fails on
 /// invalid base64 as Go does, and refuses what it does not follow (see the module
 /// docs) and binary bytes that are not UTF-8, which a setting cannot hold.
-pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
+/// With `literals`, a plain scalar in a [`literal_field`] is its text, as Go's typed
+/// decode reads it into the config.
+pub(super) fn decode(text: &str, value: &mut Value, literals: bool) -> anyhow::Result<()> {
     // Without a tag, an anchor, a `<<` key or a collection key, serde_yaml_ng reads the
     // file as yaml.v3 does here.
-    if !text.contains(['!', '&']) && !needs_walk(value) && !scalar_literal_field(value, &mut Vec::new()) {
+    if !text.contains(['!', '&']) && !needs_walk(value) && !(literals && scalar_literal_field(value, &mut Vec::new())) {
         return Ok(());
     }
     let mut walk = Walk {
@@ -66,7 +68,9 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
         defined: HashSet::new(),
         sequences: HashSet::new(),
         anchors: HashMap::new(),
-        bases: Vec::new(),
+        anchored: 0,
+        last_field: None,
+        literals,
         keys: Vec::new(),
         found: Vec::new(),
         copies: 0,
@@ -87,7 +91,7 @@ pub(super) fn decode(text: &str, value: &mut Value) -> anyhow::Result<()> {
     let mut found: Vec<Found> = walk
         .found
         .into_iter()
-        .filter(|f| f.kind != Kind::Literal || literal_field(&f.keys, true))
+        .filter(|f| f.kind != Kind::Literal(false))
         .collect();
     // Paths are entry or item positions; patch them in one ordered pass.
     found.sort_by(|a, b| a.path.cmp(&b.path));
@@ -154,7 +158,7 @@ fn scalar_literal_field<'a>(value: &'a Value, keys: &mut Vec<Option<&'a str>>) -
             keys.pop();
             found
         }),
-        Value::Number(_) | Value::Bool(_) => literal_field(keys, true),
+        Value::Number(_) | Value::Bool(_) => literal_field(keys),
         _ => false,
     }
 }
@@ -175,62 +179,12 @@ fn named<K: AsRef<str>>(keys: &[Option<K>]) -> Vec<Option<&str>> {
     named
 }
 
-/// Whether the scalar at `keys` is a Go string field that cliproxy-rs reads by name and
-/// yaml.v3 reads as its source text: a `models[].name` or `models[].alias`, an
-/// `excluded-models` item, and the name, alias or item of a channel's `oauth`
-/// `model-alias` or `excluded-models` (or the legacy `oauth-model-alias` and
-/// `oauth-excluded-models`). Untyped data is left alone: plugin configs, and below a
-/// payload rule's `params` and `match`/`not-match` values, which reach requests with
-/// their YAML types, the fields that may sit anywhere. With `whole` false, `keys` starts below an anchor whose aliases decide the
-/// rest: whether some position could make the scalar such a field.
-fn literal_field<K: AsRef<str>>(keys: &[Option<K>], whole: bool) -> bool {
-    #[derive(Clone, Copy)]
-    enum Step {
-        Key(&'static str),
-        AnyKey,
-        Item,
-        NameOrAlias,
-    }
-    use Step::*;
-    // Patterns that may sit anywhere, then patterns from the root.
-    const ANYWHERE: &[&[Step]] = &[&[Key("models"), Item, NameOrAlias], &[Key("excluded-models"), Item]];
-    const ROOTED: &[&[Step]] = &[
-        &[Key("oauth"), Key("model-alias"), AnyKey, Item, NameOrAlias],
-        &[Key("oauth"), Key("excluded-models"), AnyKey, Item],
-        &[Key("oauth-model-alias"), AnyKey, Item, NameOrAlias],
-        &[Key("oauth-excluded-models"), AnyKey, Item],
-    ];
-    let keys = named(keys);
-    if whole && keys.first() == Some(&Some("plugins")) {
-        return false;
-    }
-    let fits = |pattern: &[Step], keys: &[Option<&str>]| {
-        pattern.len() == keys.len()
-            && pattern.iter().zip(keys).all(|(step, key)| match (step, key) {
-                (Key(want), Some(key)) => want == key,
-                (AnyKey, Some(_)) | (Item, None) => true,
-                (NameOrAlias, Some(key)) => matches!(*key, "name" | "alias"),
-                _ => false,
-            })
-    };
-    // The pattern's last `n` steps against the keys' last `n`.
-    let tail = |pattern: &[Step], n: usize| fits(&pattern[pattern.len() - n..], &keys[keys.len() - n..]);
-    let untyped = keys.iter().any(|k| matches!(k, Some("params" | "match" | "not-match")));
-    !untyped
-        && ANYWHERE.iter().any(|p| {
-            if keys.len() >= p.len() {
-                tail(p, p.len())
-            } else {
-                !whole && tail(p, keys.len())
-            }
-        })
-        || ROOTED.iter().any(|p| {
-            if whole {
-                fits(p, &keys)
-            } else {
-                keys.len() <= p.len() && tail(p, keys.len())
-            }
-        })
+/// Whether the scalar at `keys` is a Go string field (in the v8 layout or the legacy one
+/// it migrates from), which yaml.v3 reads any plain scalar into as its text. Untyped
+/// data keeps its YAML types: plugin configs, and a payload rule's `params` and
+/// `match`/`not-match` values, which reach requests with them.
+fn literal_field<K: AsRef<str>>(keys: &[Option<K>]) -> bool {
+    super::schema::is_string(&super::document::v8_path(&named(keys)))
 }
 
 /// Whether `keys` lead to a plugin's `store.version` or `store.release-tag`.
@@ -412,8 +366,9 @@ enum Kind {
     Tag,
     Binary,
     /// The text of a plain scalar serde_yaml_ng may read as a number or boolean, or of
-    /// one tagged `!!int`, `!!float` or `!!bool`; applied only to a [`literal_field`].
-    Literal,
+    /// one tagged `!!int`, `!!float` or `!!bool`; applied only where it is a
+    /// [`literal_field`] (`true`), and kept elsewhere only for an anchor's aliases.
+    Literal(bool),
 }
 
 struct Walk {
@@ -423,8 +378,12 @@ struct Walk {
     sequences: HashSet<Vec<u8>>,
     /// Each anchor's rewritten scalars, by their path below it.
     anchors: HashMap<Vec<u8>, Vec<Found>>,
-    /// The path lengths of the anchored collections around the current node.
-    bases: Vec<usize>,
+    /// How many anchored collections are around the current node.
+    anchored: usize,
+    /// The keys [`Self::literal`] last judged, and whether they are a [`literal_field`].
+    last_field: Option<(Vec<Key>, bool)>,
+    /// Whether literals are read at all.
+    literals: bool,
     /// The key of each position in the current path.
     keys: Vec<Key>,
     /// Rewritten scalars, by their path from the root.
@@ -445,11 +404,23 @@ impl Walk {
         Ok(())
     }
 
-    /// Whether a literal at `keys` is kept: it is a [`literal_field`], or an alias of
-    /// the anchor around it (at `base`) could make it one. Decided here, not over the
-    /// tree afterwards, so the cost stays linear in the file and the aliases' copies.
-    fn keeps(keys: &[Key], base: Option<usize>) -> bool {
-        literal_field(keys, true) || base.is_some_and(|base| literal_field(&keys[base..], false))
+    /// A literal at `keys`, if it is kept: it is a [`literal_field`], or it is anchored,
+    /// so an alias may make it one. Decided here, not over the tree afterwards, so the
+    /// cost stays linear in the file and the aliases' copies.
+    fn literal(&mut self, keys: &[Key], anchored: bool) -> Option<Kind> {
+        if !self.literals {
+            return None;
+        }
+        // The items of one list share their keys.
+        let field = match &self.last_field {
+            Some((last, field)) if last.as_slice() == keys => *field,
+            _ => {
+                let field = literal_field(keys);
+                self.last_field = Some((keys.to_vec(), field));
+                field
+            }
+        };
+        (field || anchored).then_some(Kind::Literal(field))
     }
 
     fn node(&mut self, event: Event, path: &mut Vec<usize>, key: bool) -> anyhow::Result<()> {
@@ -462,11 +433,7 @@ impl Walk {
                 value,
             } => {
                 self.define(&anchor)?;
-                let base = if anchor.is_some() {
-                    Some(path.len())
-                } else {
-                    self.bases.last().copied()
-                };
+                let anchored = anchor.is_some() || self.anchored > 0;
                 let literal = match &tag {
                     // yaml.v3 reads a scalar tagged as a number or boolean into a string
                     // field as its text, as it does an untagged one.
@@ -480,13 +447,31 @@ impl Walk {
                 // (`!!str <<` is no merge key).
                 ensure!(tag.is_none() || !key, UNSUPPORTED_KEY);
                 if literal {
-                    if !key && Self::keeps(&self.keys, base) {
+                    if key {
+                        // An anchored key: its aliases are values, which take its text.
+                        if let Some(name) = &anchor {
+                            let text = String::from_utf8(value).ok().context("config YAML is not UTF-8")?;
+                            let found = Found {
+                                path: Vec::new(),
+                                keys: Vec::new(),
+                                value: Value::String(text),
+                                kind: Kind::Literal(false),
+                            };
+                            self.anchors.insert(name.clone(), vec![found]);
+                            return Ok(());
+                        }
+                    } else if let Some(kind) = {
+                        let keys = std::mem::take(&mut self.keys);
+                        let kind = self.literal(&keys, anchored);
+                        self.keys = keys;
+                        kind
+                    } {
                         let text = String::from_utf8(value).ok().context("config YAML is not UTF-8")?;
                         self.found.push(Found {
                             path: path.clone(),
                             keys: self.keys.clone(),
                             value: Value::String(text),
-                            kind: Kind::Literal,
+                            kind,
                         });
                     }
                 } else if let Some(tag) = tag {
@@ -508,11 +493,13 @@ impl Walk {
             Event::Alias(name) => {
                 ensure!(!key, UNSUPPORTED_KEY);
                 let copies = self.anchors.get(&name).cloned().unwrap_or_default();
-                let base = self.bases.last().copied();
-                for below in copies {
+                for mut below in copies {
                     let keys = [self.keys.as_slice(), &below.keys].concat();
-                    if below.kind == Kind::Literal && !Self::keeps(&keys, base) {
-                        continue;
+                    if let Kind::Literal(_) = below.kind {
+                        match self.literal(&keys, self.anchored > 0) {
+                            Some(kind) => below.kind = kind,
+                            None => continue,
+                        }
                     }
                     self.copies += 1;
                     ensure!(self.copies <= MAX_COPIES, "config YAML aliases expand too far");
@@ -532,7 +519,7 @@ impl Walk {
                     self.sequences.insert(name.clone());
                 }
                 if anchor.is_some() {
-                    self.bases.push(path.len());
+                    self.anchored += 1;
                 }
                 let mut i = 0;
                 loop {
@@ -571,7 +558,7 @@ impl Walk {
                     i += 1;
                 }
                 if anchor.is_some() {
-                    self.bases.pop();
+                    self.anchored -= 1;
                 }
                 anchor
             }

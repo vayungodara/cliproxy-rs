@@ -31,7 +31,7 @@ pub fn sync_config(raw: &[u8], cfg: &cpa_core::config::Config) -> SyncConfig {
     let mut out = SyncConfig::from_document(&cfg.document);
     // As Go's typed decode reads it: `!!binary` values decoded, merges expanded.
     let document = std::str::from_utf8(raw).ok().and_then(|text| {
-        let mut value = cpa_core::config::yaml_value(text).ok()?;
+        let mut value = cpa_core::config::config_value(text).ok()?;
         cpa_core::config::expand_merges(&mut value).ok()?;
         Some(value)
     });
