@@ -337,13 +337,14 @@ fn discovered_tool_names(tools: &Res<'_>, forward: &HashMap<Vec<u8>, Vec<u8>>) -
     if !tools.is_array() {
         return names;
     }
+    let mut seen: HashSet<Vec<u8>> = HashSet::new();
     let mut add = |name: &[u8]| {
         let name = trim_space(name);
         if name.is_empty() {
             return;
         }
         let mapped = map_tool_name(forward, name);
-        if !names.contains(&mapped) {
+        if seen.insert(mapped.clone()) {
             names.push(mapped);
         }
     };
@@ -2206,4 +2207,20 @@ fn convert_items(
         contents.push(content("user", &pending_developer));
     }
     contents
+}
+
+#[cfg(test)]
+mod tests {
+    /// openAIResponsesDiscoveredToolNames: a replayed tool_search_output lists each
+    /// discovered tool once, by its Gemini name, in first-seen order (a namespace child and
+    /// the same qualified name declared directly are one tool).
+    #[test]
+    fn discovered_tools_are_listed_once() {
+        let raw = br#"{"tools":[{"type":"tool_search","execution":"client"}],"input":[{"type":"tool_search_call","call_id":"ts1","arguments":{"query":"q"}},{"type":"tool_search_output","call_id":"ts1","tools":[{"type":"function","name":"b"},{"type":"namespace","name":"ns","tools":[{"type":"function","name":"run"}]},{"type":"function","name":"b"},{"type":"function","name":"ns__run"},{"type":"function","name":"a"}]}]}"#;
+        let out = String::from_utf8(super::convert("gemini-2.5-flash", raw)).unwrap();
+        assert!(
+            out.contains(r#"{\"status\":\"completed\",\"tools\":[\"b\",\"ns__run\",\"a\"]}"#),
+            "{out}"
+        );
+    }
 }
