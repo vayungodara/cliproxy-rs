@@ -526,21 +526,8 @@ impl Runtime {
 
     /// The credential lock of the Codex file at `path`, for a write that is not a refresh
     /// (a management save), waited for as a refresh waits: shutdown stops the wait.
-    /// Blocking.
-    pub(crate) fn lock_codex_file(&self, path: &Path) -> Result<std::fs::File, String> {
-        let shutdown = &self.codex_refreshes.shutdown;
-        let lock = cpa_exec::codex_siwc_bind::open_lock_file(path)?;
-        let mut delay = Duration::from_millis(5);
-        loop {
-            if shutdown.is_cancelled() {
-                return Err(LOCK_WAIT_STOPPED.to_owned());
-            }
-            if cpa_exec::codex_siwc_bind::try_lock(&lock)? {
-                return Ok(lock);
-            }
-            std::thread::sleep(delay);
-            delay = (delay * 2).min(LOCK_POLL_CEILING);
-        }
+    pub(crate) async fn lock_codex_file(&self, path: &Path) -> Result<std::fs::File, String> {
+        wait_codex_lock(path, &self.codex_refreshes.shutdown).await
     }
 
     /// Prepares and commits one credential. `failed` is the revision whose token an
@@ -1261,6 +1248,9 @@ pub enum PatchError {
     /// Config-sourced credentials persist through the config document, not here.
     ConfigBacked,
     Io(String),
+    /// Another holder has the credential lock of this Codex file. The writer releases
+    /// what it holds, waits for the lock ([`Runtime::lock_codex_file`]) and retries.
+    LockBusy(std::path::PathBuf),
 }
 
 /// What a token refresh commits under ([`CredentialStore::apply_refresh`]).
@@ -3392,16 +3382,9 @@ const LOCK_WAIT_STOPPED: &str = "shutting down while waiting for the credential 
 /// The longest pause between two attempts at a Codex credential lock.
 const LOCK_POLL_CEILING: Duration = Duration::from_millis(100);
 
-/// A held credential lock and the file read under it.
-type LockedFile = (std::fs::File, Map<String, Value>);
-
-/// Go `refreshLocked`'s read: the Codex credential file under its lock, which the
-/// returned file holds. A file that is gone, or that is not a non-empty JSON object,
-/// fails before anything refreshes. The wait for the lock gives up at `shutdown`.
-async fn read_locked_codex_file(
-    path: &Path,
-    shutdown: &tokio_util::sync::CancellationToken,
-) -> Result<LockedFile, String> {
+/// The credential lock of the Codex file at `path` (Go's blocking `flock`), waited for
+/// without holding a thread; the wait gives up at `shutdown`.
+async fn wait_codex_lock(path: &Path, shutdown: &tokio_util::sync::CancellationToken) -> Result<std::fs::File, String> {
     #[cfg(test)]
     tests::LOCK_ATTEMPTS
         .lock()
@@ -3416,13 +3399,34 @@ async fn read_locked_codex_file(
     // than Go's blocking flock once the holder releases. Upgrade: a lock wait on a
     // blocking thread that a signal interrupts.
     let mut delay = Duration::from_millis(5);
-    while !cpa_exec::codex_siwc_bind::try_lock(&lock)? {
+    loop {
+        // Before every attempt: a shutdown during the sleep wins over a lock freed then.
+        if shutdown.is_cancelled() {
+            return Err(stopped());
+        }
+        if cpa_exec::codex_siwc_bind::try_lock(&lock)? {
+            return Ok(lock);
+        }
         tokio::select! {
+            biased;
             _ = shutdown.cancelled() => return Err(stopped()),
             _ = tokio::time::sleep(delay) => {}
         }
         delay = (delay * 2).min(LOCK_POLL_CEILING);
     }
+}
+
+/// A held credential lock and the file read under it.
+type LockedFile = (std::fs::File, Map<String, Value>);
+
+/// Go `refreshLocked`'s read: the Codex credential file under its lock, which the
+/// returned file holds. A file that is gone, or that is not a non-empty JSON object,
+/// fails before anything refreshes. The wait for the lock gives up at `shutdown`.
+async fn read_locked_codex_file(
+    path: &Path,
+    shutdown: &tokio_util::sync::CancellationToken,
+) -> Result<LockedFile, String> {
+    let lock = wait_codex_lock(path, shutdown).await?;
     let data = std::fs::read(path).map_err(|e| format!("read credential file {}: {e}", path.display()))?;
     match serde_json::from_slice(&data) {
         Ok(Value::Object(disk)) if !disk.is_empty() => Ok((lock, disk)),
@@ -3650,7 +3654,7 @@ fn refresh_candidate(c: &Credential) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     #[cfg(unix)]
     use std::os::unix::fs::PermissionsExt;
@@ -3661,8 +3665,21 @@ mod tests {
         pub(super) static AFTER_STALE: std::cell::Cell<Option<Box<dyn FnOnce()>>> = const { std::cell::Cell::new(None) };
     }
 
-    /// Every Codex credential file a refresh went to lock, in order (all tests).
-    pub(super) static LOCK_ATTEMPTS: Mutex<Vec<std::path::PathBuf>> = Mutex::new(Vec::new());
+    /// Every Codex credential file a refresh or management write waited to lock, in
+    /// order (all tests).
+    pub(crate) static LOCK_ATTEMPTS: Mutex<Vec<std::path::PathBuf>> = Mutex::new(Vec::new());
+
+    /// Waits until something waited to lock the Codex file at `path`.
+    pub(crate) async fn lock_waited(path: &Path) {
+        let waited = async {
+            while !LOCK_ATTEMPTS.lock().unwrap().iter().any(|p| p == path) {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(5), waited)
+            .await
+            .expect("something waits for the credential lock");
+    }
 
     type AdmitHook = (std::path::PathBuf, Box<dyn FnOnce() + Send>);
 
@@ -5332,6 +5349,31 @@ mod tests {
                 "expired": (now + siwc.2).to_rfc3339(),
             },
         })
+    }
+
+    /// A shutdown that lands while a credential lock wait sleeps stops it, even when
+    /// the lock comes free and the sleep ends at the same moment: no lock is taken (and
+    /// no grant started) after shutdown. Polled by hand, so both are ready at once.
+    #[tokio::test(start_paused = true)]
+    async fn a_lock_wait_stops_at_shutdown_even_when_the_lock_frees() {
+        let dir = std::env::temp_dir().join(format!("cpa-lock-wait-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("codex.json");
+        let mut cx = std::task::Context::from_waker(std::task::Waker::noop());
+        for _ in 0..32 {
+            let held = cpa_exec::codex_siwc_bind::lock_file(&path).unwrap();
+            let shutdown = tokio_util::sync::CancellationToken::new();
+            let mut wait = std::pin::pin!(wait_codex_lock(&path, &shutdown));
+            assert!(wait.as_mut().poll(&mut cx).is_pending(), "the lock is held");
+            drop(held);
+            tokio::time::advance(LOCK_POLL_CEILING).await;
+            shutdown.cancel();
+            let std::task::Poll::Ready(waited) = wait.as_mut().poll(&mut cx) else {
+                panic!("the wait ends");
+            };
+            assert_eq!(waited.map(drop), Err(LOCK_WAIT_STOPPED.to_owned()));
+        }
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     /// Go `TestCodexExecutorRefreshSerializesUnderFileLockAndSkipsAlreadyRotatedToken`

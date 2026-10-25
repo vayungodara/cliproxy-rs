@@ -18,8 +18,9 @@ use cpa_exec::codex_siwc::{self, REDIRECT_URI, Tokens};
 use serde_json::{Map, Value};
 
 use super::Management;
-use super::auth_files::{Query, auth_kind, fail, file_name, path_of, reply, runtime_only};
+use super::auth_files::{CodexLock, Query, auth_kind, fail, file_name, path_of, reply, runtime_only};
 use super::oauth::CallbackRequest;
+use crate::runtime::PatchError;
 
 /// Go `siwcBindTTL`.
 const TTL: Duration = Duration::from_secs(5 * 60);
@@ -457,10 +458,10 @@ pub(super) fn callback(state: &Arc<Management>, req: &CallbackRequest, query: Op
         let Ok(prepared) = tokio::time::timeout_at(task_flow.deadline.into(), lock.lock_owned()).await else {
             return;
         };
-        let w = worker.clone();
-        let _ = tokio::task::spawn_blocking(move || {
-            let _prepared = prepared;
-            commit(&w, &sid, &task_flow, tokens.ok())
+        let tokens = tokens.ok();
+        let _ = super::auth_files::with_codex_lock(&worker, move |state, lock| {
+            let _prepared = &prepared;
+            commit(state, &sid, &task_flow, tokens.as_ref(), lock)
         })
         .await;
     });
@@ -483,28 +484,60 @@ fn settled(state: &Management, sid: &str) {
 
 /// Go `siwcBindSession.exchange` after the token response. Holds `disk` from the
 /// pending check through publication, so v8 uploads and deletes of the file land
-/// before (failing the binding) or after it. Blocking.
-fn commit(state: &Management, sid: &str, flow: &Arc<Flow>, tokens: Option<Tokens>) {
+/// before (failing the binding) or after it, and the file's credential lock from
+/// before the commit is claimed (Go `BindCodexSIWC`'s `WithFileLock`); `Err` names
+/// the file when another holder has that lock ([`super::auth_files::with_codex_lock`]).
+/// Blocking.
+fn commit(
+    state: &Management,
+    sid: &str,
+    flow: &Arc<Flow>,
+    tokens: Option<&Tokens>,
+    lock: &mut CodexLock,
+) -> Result<(), PathBuf> {
     let _guard = state.disk.lock().unwrap_or_else(PoisonError::into_inner);
     if !state.oauth.siwc_is_pending(sid, flow) {
-        return settled(state, sid);
+        settled(state, sid);
+        return Ok(());
     }
     let Some(tokens) = tokens else {
-        return fail_session(
+        fail_session(
             state,
             sid,
             flow,
             "Failed to exchange SIWC authorization code; start a new binding",
         );
+        return Ok(());
     };
     let cfg = state.rt.config();
     if resolve(&cfg.auth_dir, &flow.path).is_none_or(|(path, _)| path != flow.path) {
-        return fail_session(state, sid, flow, "SIWC binding target is no longer available");
+        fail_session(state, sid, flow, "SIWC binding target is no longer available");
+        return Ok(());
+    }
+    let target = state.rt.store().get(&flow.target_id);
+    match target
+        .as_deref()
+        .and_then(path_of)
+        .map_or(Ok(()), |path| lock.hold(path))
+    {
+        Ok(()) => {}
+        Err(PatchError::LockBusy(path)) => return Err(path),
+        Err(e) => {
+            tracing::warn!("SIWC binding was not saved: {e:?}");
+            fail_session(
+                state,
+                sid,
+                flow,
+                "Failed to save SIWC binding; the target may have changed",
+            );
+            return Ok(());
+        }
     }
     if !state.oauth.claim_siwc_commit(sid, flow) {
-        return settled(state, sid);
+        settled(state, sid);
+        return Ok(());
     }
-    match write_binding(state, flow, &tokens) {
+    match write_binding(state, flow, tokens, lock) {
         Ok(()) => {
             state.rt.store().recover_unauthorized(&flow.target_id);
             state.oauth.complete(sid);
@@ -520,6 +553,7 @@ fn commit(state: &Management, sid: &str, flow: &Arc<Flow>, tokens: Option<Tokens
             );
         }
     }
+    Ok(())
 }
 
 /// Go `Manager.BindCodexSIWC`: re-reads the current credential and its file and
@@ -531,7 +565,7 @@ fn commit(state: &Management, sid: &str, flow: &Arc<Flow>, tokens: Option<Tokens
 /// epoch, not reproduced here, M5-0247); this checks the same file and provider and
 /// the account the binding started with, and v8 uploads and deletes fail the binding
 /// explicitly.
-fn write_binding(state: &Management, flow: &Flow, tokens: &Tokens) -> Result<(), String> {
+fn write_binding(state: &Management, flow: &Flow, tokens: &Tokens, lock: &mut CodexLock) -> Result<(), String> {
     for _ in 0..8 {
         let current = state
             .rt
@@ -544,6 +578,9 @@ fn write_binding(state: &Management, flow: &Flow, tokens: &Tokens) -> Result<(),
             return Err("target is no longer a file-backed Codex OAuth credential".into());
         }
         let path = path_of(&current).ok_or("target is not file-backed")?;
+        // Read, merged and written under the file's credential lock, so a refresh in
+        // another process lands before the read or after the write.
+        lock.hold(path).map_err(|e| format!("{e:?}"))?;
         if !std::fs::symlink_metadata(path).is_ok_and(|m| m.file_type().is_file())
             || std::fs::canonicalize(path).ok().as_deref() != Some(flow.path.as_path())
         {
@@ -889,6 +926,58 @@ mod tests {
             PathBuf::from(r"\\server\share\dir\f.json")
         );
         std::fs::remove_dir_all(root).unwrap();
+    }
+
+    /// Go `BindCodexSIWC` reads, merges and writes the file under its credential lock:
+    /// a commit waits while another process's refresh holds it, then binds onto the
+    /// file that refresh wrote, so the rotated outer refresh token is kept.
+    #[tokio::test]
+    async fn a_binding_waits_for_the_credential_lock_and_keeps_a_rotated_token() {
+        let app = axum::Router::new().route(
+            "/api/accounts/oauth/token",
+            axum::routing::post(|| async {
+                r#"{"access_token":"siwc-at","refresh_token":"siwc-rt","id_token":"siwc-id","scope":"openid chatgpt.tokens.use.direct","expires_in":3600}"#
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let (dir, file, state) = fixture(Some(base));
+        let response = bind(
+            State(state.clone()),
+            FirstJson(axum::body::Bytes::from(r#"{"name":"codex.json"}"#)),
+        )
+        .await;
+        let sid = started_state(response).await;
+        let held = cpa_exec::codex_siwc_bind::lock_file(&file).unwrap();
+        let req = CallbackRequest {
+            state: sid,
+            code: "c".into(),
+            client_id: "oaiapp_issued".into(),
+            ..Default::default()
+        };
+        assert_eq!(callback(&state, &req, None).unwrap().status(), StatusCode::OK);
+        crate::runtime::tests::lock_waited(&file).await;
+        // The other process's refresh spends "r" and writes "r2" under the lock.
+        let rotated = codex_file("old").replace(r#""refresh_token":"r""#, r#""refresh_token":"r2""#);
+        std::fs::write(&file, rotated).unwrap();
+        drop(held);
+        let bound = tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let disk: Value = serde_json::from_slice(&std::fs::read(&file).unwrap()).unwrap();
+                if disk.get("siwc").is_some() {
+                    return disk;
+                }
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("the binding lands once the lock is free");
+        assert_eq!(
+            (&bound["refresh_token"], &bound["siwc"]["refresh_token"]),
+            (&Value::from("r2"), &Value::from("siwc-rt"))
+        );
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     fn codex_file(account: &str) -> String {
