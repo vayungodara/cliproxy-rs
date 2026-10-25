@@ -67,6 +67,12 @@ the protobuf (`FinalizeDevinPayload`) instead of its readable request summary:
   also changed what Devin sends (its catalog caps `max_tokens` lower), which is not
   ported yet.
 
+`devin/{responses-stream,responses-stream-ordering}.json` carry the `downstream` of a
+recording at `6fecc6e` with `ed4d972e` cherry-picked (it applies cleanly): the Interactions
+to Responses translator's reasoning summary events of v8.0.35, without the Devin request
+changes that are not ported yet. Record as above in that tree and replace only
+`downstream` (the other sections stay as described above).
+
 The generator pins `buildinfo.Version` to `0.1.0`, and the fixture loader puts the running
 crate version in its place, so `User-Agent` and `X-Msh-Version` still compare exactly after a
 release bump. Values that depend on the machine (Host port, hostname,

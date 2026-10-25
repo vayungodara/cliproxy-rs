@@ -43,6 +43,18 @@ api-keys:
         - api-key: vk-fake-3
 `
 
+// keyPrefixConfig: base URLs that already name the models path (2d7f5377).
+const keyPrefixConfig = `
+api-keys:
+  vertex:
+    - base-url: http://UPSTREAM/v1/projects/p-1/locations/us-central1/publishers/google/models/
+      keys:
+        - api-key: vk-fake-prefix
+    - base-url: http://UPSTREAM/v1beta1/
+      keys:
+        - api-key: vk-fake-beta
+`
+
 const safety = `[{"category":"HARM_CATEGORY_HARASSMENT","threshold":"OFF"},{"category":"HARM_CATEGORY_HATE_SPEECH","threshold":"OFF"},{"category":"HARM_CATEGORY_SEXUALLY_EXPLICIT","threshold":"OFF"},{"category":"HARM_CATEGORY_DANGEROUS_CONTENT","threshold":"OFF"},{"category":"HARM_CATEGORY_CIVIC_INTEGRITY","threshold":"BLOCK_NONE"}]`
 
 const userHi = `[{"role":"user","parts":[{"text":"hi"}]}]`
@@ -274,12 +286,33 @@ func scenarios1(hi string) []scenario {
 		with(key("key_openai_stream", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, sseOK), func(s *scenario) { s.Source = "openai" }),
 		with(key("key_openai_execute", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}],"max_tokens":100000}`, jsonOK), func(s *scenario) { s.Source = "openai" }),
 		with(key("key_responses_stream", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, sseOK), func(s *scenario) { s.Source = "openai-response" }),
+		// v8.0.35 (5ec31442): a read error ends the stream without the synthetic [DONE].
+		with(key("key_responses_stream_read_error", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + chunk1 + "\n\n", Missing: 40}), func(s *scenario) { s.Source = "openai-response" }),
 		with(key("key_claude_count", "count", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}]}`, countOK), func(s *scenario) { s.Source = "claude" }),
 		with(key("key_codex_client_passthrough", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi"}`, jsonOK), func(s *scenario) { s.Source = "codex" }),
 		// gemini_vertex_executor_test.go TestGeminiVertexApplyPatchExecutorReuse: the
 		// apply_patch custom tool round trip for a Responses client, both paths.
 		with(key("key_apply_patch_execute", "execute", "gemini-3.1-pro-preview", "", patchRequest, reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: patchResponse}), func(s *scenario) { s.Source = "openai-response" }),
 		with(key("key_apply_patch_stream", "stream", "gemini-3.1-pro-preview", "", patchRequest, reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + patchResponse + "\n\n"}), func(s *scenario) { s.Source = "openai-response" }),
+		// v8.0.35 (2d7f5377): a base URL holding /publishers/ is the models prefix; one
+		// ending in a version segment gets no /v1.
+		with(key("key_publishers_prefix_base", "stream", "gemini-2.5-flash", "", hi, sseOK), func(s *scenario) { s.Config = keyPrefixConfig }),
+		with(key("key_publishers_prefix_count", "count", "gemini-2.5-flash", "", hi, countOK), func(s *scenario) { s.Config = keyPrefixConfig }),
+		with(key("key_version_suffix_base", "execute", "gemini-2.5-flash", "", hi, jsonOK), func(s *scenario) {
+			s.Config = keyPrefixConfig
+			s.ConfigAuth = 1
+		}),
+		// v8.0.35 (ceb4397f): trailing thought-only model turns are dropped, keeping one
+		// turn; Execute drops after the leading user turn, ExecuteStream before it.
+		key("key_execute_single_thought_turn", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"model","parts":[{"text":"t","thought":true}]}]`, ""), jsonOK),
+		key("key_stream_single_thought_turn", "stream", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"model","parts":[{"text":"t","thought":true}]}]`, ""), sseOK),
+		key("key_stream_trailing_thought_turns", "stream", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"user","parts":[{"text":"q"}]},{"role":"model","parts":[{"text":"a"}]},{"role":"model","parts":[{"text":"t1","thought":true},{"text":"t2","thought":"true"}]},{"role":"assistant","parts":[{"text":"t3","thought":1}]}]`, ""), sseOK),
+		key("key_stream_trailing_thought_dropped", "stream", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"user","parts":[{"text":"q"}]},{"role":"model","parts":[{"text":"a"}]},{"role":"model","parts":[{"text":"t","thought":true}]}]`, ""), sseOK),
+		key("key_execute_thought_function_call_kept", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"user","parts":[{"text":"q"}]},{"role":"model","parts":[{"thought":true,"functionCall":{"name":"f","args":{}}}]},{"role":"model","parts":[{"text":"t","thought":true}]}]`, ""), jsonOK),
+		// v8.0.35 (7f2f17d7): MALFORMED_FUNCTION_CALL for a Claude client is a 502, or the
+		// end of the stream after the api_error event.
+		with(key("key_claude_malformed_execute", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"candidates":[{"content":{"role":"model","parts":[]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":4,"totalTokenCount":4},"modelVersion":"gemini-2.5-flash"}`}), func(s *scenario) { s.Source = "claude" }),
+		with(key("key_claude_malformed_stream", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + chunk1 + "\n\ndata: " + `{"candidates":[{"content":{"role":"model","parts":[{"text":"x"}]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash"}` + "\n\n"}), func(s *scenario) { s.Source = "claude" }),
 		// Every thinking field of a configured Vertex model: range, zero and dynamic.
 		key("key_thinking_above_max", "execute", "gemini-2.5-flash-lite(9000)", "vertex-lite(9000)", gem("gemini-2.5-flash-lite", userHi, ""), jsonOK),
 		key("key_thinking_zero_not_allowed", "execute", "gemini-2.5-flash-lite(0)", "vertex-lite(0)", gem("gemini-2.5-flash-lite", userHi, ""), jsonOK),

@@ -45,18 +45,18 @@ impl Barrier<'_> {
 }
 
 /// A Go golden whose `key` cases named in `newer` are replaced by those v8.0.35
-/// recordings (the cases whose answers changed with the payload barrier).
+/// recordings (the cases whose answers changed since the base recording); cases the base
+/// does not have are added.
 #[cfg(test)]
 pub(crate) fn with_v8_0_35(base: &str, newer: &str, key: &str) -> serde_json::Value {
     let mut base: serde_json::Value = serde_json::from_str(base).unwrap();
     let newer: serde_json::Value = serde_json::from_str(newer).unwrap();
     let cases = base[key].as_array_mut().unwrap();
     for case in newer[key].as_array().unwrap() {
-        let slot = cases
-            .iter_mut()
-            .find(|c| c["name"] == case["name"])
-            .unwrap_or_else(|| panic!("{} is not in the base recording", case["name"]));
-        *slot = case.clone();
+        match cases.iter_mut().find(|c| c["name"] == case["name"]) {
+            Some(slot) => *slot = case.clone(),
+            None => cases.push(case.clone()),
+        }
     }
     base
 }

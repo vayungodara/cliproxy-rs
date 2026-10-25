@@ -126,15 +126,40 @@ fn regional_base(location: &str) -> String {
 
 fn endpoint(auth: &Auth, model: &str, action: &str) -> String {
     match auth {
+        // `vertexAPIKeyModelsURL` (Go 2d7f5377): a base holding `/publishers/` is the
+        // full models prefix; otherwise `/v1` is added unless the base ends in a
+        // version segment such as `/v1beta1`.
         Auth::ApiKey { base, .. } => {
+            let base = base.trim().trim_end_matches('/');
             let base = if base.is_empty() { DEFAULT_API_KEY_BASE } else { base };
-            format!("{base}/{API_VERSION}/publishers/google/models/{model}:{action}")
+            if base.contains("/publishers/") {
+                return format!("{base}/{model}:{action}");
+            }
+            let version = if ends_in_version(base) {
+                String::new()
+            } else {
+                format!("/{API_VERSION}")
+            };
+            format!("{base}{version}/publishers/google/models/{model}:{action}")
         }
         Auth::ServiceAccount { project, location, .. } => format!(
             "{}/{API_VERSION}/projects/{project}/locations/{location}/publishers/google/models/{model}:{action}",
             regional_base(location)
         ),
     }
+}
+
+/// `vertexAPIVersionSuffix`: the last path segment is `v`, then lower-case letters,
+/// digits, `_` or `-`, with at least one digit.
+fn ends_in_version(base: &str) -> bool {
+    let seg = &base[base.rfind('/').map_or(0, |i| i + 1)..];
+    let Some(rest) = seg.strip_prefix('v') else {
+        return false;
+    };
+    rest.bytes().any(|c| c.is_ascii_digit())
+        && rest
+            .bytes()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_lowercase() || c == b'_' || c == b'-')
 }
 
 /// `http.NewRequestWithContext`'s URL parse. Go builds the request before the token
@@ -339,6 +364,10 @@ impl LineState for RawLines {
         self.0.end_with_done()
     }
 
+    fn end_after_error(&mut self) -> Emit {
+        self.0.end_after_error()
+    }
+
     fn flush(&mut self) -> Vec<Bytes> {
         self.0.flush_frames()
     }
@@ -445,7 +474,15 @@ impl VertexExecutor {
         } else {
             self.prepared_body(req, cfg, &base_model)?
         };
+        // Go drops trailing thought-only turns after the leading user turn on Execute
+        // and before it on ExecuteStream; with a single model turn the order matters.
+        if req.stream {
+            body = payload::drop_trailing_thought_only_content(body, "contents");
+        }
         body = payload::ensure_leading_user_content(body, "contents");
+        if !req.stream {
+            body = payload::drop_trailing_thought_only_content(body, "contents");
+        }
         body = payload::ensure_trailing_user_content(body, "contents");
         let action = match (imagen, req.stream) {
             (true, _) => "predict",
@@ -500,13 +537,14 @@ impl VertexExecutor {
                 data = imagen_response(&data, &base_model);
             }
             let out = g::translate_non_stream(req, Format::Gemini, &body, &data)?;
+            g::claude_error(req, &out)?;
             return Ok(ExecResponse {
                 status: 200,
                 headers: response_headers,
                 body: ResponseBody::Buffered(out),
             });
         }
-        let output = Output::new(req, Format::Gemini, &body);
+        let output = Output::new(req, Format::Gemini, &body).with_claude_stream_errors();
         let lines = g::captured_lines(proxy::lines(upstream.body, g::MAX_LINE), capture.clone());
         let stream = g::drive(lines, RawLines(output));
         Ok(ExecResponse {

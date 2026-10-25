@@ -19,7 +19,10 @@ use crate::common::{file_ext, go_lower, normalize_openai_file_data, sanitize_fun
 use crate::gemini::{set_function_response_raw, set_function_response_result};
 use crate::gemini_chat_request::{content_node as content, text_part};
 use crate::gemini_web_search as ws;
-use crate::responses_tools::{gemini_function_declarations, map_tool_name, tool_choice_to_gemini};
+use crate::responses_tools::{
+    client_tool_search_name, gemini_function_declarations, is_client_tool_search_item, map_tool_name,
+    tool_choice_to_gemini,
+};
 
 pub(crate) const BYPASS_SIGNATURE: &[u8] = b"skip_thought_signature_validator";
 
@@ -256,6 +259,125 @@ fn strip_carrier_metadata(raw: &[u8]) -> Option<Vec<u8>> {
 
 fn owned(raw: &[u8]) -> Res<'static> {
     gj::parse(raw).into_owned()
+}
+
+// ---------------------------------------------------------------------------------------
+// Client tool_search history (gemini_openai-responses_tool_search.go)
+
+/// normalizeOpenAIResponsesToolSearchItems: replayed client tool_search calls and outputs
+/// become the function_call / function_call_output pair the conversion already handles.
+fn normalize_tool_search_items<'a>(items: Vec<Res<'a>>, forward: &HashMap<Vec<u8>, Vec<u8>>) -> Vec<Res<'a>> {
+    let mut out = Vec::with_capacity(items.len());
+    for item in items {
+        match item.get("type").bytes().as_ref() {
+            b"tool_search_call" => {
+                if is_client_tool_search_item(&item) {
+                    out.push(owned(&tool_search_call_as_function_call(&item, forward)));
+                }
+            }
+            b"tool_search_output" => {
+                if is_client_tool_search_item(&item) {
+                    out.push(owned(&tool_search_output_as_function_call_output(&item, forward)));
+                }
+            }
+            _ => out.push(item),
+        }
+    }
+    out
+}
+
+fn tool_search_call_as_function_call(item: &Res<'_>, forward: &HashMap<Vec<u8>, Vec<u8>>) -> Vec<u8> {
+    let mut call = br#"{"type":"function_call","name":"","call_id":"","arguments":"{}"}"#.to_vec();
+    gj::set_str(&mut call, "name", client_tool_search_name(forward));
+    gj::set_str(&mut call, "call_id", extract_call_id(item));
+    for key in ["id", "status"] {
+        let value = item.get(key);
+        if value.exists() {
+            gj::set_str(&mut call, key, value.bytes());
+        }
+    }
+    let arguments = item.get("arguments");
+    if arguments.kind == Kind::String {
+        gj::set_str_no_html(&mut call, "arguments", &arguments.s);
+    } else if arguments.is_object() || arguments.is_array() {
+        gj::set_str_no_html(&mut call, "arguments", &arguments.raw);
+    }
+    call
+}
+
+fn tool_search_output_as_function_call_output(item: &Res<'_>, forward: &HashMap<Vec<u8>, Vec<u8>>) -> Vec<u8> {
+    let mut output = br#"{"type":"function_call_output","name":"","call_id":"","output":""}"#.to_vec();
+    gj::set_str(&mut output, "name", client_tool_search_name(forward));
+    gj::set_str(&mut output, "call_id", extract_call_id(item));
+    let id = item.get("id");
+    if id.exists() {
+        gj::set_str(&mut output, "id", id.bytes());
+    }
+    let mut summary = br#"{"status":"completed","tools":[]}"#.to_vec();
+    let status = trimmed(item, "status");
+    if !status.is_empty() {
+        gj::set_str(&mut summary, "status", &status);
+    }
+    let error = item.get("error");
+    if error.exists() && error.kind != Kind::Null {
+        gj::set_raw(&mut summary, "error", &error.raw);
+    }
+    gj::set_strs(
+        &mut summary,
+        "tools",
+        &discovered_tool_names(&item.get("tools"), forward),
+    );
+    gj::set_str_no_html(&mut output, "output", &summary);
+    output
+}
+
+/// openAIResponsesDiscoveredToolNames: the Gemini names of the tools a search loaded, once each.
+fn discovered_tool_names(tools: &Res<'_>, forward: &HashMap<Vec<u8>, Vec<u8>>) -> Vec<Vec<u8>> {
+    let mut names: Vec<Vec<u8>> = vec![];
+    if !tools.is_array() {
+        return names;
+    }
+    let mut seen: HashSet<Vec<u8>> = HashSet::new();
+    let mut add = |name: &[u8]| {
+        let name = trim_space(name);
+        if name.is_empty() {
+            return;
+        }
+        let mapped = map_tool_name(forward, name);
+        if seen.insert(mapped.clone()) {
+            names.push(mapped);
+        }
+    };
+    let name_of = |tool: &Res<'_>| {
+        let name = trimmed(tool, "name");
+        if name.is_empty() {
+            trimmed(tool, "function.name")
+        } else {
+            name
+        }
+    };
+    tools.each(|_, tool| {
+        match trimmed(&tool, "type").as_slice() {
+            b"" | b"function" | b"custom" => add(&name_of(&tool)),
+            b"namespace" => {
+                let namespace = trimmed(&tool, "name");
+                let mut children = tool.get("tools");
+                if !children.is_array() {
+                    children = tool.get("children");
+                }
+                children.each(|_, child| {
+                    let child_name = name_of(&child);
+                    if !child_name.is_empty() {
+                        add(&qualify_namespace_name(&namespace, &child_name));
+                    }
+                    true
+                });
+            }
+            _ => {}
+        }
+        true
+    });
+    names
 }
 
 /// normalizeGeminiResponsesCarriers: decodes carriers, keeps those whose signature is
@@ -1709,7 +1831,8 @@ pub(crate) fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
 
     let input = root.get("input");
     if input.is_array() {
-        let restored = restore_text_signatures(model, &input.array());
+        let items = normalize_tool_search_items(input.array(), &forward);
+        let restored = restore_text_signatures(model, &items);
         let (items, has_carrier) = normalize_carriers(&restored);
         native |= has_carrier;
         let items = normalize_tool_call_outputs(items);
@@ -2084,4 +2207,20 @@ fn convert_items(
         contents.push(content("user", &pending_developer));
     }
     contents
+}
+
+#[cfg(test)]
+mod tests {
+    /// openAIResponsesDiscoveredToolNames: a replayed tool_search_output lists each
+    /// discovered tool once, by its Gemini name, in first-seen order (a namespace child and
+    /// the same qualified name declared directly are one tool).
+    #[test]
+    fn discovered_tools_are_listed_once() {
+        let raw = br#"{"tools":[{"type":"tool_search","execution":"client"}],"input":[{"type":"tool_search_call","call_id":"ts1","arguments":{"query":"q"}},{"type":"tool_search_output","call_id":"ts1","tools":[{"type":"function","name":"b"},{"type":"namespace","name":"ns","tools":[{"type":"function","name":"run"}]},{"type":"function","name":"b"},{"type":"function","name":"ns__run"},{"type":"function","name":"a"}]}]}"#;
+        let out = String::from_utf8(super::convert("gemini-2.5-flash", raw)).unwrap();
+        assert!(
+            out.contains(r#"{\"status\":\"completed\",\"tools\":[\"b\",\"ns__run\",\"a\"]}"#),
+            "{out}"
+        );
+    }
 }

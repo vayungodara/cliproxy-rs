@@ -45,3 +45,20 @@ cp "$crate"/tests/reference/vertex/*.go "$tmp/"
 ```
 
 Every key in the fixture is generated at regeneration time and authorizes nothing.
+
+## v8.0.35 recordings
+
+`../../fixtures/vertex_go_v8.0.35.json` holds scenarios recorded from v8.0.35
+(`ae3ee3be`, clean checkout) with the generator above; the Rust test replaces the
+`6fecc6e` recordings of the same names with them and adds the new ones (`2d7f5377`'s
+API-key base URLs, `ceb4397f`'s trailing thought-only turns, the Claude
+`MALFORMED_FUNCTION_CALL` error of `7f2f17d7`, `5ec31442`'s read error without `[DONE]`,
+and two Responses answers whose usage keys moved). Every case still runs; `RSFIX_ONLY`
+(a Go regexp on the name) selects the ones written, and `RSFIX_KEYS` names the full
+recording whose private keys the service-account scenarios sign with, so their token
+requests match it:
+
+```sh
+RSFIX_KEYS="$crate/tests/fixtures/vertex_go.json" RSFIX_ONLY='^(key_stream_trailing_slash_base|key_publishers_prefix_base|key_publishers_prefix_count|key_version_suffix_base|key_execute_single_thought_turn|key_stream_single_thought_turn|key_stream_trailing_thought_turns|key_stream_trailing_thought_dropped|key_execute_thought_function_call_kept|key_claude_malformed_execute|key_claude_malformed_stream|sa_responses_tool_ids_stripped|key_codex_tool_integer_types|key_responses_stream_read_error)$' \
+  go run . "$crate/tests/fixtures/vertex_go_v8.0.35.json"
+```

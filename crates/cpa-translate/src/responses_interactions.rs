@@ -981,6 +981,7 @@ pub(crate) fn tool_identity_map(raw: &[u8], antigravity: bool) -> HashMap<Vec<u8
                 namespace: d.namespace.clone(),
                 custom: d.custom,
                 apply_patch: apply_patch::is_custom_tool(&d.tool),
+                tool_search: false,
             };
             (key, identity)
         })

@@ -187,20 +187,33 @@ async fn handle(
         match result {
             Err(failure) => errors::claude(&failure),
             Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
-            Ok(Done::Stream { first, rest, .. }) => respond::sse(respond::stream(first, rest, ClaudeSse, keepalive)),
+            Ok(Done::Stream { first, rest, .. }) => {
+                respond::sse(respond::stream(first, rest, ClaudeSse::default(), keepalive))
+            }
         }
     })
     .await
 }
 
-struct ClaudeSse;
+/// Go `forwardClaudeStream`: once a chunk carried an `error` event, the stream's
+/// terminal error writes nothing more (7f2f17d7).
+#[derive(Default)]
+struct ClaudeSse {
+    saw_error_event: bool,
+}
 
 impl Writer for ClaudeSse {
     fn chunk(&mut self, event: Bytes) -> Vec<Bytes> {
+        if event.windows(13).any(|w| w == b"event: error\n") || event.windows(14).any(|w| w == b"event: error\r\n") {
+            self.saw_error_event = true;
+        }
         vec![event]
     }
 
     fn error(&mut self, error: &ExecError) -> Vec<Bytes> {
+        if self.saw_error_event {
+            return Vec::new();
+        }
         let status = crate::classify::response_status(error);
         let body = errors::claude_body(status, &crate::classify::error_text(error));
         vec![Bytes::from(format!("event: error\ndata: {body}\n\n"))]

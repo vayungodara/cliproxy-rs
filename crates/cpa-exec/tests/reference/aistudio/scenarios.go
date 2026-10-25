@@ -5,6 +5,8 @@ const okBody = `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}
 const chunk1 = `{"candidates":[{"content":{"role":"model","parts":[{"text":"he"}]},"index":0}],"usageMetadata":{"promptTokenCount":3,"totalTokenCount":3},"modelVersion":"gemini-2.5-flash-002","responseId":"r1"}`
 const chunk2 = `{"candidates":[{"content":{"role":"model","parts":[{"text":"llo"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash-002","responseId":"r1"}`
 
+const malformedBody = `{"candidates":[{"content":{"role":"model","parts":[{"text":"x"}]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash-002","responseId":"r1"}`
+
 const userHi = `{"contents":[{"role":"user","parts":[{"text":"hi"}]}]}`
 
 func httpResponse(status int, body string) reply {
@@ -83,6 +85,17 @@ func scenarios() []scenario {
 		s("stream_error_midway", "stream", "openai", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, streamStart(200), chunk(chunk1), reply{Type: "error", Payload: map[string]any{"error": "socket reset", "status": 0}}),
 		s("stream_http_response", "stream", "openai", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, httpResponse(200, chunk2)),
 		s("stream_http_response_error", "stream", "gemini", "gemini-2.5-flash", userHi, httpResponse(403, `{"error":"denied"}`)),
+		// v8.0.35 (5ec31442): any 2xx first status streams; a relayed non-2xx answer
+		// after the start ends the stream with its status; the stream end and a relayed
+		// answer feed the translator [DONE].
+		s("stream_first_status_201", "stream", "gemini", "gemini-2.5-flash", userHi, streamStart(201), chunk(chunk1), chunk(chunk2), streamEnd),
+		s("stream_http_response_error_after_start", "stream", "openai", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, streamStart(200), chunk(chunk1), httpResponse(502, `{"error":"bad gateway"}`)),
+		s("stream_responses_http_response", "stream", "openai-response", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","stream":true,"input":"hi"}`, httpResponse(200, chunk2)),
+		// v8.0.35 (7f2f17d7): MALFORMED_FUNCTION_CALL for a Claude client is a 502, or the
+		// end of the stream after the api_error event, ahead of a later relay error.
+		s("execute_claude_malformed", "execute", "claude", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`, httpResponse(200, malformedBody)),
+		s("stream_claude_malformed", "stream", "claude", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","max_tokens":64,"stream":true,"messages":[{"role":"user","content":"hi"}]}`, streamStart(200), chunk(chunk1), chunk(malformedBody), streamEnd),
+		s("stream_claude_malformed_then_relay_error", "stream", "claude", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","max_tokens":64,"stream":true,"messages":[{"role":"user","content":"hi"}]}`, streamStart(200), chunk(malformedBody), reply{Type: "error", Payload: map[string]any{"error": "socket reset"}}),
 
 		// countTokens: no custom headers, no alt, generation config and tools removed.
 		with(s("count_basic", "count", "gemini", "gemini-2.5-flash", `{"contents":[{"role":"model","parts":[{"text":"a"}]}],"tools":[{"functionDeclarations":[]}],"generationConfig":{"temperature":1}}`, httpResponse(200, `{"totalTokens":7}`)), func(sc *scenario) {

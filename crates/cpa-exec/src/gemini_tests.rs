@@ -560,6 +560,12 @@ async fn go_reference_scenarios() {
                 e["message"].as_str().unwrap().to_owned(),
             )
         });
+        // Go's status 0 is an error without a status code (a scanner error); Rust errors
+        // always carry one, so only the message is compared.
+        let error = error.map(|(status, message)| match want_error {
+            Some((0, _)) => (0, message),
+            _ => (status, message),
+        });
         assert_eq!(error, want_error, "{name}: error");
         // Go mints Interactions IDs from the wall clock (`interaction_<UnixNano>`); only
         // their shape can match a recorded fixture.
@@ -785,6 +791,8 @@ async fn pending_responses_frame_is_flushed_before_terminal_error() {
         ),
         usage: Default::default(),
         capture: Default::default(),
+        claude_errors: false,
+        retained: None,
     };
     let lines = futures_util::stream::iter([
         Ok(Bytes::from_static(br#"data: {"a":1}"#)),
@@ -854,6 +862,8 @@ async fn apply_patch_hooks_follow_go_order() {
             claude: ClaudeInputTokens::new(Format::OpenAI, Format::Gemini, Format::OpenAI, Bytes::new()),
             usage: Default::default(),
             capture: Default::default(),
+            claude_errors: false,
+            retained: None,
         };
         let lines = futures_util::stream::iter([
             Ok(Bytes::from_static(br#"data: {"a":1}"#)),

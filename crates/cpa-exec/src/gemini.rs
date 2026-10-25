@@ -464,6 +464,16 @@ pub(crate) fn translate_non_stream(
     Ok(Bytes::from(out))
 }
 
+/// helps.TranslatedClaudeErrorPayload (Go 7f2f17d7): a Claude answer translated into an
+/// `error` object fails the attempt with 502 and that object, keeping the body's usage.
+pub(crate) fn claude_error(req: &ExecRequest, out: &[u8]) -> Result<(), ExecError> {
+    if req.response_format != Format::Claude || *gj::get(out, "type").bytes() != *b"error" {
+        return Ok(());
+    }
+    req.usage.publish_failure_with_usage(502, &String::from_utf8_lossy(out));
+    Err(status_err(502, Bytes::copy_from_slice(out)))
+}
+
 impl GeminiExecutor {
     /// Uses `client` for credentials without a proxy (tests pass a plain client).
     pub fn with_client(client: wreq::Client) -> Self {
@@ -559,13 +569,14 @@ impl GeminiExecutor {
             let data = read_captured(capture, upstream, usize::MAX).await?;
             req.usage.response_body(to, &data);
             let out = translate_non_stream(req, to, &body, &data)?;
+            claude_error(req, &out)?;
             return Ok(ExecResponse {
                 status: 200,
                 headers: response_headers,
                 body: ResponseBody::Buffered(out),
             });
         }
-        let output = Output::new(req, to, &body);
+        let output = Output::new(req, to, &body).with_claude_stream_errors();
         let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
         let stream = gemini_lines(lines, output, Format::Gemini);
         Ok(ExecResponse {
@@ -781,6 +792,11 @@ pub(crate) struct Output {
     pub(crate) usage: UsageSink,
     /// The attempt's request capture, for errors a stream loop finds in a payload.
     capture: CaptureSink,
+    /// helps.CaptureTranslatedClaudeStreamError: watch translated Claude chunks for an
+    /// `error` event (Gemini, Vertex and AI Studio streams).
+    claude_errors: bool,
+    /// The first such event as a 502, ending the stream once the upstream is drained.
+    retained: Option<ExecError>,
 }
 
 impl Output {
@@ -824,6 +840,46 @@ impl Output {
             claude: ClaudeInputTokens::new(req.source_format, upstream, client, original_request(req).clone()),
             usage: req.usage.clone(),
             capture: req.capture().clone(),
+            claude_errors: false,
+            retained: None,
+        }
+    }
+
+    /// Go 7f2f17d7: a translated Claude `error` event is forwarded, then ends the stream
+    /// with a 502 carrying its payload and the usage seen so far.
+    pub(crate) fn with_claude_stream_errors(mut self) -> Self {
+        self.claude_errors = self.client == Format::Claude;
+        self
+    }
+
+    /// helps.StopTranslatedClaudeStream: the retained error, published with the usage
+    /// seen so far.
+    pub(crate) fn stop_retained(&mut self, emit: &mut Emit) -> bool {
+        if emit.stop.is_some() {
+            return true;
+        }
+        let Some(error) = self.retained.take() else {
+            return false;
+        };
+        self.usage
+            .publish_failure_with_usage(error.status, &String::from_utf8_lossy(&error.body));
+        emit.stop = Some(error);
+        true
+    }
+
+    /// helps.TranslatedClaudeStreamErrorPayload over translated chunks.
+    fn capture_claude_error(&mut self, out: &[Bytes]) {
+        if !self.claude_errors || self.retained.is_some() {
+            return;
+        }
+        let payload = out
+            .iter()
+            .flat_map(|chunk| chunk.split(|b| *b == b'\n'))
+            .find_map(|line| {
+                crate::gemini_stream::json_payload(line).filter(|p| *gj::get(p, "type").bytes() == *b"error")
+            });
+        if let Some(payload) = payload {
+            self.retained = Some(status_err(502, Bytes::copy_from_slice(payload)));
         }
     }
 
@@ -838,7 +894,7 @@ impl Output {
     /// stream that feeds no `[DONE]`.
     pub(crate) fn end(&mut self) -> Emit {
         let mut emit = self.finalize();
-        if emit.stop.is_none() {
+        if !self.stop_retained(&mut emit) {
             emit.then(self.finish());
         }
         emit
@@ -848,9 +904,17 @@ impl Output {
     /// through the translator, then the client side's pending frames.
     pub(crate) fn end_with_done(&mut self) -> Emit {
         let mut emit = self.finalize();
-        if emit.stop.is_none() && !emit.then(self.translate(b"[DONE]")) {
+        if !self.stop_retained(&mut emit) && !emit.then(self.translate(b"[DONE]")) && !self.stop_retained(&mut emit) {
             emit.then(self.finish());
         }
+        emit
+    }
+
+    /// End of a stream after a read error (Go 5ec31442): the tool-input finalization
+    /// only, so a truncated stream never reads as a completed one.
+    pub(crate) fn end_after_error(&mut self) -> Emit {
+        let mut emit = self.finalize();
+        self.stop_retained(&mut emit);
         emit
     }
 
@@ -869,6 +933,7 @@ impl Output {
         };
         self.frame(&mut out);
         self.post_process(&mut out);
+        self.capture_claude_error(&out);
         self.checked(out)
     }
 
@@ -1016,11 +1081,10 @@ struct GeminiLines {
 impl LineState for GeminiLines {
     fn line(&mut self, line: &[u8]) -> Emit {
         if self.upstream != Format::Antigravity {
+            // Go observes the response model and (since 7f2f17d7) the usage on the raw
+            // line, before the filter hides non-terminal usageMetadata.
+            self.output.usage.response_line(self.upstream, line);
             let filtered = sse::filter_sse_usage_metadata(line);
-            // Go observes the response model on the raw line and usage on the filtered
-            // payload; the filter only drops non-terminal usageMetadata, which the model
-            // reader ignores.
-            self.output.usage.response_line(self.upstream, &filtered);
             return match sse::json_payload(&filtered) {
                 Some(payload) => self.output.translate(payload),
                 None => Emit::default(),
@@ -1063,14 +1127,8 @@ impl LineState for GeminiLines {
         self.output.end_with_done()
     }
 
-    /// Gemini translates `[DONE]` before checking the scanner; Antigravity finalizes
-    /// tool input only, so a truncated stream never reads as a completed one.
     fn end_after_error(&mut self) -> Emit {
-        if self.upstream == Format::Antigravity {
-            self.output.finalize()
-        } else {
-            self.output.end_with_done()
-        }
+        self.output.end_after_error()
     }
 
     fn flush(&mut self) -> Vec<Bytes> {

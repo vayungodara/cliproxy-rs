@@ -323,7 +323,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStream:28:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStream:72:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -341,7 +341,7 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"gemini-2.5-pro\",\"output\":[]},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"thinking\",\"sequence_number\":2}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\",\"sequence_number\":2}\n\n"
     ],
     [
      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"\",\"delta\":\"I will call a tool.\",\"sequence_number\":3}\n\n"
@@ -365,7 +365,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallStartArguments:97:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallStartArguments:141:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -384,7 +384,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallEmptyArguments:129:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallEmptyArguments:173:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -406,7 +406,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallEventsAreIdempotent:165:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallEventsAreIdempotent:209:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -429,7 +429,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamModelOutputDoneIncludesText:196:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamModelOutputDoneIncludesText:240:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -457,7 +457,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamDropsForeignThoughtSignature:291:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamDropsForeignThoughtSignature:441:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -469,18 +469,65 @@
    ],
    "outputs": [
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_ea37c0e2-0046-41ea-bdcf-853d6df0fa82_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"item_ea37c0e2-0046-41ea-bdcf-853d6df0fa82_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":2}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"thinking\",\"sequence_number\":2}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"item_ea37c0e2-0046-41ea-bdcf-853d6df0fa82_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\",\"sequence_number\":3}\n\n"
     ],
     [],
     [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":3}\n\n"
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"item_ea37c0e2-0046-41ea-bdcf-853d6df0fa82_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"thinking\",\"sequence_number\":4}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"item_ea37c0e2-0046-41ea-bdcf-853d6df0fa82_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"thinking\"},\"sequence_number\":5}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_ea37c0e2-0046-41ea-bdcf-853d6df0fa82_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":6}\n\n"
     ],
     [
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gpt-test\",\"output\":[{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":4}\n\n"
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gpt-test\",\"output\":[{\"id\":\"item_ea37c0e2-0046-41ea-bdcf-853d6df0fa82_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":7}\n\n"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
@@ -497,7 +544,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStream_PreservesEnvironmentID:744:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStream_PreservesEnvironmentID:894:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -518,7 +565,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamRestoresAntigravityToolName:780:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamRestoresAntigravityToolName:930:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -552,7 +599,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:944:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:1094:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -586,7 +633,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:997:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:1147:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -620,7 +667,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_ContentFilterIncomplete:1025:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_ContentFilterIncomplete:1175:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -636,27 +683,71 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"i_cf\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"gemini-2.5-pro\",\"output\":[]},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
-     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0ddd836c-2173-4036-aec0-2f621ec17186_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0ddd836c-2173-4036-aec0-2f621ec17186_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"delta\":\"blocked\",\"sequence_number\":4}\n\n"
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0ddd836c-2173-4036-aec0-2f621ec17186_0\",\"delta\":\"blocked\",\"sequence_number\":4}\n\n"
     ],
     [
-     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"text\":\"blocked\",\"logprobs\":[],\"sequence_number\":5}\n\n",
-     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"blocked\"},\"sequence_number\":6}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"blocked\"}]},\"sequence_number\":7}\n\n"
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0ddd836c-2173-4036-aec0-2f621ec17186_0\",\"text\":\"blocked\",\"logprobs\":[],\"sequence_number\":5}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0ddd836c-2173-4036-aec0-2f621ec17186_0\",\"part\":{\"type\":\"output_text\",\"text\":\"blocked\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0ddd836c-2173-4036-aec0-2f621ec17186_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"blocked\"}]},\"sequence_number\":7}\n\n"
     ],
     [
-     "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"i_cf\",\"object\":\"response\",\"status\":\"incomplete\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"blocked\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0},\"incomplete_details\":{\"reason\":\"content_filter\"}},\"sequence_number\":8}\n\n"
+     "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"i_cf\",\"object\":\"response\",\"status\":\"incomplete\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"item_0ddd836c-2173-4036-aec0-2f621ec17186_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"blocked\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0},\"incomplete_details\":{\"reason\":\"content_filter\"}},\"sequence_number\":8}\n\n"
     ],
     [
      "data: [DONE]"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_MissingUsageDefaultsToZeros:1065:events",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_MissingUsageDefaultsToZeros:1215:events",
    "path": "stream",
    "model": "gemini-2.5-pro",
    "lines": [
@@ -672,23 +763,67 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"i_nousage\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"gemini-2.5-pro\",\"output\":[]},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
-     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_5f6c6b76-707f-4cdd-9463-f1d0a4de1707_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_5f6c6b76-707f-4cdd-9463-f1d0a4de1707_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"delta\":\"hello\",\"sequence_number\":4}\n\n"
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_5f6c6b76-707f-4cdd-9463-f1d0a4de1707_0\",\"delta\":\"hello\",\"sequence_number\":4}\n\n"
     ],
     [
-     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"text\":\"hello\",\"logprobs\":[],\"sequence_number\":5}\n\n",
-     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"hello\"},\"sequence_number\":6}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},\"sequence_number\":7}\n\n"
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_5f6c6b76-707f-4cdd-9463-f1d0a4de1707_0\",\"text\":\"hello\",\"logprobs\":[],\"sequence_number\":5}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_5f6c6b76-707f-4cdd-9463-f1d0a4de1707_0\",\"part\":{\"type\":\"output_text\",\"text\":\"hello\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_5f6c6b76-707f-4cdd-9463-f1d0a4de1707_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},\"sequence_number\":7}\n\n"
     ],
     [
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"i_nousage\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"i_nousage\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"item_5f6c6b76-707f-4cdd-9463-f1d0a4de1707_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
     ],
     [
      "data: [DONE]"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
@@ -816,7 +951,7 @@
    ]
   },
   {
-   "name": "TestInteractionsApplyPatchMalformedEnvelopeAndTerminalFailure:252",
+   "name": "TestInteractionsApplyPatchMalformedEnvelopeAndTerminalFailure:260",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\"id\":\"r\",\"steps\":[{\"type\":\"function_call\",\"name\":\"functions__apply_patch\",\"arguments\":{\"input\":\"secret\"}}]",
@@ -840,7 +975,7 @@
    ]
   },
   {
-   "name": "TestInteractionsApplyPatchNonStreamRejectsUnresolvedIdentity:392",
+   "name": "TestInteractionsApplyPatchNonStreamRejectsUnresolvedIdentity:400",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\"steps\":[{\"type\":\"function_call\",\"id\":\"c1\",\"arguments\":{\"input\":\"secret\"}}]}",
@@ -898,7 +1033,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamThoughtSignature:341",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamThoughtSignature:491",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\"id\":\"interaction_1\",\"object\":\"interaction\",\"status\":\"completed\",\"steps\":[{\"type\":\"thought\",\"thought_signature\":\"foreign-gemini-signature\",\"content\":[{\"type\":\"text\",\"text\":\"thinking\"}]}],\"usage\":{\"total_tokens\":1}}",
@@ -921,7 +1056,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStream_PreservesEnvironmentID:735",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStream_PreservesEnvironmentID:885",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\"id\":\"interaction_1\",\"object\":\"interaction\",\"environment_id\":\"env_abc123\",\"status\":\"completed\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}",
@@ -955,7 +1090,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamRestoresAntigravityToolName:771",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamRestoresAntigravityToolName:921",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"id\":\"interaction_1\",\n\t\t\"model\":\"antigravity-preview-05-2026\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"external_read_file\",\"arguments\":{\"path\":\"/etc/hosts\"}}\n\t\t]\n\t}",
@@ -978,7 +1113,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesPreservesNonCollidingAndNonAntigravityNames:807",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesPreservesNonCollidingAndNonAntigravityNames:957",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"id\":\"interaction_1\",\n\t\t\"model\":\"antigravity-preview-05-2026\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"external_lookup\",\"arguments\":{\"q\":\"test\"}}\n\t\t]\n\t}",
@@ -990,7 +1125,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesPreservesNonCollidingAndNonAntigravityNames:820",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesPreservesNonCollidingAndNonAntigravityNames:970",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"id\":\"interaction_2\",\n\t\t\"model\":\"gemini-3.1-flash-lite\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"call_2\",\"name\":\"external_read_file\",\"arguments\":{\"path\":\"/etc/hosts\"}}\n\t\t]\n\t}",
@@ -1101,7 +1236,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:990",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:1140",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"id\":\"i1\",\n\t\t\"model\":\"devin/swe-2\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"write_file\",\"arguments\":{\"path\":\"/tmp/test\"}}\n\t\t]\n\t}",
@@ -1211,7 +1346,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_ContentFilterIncomplete:1053",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_ContentFilterIncomplete:1203",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"id\":\"i_cf\",\n\t\t\"model\":\"devin/swe-2\",\n\t\t\"status\":\"incomplete\",\n\t\t\"finish_reason\":\"content_filter\",\n\t\t\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"blocked\"}]}]\n\t}",
@@ -1266,7 +1401,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_MissingUsageDefaultsToZeros:1101",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_MissingUsageDefaultsToZeros:1251",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"id\":\"i_nousage\",\n\t\t\"model\":\"devin/swe-2\",\n\t\t\"status\":\"completed\",\n\t\t\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}]\n\t}",
@@ -1310,7 +1445,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_RestoresNamespaceAndCustomTool:1153",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_RestoresNamespaceAndCustomTool:1303",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"id\": \"resp_1\",\n\t\t\"steps\": [\n\t\t\t{\n\t\t\t\t\"type\": \"function_call\",\n\t\t\t\t\"id\": \"call_1\",\n\t\t\t\t\"name\": \"multi_agent_v1__close_agent\",\n\t\t\t\t\"arguments\": {\"target\": \"agent_1\"}\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"type\": \"function_call\",\n\t\t\t\t\"id\": \"call_2\",\n\t\t\t\t\"name\": \"functions__exec\",\n\t\t\t\t\"arguments\": {\"input\": \"echo hi\"}\n\t\t\t}\n\t\t]\n\t}",
@@ -1399,7 +1534,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_AntigravityCustomToolRestoresNameAndType:1316",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_AntigravityCustomToolRestoresNameAndType:1466",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"id\": \"resp_anti_custom\",\n\t\t\"steps\": [\n\t\t\t{\n\t\t\t\t\"type\": \"function_call\",\n\t\t\t\t\"id\": \"call_1\",\n\t\t\t\t\"name\": \"external_read_file\",\n\t\t\t\t\"arguments\": {\"input\": \"/path/to/file\"}\n\t\t\t}\n\t\t]\n\t}",
@@ -3412,60 +3547,191 @@
     ],
     [],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"think \u003cb\u003e\",\"sequence_number\":3}\n\n"
-    ],
-    [],
-    [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003e\"}]},\"sequence_number\":4}\n\n"
-    ],
-    [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":1,\"item\":{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":5}\n\n",
-     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":6}\n\n"
-    ],
-    [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"delta\":\"Hi é\",\"sequence_number\":7}\n\n"
-    ],
-    [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"delta\":\"\",\"sequence_number\":8}\n\n"
-    ],
-    [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"delta\":\"  \",\"sequence_number\":9}\n\n"
-    ],
-    [
-     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"text\":\"Hi é  \",\"logprobs\":[],\"sequence_number\":10}\n\n",
-     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"part\":{\"type\":\"output_text\",\"text\":\"Hi é  \"},\"sequence_number\":11}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi é  \"}]},\"sequence_number\":12}\n\n"
-    ],
-    [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"other\",\"call_id\":\"c1\",\"name\":\"lookup\"},\"sequence_number\":13,\"output_index\":2}\n\n"
-    ],
-    [
-     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"other\",\"delta\":\" {\\\"q\\\":\\\"\u003cx\u003e\\\"} \",\"sequence_number\":14}\n\n"
-    ],
-    [
-     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"other\",\"delta\":\"{\\\"q\\\":\",\"sequence_number\":15}\n\n"
-    ],
-    [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"item_7\",\"call_id\":\"item_7\",\"name\":\"fallback\"},\"sequence_number\":16,\"output_index\":7}\n\n",
-     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":7,\"item_id\":\"item_7\",\"delta\":\"[1]\",\"sequence_number\":17}\n\n"
-    ],
-    [],
-    [],
-    [],
-    [],
-    [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":4,\"content_index\":0,\"item_id\":\"\",\"delta\":\"\",\"sequence_number\":18}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"think \u003cb\u003e\",\"sequence_number\":4}\n\n"
     ],
     [],
     [
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"int_2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003e\"}]},{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi é  \"}]},{\"id\":\"other\",\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"lookup\",\"arguments\":\" {\\\"q\\\":\\\"\u003cx\u003e\\\"} {\\\"q\\\":\",\"status\":\"completed\"},{\"id\":\"i3\",\"type\":\"function_call\",\"call_id\":\"\",\"name\":\"\",\"arguments\":\"{}\",\"status\":\"completed\"},{\"id\":\"item_7\",\"type\":\"function_call\",\"call_id\":\"item_7\",\"name\":\"fallback\",\"arguments\":\"[1]\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":4,\"total_tokens\":9,\"input_tokens_details\":{\"cached_tokens\":1},\"output_tokens_details\":{\"reasoning_tokens\":2}}},\"sequence_number\":19}\n\n"
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"think \u003cb\u003e\",\"sequence_number\":5}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003e\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003e\"}]},\"sequence_number\":7}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":1,\"item\":{\"id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":8}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":9}\n\n"
+    ],
+    [
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"delta\":\"Hi é\",\"sequence_number\":10}\n\n"
+    ],
+    [
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"delta\":\"\",\"sequence_number\":11}\n\n"
+    ],
+    [
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"delta\":\"  \",\"sequence_number\":12}\n\n"
+    ],
+    [
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"text\":\"Hi é  \",\"logprobs\":[],\"sequence_number\":13}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"part\":{\"type\":\"output_text\",\"text\":\"Hi é  \"},\"sequence_number\":14}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi é  \"}]},\"sequence_number\":15}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"other\",\"call_id\":\"c1\",\"name\":\"lookup\"},\"sequence_number\":16,\"output_index\":2}\n\n"
+    ],
+    [
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"other\",\"delta\":\" {\\\"q\\\":\\\"\u003cx\u003e\\\"} \",\"sequence_number\":17}\n\n"
+    ],
+    [
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"other\",\"delta\":\"{\\\"q\\\":\",\"sequence_number\":18}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_7\",\"call_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_7\",\"name\":\"fallback\"},\"sequence_number\":19,\"output_index\":7}\n\n",
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":7,\"item_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_7\",\"delta\":\"[1]\",\"sequence_number\":20}\n\n"
+    ],
+    [],
+    [],
+    [],
+    [],
+    [
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":4,\"content_index\":0,\"item_id\":\"\",\"delta\":\"\",\"sequence_number\":21}\n\n"
+    ],
+    [],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"int_2\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003e\"}]},{\"id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hi é  \"}]},{\"id\":\"other\",\"type\":\"function_call\",\"call_id\":\"c1\",\"name\":\"lookup\",\"arguments\":\" {\\\"q\\\":\\\"\u003cx\u003e\\\"} {\\\"q\\\":\",\"status\":\"completed\"},{\"id\":\"i3\",\"type\":\"function_call\",\"call_id\":\"\",\"name\":\"\",\"arguments\":\"{}\",\"status\":\"completed\"},{\"id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_7\",\"type\":\"function_call\",\"call_id\":\"item_4493e1c2-1d72-4cf9-8a54-cf47011e09d0_7\",\"name\":\"fallback\",\"arguments\":\"[1]\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":4,\"total_tokens\":9,\"input_tokens_details\":{\"cached_tokens\":1},\"output_tokens_details\":{\"reasoning_tokens\":2}}},\"sequence_number\":22}\n\n"
     ],
     [
      "data: [DONE]"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 8,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 9,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 10,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 11,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 12,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 13,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 14,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 18,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 18,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 19,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 21,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 21,
+     "data": 1,
+     "path": "response.output.1.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 21,
+     "data": 1,
+     "path": "response.output.4.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 21,
+     "data": 1,
+     "path": "response.output.4.call_id",
+     "prefix": "item_"
+    }
    ]
   },
   {
@@ -3651,79 +3917,151 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"int_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"client-model\",\"output\":[],\"environment_id\":\"env\"},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"th_1\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"th_1\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"th_1\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     [],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"think \u003cb\u003e\",\"sequence_number\":3}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"th_1\",\"output_index\":0,\"summary_index\":0,\"delta\":\"think \u003cb\u003e\",\"sequence_number\":4}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"more\",\"sequence_number\":4}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"th_1\",\"output_index\":0,\"summary_index\":0,\"delta\":\"more\",\"sequence_number\":5}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"\",\"sequence_number\":5}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"th_1\",\"output_index\":0,\"summary_index\":0,\"delta\":\"\",\"sequence_number\":6}\n\n"
     ],
     [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"th_1\",\"type\":\"reasoning\",\"encrypted_content\":\"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003e\"},{\"type\":\"summary_text\",\"text\":\"more\"}]},\"sequence_number\":6}\n\n"
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"th_1\",\"output_index\":0,\"summary_index\":0,\"text\":\"think \u003cb\u003emore\",\"sequence_number\":7}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"th_1\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003emore\"},\"sequence_number\":8}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"th_1\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003emore\"}]},\"sequence_number\":9}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":1,\"item\":{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":7}\n\n",
-     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":8}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":1,\"item\":{\"id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_1\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":10}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_1\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":11}\n\n"
     ],
     [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"delta\":\"Hello é\",\"sequence_number\":9}\n\n"
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_1\",\"delta\":\"Hello é\",\"sequence_number\":12}\n\n"
     ],
     [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"delta\":\"\",\"sequence_number\":10}\n\n"
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_1\",\"delta\":\"\",\"sequence_number\":13}\n\n"
     ],
     [
-     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"text\":\"Hello é\",\"logprobs\":[],\"sequence_number\":11}\n\n",
-     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_1\",\"part\":{\"type\":\"output_text\",\"text\":\"Hello é\"},\"sequence_number\":12}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello é\"}]},\"sequence_number\":13}\n\n"
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_1\",\"text\":\"Hello é\",\"logprobs\":[],\"sequence_number\":14}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":1,\"content_index\":0,\"item_id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_1\",\"part\":{\"type\":\"output_text\",\"text\":\"Hello é\"},\"sequence_number\":15}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello é\"}]},\"sequence_number\":16}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"fc_2\",\"call_id\":\"call_2\",\"name\":\"list\",\"namespace\":\"mcp\"},\"sequence_number\":14,\"output_index\":2}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"fc_2\",\"call_id\":\"call_2\",\"name\":\"list\",\"namespace\":\"mcp\"},\"sequence_number\":17,\"output_index\":2}\n\n"
     ],
     [
-     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"fc_2\",\"delta\":\"{\\\"q\\\":\",\"sequence_number\":15}\n\n"
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"fc_2\",\"delta\":\"{\\\"q\\\":\",\"sequence_number\":18}\n\n"
     ],
     [
-     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"fc_2\",\"delta\":\"1}\",\"sequence_number\":16}\n\n"
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"fc_2\",\"delta\":\"1}\",\"sequence_number\":19}\n\n"
     ],
     [
-     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":2,\"item_id\":\"fc_2\",\"arguments\":\"{\\\"q\\\":1}\",\"sequence_number\":17}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"fc_2\",\"type\":\"function_call\",\"call_id\":\"call_2\",\"name\":\"list\",\"arguments\":\"{\\\"q\\\":1}\",\"status\":\"completed\",\"namespace\":\"mcp\"},\"sequence_number\":18}\n\n"
+     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":2,\"item_id\":\"fc_2\",\"arguments\":\"{\\\"q\\\":1}\",\"sequence_number\":20}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"fc_2\",\"type\":\"function_call\",\"call_id\":\"call_2\",\"name\":\"list\",\"arguments\":\"{\\\"q\\\":1}\",\"status\":\"completed\",\"namespace\":\"mcp\"},\"sequence_number\":21}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"call_3\",\"call_id\":\"call_3\",\"name\":\"run\"},\"sequence_number\":19,\"output_index\":3}\n\n"
-    ],
-    [],
-    [
-     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"output_index\":3,\"item_id\":\"call_3\",\"input\":\"ls -la\",\"sequence_number\":20}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":3,\"item\":{\"id\":\"call_3\",\"type\":\"custom_tool_call\",\"call_id\":\"call_3\",\"name\":\"run\",\"input\":\"ls -la\",\"status\":\"completed\"},\"sequence_number\":21}\n\n"
-    ],
-    [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"u4\",\"call_id\":\"u4\",\"name\":\"unknown_fn\"},\"sequence_number\":22,\"output_index\":4}\n\n",
-     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":4,\"item_id\":\"u4\",\"delta\":\"{\\\"x\\\":\\\"\u003cy\u003e\\\"}\",\"sequence_number\":23}\n\n"
-    ],
-    [
-     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":4,\"item_id\":\"u4\",\"arguments\":\"{\\\"x\\\":\\\"\u003cy\u003e\\\"}\",\"sequence_number\":24}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":4,\"item\":{\"id\":\"u4\",\"type\":\"function_call\",\"call_id\":\"u4\",\"name\":\"unknown_fn\",\"arguments\":\"{\\\"x\\\":\\\"\u003cy\u003e\\\"}\",\"status\":\"completed\"},\"sequence_number\":25}\n\n"
-    ],
-    [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":9,\"item\":{\"id\":\"\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":26}\n\n"
-    ],
-    [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":5,\"item\":{\"id\":\"item_5\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":27}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"call_3\",\"call_id\":\"call_3\",\"name\":\"run\"},\"sequence_number\":22,\"output_index\":3}\n\n"
     ],
     [],
     [
-     "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"incomplete\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"th_1\",\"type\":\"reasoning\",\"encrypted_content\":\"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003e\"},{\"type\":\"summary_text\",\"text\":\"more\"}]},{\"id\":\"item_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello é\"}]},{\"id\":\"fc_2\",\"type\":\"function_call\",\"call_id\":\"call_2\",\"name\":\"list\",\"arguments\":\"{\\\"q\\\":1}\",\"status\":\"completed\",\"namespace\":\"mcp\"},{\"id\":\"call_3\",\"type\":\"custom_tool_call\",\"call_id\":\"call_3\",\"name\":\"run\",\"input\":\"ls -la\",\"status\":\"completed\"},{\"id\":\"u4\",\"type\":\"function_call\",\"call_id\":\"u4\",\"name\":\"unknown_fn\",\"arguments\":\"{\\\"x\\\":\\\"\u003cy\u003e\\\"}\",\"status\":\"completed\"},{\"id\":\"item_5\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"input_tokens_details\":{\"cached_tokens\":1},\"output_tokens_details\":{\"reasoning_tokens\":4}},\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"environment_id\":\"env\"},\"sequence_number\":28}\n\n"
+     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"output_index\":3,\"item_id\":\"call_3\",\"input\":\"ls -la\",\"sequence_number\":23}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":3,\"item\":{\"id\":\"call_3\",\"type\":\"custom_tool_call\",\"call_id\":\"call_3\",\"name\":\"run\",\"input\":\"ls -la\",\"status\":\"completed\"},\"sequence_number\":24}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"u4\",\"call_id\":\"u4\",\"name\":\"unknown_fn\"},\"sequence_number\":25,\"output_index\":4}\n\n",
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":4,\"item_id\":\"u4\",\"delta\":\"{\\\"x\\\":\\\"\u003cy\u003e\\\"}\",\"sequence_number\":26}\n\n"
+    ],
+    [
+     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":4,\"item_id\":\"u4\",\"arguments\":\"{\\\"x\\\":\\\"\u003cy\u003e\\\"}\",\"sequence_number\":27}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":4,\"item\":{\"id\":\"u4\",\"type\":\"function_call\",\"call_id\":\"u4\",\"name\":\"unknown_fn\",\"arguments\":\"{\\\"x\\\":\\\"\u003cy\u003e\\\"}\",\"status\":\"completed\"},\"sequence_number\":28}\n\n"
+    ],
+    [
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":9,\"item\":{\"id\":\"\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"\"}]},\"sequence_number\":29}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":5,\"item\":{\"id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_5\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":30}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_5\",\"output_index\":5,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":31}\n\n"
+    ],
+    [],
+    [
+     "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"incomplete\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"th_1\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"EjQKMgEMOdbHO0Gd+c9Mxk4ELwPGbpCEcp2mFfYYLix2UVtBH3fL8GECc4+JITVnHF4qZDsA\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think \u003cb\u003emore\"}]},{\"id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_1\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Hello é\"}]},{\"id\":\"fc_2\",\"type\":\"function_call\",\"call_id\":\"call_2\",\"name\":\"list\",\"arguments\":\"{\\\"q\\\":1}\",\"status\":\"completed\",\"namespace\":\"mcp\"},{\"id\":\"call_3\",\"type\":\"custom_tool_call\",\"call_id\":\"call_3\",\"name\":\"run\",\"input\":\"ls -la\",\"status\":\"completed\"},{\"id\":\"u4\",\"type\":\"function_call\",\"call_id\":\"u4\",\"name\":\"unknown_fn\",\"arguments\":\"{\\\"x\\\":\\\"\u003cy\u003e\\\"}\",\"status\":\"completed\"},{\"id\":\"item_a657936d-4c96-4676-a8a2-120095e82694_5\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"input_tokens_details\":{\"cached_tokens\":1},\"output_tokens_details\":{\"reasoning_tokens\":4}},\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"environment_id\":\"env\"},\"sequence_number\":32}\n\n"
     ],
     [
      "data: [DONE]"
     ],
     []
+   ],
+   "dynamic": [
+    {
+     "out": 9,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 10,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 11,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 12,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 13,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 14,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 15,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 29,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 30,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 31,
+     "data": 1,
+     "path": "response.output.1.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 31,
+     "data": 1,
+     "path": "response.output.5.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
@@ -3740,12 +4078,74 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"int_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"client-model\",\"output\":[],\"environment_id\":\"env\"},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_0\",\"call_id\":\"item_0\",\"name\":\"apply_patch\"},\"sequence_number\":2,\"output_index\":0}\n\n",
-     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_0\",\"call_id\":\"item_0\",\"output_index\":0,\"sequence_number\":3,\"delta\":\"c\"}\n\n",
-     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_0\",\"call_id\":\"item_0\",\"output_index\":0,\"sequence_number\":4,\"input\":\"c\"}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":5,\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"custom_tool_call\",\"call_id\":\"item_0\",\"name\":\"apply_patch\",\"input\":\"c\",\"status\":\"completed\"}}\n\n",
-     "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"incomplete\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"item_0\",\"type\":\"custom_tool_call\",\"call_id\":\"item_0\",\"name\":\"apply_patch\",\"input\":\"c\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0},\"incomplete_details\":{\"reason\":\"content_filter\"},\"environment_id\":\"e2\"},\"sequence_number\":6}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"call_id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"name\":\"apply_patch\"},\"sequence_number\":2,\"output_index\":0}\n\n",
+     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"call_id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"output_index\":0,\"sequence_number\":3,\"delta\":\"c\"}\n\n",
+     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"call_id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"output_index\":0,\"sequence_number\":4,\"input\":\"c\"}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":5,\"output_index\":0,\"item\":{\"id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"type\":\"custom_tool_call\",\"call_id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"name\":\"apply_patch\",\"input\":\"c\",\"status\":\"completed\"}}\n\n",
+     "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"incomplete\",\"model\":\"gemini-2.5-pro\",\"output\":[{\"id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"type\":\"custom_tool_call\",\"call_id\":\"item_a25a9d15-df0b-4a7d-8464-d13c8d70978c_0\",\"name\":\"apply_patch\",\"input\":\"c\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0},\"incomplete_details\":{\"reason\":\"content_filter\"},\"environment_id\":\"e2\"},\"sequence_number\":6}\n\n"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.call_id",
+     "prefix": "item_"
+    }
    ]
   },
   {
@@ -4064,12 +4464,26 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"int_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"client-model\",\"output\":[],\"environment_id\":\"env\"},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
-     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_b8c8bd9a-7c47-4d40-a112-2045ce92e13c_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_b8c8bd9a-7c47-4d40-a112-2045ce92e13c_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     []
    ],
-   "finalize": true
+   "finalize": true,
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    }
+   ]
   },
   {
    "name": "interactions-responses/resolve",
@@ -4130,16 +4544,48 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"int_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"client-model\",\"output\":[],\"environment_id\":\"env\"},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
-     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_e584cfc8-14a8-4a44-b5d2-adf41200e1f5_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_e584cfc8-14a8-4a44-b5d2-adf41200e1f5_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     [],
     [],
     [
-     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"text\":\"\",\"logprobs\":[],\"sequence_number\":4}\n\n",
-     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":5}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"\"}]},\"sequence_number\":6}\n\n"
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_e584cfc8-14a8-4a44-b5d2-adf41200e1f5_0\",\"text\":\"\",\"logprobs\":[],\"sequence_number\":4}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_e584cfc8-14a8-4a44-b5d2-adf41200e1f5_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":5}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_e584cfc8-14a8-4a44-b5d2-adf41200e1f5_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"\"}]},\"sequence_number\":6}\n\n"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
@@ -4359,7 +4805,7 @@
    ]
   },
   {
-   "name": "TestInteractionsApplyPatchInvalidNonStream:116",
+   "name": "TestInteractionsApplyPatchInvalidNonStream:120",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\"id\":\"r\",\"steps\":[{\"arguments\":\"{}\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}]}",
@@ -4372,7 +4818,7 @@
    "tool_error": true
   },
   {
-   "name": "TestInteractionsApplyPatchInvalidNonStream:116#2",
+   "name": "TestInteractionsApplyPatchInvalidNonStream:120#2",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\"id\":\"r\",\"steps\":[{\"arguments\":\"{\\\"input\\\":1}\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}]}",
@@ -4385,7 +4831,7 @@
    "tool_error": true
   },
   {
-   "name": "TestInteractionsApplyPatchInvalidNonStream:116#3",
+   "name": "TestInteractionsApplyPatchInvalidNonStream:120#3",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\"id\":\"r\",\"steps\":[{\"arguments\":\"{\\\"input\\\":\\\"a\\\",\\\"input\\\":\\\"b\\\"}\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}]}",
@@ -4398,7 +4844,7 @@
    "tool_error": true
   },
   {
-   "name": "TestInteractionsApplyPatchInvalidNonStream:116#4",
+   "name": "TestInteractionsApplyPatchInvalidNonStream:120#4",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\"id\":\"r\",\"steps\":[{\"arguments\":\"{\\\"input\\\":\\\"secret\\\"\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}]}",
@@ -4411,7 +4857,7 @@
    "tool_error": true
   },
   {
-   "name": "TestInteractionsApplyPatchInvalidNonStream:116#5",
+   "name": "TestInteractionsApplyPatchInvalidNonStream:120#5",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\"id\":\"r\",\"steps\":[{\"arguments\":\"{\\\"input\\\":\\\"x\\\",\\\"extra\\\":1}\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}]}",
@@ -4424,7 +4870,7 @@
    "tool_error": true
   },
   {
-   "name": "TestInteractionsApplyPatchMalformedEnvelopeAndTerminalFailure:252#2",
+   "name": "TestInteractionsApplyPatchMalformedEnvelopeAndTerminalFailure:260#2",
    "path": "non_stream",
    "model": "devin",
    "input": "{\"id\":\"r\",\"steps\":[{\"type\":\"function_call\",\"name\":\"functions__apply_patch\",\"arguments\":{\"input\":\"secret\"}}]",
@@ -4437,7 +4883,7 @@
    "tool_error": true
   },
   {
-   "name": "TestInteractionsApplyPatchNonStreamRejectsUnresolvedIdentity:392#2",
+   "name": "TestInteractionsApplyPatchNonStreamRejectsUnresolvedIdentity:400#2",
    "path": "non_stream",
    "model": "devin",
    "input": "{\"steps\":[{\"type\":\"function_call\",\"id\":\"c1\",\"arguments\":{\"input\":\"secret\"}}]}",
@@ -4462,7 +4908,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamThoughtSignature:332",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamThoughtSignature:482",
    "path": "non_stream",
    "model": "gpt-test",
    "input": "{\"id\":\"interaction_1\",\"object\":\"interaction\",\"status\":\"completed\",\"steps\":[{\"type\":\"thought\",\"signature\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"content\":[{\"type\":\"text\",\"text\":\"thinking\"}]}],\"usage\":{\"total_tokens\":1}}",
@@ -4474,7 +4920,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamThoughtSignature:341#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamThoughtSignature:491#2",
    "path": "non_stream",
    "model": "gpt-test",
    "input": "{\"id\":\"interaction_1\",\"object\":\"interaction\",\"status\":\"completed\",\"steps\":[{\"type\":\"thought\",\"thought_signature\":\"foreign-gemini-signature\",\"content\":[{\"type\":\"text\",\"text\":\"thinking\"}]}],\"usage\":{\"total_tokens\":1}}",
@@ -4486,7 +4932,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStream_PreservesEnvironmentID:735#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStream_PreservesEnvironmentID:885#2",
    "path": "non_stream",
    "model": "antigravity-preview-05-2026",
    "input": "{\"id\":\"interaction_1\",\"object\":\"interaction\",\"environment_id\":\"env_abc123\",\"status\":\"completed\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":1,\"output_tokens\":2,\"total_tokens\":3}}",
@@ -4498,7 +4944,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamRestoresAntigravityToolName:771#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesNonStreamRestoresAntigravityToolName:921#2",
    "path": "non_stream",
    "model": "antigravity-preview-05-2026",
    "input": "{\n\t\t\"id\":\"interaction_1\",\n\t\t\"model\":\"antigravity-preview-05-2026\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"external_read_file\",\"arguments\":{\"path\":\"/etc/hosts\"}}\n\t\t]\n\t}",
@@ -4510,7 +4956,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesPreservesNonCollidingAndNonAntigravityNames:807#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesPreservesNonCollidingAndNonAntigravityNames:957#2",
    "path": "non_stream",
    "model": "antigravity-preview-05-2026",
    "input": "{\n\t\t\"id\":\"interaction_1\",\n\t\t\"model\":\"antigravity-preview-05-2026\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"external_lookup\",\"arguments\":{\"q\":\"test\"}}\n\t\t]\n\t}",
@@ -4522,7 +4968,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesPreservesNonCollidingAndNonAntigravityNames:820#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesPreservesNonCollidingAndNonAntigravityNames:970#2",
    "path": "non_stream",
    "model": "gemini-3.1-flash-lite",
    "input": "{\n\t\t\"id\":\"interaction_2\",\n\t\t\"model\":\"gemini-3.1-flash-lite\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"call_2\",\"name\":\"external_read_file\",\"arguments\":{\"path\":\"/etc/hosts\"}}\n\t\t]\n\t}",
@@ -4534,7 +4980,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_PreservesHTMLCharactersInToolCallArguments:837",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_PreservesHTMLCharactersInToolCallArguments:987",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\n\t\t\"id\":\"interaction_test\",\n\t\t\"model\":\"devin/swe-2\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"bash_1\",\"name\":\"bash\",\"arguments\":{\"command\":\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\",\"timeout\":60}}\n\t\t]\n\t}",
@@ -4545,7 +4991,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:990#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:1140#2",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\n\t\t\"id\":\"i1\",\n\t\t\"model\":\"devin/swe-2\",\n\t\t\"steps\":[\n\t\t\t{\"type\":\"function_call\",\"id\":\"call_1\",\"name\":\"write_file\",\"arguments\":{\"path\":\"/tmp/test\"}}\n\t\t]\n\t}",
@@ -4556,7 +5002,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_ContentFilterIncomplete:1053#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_ContentFilterIncomplete:1203#2",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\n\t\t\"id\":\"i_cf\",\n\t\t\"model\":\"devin/swe-2\",\n\t\t\"status\":\"incomplete\",\n\t\t\"finish_reason\":\"content_filter\",\n\t\t\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"blocked\"}]}]\n\t}",
@@ -4567,7 +5013,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_MissingUsageDefaultsToZeros:1101#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_MissingUsageDefaultsToZeros:1251#2",
    "path": "non_stream",
    "model": "devin/swe-2",
    "input": "{\n\t\t\"id\":\"i_nousage\",\n\t\t\"model\":\"devin/swe-2\",\n\t\t\"status\":\"completed\",\n\t\t\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]}]\n\t}",
@@ -4578,7 +5024,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_RestoresNamespaceAndCustomTool:1153#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_RestoresNamespaceAndCustomTool:1303#2",
    "path": "non_stream",
    "model": "devin/gemini-3-7-flash",
    "input": "{\n\t\t\"id\": \"resp_1\",\n\t\t\"steps\": [\n\t\t\t{\n\t\t\t\t\"type\": \"function_call\",\n\t\t\t\t\"id\": \"call_1\",\n\t\t\t\t\"name\": \"multi_agent_v1__close_agent\",\n\t\t\t\t\"arguments\": {\"target\": \"agent_1\"}\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"type\": \"function_call\",\n\t\t\t\t\"id\": \"call_2\",\n\t\t\t\t\"name\": \"functions__exec\",\n\t\t\t\t\"arguments\": {\"input\": \"echo hi\"}\n\t\t\t}\n\t\t]\n\t}",
@@ -4590,7 +5036,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_AntigravityCustomToolRestoresNameAndType:1316#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_AntigravityCustomToolRestoresNameAndType:1466#2",
    "path": "non_stream",
    "model": "antigravity-preview-05-2026",
    "input": "{\n\t\t\"id\": \"resp_anti_custom\",\n\t\t\"steps\": [\n\t\t\t{\n\t\t\t\t\"type\": \"function_call\",\n\t\t\t\t\"id\": \"call_1\",\n\t\t\t\t\"name\": \"external_read_file\",\n\t\t\t\t\"arguments\": {\"input\": \"/path/to/file\"}\n\t\t\t}\n\t\t]\n\t}",
@@ -4600,6 +5046,114 @@
      "{\"id\":\"resp_anti_custom\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"antigravity-preview-05-2026\",\"output\":[{\"type\":\"custom_tool_call\",\"call_id\":\"call_1\",\"name\":\"read_file\",\"input\":\"/path/to/file\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
     ]
    ]
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_file\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_file"
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#2",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_file\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_file"
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#3",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_audio\",\"input_audio\":{\"format\":\"wav\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_audio"
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#4",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_video\",\"video_url\":\"https://example.test/a.mp4\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_video"
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#5",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"instructions\":\"sys\",\"input\":[{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"keep me\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_file\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"content\":[]}],\"system_instruction\":\"sys\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_file"
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#6",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_file\",\"file_id\":\"file-1\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"next\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"next\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_file"
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#7",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"\"},{\"type\":\"input_file\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_file"
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#8",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hello\"}]},{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi\"}]},{\"type\":\"input_file\",\"file_id\":\"file-1\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"type\":\"user_input\",\"content\":[]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_file"
+  },
+  {
+   "name": "TestConvertOpenAIResponsesRequestToInteractions_ExportedWrapperKeepsAJSONBody:181",
+   "path": "request",
+   "model": "gemini-3.5-flash",
+   "input": "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_file\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"gemini-3.5-flash\",\"input\":[{\"type\":\"user_input\",\"content\":[]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: input_file"
   },
   {
    "name": "TestSummaryIntentTranslation:76",
@@ -5358,13 +5912,75 @@
     [],
     [],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_2\",\"call_id\":\"item_2\",\"name\":\"apply_patch\",\"namespace\":\"functions\"},\"sequence_number\":1,\"output_index\":2}\n\n",
-     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_2\",\"call_id\":\"item_2\",\"output_index\":2,\"sequence_number\":2,\"delta\":\"pq\"}\n\n",
-     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_2\",\"call_id\":\"item_2\",\"output_index\":2,\"sequence_number\":3,\"input\":\"pq\"}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":2,\"item\":{\"id\":\"item_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}}\n\n",
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":5}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"call_id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"name\":\"apply_patch\",\"namespace\":\"functions\"},\"sequence_number\":1,\"output_index\":2}\n\n",
+     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"call_id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"output_index\":2,\"sequence_number\":2,\"delta\":\"pq\"}\n\n",
+     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"call_id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"output_index\":2,\"sequence_number\":3,\"input\":\"pq\"}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":2,\"item\":{\"id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}}\n\n",
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_e4a564af-da86-4c6d-962c-1f9bcd4cff53_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":5}\n\n"
     ],
     []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_e"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "response.output.0.call_id",
+     "prefix": "item_e"
+    }
    ]
   },
   {
@@ -5384,13 +6000,75 @@
     [],
     [],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_2\",\"call_id\":\"item_2\",\"name\":\"apply_patch\",\"namespace\":\"functions\"},\"sequence_number\":1,\"output_index\":2}\n\n",
-     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_2\",\"call_id\":\"item_2\",\"output_index\":2,\"sequence_number\":2,\"delta\":\"pq\"}\n\n",
-     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_2\",\"call_id\":\"item_2\",\"output_index\":2,\"sequence_number\":3,\"input\":\"pq\"}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":2,\"item\":{\"id\":\"item_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}}\n\n",
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":5}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"call_id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"name\":\"apply_patch\",\"namespace\":\"functions\"},\"sequence_number\":1,\"output_index\":2}\n\n",
+     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"call_id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"output_index\":2,\"sequence_number\":2,\"delta\":\"pq\"}\n\n",
+     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"call_id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"output_index\":2,\"sequence_number\":3,\"input\":\"pq\"}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":2,\"item\":{\"id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}}\n\n",
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_dce33d0e-df32-4194-b2d5-287ea006eaa0_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":5}\n\n"
     ],
     []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "response.output.0.call_id",
+     "prefix": "item_"
+    }
    ]
   },
   {
@@ -5410,13 +6088,63 @@
     [],
     [],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_2\",\"call_id\":\"item_2\",\"name\":\"apply_patch\",\"namespace\":\"functions\"},\"sequence_number\":1,\"output_index\":2}\n\n",
-     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_2\",\"call_id\":\"item_2\",\"output_index\":2,\"sequence_number\":2,\"delta\":\"pq\"}\n\n",
-     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_2\",\"call_id\":\"item_2\",\"output_index\":2,\"sequence_number\":3,\"input\":\"pq\"}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":2,\"item\":{\"id\":\"item_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}}\n\n",
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_4660156b-8b55-4337-aa86-feae6d0ebfcd_2\",\"call_id\":\"item_4660156b-8b55-4337-aa86-feae6d0ebfcd_2\",\"name\":\"apply_patch\",\"namespace\":\"functions\"},\"sequence_number\":1,\"output_index\":2}\n\n",
+     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_4660156b-8b55-4337-aa86-feae6d0ebfcd_2\",\"call_id\":\"item_4660156b-8b55-4337-aa86-feae6d0ebfcd_2\",\"output_index\":2,\"sequence_number\":2,\"delta\":\"pq\"}\n\n",
+     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_4660156b-8b55-4337-aa86-feae6d0ebfcd_2\",\"call_id\":\"item_4660156b-8b55-4337-aa86-feae6d0ebfcd_2\",\"output_index\":2,\"sequence_number\":3,\"input\":\"pq\"}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":4,\"output_index\":2,\"item\":{\"id\":\"item_4660156b-8b55-4337-aa86-feae6d0ebfcd_2\",\"type\":\"custom_tool_call\",\"call_id\":\"item_4660156b-8b55-4337-aa86-feae6d0ebfcd_2\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}}\n\n",
      "data: [DONE]"
     ],
     []
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    }
    ]
   },
   {
@@ -9679,14 +10407,6 @@
     "{\"event_type\":\"interaction.completed\"}",
     "{\"event_type\":\"interaction.failed\"}",
     "[DONE]",
-    "{\"event_type\":\"step.stop\",\"index\":2,\"step\":null}",
-    "{\"event_type\":\"step.start\",\"index\":2,\"step\":{\"call_id\":\"call_2\",\"id\":\"item_2\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}}",
-    "{\"delta\":{\"arguments\":\"{\\\"input\\\":\\\"p\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\",\"index\":2}",
-    "{\"event_type\":\"step.start\",\"index\":4,\"step\":{\"arguments\":{\"input\":\"q\"},\"call_id\":\"call_4\",\"id\":\"item_4\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}}",
-    "{\"event_type\":\"finish\",\"steps\":[{\"arguments\":{\"input\":\"p\"},\"call_id\":\"call_2\",\"index\":3,\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}]}",
-    "{\"event_type\":\"interaction.completed\"}",
-    "{\"event_type\":\"interaction.failed\"}",
-    "[DONE]",
     "{\"event_type\":\"step.stop\",\"index\":2,\"step\":null}"
    ],
    "outputs": [
@@ -9702,14 +10422,6 @@
     [
      "event: response.failed\ndata: {\"type\":\"response.failed\",\"sequence_number\":4,\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"failed\",\"error\":{\"type\":\"server_error\",\"code\":\"invalid_tool_arguments\",\"message\":\"Invalid apply_patch tool arguments received from upstream.\",\"param\":null}}}\n\n"
     ],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
-    [],
     [],
     [],
     [],
@@ -9870,6 +10582,14 @@
     "{\"event_type\":\"interaction.completed\"}",
     "{\"event_type\":\"interaction.failed\"}",
     "[DONE]",
+    "{\"event_type\":\"step.stop\",\"index\":2,\"step\":null}",
+    "{\"event_type\":\"step.start\",\"index\":2,\"step\":{\"call_id\":\"call_2\",\"id\":\"item_2\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}}",
+    "{\"delta\":{\"arguments\":\"{\\\"input\\\":\\\"p\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\",\"index\":2}",
+    "{\"event_type\":\"step.start\",\"index\":4,\"step\":{\"arguments\":{\"input\":\"q\"},\"call_id\":\"call_4\",\"id\":\"item_4\",\"name\":\"functions__apply_patch\",\"type\":\"function_call\"}}",
+    "{\"event_type\":\"finish\",\"steps\":[{\"call_id\":\"wrong_call\",\"id\":\"item_2\",\"index\":3,\"type\":\"custom_tool_call\"}]}",
+    "{\"event_type\":\"interaction.completed\"}",
+    "{\"event_type\":\"interaction.failed\"}",
+    "[DONE]",
     "{\"event_type\":\"step.stop\",\"index\":2,\"step\":null}"
    ],
    "outputs": [
@@ -9885,6 +10605,14 @@
     [
      "event: response.failed\ndata: {\"type\":\"response.failed\",\"sequence_number\":4,\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"failed\",\"error\":{\"type\":\"server_error\",\"code\":\"invalid_tool_arguments\",\"message\":\"Invalid apply_patch tool arguments received from upstream.\",\"param\":null}}}\n\n"
     ],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
+    [],
     [],
     [],
     [],
@@ -13623,7 +14351,7 @@
    "outputs": [
     [],
     [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n"
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"\"}]},\"sequence_number\":1}\n\n"
     ],
     [],
     [
@@ -13646,7 +14374,7 @@
    "outputs": [
     [],
     [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n"
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"\"}]},\"sequence_number\":1}\n\n"
     ],
     [],
     [
@@ -14844,7 +15572,7 @@
    "tool_error": true
   },
   {
-   "name": "TestInteractionsApplyPatchWinningDeclarationAndNegativeCompatibility:224:stream",
+   "name": "TestInteractionsApplyPatchWinningDeclarationAndNegativeCompatibility:232:stream",
    "path": "stream",
    "model": "devin/swe-2",
    "original": "{\"tools\":[{\"type\":\"function\",\"name\":\"apply_patch\",\"parameters\":{\"type\":\"object\",\"properties\":{\"n\":{\"type\":\"number\"}}}}],\"input\":[{\"type\":\"additional_tools\",\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\"}]}]}",
@@ -14871,7 +15599,7 @@
    ]
   },
   {
-   "name": "TestInteractionsApplyPatchWinningDeclarationAndNegativeCompatibility:224:stream#2",
+   "name": "TestInteractionsApplyPatchWinningDeclarationAndNegativeCompatibility:232:stream#2",
    "path": "stream",
    "model": "devin/swe-2",
    "original": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"functions\",\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\"}]},{\"type\":\"function\",\"name\":\"functions__apply_patch\"}]}",
@@ -14898,7 +15626,7 @@
    ]
   },
   {
-   "name": "TestInteractionsApplyPatchWinningDeclarationAndNegativeCompatibility:224:stream#3",
+   "name": "TestInteractionsApplyPatchWinningDeclarationAndNegativeCompatibility:232:stream#3",
    "path": "stream",
    "model": "devin/swe-2",
    "original": "{\"tools\":[{\"type\":\"custom\",\"name\":\"exec\"}]}",
@@ -14923,7 +15651,7 @@
    ]
   },
   {
-   "name": "TestInteractionsApplyPatchWinningDeclarationAndNegativeCompatibility:224:stream#4",
+   "name": "TestInteractionsApplyPatchWinningDeclarationAndNegativeCompatibility:232:stream#4",
    "path": "stream",
    "model": "devin/swe-2",
    "original": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"a.b\",\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\"}]},{\"type\":\"function\",\"name\":\"a_b__apply_patch\"}]}",
@@ -15056,7 +15784,7 @@
    "tool_error": true
   },
   {
-   "name": "TestInteractionsApplyPatchDoesNotChangeOtherFunctionNames:310:stream",
+   "name": "TestInteractionsApplyPatchDoesNotChangeOtherFunctionNames:318:stream",
    "path": "stream",
    "model": "devin/swe-2",
    "original": "{\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\"},{\"type\":\"function\",\"name\":\"read_file\"}]}",
@@ -15187,7 +15915,651 @@
    "tool_error": true
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStream:62:stream",
+   "name": "TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses:49:stream",
+   "path": "stream",
+   "model": "devin/gpt-6-1-sol",
+   "lines": [
+    "{\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_reasoning_0\"}}",
+    "{\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"thought\"}}",
+    "{\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"thought_summary\",\"text\":\"thinking\"}}",
+    "{\"event_type\":\"step.stop\",\"index\":0}",
+    "{\"event_type\":\"interaction.completed\",\"interaction\":{\"status\":\"completed\"}}"
+   ],
+   "outputs": [
+    [
+     "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_reasoning_0\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[]},\"sequence_number\":1}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_4ffea32c-a7e7-4f46-90d0-251585ed2809_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"item_4ffea32c-a7e7-4f46-90d0-251585ed2809_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"item_4ffea32c-a7e7-4f46-90d0-251585ed2809_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\",\"sequence_number\":4}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"item_4ffea32c-a7e7-4f46-90d0-251585ed2809_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"thinking\",\"sequence_number\":5}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"item_4ffea32c-a7e7-4f46-90d0-251585ed2809_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"thinking\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_4ffea32c-a7e7-4f46-90d0-251585ed2809_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":7}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[{\"id\":\"item_4ffea32c-a7e7-4f46-90d0-251585ed2809_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
+   ]
+  },
+  {
+   "name": "TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses:49:stream#2",
+   "path": "stream",
+   "model": "devin/gpt-6-1-sol",
+   "lines": [
+    "{\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_reasoning_1\"}}",
+    "{\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"thought\"}}",
+    "{\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"thought_summary\",\"text\":\"thinking\"}}",
+    "{\"event_type\":\"step.stop\",\"index\":0}",
+    "{\"event_type\":\"interaction.completed\",\"interaction\":{\"status\":\"completed\"}}"
+   ],
+   "outputs": [
+    [
+     "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_reasoning_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[]},\"sequence_number\":1}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_07eff7bb-dd4f-4826-a340-4157cffe7591_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"item_07eff7bb-dd4f-4826-a340-4157cffe7591_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"item_07eff7bb-dd4f-4826-a340-4157cffe7591_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\",\"sequence_number\":4}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"item_07eff7bb-dd4f-4826-a340-4157cffe7591_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"thinking\",\"sequence_number\":5}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"item_07eff7bb-dd4f-4826-a340-4157cffe7591_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"thinking\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_07eff7bb-dd4f-4826-a340-4157cffe7591_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":7}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[{\"id\":\"item_07eff7bb-dd4f-4826-a340-4157cffe7591_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
+   ]
+  },
+  {
+   "name": "TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses:49:stream#3",
+   "path": "stream",
+   "model": "devin/gpt-6-1-sol",
+   "lines": [
+    "{\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_message_0\"}}",
+    "{\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"model_output\"}}",
+    "{\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"ready\"}}",
+    "{\"event_type\":\"step.stop\",\"index\":0}",
+    "{\"event_type\":\"interaction.completed\",\"interaction\":{\"status\":\"completed\"}}"
+   ],
+   "outputs": [
+    [
+     "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_message_0\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[]},\"sequence_number\":1}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_c2fbe10a-842b-4af8-9d5d-b8b187798d32_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_c2fbe10a-842b-4af8-9d5d-b8b187798d32_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_c2fbe10a-842b-4af8-9d5d-b8b187798d32_0\",\"delta\":\"ready\",\"sequence_number\":4}\n\n"
+    ],
+    [
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_c2fbe10a-842b-4af8-9d5d-b8b187798d32_0\",\"text\":\"ready\",\"logprobs\":[],\"sequence_number\":5}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_c2fbe10a-842b-4af8-9d5d-b8b187798d32_0\",\"part\":{\"type\":\"output_text\",\"text\":\"ready\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_c2fbe10a-842b-4af8-9d5d-b8b187798d32_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ready\"}]},\"sequence_number\":7}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[{\"id\":\"item_c2fbe10a-842b-4af8-9d5d-b8b187798d32_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ready\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
+   ]
+  },
+  {
+   "name": "TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses:49:stream#4",
+   "path": "stream",
+   "model": "devin/gpt-6-1-sol",
+   "lines": [
+    "{\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_message_1\"}}",
+    "{\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"model_output\"}}",
+    "{\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"text\",\"text\":\"ready\"}}",
+    "{\"event_type\":\"step.stop\",\"index\":0}",
+    "{\"event_type\":\"interaction.completed\",\"interaction\":{\"status\":\"completed\"}}"
+   ],
+   "outputs": [
+    [
+     "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_message_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[]},\"sequence_number\":1}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_7f27eb4f-359b-487c-9e8b-2f562236b6e5_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_7f27eb4f-359b-487c-9e8b-2f562236b6e5_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_7f27eb4f-359b-487c-9e8b-2f562236b6e5_0\",\"delta\":\"ready\",\"sequence_number\":4}\n\n"
+    ],
+    [
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_7f27eb4f-359b-487c-9e8b-2f562236b6e5_0\",\"text\":\"ready\",\"logprobs\":[],\"sequence_number\":5}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_7f27eb4f-359b-487c-9e8b-2f562236b6e5_0\",\"part\":{\"type\":\"output_text\",\"text\":\"ready\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_7f27eb4f-359b-487c-9e8b-2f562236b6e5_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ready\"}]},\"sequence_number\":7}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[{\"id\":\"item_7f27eb4f-359b-487c-9e8b-2f562236b6e5_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"ready\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
+   ]
+  },
+  {
+   "name": "TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses:49:stream#5",
+   "path": "stream",
+   "model": "devin/gpt-6-1-sol",
+   "lines": [
+    "{\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_function_0\"}}",
+    "{\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"function_call\",\"name\":\"exec_command\",\"arguments\":{}}}",
+    "{\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\"}}",
+    "{\"event_type\":\"step.stop\",\"index\":0}",
+    "{\"event_type\":\"interaction.completed\",\"interaction\":{\"status\":\"completed\"}}"
+   ],
+   "outputs": [
+    [
+     "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_function_0\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[]},\"sequence_number\":1}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"item_2f87ed5f-3d92-4d4f-85e8-eec90a91cc64_0\",\"call_id\":\"item_2f87ed5f-3d92-4d4f-85e8-eec90a91cc64_0\",\"name\":\"exec_command\"},\"sequence_number\":2,\"output_index\":0}\n\n"
+    ],
+    [
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":0,\"item_id\":\"item_2f87ed5f-3d92-4d4f-85e8-eec90a91cc64_0\",\"delta\":\"{\\\"cmd\\\":\\\"pwd\\\"}\",\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":0,\"item_id\":\"item_2f87ed5f-3d92-4d4f-85e8-eec90a91cc64_0\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\",\"sequence_number\":4}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_2f87ed5f-3d92-4d4f-85e8-eec90a91cc64_0\",\"type\":\"function_call\",\"call_id\":\"item_2f87ed5f-3d92-4d4f-85e8-eec90a91cc64_0\",\"name\":\"exec_command\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\",\"status\":\"completed\"},\"sequence_number\":5}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[{\"id\":\"item_2f87ed5f-3d92-4d4f-85e8-eec90a91cc64_0\",\"type\":\"function_call\",\"call_id\":\"item_2f87ed5f-3d92-4d4f-85e8-eec90a91cc64_0\",\"name\":\"exec_command\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":6}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.call_id",
+     "prefix": "item_"
+    }
+   ]
+  },
+  {
+   "name": "TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses:49:stream#6",
+   "path": "stream",
+   "model": "devin/gpt-6-1-sol",
+   "lines": [
+    "{\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_function_1\"}}",
+    "{\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"function_call\",\"name\":\"exec_command\",\"arguments\":{}}}",
+    "{\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\"}}",
+    "{\"event_type\":\"step.stop\",\"index\":0}",
+    "{\"event_type\":\"interaction.completed\",\"interaction\":{\"status\":\"completed\"}}"
+   ],
+   "outputs": [
+    [
+     "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_function_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[]},\"sequence_number\":1}\n\n"
+    ],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"item_ed79c6e7-c7bf-427a-8466-b092dc6bd217_0\",\"call_id\":\"item_ed79c6e7-c7bf-427a-8466-b092dc6bd217_0\",\"name\":\"exec_command\"},\"sequence_number\":2,\"output_index\":0}\n\n"
+    ],
+    [
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":0,\"item_id\":\"item_ed79c6e7-c7bf-427a-8466-b092dc6bd217_0\",\"delta\":\"{\\\"cmd\\\":\\\"pwd\\\"}\",\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":0,\"item_id\":\"item_ed79c6e7-c7bf-427a-8466-b092dc6bd217_0\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\",\"sequence_number\":4}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_ed79c6e7-c7bf-427a-8466-b092dc6bd217_0\",\"type\":\"function_call\",\"call_id\":\"item_ed79c6e7-c7bf-427a-8466-b092dc6bd217_0\",\"name\":\"exec_command\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\",\"status\":\"completed\"},\"sequence_number\":5}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[{\"id\":\"item_ed79c6e7-c7bf-427a-8466-b092dc6bd217_0\",\"type\":\"function_call\",\"call_id\":\"item_ed79c6e7-c7bf-427a-8466-b092dc6bd217_0\",\"name\":\"exec_command\",\"arguments\":\"{\\\"cmd\\\":\\\"pwd\\\"}\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":6}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.call_id",
+     "prefix": "item_"
+    }
+   ]
+  },
+  {
+   "name": "TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses:49:stream#7",
+   "path": "stream",
+   "model": "devin/gpt-6-1-sol",
+   "original": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"functions\",\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"definition\":\"start: patch\"}}]}]}",
+   "lines": [
+    "{\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_apply_patch_0\"}}",
+    "{\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"function_call\",\"name\":\"functions__apply_patch\"}}",
+    "{\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"input\\\":\\\"pq\\\"}\"}}",
+    "{\"event_type\":\"step.stop\",\"index\":0}",
+    "{\"event_type\":\"interaction.completed\",\"interaction\":{\"status\":\"completed\"}}"
+   ],
+   "outputs": [
+    [
+     "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_apply_patch_0\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[]},\"sequence_number\":1}\n\n"
+    ],
+    [],
+    [],
+    [],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"call_id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"name\":\"apply_patch\",\"namespace\":\"functions\"},\"sequence_number\":2,\"output_index\":0}\n\n",
+     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"call_id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"output_index\":0,\"sequence_number\":3,\"delta\":\"pq\"}\n\n",
+     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"call_id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"output_index\":0,\"sequence_number\":4,\"input\":\"pq\"}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":5,\"output_index\":0,\"item\":{\"id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"type\":\"custom_tool_call\",\"call_id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}}\n\n",
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[{\"id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"type\":\"custom_tool_call\",\"call_id\":\"item_ffbe33d6-977a-4bb0-925e-8f812436b636_0\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":6}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.call_id",
+     "prefix": "item_"
+    }
+   ]
+  },
+  {
+   "name": "TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses:49:stream#8",
+   "path": "stream",
+   "model": "devin/gpt-6-1-sol",
+   "original": "{\"tools\":[{\"type\":\"namespace\",\"name\":\"functions\",\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"definition\":\"start: patch\"}}]}]}",
+   "lines": [
+    "{\"event_type\":\"interaction.created\",\"interaction\":{\"id\":\"interaction_apply_patch_1\"}}",
+    "{\"event_type\":\"step.start\",\"index\":0,\"step\":{\"type\":\"function_call\",\"name\":\"functions__apply_patch\"}}",
+    "{\"event_type\":\"step.delta\",\"index\":0,\"delta\":{\"type\":\"arguments_delta\",\"arguments\":\"{\\\"input\\\":\\\"pq\\\"}\"}}",
+    "{\"event_type\":\"step.stop\",\"index\":0}",
+    "{\"event_type\":\"interaction.completed\",\"interaction\":{\"status\":\"completed\"}}"
+   ],
+   "outputs": [
+    [
+     "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_apply_patch_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[]},\"sequence_number\":1}\n\n"
+    ],
+    [],
+    [],
+    [],
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"custom_tool_call\",\"input\":\"\",\"id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"call_id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"name\":\"apply_patch\",\"namespace\":\"functions\"},\"sequence_number\":2,\"output_index\":0}\n\n",
+     "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"call_id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"output_index\":0,\"sequence_number\":3,\"delta\":\"pq\"}\n\n",
+     "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"call_id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"output_index\":0,\"sequence_number\":4,\"input\":\"pq\"}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":5,\"output_index\":0,\"item\":{\"id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"type\":\"custom_tool_call\",\"call_id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}}\n\n",
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/gpt-6-1-sol\",\"output\":[{\"id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"type\":\"custom_tool_call\",\"call_id\":\"item_1590fa33-37e3-44a2-9c92-93a57e0dd33d_0\",\"name\":\"apply_patch\",\"input\":\"pq\",\"status\":\"completed\",\"namespace\":\"functions\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":6}\n\n"
+    ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item.call_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "response.output.0.call_id",
+     "prefix": "item_"
+    }
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStream:106:stream",
    "path": "stream",
    "model": "gpt-test",
    "original": "{\"model\":\"gpt-test\"}",
@@ -15206,7 +16578,7 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"gpt-test\",\"output\":[]},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"thinking\",\"sequence_number\":2}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\",\"sequence_number\":2}\n\n"
     ],
     [
      "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":1,\"content_index\":0,\"item_id\":\"\",\"delta\":\"I will call a tool.\",\"sequence_number\":3}\n\n"
@@ -15230,7 +16602,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallStartArguments:107:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallStartArguments:151:stream",
    "path": "stream",
    "model": "gpt-test",
    "lines": [
@@ -15249,7 +16621,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallEmptyArguments:143:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallEmptyArguments:187:stream",
    "path": "stream",
    "model": "gpt-test",
    "lines": [
@@ -15271,7 +16643,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallEventsAreIdempotent:183:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFunctionCallEventsAreIdempotent:227:stream",
    "path": "stream",
    "model": "gpt-test",
    "lines": [
@@ -15294,7 +16666,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamModelOutputDoneIncludesText:214:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamModelOutputDoneIncludesText:258:stream",
    "path": "stream",
    "model": "gpt-test",
    "original": "{\"model\":\"gpt-test\"}",
@@ -15323,7 +16695,127 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamPreservesThoughtSignature:268:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamReasoningSummaryLifecycle:297:stream",
+   "path": "stream",
+   "model": "devin/swe-2",
+   "lines": [
+    "data: {\"index\":3,\"step\":{\"id\":\"reasoning_3\",\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
+    "data: {\"index\":3,\"delta\":{\"type\":\"thought_summary\",\"content\":{\"type\":\"text\",\"text\":\"thinking\"}},\"event_type\":\"step.delta\"}\n\n",
+    "data: {\"index\":3,\"event_type\":\"step.stop\"}\n\n",
+    "data: {\"interaction\":{\"id\":\"interaction_1\",\"status\":\"completed\"},\"event_type\":\"interaction.completed\"}\n\n"
+   ],
+   "outputs": [
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":3,\"item\":{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":2}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"delta\":\"thinking\",\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"text\":\"thinking\",\"sequence_number\":4}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"thinking\"},\"sequence_number\":5}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":3,\"item\":{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":6}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":7}\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamReasoningSummaryLifecycle:297:stream#2",
+   "path": "stream",
+   "model": "devin/swe-2",
+   "lines": [
+    "data: {\"index\":3,\"step\":{\"id\":\"reasoning_3\",\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
+    "data: {\"index\":3,\"delta\":{\"type\":\"thought_summary\",\"content\":{\"type\":\"text\",\"text\":\"think\"}},\"event_type\":\"step.delta\"}\n\n",
+    "data: {\"index\":3,\"delta\":{\"type\":\"thought_summary\",\"text\":\" carefully\"},\"event_type\":\"step.delta\"}\n\n",
+    "data: {\"index\":3,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\"},\"event_type\":\"step.delta\"}\n\n",
+    "data: {\"index\":3,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"\"},\"event_type\":\"step.delta\"}\n\n",
+    "data: {\"index\":3,\"event_type\":\"step.stop\"}\n\n",
+    "data: {\"interaction\":{\"id\":\"interaction_1\",\"status\":\"completed\"},\"event_type\":\"interaction.completed\"}\n\n"
+   ],
+   "outputs": [
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":3,\"item\":{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":2}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"delta\":\"think\",\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"delta\":\" carefully\",\"sequence_number\":4}\n\n"
+    ],
+    [],
+    [],
+    [
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"text\":\"think carefully\",\"sequence_number\":5}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"think carefully\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":3,\"item\":{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think carefully\"}]},\"sequence_number\":7}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"think carefully\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamReasoningSummaryLifecycle:297:stream#3",
+   "path": "stream",
+   "model": "devin/swe-2",
+   "lines": [
+    "data: {\"index\":3,\"step\":{\"id\":\"reasoning_3\",\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
+    "data: {\"index\":3,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\"},\"event_type\":\"step.delta\"}\n\n",
+    "data: {\"index\":3,\"delta\":{\"type\":\"thought_signature\",\"signature\":\"\"},\"event_type\":\"step.delta\"}\n\n",
+    "data: {\"index\":3,\"event_type\":\"step.stop\"}\n\n",
+    "data: {\"interaction\":{\"id\":\"interaction_1\",\"status\":\"completed\"},\"event_type\":\"interaction.completed\"}\n\n"
+   ],
+   "outputs": [
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":3,\"item\":{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":2}\n\n"
+    ],
+    [],
+    [],
+    [
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"text\":\"\",\"sequence_number\":3}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":4}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":3,\"item\":{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"\"}]},\"sequence_number\":5}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":6}\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamReasoningSummaryLifecycle:297:stream#4",
+   "path": "stream",
+   "model": "devin/swe-2",
+   "lines": [
+    "data: {\"index\":3,\"step\":{\"id\":\"reasoning_3\",\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
+    "data: {\"index\":3,\"delta\":{\"type\":\"thought_summary\",\"content\":{\"type\":\"text\",\"text\":\"\"}},\"event_type\":\"step.delta\"}\n\n",
+    "data: {\"index\":3,\"event_type\":\"step.stop\"}\n\n",
+    "data: {\"interaction\":{\"id\":\"interaction_1\",\"status\":\"completed\"},\"event_type\":\"interaction.completed\"}\n\n"
+   ],
+   "outputs": [
+    [
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":3,\"item\":{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":2}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"delta\":\"\",\"sequence_number\":3}\n\n"
+    ],
+    [
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"text\":\"\",\"sequence_number\":4}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"reasoning_3\",\"output_index\":3,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":5}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":3,\"item\":{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"\"}]},\"sequence_number\":6}\n\n"
+    ],
+    [
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"reasoning_3\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":7}\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamPreservesThoughtSignature:418:stream",
    "path": "stream",
    "model": "gpt-test",
    "original": "{\"model\":\"gpt-test\"}",
@@ -15337,23 +16829,70 @@
    ],
    "outputs": [
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_55ceaca0-cc65-448b-aa60-ed09b7692a86_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"item_55ceaca0-cc65-448b-aa60-ed09b7692a86_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":2}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"thinking\",\"sequence_number\":2}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"item_55ceaca0-cc65-448b-aa60-ed09b7692a86_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\",\"sequence_number\":3}\n\n"
     ],
     [],
     [],
     [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":3}\n\n"
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"item_55ceaca0-cc65-448b-aa60-ed09b7692a86_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"thinking\",\"sequence_number\":4}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"item_55ceaca0-cc65-448b-aa60-ed09b7692a86_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"thinking\"},\"sequence_number\":5}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_55ceaca0-cc65-448b-aa60-ed09b7692a86_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":6}\n\n"
     ],
     [
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gpt-test\",\"output\":[{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":4}\n\n"
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gpt-test\",\"output\":[{\"id\":\"item_55ceaca0-cc65-448b-aa60-ed09b7692a86_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"gAAAAAAAAAABCQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0-P0BBQkNERUZHSA==\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":7}\n\n"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamDropsForeignThoughtSignature:313:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamDropsForeignThoughtSignature:463:stream",
    "path": "stream",
    "model": "gpt-test",
    "original": "{\"model\":\"gpt-test\"}",
@@ -15366,22 +16905,69 @@
    ],
    "outputs": [
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_b35bf242-ea3e-400c-889e-f8b991031e50_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":1}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"item_b35bf242-ea3e-400c-889e-f8b991031e50_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":2}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"thinking\",\"sequence_number\":2}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"item_b35bf242-ea3e-400c-889e-f8b991031e50_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"thinking\",\"sequence_number\":3}\n\n"
     ],
     [],
     [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":3}\n\n"
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"item_b35bf242-ea3e-400c-889e-f8b991031e50_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"thinking\",\"sequence_number\":4}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"item_b35bf242-ea3e-400c-889e-f8b991031e50_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"thinking\"},\"sequence_number\":5}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_b35bf242-ea3e-400c-889e-f8b991031e50_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]},\"sequence_number\":6}\n\n"
     ],
     [
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gpt-test\",\"output\":[{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":4}\n\n"
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_1\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"gpt-test\",\"output\":[{\"id\":\"item_b35bf242-ea3e-400c-889e-f8b991031e50_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":7}\n\n"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 0,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFinishMetadataUsage:513:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamFinishMetadataUsage:663:stream",
    "path": "stream",
    "model": "gpt-test",
    "lines": [
@@ -15394,7 +16980,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStream_PreservesEnvironmentID:750:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStream_PreservesEnvironmentID:900:stream",
    "path": "stream",
    "model": "antigravity-preview-05-2026",
    "original": "{\"model\":\"antigravity-preview-05-2026\"}",
@@ -15416,7 +17002,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamRestoresAntigravityToolName:789:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponsesStreamRestoresAntigravityToolName:939:stream",
    "path": "stream",
    "model": "antigravity-preview-05-2026",
    "original": "{\"model\":\"antigravity-preview-05-2026\"}",
@@ -15451,7 +17037,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_PreservesHTMLCharactersInToolCallArguments:858:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_PreservesHTMLCharactersInToolCallArguments:1008:stream",
    "path": "stream",
    "model": "devin/swe-2",
    "lines": [
@@ -15485,7 +17071,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_LogReplayTwoToolCalls:904:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_LogReplayTwoToolCalls:1054:stream",
    "path": "stream",
    "model": "devin/swe-2",
    "lines": [
@@ -15507,44 +17093,91 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"interaction_69c3126a-ab3\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/swe-2\",\"output\":[]},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_d2946aca-0f7f-42e4-9f33-68ad3ee9bcfd_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"\",\"summary\":[]},\"sequence_number\":2}\n\n",
+     "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"item_id\":\"item_d2946aca-0f7f-42e4-9f33-68ad3ee9bcfd_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     [
-     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"output_index\":0,\"delta\":\"I need to triage GitHub issue 5802.\",\"sequence_number\":3}\n\n"
+     "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"item_id\":\"item_d2946aca-0f7f-42e4-9f33-68ad3ee9bcfd_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"I need to triage GitHub issue 5802.\",\"sequence_number\":4}\n\n"
     ],
     [
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"I need to triage GitHub issue 5802.\"}]},\"sequence_number\":4}\n\n"
+     "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"item_id\":\"item_d2946aca-0f7f-42e4-9f33-68ad3ee9bcfd_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"I need to triage GitHub issue 5802.\",\"sequence_number\":5}\n\n",
+     "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"item_id\":\"item_d2946aca-0f7f-42e4-9f33-68ad3ee9bcfd_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"I need to triage GitHub issue 5802.\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_d2946aca-0f7f-42e4-9f33-68ad3ee9bcfd_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"I need to triage GitHub issue 5802.\"}]},\"sequence_number\":7}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"title_0\",\"call_id\":\"title_0\",\"name\":\"title\"},\"sequence_number\":5,\"output_index\":1}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"title_0\",\"call_id\":\"title_0\",\"name\":\"title\"},\"sequence_number\":8,\"output_index\":1}\n\n"
     ],
     [
-     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":1,\"item_id\":\"title_0\",\"delta\":\"{\\\"title\\\": \\\"Triage issue 5802\\\"}\",\"sequence_number\":6}\n\n"
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":1,\"item_id\":\"title_0\",\"delta\":\"{\\\"title\\\": \\\"Triage issue 5802\\\"}\",\"sequence_number\":9}\n\n"
     ],
     [
-     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":1,\"item_id\":\"title_0\",\"arguments\":\"{\\\"title\\\": \\\"Triage issue 5802\\\"}\",\"sequence_number\":7}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"id\":\"title_0\",\"type\":\"function_call\",\"call_id\":\"title_0\",\"name\":\"title\",\"arguments\":\"{\\\"title\\\": \\\"Triage issue 5802\\\"}\",\"status\":\"completed\"},\"sequence_number\":8}\n\n"
+     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":1,\"item_id\":\"title_0\",\"arguments\":\"{\\\"title\\\": \\\"Triage issue 5802\\\"}\",\"sequence_number\":10}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":1,\"item\":{\"id\":\"title_0\",\"type\":\"function_call\",\"call_id\":\"title_0\",\"name\":\"title\",\"arguments\":\"{\\\"title\\\": \\\"Triage issue 5802\\\"}\",\"status\":\"completed\"},\"sequence_number\":11}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"bash_1\",\"call_id\":\"bash_1\",\"name\":\"bash\"},\"sequence_number\":9,\"output_index\":2}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"item\":{\"status\":\"in_progress\",\"type\":\"function_call\",\"arguments\":\"\",\"id\":\"bash_1\",\"call_id\":\"bash_1\",\"name\":\"bash\"},\"sequence_number\":12,\"output_index\":2}\n\n"
     ],
     [
-     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"bash_1\",\"delta\":\"{\\\"command\\\": \\\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\\\", \\\"timeout\\\": 60}\",\"sequence_number\":10}\n\n"
+     "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"output_index\":2,\"item_id\":\"bash_1\",\"delta\":\"{\\\"command\\\": \\\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\\\", \\\"timeout\\\": 60}\",\"sequence_number\":13}\n\n"
     ],
     [
-     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":2,\"item_id\":\"bash_1\",\"arguments\":\"{\\\"command\\\": \\\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\\\", \\\"timeout\\\": 60}\",\"sequence_number\":11}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"bash_1\",\"type\":\"function_call\",\"call_id\":\"bash_1\",\"name\":\"bash\",\"arguments\":\"{\\\"command\\\": \\\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\\\", \\\"timeout\\\": 60}\",\"status\":\"completed\"},\"sequence_number\":12}\n\n"
+     "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"output_index\":2,\"item_id\":\"bash_1\",\"arguments\":\"{\\\"command\\\": \\\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\\\", \\\"timeout\\\": 60}\",\"sequence_number\":14}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":2,\"item\":{\"id\":\"bash_1\",\"type\":\"function_call\",\"call_id\":\"bash_1\",\"name\":\"bash\",\"arguments\":\"{\\\"command\\\": \\\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\\\", \\\"timeout\\\": 60}\",\"status\":\"completed\"},\"sequence_number\":15}\n\n"
     ],
     [
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_69c3126a-ab3\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"I need to triage GitHub issue 5802.\"}]},{\"id\":\"title_0\",\"type\":\"function_call\",\"call_id\":\"title_0\",\"name\":\"title\",\"arguments\":\"{\\\"title\\\": \\\"Triage issue 5802\\\"}\",\"status\":\"completed\"},{\"id\":\"bash_1\",\"type\":\"function_call\",\"call_id\":\"bash_1\",\"name\":\"bash\",\"arguments\":\"{\\\"command\\\": \\\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\\\", \\\"timeout\\\": 60}\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":13}\n\n"
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"interaction_69c3126a-ab3\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_d2946aca-0f7f-42e4-9f33-68ad3ee9bcfd_0\",\"type\":\"reasoning\",\"status\":\"completed\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"I need to triage GitHub issue 5802.\"}]},{\"id\":\"title_0\",\"type\":\"function_call\",\"call_id\":\"title_0\",\"name\":\"title\",\"arguments\":\"{\\\"title\\\": \\\"Triage issue 5802\\\"}\",\"status\":\"completed\"},{\"id\":\"bash_1\",\"type\":\"function_call\",\"call_id\":\"bash_1\",\"name\":\"bash\",\"arguments\":\"{\\\"command\\\": \\\"gh issue view 5802 --json number,title,body,url,state,labels,assignees 2\u003e\u00261 | head -100\\\", \\\"timeout\\\": 60}\",\"status\":\"completed\"}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":16}\n\n"
     ],
     [
      "data: [DONE]"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 15,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:955:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:1105:stream",
    "path": "stream",
    "model": "devin/swe-2",
    "lines": [
@@ -15578,7 +17211,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:1007:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_FunctionCallHasStatus:1157:stream",
    "path": "stream",
    "model": "devin/swe-2",
    "lines": [
@@ -15612,7 +17245,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_ContentFilterIncomplete:1035:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_ContentFilterIncomplete:1185:stream",
    "path": "stream",
    "model": "devin/swe-2",
    "lines": [
@@ -15628,27 +17261,71 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"i_cf\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/swe-2\",\"output\":[]},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
-     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_fdd8d540-6d88-451e-a095-7ce23c8098c6_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_fdd8d540-6d88-451e-a095-7ce23c8098c6_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"delta\":\"blocked\",\"sequence_number\":4}\n\n"
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_fdd8d540-6d88-451e-a095-7ce23c8098c6_0\",\"delta\":\"blocked\",\"sequence_number\":4}\n\n"
     ],
     [
-     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"text\":\"blocked\",\"logprobs\":[],\"sequence_number\":5}\n\n",
-     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"blocked\"},\"sequence_number\":6}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"blocked\"}]},\"sequence_number\":7}\n\n"
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_fdd8d540-6d88-451e-a095-7ce23c8098c6_0\",\"text\":\"blocked\",\"logprobs\":[],\"sequence_number\":5}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_fdd8d540-6d88-451e-a095-7ce23c8098c6_0\",\"part\":{\"type\":\"output_text\",\"text\":\"blocked\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_fdd8d540-6d88-451e-a095-7ce23c8098c6_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"blocked\"}]},\"sequence_number\":7}\n\n"
     ],
     [
-     "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"i_cf\",\"object\":\"response\",\"status\":\"incomplete\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"blocked\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0},\"incomplete_details\":{\"reason\":\"content_filter\"}},\"sequence_number\":8}\n\n"
+     "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"response\":{\"id\":\"i_cf\",\"object\":\"response\",\"status\":\"incomplete\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_fdd8d540-6d88-451e-a095-7ce23c8098c6_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"blocked\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0},\"incomplete_details\":{\"reason\":\"content_filter\"}},\"sequence_number\":8}\n\n"
     ],
     [
      "data: [DONE]"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_MissingUsageDefaultsToZeros:1075:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_MissingUsageDefaultsToZeros:1225:stream",
    "path": "stream",
    "model": "devin/swe-2",
    "lines": [
@@ -15664,27 +17341,71 @@
      "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"i_nousage\",\"object\":\"response\",\"status\":\"in_progress\",\"model\":\"devin/swe-2\",\"output\":[]},\"sequence_number\":1}\n\n"
     ],
     [
-     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
-     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
+     "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":{\"id\":\"item_1daaee4a-ad36-4d4e-acd5-ae621e78d5c5_0\",\"type\":\"message\",\"status\":\"in_progress\",\"role\":\"assistant\",\"content\":[]},\"sequence_number\":2}\n\n",
+     "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_1daaee4a-ad36-4d4e-acd5-ae621e78d5c5_0\",\"part\":{\"type\":\"output_text\",\"text\":\"\"},\"sequence_number\":3}\n\n"
     ],
     [
-     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"delta\":\"hello\",\"sequence_number\":4}\n\n"
+     "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_1daaee4a-ad36-4d4e-acd5-ae621e78d5c5_0\",\"delta\":\"hello\",\"sequence_number\":4}\n\n"
     ],
     [
-     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"text\":\"hello\",\"logprobs\":[],\"sequence_number\":5}\n\n",
-     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_0\",\"part\":{\"type\":\"output_text\",\"text\":\"hello\"},\"sequence_number\":6}\n\n",
-     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},\"sequence_number\":7}\n\n"
+     "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_1daaee4a-ad36-4d4e-acd5-ae621e78d5c5_0\",\"text\":\"hello\",\"logprobs\":[],\"sequence_number\":5}\n\n",
+     "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"output_index\":0,\"content_index\":0,\"item_id\":\"item_1daaee4a-ad36-4d4e-acd5-ae621e78d5c5_0\",\"part\":{\"type\":\"output_text\",\"text\":\"hello\"},\"sequence_number\":6}\n\n",
+     "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"item_1daaee4a-ad36-4d4e-acd5-ae621e78d5c5_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]},\"sequence_number\":7}\n\n"
     ],
     [
-     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"i_nousage\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
+     "event: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"i_nousage\",\"object\":\"response\",\"status\":\"completed\",\"model\":\"devin/swe-2\",\"output\":[{\"id\":\"item_1daaee4a-ad36-4d4e-acd5-ae621e78d5c5_0\",\"type\":\"message\",\"status\":\"completed\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hello\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}},\"sequence_number\":8}\n\n"
     ],
     [
      "data: [DONE]"
     ]
+   ],
+   "dynamic": [
+    {
+     "out": 1,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 2,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 3,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 4,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 5,
+     "data": 1,
+     "path": "item_id",
+     "prefix": "item_"
+    },
+    {
+     "out": 6,
+     "data": 1,
+     "path": "item.id",
+     "prefix": "item_"
+    },
+    {
+     "out": 7,
+     "data": 1,
+     "path": "response.output.0.id",
+     "prefix": "item_"
+    }
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_RestoresNamespaceAndCustomTool:1186:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_RestoresNamespaceAndCustomTool:1336:stream",
    "path": "stream",
    "model": "devin/gemini-3-7-flash",
    "original": "{\n\t\t\"model\": \"devin/gemini-3-7-flash\",\n\t\t\"tools\": [\n\t\t\t{\n\t\t\t\t\"type\": \"namespace\",\n\t\t\t\t\"name\": \"multi_agent_v1\",\n\t\t\t\t\"tools\": [\n\t\t\t\t\t{\"type\": \"function\", \"name\": \"close_agent\", \"description\": \"Close an agent\"}\n\t\t\t\t]\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"type\": \"namespace\",\n\t\t\t\t\"name\": \"functions\",\n\t\t\t\t\"tools\": [\n\t\t\t\t\t{\"type\": \"custom\", \"name\": \"exec\", \"description\": \"Run custom command\"}\n\t\t\t\t]\n\t\t\t}\n\t\t]\n\t}",
@@ -15704,7 +17425,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_RestoresNamespaceAndCustomTool:1232:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_RestoresNamespaceAndCustomTool:1382:stream",
    "path": "stream",
    "model": "devin/gemini-3-7-flash",
    "original": "{\n\t\t\"model\": \"devin/gemini-3-7-flash\",\n\t\t\"tools\": [\n\t\t\t{\n\t\t\t\t\"type\": \"namespace\",\n\t\t\t\t\"name\": \"multi_agent_v1\",\n\t\t\t\t\"tools\": [\n\t\t\t\t\t{\"type\": \"function\", \"name\": \"close_agent\", \"description\": \"Close an agent\"}\n\t\t\t\t]\n\t\t\t},\n\t\t\t{\n\t\t\t\t\"type\": \"namespace\",\n\t\t\t\t\"name\": \"functions\",\n\t\t\t\t\"tools\": [\n\t\t\t\t\t{\"type\": \"custom\", \"name\": \"exec\", \"description\": \"Run custom command\"}\n\t\t\t\t]\n\t\t\t}\n\t\t]\n\t}",
@@ -15725,7 +17446,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_AntigravityCustomToolRestoresNameAndType:1333:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_AntigravityCustomToolRestoresNameAndType:1483:stream",
    "path": "stream",
    "model": "antigravity-preview-05-2026",
    "original": "{\n\t\t\"model\": \"antigravity-preview-05-2026\",\n\t\t\"tools\": [\n\t\t\t{\"type\": \"custom\", \"name\": \"read_file\", \"description\": \"Read a file\"}\n\t\t]\n\t}",
@@ -15746,7 +17467,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_ResponseFailed:1406:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_ResponseFailed:1556:stream",
    "path": "stream",
    "model": "devin/kimi-k3",
    "lines": [
@@ -15759,7 +17480,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_ResponseFailed:1406:stream#2",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_ResponseFailed:1556:stream#2",
    "path": "stream",
    "model": "devin/kimi-k3",
    "lines": [
@@ -15772,7 +17493,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_ResponseFailed:1406:stream#3",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_ResponseFailed:1556:stream#3",
    "path": "stream",
    "model": "devin/kimi-k3",
    "lines": [
@@ -15785,7 +17506,7 @@
    ]
   },
   {
-   "name": "TestConvertInteractionsResponseToOpenAIResponses_PreservesIDAndSeqOnFailure:1434:stream",
+   "name": "TestConvertInteractionsResponseToOpenAIResponses_PreservesIDAndSeqOnFailure:1584:stream",
    "path": "stream",
    "model": "devin/kimi-k3",
    "lines": [
@@ -15802,6 +17523,7 @@
    ]
   }
  ],
+ "reference": "ae3ee3be",
  "token_count": false,
  "upstream": "interactions"
 }

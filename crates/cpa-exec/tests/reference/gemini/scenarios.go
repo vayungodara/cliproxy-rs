@@ -111,6 +111,15 @@ func g(name, op, model, requested, payload string, up *upstream) scenario {
 	return scenario{Name: name, Config: baseConfig, Provider: "gemini", ConfigAuth: 0, Model: model, RequestedModel: requested, Payload: payload, Source: "gemini", Op: op, Upstream: up}
 }
 
+const malformedJSON = `{"candidates":[{"content":{"role":"model","parts":[{"text":"partial"}]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":4,"candidatesTokenCount":2,"totalTokenCount":6},"modelVersion":"gemini-2.5-flash","responseId":"rm"}`
+const malformedChunk = `{"candidates":[{"content":{"role":"model","parts":[]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash","responseId":"r1"}`
+
+// with2 promises missing bytes beyond up's body.
+func with2(up *upstream, missing int) *upstream {
+	up.Missing = missing
+	return up
+}
+
 func with(s scenario, edit func(*scenario)) scenario {
 	edit(&s)
 	return s
@@ -179,10 +188,16 @@ func usageScenarios() []scenario {
 		u("usage_openai_execute_effort", "gemini", "openai", "execute", "gemini-2.5-flash", "u-flash",
 			`{"model":"u-flash","messages":[{"role":"user","content":"hi"}],"reasoning_effort":"low"}`,
 			json(`{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":40,"candidatesTokenCount":60,"thoughtsTokenCount":10,"cachedContentTokenCount":8,"totalTokenCount":110},"modelVersion":"gemini-2.5-flash-002"}`)),
-		// FilterSSEUsageMetadata hides usage on non-terminal chunks from the reporter.
+		// v8.0.35 (7f2f17d7) reads usage from the raw line, before FilterSSEUsageMetadata
+		// hides it on non-terminal chunks, so that chunk's usage counts.
 		u("usage_claude_stream_non_terminal_usage", "gemini", "claude", "stream", "gemini-2.5-flash", "u-flash",
 			`{"model":"u-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`,
 			sse("data: "+nonTerminal+"\n\ndata: "+terminalBare+"\n\n")),
+		// v8.0.35 (7f2f17d7): the stream fails with 502 after the api_error event and the
+		// failure record keeps the usage seen so far.
+		u("usage_claude_stream_malformed_function_call", "gemini", "claude", "stream", "gemini-2.5-flash", "u-flash",
+			`{"model":"u-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`,
+			sse("data: "+nonTerminal+"\n\ndata: "+malformedChunk+"\n\n")),
 		u("usage_claude_stream_terminal_usage", "gemini", "claude", "stream", "gemini-2.5-flash", "u-flash",
 			`{"model":"u-flash","max_tokens":64,"thinking":{"type":"enabled","budget_tokens":2048},"messages":[{"role":"user","content":"hi"}],"stream":true}`,
 			sse("data: "+nonTerminal+"\n\ndata: "+terminalUsage+"\n\n")),
@@ -270,6 +285,19 @@ func scenarios() []scenario {
 		with(g("openai_chat_stream_to_gemini", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","stream":true,"messages":[{"role":"user","content":"hi"}]}`, geminiSSE), func(s *scenario) { s.Source = "openai" }),
 		with(g("claude_stream_to_gemini", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":1024,"system":"sys prompt","messages":[{"role":"user","content":[{"type":"text","text":"hello there"}]}],"stream":true}`, geminiSSE), func(s *scenario) { s.Source = "claude" }),
 		with(g("claude_to_gemini", "execute", "gemini-2.5-flash", "flash-compat", `{"model":"flash-compat","max_tokens":1024,"messages":[{"role":"user","content":"hi"},{"role":"assistant","content":[{"type":"thinking","thinking":"t","signature":""},{"type":"text","text":"a"}]},{"role":"user","content":"again"}]}`, jsonOK), func(s *scenario) { s.Source = "claude" }),
+		// v8.0.35 (7f2f17d7): MALFORMED_FUNCTION_CALL without a tool call is a Claude
+		// api_error; the executor answers 502, or ends the stream with it after the event.
+		with(g("claude_malformed_function_call_execute", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`, &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: malformedJSON}), func(s *scenario) { s.Source = "claude" }),
+		with(g("claude_malformed_function_call_stream", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, sse("data: "+sseChunk1+"\n\ndata: "+malformedChunk+"\n\n")), func(s *scenario) { s.Source = "claude" }),
+		with(g("openai_malformed_function_call_execute", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}]}`, &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: malformedJSON}), func(s *scenario) { s.Source = "openai" }),
+		// v8.0.35 (5ec31442): a read error ends the stream without the synthetic [DONE].
+		with(g("responses_stream_read_error", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, with2(sse("data: "+sseChunk1+"\n\n"), 40)), func(s *scenario) { s.Source = "openai-response" }),
+		with(g("claude_stream_read_error", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, with2(sse("data: "+sseChunk1+"\n\n"), 40)), func(s *scenario) { s.Source = "claude" }),
+		// v8.0.35 (15d2148b): a final model turn whose function response carries media
+		// gets the empty user turn after it.
+		g("gen_trailing_function_response_media", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"user","parts":[{"text":"q"}]},{"role":"model","parts":[{"functionResponse":{"name":"f","response":{"x":1},"parts":[{"inlineData":{"mimeType":"image/png","data":"AAAA"}}]}}]}]`, ""), jsonOK),
+		g("gen_trailing_function_response_file", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"user","parts":[{"text":"q"}]},{"role":"assistant","parts":[{"functionResponse":{"name":"f","response":{"x":1},"parts":[{"file_data":{"mimeType":"image/png","fileUri":"gs://b/a.png"}}]}}]}]`, ""), jsonOK),
+		g("gen_trailing_user_function_response_media", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", `[{"role":"model","parts":[{"functionCall":{"name":"f"}}]},{"role":"user","parts":[{"functionResponse":{"name":"f","response":{"x":1},"parts":[{"inlineData":{"mimeType":"image/png","data":"AAAA"}}]}}]}]`, ""), jsonOK),
 		with(g("claude_count_to_gemini", "count", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}]}`, &upstream{Status: 200, Body: countReply}), func(s *scenario) { s.Source = "claude" }),
 		with(g("responses_stream_to_gemini", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, geminiSSE), func(s *scenario) { s.Source = "openai-response" }),
 		with(g("interactions_client_on_gemini_upstream", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, geminiSSE), func(s *scenario) { s.Source = "interactions" }),

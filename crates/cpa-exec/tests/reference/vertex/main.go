@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -55,6 +56,8 @@ type reply struct {
 	Status  int         `json:"status"`
 	Headers [][2]string `json:"headers,omitempty"`
 	Body    string      `json:"body"`
+	// Missing bytes are promised beyond Body: the connection closes mid-stream.
+	Missing int `json:"missing,omitempty"`
 }
 
 type errOut struct {
@@ -245,7 +248,7 @@ func (c *capture) handle(conn net.Conn, rep reply) {
 	for _, h := range rep.Headers {
 		fmt.Fprintf(&out, "%s: %s\r\n", h[0], h[1])
 	}
-	fmt.Fprintf(&out, "Content-Length: %d\r\n", len(rep.Body))
+	fmt.Fprintf(&out, "Content-Length: %d\r\n", len(rep.Body)+rep.Missing)
 	out.WriteString("Connection: close\r\n\r\n")
 	out.WriteString(rep.Body)
 	_, _ = stream.Write(out.Bytes())
@@ -726,6 +729,21 @@ func main() {
 	_ = os.Unsetenv("http_proxy")
 
 	keys := rsaKeys()
+	if path := os.Getenv("RSFIX_KEYS"); path != "" {
+		// A partial recording (RSFIX_ONLY) of service-account scenarios signs with the
+		// keys of the full recording it overlays.
+		var base struct {
+			Keys map[string]string `json:"keys"`
+		}
+		data, err := os.ReadFile(path)
+		if err == nil {
+			err = json.Unmarshal(data, &base)
+		}
+		if err != nil || len(base.Keys) == 0 {
+			panic(fmt.Sprintf("RSFIX_KEYS %s: no keys (%v)", path, err))
+		}
+		keys = base.Keys
+	}
 	var norm []normalized
 	names := make([]string, 0, len(keys))
 	for name := range keys {
@@ -750,17 +768,36 @@ func main() {
 	for i := range all {
 		run(&all[i], plain, proxy, keys)
 	}
-	data, err := json.MarshalIndent(map[string]any{
+	out := map[string]any{
 		"tls":       material,
 		"keys":      keys,
 		"normalize": norm,
 		"import":    importVectors(keys),
 		"scenarios": all,
-	}, "", "  ")
+	}
+	if only := os.Getenv("RSFIX_ONLY"); only != "" {
+		// Every scenario runs, the matching ones are written. Their requests must not
+		// depend on the generated keys (API-key scenarios), unless RSFIX_KEYS names the
+		// full recording whose keys they use.
+		out = map[string]any{"scenarios": filterScenarios(all, regexp.MustCompile(only))}
+	}
+	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		panic(err)
 	}
 	if err := os.WriteFile(os.Args[1], append(data, '\n'), 0o644); err != nil {
 		panic(err)
 	}
+}
+
+// filterScenarios keeps the scenarios whose name matches only (RSFIX_ONLY): a partial
+// recording of a later reference, overlaid on the full one by name.
+func filterScenarios(all []scenario, only *regexp.Regexp) []scenario {
+	var kept []scenario
+	for _, s := range all {
+		if only.MatchString(s.Name) {
+			kept = append(kept, s)
+		}
+	}
+	return kept
 }
