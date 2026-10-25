@@ -1338,8 +1338,9 @@ mod creds {
             ("runtime_credentials", 6) => request("POST", "/routing/cooldown/reset", None),
             _ => {}
         }
-        // Go 7b0319fb (Sign in with ChatGPT): codex auth files get an empty
-        // `<name>.lock` side file. Credentials owner.
+        // Go 7b0319fb (Sign in with ChatGPT): a codex auth file's save leaves an empty
+        // `<name>.lock` side file, its credential lock, as cliproxy-rs's does. This pins
+        // which steps Go recorded them at.
         if let Some(files) = step["files"].as_object_mut() {
             let mut locks: Vec<&str> = Vec::new();
             if inventory && (19..=88).contains(&i) {
@@ -1358,7 +1359,7 @@ mod creds {
             recorded.sort();
             assert_eq!(recorded, locks, "{at}: Go's lock files");
             for lock in locks {
-                assert_eq!(files.remove(lock), Some(json!("raw:")), "{at}: {lock}");
+                assert_eq!(files[lock], json!("raw:"), "{at}: {lock}");
             }
         }
         step
