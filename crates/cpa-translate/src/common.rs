@@ -1590,6 +1590,24 @@ pub fn interactions_attachment_type(part: &Res<'_>) -> String {
     String::new()
 }
 
+/// GeminiPartIsSendable: blank text is forwarded but gives the model nothing to read.
+pub fn gemini_part_is_sendable(part: &[u8]) -> bool {
+    let part = gj::parse(part);
+    let text = part.get("text");
+    !text.exists()
+        || !trim_space(&text.bytes()).is_empty()
+        || [
+            "functionCall",
+            "functionResponse",
+            "inlineData",
+            "inline_data",
+            "fileData",
+            "file_data",
+        ]
+        .iter()
+        .any(|key| part.get(key).exists())
+}
+
 /// `IsHTTPURL`: Go's `url.Parse` succeeds, the host is non-empty and the scheme is http(s).
 pub fn is_http_url(value: &[u8]) -> bool {
     // Go keeps invalid UTF-8 bytes; url.Parse accepts any byte >= 0x80 where it accepts

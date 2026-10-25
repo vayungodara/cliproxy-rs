@@ -47,7 +47,9 @@ fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
     copy_reasoning(&mut req, &root);
     copy_response_modalities(&mut req, &root);
     copy_tool_choice(&mut req, &root);
-    let items = input_contents(&root.get("input"));
+    // ponytail: the user-turn refusal (f51624aa) is not applied here yet; it lands with
+    // the Antigravity port.
+    let (items, _) = input_contents(&root.get("input"));
     gj::set_items(&mut req, "contents", &items);
     copy_tools(&mut req, &root, &names);
     if gj::get(&req, "toolConfig.functionCallingConfig.mode").bytes().as_ref() == b"NONE" {

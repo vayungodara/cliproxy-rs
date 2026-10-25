@@ -410,13 +410,25 @@
    ]
   },
   {
+   "name": "TestInteractionsToGeminiExportedWrapperKeepsAJSONBody:153",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: audio"
+  },
+  {
    "name": "TestConvertGeminiResponseToInteractionsNonStream_ThoughtSignature:1105",
    "path": "non_stream",
    "model": "gemini-2.5-pro",
    "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_fc\"},\n\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987745869859751\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+     "{\"id\":\"interaction_1792963307189564797\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
     ]
    ],
    "dynamic": [
@@ -435,7 +447,7 @@
    "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_rt_fc\"},\n\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987745871039273\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+     "{\"id\":\"interaction_1792963307190774655\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
     ]
    ],
    "dynamic": [
@@ -454,7 +466,7 @@
    "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"text\": \"answer\"},\n\t\t\t\t\t{\"text\": \"\", \"thoughtSignature\": \"sig_trailing_rt\"}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987745872187212\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
+     "{\"id\":\"interaction_1792963307191953611\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
     ]
    ],
    "dynamic": [
@@ -859,7 +871,7 @@
    "input": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"file_uri\":\"gs://f\"},{\"type\":\"image\",\"fileUri\":\"\",\"mime_type\":\"image/png\",\"data\":\"iVBO\"},{\"type\":\"image\",\"mimeType\":\"image/gif\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://u\"}},{\"type\":\"audio\",\"mime_type\":\"audio/flac\",\"data\":\"ZkxhQw\"},{\"type\":\"audio\",\"data\":\"x\"},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"d\",\"format\":\"wav\"}},{\"type\":\"input_audio\"},{\"type\":\"video\",\"file\":{\"file_data\":\"AA\",\"filename\":\"v.mp4\"}},{\"type\":\"document\",\"uri\":\"x\",\"url\":\"https://d/a.pdf\",\"mimeType\":\"application/pdf\"},{\"type\":\"file\",\"file_uri\":\"\",\"url\":\"u\",\"mime_type\":\"text/csv\"},{\"type\":\"file\",\"mime_type\":\"application/json\",\"data\":\"e30\"},{\"type\":\"file\"}]}]}",
    "outputs": [
     [
-     "{\"model\":\"\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"iVBO\"}}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"audio/flac\",\"data\":\"ZkxhQw\"}}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"audio/wav\",\"data\":\"d\"}}]}]}"
+     "{\"model\":\"\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"iVBO\"}}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"audio/flac\",\"data\":\"ZkxhQw\"}}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"audio/wav\",\"data\":\"d\"}}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"x\"}}]}]}"
     ]
    ]
   },
@@ -1521,8 +1533,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746011964796\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746011964796\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307330077391\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307330077391\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -1558,8 +1570,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746013214315\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746013214315\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307331235533\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307331235533\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -1600,8 +1612,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746014447319\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746014447319\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307332377179\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307332377179\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -1642,8 +1654,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746015644462\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746015644462\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307333568725\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307333568725\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -1675,8 +1687,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746016791341\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746016791341\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307334716410\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307334716410\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     []
    ],
@@ -1706,8 +1718,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746017950219\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746017950219\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307335864665\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307335864665\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     []
    ],
@@ -1737,8 +1749,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746019085356\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746019085356\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307337127500\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307337127500\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     []
    ],
@@ -1771,8 +1783,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746020225792\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746020225792\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307338334061\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307338334061\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -1807,8 +1819,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746021365685\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746021365685\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307339538567\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307339538567\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -1841,8 +1853,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746022576155\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746022576155\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307340746940\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307340746940\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     []
@@ -1882,7 +1894,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746025094488\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"function_call\",\"name\":\"Read\",\"arguments\":{\"path\":\"/a\"},\"call_id\":\"c1\"},{\"type\":\"function_call\",\"name\":\"look_up\",\"arguments\":{}},{\"type\":\"model_output\",\"content\":[{\"text\":\"t1\"}]},{\"type\":\"model_output\",\"content\":[{\"text\":\"t2\"}]},{\"type\":\"thought\",\"content\":[{\"text\":\"r\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"document\",\"mime_type\":\"\",\"data\":\"AA\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/webp\",\"data\":\"BB\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":0,\"total_tokens\":0,\"cached_tokens\":2}}"
+     "{\"id\":\"interaction_1792963307343240118\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"function_call\",\"name\":\"Read\",\"arguments\":{\"path\":\"/a\"},\"call_id\":\"c1\"},{\"type\":\"function_call\",\"name\":\"look_up\",\"arguments\":{}},{\"type\":\"model_output\",\"content\":[{\"text\":\"t1\"}]},{\"type\":\"model_output\",\"content\":[{\"text\":\"t2\"}]},{\"type\":\"thought\",\"content\":[{\"text\":\"r\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"document\",\"mime_type\":\"\",\"data\":\"AA\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/webp\",\"data\":\"BB\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":0,\"total_tokens\":0,\"cached_tokens\":2}}"
     ]
    ],
    "dynamic": [
@@ -1902,7 +1914,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746026434215\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/jpeg\",\"data\":\"/9j/\"}]}]}"
+     "{\"id\":\"interaction_1792963307344540929\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/jpeg\",\"data\":\"/9j/\"}]}]}"
     ]
    ],
    "dynamic": [
@@ -1922,7 +1934,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746027612642\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307345734897\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -1942,7 +1954,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746028850139\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307346955379\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -1962,7 +1974,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746030055538\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307348185302\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -1982,7 +1994,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746031230388\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"a\"}]}]}"
+     "{\"id\":\"interaction_1792963307349397904\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"a\"}]}]}"
     ]
    ],
    "dynamic": [
@@ -2002,7 +2014,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746032428591\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307350551521\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2021,7 +2033,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746033608873\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307351675963\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2042,7 +2054,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746034757256\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"bad\\ufffd\"}]}]}"
+     "{\"id\":\"interaction_1792963307352796763\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"bad\\ufffd\"}]}]}"
     ]
    ],
    "dynamic": [
@@ -2062,7 +2074,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"name\":\"Read\"},{\"name\":\"look up\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746035933845\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307354044776\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2084,12 +2096,12 @@
    ],
    "outputs": [
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790987746037168961\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:35:46Z\",\"updated\":\"2026-10-03T00:35:46Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1792963307355263656\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-25T21:21:47Z\",\"updated\":\"2026-10-25T21:21:47Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n",
      "event: done\ndata: [DONE]\n\n"
     ],
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746037168961\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746037168961\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307355263656\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307355263656\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"late\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
@@ -2142,8 +2154,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746038375238\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746038375238\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307356569626\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307356569626\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -2154,7 +2166,7 @@
     [],
     [
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790987746038375238\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:35:46Z\",\"updated\":\"2026-10-03T00:35:46Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1792963307356569626\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-25T21:21:47Z\",\"updated\":\"2026-10-25T21:21:47Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n",
      "event: done\ndata: [DONE]\n\n"
     ]
    ],
@@ -2201,14 +2213,14 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746039564345\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746039564345\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307357772054\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307357772054\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"a\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
     [
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790987746039564345\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T00:35:46Z\",\"updated\":\"2026-10-03T00:35:46Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1792963307357772054\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-25T21:21:47Z\",\"updated\":\"2026-10-25T21:21:47Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n",
      "event: done\ndata: [DONE]\n\n"
     ]
    ],
@@ -2258,8 +2270,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746040735795\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746040735795\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307359084069\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307359084069\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"Hi \u003cb\u003e\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
@@ -2273,7 +2285,7 @@
      "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n"
     ],
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790987746040735795\",\"status\":\"completed\",\"usage\":{\"total_tokens\":9,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":1,\"total_output_tokens\":4,\"total_tool_use_tokens\":0,\"total_thought_tokens\":2},\"created\":\"2026-10-03T00:35:46Z\",\"updated\":\"2026-10-03T00:35:46Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1792963307359084069\",\"status\":\"completed\",\"usage\":{\"total_tokens\":9,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":1,\"total_output_tokens\":4,\"total_tool_use_tokens\":0,\"total_thought_tokens\":2},\"created\":\"2026-10-25T21:21:47Z\",\"updated\":\"2026-10-25T21:21:47Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     [
      "event: done\ndata: [DONE]\n\n"
@@ -2323,8 +2335,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746042090437\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746042090437\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307360479950\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307360479950\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"think\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"more\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n",
@@ -2343,7 +2355,7 @@
      "event: step.start\ndata: {\"index\":4,\"step\":{\"type\":\"function_call\",\"id\":\"fc2\",\"name\":\"g\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":4,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":4,\"event_type\":\"step.stop\"}\n\n",
-     "event: step.start\ndata: {\"index\":5,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790987746042130219\",\"name\":\"h\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.start\ndata: {\"index\":5,\"step\":{\"type\":\"function_call\",\"id\":\"step_1792963307360512672\",\"name\":\"h\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":5,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":5,\"event_type\":\"step.stop\"}\n\n",
      "event: step.start\ndata: {\"index\":6,\"step\":{\"type\":\"function_result\"},\"event_type\":\"step.start\"}\n\n",
@@ -2358,7 +2370,7 @@
      "event: step.start\ndata: {\"index\":9,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":9,\"delta\":{\"signature\":\"ex\",\"type\":\"thought_signature\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":9,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790987746042090437\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":5,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":5}],\"total_cached_tokens\":2,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T00:35:46Z\",\"updated\":\"2026-10-03T00:35:46Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1792963307360479950\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":5,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":5}],\"total_cached_tokens\":2,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-25T21:21:47Z\",\"updated\":\"2026-10-25T21:21:47Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     [
      "event: done\ndata: [DONE]\n\n"
@@ -2414,11 +2426,11 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746043504612\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746043504612\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307362050146\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307362050146\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790987746043504612\",\"status\":\"completed\",\"usage\":{\"total_tokens\":1,\"total_input_tokens\":7,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":7}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T00:35:46Z\",\"updated\":\"2026-10-03T00:35:46Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1792963307362050146\",\"status\":\"completed\",\"usage\":{\"total_tokens\":1,\"total_input_tokens\":7,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":7}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-25T21:21:47Z\",\"updated\":\"2026-10-25T21:21:47Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n"
     ]
    ],
    "dynamic": [
@@ -2466,8 +2478,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790987746044753786\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790987746044753786\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1792963307363380279\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1792963307363380279\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"a\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
@@ -2475,7 +2487,7 @@
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
     ],
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790987746044753786\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":2,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":2}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T00:35:46Z\",\"updated\":\"2026-10-03T00:35:46Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1792963307363380279\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":2,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":2}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-25T21:21:47Z\",\"updated\":\"2026-10-25T21:21:47Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-2.5-pro\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     [
      "event: done\ndata: [DONE]\n\n"
@@ -2532,7 +2544,7 @@
    "input": "{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]}}],\"usage_metadata\":{\"prompt_token_count\":\"9\",\"total_token_count\":2.5}}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746047547567\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"x\"}]}],\"usage\":{\"input_tokens\":9,\"output_tokens\":0,\"total_tokens\":2}}"
+     "{\"id\":\"interaction_1792963307366024574\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"x\"}]}],\"usage\":{\"input_tokens\":9,\"output_tokens\":0,\"total_tokens\":2}}"
     ]
    ],
    "dynamic": [
@@ -2551,7 +2563,7 @@
    "input": "{}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746048800215\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307367179740\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2570,7 +2582,7 @@
    "input": "not json",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746049951077\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307368303431\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2589,7 +2601,7 @@
    "input": "{\"candidates\":[]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746051191287\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
+     "{\"id\":\"interaction_1792963307369544904\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2608,7 +2620,7 @@
    "input": "{\"responseId\":\"\",\"candidates\":[{\"content\":{\"parts\":[]}}],\"usageMetadata\":{}}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790987746052403895\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
+     "{\"id\":\"interaction_1792963307370727324\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-2.5-pro\",\"steps\":[],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
     ]
    ],
    "dynamic": [
@@ -2627,7 +2639,7 @@
    "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_fc\"},\n\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1791031652254029980\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+     "{\"id\":\"interaction_1792963307371901032\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
     ]
    ],
    "dynamic": [
@@ -2646,7 +2658,7 @@
    "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_rt_fc\"},\n\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1791031652255223017\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+     "{\"id\":\"interaction_1792963307373079765\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
     ]
    ],
    "dynamic": [
@@ -2676,7 +2688,7 @@
    "input": "{\n\t\t\"candidates\": [{\n\t\t\t\"content\": {\n\t\t\t\t\"role\": \"model\",\n\t\t\t\t\"parts\": [\n\t\t\t\t\t{\"text\": \"answer\"},\n\t\t\t\t\t{\"text\": \"\", \"thoughtSignature\": \"sig_trailing_rt\"}\n\t\t\t\t]\n\t\t\t}\n\t\t}]\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1791031652258486104\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
+     "{\"id\":\"interaction_1792963307376089390\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.5-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
     ]
    ],
    "dynamic": [
@@ -2696,6 +2708,545 @@
    "outputs": [
     [
      "{\"model\":\"gemini-3.5-flash\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"answer\"},{\"text\":\"\",\"thoughtSignature\":\"sig_trailing_rt\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"system\",\"text\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"system\",\"text\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"role\":\"developer\",\"parts\":[{\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"developer\",\"parts\":[{\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#6",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#7",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#8",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#9",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"user_input\",\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#10",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#11",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#12",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#13",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"role\":\"system\",\"content\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#14",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"system\",\"content\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepStillSendsItsText:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepStillSendsItsText:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepStillSendsItsText:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"role\":\"system\",\"content\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepStillSendsItsText:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"system\",\"text\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepStillSendsItsText:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"role\":\"developer\",\"parts\":[{\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepStillSendsItsText:16:envelope#6",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiDeveloperOrSystemStepStillSendsItsText:16:envelope#7",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"system\",\"content\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"system\",\"text\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#6",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"developer\",\"parts\":[{\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#7",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestGeminiFileDataSurvivesTheRoundTripThroughInteractions:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"uri\":\"gs://b/a.png\",\"mime_type\":\"image/png\"}]}],\"stream\":false}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"image/png\",\"fileUri\":\"gs://b/a.png\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiReadsURIAsFileURI:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"mime_type\":\"application/pdf\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://b/a.pdf\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiReadsURIAsFileURI:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"mime_type\":\"application/pdf\",\"file_uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://b/a.pdf\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiReadsURIAsFileURI:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"mime_type\":\"application/pdf\",\"fileUri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://b/a.pdf\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiInlineDataStillConverts:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"data\":\"aGVsbG8=\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"aGVsbG8=\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: audio"
+  },
+  {
+   "name": "TestInteractionsToGeminiUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestInteractionsToGeminiUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToGeminiUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://example.test/a.png\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: image_url"
+  },
+  {
+   "name": "TestInteractionsToGeminiUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"\"},{\"type\":\"video\",\"mime_type\":\"video/mp4\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: video"
+  },
+  {
+   "name": "TestInteractionsToGeminiUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#6",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\" \\n\"},{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\" \\n\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: audio"
+  },
+  {
+   "name": "TestInteractionsToGeminiUnrepresentableNativePartIsRefused:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"image/png\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: fileData"
+  },
+  {
+   "name": "TestInteractionsToGeminiRefusesAnEmptiedTurnBeforeALaterTextTurn:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"next\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"next\"}]}]}"
+    ]
+   ],
+   "request_error": "unsupported content part: audio"
+  },
+  {
+   "name": "TestInteractionsToGeminiUnrepresentableAttachmentBesideTextStillSucceeds:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiNeighbouringStepKeepsTheTurnAlive:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiNeighbouringStepKeepsTheTurnAlive:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"function_call\",\"name\":\"f\",\"call_id\":\"c1\",\"arguments\":{}},{\"type\":\"function_result\",\"name\":\"f\",\"call_id\":\"c1\",\"result\":{\"ok\":true}},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"},{\"functionCall\":{\"name\":\"f\",\"args\":{},\"id\":\"c1\"}}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"ok\":true},\"id\":\"c1\"}}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiNeighbouringStepKeepsTheTurnAlive:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},\"keep me\",{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiNeighbouringStepKeepsTheTurnAlive:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToGeminiNeighbouringStepKeepsTheTurnAlive:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}]}"
     ]
    ]
   },
@@ -2723,6 +3274,7 @@
    ]
   }
  ],
+ "reference": "ae3ee3be",
  "token_count": false,
  "upstream": "gemini"
 }

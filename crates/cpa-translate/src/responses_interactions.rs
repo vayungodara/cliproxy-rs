@@ -8,7 +8,7 @@ use std::sync::LazyLock;
 use cpa_common::json::{self as gj, Kind, Res};
 
 use crate::claude_responses::qualify_namespace_name;
-use crate::common::{go_lower, trim_space};
+use crate::common::{UserTurnDrops, go_lower, normalize_openai_file_data, trim_space};
 use crate::gemini_interactions::first_existing;
 use crate::openai_interactions::{
     antigravity_name_to_client, antigravity_name_to_upstream, first_nonblank, is_antigravity, json_string_value,
@@ -21,7 +21,7 @@ use crate::{Registered, apply_patch};
 /// OpenAI Responses client, Interactions upstream.
 pub static RESPONSES_TO_INTERACTIONS: Registered = registered!(
     OpenAIResponse -> Interactions,
-    request: |ctx, body| Ok(responses_to_interactions(ctx.model, body, ctx.stream)),
+    request: |ctx, body| responses_to_interactions(ctx.model, body, ctx.stream),
     non_stream: response::interactions_to_responses_non_stream,
     go_stream: response::interactions_to_responses_stream,
     token_count: None,
@@ -182,7 +182,8 @@ fn call_id(item: &Res<'_>) -> Vec<u8> {
 // Responses request -> Interactions request
 
 /// ConvertOpenAIResponsesRequestToInteractions.
-pub(crate) fn responses_to_interactions(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
+pub(crate) fn responses_to_interactions(model: &str, raw: &[u8], stream: bool) -> Result<Vec<u8>, crate::Error> {
+    let mut drops = UserTurnDrops::default();
     let root = gj::parse(raw);
     let mut out = br#"{"model":"","input":[]}"#.to_vec();
     let model = request_model(model, &root);
@@ -216,7 +217,7 @@ pub(crate) fn responses_to_interactions(model: &str, raw: &[u8], stream: bool) -
     let devin = is_devin(&model) || !antigravity;
     let input = root.get("input");
     if input.exists() {
-        set_input(&mut out, &input, antigravity);
+        set_input(&mut out, &input, antigravity, &mut drops);
     }
     append_tools(&mut out, &root, antigravity, devin);
     copy_tool_choice(&mut out, &root.get("tool_choice"), antigravity, devin);
@@ -268,7 +269,7 @@ pub(crate) fn responses_to_interactions(model: &str, raw: &[u8], stream: bool) -
             gj::set_raw(&mut out, "generation_config.stop_sequences", &stop.raw);
         }
     }
-    out
+    drops.result().map(|()| out)
 }
 
 /// The `tool_choice` of a Responses request as the Interactions generation config's.
@@ -333,38 +334,48 @@ fn instructions_text(instructions: &Res<'_>) -> Vec<u8> {
 }
 
 /// setResponsesInputOnInteractions.
-fn set_input(out: &mut Vec<u8>, input: &Res<'_>, antigravity: bool) {
+fn set_input(out: &mut Vec<u8>, input: &Res<'_>, antigravity: bool, drops: &mut UserTurnDrops) {
     let mut names: HashMap<Vec<u8>, Vec<u8>> = HashMap::new();
     let mut items = vec![];
     if input.kind == Kind::String {
         items.push(text_step("user_input", &input.bytes()));
     } else if input.is_array() {
         input.each(|_, item| {
-            items.extend(input_item(&item, &mut names, antigravity));
+            items.extend(input_item(&item, &mut names, antigravity, drops));
             true
         });
     } else if input.is_object() {
-        items.extend(input_item(input, &mut names, antigravity));
+        items.extend(input_item(input, &mut names, antigravity, drops));
     }
     if !items.is_empty() {
         gj::set_raw(out, "input", gj::join(&items));
     }
 }
 
+/// responsesUserTurnDrops: `drops` when the item is the user's own turn. A system or
+/// developer message is also sent as a user_input step but is never refused and never
+/// hides an emptied turn.
+fn user_turn_drops<'d>(role: &[u8], drops: &'d mut UserTurnDrops) -> Option<&'d mut UserTurnDrops> {
+    matches!(role, b"" | b"user").then_some(drops)
+}
+
 /// responsesInputItemToInteractions.
-fn input_item(item: &Res<'_>, names: &mut HashMap<Vec<u8>, Vec<u8>>, antigravity: bool) -> Option<Vec<u8>> {
+fn input_item(
+    item: &Res<'_>,
+    names: &mut HashMap<Vec<u8>, Vec<u8>>,
+    antigravity: bool,
+    drops: &mut UserTurnDrops,
+) -> Option<Vec<u8>> {
     let kind = string(&item.get("type"));
     match kind.as_slice() {
         b"message" => {
             let role = item.get("role").bytes();
-            let step_type = if matches!(role.as_ref(), b"assistant" | b"model") {
-                "model_output"
-            } else {
-                "user_input"
-            };
+            let model = matches!(role.as_ref(), b"assistant" | b"model");
+            let step_type = if model { "model_output" } else { "user_input" };
             let mut step = br#"{"type":"","content":[]}"#.to_vec();
             gj::set_str(&mut step, "type", step_type);
-            append_content(&mut step, &item.get("content"));
+            let drops = if model { None } else { user_turn_drops(&role, drops) };
+            append_content(&mut step, &item.get("content"), drops);
             Some(step)
         }
         b"function_call" | b"custom_tool_call" => {
@@ -384,17 +395,12 @@ fn input_item(item: &Res<'_>, names: &mut HashMap<Vec<u8>, Vec<u8>>, antigravity
             };
             Some(text_step(step_type, &item.get("text").bytes()))
         }
-        b"input_image" | b"output_image" => {
-            let step_type = if kind == b"output_image" {
-                "model_output"
-            } else {
-                "user_input"
-            };
+        b"input_image" | b"output_image" | b"input_file" | b"input_audio" | b"input_video" => {
+            let output = kind == b"output_image";
+            let step_type = if output { "model_output" } else { "user_input" };
             let mut step = br#"{"type":"","content":[]}"#.to_vec();
             gj::set_str(&mut step, "type", step_type);
-            if let Some(part) = content_part(item) {
-                gj::set_items(&mut step, "content", &[part]);
-            }
+            append_content(&mut step, item, (!output).then_some(drops));
             Some(step)
         }
         _ => {
@@ -403,26 +409,54 @@ fn input_item(item: &Res<'_>, names: &mut HashMap<Vec<u8>, Vec<u8>>, antigravity
                 return None;
             }
             let mut step = br#"{"type":"user_input","content":[]}"#.to_vec();
-            append_content(&mut step, &content);
+            append_content(&mut step, &content, user_turn_drops(&item.get("role").bytes(), drops));
             Some(step)
         }
     }
 }
 
-/// appendResponsesContentToInteractions.
-fn append_content(step: &mut Vec<u8>, content: &Res<'_>) {
+/// appendResponsesContentToInteractions. `drops` (the user's own turn only) closes the
+/// turn: an attachment that cannot be sent is recorded, and any sendable part keeps
+/// the turn; an empty text part is forwarded but is not sendable.
+fn append_content(step: &mut Vec<u8>, content: &Res<'_>, mut drops: Option<&mut UserTurnDrops>) {
     let mut items = vec![];
+    let mut sendable = 0;
+    let mut add = |part: &Res<'_>| match content_part(part) {
+        Some(converted) => {
+            if gj::get(&converted, "type").bytes().as_ref() != b"text"
+                || !gj::get(&converted, "text").bytes().is_empty()
+            {
+                sendable += 1;
+            }
+            items.push(converted);
+        }
+        None => {
+            // A file id, a part without bytes and a video have no Interactions counterpart.
+            let kind = part.get("type").bytes();
+            if let Some(drops) = drops.as_deref_mut()
+                && matches!(kind.as_ref(), b"input_file" | b"input_audio" | b"input_video")
+            {
+                drops.drop_part(&String::from_utf8_lossy(&kind));
+            }
+        }
+    };
     if content.kind == Kind::String {
         let mut part = br#"{"type":"text","text":""}"#.to_vec();
         gj::set_str(&mut part, "text", content.bytes());
         items.push(part);
+        if !content.bytes().is_empty() {
+            sendable += 1;
+        }
     } else if content.is_array() {
         content.each(|_, part| {
-            items.extend(content_part(&part));
+            add(&part);
             true
         });
     } else if content.is_object() {
-        items.extend(content_part(content));
+        add(content);
+    }
+    if let Some(drops) = drops {
+        drops.end_turn(sendable);
     }
     gj::set_items(step, "content", &items);
 }
@@ -437,10 +471,58 @@ pub(crate) fn content_part(part: &Res<'_>) -> Option<Vec<u8>> {
     match part.get("type").bytes().as_ref() {
         b"input_text" | b"output_text" | b"text" => return Some(text_part(&part.get("text").bytes())),
         b"input_image" | b"output_image" => return Some(image_part(part)),
+        b"input_file" => return file_part(part),
+        b"input_audio" => return audio_part(part),
         _ => {}
     }
     let text = part.get("text");
     text.exists().then(|| text_part(&text.bytes()))
+}
+
+/// responsesFilePartToInteractions: an input_file as an Interactions document, or None
+/// for a bare file_id, which only the OpenAI side can resolve.
+fn file_part(part: &Res<'_>) -> Option<Vec<u8>> {
+    let filename = string(&part.get("filename"));
+    let fallback = first_nonblank(&[&part.get("mime_type").bytes(), &part.get("mimeType").bytes()]);
+    let mut out = br#"{"type":"document"}"#.to_vec();
+    if !filename.is_empty() {
+        gj::set_str(&mut out, "filename", &filename);
+    }
+    let mut has_content = false;
+    if let Some((mime, data)) = normalize_openai_file_data(&filename, &fallback, &part.get("file_data").bytes()) {
+        gj::set_str(&mut out, "mime_type", &mime);
+        gj::set_str(&mut out, "data", &data);
+        has_content = true;
+    }
+    let url = part.get("file_url").bytes();
+    if !url.is_empty() {
+        gj::set_str(&mut out, "file_url", &url);
+        has_content = true;
+    }
+    has_content.then_some(out)
+}
+
+/// responsesAudioPartToInteractions: an input_audio with inline bytes.
+fn audio_part(part: &Res<'_>) -> Option<Vec<u8>> {
+    let audio = part.get("input_audio");
+    let data = first_nonblank(&[&audio.get("data").bytes(), &part.get("data").bytes()]);
+    if data.is_empty() {
+        return None;
+    }
+    let mut out = br#"{"type":"audio","data":""}"#.to_vec();
+    gj::set_str(&mut out, "data", &data);
+    let format = first_nonblank(&[&audio.get("format").bytes(), &part.get("format").bytes()]);
+    if !format.is_empty() {
+        let mime = match go_lower(trim_space(&format)).as_slice() {
+            b"wav" => "audio/wav",
+            b"flac" => "audio/flac",
+            b"opus" => "audio/opus",
+            b"pcm16" => "audio/pcm",
+            _ => "audio/mpeg",
+        };
+        gj::set_str(&mut out, "mime_type", mime);
+    }
+    Some(out)
 }
 
 /// parseDataURL (Responses package): any `data:` URL with a comma; the MIME type

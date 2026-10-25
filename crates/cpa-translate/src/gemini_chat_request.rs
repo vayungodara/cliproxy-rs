@@ -3,7 +3,7 @@
 
 use crate::{
     Registered,
-    common::{self, go_lower, sanitize_function_name, trim_space},
+    common::{self, UserTurnDrops, gemini_part_is_sendable, go_lower, sanitize_function_name, trim_space},
     gemini::attach_default_safety_settings,
     gemini_chat_response as response,
 };
@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 
 pub static PAIR: Registered = registered!(
     OpenAI -> Gemini,
-    request: |ctx, body| Ok(convert(ctx.model, body)),
+    request: |ctx, body| convert(ctx.model, body),
     non_stream: response::non_stream,
     go_stream: response::go_stream,
     token_count: None,
@@ -96,7 +96,8 @@ fn is_number(r: &Res<'_>) -> bool {
 }
 
 /// ConvertOpenAIRequestToGemini.
-pub(crate) fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
+pub(crate) fn convert(model: &str, raw: &[u8]) -> Result<Vec<u8>, crate::Error> {
+    let mut drops = UserTurnDrops::default();
     let mut out = br#"{"contents":[]}"#.to_vec();
     gj::set_str(&mut out, "model", model);
 
@@ -165,7 +166,7 @@ pub(crate) fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
 
     let messages = gj::get(raw, "messages");
     if messages.is_array() {
-        let (system, contents) = convert_messages(&messages.array());
+        let (system, contents) = convert_messages(&messages.array(), &mut drops);
         if !system.is_empty() {
             gj::set_raw(&mut out, "systemInstruction", content_node("user", &system));
         }
@@ -180,7 +181,8 @@ pub(crate) fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
     }
 
     apply_tools(&mut out, raw);
-    attach_default_safety_settings(out, "safetySettings")
+    let out = attach_default_safety_settings(out, "safetySettings");
+    drops.result().map(|()| out)
 }
 
 fn apply_response_format(out: &mut Vec<u8>, raw: &[u8]) {
@@ -204,7 +206,9 @@ fn apply_response_format(out: &mut Vec<u8>, raw: &[u8]) {
     }
 }
 
-fn user_parts(content: &Res<'_>, demoted: bool) -> Vec<Vec<u8>> {
+/// The parts of a user (or demoted system) message; an attachment Gemini cannot
+/// receive is recorded in `drops`.
+fn user_parts(content: &Res<'_>, demoted: bool, drops: &mut UserTurnDrops) -> Vec<Vec<u8>> {
     let mut parts = vec![];
     if content.kind == Kind::String {
         parts.push(text_part(&demoted_text(content.s.to_vec(), demoted)));
@@ -222,18 +226,28 @@ fn user_parts(content: &Res<'_>, demoted: bool) -> Vec<Vec<u8>> {
                         parts.push(text_part(&demoted_text(text, demoted)));
                     }
                 }
-                b"image_url" => parts.extend(data_url_part(&item.get("image_url.url").bytes())),
-                b"video_url" => parts.extend(data_url_part(&item.get("video_url.url").bytes())),
+                // Only a base64 data URL can be inlined; a remote URL has no equivalent here.
+                kind @ (b"image_url" | b"video_url") => {
+                    let kind = if kind == b"image_url" { "image_url" } else { "video_url" };
+                    let url = item.get(&format!("{kind}.url")).bytes();
+                    match common::normalize_openai_file_data(b"", b"", &url) {
+                        Some((mime, data)) => parts.push(inline_data_part(&mime, &data)),
+                        None => drops.drop_part(kind),
+                    }
+                }
                 b"file" => {
                     let filename = item.get("file.filename").bytes();
                     let data = item.get("file.file_data").bytes();
-                    if let Some((mime, data)) = common::normalize_openai_file_data(&filename, b"", &data) {
-                        parts.push(inline_data_part(&mime, &data));
+                    match common::normalize_openai_file_data(&filename, b"", &data) {
+                        Some((mime, data)) => parts.push(inline_data_part(&mime, &data)),
+                        None => drops.drop_part("file"),
                     }
                 }
                 b"input_audio" => {
                     let data = item.get("input_audio.data").bytes();
-                    if !data.is_empty() {
+                    if data.is_empty() {
+                        drops.drop_part("input_audio");
+                    } else {
                         let mime = audio_mime(&item.get("input_audio.format").bytes());
                         parts.push(inline_data_part(&mime, &data));
                     }
@@ -246,7 +260,7 @@ fn user_parts(content: &Res<'_>, demoted: bool) -> Vec<Vec<u8>> {
 }
 
 /// The system instruction parts and the contents for `messages`.
-fn convert_messages(arr: &[Res<'_>]) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+fn convert_messages(arr: &[Res<'_>], drops: &mut UserTurnDrops) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
     let mut system = vec![];
     let mut contents = vec![];
     let mut in_conversation = false;
@@ -266,7 +280,9 @@ fn convert_messages(arr: &[Res<'_>]) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
             }
         } else if role == b"user" || system_like {
             in_conversation = true;
-            let parts = user_parts(&content, system_like);
+            let parts = user_parts(&content, system_like, drops);
+            // Whitespace-only text is forwarded but never keeps an emptied turn alive.
+            drops.end_turn(parts.iter().filter(|p| gemini_part_is_sendable(p)).count());
             if !parts.is_empty() {
                 contents.push(content_node("user", &parts));
             }

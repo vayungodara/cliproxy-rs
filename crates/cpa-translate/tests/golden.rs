@@ -148,56 +148,6 @@ const PENDING: &[(&str, &str, &str)] = &[
         "signature replay: Meta Muse envelopes (7a0b7563, cc5682c5, 674dbe8f, a68c7d8e)",
     ),
     (
-        "openai->gemini",
-        "TestConvertOpenAIRequestToGemini_FileID:29:envelope",
-        "unsendable OpenAI to Gemini attachments refused (3b69068e, f51624aa)",
-    ),
-    (
-        "openai->gemini",
-        "TestOpenAIToGeminiRegistryCarriesTheImageURLRefusal:83:envelope",
-        "unsendable OpenAI to Gemini attachments refused (3b69068e, f51624aa)",
-    ),
-    (
-        "openai-response->gemini",
-        "TestConvertOpenAIResponsesRequestToGemini_InvalidDataURLsRejected:literal#*",
-        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
-    ),
-    (
-        "openai-response->gemini",
-        "TestConvertOpenAIResponsesRequestToGemini_RefusesAnyEmptiedUserTurn:66#*",
-        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
-    ),
-    (
-        "openai-response->gemini",
-        "TestConvertOpenAIResponsesRequestToGemini_ExportedWrapperKeepsAJSONBody:123",
-        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
-    ),
-    (
-        "openai-response->antigravity",
-        "TestConvertOpenAIResponsesRequestToAntigravity_InvalidDataURLsRejected:1425",
-        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
-    ),
-    (
-        "openai-response->antigravity",
-        "TestOpenAIResponsesToAntigravityRegistryCarriesTheRefusal:62:envelope#*",
-        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
-    ),
-    (
-        "openai-response->antigravity",
-        "TestConvertOpenAIResponsesRequestToAntigravity_ExportedWrapperKeepsAJSONBody:107",
-        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
-    ),
-    (
-        "openai-response->interactions",
-        "TestConvertOpenAIResponsesRequestToInteractions_RefusesAnyEmptiedUserTurn:101:envelope#*",
-        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
-    ),
-    (
-        "openai-response->interactions",
-        "TestConvertOpenAIResponsesRequestToInteractions_ExportedWrapperKeepsAJSONBody:181",
-        "unsendable attachments refused (3b69068e, f51624aa, 0f96f568)",
-    ),
-    (
         "openai-response->interactions",
         "TestInteractionsApplyPatchTerminalIdentityFallback:32:stream#7",
         "unique fallback item IDs (b0db5448)",
@@ -426,6 +376,11 @@ const SUPERSEDED: &[(&str, &str)] = &[
     (
         "openai->codex codex-events/non-stream/0",
         "16d98881 joins every output_text part: codex_chat_go.json pair_codex_events_non_stream_0",
+    ),
+    (
+        "interactions->antigravity interactions/parts/media",
+        "f51624aa reads an Interactions part's uri as file_uri; \
+         the same fixture recorded at v8.0.35 matches",
     ),
     (
         "claude->antigravity tools/schema/11",

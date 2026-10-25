@@ -107,6 +107,16 @@ func envelopeByteForm(r registration, fn, pkg string) bool {
 		!strings.Contains(name, "Envelope") && !strings.HasSuffix(name, "WithCompat") && !strings.HasSuffix(name, "Context")
 }
 
+// checkedForm is the unexported converter a registered ConvertXRequestToY wraps; tests
+// call it directly for its refusal, and run() records its output through the registry.
+func checkedForm(name string) string {
+	rest, ok := strings.CutPrefix(name, "Convert")
+	if !ok {
+		return ""
+	}
+	return "convert" + rest
+}
+
 func fixtureKey(f fixture) string {
 	return strings.Join([]string{f.Path, f.Model, f.Input, fmt.Sprint(f.Stream), f.Original, f.Translated, strings.Join(f.Lines, "\x00")}, "\x01")
 }
@@ -173,7 +183,7 @@ func harvested(root string, r registration, existing []fixture) []fixture {
 		name := fmt.Sprintf("%s:%d", c.Test, c.Line)
 		a := c.Args
 		switch {
-		case (c.Fn == pkg+r.request || envelopeByteForm(r, c.Fn, pkg)) && len(a) == 3:
+		case (c.Fn == pkg+r.request || c.Fn == pkg+checkedForm(r.request) || envelopeByteForm(r, c.Fn, pkg)) && len(a) == 3:
 			add(c.Test, fixture{Name: name, Path: "request", Model: a[0].str(), Input: a[1].str(), Stream: a[2].Bool != nil && *a[2].Bool})
 		case strings.HasPrefix(c.Fn, pkg) && strings.HasSuffix(c.Fn, "WithCompat") && compatPairs[pair] && len(a) == 3:
 			add(c.Test, fixture{Name: name + ":compat", Path: "request_compat", Model: a[0].str(), Input: a[1].str(), Stream: a[2].Bool != nil && *a[2].Bool})
