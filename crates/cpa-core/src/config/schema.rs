@@ -1,4 +1,4 @@
-//! Field shapes generated from Go structs at 6fecc6e. Runtime defaults and provider
+//! Field shapes generated from Go structs at ae3ee3be. Runtime defaults and provider
 //! sanitizers are separate; this does not claim to replace those normalizers.
 use crate::gostr::GoStr;
 use anyhow::{Context, bail};
@@ -135,8 +135,14 @@ pub(super) fn is_struct(path: &str) -> bool {
 fn walk(value: &Value, schema: &Schema, path: &str, strict: bool) -> anyhow::Result<()> {
     if value.is_null() {
         // Routing is shared with the legacy layout, and `models` is no v8 path parent:
-        // Go decodes null into their zero structs.
-        if schema.get("fields").is_some() && path != "config.routing" && path != "config.models" {
+        // Go decodes null into their zero structs. yaml.v3 skips the web search result
+        // cache's own unmarshaler for null, which leaves its zero config.
+        if schema.get("fields").is_some()
+            && !matches!(
+                path,
+                "config.routing" | "config.models" | "config.client.codex.web-search-result-cache"
+            )
+        {
             bail!("{path} must be a mapping");
         }
         if schema.get("list").is_some() && path.starts_with("config.api-keys.") && !path.contains('[') {
@@ -492,6 +498,15 @@ mod tests {
     /// `oauth.providers.codex.chatgpt-keep-alive` is a cliproxy-rs addition in the schema:
     /// strict management writes accept it as a bool, still reject other keys Go does not
     /// know, and the v8 migration keeps it instead of commenting it out.
+    /// Go's `ParseConfigBytes` and `ValidateV8Config` take an empty
+    /// `client.codex.web-search-result-cache` as its zero config.
+    #[test]
+    fn null_web_search_result_cache_loads() {
+        let text = "client:\n  codex:\n    web-search-result-cache:\n";
+        validate(&yaml(text), true).unwrap();
+        crate::config::Config::parse(text).unwrap();
+    }
+
     #[test]
     fn chatgpt_keep_alive_is_a_known_codex_bool() {
         let on = yaml("oauth:\n  providers:\n    codex:\n      chatgpt-keep-alive: true\n");

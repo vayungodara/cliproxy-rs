@@ -13,7 +13,7 @@ import sys
 
 reference = Path(sys.argv[1])
 revision = subprocess.check_output(["git", "-C", str(reference), "rev-parse", "HEAD"], text=True).strip()
-assert revision.startswith("6fecc6e"), "Use the pinned parity reference"
+assert revision.startswith("ae3ee3be"), "Use the pinned parity reference"
 structs = {}
 aliases = {}
 for directory, prefix in [("internal/config", ""), ("internal/registry", "registry."), ("internal/pluginstore", "sdkpluginstore.")]:
@@ -28,7 +28,7 @@ for directory, prefix in [("internal/config", ""), ("internal/registry", "regist
                 if match and match[2] != "-":
                     fields[match[2]] = match[1].strip()
             structs[prefix + name] = fields
-        for name, target in re.findall(r"^type (\w+) = (\w+)$", text, re.M):
+        for name, target in re.findall(r"^type (\w+) = ([\w.]+)$", text, re.M):
             aliases[prefix + name] = prefix + target
 
 def shape(type_name):
@@ -58,12 +58,23 @@ def take(path):
         node = node["fields"][part]
     return node["fields"].pop(parts[-1])
 
+def merge(old, new):
+    """Go's v8 table maps several roots onto one struct (`claude` and `claude-code` to
+    `upstream.claude`): their fields join."""
+    if isinstance(old, dict) and isinstance(new, dict) and "fields" in old and "fields" in new:
+        for key, value in new["fields"].items():
+            old["fields"][key] = merge(old["fields"][key], value) if key in old["fields"] else value
+        return old
+    assert old == new, f"conflicting shapes {old} and {new}"
+    return new
+
 def put(path, value):
     node = schema
     parts = path.split(".")
     for part in parts[:-1]:
         node = node["fields"].setdefault(part, {"fields": {}})
-    node["fields"][parts[-1]] = value
+    fields = node["fields"]
+    fields[parts[-1]] = merge(fields[parts[-1]], value) if parts[-1] in fields else value
 
 source = (reference / "internal/config/config_v8.go").read_text()
 prefixes = source.split("prefixes := []configPath{", 1)[1].split("var out", 1)[0]
@@ -71,15 +82,6 @@ for old, current in re.findall(r'\{"([^"]+)", "([^"]+)"\}', prefixes):
     put(current, take(old))
 # Client aliases are removed, not part of the canonical writable schema.
 schema["fields"]["oauth"]["fields"]["providers"]["fields"]["codex"]["fields"].pop("optimize-multi-agent-v2", None)
-# v8.0.35 52d5507d (buildV8Paths): shared Codex, Claude and xAI settings live under
-# `upstream` and apply to API-key credentials too. Claude Code's field joins Claude's.
-for name in ["disable-codex-cloaking", "stream-bootstrap-buffering", "stream-bootstrap-timeout",
-             "orphan-delegation-compatibility", "model-level-cooling", "response-steering"]:
-    put("upstream.codex." + name, take("oauth.providers.codex." + name))
-claude = take("oauth.providers.claude")
-claude["fields"].update(claude["fields"].pop("claude-code")["fields"])
-put("upstream.claude", claude)
-put("upstream.xai", take("oauth.providers.xai"))
 families = source.split("var v8KeyFamilies = []configPath{", 1)[1].split("func buildV8Paths", 1)[0]
 shared = ["priority", "prefix", "proxy-url", "headers", "models", "excluded-models", "disable-cooling", "request-retry", "request-scoped-errors"]
 for old, family in re.findall(r'\{"([^"]+)", "([^"]+)"\}', families):
@@ -96,17 +98,6 @@ for old, family in re.findall(r'\{"([^"]+)", "([^"]+)"\}', families):
         group["fields"]["keys"] = {"list": key}
     put("api-keys." + family, {"list": group})
 schema["fields"]["config-version"] = "version"
-# v8.0.35 345cc9d5 and b3dc6c3f (SDKConfig.TLSHandshakeTimeoutSeconds), with its legacy
-# root spelling in buildV8Paths.
-put("requests.tls-handshake-timeout-seconds", "int")
-# v8.0.35 dd7b4334 (SDKConfig.MaxRequestBodyBytes), legacy root spelling in buildV8Paths.
-put("server.max-request-body-bytes", "int")
-# v8.0.35 7c41cd05 (Config.GitHubToken), legacy root spelling in buildV8Paths.
-put("server.github-token", "string")
-# v8.0.35 CatalogSources (internal/registry/catalog_config.go), Config.Models: the
-# root `models` in both layouts.
-for name in ["catalog", "codex-catalog", "devin-catalog"]:
-    put("models." + name, "string")
 # cliproxy-rs additions (docs/DIFFERENCES-FROM-GO.md). Go starts with them and ignores
 # them; a config edit through its v8 Management API moves them into comments.
 put("oauth.providers.codex.chatgpt-keep-alive", "bool")

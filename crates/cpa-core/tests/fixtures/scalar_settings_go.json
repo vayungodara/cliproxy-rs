@@ -232,6 +232,42 @@
           "value": "1.50"
         }
       ]
+    },
+    {
+      "name": "v8.0.35-fields",
+      "yaml": "oauth: {providers: {codex: {signin-with-chatgpt-identifier: 1.50}}}\nclient: {codex: {web-search-result-cache: {ttl: 007}}}\nrouting: {session-affinity-rebind-on: 0x1F}\nupstream: {claude: {header-defaults: {anthropic-beta-append: [1.50], anthropic-beta-strip: [true]}}}\napi-keys:\n  claude:\n    - base-url: http://127.0.0.1:1\n      models: [{name: m, alias: a, thinking: {disable-type: 1.0}}]\n      keys: [{api-key: k}]\n",
+      "checks": [
+        {
+          "go": "codex.signin-with-chatgpt-identifier",
+          "rust": "oauth.providers.codex.signin-with-chatgpt-identifier",
+          "value": "1.50"
+        },
+        {
+          "go": "client.codex.web-search-result-cache.ttl",
+          "rust": "client.codex.web-search-result-cache.ttl",
+          "value": "007"
+        },
+        {
+          "go": "routing.session-affinity-rebind-on",
+          "rust": "routing.session-affinity-rebind-on",
+          "value": "0x1F"
+        },
+        {
+          "go": "claude-header-defaults.anthropic-beta-append.0",
+          "rust": "upstream.claude.header-defaults.anthropic-beta-append.0",
+          "value": "1.50"
+        },
+        {
+          "go": "claude-header-defaults.anthropic-beta-strip.0",
+          "rust": "upstream.claude.header-defaults.anthropic-beta-strip.0",
+          "value": "true"
+        },
+        {
+          "go": "claude-api-key.0.models.0.thinking.disable-type",
+          "rust": "api-keys.claude.0.models.0.thinking.disable-type",
+          "value": "1.0"
+        }
+      ]
     }
   ]
 }

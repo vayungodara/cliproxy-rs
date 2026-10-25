@@ -1,5 +1,12 @@
 {
   "fields": {
+    "models": {
+      "fields": {
+        "catalog": "string",
+        "codex-catalog": "string",
+        "devin-catalog": "string"
+      }
+    },
     "plugins": {
       "fields": {
         "enabled": "bool",
@@ -51,6 +58,7 @@
         "session-affinity-subagents": {
           "optional": "bool"
         },
+        "session-affinity-rebind-on": "string",
         "force-model-prefix": "bool",
         "retry": {
           "fields": {
@@ -74,7 +82,14 @@
         "codex": {
           "fields": {
             "optimize-multi-agent-v2": "bool",
-            "enable-apply-patch": "bool"
+            "enable-apply-patch": "bool",
+            "web-search-result-cache": {
+              "fields": {
+                "enabled": "bool",
+                "ttl": "string",
+                "limit": "int"
+              }
+            }
           }
         }
       }
@@ -83,9 +98,11 @@
       "fields": {
         "host": "string",
         "port": "int",
+        "max-request-body-bytes": "int",
         "trusted-proxies": {
           "list": "string"
         },
+        "github-token": "string",
         "tls": {
           "fields": {
             "enable": "bool",
@@ -117,9 +134,7 @@
             },
             "advertise-management": "bool"
           }
-        },
-        "max-request-body-bytes": "int",
-        "github-token": "string"
+        }
       }
     },
     "management": {
@@ -174,12 +189,14 @@
     "requests": {
       "fields": {
         "proxy-url": "string",
+        "tls-handshake-timeout-seconds": "int",
         "passthrough-headers": "bool",
         "nonstream-keepalive-interval": "int",
         "streaming": {
           "fields": {
             "keepalive-seconds": "int",
-            "bootstrap-retries": "int"
+            "bootstrap-retries": "int",
+            "send-keepalive-before-ft": "bool"
           }
         },
         "payload": {
@@ -370,8 +387,7 @@
               }
             }
           }
-        },
-        "tls-handshake-timeout-seconds": "int"
+        }
       }
     },
     "oauth": {
@@ -453,6 +469,7 @@
                     }
                   }
                 },
+                "signin-with-chatgpt-identifier": "string",
                 "header-defaults": {
                   "fields": {
                     "user-agent": "string",
@@ -498,6 +515,60 @@
         }
       }
     },
+    "upstream": {
+      "fields": {
+        "codex": {
+          "fields": {
+            "disable-codex-cloaking": "bool",
+            "stream-bootstrap-buffering": "bool",
+            "stream-bootstrap-timeout": "string",
+            "orphan-delegation-compatibility": "bool",
+            "model-level-cooling": "bool",
+            "response-steering": "bool"
+          }
+        },
+        "claude": {
+          "fields": {
+            "model-level-cooling": "bool",
+            "tool-search": "bool",
+            "session-date-pin-days": {
+              "optional": "int"
+            },
+            "disable-cloaking-model-list": "bool",
+            "disable-claude-cloak-mode": "bool",
+            "header-defaults": {
+              "fields": {
+                "user-agent": "string",
+                "package-version": "string",
+                "runtime-version": "string",
+                "os": "string",
+                "arch": "string",
+                "timeout": "string",
+                "timezone": "string",
+                "stabilize-device-profile": {
+                  "optional": "bool"
+                },
+                "anthropic-beta-strip": {
+                  "list": "string"
+                },
+                "anthropic-beta-append": {
+                  "list": "string"
+                },
+                "inject-diagnostics": {
+                  "optional": "bool"
+                },
+                "client-request-id": "string"
+              }
+            }
+          }
+        },
+        "xai": {
+          "fields": {
+            "inject-x-search": "bool"
+          }
+        }
+      }
+    },
     "multimedia": {
       "fields": {
         "disable-image-generation": "image-mode",
@@ -519,55 +590,14 @@
         "usage": {
           "fields": {
             "usage-statistics-enabled": "bool",
-            "claude-cache-telemetry": "bool",
-            "redis-usage-queue-retention-seconds": "int"
+            "redis-usage-queue-retention-seconds": "int",
+            "claude-cache-telemetry": "bool"
           }
         },
         "pprof": {
           "fields": {
             "enable": "bool",
             "addr": "string"
-          }
-        }
-      }
-    },
-    "upstream": {
-      "fields": {
-        "codex": {
-          "fields": {
-            "disable-codex-cloaking": "bool",
-            "stream-bootstrap-buffering": "bool",
-            "stream-bootstrap-timeout": "string",
-            "orphan-delegation-compatibility": "bool",
-            "model-level-cooling": "bool",
-            "response-steering": "bool"
-          }
-        },
-        "claude": {
-          "fields": {
-            "model-level-cooling": "bool",
-            "tool-search": "bool",
-            "disable-claude-cloak-mode": "bool",
-            "header-defaults": {
-              "fields": {
-                "user-agent": "string",
-                "package-version": "string",
-                "runtime-version": "string",
-                "os": "string",
-                "arch": "string",
-                "timeout": "string",
-                "timezone": "string",
-                "stabilize-device-profile": {
-                  "optional": "bool"
-                }
-              }
-            },
-            "disable-cloaking-model-list": "bool"
-          }
-        },
-        "xai": {
-          "fields": {
-            "inject-x-search": "bool"
           }
         }
       }
@@ -601,6 +631,7 @@
                           "max": "int",
                           "zero-allowed": "bool",
                           "dynamic-allowed": "bool",
+                          "disable-type": "string",
                           "levels": {
                             "list": "string"
                           }
@@ -659,6 +690,7 @@
                                 "max": "int",
                                 "zero-allowed": "bool",
                                 "dynamic-allowed": "bool",
+                                "disable-type": "string",
                                 "levels": {
                                   "list": "string"
                                 }
@@ -727,6 +759,7 @@
                           "max": "int",
                           "zero-allowed": "bool",
                           "dynamic-allowed": "bool",
+                          "disable-type": "string",
                           "levels": {
                             "list": "string"
                           }
@@ -785,6 +818,7 @@
                                 "max": "int",
                                 "zero-allowed": "bool",
                                 "dynamic-allowed": "bool",
+                                "disable-type": "string",
                                 "levels": {
                                   "list": "string"
                                 }
@@ -851,6 +885,7 @@
                           "max": "int",
                           "zero-allowed": "bool",
                           "dynamic-allowed": "bool",
+                          "disable-type": "string",
                           "levels": {
                             "list": "string"
                           }
@@ -896,6 +931,7 @@
                                 "max": "int",
                                 "zero-allowed": "bool",
                                 "dynamic-allowed": "bool",
+                                "disable-type": "string",
                                 "levels": {
                                   "list": "string"
                                 }
@@ -951,6 +987,7 @@
                           "max": "int",
                           "zero-allowed": "bool",
                           "dynamic-allowed": "bool",
+                          "disable-type": "string",
                           "levels": {
                             "list": "string"
                           }
@@ -1012,6 +1049,7 @@
                                 "max": "int",
                                 "zero-allowed": "bool",
                                 "dynamic-allowed": "bool",
+                                "disable-type": "string",
                                 "levels": {
                                   "list": "string"
                                 }
@@ -1083,6 +1121,7 @@
                           "max": "int",
                           "zero-allowed": "bool",
                           "dynamic-allowed": "bool",
+                          "disable-type": "string",
                           "levels": {
                             "list": "string"
                           }
@@ -1141,6 +1180,7 @@
                                 "max": "int",
                                 "zero-allowed": "bool",
                                 "dynamic-allowed": "bool",
+                                "disable-type": "string",
                                 "levels": {
                                   "list": "string"
                                 }
@@ -1228,6 +1268,7 @@
                           "max": "int",
                           "zero-allowed": "bool",
                           "dynamic-allowed": "bool",
+                          "disable-type": "string",
                           "levels": {
                             "list": "string"
                           }
@@ -1289,6 +1330,7 @@
                                 "max": "int",
                                 "zero-allowed": "bool",
                                 "dynamic-allowed": "bool",
+                                "disable-type": "string",
                                 "levels": {
                                   "list": "string"
                                 }
@@ -1361,6 +1403,7 @@
                           "max": "int",
                           "zero-allowed": "bool",
                           "dynamic-allowed": "bool",
+                          "disable-type": "string",
                           "levels": {
                             "list": "string"
                           }
@@ -1422,6 +1465,7 @@
                                 "max": "int",
                                 "zero-allowed": "bool",
                                 "dynamic-allowed": "bool",
+                                "disable-type": "string",
                                 "levels": {
                                   "list": "string"
                                 }
@@ -1498,6 +1542,7 @@
                           "max": "int",
                           "zero-allowed": "bool",
                           "dynamic-allowed": "bool",
+                          "disable-type": "string",
                           "levels": {
                             "list": "string"
                           }
@@ -1548,13 +1593,6 @@
       }
     },
     "config-version": "version",
-    "models": {
-      "fields": {
-        "catalog": "string",
-        "codex-catalog": "string",
-        "devin-catalog": "string"
-      }
-    },
     "worker-threads": "int"
   }
 }
