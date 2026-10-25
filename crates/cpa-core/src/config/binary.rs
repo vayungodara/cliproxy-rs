@@ -498,11 +498,15 @@ impl Walk {
                 let anchored = anchor.is_some() || self.anchored > 0;
                 let literal = match &tag {
                     // yaml.v3 reads a scalar tagged as a number or boolean into a string
-                    // field as its text, as it does an untagged one.
-                    Some(tag) => matches!(
-                        tag.as_slice(),
-                        b"tag:yaml.org,2002:int" | b"tag:yaml.org,2002:float" | b"tag:yaml.org,2002:bool"
-                    ),
+                    // field as its text, as it does an untagged one. A plugin's tagged
+                    // scalar keeps its parsed type, which the tag gives (`!!float 1`).
+                    Some(tag) => {
+                        self.mode != Mode::Plugins
+                            && matches!(
+                                tag.as_slice(),
+                                b"tag:yaml.org,2002:int" | b"tag:yaml.org,2002:float" | b"tag:yaml.org,2002:bool"
+                            )
+                    }
                     None => plain && !is_null(&value) && !resolves_to_text(&value),
                 };
                 // yaml.v3's layout code matches keys by their node, tag included

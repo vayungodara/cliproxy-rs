@@ -429,6 +429,8 @@ fn child(out: &mut String, value: &Value, raw: Option<&Value>, indent: usize) {
 fn scalar(value: &Value, raw: Option<&Value>) -> String {
     match (value, raw) {
         (_, Some(Value::Tagged(t))) if t.tag == cpa_core::config::PLAIN_SCALAR => match &t.value {
+            // A folded multi-line plain scalar is a string; its text is no longer plain.
+            Value::String(text) if text.contains('\n') => serde_json::to_string(text).unwrap_or_default(),
             Value::String(text) => text.clone(),
             other => serde_yaml_ng::to_string(other)
                 .unwrap_or_default()
@@ -572,16 +574,18 @@ mod tests {
     /// Go v8.0.35 hands a plugin its raw config node (`runtimeConfigYAML`), so each plain
     /// scalar keeps its text; for this config Go prints `threshold: 1.50`, `name: 1e3`,
     /// `hex: 0x1F`, `oct: 007`, `flag: True`, `list: [1.50, 'q', -0]` and `q: '1.50'`.
+    /// It keeps `tagged: !!float 1` a float, and the multi-line plain `lines` reads as
+    /// "/first\nsecond".
     #[test]
     fn plugins_get_their_scalars_as_written() {
         let cfg = cpa_core::config::Config::parse(
-            "plugins:\n  enabled: true\n  configs:\n    p:\n      threshold: 1.50\n      name: 1e3\n      hex: 0x1F\n      oct: 007\n      flag: True\n      list: [1.50, 'q', -0]\n      nested:\n        s: \"x: y\"\n        q: '1.50'\n",
+            "plugins:\n  enabled: true\n  configs:\n    p:\n      threshold: 1.50\n      name: 1e3\n      hex: 0x1F\n      oct: 007\n      flag: True\n      list: [1.50, 'q', -0]\n      nested:\n        s: \"x: y\"\n        q: '1.50'\n      tagged: !!float 1\n      lines: /first\n\n        second\n",
         )
         .unwrap();
         let rc = runtime_config(&cfg.document, &cfg.plugin_configs).unwrap();
         assert_eq!(
             String::from_utf8_lossy(&rc.items["p"].config_yaml),
-            "threshold: 1.50\nname: 1e3\nhex: 0x1F\noct: 007\nflag: True\nlist:\n  - 1.50\n  - q\n  - -0\nnested:\n  s: 'x: y'\n  q: '1.50'\nenabled: false\npriority: 0\n"
+            "threshold: 1.50\nname: 1e3\nhex: 0x1F\noct: 007\nflag: True\nlist:\n  - 1.50\n  - q\n  - -0\nnested:\n  s: 'x: y'\n  q: '1.50'\ntagged: 1.0\nlines: \"/first\\nsecond\"\nenabled: false\npriority: 0\n"
         );
     }
 
