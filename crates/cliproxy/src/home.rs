@@ -108,7 +108,10 @@ pub fn overlay(raw: &[u8], base: Option<&Config>) -> anyhow::Result<Config> {
         Some(Yaml::Bool(true)),
     );
     set(&mut doc, &["plugins", "store-auth"], None);
-    Config::parse(&serde_yaml_ng::to_string(&doc)?)
+    let mut cfg = Config::parse(&serde_yaml_ng::to_string(&doc)?)?;
+    // Go hands plugins their raw nodes from Home's text; the overlay leaves them as sent.
+    cfg.plugin_configs = parsed.plugin_configs;
+    Ok(cfg)
 }
 
 /// Go main's Home bootstrap: Home's config, with its plugins synced and reported. The
@@ -1392,6 +1395,22 @@ mod tests {
         let _ = std::fs::rename(
             &dir,
             std::env::temp_dir().join(format!("cpa-trash-optional-{}", std::process::id())),
+        );
+    }
+
+    /// Go builds the Home config with `ParseConfigBytes(raw)`, so plugins get their
+    /// scalars as Home wrote them.
+    #[test]
+    fn overlay_keeps_plugin_scalars_as_written() {
+        let cfg = overlay(
+            b"plugins:\n  enabled: true\n  configs:\n    p: {threshold: 1.50}\n",
+            None,
+        )
+        .unwrap();
+        let rc = cpa_plugin::config::runtime_config(&cfg.document, &cfg.plugin_configs).unwrap();
+        assert_eq!(
+            String::from_utf8_lossy(&rc.items["p"].config_yaml),
+            "threshold: 1.50\nenabled: false\npriority: 0\n"
         );
     }
 

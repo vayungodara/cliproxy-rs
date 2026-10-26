@@ -148,7 +148,7 @@ impl SyncConfig {
     fn enabled_configs(&self) -> impl Iterator<Item = (&String, &Value)> {
         self.configs
             .iter()
-            .filter(|(id, node)| config::item_config(id, node).enabled)
+            .filter(|(id, node)| config::item_config(id, node, None).enabled)
     }
 }
 

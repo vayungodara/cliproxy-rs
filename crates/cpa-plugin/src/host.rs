@@ -408,7 +408,7 @@ impl Host {
 
     async fn apply_config_inner(&self, cfg: Arc<Config>) {
         let _apply = self.inner.apply.lock().await;
-        let rc = match config::runtime_config(&cfg.document) {
+        let rc = match config::runtime_config(&cfg.document, &cfg.plugin_configs) {
             Ok(rc) => rc,
             Err(e) => {
                 tracing::error!("failed to apply plugin runtime config: {e}");

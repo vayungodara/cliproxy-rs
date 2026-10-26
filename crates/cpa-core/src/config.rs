@@ -22,6 +22,7 @@ mod schema;
 mod text;
 mod trusted;
 mod validate;
+pub use binary::{PLAIN as PLAIN_SCALAR, double_quoted as yaml_double_quoted};
 pub use document::{ConfigDocument, archive_comments, credential_error, is_v8_layout, v8_group_error, v8_layout_error};
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
@@ -32,7 +33,7 @@ pub use schema::{coerce_typed_scalars, go_bool, go_int};
 /// a view or a save candidate sees the tagged values the loader sees.
 pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
     let mut value = serde_yaml_ng::from_str::<Value>(text)?;
-    binary::decode(text, &mut value, None, false)?;
+    binary::decode(text, &mut value, None, binary::Mode::File)?;
     Ok(value)
 }
 
@@ -42,8 +43,46 @@ pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
 /// read the file's nodes.
 pub fn config_value(text: &str) -> anyhow::Result<Value> {
     let mut value = serde_yaml_ng::from_str::<Value>(text)?;
-    binary::decode(text, &mut value, Some(&[]), false)?;
+    binary::decode(text, &mut value, Some(&[]), binary::Mode::File)?;
     Ok(value)
+}
+
+/// [`Config::plugin_configs`] of `text`, whose parsed root is `root`.
+fn plugin_configs(text: &str, root: &Mapping) -> Value {
+    if !lookup(root, "plugins.configs").is_some_and(|c| c.as_mapping().is_some_and(|m| !m.is_empty())) {
+        return Value::Null;
+    }
+    let raw = || {
+        let mut value = serde_yaml_ng::from_str::<Value>(text)?;
+        binary::decode(text, &mut value, Some(&[]), binary::Mode::Plugins)?;
+        expand_merges(&mut value)?;
+        anyhow::Ok(value)
+    };
+    match raw() {
+        Ok(v) => v
+            .get("plugins")
+            .and_then(|p| p.get("configs"))
+            .cloned()
+            .unwrap_or(Value::Null),
+        // The same text loaded, so only a limit this read alone hits (alias copies of
+        // plugin scalars) gets here.
+        Err(e) => {
+            // Management reads re-parse the file: warn once per text.
+            static WARNED: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+            let hash = {
+                use std::hash::{Hash, Hasher};
+                let mut h = std::collections::hash_map::DefaultHasher::new();
+                text.hash(&mut h);
+                h.finish()
+            };
+            let mut warned = WARNED.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            if *warned != hash {
+                *warned = hash;
+                tracing::warn!("plugin configs keep their parsed values: {e:#}");
+            }
+            Value::Null
+        }
+    }
 }
 
 /// A management write's body, the value at `keys` of the config: Go parses it as YAML
@@ -73,7 +112,7 @@ pub fn body_value(text: &str, keys: &[&str]) -> anyhow::Result<Value> {
     }
     let parsed = serde_yaml_ng::from_str::<Value>(text)?;
     let mut value = parsed.clone();
-    binary::decode(text, &mut value, Some(keys), true)?;
+    binary::decode(text, &mut value, Some(keys), binary::Mode::Body)?;
     keep_written(&mut value, parsed);
     Ok(value)
 }
@@ -162,6 +201,11 @@ pub struct Config {
     /// apply to OAuth credentials only; see [`Config::for_api_key`]. Settings written
     /// in the legacy layout stay global, as in Go.
     pub oauth_only: std::collections::BTreeSet<String>,
+    /// `plugins.configs` as Go hands each plugin its raw node (pluginhost
+    /// `runtimeConfigYAML`): a plain scalar that is not plain text to serde_yaml_ng is its
+    /// YAML text tagged [`PLAIN_SCALAR`] (`1.50`, `1e3`, `0x1F`, `007`, `!!float 1`), where
+    /// [`Config::document`] holds what serde_yaml_ng reads. Null without plugin configs.
+    pub plugin_configs: Value,
     /// Values derived from this snapshot, built on first use ([`Config::derived`]).
     pub derived: Derived,
 }
@@ -721,6 +765,7 @@ impl Config {
         trusted::validate(&trusted_proxies)?;
         validate::go_custom(document.value())?;
         let oauth_only = schema::oauth_only_paths(&Value::Mapping(root.clone()));
+        let plugin_configs = plugin_configs(text, &root);
         Ok(Config {
             host,
             port,
@@ -731,6 +776,7 @@ impl Config {
             management,
             document: document.into_value(),
             oauth_only,
+            plugin_configs,
             derived: Derived::default(),
         })
     }
@@ -1013,10 +1059,6 @@ mod tests {
         assert_eq!(null.routing.retry.request_retry, 0);
     }
 
-    /// Go `shared_upstream_test.go` (52d5507d): the legacy, canonical `upstream` and
-    /// historical `oauth.providers` layouts load the same shared settings for OAuth and
-    /// API-key views alike, migrate without their aliases, and keep the Codex header
-    /// defaults OAuth-only.
     /// v8.0.35 `buildV8Paths` moves the legacy `claude.session-date-pin-days` to
     /// `upstream.claude`.
     #[test]
@@ -1026,6 +1068,10 @@ mod tests {
         assert_eq!(doc.value()["upstream"]["claude"]["session-date-pin-days"], 3);
     }
 
+    /// Go `shared_upstream_test.go` (52d5507d): the legacy, canonical `upstream` and
+    /// historical `oauth.providers` layouts load the same shared settings for OAuth and
+    /// API-key views alike, migrate without their aliases, and keep the Codex header
+    /// defaults OAuth-only.
     #[test]
     fn shared_upstream_layouts_agree_and_migrate() {
         let keys = "api-keys: {codex: [{base-url: https://example.invalid, keys: [{api-key: test-key, disable-codex-cloaking: false}]}]}\n";
