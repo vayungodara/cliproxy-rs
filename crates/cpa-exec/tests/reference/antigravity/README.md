@@ -31,6 +31,8 @@ client that goes away mid-stream (the upstream `stall`s after its body and the g
 cancels the request once the stream is idle; the usage record carries Go's
 `fail_status` and `fail_body`), and base URLs Go refuses (`execute_escaped_host_base`,
 `stream_hostless_base`, `count_schemeless_base`), and when a stream commits its reasoning
-replay (Go a4acc9f7, the `replay_*` scenarios: each sends a `Session-Id` and records
-under `replay` what the ledger holds for `replay_key` once the attempt ended). Its
+replay (Go a4acc9f7 and, for `replay_after_completed_*`, c997cbb5's commit at a
+Responses client's `response.completed`; the `replay_*` scenarios each send a
+`Session-Id` and record under `replay` what the ledger holds for `replay_key` once the
+attempt ended). Its
 `requestId` is random; the replay normalizes it.

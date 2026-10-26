@@ -63,5 +63,13 @@ func v8035Scenarios() []execScenario {
 		replay("replay_apply_patch_failure_at_terminal", "openai-response",
 			`{"model":"gemini-3.7-flash","stream":true,"input":[{"role":"user","content":"edit a.txt"}],"tools":[{"type":"custom","name":"apply_patch","format":{"type":"grammar","syntax":"lark","definition":"start: patch"}}]}`,
 			events(thought+`data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"name":"apply_patch","args":{"input":7}}}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-3.7-flash"}}`+"\n", 0)),
+		// A Responses client: Go commits as soon as a payload translates into
+		// response.completed (c997cbb5), so a later payload's signature stays out.
+		replay("replay_after_completed_responses", "openai-response", responsesHello,
+			events(thought+final+`data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"thought":true,"text":"late","thoughtSignature":"bGF0ZS1zaWduYXR1cmUtYWZ0ZXItY29tcGxldGlvbg=="}]}}],"modelVersion":"gemini-3.7-flash"}}`+"\n\n", 0)),
+		// The same stream for a Gemini client: no completion event, so the clean end commits
+		// every payload.
+		replay("replay_after_completed_gemini", "gemini", geminiHello,
+			events(thought+final+`data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"thought":true,"text":"late","thoughtSignature":"bGF0ZS1zaWduYXR1cmUtYWZ0ZXItY29tcGxldGlvbg=="}]}}],"modelVersion":"gemini-3.7-flash"}}`+"\n\n", 0)),
 	}
 }

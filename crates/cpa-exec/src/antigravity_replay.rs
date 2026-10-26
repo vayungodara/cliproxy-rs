@@ -1790,6 +1790,20 @@ impl StreamCommit {
             accumulator.commit();
         }
     }
+
+    /// Go c997cbb5: a Responses client's `response.completed` commits at once when the
+    /// upstream already sent its finish reason, so later payloads stay out of the ledger.
+    pub(crate) fn commit_if_terminal(&mut self) {
+        if self.failed {
+            return;
+        }
+        let mut slot = self.accumulator.lock().unwrap_or_else(PoisonError::into_inner);
+        if slot.as_ref().is_some_and(|a| a.terminal)
+            && let Some(accumulator) = slot.take()
+        {
+            accumulator.commit();
+        }
+    }
 }
 
 impl Drop for StreamCommit {

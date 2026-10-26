@@ -451,7 +451,7 @@ async fn replay_go_scenarios(scenarios: &[Value]) -> usize {
                 .is_some_and(|s| (200..300).contains(&s))
                 && s["upstream"]["missing"].as_u64().unwrap_or(0) == 0;
             let backend =
-                |e: &&serde_json::Map<String, Value>| e["message"].as_str().is_some_and(|m| m.starts_with('{'));
+                |e: &&serde_json::Map<String, Value>| e["message"] != cpa_translate::APPLY_PATCH_UPSTREAM_ERROR;
             if let Some(want) = want_error.filter(|_| streamed_ok).filter(backend) {
                 match normalized_events.pop_front() {
                     Some(Captured::Error(text)) => {

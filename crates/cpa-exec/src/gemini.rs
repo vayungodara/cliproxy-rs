@@ -993,7 +993,19 @@ impl Output {
             }
             _ => {}
         }
-        self.checked(out)
+        let emit = self.checked(out);
+        // Go commits the replay before the completion goes out (c997cbb5).
+        if self.client == Format::OpenAIResponse
+            && let Some(replay) = &mut self.replay
+            && emit.out.iter().any(|chunk| {
+                chunk.split(|b| *b == b'\n').any(|line| {
+                    sse::json_payload(line).is_some_and(|p| *gj::get(p, "type").bytes() == *b"response.completed")
+                })
+            })
+        {
+            replay.commit_if_terminal();
+        }
+        emit
     }
 
     /// helps.EndApplyPatchStream: the translator's tool-input finalization when the

@@ -703,6 +703,121 @@
         "fail_body": "Invalid apply_patch tool arguments received from upstream."
       },
       "replay_key": "responses:replay_apply_patch_failure_at_terminal"
+    },
+    {
+      "name": "replay_after_completed_responses",
+      "op": "stream",
+      "source": "openai-response",
+      "model": "gemini-3.7-flash",
+      "payload": "{\"model\":\"gemini-3.7-flash\",\"input\":\"hello\",\"stream\":true}",
+      "headers": {
+        "Session-Id": "replay_after_completed_responses"
+      },
+      "auth_id": "replay_after_completed_responses",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"weighing\",\"thoughtSignature\":\"c2lnbmF0dXJlLXJlcGxheS1hZnRlci10ZXJtaW5hbA==\"}]}}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-3.7-flash\"}}\n\ndata: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\" done\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-3.7-flash\"}}\n\ndata: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"late\",\"thoughtSignature\":\"bGF0ZS1zaWduYXR1cmUtYWZ0ZXItY29tcGxldGlvbg==\"}]}}],\"modelVersion\":\"gemini-3.7-flash\"}}\n\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 256\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]}],\"sessionId\":\"-3238736544897475342\"},\"model\":\"gemini-3.7-flash\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-dbc0c04c-2c75-45a9-9511-261b7167afeb\"}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_18e21bf164691bf7_3\",\"object\":\"response\",\"created_at\":1793026325,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-3.7-flash\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_18e21bf164691bf7_3\",\"object\":\"response\",\"created_at\":1793026325,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-3.7-flash\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"rs_resp_18e21bf164691bf7_3_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"encrypted_content\":\"cpa-gemini-responses-carrier-v1:standalone:text:YzJsbmJtRjBkWEpsTFhKbGNHeGhlUzFoWm5SbGNpMTBaWEp0YVc1aGJBPT0\",\"summary\":[]}}\n\n",
+        "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"sequence_number\":4,\"item_id\":\"rs_resp_18e21bf164691bf7_3_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"}}\n\n",
+        "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"sequence_number\":5,\"item_id\":\"rs_resp_18e21bf164691bf7_3_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"weighing\"}\n\n",
+        "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"sequence_number\":6,\"item_id\":\"rs_resp_18e21bf164691bf7_3_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"weighing\"}\n\n",
+        "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"sequence_number\":7,\"item_id\":\"rs_resp_18e21bf164691bf7_3_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"weighing\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"rs_resp_18e21bf164691bf7_3_0\",\"type\":\"reasoning\",\"encrypted_content\":\"cpa-gemini-responses-carrier-v1:standalone:text:YzJsbmJtRjBkWEpsTFhKbGNHeGhlUzFoWm5SbGNpMTBaWEp0YVc1aGJBPT0\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"weighing\"}]}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":9,\"output_index\":1,\"item\":{\"id\":\"msg_resp_18e21bf164691bf7_3_1\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":10,\"item_id\":\"msg_resp_18e21bf164691bf7_3_1\",\"output_index\":1,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":11,\"item_id\":\"msg_resp_18e21bf164691bf7_3_1\",\"output_index\":1,\"content_index\":0,\"delta\":\" done\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":12,\"item_id\":\"msg_resp_18e21bf164691bf7_3_1\",\"output_index\":1,\"content_index\":0,\"text\":\" done\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":13,\"item_id\":\"msg_resp_18e21bf164691bf7_3_1\",\"output_index\":1,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\" done\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":14,\"output_index\":1,\"item\":{\"id\":\"msg_resp_18e21bf164691bf7_3_1\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\" done\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":15,\"response\":{\"id\":\"resp_18e21bf164691bf7_3\",\"object\":\"response\",\"created_at\":1793026325,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-3.7-flash\",\"output\":[{\"id\":\"rs_resp_18e21bf164691bf7_3_0\",\"type\":\"reasoning\",\"encrypted_content\":\"cpa-gemini-responses-carrier-v1:standalone:text:YzJsbmJtRjBkWEpsTFhKbGNHeGhlUzFoWm5SbGNpMTBaWEp0YVc1aGJBPT0\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"weighing\"}]},{\"id\":\"msg_resp_18e21bf164691bf7_3_1\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\" done\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":2,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":5}}}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3.7-flash",
+        "reasoning_effort": "",
+        "failed": false
+      },
+      "replay_key": "responses:replay_after_completed_responses",
+      "replay": [
+        "{\"type\":\"thought_signature\",\"thoughtSignature\":\"c2lnbmF0dXJlLXJlcGxheS1hZnRlci10ZXJtaW5hbA==\",\"contentIndex\":1,\"partIndex\":0,\"targetKind\":\"thought\",\"targetHash\":\"6377682c3dbe0bbcda1ea312bd1011d7fb3a53438963dd3656c8ceb84be19cef\",\"targetOccurrence\":0,\"contextHash\":\"02874c183e417cb1a1f472c549002e56d0ee2dd89d479d76eec170a2b656dbf4\"}"
+      ]
+    },
+    {
+      "name": "replay_after_completed_gemini",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.7-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]}]}",
+      "headers": {
+        "Session-Id": "replay_after_completed_gemini"
+      },
+      "auth_id": "replay_after_completed_gemini",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"weighing\",\"thoughtSignature\":\"c2lnbmF0dXJlLXJlcGxheS1hZnRlci10ZXJtaW5hbA==\"}]}}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-3.7-flash\"}}\n\ndata: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\" done\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-3.7-flash\"}}\n\ndata: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"late\",\"thoughtSignature\":\"bGF0ZS1zaWduYXR1cmUtYWZ0ZXItY29tcGxldGlvbg==\"}]}}],\"modelVersion\":\"gemini-3.7-flash\"}}\n\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 256\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]}],\"sessionId\":\"-3238736544897475342\"},\"model\":\"gemini-3.7-flash\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-29f9cd29-9bf2-46ff-a07f-bad5958e8043\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"weighing\",\"thoughtSignature\":\"c2lnbmF0dXJlLXJlcGxheS1hZnRlci10ZXJtaW5hbA==\"}]}}],\"modelVersion\":\"gemini-3.7-flash\",\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3}}",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\" done\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-3.7-flash\"}",
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"late\",\"thoughtSignature\":\"bGF0ZS1zaWduYXR1cmUtYWZ0ZXItY29tcGxldGlvbg==\"}]}}],\"modelVersion\":\"gemini-3.7-flash\"}"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-3.7-flash",
+        "reasoning_effort": "",
+        "failed": false
+      },
+      "replay_key": "responses:replay_after_completed_gemini",
+      "replay": [
+        "{\"type\":\"thought_signature\",\"thoughtSignature\":\"c2lnbmF0dXJlLXJlcGxheS1hZnRlci10ZXJtaW5hbA==\",\"contentIndex\":1,\"partIndex\":0,\"targetKind\":\"thought\",\"targetHash\":\"6377682c3dbe0bbcda1ea312bd1011d7fb3a53438963dd3656c8ceb84be19cef\",\"targetOccurrence\":0,\"contextHash\":\"02874c183e417cb1a1f472c549002e56d0ee2dd89d479d76eec170a2b656dbf4\"}",
+        "{\"type\":\"thought_signature\",\"thoughtSignature\":\"bGF0ZS1zaWduYXR1cmUtYWZ0ZXItY29tcGxldGlvbg==\",\"contentIndex\":1,\"partIndex\":2,\"targetKind\":\"thought\",\"targetHash\":\"1a90d64c8af8845600e3da31b76921e3ff5132d915fc5b34312d400e625b5dd9\",\"targetOccurrence\":0,\"contextHash\":\"02874c183e417cb1a1f472c549002e56d0ee2dd89d479d76eec170a2b656dbf4\"}"
+      ]
     }
   ],
   "go": "v8.0.35"
