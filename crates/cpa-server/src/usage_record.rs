@@ -1999,6 +1999,12 @@ impl cpa_core::exec::UsageObserver for Observer {
         r.model.observe(line, &self.provider);
     }
 
+    fn response_usage_line(&self, format: Format, line: &[u8]) {
+        let mut r = self.lock();
+        r.seen = true;
+        r.stream.line(format, line);
+    }
+
     fn plugin_executor(&self, provider: &str) {
         self.lock().plugin_provider = Some(provider.to_owned());
     }

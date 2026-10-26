@@ -19,6 +19,10 @@ pub(crate) enum Report {
     Request(String, Vec<u8>),
     Body(Format, Vec<u8>),
     Line(Format, Vec<u8>),
+    /// `response_usage_line`: a line for usage only.
+    UsageLine(Format, Vec<u8>),
+    /// `response_model_line`: a payload for the served model only.
+    ModelLine(Vec<u8>),
     UsageRequired,
     Publish,
     /// `publish_failure`: Go's status and the published error text.
@@ -39,6 +43,12 @@ impl cpa_core::exec::UsageObserver for Recorder {
     }
     fn response_line(&self, format: Format, line: &[u8]) {
         self.0.lock().unwrap().push(Report::Line(format, line.to_vec()));
+    }
+    fn response_usage_line(&self, format: Format, line: &[u8]) {
+        self.0.lock().unwrap().push(Report::UsageLine(format, line.to_vec()));
+    }
+    fn response_model_line(&self, line: &[u8]) {
+        self.0.lock().unwrap().push(Report::ModelLine(line.to_vec()));
     }
     fn request(&self, format: Format, payload: &[u8]) {
         self.request_for(format.as_str(), payload);
@@ -180,6 +190,8 @@ fn record(reports: &[Report], failed: bool) -> (Value, bool) {
             }
             Report::Body(format, data) => ("body", *format, data),
             Report::Line(format, data) => ("line", *format, data),
+            Report::UsageLine(format, data) => ("usage", *format, data),
+            Report::ModelLine(data) => ("model", Format::OpenAI, data),
             _ => continue,
         };
         let Some(json) = payload(data) else { continue };
@@ -190,6 +202,7 @@ fn record(reports: &[Report], failed: bool) -> (Value, bool) {
             "response.completed" | "response.incomplete" | "response.done"
         );
         let found = match (kind, format) {
+            ("model", _) => None,
             ("body", _) => tokens(&root.get("usage")),
             // Codex: the first terminal event's usage.
             (_, Format::Codex | Format::OpenAIResponse) if terminal && usage.is_none() => {
@@ -202,7 +215,7 @@ fn record(reports: &[Report], failed: bool) -> (Value, bool) {
         if found.is_some() {
             usage = found;
         }
-        if model_final {
+        if model_final || kind == "usage" {
             continue;
         }
         let served = root.get("response.model").str().into_owned();
