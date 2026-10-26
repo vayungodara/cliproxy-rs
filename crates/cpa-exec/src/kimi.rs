@@ -357,9 +357,9 @@ async fn post(
     headers: GoHeaders,
     body: Vec<u8>,
 ) -> Result<Upstream, ExecError> {
-    use crate::kimi_http::{account_info, capture_chunk, capture_error, capture_metadata, capture_request};
+    use crate::kimi_http::{capture_chunk, capture_error, capture_metadata, capture_request};
     let capture = req.capture();
-    let (auth_type, auth_value) = account_info(credential);
+    let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(credential);
     capture_request(
         capture,
         credential,

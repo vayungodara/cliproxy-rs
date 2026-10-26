@@ -214,11 +214,11 @@ impl MetaExecutor {
         let body = Bytes::from(prepared.body);
         // Go: TrackHTTPClient for Execute; ExecuteStream uses TrackHTTPClientRoundTripOnly,
         // so its first body byte only records the first-packet fallback.
-        use crate::kimi_http::{account_info, capture_chunk, capture_error, capture_metadata, capture_request};
+        use crate::kimi_http::{capture_chunk, capture_error, capture_metadata, capture_request};
         let capture = req.capture();
         let request_headers = headers(&enriched, &req, &token);
         // recordMetaRequest: the enriched credential's account info.
-        let (auth_type, auth_value) = account_info(&enriched);
+        let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(&enriched);
         capture_request(
             capture,
             &enriched,
@@ -952,30 +952,7 @@ pub(crate) fn dca_token(c: &Credential) -> Option<String> {
 
 /// `IsConfigAPIKeyAuth`: an API-key credential whose source is config.yaml.
 pub(crate) fn is_config_api_key(c: &Credential) -> bool {
-    let kind = |raw: &str| match raw.trim().to_ascii_lowercase().as_str() {
-        "apikey" | "api_key" | "api-key" => Some("apikey"),
-        "oauth" | "oauth2" => Some("oauth"),
-        _ => None,
-    };
-    let oauth_metadata = [
-        "access_token",
-        "refresh_token",
-        "id_token",
-        "email",
-        "token_type",
-        "expires_at",
-        "expired",
-    ]
-    .iter()
-    .any(|k| metadata_str(c, k).is_some())
-        || c.metadata
-            .get("token")
-            .and_then(Value::as_object)
-            .is_some_and(|t| !t.is_empty());
-    let auth_kind = kind(attribute(c, "auth_kind"))
-        .or_else(|| c.str("auth_kind").and_then(kind))
-        .or_else(|| (!attribute(c, "api_key").is_empty()).then_some("apikey"))
-        .or_else(|| oauth_metadata.then_some("oauth"));
+    let auth_kind = cpa_core::registry::dynamic::auth_kind(c);
     if auth_kind != Some("apikey") {
         return false;
     }

@@ -953,7 +953,7 @@ impl LiveTarget<'_> {
         if !self.capture.enabled() {
             return;
         }
-        let (auth_type, auth_value) = account_info(self.credential);
+        let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(self.credential);
         let headers = logged_headers(headers);
         self.capture.record(CaptureEvent::Request(UpstreamRequest {
             url,
@@ -966,25 +966,6 @@ impl LiveTarget<'_> {
             auth_type,
             auth_value: &auth_value,
         }));
-    }
-}
-
-/// Go `Auth.AccountInfo`: `oauth` with the account email, or `api_key` with the key.
-fn account_info(credential: &Credential) -> (&'static str, String) {
-    match cpa_core::registry::dynamic::auth_kind(credential) {
-        Some("oauth") => (
-            "oauth",
-            credential.str("email").map(|e| e.trim().to_owned()).unwrap_or_default(),
-        ),
-        Some("apikey") => (
-            "api_key",
-            credential
-                .attributes
-                .get("api_key")
-                .map(|k| k.trim().to_owned())
-                .unwrap_or_default(),
-        ),
-        _ => ("", String::new()),
     }
 }
 

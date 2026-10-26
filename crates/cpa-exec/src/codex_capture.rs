@@ -7,22 +7,6 @@ use cpa_core::credential::Credential;
 use cpa_core::exec::{CaptureEvent, CaptureSink, UpstreamRequest};
 use http::HeaderMap;
 
-/// Go `Auth.AccountInfo`: `("oauth", email)` or `("api_key", key)`.
-fn account_info(credential: &Credential) -> (&'static str, String) {
-    match cpa_core::registry::dynamic::auth_kind(credential) {
-        Some("oauth") => ("oauth", credential.str("email").unwrap_or_default().trim().to_owned()),
-        Some("apikey") => (
-            "api_key",
-            credential
-                .attributes
-                .get("api_key")
-                .map(|k| k.trim().to_owned())
-                .unwrap_or_default(),
-        ),
-        _ => ("", String::new()),
-    }
-}
-
 /// Go `http.Header` keys for a header map built like Go's: canonical spelling, values
 /// in order, duplicates kept.
 pub(crate) fn http_pairs(headers: &HeaderMap) -> Vec<(String, String)> {
@@ -82,7 +66,7 @@ impl Wire {
         if !sink.enabled() {
             return Self::default();
         }
-        let (auth_type, auth_value) = account_info(credential);
+        let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(credential);
         Self {
             sink: sink.clone(),
             websocket: None,

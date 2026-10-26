@@ -492,43 +492,7 @@ fn note_disabled(state: &Management, id: &str, disabled: Option<bool>) {
 
 /// Go `Auth.AuthKind`: `oauth`, `apikey` or unknown.
 pub(super) fn auth_kind(c: &Credential) -> Option<&'static str> {
-    let normalize = |s: &str| match s.trim().go_lower().as_str() {
-        "apikey" | "api_key" | "api-key" => Some("apikey"),
-        "oauth" | "oauth2" => Some("oauth"),
-        _ => None,
-    };
-    let meta = |key: &str| {
-        c.metadata
-            .get(key)
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .unwrap_or_default()
-    };
-    normalize(c.attributes.get("auth_kind").map(String::as_str).unwrap_or_default())
-        .or_else(|| normalize(meta("auth_kind")))
-        .or_else(|| {
-            c.attributes
-                .get("api_key")
-                .is_some_and(|k| !k.trim().is_empty())
-                .then_some("apikey")
-        })
-        .or_else(|| {
-            let keys = [
-                "access_token",
-                "refresh_token",
-                "id_token",
-                "email",
-                "token_type",
-                "expires_at",
-                "expired",
-            ];
-            let token = c
-                .metadata
-                .get("token")
-                .and_then(Value::as_object)
-                .is_some_and(|t| !t.is_empty());
-            (keys.iter().any(|k| !meta(k).is_empty()) || token).then_some("oauth")
-        })
+    cpa_core::registry::dynamic::auth_kind(c)
 }
 
 fn int_value(v: &Value) -> Option<i64> {
