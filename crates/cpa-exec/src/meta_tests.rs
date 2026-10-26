@@ -360,6 +360,31 @@ fn needs_prepare_matches_should_prepare_request_auth() {
         &[("api_key", "dca:invalid-for-config"), ("source", "config:meta[0]")],
     );
     assert!(is_config_api_key(&config_dca));
+    // Go `AuthSourceKind` folds with strings.ToLower and EqualFold, which map U+0130 to
+    // `i` (outputs of Go's IsConfigAPIKeyAuth at ae3ee3be).
+    for (attrs, want) in [
+        (&[("auth_kind", "apikey"), ("source_backend", "CONFİG")][..], true),
+        (&[("auth_kind", "apikey"), ("source", "CONFİG:meta[0]")][..], true),
+        (&[("auth_kind", "apikey"), ("source", " Config ")][..], true),
+        (
+            &[("auth_kind", "apikey"), ("source", "config"), ("runtime_only", "TRUE")][..],
+            false,
+        ),
+        (
+            &[
+                ("auth_kind", "apikey"),
+                ("source", "config:meta[0]"),
+                ("source_backend", "Fİle"),
+            ][..],
+            false,
+        ),
+    ] {
+        assert_eq!(
+            is_config_api_key(&cred(json!({"type":"meta"}), attrs)),
+            want,
+            "{attrs:?}"
+        );
+    }
     assert!(!exec.needs_prepare(&config_dca, &cfg));
     assert!(exec.needs_prepare(
         &cred(

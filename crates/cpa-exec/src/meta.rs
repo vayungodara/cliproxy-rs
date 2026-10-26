@@ -956,10 +956,10 @@ pub(crate) fn is_config_api_key(c: &Credential) -> bool {
     if auth_kind != Some("apikey") {
         return false;
     }
-    if attribute(c, "runtime_only").eq_ignore_ascii_case("true") {
+    if attribute(c, "runtime_only").go_eq_fold("true") {
         return false;
     }
-    match attribute(c, "source_backend").to_ascii_lowercase().as_str() {
+    match attribute(c, "source_backend").go_lower().as_str() {
         "config" => return true,
         "file" | "filesystem" | "git" | "memory" | "runtime" | "runtime_only" | "objectstore" | "object-store"
         | "postgres" | "postgresql" | "database" | "db" => return false,
@@ -967,7 +967,8 @@ pub(crate) fn is_config_api_key(c: &Credential) -> bool {
     }
     let source = attribute(c, "source");
     if !source.is_empty() {
-        return source.to_ascii_lowercase().starts_with("config:") || source.eq_ignore_ascii_case("config");
+        let lower = source.go_lower();
+        return lower.starts_with("config:") || lower == "config";
     }
     if !attribute(c, "path").is_empty() {
         return false;
