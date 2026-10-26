@@ -4592,3 +4592,56 @@ async fn executor_http_request_crosses_the_wire_as_go_encodes_it() {
     assert!(!id.is_empty() && !id.contains('"'), "{sent}");
     env.finish().await;
 }
+
+/// Go 97dd9eec checks for a finish reason only once a chunk reached the handler: a stream
+/// whose every chunk an interceptor drops closes before its first chunk, and Go's peek
+/// loop answers that with `[DONE]`, not the truncation error.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_stream_whose_chunks_are_all_dropped_ends_with_done() {
+    let upstream = {
+        let sse = "data: {\"choices\":[{\"delta\":{\"content\":\"hi\"}}]}\n\ndata: [DONE]\n\n";
+        let handler = move || async move {
+            (
+                [(axum::http::header::CONTENT_TYPE, "text/event-stream")],
+                sse.to_owned(),
+            )
+        };
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            axum::serve(listener, axum::Router::new().fallback(handler))
+                .await
+                .unwrap()
+        });
+        url
+    };
+    let compat = format!(
+        "openai-compatibility:\n  - name: up\n    base-url: {upstream}/v1\n    api-key-entries: [{{api-key: k1}}]\n    models: [{{name: up-model}}]\n"
+    );
+    let Some(env) = env(
+        "plugin-owned-stream-drop-all",
+        &[("drop", "response_stream_interceptor")],
+        &compat,
+        &[],
+        |records| {
+            canned(
+                records,
+                "drop",
+                "response.intercept_stream_chunk",
+                json!({ "DropChunk": true }),
+            )
+        },
+    )
+    .await
+    else {
+        return;
+    };
+    let (got, body) = env.chat_stream("up-model").await;
+    assert_eq!(got, 200, "{body}");
+    assert_eq!(body, "data: [DONE]\n\n");
+    assert!(
+        !calls(&env.records, "drop", "response.intercept_stream_chunk").is_empty(),
+        "the interceptor saw the chunk"
+    );
+    env.finish().await;
+}
