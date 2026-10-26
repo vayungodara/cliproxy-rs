@@ -40,7 +40,8 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     // the first line, which then fails a second top-level key; yaml.v3 skips it.
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let parse = |text: &str| serde_yaml_ng::from_str::<Value>(text);
-    // Without an underscore or a leading zero, only a failed parse needs a second look.
+    // Without an underscore or a leading zero, only a failed parse needs a second look;
+    // it keeps its error when no scalar is rewritten.
     let maybe_leading_zero = text
         .as_bytes()
         .windows(3)
@@ -51,13 +52,7 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     } else {
         match parse(text) {
             Ok(value) => return Ok(value),
-            Err(err) => {
-                let message = err.to_string();
-                if !(message.contains(" as u128,") || message.contains(" as i128,")) {
-                    return Err(err);
-                }
-                Some(err)
-            }
+            Err(err) => Some(err),
         }
     };
     let as_is = |err: Option<serde_yaml_ng::Error>| err.map_or_else(|| parse(text), Err);

@@ -29,6 +29,7 @@ fn doer(cfg: &SyncConfig) -> Arc<dyn Doer> {
 /// that Home mode strips from it before applying (Go syncs with a copy that keeps it).
 pub fn sync_config(raw: &[u8], cfg: &cpa_core::config::Config) -> SyncConfig {
     let mut out = SyncConfig::from_document(&cfg.document);
+    out.raw_configs = cfg.plugin_configs.clone();
     // As Go's typed decode reads it: `!!binary` values decoded, merges expanded.
     let document = std::str::from_utf8(raw).ok().and_then(|text| {
         let mut value = cpa_core::config::config_value(text).ok()?;
@@ -59,7 +60,9 @@ fn sync_key(cfg: &SyncConfig) -> String {
             item.priority
         );
         if !node.is_null() {
-            key.push_str(&serde_yaml_ng::to_string(node).unwrap_or_default());
+            // Go hashes `yaml.Marshal(&item.Raw)`: the text, not only the value.
+            let raw = cfg.raw_configs.get(id.as_str()).unwrap_or(node);
+            key.push_str(&serde_yaml_ng::to_string(raw).unwrap_or_default());
         }
         key.push('\n');
     }
@@ -400,6 +403,20 @@ mod tests {
         fn pushes(&self) -> usize {
             self.home.count("rpush")
         }
+    }
+
+    /// Go's sync key hashes each plugin's raw node, so respelling a value without
+    /// changing it (`1.50` to `1.5`) is a change; the same text is not.
+    #[test]
+    fn sync_key_follows_plugin_text() {
+        let key = |threshold: &str| {
+            let raw = format!("plugins:\n  enabled: true\n  configs:\n    p: {{threshold: {threshold}}}\n");
+            let cfg = crate::home::overlay(raw.as_bytes(), None).unwrap();
+            sync_key(&sync_config(raw.as_bytes(), &cfg))
+        };
+        assert_eq!(key("1.50"), key("1.50"));
+        assert_ne!(key("1.50"), key("1.5"));
+        assert_ne!(key("1.50"), key("2.5"));
     }
 
     fn sync_cfg(enabled: bool, dir: &Path, configs: &str) -> SyncConfig {
