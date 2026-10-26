@@ -708,6 +708,47 @@ async fn credits_lookup_loads_the_hint() {
     );
 }
 
+/// Go f51624aa translates before `ensureAccessToken`: a request the translator refuses
+/// (a Claude user turn holding only a URL image) gets its 400 with no credits lookup
+/// and no other upstream call, on the generate, stream and token-count paths.
+#[tokio::test]
+async fn a_refused_request_makes_no_credits_lookup() {
+    use axum::extract::Request;
+    let paths: Arc<std::sync::Mutex<Vec<String>>> = Arc::default();
+    let log = paths.clone();
+    let app = axum::Router::new().fallback(move |req: Request| {
+        let log = log.clone();
+        async move {
+            log.lock().unwrap().push(req.uri().path().to_owned());
+            "{}"
+        }
+    });
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    let cfg = Config::parse("quota-exceeded:\n  antigravity-credits: true\n").unwrap();
+    let executor = AntigravityExecutor::default();
+    for op in ["execute", "stream", "count"] {
+        let mut s = scenario("gemini_execute_basic").clone();
+        s["auth_id"] = Value::String(format!("ag-refused-{op}"));
+        s["attributes"] = serde_json::json!({ "base_url": base });
+        s["op"] = Value::String(op.into());
+        s["source"] = Value::String("claude".into());
+        s["payload"] = Value::String(
+            r#"{"model":"gemini-3-flash","max_tokens":8,"messages":[{"role":"user","content":[{"type":"image","source":{"type":"url","url":"https://example.test/a.png"}}]}]}"#.into(),
+        );
+        let cred = credential(&s, "");
+        let err = match executor.execute(&cred, request(&s), &cfg).await {
+            Ok(_) => panic!("{op}: the refused request succeeded"),
+            Err(e) => e,
+        };
+        assert_eq!(err.status, 400, "{op}: {:?}", err.body);
+        assert!(!credits::refreshing(&cred.id), "{op}: a credits lookup was queued");
+    }
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    assert_eq!(paths.lock().unwrap().clone(), Vec::<String>::new());
+}
+
 /// A credits lookup whose upstream accepts the connection and never answers ends at its
 /// budget, so the credential's later lookups are not blocked for good.
 #[tokio::test]

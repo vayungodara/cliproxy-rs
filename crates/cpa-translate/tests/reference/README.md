@@ -12,8 +12,10 @@ that commit instead: the pairs translating to and from Claude
 and `interactions-gemini`, `gemini-interactions`, `interactions-interactions`,
 `openai-interactions`, `openai-codex`, `openai-response-openai` and
 `interactions-antigravity`, re-recorded for the v8.0.35 refusal of emptied user turns.
-`claude-antigravity` and `openai-antigravity` are `6fecc6e` files with the request fixtures
-of v8.0.35's new f51624aa tests appended (recorded at `ae3ee3be`); their other fixtures
+`claude-antigravity` and `openai-antigravity` are `6fecc6e` files with fixtures recorded at
+`ae3ee3be` appended: the request fixtures of v8.0.35's new f51624aa tests, plus three
+`TestConvertAntigravityResponseToClaude_StripsExecutorInjectedUnderscore` fixtures (Go
+202b8b8c) the same harvest picked up; their other fixtures
 were not re-recorded, because their v8.0.35 response changes come from commits not ported
 yet. Regenerate those files from a v8.0.35 checkout and the others
 from `6fecc6e`, each with its own harvest: run the script below once per reference, with

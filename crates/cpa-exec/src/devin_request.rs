@@ -613,7 +613,6 @@ fn function_result_content(step: &Res<'_>) -> (Vec<u8>, Vec<Image>) {
     (text, images)
 }
 
-/// `extractInteractionsStepContent`: text parts joined by newlines, plus images.
 /// `extractInteractionsStepContent`: a user step's text and inline images, and the type
 /// of the first media part Devin cannot send (or "").
 fn step_content(step: &Res<'_>) -> (Vec<u8>, Vec<Image>, String) {
