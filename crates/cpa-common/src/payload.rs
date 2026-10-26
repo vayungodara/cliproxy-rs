@@ -75,6 +75,8 @@ impl Param {
                 _ => Param::Null,
             },
             Yaml::String(s) => Param::Str(s.clone()),
+            // A `time.Time`, which Go marshals as its RFC 3339 text, raw rules too.
+            Yaml::Tagged(t) if t.tag == cpa_core::config::TIMESTAMP_TAG => Param::Json(go_value(&t.value)),
             Yaml::Tagged(t) => Param::from_yaml(&t.value),
             other => Param::Json(go_value(other)),
         }

@@ -200,7 +200,7 @@ fn any_json(v: &Yaml) -> Value {
             v => v,
         }
     }
-    go(serde_json::to_value(v).unwrap_or(Value::Null))
+    go(serde_json::to_value(cpa_core::config::AsJson(v)).unwrap_or(Value::Null))
 }
 
 /// Go's zero value of a shape, as `json.Marshal` prints it.
@@ -378,7 +378,7 @@ pub(crate) fn config_for_diff(doc: &Yaml, snapshot: bool) -> Value {
                 if section != "filter"
                     && let Some(params) = raw.get("params")
                 {
-                    typed["params"] = serde_json::to_value(params).unwrap_or(Value::Null);
+                    typed["params"] = serde_json::to_value(cpa_core::config::AsJson(params)).unwrap_or(Value::Null);
                 }
                 let raw_models = raw.get("models").and_then(Yaml::as_sequence);
                 let typed_models = typed["models"].as_array_mut();
@@ -386,7 +386,8 @@ pub(crate) fn config_for_diff(doc: &Yaml, snapshot: bool) -> Value {
                     for (raw_model, typed_model) in raw_models.iter().zip(typed_models) {
                         for field in ["match", "not-match"] {
                             if let Some(value) = raw_model.get(field) {
-                                typed_model[field] = serde_json::to_value(value).unwrap_or(Value::Null);
+                                typed_model[field] =
+                                    serde_json::to_value(cpa_core::config::AsJson(value)).unwrap_or(Value::Null);
                             }
                         }
                     }

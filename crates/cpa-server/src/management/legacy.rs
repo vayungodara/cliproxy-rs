@@ -329,7 +329,7 @@ fn save(state: &Management, disk: &std::sync::MutexGuard<'_, ()>, change: Change
             let current =
                 t.v8.split('/')
                     .try_fold(&cfg.document, |v, k| v.get(k))
-                    .and_then(|v| serde_json::to_value(v).ok());
+                    .and_then(|v| serde_json::to_value(cpa_core::config::AsJson(v)).ok());
             match current {
                 Some(value) => (t, Some(value), super::LegacyEdit::Keep),
                 None => return (ok(), None),

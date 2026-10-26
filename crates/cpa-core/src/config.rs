@@ -20,21 +20,24 @@ pub mod go_url;
 mod sanitize;
 mod schema;
 mod text;
+mod timestamp;
 mod trusted;
 mod validate;
 pub use binary::{PLAIN as PLAIN_SCALAR, double_quoted as yaml_double_quoted};
 pub use document::{ConfigDocument, archive_comments, credential_error, is_v8_layout, v8_group_error, v8_layout_error};
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
+pub use timestamp::{AsJson, TAG as TIMESTAMP_TAG};
 
 /// `text` parsed as serde_yaml_ng does, except for plain scalars it reads otherwise
 /// than yaml.v3: an integer beyond int64 and uint64, which serde_yaml_ng refuses when
 /// it fits 128 bits (yaml.v3 reads a decimal one as a float and any other, `0x…` or
 /// `0o…`, as text), and a number with underscores (`1_000`) or a leading zero (`007`,
 /// `08`), which serde_yaml_ng reads as text and yaml.v3 as a number. Those scalars are
-/// read as yaml.v3 reads them. A string setting still gets the scalar's text from the
-/// literal walk, which reads `text` itself; such a mapping key stays text, as yaml.v3
-/// reads it into a string-keyed map.
+/// read as yaml.v3 reads them, and a timestamp (`2001-12-14`), which yaml.v3 reads into
+/// an untyped value as a `time.Time`, is its RFC 3339 text tagged [`TIMESTAMP_TAG`]. A
+/// string setting still gets the scalar's text from the literal walk, which reads `text`
+/// itself; such a mapping key stays text, as yaml.v3 reads it into a string-keyed map.
 pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     // serde_yaml_ng, like libyaml with its encoding set, reads a leading BOM as part of
     // the first line, which then fails a second top-level key; yaml.v3 skips it.
@@ -46,7 +49,8 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
         None
     } else {
         match parse(text) {
-            Ok(value) => return Ok(value),
+            Ok(value) if !has_timestamp(&value) => return Ok(value),
+            Ok(_) => None,
             Err(err) => Some(err),
         }
     };
@@ -57,13 +61,16 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     // One pass over the scalars, then one parse.
     let mut out = String::with_capacity(text.len());
     let mut last = 0;
-    for plain in scalars {
+    for plain in scalars.into_iter().filter(|p| p.timestamp_tag.is_none()) {
         let read = std::str::from_utf8(&plain.value)
             .ok()
             .and_then(|s| go_read(s, plain.key));
         let (Some(read), Some(before)) = (read, text.get(last..plain.span.start)) else {
             continue;
         };
+        if read.starts_with(timestamp::TAG) && timestamp::wide_offset(&read) {
+            return Err(serde::de::Error::custom(timestamp::WIDE_OFFSET));
+        }
         out.push_str(before);
         out.push_str(&read);
         last = plain.span.end;
@@ -76,15 +83,16 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
 }
 
 /// `value` as serde_yaml_ng writes it, except that a string [`parse_yaml`] would read
-/// back as a number when written plain (`1_000`, `0_8`, `0b-1`) is double-quoted, as
-/// yaml.v3 quotes it. serde_yaml_ng quotes only the strings it reads as something else
-/// itself.
+/// back as a number or timestamp when written plain (`1_000`, `0_8`, `0b-1`,
+/// `2001-12-14`) is double-quoted, as yaml.v3 quotes it, and a [`TIMESTAMP_TAG`] value
+/// is its text, plain, as yaml.v3 writes a `time.Time`. serde_yaml_ng quotes only the
+/// strings it reads as something else itself.
 pub fn yaml_string(value: &Value) -> Result<String, serde_yaml_ng::Error> {
     let text = serde_yaml_ng::to_string(value)?;
     // A number serde_yaml_ng writes has no underscore or leading zero, so each scalar
     // flagged here is a string. It quotes a string beyond 64 bits (`'18446744073709551616'`)
     // itself.
-    if !may_resolve(&text) {
+    if !may_resolve(&text) && !has_timestamp(value) {
         return Ok(text);
     }
     let Ok(scalars) = binary::plain_scalars(&text) else {
@@ -93,13 +101,19 @@ pub fn yaml_string(value: &Value) -> Result<String, serde_yaml_ng::Error> {
     let mut out = String::with_capacity(text.len() + 2);
     let mut last = 0;
     for plain in scalars {
+        if let Some(tag) = plain.timestamp_tag {
+            out.push_str(&text[last..tag]);
+            out.push_str(&text[plain.span.clone()]);
+            last = plain.span.end;
+            continue;
+        }
         let flagged = std::str::from_utf8(&plain.value)
             .ok()
             .and_then(|s| go_read(s, plain.key));
         if flagged.is_none() {
             continue;
         }
-        // The flagged spellings hold only ASCII letters, digits and `_.+-`.
+        // The flagged spellings hold only ASCII letters, digits, spaces and `_.,:+-`.
         out.push_str(&text[last..plain.span.start]);
         out.push('"');
         out.push_str(&text[plain.span.clone()]);
@@ -122,10 +136,25 @@ fn may_resolve(text: &str) -> bool {
             .any(|w| zero(&w[1..]) && !(w[0].is_ascii_alphanumeric() || w[0] == b'.'))
 }
 
+/// Whether `value` holds a string that may be a plain timestamp, or a [`TIMESTAMP_TAG`]
+/// value; mapping keys keep their text.
+fn has_timestamp(value: &Value) -> bool {
+    match value {
+        Value::String(s) => timestamp::go_timestamp(s).is_some(),
+        Value::Sequence(items) => items.iter().any(has_timestamp),
+        Value::Mapping(m) => m.values().any(has_timestamp),
+        Value::Tagged(t) => t.tag == timestamp::TAG || has_timestamp(&t.value),
+        _ => false,
+    }
+}
+
 /// What [`parse_yaml`] writes for a plain scalar so that serde_yaml_ng reads it as
 /// yaml.v3 does; `None` where they agree. A mapping key keeps its text unless
 /// serde_yaml_ng would refuse it.
 fn go_read(scalar: &str, key: bool) -> Option<String> {
+    if !key && let Some(time) = timestamp::go_timestamp(scalar) {
+        return Some(format!("{} {time}", timestamp::TAG));
+    }
     let unsigned = scalar.strip_prefix(['+', '-']).unwrap_or(scalar).as_bytes();
     let leading_zero = unsigned.first() == Some(&b'0')
         && unsigned
@@ -1612,8 +1641,7 @@ oauth-excluded-models: {{c: [{numbers}]}}
 
     /// yaml.v3 (v3.0.1, Go 1.26.4) drops a plain number's underscores before resolving
     /// it and reads a leading zero as octal (or decimal, failing that); serde_yaml_ng
-    /// read each of these as text. A timestamp still reads as text here, where yaml.v3
-    /// reads one in an untyped value as a `time.Time`.
+    /// read each of these as text.
     #[test]
     fn underscore_numbers_read_as_in_go() {
         let go: [(&str, Value); 20] = [
@@ -1638,7 +1666,7 @@ oauth-excluded-models: {{c: [{numbers}]}}
             ("._5", "._5".into()),
             ("0x1_FFFF_FFFF_FFFF_FFFF_FF", "0x1_FFFF_FFFF_FFFF_FFFF_FF".into()),
         ];
-        let leading_zero: [(&str, Value); 11] = [
+        let leading_zero: [(&str, Value); 10] = [
             ("007", 7.into()),
             ("-007", (-7).into()),
             ("00", 0.into()),
@@ -1649,7 +1677,6 @@ oauth-excluded-models: {{c: [{numbers}]}}
             ("01777777777777777777777", u64::MAX.into()),
             ("02000000000000000000000", 2e21.into()),
             ("0111111111111111111111111", 1.1111111111111111e23.into()),
-            ("0001-01-01", "0001-01-01".into()),
         ];
         // Go's last resort reads a sign after `0b` or `0o`.
         let signed: [(&str, Value); 7] = [
@@ -1708,6 +1735,54 @@ oauth-excluded-models: {{c: [{numbers}]}}
         );
     }
 
+    /// yaml.v3 reads a plain timestamp in an untyped value as a `time.Time`, which Go
+    /// marshals as RFC 3339 text (recorded with yaml.v3 v3.0.1 and Go 1.26.4); a string
+    /// setting and a mapping key keep the text.
+    #[test]
+    fn plain_timestamps_read_as_in_go() {
+        let go = [
+            ("2001-12-14", Some("2001-12-14T00:00:00Z")),
+            ("2001-1-2", Some("2001-01-02T00:00:00Z")),
+            ("2001-12-14 21:59:43.10", Some("2001-12-14T21:59:43.1Z")),
+            ("2001-12-14T21:59:43.10-05:00", Some("2001-12-14T21:59:43.1-05:00")),
+            ("2001-12-14t21:59:43,5+00:60", Some("2001-12-14T21:59:43.5+01:00")),
+            (
+                "2001-12-14T21:59:43.123456789123Z",
+                Some("2001-12-14T21:59:43.123456789Z"),
+            ),
+            ("2001-12-14T21:59:43-00:00", Some("2001-12-14T21:59:43Z")),
+            ("2004-2-29   1:2:3", Some("2004-02-29T01:02:03Z")),
+            ("0001-01-01", Some("0001-01-01T00:00:00Z")),
+            ("2001-12-14 21:59:43.10 -5", None),
+            ("2001-12-14x", None),
+            ("2001-02-29", None),
+            ("2001-12-14t21:59:43.10z", None),
+            ("2001-12-14 21:59:43.10Z", None),
+            ("2001-12-14T24:00:00Z", None),
+        ];
+        // A block list: a flow one would split `43,5` at the comma.
+        let list: String = go.iter().map(|(text, _)| format!("  - {text}\n")).collect();
+        let any = yaml_value(&format!("x:\n{list}  - '2001-12-14'\n")).unwrap();
+        let json = serde_json::to_value(AsJson(&any)).unwrap();
+        for (i, (text, want)) in go.iter().enumerate() {
+            let tagged = matches!(&any["x"][i], Value::Tagged(t) if t.tag == TIMESTAMP_TAG);
+            assert_eq!(tagged, want.is_some(), "{text}");
+            assert_eq!(json["x"][i], want.unwrap_or(text), "{text}");
+        }
+        assert_eq!(any["x"][go.len()], Value::from("2001-12-14"));
+        // Written back plain, as yaml.v3 writes a `time.Time`, and read back the same.
+        let text = yaml_string(&any).unwrap();
+        assert!(text.contains("\n- 2001-12-14T00:00:00Z\n"), "{text}");
+        assert_eq!(yaml_value(&text).unwrap(), any, "{text}");
+        let cfg =
+            Config::parse("server: {github-token: 2001-12-14}\noauth-excluded-models: {2001-12-14: [a]}\n").unwrap();
+        assert_eq!(cfg.document["server"]["github-token"].as_str(), Some("2001-12-14"));
+        assert!(cfg.document["oauth"]["excluded-models"].get("2001-12-14").is_some());
+        // Go cannot marshal an offset of 24 hours or more as JSON.
+        let wide = yaml_value("x: 2001-12-14T21:59:43+24:00\n").unwrap_err();
+        assert!(format!("{wide:#}").contains("24 hours"), "{wide:#}");
+    }
+
     /// yaml.v3 skips a leading BOM; serde_yaml_ng and libyaml read it as part of the
     /// first line, so a second top-level key failed the load.
     #[test]
@@ -1739,6 +1814,8 @@ oauth-excluded-models: {{c: [{numbers}]}}
             "0o+17",
             "18446744073709551616",
             "-18446744073709551616",
+            "2001-12-14",
+            "2001-12-14 21:59:43.10",
         ];
         let value = Value::Sequence(strings.iter().map(|s| Value::from(*s)).collect());
         let text = yaml_string(&value).unwrap();

@@ -168,7 +168,8 @@ fn scalar_literal_field<'a>(value: &'a Value, keys: &mut Vec<Option<&'a str>>) -
             keys.pop();
             found
         }),
-        Value::Number(_) | Value::Bool(_) => literal_field(keys),
+        // A plain timestamp is tagged ([`super::timestamp::TAG`]).
+        Value::Number(_) | Value::Bool(_) | Value::Tagged(_) => literal_field(keys),
         _ => false,
     }
 }
@@ -271,9 +272,11 @@ pub(super) struct Plain {
     pub value: Vec<u8>,
     /// Whether it is a mapping key.
     pub key: bool,
+    /// Where its [`super::timestamp::TAG`] starts, when it has that tag.
+    pub timestamp_tag: Option<usize>,
 }
 
-/// Each untagged plain scalar of `text`.
+/// Each plain scalar of `text` that is untagged or has [`super::timestamp::TAG`].
 pub(super) fn plain_scalars(text: &str) -> anyhow::Result<Vec<Plain>> {
     let mut out = Vec::new();
     events_with(text, Some(&mut out))?;
@@ -365,9 +368,10 @@ fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result
                     // The span starts at an anchor; a scalar folded over lines is not
                     // its source.
                     let end = event.end_mark.index as usize + bom;
+                    let timestamp = bytes(s.tag).is_some_and(|t| t == super::timestamp::TAG.as_bytes());
                     if let Some(plain) = plain.as_deref_mut()
                         && s.style == unsafe_libyaml::YAML_PLAIN_SCALAR_STYLE
-                        && s.tag.is_null()
+                        && (s.tag.is_null() || timestamp)
                         && let Some(start) = end.checked_sub(value.len())
                         && text.as_bytes().get(start..end) == Some(value)
                     {
@@ -375,6 +379,7 @@ fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result
                             span: start..end,
                             value: value.to_vec(),
                             key,
+                            timestamp_tag: timestamp.then_some(event.start_mark.index as usize + bom),
                         });
                     }
                     Some(Event::Scalar {

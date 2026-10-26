@@ -990,7 +990,7 @@ fn config_sync_locked(
                 Err(_) => error(500, "decode_failed"),
             };
         }
-        let mut result = match serde_json::to_value(view.value()) {
+        let mut result = match serde_json::to_value(cpa_core::config::AsJson(view.value())) {
             Ok(v) => v,
             Err(_) => return error(500, "decode_failed"),
         };
