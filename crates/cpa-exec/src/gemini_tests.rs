@@ -112,6 +112,27 @@ impl cpa_core::exec::UsageObserver for UsageReports {
     }
 }
 
+/// Go logs a request its transport then refuses (no host, or a scheme other than http
+/// and https), then the error; a URL `http.NewRequest` rejects is not logged at all.
+pub(crate) fn check_refused_capture(name: &str, s: &Value, events: &mut std::collections::VecDeque<Captured>) {
+    let Some(message) = s["error"]["message"]
+        .as_str()
+        .filter(|m| m.ends_with("http: no Host in request URL") || m.contains("\": unsupported protocol scheme \""))
+    else {
+        return;
+    };
+    let url = message.split('"').nth(1).unwrap();
+    assert!(
+        matches!(events.pop_front(), Some(Captured::Request { url: u, .. }) if u == url),
+        "{name}: refused request capture"
+    );
+    assert_eq!(
+        events.pop_front(),
+        Some(Captured::Error(message.to_owned())),
+        "{name}: refused error capture"
+    );
+}
+
 /// Upstream capture events (cpa_core::exec::CaptureEvent) as an executor recorded them.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Captured {
@@ -674,6 +695,7 @@ async fn go_reference_scenarios() {
                 Some(account),
             );
         }
+        check_refused_capture(name, s, &mut events);
         assert!(events.is_empty(), "{name}: extra captures {events:?}");
         ran += 1;
     }

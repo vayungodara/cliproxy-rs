@@ -29,4 +29,6 @@ the same way from v8.0.35 (`ae3ee3be303fb07fb8173279923413005bf32177`) with
 `ANTIGRAVITY_GO_SET=v8.0.35 go run -tags v8035 ./cmd/antigravity-goldens out.json`: a
 client that goes away mid-stream (the upstream `stall`s after its body and the generator
 cancels the request once the stream is idle; the usage record carries Go's
-`fail_status` and `fail_body`). Its `requestId` is random; the replay normalizes it.
+`fail_status` and `fail_body`), and base URLs Go refuses (`execute_escaped_host_base`,
+`stream_hostless_base`, `count_schemeless_base`). Its `requestId` is random; the replay
+normalizes it.

@@ -141,6 +141,124 @@
         "failed": false
       },
       "cancel_when_idle": true
+    },
+    {
+      "name": "execute_escaped_host_base",
+      "op": "execute",
+      "source": "gemini",
+      "model": "gemini-3.7-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]}]}",
+      "auth_id": "execute_escaped_host_base",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "https://%64aily-cloudcode-pa.googleapis.com"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"unexpected\"}]},\"finishReason\":\"STOP\"}]},\"traceId\":\"t-unexpected\"}"
+      },
+      "error": {
+        "status": 0,
+        "message": "parse \"https://%64aily-cloudcode-pa.googleapis.com/v1internal:generateContent\": invalid URL escape \"%64\""
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "parse \"https://%64aily-cloudcode-pa.googleapis.com/v1internal:generateContent\": invalid URL escape \"%64\""
+      }
+    },
+    {
+      "name": "stream_hostless_base",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.7-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]}]}",
+      "auth_id": "stream_hostless_base",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "https:relay.example"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"unexpected\"}]},\"finishReason\":\"STOP\"}]},\"traceId\":\"t-unexpected\"}"
+      },
+      "error": {
+        "status": 0,
+        "message": "Post \"https:relay.example/v1internal:streamGenerateContent?alt=sse\": http: no Host in request URL"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "Post \"https:relay.example/v1internal:streamGenerateContent?alt=sse\": http: no Host in request URL"
+      }
+    },
+    {
+      "name": "count_schemeless_base",
+      "op": "count",
+      "source": "gemini",
+      "model": "gemini-3.7-flash",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]}]}",
+      "auth_id": "count_schemeless_base",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "relay.example"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"unexpected\"}]},\"finishReason\":\"STOP\"}]},\"traceId\":\"t-unexpected\"}"
+      },
+      "error": {
+        "status": 0,
+        "message": "Post \"relay.example/v1internal:countTokens\": unsupported protocol scheme \"\""
+      }
     }
   ],
   "go": "v8.0.35"

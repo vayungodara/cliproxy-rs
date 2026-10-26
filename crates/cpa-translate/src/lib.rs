@@ -262,6 +262,12 @@ pub trait StreamTranslator: Send {
     fn finalize_tool_input(&mut self) -> Vec<Bytes> {
         vec![]
     }
+    /// Go's `CanFinalizeResponseStream` (0ea4e1dc): the OpenAI Chat Completions to
+    /// Responses stream saw a finish reason that left every item done, so a clean EOF
+    /// without `[DONE]` may translate a synthetic `data: [DONE]` instead of failing.
+    fn can_finalize_response_stream(&self) -> bool {
+        false
+    }
 }
 
 /// helps.ApplyPatchUpstreamErrorMessage: the 502 message executors return when a

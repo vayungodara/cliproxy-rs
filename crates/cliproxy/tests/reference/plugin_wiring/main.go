@@ -1,5 +1,5 @@
 // Generates ../../fixtures/plugin_wiring_go.json: Go's server binary (CLIProxyAPI
-// 6fecc6e, cmd/server) runs with recorder plugins and a local upstream, and every step
+// v8.0.35 at ae3ee3be, cmd/server) runs with recorder plugins and a local upstream, and every step
 // sends identical raw HTTP requests. Each step records what the client got, what the
 // upstream received and what the plugins were asked (exact request bytes). The Rust
 // test replays the same steps against this repository's binary.

@@ -1194,6 +1194,86 @@
         "fail_body": "context canceled"
       },
       "cancel_when_idle": true
+    },
+    {
+      "name": "gen_escaped_host_base",
+      "provider": "gemini",
+      "config_auth": -1,
+      "attributes": {
+        "api_key": "AIza-fake-escaped",
+        "base_url": "https://%67enerativelanguage.googleapis.com"
+      },
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "error": {
+        "status": 0,
+        "message": "parse \"https://%67enerativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\": invalid URL escape \"%67\""
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "parse \"https://%67enerativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent\": invalid URL escape \"%67\""
+      }
+    },
+    {
+      "name": "stream_hostless_base",
+      "provider": "gemini",
+      "config_auth": -1,
+      "attributes": {
+        "api_key": "AIza-fake-hostless",
+        "base_url": "https:relay.example"
+      },
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "stream",
+      "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "error": {
+        "status": 0,
+        "message": "Post \"https:relay.example/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\": http: no Host in request URL"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "Post \"https:relay.example/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse\": http: no Host in request URL"
+      }
+    },
+    {
+      "name": "count_schemeless_base",
+      "provider": "gemini",
+      "config_auth": -1,
+      "attributes": {
+        "api_key": "AIza-fake-schemeless",
+        "base_url": "relay.example"
+      },
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "count",
+      "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "error": {
+        "status": 0,
+        "message": "Post \"relay.example/v1beta/models/gemini-2.5-flash:countTokens\": unsupported protocol scheme \"\""
+      }
     }
   ]
 }
