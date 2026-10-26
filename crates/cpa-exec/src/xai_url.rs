@@ -16,6 +16,13 @@ pub struct GoUrl {
     pub port: String,
     /// `URL.Host`: host and port as parsed (unescaped, IPv6 in brackets).
     pub host: String,
+    /// `escape(URL.Host, encodeHost)`, as `URL.String()` writes it; exact where `host`
+    /// is not UTF-8.
+    pub escaped_host: String,
+    /// `URL.OmitHost`: a scheme followed by a single `/` (`https:/x`).
+    pub omit_host: bool,
+    /// `URL.Opaque`: the text after `scheme:` when it does not start with `/`.
+    pub opaque: String,
     /// `URL.User != nil`: the authority carried user info.
     pub has_user: bool,
     /// The user info as written (before `@`), when present.
@@ -76,6 +83,7 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
                 scheme,
                 raw_query,
                 force_query,
+                opaque: rest.to_owned(),
                 ..GoUrl::default()
             });
         }
@@ -83,9 +91,10 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
             return Err("first path segment in URL cannot contain colon".into());
         }
     }
-    let mut host = String::new();
+    let mut host = Vec::new();
     let mut userinfo = None;
     let mut path = rest;
+    let mut omit_host = false;
     if (!scheme.is_empty() || !rest.starts_with("///")) && rest.starts_with("//") {
         let authority = &rest[2..];
         let (authority, tail) = match authority.find('/') {
@@ -94,14 +103,21 @@ fn parse_inner(raw: &str) -> Result<GoUrl, String> {
         };
         (host, userinfo) = parse_authority(&scheme, authority)?;
         path = tail;
+    } else if !scheme.is_empty() && rest.starts_with('/') {
+        omit_host = true;
     }
     unescape(path.as_bytes(), Mode::Other)?;
+    let escaped_host = escape(&host, Encode::Host);
+    let host = String::from_utf8_lossy(&host).into_owned();
     let (hostname, port) = split_host_port(&host);
     Ok(GoUrl {
         scheme,
         hostname,
         port,
         host,
+        escaped_host,
+        omit_host,
+        opaque: String::new(),
         has_user: userinfo.is_some(),
         userinfo: userinfo.unwrap_or_default(),
         raw_query,
@@ -128,7 +144,7 @@ fn scheme(raw: &str) -> Result<(&str, &str), String> {
 
 /// `parseAuthority`: the host, and the user info as written when present (it is only
 /// validated).
-fn parse_authority(scheme: &str, authority: &str) -> Result<(String, Option<String>), String> {
+fn parse_authority(scheme: &str, authority: &str) -> Result<(Vec<u8>, Option<String>), String> {
     let at = authority.rfind('@');
     let host = parse_host(scheme, at.map_or(authority, |i| &authority[i + 1..]))?;
     let Some(i) = at else { return Ok((host, None)) };
@@ -179,8 +195,8 @@ fn valid_port(port: &str) -> bool {
             .is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
 }
 
-/// `parseHost` with the default `urlstrictcolons=1` (Go 1.26.4).
-fn parse_host(scheme: &str, host: &str) -> Result<String, String> {
+/// `parseHost` with the default `urlstrictcolons=1` (Go 1.26.4): the unescaped bytes.
+fn parse_host(scheme: &str, host: &str) -> Result<Vec<u8>, String> {
     if let Some(open) = host.rfind('[') {
         // An IP literal must start the host.
         if open != 0 {
@@ -212,7 +228,7 @@ fn parse_host(scheme: &str, host: &str) -> Result<String, String> {
             Ok(std::net::IpAddr::V4(_)) => return Err("invalid IP-literal".into()),
             _ => return Err(format!("invalid host: ParseAddr({}): unable to parse IP", quote(&text))),
         }
-        return Ok(format!("[{text}]{}", String::from_utf8_lossy(&port)));
+        return Ok([b"[".as_slice(), &unescaped, b"]", &port].concat());
     }
     // Strict colons: the port starts at the first colon, so a second one is invalid,
     // except for PostgreSQL's comma-separated host lists.
@@ -228,8 +244,7 @@ fn parse_host(scheme: &str, host: &str) -> Result<String, String> {
             ));
         }
     }
-    let out = unescape(host.as_bytes(), Mode::Host)?;
-    Ok(String::from_utf8_lossy(&out).into_owned())
+    unescape(host.as_bytes(), Mode::Host)
 }
 
 /// `splitHostPort`: `URL.Hostname()` and `URL.Port()`.
@@ -251,10 +266,23 @@ fn unhex(c: u8) -> u8 {
     9 * (c >> 6) + (c & 15)
 }
 
-/// `shouldEscape(c, encodeHost)` (identical for `encodeZone` over ASCII).
-fn host_escapes(c: u8) -> bool {
-    !(c.is_ascii_alphanumeric()
-        || matches!(
+/// The `net/url` encodings `URL.String()` and validation use (`encodeZone` escapes as
+/// `encodeHost`).
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Encode {
+    Path,
+    UserPassword,
+    Host,
+    Fragment,
+}
+
+/// `shouldEscape`.
+fn should_escape(c: u8, mode: Encode) -> bool {
+    if c.is_ascii_alphanumeric() {
+        return false;
+    }
+    if mode == Encode::Host
+        && matches!(
             c,
             b'!' | b'$'
                 | b'&'
@@ -272,11 +300,128 @@ fn host_escapes(c: u8) -> bool {
                 | b'<'
                 | b'>'
                 | b'"'
-                | b'-'
-                | b'_'
-                | b'.'
-                | b'~'
-        ))
+        )
+    {
+        return false;
+    }
+    match c {
+        b'-' | b'_' | b'.' | b'~' => false,
+        b'$' | b'&' | b'+' | b',' | b'/' | b':' | b';' | b'=' | b'?' | b'@' => match mode {
+            Encode::Path => c == b'?',
+            Encode::UserPassword => matches!(c, b'@' | b'/' | b'?' | b':'),
+            Encode::Fragment => false,
+            Encode::Host => true,
+        },
+        b'!' | b'(' | b')' | b'*' => mode != Encode::Fragment,
+        _ => true,
+    }
+}
+
+/// `escape` for every mode but `encodeQueryComponent`.
+fn escape(s: &[u8], mode: Encode) -> String {
+    let mut out = String::with_capacity(s.len());
+    for &c in s {
+        if should_escape(c, mode) {
+            out.push('%');
+            out.push(char::from(b"0123456789ABCDEF"[usize::from(c >> 4)]));
+            out.push(char::from(b"0123456789ABCDEF"[usize::from(c & 15)]));
+        } else {
+            out.push(char::from(c));
+        }
+    }
+    out
+}
+
+/// `validEncoded`.
+fn valid_encoded(s: &str, mode: Encode) -> bool {
+    s.bytes().all(|c| {
+        matches!(
+            c,
+            b'!' | b'$'
+                | b'&'
+                | b'\''
+                | b'('
+                | b')'
+                | b'*'
+                | b'+'
+                | b','
+                | b';'
+                | b'='
+                | b':'
+                | b'@'
+                | b'['
+                | b']'
+                | b'%'
+        ) || !should_escape(c, mode)
+    })
+}
+
+/// `EscapedPath` and `EscapedFragment` of a part kept as written: the written text
+/// when it is validly encoded, else the unescaped value escaped again.
+fn escaped(written: &str, mode: Encode) -> String {
+    if valid_encoded(written, mode) {
+        return written.to_owned();
+    }
+    match unescape(written.as_bytes(), Mode::Other) {
+        Ok(value) => escape(&value, mode),
+        Err(_) => written.to_owned(),
+    }
+}
+
+/// `URL.String()`.
+pub fn string(u: &GoUrl) -> String {
+    let mut out = String::new();
+    if !u.scheme.is_empty() {
+        out.push_str(&u.scheme);
+        out.push(':');
+    }
+    if !u.opaque.is_empty() {
+        out.push_str(&u.opaque);
+    } else {
+        if (!u.scheme.is_empty() || !u.host.is_empty() || u.has_user)
+            && !(u.omit_host && u.host.is_empty() && !u.has_user)
+        {
+            if !u.host.is_empty() || !u.raw_path.is_empty() || u.has_user {
+                out.push_str("//");
+            }
+            if u.has_user {
+                let (user, password) = match u.userinfo.split_once(':') {
+                    Some((user, password)) => (user, Some(password)),
+                    None => (u.userinfo.as_str(), None),
+                };
+                let part = |p: &str| {
+                    escape(
+                        &unescape(p.as_bytes(), Mode::Other).unwrap_or_default(),
+                        Encode::UserPassword,
+                    )
+                };
+                out.push_str(&part(user));
+                if let Some(password) = password {
+                    out.push(':');
+                    out.push_str(&part(password));
+                }
+                out.push('@');
+            }
+            out.push_str(&u.escaped_host);
+        }
+        let path = escaped(&u.raw_path, Encode::Path);
+        if !path.is_empty() && !path.starts_with('/') && !u.host.is_empty() {
+            out.push('/');
+        }
+        if out.is_empty() && path.split('/').next().unwrap_or_default().contains(':') {
+            out.push_str("./");
+        }
+        out.push_str(&path);
+    }
+    if u.force_query || !u.raw_query.is_empty() {
+        out.push('?');
+        out.push_str(&u.raw_query);
+    }
+    if !u.fragment.is_empty() {
+        out.push('#');
+        out.push_str(&escaped(&u.fragment, Encode::Fragment));
+    }
+    out
 }
 
 /// `unescape` for the modes validation reaches (`+` is never a space here).
@@ -295,14 +440,14 @@ fn unescape(s: &[u8], mode: Mode) -> Result<Vec<u8>, String> {
                 }
                 if mode == Mode::Zone {
                     let v = (unhex(s[i + 1]) << 4) | unhex(s[i + 2]);
-                    if escape != b"%25" && v != b' ' && host_escapes(v) {
+                    if escape != b"%25" && v != b' ' && should_escape(v, Encode::Host) {
                         return Err(format!("invalid URL escape {}", quote_bytes(escape)));
                     }
                 }
                 i += 3;
             }
             c => {
-                if matches!(mode, Mode::Host | Mode::Zone) && c < 0x80 && host_escapes(c) {
+                if matches!(mode, Mode::Host | Mode::Zone) && c < 0x80 && should_escape(c, Encode::Host) {
                     return Err(format!("invalid character {} in host name", quote_bytes(&[c])));
                 }
                 i += 1;
@@ -397,6 +542,21 @@ pub fn same_authority(raw: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `url.Parse` then `URL.String()`, recorded from Go 1.26.4 (tests/reference/go_url).
+    #[test]
+    fn string_follows_go() {
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/go_url_string.json")).unwrap();
+        for case in cases.as_array().unwrap() {
+            let input = case["in"].as_str().unwrap();
+            let want = &case["string"];
+            match parse(input) {
+                Ok(u) => assert_eq!(Some(string(&u).as_str()), want["out"].as_str(), "{input}"),
+                Err(e) => assert_eq!(Some(e.as_str()), want["err"].as_str(), "{input}"),
+            }
+        }
+    }
 
     #[test]
     fn transport_must_agree_with_go_on_the_authority() {

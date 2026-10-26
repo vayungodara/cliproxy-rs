@@ -1,0 +1,578 @@
+[
+  {
+    "in": "https://example.com/backend/responses",
+    "string": {
+      "out": "https://example.com/backend/responses"
+    },
+    "xai_ws": {
+      "out": "wss://example.com/backend/responses"
+    },
+    "codex_ws": {
+      "out": "wss://example.com/backend/responses"
+    }
+  },
+  {
+    "in": " HTTP://127.0.0.1:9/v1/responses ",
+    "string": {
+      "err": "parse \" HTTP://127.0.0.1:9/v1/responses \": first path segment in URL cannot contain colon"
+    },
+    "xai_ws": {
+      "out": "ws://127.0.0.1:9/v1/responses"
+    },
+    "codex_ws": {
+      "out": "ws://127.0.0.1:9/v1/responses"
+    }
+  },
+  {
+    "in": "HTTPS://Example.COM/a%2Fb/responses",
+    "string": {
+      "out": "https://Example.COM/a%2Fb/responses"
+    },
+    "xai_ws": {
+      "out": "wss://Example.COM/a%2Fb/responses"
+    },
+    "codex_ws": {
+      "out": "wss://Example.COM/a%2Fb/responses"
+    }
+  },
+  {
+    "in": "https://h/a%2fb",
+    "string": {
+      "out": "https://h/a%2fb"
+    },
+    "xai_ws": {
+      "out": "wss://h/a%2fb"
+    },
+    "codex_ws": {
+      "out": "wss://h/a%2fb"
+    }
+  },
+  {
+    "in": "https://h/a b/responses",
+    "string": {
+      "out": "https://h/a%20b/responses"
+    },
+    "xai_ws": {
+      "out": "wss://h/a%20b/responses"
+    },
+    "codex_ws": {
+      "out": "wss://h/a%20b/responses"
+    }
+  },
+  {
+    "in": "https://h/x?q=a b",
+    "string": {
+      "out": "https://h/x?q=a b"
+    },
+    "xai_ws": {
+      "out": "wss://h/x?q=a b"
+    },
+    "codex_ws": {
+      "out": "wss://h/x?q=a b"
+    }
+  },
+  {
+    "in": "https://h/x#a b",
+    "string": {
+      "out": "https://h/x#a%20b"
+    },
+    "xai_ws": {
+      "out": "wss://h/x#a%20b"
+    },
+    "codex_ws": {
+      "out": "wss://h/x#a%20b"
+    }
+  },
+  {
+    "in": "https://h/café/responses",
+    "string": {
+      "out": "https://h/caf%C3%A9/responses"
+    },
+    "xai_ws": {
+      "out": "wss://h/caf%C3%A9/responses"
+    },
+    "codex_ws": {
+      "out": "wss://h/caf%C3%A9/responses"
+    }
+  },
+  {
+    "in": "https://h/caf%C3%A9/responses",
+    "string": {
+      "out": "https://h/caf%C3%A9/responses"
+    },
+    "xai_ws": {
+      "out": "wss://h/caf%C3%A9/responses"
+    },
+    "codex_ws": {
+      "out": "wss://h/caf%C3%A9/responses"
+    }
+  },
+  {
+    "in": "https://h/caf%e9/responses",
+    "string": {
+      "out": "https://h/caf%e9/responses"
+    },
+    "xai_ws": {
+      "out": "wss://h/caf%e9/responses"
+    },
+    "codex_ws": {
+      "out": "wss://h/caf%e9/responses"
+    }
+  },
+  {
+    "in": "https://h/x#",
+    "string": {
+      "out": "https://h/x"
+    },
+    "xai_ws": {
+      "out": "wss://h/x"
+    },
+    "codex_ws": {
+      "out": "wss://h/x"
+    }
+  },
+  {
+    "in": "https://h/x?#",
+    "string": {
+      "out": "https://h/x?"
+    },
+    "xai_ws": {
+      "out": "wss://h/x?"
+    },
+    "codex_ws": {
+      "out": "wss://h/x?"
+    }
+  },
+  {
+    "in": "https://h/x#a%2Fb",
+    "string": {
+      "out": "https://h/x#a%2Fb"
+    },
+    "xai_ws": {
+      "out": "wss://h/x#a%2Fb"
+    },
+    "codex_ws": {
+      "out": "wss://h/x#a%2Fb"
+    }
+  },
+  {
+    "in": "https://h/x#a'b!(c)*",
+    "string": {
+      "out": "https://h/x#a'b!(c)*"
+    },
+    "xai_ws": {
+      "out": "wss://h/x#a'b!(c)*"
+    },
+    "codex_ws": {
+      "out": "wss://h/x#a'b!(c)*"
+    }
+  },
+  {
+    "in": "https://h/x#a\"b",
+    "string": {
+      "out": "https://h/x#a%22b"
+    },
+    "xai_ws": {
+      "out": "wss://h/x#a%22b"
+    },
+    "codex_ws": {
+      "out": "wss://h/x#a%22b"
+    }
+  },
+  {
+    "in": "https://h/x#a?b/c",
+    "string": {
+      "out": "https://h/x#a?b/c"
+    },
+    "xai_ws": {
+      "out": "wss://h/x#a?b/c"
+    },
+    "codex_ws": {
+      "out": "wss://h/x#a?b/c"
+    }
+  },
+  {
+    "in": "https://us%65r:p%40ss@h/x",
+    "string": {
+      "out": "https://user:p%40ss@h/x"
+    },
+    "xai_ws": {
+      "out": "wss://user:p%40ss@h/x"
+    },
+    "codex_ws": {
+      "out": "wss://user:p%40ss@h/x"
+    }
+  },
+  {
+    "in": "https://a@b:c:d@h/x",
+    "string": {
+      "out": "https://a%40b:c%3Ad@h/x"
+    },
+    "xai_ws": {
+      "out": "wss://a%40b:c%3Ad@h/x"
+    },
+    "codex_ws": {
+      "out": "wss://a%40b:c%3Ad@h/x"
+    }
+  },
+  {
+    "in": "https://user@h/x",
+    "string": {
+      "out": "https://user@h/x"
+    },
+    "xai_ws": {
+      "out": "wss://user@h/x"
+    },
+    "codex_ws": {
+      "out": "wss://user@h/x"
+    }
+  },
+  {
+    "in": "https://u:@h/x",
+    "string": {
+      "out": "https://u:@h/x"
+    },
+    "xai_ws": {
+      "out": "wss://u:@h/x"
+    },
+    "codex_ws": {
+      "out": "wss://u:@h/x"
+    }
+  },
+  {
+    "in": "https://%3A:%2F@h/x",
+    "string": {
+      "out": "https://%3A:%2F@h/x"
+    },
+    "xai_ws": {
+      "out": "wss://%3A:%2F@h/x"
+    },
+    "codex_ws": {
+      "out": "wss://%3A:%2F@h/x"
+    }
+  },
+  {
+    "in": "https://h/a'b!c(d)*e",
+    "string": {
+      "out": "https://h/a'b!c(d)*e"
+    },
+    "xai_ws": {
+      "out": "wss://h/a'b!c(d)*e"
+    },
+    "codex_ws": {
+      "out": "wss://h/a'b!c(d)*e"
+    }
+  },
+  {
+    "in": "https://h/a\"b",
+    "string": {
+      "out": "https://h/a%22b"
+    },
+    "xai_ws": {
+      "out": "wss://h/a%22b"
+    },
+    "codex_ws": {
+      "out": "wss://h/a%22b"
+    }
+  },
+  {
+    "in": "https://h/a b!c(d)*e'f",
+    "string": {
+      "out": "https://h/a%20b%21c%28d%29%2Ae%27f"
+    },
+    "xai_ws": {
+      "out": "wss://h/a%20b%21c%28d%29%2Ae%27f"
+    },
+    "codex_ws": {
+      "out": "wss://h/a%20b%21c%28d%29%2Ae%27f"
+    }
+  },
+  {
+    "in": "https://h/a;b,c=d\u0026e+f$g:h@i",
+    "string": {
+      "out": "https://h/a;b,c=d\u0026e+f$g:h@i"
+    },
+    "xai_ws": {
+      "out": "wss://h/a;b,c=d\u0026e+f$g:h@i"
+    },
+    "codex_ws": {
+      "out": "wss://h/a;b,c=d\u0026e+f$g:h@i"
+    }
+  },
+  {
+    "in": "https://h/a[b]",
+    "string": {
+      "out": "https://h/a[b]"
+    },
+    "xai_ws": {
+      "out": "wss://h/a[b]"
+    },
+    "codex_ws": {
+      "out": "wss://h/a[b]"
+    }
+  },
+  {
+    "in": "https://h/a%5Bb%5D",
+    "string": {
+      "out": "https://h/a%5Bb%5D"
+    },
+    "xai_ws": {
+      "out": "wss://h/a%5Bb%5D"
+    },
+    "codex_ws": {
+      "out": "wss://h/a%5Bb%5D"
+    }
+  },
+  {
+    "in": "https://h/*",
+    "string": {
+      "out": "https://h/*"
+    },
+    "xai_ws": {
+      "out": "wss://h/*"
+    },
+    "codex_ws": {
+      "out": "wss://h/*"
+    }
+  },
+  {
+    "in": "https://h",
+    "string": {
+      "out": "https://h"
+    },
+    "xai_ws": {
+      "out": "wss://h"
+    },
+    "codex_ws": {
+      "out": "wss://h"
+    }
+  },
+  {
+    "in": "https://h/x?",
+    "string": {
+      "out": "https://h/x?"
+    },
+    "xai_ws": {
+      "out": "wss://h/x?"
+    },
+    "codex_ws": {
+      "out": "wss://h/x?"
+    }
+  },
+  {
+    "in": "https://例.x.ai/r",
+    "string": {
+      "out": "https://%E4%BE%8B.x.ai/r"
+    },
+    "xai_ws": {
+      "out": "wss://%E4%BE%8B.x.ai/r"
+    },
+    "codex_ws": {
+      "out": "wss://%E4%BE%8B.x.ai/r"
+    }
+  },
+  {
+    "in": "https://%C3%A9.x.ai/r",
+    "string": {
+      "out": "https://%C3%A9.x.ai/r"
+    },
+    "xai_ws": {
+      "out": "wss://%C3%A9.x.ai/r"
+    },
+    "codex_ws": {
+      "out": "wss://%C3%A9.x.ai/r"
+    }
+  },
+  {
+    "in": "https://%ff.x.ai/r",
+    "string": {
+      "out": "https://%FF.x.ai/r"
+    },
+    "xai_ws": {
+      "out": "wss://%FF.x.ai/r"
+    },
+    "codex_ws": {
+      "out": "wss://%FF.x.ai/r"
+    }
+  },
+  {
+    "in": "https://[fe80::1%25en0]:8443/r",
+    "string": {
+      "out": "https://[fe80::1%25en0]:8443/r"
+    },
+    "xai_ws": {
+      "out": "wss://[fe80::1%25en0]:8443/r"
+    },
+    "codex_ws": {
+      "out": "wss://[fe80::1%25en0]:8443/r"
+    }
+  },
+  {
+    "in": "https://[fe80::1%25%65n0]/r",
+    "string": {
+      "out": "https://[fe80::1%25en0]/r"
+    },
+    "xai_ws": {
+      "out": "wss://[fe80::1%25en0]/r"
+    },
+    "codex_ws": {
+      "out": "wss://[fe80::1%25en0]/r"
+    }
+  },
+  {
+    "in": "https://:443/responses",
+    "string": {
+      "out": "https://:443/responses"
+    },
+    "xai_ws": {
+      "out": "wss://:443/responses"
+    },
+    "codex_ws": {
+      "out": "wss://:443/responses"
+    }
+  },
+  {
+    "in": "https://h:/r",
+    "string": {
+      "out": "https://h:/r"
+    },
+    "xai_ws": {
+      "out": "wss://h:/r"
+    },
+    "codex_ws": {
+      "out": "wss://h:/r"
+    }
+  },
+  {
+    "in": "https:///responses",
+    "string": {
+      "out": "https:///responses"
+    },
+    "xai_ws": {
+      "err": "xai websockets executor: responses websocket URL host is empty"
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: responses websocket URL host is empty"
+    }
+  },
+  {
+    "in": "https:/responses",
+    "string": {
+      "out": "https:/responses"
+    },
+    "xai_ws": {
+      "err": "xai websockets executor: responses websocket URL host is empty"
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: responses websocket URL host is empty"
+    }
+  },
+  {
+    "in": "https:example.com/responses",
+    "string": {
+      "out": "https:example.com/responses"
+    },
+    "xai_ws": {
+      "err": "xai websockets executor: responses websocket URL host is empty"
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: responses websocket URL host is empty"
+    }
+  },
+  {
+    "in": "https:example.com/responses?q#f",
+    "string": {
+      "out": "https:example.com/responses?q#f"
+    },
+    "xai_ws": {
+      "err": "xai websockets executor: responses websocket URL host is empty"
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: responses websocket URL host is empty"
+    }
+  },
+  {
+    "in": "wss://h/x",
+    "string": {
+      "out": "wss://h/x"
+    },
+    "xai_ws": {
+      "out": "wss://h/x"
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: unsupported responses websocket URL scheme \"wss\""
+    }
+  },
+  {
+    "in": "ws://H/x",
+    "string": {
+      "out": "ws://H/x"
+    },
+    "xai_ws": {
+      "out": "ws://H/x"
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: unsupported responses websocket URL scheme \"ws\""
+    }
+  },
+  {
+    "in": "https://h/a%zz",
+    "string": {
+      "err": "parse \"https://h/a%zz\": invalid URL escape \"%zz\""
+    },
+    "xai_ws": {
+      "err": "parse \"https://h/a%zz\": invalid URL escape \"%zz\""
+    },
+    "codex_ws": {
+      "err": "parse \"https://h/a%zz\": invalid URL escape \"%zz\""
+    }
+  },
+  {
+    "in": "https://%61pi.example/responses",
+    "string": {
+      "err": "parse \"https://%61pi.example/responses\": invalid URL escape \"%61\""
+    },
+    "xai_ws": {
+      "err": "parse \"https://%61pi.example/responses\": invalid URL escape \"%61\""
+    },
+    "codex_ws": {
+      "err": "parse \"https://%61pi.example/responses\": invalid URL escape \"%61\""
+    }
+  },
+  {
+    "in": "ftp://h/x",
+    "string": {
+      "out": "ftp://h/x"
+    },
+    "xai_ws": {
+      "err": "xai websockets executor: unsupported responses websocket URL scheme \"ftp\""
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: unsupported responses websocket URL scheme \"ftp\""
+    }
+  },
+  {
+    "in": "FTP://h/x",
+    "string": {
+      "out": "ftp://h/x"
+    },
+    "xai_ws": {
+      "err": "xai websockets executor: unsupported responses websocket URL scheme \"ftp\""
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: unsupported responses websocket URL scheme \"ftp\""
+    }
+  },
+  {
+    "in": "relay.example/responses",
+    "string": {
+      "out": "relay.example/responses"
+    },
+    "xai_ws": {
+      "err": "xai websockets executor: unsupported responses websocket URL scheme \"\""
+    },
+    "codex_ws": {
+      "err": "codex websockets executor: unsupported responses websocket URL scheme \"\""
+    }
+  }
+]
