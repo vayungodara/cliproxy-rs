@@ -28,5 +28,14 @@ func v8035Scenarios() []execScenario {
 		{Name: "stream_client_drop_after_terminal_claude", Op: "stream", Source: "claude", Model: "gemini-3.7-flash",
 			Payload: `{"model":"gemini-3.7-flash","max_tokens":256,"stream":true,"messages":[{"role":"user","content":"hello"}]}`,
 			Upstream: stalled(partial + final), CancelWhenIdle: true},
+		// Base URLs Go refuses: an escaped host fails http.NewRequest before the request
+		// is logged; no host, or a scheme other than http(s), fails in the transport after
+		// the log. The access token reaches no host.
+		{Name: "execute_escaped_host_base", Op: "execute", Source: "gemini", Model: "gemini-3.7-flash",
+			Payload: geminiHello, Attributes: map[string]string{"base_url": "https://%64aily-cloudcode-pa.googleapis.com"}},
+		{Name: "stream_hostless_base", Op: "stream", Source: "gemini", Model: "gemini-3.7-flash",
+			Payload: geminiHello, Attributes: map[string]string{"base_url": "https:relay.example"}},
+		{Name: "count_schemeless_base", Op: "count", Source: "gemini", Model: "gemini-3.7-flash",
+			Payload: geminiHello, Attributes: map[string]string{"base_url": "relay.example"}},
 	}
 }

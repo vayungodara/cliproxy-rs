@@ -250,6 +250,12 @@ func scenarios() []scenario {
 		g("gen_empty_body_is_502", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, ""), &upstream{Status: 200, Body: ""}),
 		with(g("gen_compact_alt_rejected", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, ""), nil), func(s *scenario) { s.Alt = "responses/compact" }),
 		with(g("gen_base_url_trailing_slashes", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, ""), jsonOK), func(s *scenario) { s.ConfigAuth = 1 }),
+		// Base URLs Go refuses: an escaped host fails http.NewRequest before the request is
+		// logged; a missing host or a scheme other than http(s) passes it and fails in the
+		// transport after the log. Nothing is sent, so the key reaches no host.
+		{Name: "gen_escaped_host_base", Provider: "gemini", ConfigAuth: -1, Attributes: map[string]string{"api_key": "AIza-fake-escaped", "base_url": "https://%67enerativelanguage.googleapis.com"}, Model: "gemini-2.5-flash", Payload: gem("gemini-2.5-flash", userHi, ""), Source: "gemini", Op: "execute"},
+		{Name: "stream_hostless_base", Provider: "gemini", ConfigAuth: -1, Attributes: map[string]string{"api_key": "AIza-fake-hostless", "base_url": "https:relay.example"}, Model: "gemini-2.5-flash", Payload: gem("gemini-2.5-flash", userHi, ""), Source: "gemini", Op: "stream"},
+		{Name: "count_schemeless_base", Provider: "gemini", ConfigAuth: -1, Attributes: map[string]string{"api_key": "AIza-fake-schemeless", "base_url": "relay.example"}, Model: "gemini-2.5-flash", Payload: gem("gemini-2.5-flash", userHi, ""), Source: "gemini", Op: "count"},
 		{Name: "gen_attributes_without_key", Provider: "gemini", ConfigAuth: -1, Attributes: map[string]string{"base_url": " http://UPSTREAM/v-custom/ ", "header:X-Attr": "attr-value"}, Model: "gemini-2.5-flash", Payload: gem("gemini-2.5-flash", userHi, ""), Source: "gemini", Op: "execute", Upstream: jsonOK},
 		g("gen_original_differs", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, ""), jsonOK),
 		// Payload rules: default (only missing, judged on the translated original),
