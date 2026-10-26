@@ -586,6 +586,354 @@
         "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":6,\"output_index\":0,\"item\":{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n*** End Patch\\n\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}}\n\n",
         "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":7,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"chat\",\"tools\":[{\"format\":{\"definition\":\"start: patch\",\"syntax\":\"lark\",\"type\":\"grammar\"},\"name\":\"apply_patch\",\"type\":\"custom\"}],\"output\":[{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n*** End Patch\\n\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}]}}\n\n"
       ]
+    },
+    {
+      "name": "claude_eof_without_finish_reason",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"max_tokens\":32,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+      "source": "claude",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 138\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"max_tokens\":32,\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"c1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"acme-chat\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n",
+        "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+        "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":3,\"output_tokens\":1}}\n\n",
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "upstream stream closed before [DONE]",
+        "retry_after_ms": -1,
+        "credential_scoped": false
+      }
+    },
+    {
+      "name": "claude_eof_after_finish_reason",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"max_tokens\":32,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+      "source": "claude",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 2,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 5,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 138\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"max_tokens\":32,\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"c1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"acme-chat\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n",
+        "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+        "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}\n\n",
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+      ]
+    },
+    {
+      "name": "claude_eof_blank_finish_reasons",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"max_tokens\":32,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+      "source": "claude",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":\"\"}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"y\"},\"finish_reason\":\"  \"}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 138\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"max_tokens\":32,\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"c1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"acme-chat\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n",
+        "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"x\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"y\"}}\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "upstream stream closed before [DONE]",
+        "retry_after_ms": -1,
+        "credential_scoped": false
+      }
+    },
+    {
+      "name": "claude_eof_second_choice_finishes",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"max_tokens\":32,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+      "source": "claude",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"}},{\"index\":1,\"delta\":{},\"finish_reason\":\"length\"}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 138\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"max_tokens\":32,\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"c1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"acme-chat\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n",
+        "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+        "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}\n\n",
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+      ]
+    },
+    {
+      "name": "claude_done_without_finish_reason",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"max_tokens\":32,\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}]}",
+      "source": "claude",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 138\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"max_tokens\":32,\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"c1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"acme-chat\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n",
+        "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+        "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":0,\"output_tokens\":0}}\n\n",
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+      ]
+    },
+    {
+      "name": "responses_eof_without_finish_keeps_usage",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"hello\",\"stream\":true}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "upstream stream closed before [DONE]",
+        "retry_after_ms": -1,
+        "credential_scoped": false
+      }
     }
   ]
 }

@@ -40,7 +40,7 @@ use crate::kimi_http::{DeferredUsage, UsageRule, apply_patch_requested, defer_us
 use crate::kimi_replay::{self, ReplayCache};
 use crate::meta_codex::go_trim_space;
 use crate::openai_compat_payload::ensure_responses_usage_details;
-use crate::proxy::{GoClients, GoHeaders, Proxy, Upstream, default_client, lines, read_all, send};
+use crate::proxy::{GoClients, GoHeaders, Proxy, Upstream, default_client, lines, read_all, send_scanned};
 
 const REASONING_UNAVAILABLE: &str = "[reasoning unavailable]";
 
@@ -371,7 +371,9 @@ async fn post(
     );
     // Go's TrackHTTPClient: the TTFT runs from the request to the first body byte.
     req.usage.round_trip_started();
-    let mut upstream = send(client, url, headers, body, None)
+    // Go reads every Kimi body with a scanner or io.ReadAll: one cut short fails with
+    // `unexpected EOF`.
+    let mut upstream = send_scanned(client, url, headers, Bytes::from(body), None)
         .await
         .inspect_err(|e| capture_error(capture, e))?;
     capture_metadata(capture, upstream.status, &upstream.headers);
@@ -521,9 +523,9 @@ fn apply_patch_error() -> ExecError {
 /// Go's per-line stream loop: each non-empty scanned line goes through the translator.
 /// A translator that rejects apply_patch input ends the stream after that line's frames
 /// with a 502 (StopApplyPatchStream). At the end Chat streams finalize tool input
-/// (EndApplyPatchStream) and translate a synthetic `[DONE]`, even after a scan error; the
-/// scan error follows. Before any terminal error the Responses route flushes the frame it
-/// is still joining.
+/// (EndApplyPatchStream), then end with a scan error (published with the usage seen so
+/// far) or translate a synthetic `[DONE]`. Before any terminal error the Responses route
+/// flushes the frame it is still joining.
 fn translate_lines(
     upstream: ExecStream,
     translator: Box<dyn StreamTranslator>,
@@ -569,6 +571,12 @@ fn translate_lines(
                 self.ready.extend(finalized.into_iter().map(Ok));
                 if self.translator.tool_input_failed() {
                     return self.fail(apply_patch_error());
+                }
+                // 4f2e5270: a scan error ends the stream before the synthetic [DONE], and
+                // its failure keeps the usage seen so far.
+                if let Some(Err(error)) = end {
+                    self.usage.publish_failure(&error);
+                    return self.fail(error);
                 }
                 if !self.translate(b"[DONE]") {
                     return;

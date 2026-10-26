@@ -445,6 +445,19 @@ pub(crate) struct DeferredUsage {
 }
 
 impl DeferredUsage {
+    /// Go `StreamUsageBuffer.PublishFailure`: reports the held usage and publishes
+    /// `error` with it (status 0 for a transport fault, which Go's error has none of).
+    pub(crate) fn publish_failure(&self, error: &cpa_core::exec::ExecError) {
+        self.commit();
+        let status = if error.scope == cpa_core::exec::FailureScope::Transport {
+            0
+        } else {
+            error.status
+        };
+        self.sink
+            .publish_failure_with_usage(status, &String::from_utf8_lossy(&error.body));
+    }
+
     /// Reports the held usage.
     pub(crate) fn commit(&self) {
         let held = std::mem::take(&mut *self.held.lock().unwrap_or_else(std::sync::PoisonError::into_inner));

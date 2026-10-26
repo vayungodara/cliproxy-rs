@@ -502,7 +502,7 @@ pub(crate) async fn chat_with(
             lines,
             translator,
             claude,
-            req.response_format == Format::OpenAIResponse,
+            req.response_format,
             capture,
             req.usage.clone(),
         );
@@ -753,10 +753,13 @@ struct Frames {
     /// `message_start` gets the estimate of its request when the upstream reports none.
     claude: ClaudeInputTokens,
     responses: bool,
+    claude_client: bool,
     event: String,
     data: Vec<Vec<u8>>,
     ready: VecDeque<Result<Bytes, ExecError>>,
     seen_done: bool,
+    /// A data frame carried a finish_reason (Go 4f2e5270 `openAICompatChunkHasFinishReason`).
+    saw_finish_reason: bool,
     failed: bool,
     capture: wire::Capture,
     usage: cpa_core::exec::UsageSink,
@@ -840,6 +843,9 @@ impl Frames {
         if !done && let Some(status) = payload::stream_data_error(payload_bytes, &event) {
             return self.fail_payload(status, String::from_utf8_lossy(payload_bytes));
         }
+        if !done && !self.saw_finish_reason {
+            self.saw_finish_reason = has_finish_reason(payload_bytes);
+        }
         // ObserveChatTokenEvent (Go f8e4a840): the served model comes from frames that
         // passed these checks, not from every line.
         self.usage.response_model_line(payload_bytes);
@@ -908,8 +914,14 @@ impl Frames {
             }
         }
         if !self.seen_done {
-            if self.responses {
-                self.fail(502, "upstream stream closed before [DONE]");
+            // 4f2e5270: a Claude client's EOF fails too unless a chunk carried a finish
+            // reason; both failures publish the usage seen so far.
+            if self.responses || (self.claude_client && !self.saw_finish_reason) {
+                let error = status_err(502, "upstream stream closed before [DONE]");
+                self.capture.error(&error);
+                self.usage
+                    .publish_failure_with_usage(error.status, &String::from_utf8_lossy(&error.body));
+                self.terminal(error);
                 return;
             }
             if self.translate(b"data: [DONE]") {
@@ -932,22 +944,33 @@ impl Frames {
     }
 }
 
+/// Go `openAICompatChunkHasFinishReason`: a choice whose `finish_reason` is not null and
+/// not blank after `strings.TrimSpace`.
+fn has_finish_reason(payload: &[u8]) -> bool {
+    gj::get(payload, "choices").array().iter().any(|choice| {
+        let reason = choice.get("finish_reason");
+        reason.kind != gj::Kind::Null && !go::trim_space(&reason.bytes()).is_empty()
+    })
+}
+
 fn frames(
     lines: ExecStream,
     translator: Box<dyn StreamTranslator>,
     claude: ClaudeInputTokens,
-    responses: bool,
+    client: Format,
     capture: wire::Capture,
     usage: cpa_core::exec::UsageSink,
 ) -> ExecStream {
     let state = Frames {
         translator,
         claude,
-        responses,
+        responses: client == Format::OpenAIResponse,
+        claude_client: client == Format::Claude,
         event: String::new(),
         data: Vec::new(),
         ready: VecDeque::new(),
         seen_done: false,
+        saw_finish_reason: false,
         failed: false,
         capture,
         usage,

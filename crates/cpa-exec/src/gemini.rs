@@ -585,6 +585,7 @@ impl GeminiExecutor {
         }
         let output = Output::new(req, to, &body)
             .with_claude_stream_errors()
+            .require_finish_signal()
             .fail_on_client_drop(DropRule::Always);
         let lines = captured_lines(proxy::lines(upstream.body, MAX_LINE), capture.clone());
         let stream = gemini_lines(lines, output, Format::Gemini);
@@ -735,6 +736,8 @@ pub(crate) struct Output {
     retained: Option<ExecError>,
     /// See [`Output::fail_on_client_drop`].
     drop_rule: DropRule,
+    /// See [`Output::require_finish_signal`]: `Some(seen)` when the rule applies.
+    finish_signal: Option<bool>,
     /// Antigravity's reasoning replay commit (see [`Output::with_replay`]).
     replay: Option<crate::antigravity_replay::StreamCommit>,
 }
@@ -800,8 +803,43 @@ impl Output {
             claude_errors: false,
             retained: None,
             drop_rule: DropRule::Off,
+            finish_signal: None,
             replay: None,
         }
+    }
+
+    /// Go 4f2e5270 (Gemini and Vertex): a Claude client's stream that ends without a
+    /// finish reason or block reason on any upstream line fails with a 502 instead of
+    /// translating `[DONE]`. Lines are fed to [`Output::observe_finish_signal`].
+    pub(crate) fn require_finish_signal(mut self) -> Self {
+        if self.client == Format::Claude {
+            self.finish_signal = Some(false);
+        }
+        self
+    }
+
+    /// geminiStreamHasFinishSignal on the raw line's JSON payload.
+    pub(crate) fn observe_finish_signal(&mut self, line: &[u8]) {
+        if self.finish_signal != Some(false) {
+            return;
+        }
+        let Some(payload) = sse::json_payload(line) else {
+            return;
+        };
+        let seen = [
+            "candidates.#.finishReason",
+            "response.candidates.#.finishReason",
+            "promptFeedback.blockReason",
+            "response.promptFeedback.blockReason",
+        ]
+        .iter()
+        .any(|path| {
+            gj::get(payload, *path)
+                .array()
+                .iter()
+                .any(|item| !cpa_common::gostr::trim_space(&item.bytes()).is_empty())
+        });
+        self.finish_signal = Some(seen);
     }
 
     /// Antigravity: commits the reasoning replay at a clean end, and on any other end
@@ -901,7 +939,18 @@ impl Output {
     /// through the translator, then the client side's pending frames.
     pub(crate) fn end_with_done(&mut self) -> Emit {
         let mut emit = self.finalize();
-        if !self.stop_retained(&mut emit) && !emit.then(self.translate(b"[DONE]")) && !self.stop_retained(&mut emit) {
+        if self.stop_retained(&mut emit) {
+            return emit;
+        }
+        if self.finish_signal == Some(false) {
+            let error = status_err(502, "upstream stream closed before finishReason");
+            let message = String::from_utf8_lossy(&error.body).into_owned();
+            self.capture.record(CaptureEvent::ResponseError(&message));
+            self.usage.publish_failure_with_usage(error.status, &message);
+            emit.stop = Some(error);
+            return emit;
+        }
+        if !emit.then(self.translate(b"[DONE]")) && !self.stop_retained(&mut emit) {
             if let Some(replay) = &mut self.replay {
                 replay.commit();
             }
@@ -1160,6 +1209,7 @@ impl LineState for GeminiLines {
             // Go observes the response model and (since 7f2f17d7) the usage on the raw
             // line, before the filter hides non-terminal usageMetadata.
             self.output.usage.response_line(self.upstream, line);
+            self.output.observe_finish_signal(line);
             let filtered = sse::filter_sse_usage_metadata(line);
             return match sse::json_payload(&filtered) {
                 Some(payload) => self.output.translate(payload),

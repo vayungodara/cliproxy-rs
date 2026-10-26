@@ -266,6 +266,20 @@ func TestRSFixKimi(t *testing.T) {
 				`data: {"id":"c","object":"chat.completion.chunk","created":1,"model":"m2","choices":[]}` + "\n\ndata: [DONE]\n\n")},
 		},
 		{
+			// v8.0.35 (4f2e5270): a read error ends the stream without the synthetic [DONE]
+			// and the failure keeps the usage seen so far.
+			name: "chat-stream-read-error", source: sdktranslator.FormatOpenAI, model: "kimi-k2", stream: true, meta: kimiMeta,
+			body: `{"model":"kimi-k2","stream":true,"messages":[{"role":"user","content":"hi"}]}`,
+			responses: []rsfixResponse{{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Missing: 40,
+				Body: `data: {"id":"c","object":"chat.completion.chunk","created":1,"model":"k2-r","choices":[{"index":0,"delta":{"role":"assistant","content":"he"}}],"usage":{"prompt_tokens":3,"completion_tokens":1,"total_tokens":4}}` + "\n\n"}},
+		},
+		{
+			name: "chat-stream-read-error-interactions-client", source: sdktranslator.FormatInteractions, model: "kimi-k2", stream: true, meta: kimiMeta,
+			body: `{"model":"kimi-k2","input":"hi"}`,
+			responses: []rsfixResponse{{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Missing: 40,
+				Body: `data: {"id":"i1","object":"chat.completion.chunk","created":1,"model":"k2","choices":[{"index":0,"delta":{"role":"assistant","content":"yo"},"finish_reason":"stop"}]}` + "\n\n"}},
+		},
+		{
 			name: "responses-compact-rejected", source: sdktranslator.FormatOpenAIResponse, model: "kimi-k3", alt: "responses/compact", meta: kimiMeta,
 			body: `{"model":"kimi-k3","input":"hi"}`,
 		},

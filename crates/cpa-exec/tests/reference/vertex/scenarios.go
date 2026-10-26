@@ -401,6 +401,11 @@ func scenarios1(hi string) []scenario {
 		// end of the stream after the api_error event.
 		with(key("key_claude_malformed_execute", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}]}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"candidates":[{"content":{"role":"model","parts":[]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":4,"totalTokenCount":4},"modelVersion":"gemini-2.5-flash"}`}), func(s *scenario) { s.Source = "claude" }),
 		with(key("key_claude_malformed_stream", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + chunk1 + "\n\ndata: " + `{"candidates":[{"content":{"role":"model","parts":[{"text":"x"}]},"finishReason":"MALFORMED_FUNCTION_CALL","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash"}` + "\n\n"}), func(s *scenario) { s.Source = "claude" }),
+		// v8.0.35 (4f2e5270): a Claude client's stream that ends without a finish reason
+		// or block reason fails with 502 (API keys and service accounts alike).
+		with(key("key_claude_stream_block_reason", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + chunk1 + "\n\ndata: " + `{"promptFeedback":{"blockReason":"OTHER"}}` + "\n\n"}), func(s *scenario) { s.Source = "claude" }),
+		with(key("key_openai_stream_eof_without_finish", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}],"stream":true}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + chunk1 + "\n\n"}), func(s *scenario) { s.Source = "openai" }),
+		with(sa("sa_claude_stream_eof_without_finish", "stream", "", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, token, reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + chunk1 + "\n\n"}), func(s *scenario) { s.Source = "claude" }),
 		// Every thinking field of a configured Vertex model: range, zero and dynamic.
 		key("key_thinking_above_max", "execute", "gemini-2.5-flash-lite(9000)", "vertex-lite(9000)", gem("gemini-2.5-flash-lite", userHi, ""), jsonOK),
 		key("key_thinking_zero_not_allowed", "execute", "gemini-2.5-flash-lite(0)", "vertex-lite(0)", gem("gemini-2.5-flash-lite", userHi, ""), jsonOK),
@@ -590,6 +595,9 @@ requests:
 		// A chat.completion chunk with a finish_reason ends the response model
 		// (d9451cb6's response_model.go): the usage-only chunk after it names another model.
 		// The key lists the model by name only (vertex_compat.go keeps it without an alias).
+		// v8.0.35 (4f2e5270): the truncated Claude stream's failure keeps its usage.
+		usageKey("usage_key_claude_stream_eof_without_finish", "claude", "stream", `{"model":"u-vflash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`,
+			reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + chunk1 + "\n\n"}),
 		with(usageKey("usage_oa_key_stream_terminal_model", "openai", "stream", `{"model":"meta/llama-4","stream":true,"messages":[{"role":"user","content":"hi"}]}`,
 			reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + `{"id":"c1","object":"chat.completion.chunk","created":1,"model":"meta/llama-4-served","choices":[{"index":0,"delta":{"content":"hi"},"finish_reason":"stop"}]}` + "\n\ndata: " + `{"id":"c1","object":"chat.completion.chunk","created":1,"model":"meta/other","choices":[],"usage":{"prompt_tokens":4,"completion_tokens":1,"total_tokens":5}}` + "\n\ndata: [DONE]\n\n"}), func(s *scenario) {
 			s.Config = usageOAConfig

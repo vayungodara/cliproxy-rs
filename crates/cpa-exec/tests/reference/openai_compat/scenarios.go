@@ -141,6 +141,17 @@ func responsesEOF(name, payload string, chunks ...string) scenario {
 	return s
 }
 
+// claudeEOF streams the chunks to a Claude client and ends without [DONE].
+func claudeEOF(name string, chunks ...string) scenario {
+	body := ""
+	for _, c := range chunks {
+		body += "data: " + c + "\n\n"
+	}
+	s := stream(name, `{"model":"chat","max_tokens":32,"stream":true,"messages":[{"role":"user","content":"hello"}]}`, sse(body))
+	s.Source = "claude"
+	return s
+}
+
 func scenarios() []scenario {
 	hi := `{"model":"chat","messages":[{"role":"user","content":"hi"}]}`
 	out := []scenario{
@@ -462,6 +473,23 @@ func scenarios() []scenario {
 			s.Source, s.Op, s.Stream = "openai-response", "stream", true
 			return s
 		}(),
+		// 4f2e5270: a Claude client's clean EOF without [DONE] fails unless a chunk carried
+		// a finish_reason; the failure keeps the usage seen so far, as the Responses one now does.
+		claudeEOF("claude_eof_without_finish_reason", chunk1,
+			`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":1,"total_tokens":4}}`),
+		claudeEOF("claude_eof_after_finish_reason", chunk1, chunk2),
+		claudeEOF("claude_eof_blank_finish_reasons", chunk1,
+			`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"content":"x"},"finish_reason":""}]}`,
+			`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"content":"y"},"finish_reason":"  "}]}`),
+		claudeEOF("claude_eof_second_choice_finishes",
+			`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"role":"assistant","content":"he"}},{"index":1,"delta":{},"finish_reason":"length"}]}`),
+		func() scenario {
+			s := stream("claude_done_without_finish_reason", `{"model":"chat","max_tokens":32,"stream":true,"messages":[{"role":"user","content":"hello"}]}`, sse("data: "+chunk1+"\n\ndata: [DONE]\n\n"))
+			s.Source = "claude"
+			return s
+		}(),
+		responsesEOF("responses_eof_without_finish_keeps_usage", `{"model":"chat","input":"hello","stream":true}`, chunk1,
+			`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":1,"total_tokens":4}}`),
 		func() scenario {
 			s := chat("needs_translator_responses_source", "acme-chat", "chat", `{"model":"chat","input":"hello","max_output_tokens":20}`, jsonOK)
 			s.Source = "openai-response"

@@ -46,9 +46,13 @@ These files come from v8.0.35 (`ae3ee3be`) instead, after Go moved the payload r
 to the end of the pipeline (`868e137`): `meta/payload-rules-and-headers.json` (re-recorded:
 the rules now run after the instructions default) and
 `kimi/{chat,responses}-payload-override-after-normalize.json` (a configured temperature
-survives the temperature normalization). Record them the same way from a v8.0.35
-checkout and copy only those files. `meta/claude-stream-input-estimate.json` (a Claude client's
-`message_start` estimate, f3e36f19) is a v8.0.35 recording too:
+survives the temperature normalization), and `kimi/chat-stream-read-error.json` and
+`kimi/chat-stream-read-error-interactions-client.json` (`4f2e5270`: a read error ends the
+stream before the synthetic `[DONE]` and keeps the usage; their scripted response's
+`missing` promises 40 bytes the server never sends). Record them the same way from a
+v8.0.35 checkout and copy only those files, for example with
+`-run 'TestRSFixKimi$/chat-stream-read-error'`. `meta/claude-stream-input-estimate.json`
+(a Claude client's `message_start` estimate, f3e36f19) is a v8.0.35 recording too:
 `-run 'TestRSFixMeta$/claude-stream-input-estimate'`.
 
 Devin's request logs follow v8.0.35 too, where Go logs the payload rules' JSON view of

@@ -65,6 +65,8 @@ async fn upstream_requests_match_go_byte_for_byte() {
         "responses-apply-patch-stream-event-lines",
         "responses-stream-tier-merge",
         "chat-stream-usage-then-model",
+        "chat-stream-read-error",
+        "chat-stream-read-error-interactions-client",
         "chat-payload-rules",
         "responses-payload-rules",
         "chat-payload-override-after-normalize",
@@ -162,6 +164,8 @@ async fn downstream_results_match_go() {
         "responses-apply-patch-stream-event-lines",
         "responses-stream-tier-merge",
         "chat-stream-usage-then-model",
+        "chat-stream-read-error",
+        "chat-stream-read-error-interactions-client",
         "responses-stream-data-only-frames",
         "responses-compact-rejected",
         "transport-custom-headers",
@@ -223,7 +227,9 @@ async fn downstream_results_match_go() {
             let rust: Vec<String> = down.chunks.iter().map(|c| mask_timestamps(c)).collect();
             assert_eq!(rust, go_frames, "{name}: stream frames");
         }
-        assert!(down.err_status.is_none(), "{name}: unexpected stream error");
+        // A statusless stream error (a read error) follows the chunks.
+        let go_err = go["stream_err"].as_str().filter(|e| !e.is_empty());
+        assert_eq!(down.err_body.as_deref(), go_err, "{name}: stream error");
     }
 }
 
@@ -685,12 +691,10 @@ async fn apply_patch_failures_end_streams_like_go() {
     let (out, log) = probe(vec![Ok("a")], StreamEnd::Chat, false).await;
     assert_eq!(out, ["frame a", "frame [DONE]", "finished"]);
     assert_eq!(log, ["event a", "finalize", "event [DONE]", "finish"]);
-    // A scan error still gets [DONE] first (Go's loop just ends), then flush and the error.
-    let (out, _) = probe(vec![Ok("a"), Err(())], StreamEnd::Chat, false).await;
-    assert_eq!(
-        out,
-        ["frame a", "frame [DONE]", "finished", "flushed", "ERR 502 scan failed"]
-    );
+    // A scan error (4f2e5270): finalize, then flush and the error; no [DONE], no finish.
+    let (out, log) = probe(vec![Ok("a"), Err(())], StreamEnd::Chat, false).await;
+    assert_eq!(out, ["frame a", "flushed", "ERR 502 scan failed"]);
+    assert_eq!(log, ["event a", "finalize"]);
     // Native Responses translated for another client: no finalize and no [DONE].
     let (out, log) = probe(vec![Ok("a")], StreamEnd::Responses, true).await;
     assert_eq!(out, ["frame a", "finished"]);
@@ -719,6 +723,8 @@ async fn usage_reports_match_go_records() {
         "responses-apply-patch-stream-event-lines",
         "responses-stream-tier-merge",
         "chat-stream-usage-then-model",
+        "chat-stream-read-error",
+        "chat-stream-read-error-interactions-client",
         "responses-stream-data-only-frames",
         "chat-payload-rules",
         "responses-payload-rules",

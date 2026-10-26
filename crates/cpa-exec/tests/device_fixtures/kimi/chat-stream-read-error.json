@@ -1,0 +1,117 @@
+{
+  "name": "chat-stream-read-error",
+  "credential": {
+    "access_token": "kimi-access-fixture",
+    "base_url": "http://127.0.0.1:40793/coding",
+    "device_id": "dev-fixture-1",
+    "refresh_token": "kimi-refresh-fixture",
+    "type": "kimi"
+  },
+  "request": {
+    "body": "{\"model\":\"kimi-k2\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+    "model": "kimi-k2",
+    "source": "openai",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "body": "data: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k2-r\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}\n\n",
+      "missing": 40
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/coding/v1/chat/completions",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:40793"
+        ],
+        [
+          "User-Agent",
+          "CLIProxyAPI/0.1.0"
+        ],
+        [
+          "Content-Length",
+          "112"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer kimi-access-fixture"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Msh-Device-Id",
+          "dev-fixture-1"
+        ],
+        [
+          "X-Msh-Device-Model",
+          "linux amd64"
+        ],
+        [
+          "X-Msh-Device-Name",
+          "e2b.local"
+        ],
+        [
+          "X-Msh-Platform",
+          "CLIProxyAPI"
+        ],
+        [
+          "X-Msh-Version",
+          "0.1.0"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"k2\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}"
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "{\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k2-r\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}",
+      ""
+    ],
+    "stream_err": "unexpected EOF"
+  },
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:40793",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:40793/coding/v1/chat/completions\nHTTP Method: POST\nAuth: provider=kimi, auth_id=kimi-fixture.json, label=kimi, type=oauth\n\nHeaders:\nAccept: text/event-stream\nAuthorization: Bearer kimi...ture\nContent-Type: application/json\nUser-Agent: CLIProxyAPI/0.1.0\nX-Msh-Device-Id: dev-fixture-1\nX-Msh-Device-Model: linux amd64\nX-Msh-Device-Name: e2b.local\nX-Msh-Platform: CLIProxyAPI\nX-Msh-Version: 0.1.0\n\nBody:\n{\"model\":\"k2\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 253\nContent-Type: text/event-stream\n\nBody:\ndata: {\"id\":\"c\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"k2-r\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"}}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}Error: unexpected EOF\n"
+    },
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "fail_body": "unexpected EOF",
+        "fail_status": 0,
+        "failed": true,
+        "input_tokens": 3,
+        "model": "kimi-k2",
+        "output_tokens": 1,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "k2-r",
+        "service_tier": "",
+        "total_tokens": 4,
+        "ttft_set": true
+      }
+    ]
+  }
+}

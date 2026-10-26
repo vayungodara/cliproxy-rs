@@ -64,8 +64,9 @@ impl UsageReports {
         // A client that went away mid-stream: Go's record failed with the executor's
         // error, or succeeded, which Rust leaves to the server's end-of-attempt record.
         // Every such upstream reports usage before the drop, so Go's failure carries
-        // tokens exactly when it keeps the usage seen so far.
-        if s["cancel_when_idle"] == true {
+        // tokens exactly when it keeps the usage seen so far. The same holds for a Claude
+        // stream that ends without a finish reason (4f2e5270).
+        if s["cancel_when_idle"] == true || s["error"]["message"] == "upstream stream closed before finishReason" {
             let usage = &s["usage"];
             let want = (usage["failed"] == true).then(|| {
                 (
@@ -74,7 +75,7 @@ impl UsageReports {
                     usage["total_tokens"].as_u64().unwrap() > 0,
                 )
             });
-            assert_eq!(*self.failure.lock().unwrap(), want, "{name}: executor failure on drop");
+            assert_eq!(*self.failure.lock().unwrap(), want, "{name}: executor failure");
         }
     }
 }
@@ -113,8 +114,18 @@ impl cpa_core::exec::UsageObserver for UsageReports {
 }
 
 /// Go logs a request its transport then refuses (no host, or a scheme other than http
-/// and https), then the error; a URL `http.NewRequest` rejects is not logged at all.
+/// and https), then the error; a URL `http.NewRequest` rejects is not logged at all. A
+/// Claude stream that ends without a finish reason (4f2e5270) logs its 502 after the
+/// response.
 pub(crate) fn check_refused_capture(name: &str, s: &Value, events: &mut std::collections::VecDeque<Captured>) {
+    if s["error"]["message"] == "upstream stream closed before finishReason" {
+        assert_eq!(
+            events.pop_front(),
+            Some(Captured::Error("upstream stream closed before finishReason".into())),
+            "{name}: truncation error capture"
+        );
+        return;
+    }
     let Some(message) = s["error"]["message"]
         .as_str()
         .filter(|m| m.ends_with("http: no Host in request URL") || m.contains("\": unsupported protocol scheme \""))
@@ -876,6 +887,7 @@ async fn pending_responses_frame_is_flushed_before_terminal_error() {
         claude_errors: false,
         retained: None,
         drop_rule: Default::default(),
+        finish_signal: None,
         replay: None,
     };
     let lines = futures_util::stream::iter([
@@ -949,6 +961,7 @@ async fn apply_patch_hooks_follow_go_order() {
             claude_errors: false,
             retained: None,
             drop_rule: Default::default(),
+            finish_signal: None,
             replay: None,
         };
         let lines = futures_util::stream::iter([
