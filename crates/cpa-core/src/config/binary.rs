@@ -451,7 +451,7 @@ pub(super) enum Mode {
 pub const PLAIN: &str = "!cpa-plain";
 
 /// `text` as a YAML double-quoted scalar that reads back as `text`: line breaks, C0 and
-/// C1 controls, DEL, U+2028, U+2029 and U+FEFF escaped.
+/// C1 controls, DEL, U+2028, U+2029, U+FEFF, U+FFFE and U+FFFF escaped.
 pub fn double_quoted(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     out.push('"');
@@ -465,6 +465,8 @@ pub fn double_quoted(text: &str) -> String {
             '\u{2028}' => out.push_str("\\L"),
             '\u{2029}' => out.push_str("\\P"),
             '\u{feff}' => out.push_str("\\uFEFF"),
+            '\u{fffe}' => out.push_str("\\uFFFE"),
+            '\u{ffff}' => out.push_str("\\uFFFF"),
             c if c < ' ' || ('\u{7f}'..='\u{9f}').contains(&c) => out.push_str(&format!("\\x{:02X}", c as u32)),
             c => out.push(c),
         }
@@ -542,11 +544,14 @@ impl Walk {
                 let anchored = anchor.is_some() || self.anchored > 0;
                 let literal = match &tag {
                     // yaml.v3 reads a scalar tagged as a number or boolean into a string
-                    // field as its text, as it does an untagged one.
-                    Some(tag) => matches!(
-                        tag.as_slice(),
-                        b"tag:yaml.org,2002:int" | b"tag:yaml.org,2002:float" | b"tag:yaml.org,2002:bool"
-                    ),
+                    // field as its text, as it does an untagged one. A plugin also gets
+                    // a timestamp with its tag, which `any` reads as a time.
+                    Some(tag) => {
+                        matches!(
+                            tag.as_slice(),
+                            b"tag:yaml.org,2002:int" | b"tag:yaml.org,2002:float" | b"tag:yaml.org,2002:bool"
+                        ) || (self.mode == Mode::Plugins && tag.as_slice() == b"tag:yaml.org,2002:timestamp")
+                    }
                     None => plain && !is_null(&value) && !resolves_to_text(&value),
                 };
                 // yaml.v3's layout code matches keys by their node, tag included

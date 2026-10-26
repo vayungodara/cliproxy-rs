@@ -67,7 +67,19 @@ fn plugin_configs(text: &str, root: &Mapping) -> Value {
         // The same text loaded, so only a limit this read alone hits (alias copies of
         // plugin scalars) gets here.
         Err(e) => {
-            tracing::warn!("plugin configs keep their parsed values: {e:#}");
+            // Management reads re-parse the file: warn once per text.
+            static WARNED: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+            let hash = {
+                use std::hash::{Hash, Hasher};
+                let mut h = std::collections::hash_map::DefaultHasher::new();
+                text.hash(&mut h);
+                h.finish()
+            };
+            let mut warned = WARNED.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+            if *warned != hash {
+                *warned = hash;
+                tracing::warn!("plugin configs keep their parsed values: {e:#}");
+            }
             Value::Null
         }
     }

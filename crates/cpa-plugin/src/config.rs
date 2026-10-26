@@ -600,17 +600,17 @@ mod tests {
 
     /// What yaml.v3 decodes from this, into `any` and into a string, is what it decodes from
     /// Go v8.0.35's `runtimeConfigYAML` of the same config, key by key: standard tags stay
-    /// (`!!float 1.50`), strings are double-quoted with NEL, DEL and U+2028 escaped, and a
-    /// key over 1024 characters is explicit.
+    /// (`!!float 1.50`, `!!timestamp 2001-12-14`), strings are double-quoted with NEL, DEL,
+    /// U+2028 and U+FFFE escaped, and a key over 1024 characters is explicit.
     #[test]
     fn plugin_config_yaml_reads_as_go() {
         let k = "k".repeat(1100);
-        let cfg = cpa_core::config::Config::parse(&format!("plugins:\n  enabled: true\n  configs:\n    p:\n      a: !!float 1.50\n      b: !!int 0x1F\n      c: !!bool True\n      d: !!float 1\n      e: !!float -0\n      f: !!float \"1.50\"\n      g: \"x\\ny\\N\"\n      h: \"x\\n\\L y\"\n      i: \"x\\n\\x7f\"\n      j: \"1 \\L 2\"\n      k: '1_000'\n      l: '2001-12-14'\n      m: !keep 1_000\n      n: !!str 1_000\n      o: !!binary MV8wMDA=\n      anc: {{&k 1.50: v}}\n      q: *k\n      ? {k}\n      : v\n      plain: 1.50\n      multi: /first\n\n        second\n      oct: 007\n      word: yes\n")).unwrap();
+        let cfg = cpa_core::config::Config::parse(&format!("plugins:\n  enabled: true\n  configs:\n    p:\n      a: !!float 1.50\n      b: !!int 0x1F\n      c: !!bool True\n      d: !!float 1\n      e: !!float -0\n      f: !!float \"1.50\"\n      g: \"x\\ny\\N\"\n      h: \"x\\n\\L y\"\n      i: \"x\\n\\x7f\"\n      j: \"1 \\L 2\"\n      k: '1_000'\n      l: '2001-12-14'\n      m: !keep 1_000\n      n: !!str 1_000\n      o: !!binary MV8wMDA=\n      anc: {{&k 1.50: v}}\n      q: *k\n      ? {k}\n      : v\n      plain: 1.50\n      multi: /first\n\n        second\n      oct: 007\n      word: yes\n      ff: \"x\\uFFFEy\\uFFFFz\"\n      fb: !!binary eO+/vnk=\n      ts: !!timestamp 2001-12-14\n")).unwrap();
         let rc = runtime_config(&cfg.document, &cfg.plugin_configs).unwrap();
         assert_eq!(
             String::from_utf8_lossy(&rc.items["p"].config_yaml),
             format!(
-                "a: !!float 1.50\nb: !!int 0x1F\nc: !!bool True\nd: !!float 1\ne: !!float -0\nf: !!float \"1.50\"\ng: \"x\\ny\\x85\"\nh: \"x\\n\\L y\"\ni: \"x\\n\\x7F\"\nj: \"1 \\L 2\"\nk: \"1_000\"\nl: \"2001-12-14\"\nm: \"1_000\"\n\"n\": \"1_000\"\no: \"1_000\"\nanc:\n  1.5: \"v\"\nq: 1.50\n? {k}\n: \"v\"\nplain: 1.50\nmulti: \"/first\\nsecond\"\noct: 007\nword: yes\nenabled: false\npriority: 0\n"
+                "a: !!float 1.50\nb: !!int 0x1F\nc: !!bool True\nd: !!float 1\ne: !!float -0\nf: !!float \"1.50\"\ng: \"x\\ny\\x85\"\nh: \"x\\n\\L y\"\ni: \"x\\n\\x7F\"\nj: \"1 \\L 2\"\nk: \"1_000\"\nl: \"2001-12-14\"\nm: \"1_000\"\n\"n\": \"1_000\"\no: \"1_000\"\nanc:\n  1.5: \"v\"\nq: 1.50\n? {k}\n: \"v\"\nplain: 1.50\nmulti: \"/first\\nsecond\"\noct: 007\nword: yes\nff: \"x\\uFFFEy\\uFFFFz\"\nfb: \"x\\uFFFEy\"\nts: !!timestamp 2001-12-14\nenabled: false\npriority: 0\n"
             )
         );
     }
