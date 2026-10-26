@@ -38,7 +38,12 @@ pub(super) fn go_timestamp(text: &str) -> Option<String> {
         Some(b' ') => false,
         Some(_) => return None,
     };
-    rest = if zoned { &rest[1..] } else { rest.trim_ascii_start() };
+    rest = if zoned {
+        &rest[1..]
+    } else {
+        let spaces = rest.iter().take_while(|b| **b == b' ').count();
+        &rest[spaces..]
+    };
     let hour = num(&mut rest).filter(|h| *h < 24)?;
     lit(&mut rest, b':')?;
     let minute = num(&mut rest).filter(|m| *m < 60)?;

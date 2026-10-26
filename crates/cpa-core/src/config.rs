@@ -856,6 +856,8 @@ fn scalar_texts(text: &str) -> anyhow::Result<Value> {
                 Value::Mapping(map) => d.deserialize_map(Entries(map)),
                 Value::Sequence(items) => d.deserialize_seq(Items(items)),
                 Value::Null => IgnoredAny::deserialize(d).map(|_| Value::Null),
+                // A plain timestamp, which parse_yaml tags; the text holds no tag.
+                Value::Tagged(tagged) if tagged.tag == timestamp::TAG => String::deserialize(d).map(Value::String),
                 // A custom tag reaches serde as an enum variant; Go reads the node.
                 Value::Tagged(tagged) => d.deserialize_any(Untagged(&tagged.value)),
                 _ => String::deserialize(d).map(Value::String),
@@ -1763,6 +1765,7 @@ oauth-excluded-models: {{c: [{numbers}]}}
             ("2001-12-14t21:59:43.10z", None),
             ("2001-12-14 21:59:43.10Z", None),
             ("2001-12-14T24:00:00Z", None),
+            ("2001-12-14 \t21:59:43", None),
         ];
         // A block list: a flow one would split `43,5` at the comma.
         let list: String = go.iter().map(|(text, _)| format!("  - {text}\n")).collect();
@@ -1782,6 +1785,12 @@ oauth-excluded-models: {{c: [{numbers}]}}
             Config::parse("server: {github-token: 2001-12-14}\noauth-excluded-models: {2001-12-14: [a]}\n").unwrap();
         assert_eq!(cfg.document["server"]["github-token"].as_str(), Some("2001-12-14"));
         assert!(cfg.document["oauth"]["excluded-models"].get("2001-12-14").is_some());
+        // The management key is still found and hashed beside a plain timestamp.
+        let hash = "$2a$10$abcdefghijklmnopqrstuuvwxyzabcdefghijklmnopqrstuvwxy";
+        let saved = with_secret_hash("management: {secret-key: plain}\nx: [2001-12-14]\n", hash).unwrap();
+        assert!(saved.contains(hash), "{saved}");
+        let prepared = prepared_for_upload("management: {secret-key: plain}\nx: [2001-12-14]\n").unwrap();
+        assert!(prepared.contains("$2"), "{prepared}");
         // Go cannot marshal an offset of 24 hours or more as JSON.
         let wide = yaml_value("x: 2001-12-14T21:59:43+24:00\n").unwrap_err();
         assert!(format!("{wide:#}").contains("24 hours"), "{wide:#}");
