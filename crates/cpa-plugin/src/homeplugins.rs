@@ -115,6 +115,9 @@ pub struct SyncConfig {
     pub dir: String,
     /// Each `plugins.configs.<id>` subtree, by ID as written.
     pub configs: BTreeMap<String, Value>,
+    /// `plugins.configs` with its plain scalars' text (`Config::plugin_configs`), so a
+    /// respelt value (`1.50` to `1.5`) is a change, as Go's raw node makes it one.
+    pub raw_configs: Value,
     pub auth_revision: i64,
     /// `plugins.store-auth`, normalized.
     pub store_auth: Vec<AuthConfig>,
@@ -133,6 +136,7 @@ impl SyncConfig {
                 _ => BTreeMap::new(),
             },
             auth_revision: field("auth-revision").and_then(yaml_int).unwrap_or(0),
+            raw_configs: Value::Null,
             store_auth: config::store_auth(document),
             proxy_url: document
                 .get("requests")
