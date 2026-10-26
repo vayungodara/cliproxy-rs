@@ -339,29 +339,12 @@ pub(crate) fn capture_request(
 /// Go's `http.Response` holds them.
 pub(crate) use crate::kimi_http::capture_metadata;
 
-/// Go's transport refusal of a URL it parsed (an unsupported scheme or no host,
-/// [`crate::xai_url::transport_refusal`]): the request is logged, then the error, and
-/// nothing is sent.
-pub(crate) fn refuse_unsendable(
-    capture: &CaptureSink,
-    credential: &Credential,
-    provider: &str,
-    url: &str,
-    headers: &GoHeaders,
-    body: &Bytes,
-) -> Result<(), ExecError> {
-    let Some(error) = crate::xai_url::transport_refusal(url) else {
-        return Ok(());
-    };
-    capture_request(capture, credential, provider, url, headers.pairs(), body);
-    capture.record(CaptureEvent::ResponseError(&String::from_utf8_lossy(&error.body)));
-    Err(error)
-}
-
-/// `RecordAPIRequest`, `Client.Do`, then `RecordAPIResponseMetadata`, or
-/// `RecordAPIResponseError` when the request fails. `lines`: the caller scans the body
-/// line by line, so a body cut short fails with Go's `unexpected EOF`
-/// ([`proxy::send_scanned`]).
+/// `http.NewRequest`, `RecordAPIRequest`, `Client.Do`, then `RecordAPIResponseMetadata`,
+/// or `RecordAPIResponseError` when the request fails. A URL Go cannot parse fails
+/// before it is logged; one its transport refuses (an unsupported scheme or no host,
+/// [`crate::xai_url::transport_refusal`]) is logged and then fails, and nothing is sent
+/// either way. `lines`: the caller scans the body line by line, so a body cut short
+/// fails with Go's `unexpected EOF` ([`proxy::send_scanned`]).
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn send_captured(
     capture: &CaptureSink,
@@ -373,8 +356,11 @@ pub(crate) async fn send_captured(
     body: Bytes,
     lines: bool,
 ) -> Result<Upstream, ExecError> {
+    crate::xai_url::new_request(url)?;
     capture_request(capture, credential, provider, url, headers.pairs(), &body);
-    let sent = if lines {
+    let sent = if let Some(error) = crate::xai_url::transport_refusal(url) {
+        Err(error)
+    } else if lines {
         proxy::send_scanned(client, url, headers, body, None).await
     } else {
         proxy::send(client, url, headers, body, None).await
