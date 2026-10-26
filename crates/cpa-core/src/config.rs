@@ -62,9 +62,10 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     serde_yaml_ng::from_str(&out)
 }
 
-/// yaml.v3's reading of a plain integer beyond int64 and uint64, written so that
-/// serde_yaml_ng reads the same: a decimal one as its float, any other quoted. `None`
-/// for any other scalar.
+/// yaml.v3's reading of a plain integer beyond int64 and uint64 that serde_yaml_ng
+/// refuses (one that fits u128, or i128 when negative, and is not a decimal with a
+/// leading zero), written so that serde_yaml_ng reads the same: a decimal one as its
+/// float, any other quoted. `None` for any other scalar, which serde_yaml_ng reads.
 fn go_big_integer(text: &str) -> Option<String> {
     let negative = text.starts_with('-');
     let unsigned = text.strip_prefix(['+', '-']).unwrap_or(text);
@@ -74,7 +75,11 @@ fn go_big_integer(text: &str) -> Option<String> {
         Some("0b" | "0B") => (2, &unsigned[2..]),
         _ => (10, unsigned),
     };
-    if digits.is_empty() || !digits.chars().all(|c| c.is_digit(radix)) {
+    if digits.is_empty() || (radix == 10 && digits.len() > 1 && digits.starts_with('0')) {
+        return None;
+    }
+    let magnitude = u128::from_str_radix(digits, radix).ok()?;
+    if negative && magnitude > 1 << 127 {
         return None;
     }
     let fits = if negative {
@@ -1403,9 +1408,29 @@ oauth-excluded-models: {{c: [{numbers}]}}
                 .iter()
                 .all(|v| v.as_f64() == Some(-1.8446744073709552e19))
         );
-        // An anchored one keeps its anchor.
-        let anchored = yaml_value("a: &n 18446744073709551616\nb: *n\n").unwrap();
-        assert_eq!(anchored["b"].as_f64(), Some(1.8446744073709552e19));
+        // An anchored one keeps its anchor, on its line or the line above.
+        for text in [
+            "a: &n 18446744073709551616\nb: *n\n",
+            "a: &n\n  18446744073709551616\nb: *n\n",
+        ] {
+            let anchored = yaml_value(text).unwrap();
+            assert_eq!(anchored["b"].as_f64(), Some(1.8446744073709552e19), "{text}");
+        }
+        // Integers serde_yaml_ng reads are read the same beside one it refuses: past
+        // f64's range the text, as in Go, and a decimal with a leading zero.
+        let huge = format!("1{}", "0".repeat(400));
+        for other in [huge.as_str(), "01000000000000000000000"] {
+            let both = yaml_value(&format!("x: [18446744073709551616, {other}]\n")).unwrap();
+            assert_eq!(
+                both["x"][1],
+                yaml_value(&format!("x: {other}\n")).unwrap()["x"],
+                "{other}"
+            );
+        }
+        assert_eq!(
+            yaml_value(&format!("x: {huge}\n")).unwrap()["x"].as_str(),
+            Some(huge.as_str())
+        );
         let bom = yaml_value("\u{feff}a: [0x1FFFFFFFFFFFFFFFFF, x]\n").unwrap();
         assert_eq!(bom["a"], yaml_value("['0x1FFFFFFFFFFFFFFFFF', x]").unwrap());
         // Go: cannot unmarshal !!float into int.
