@@ -283,6 +283,9 @@ pub(super) fn plain_scalars(text: &str) -> anyhow::Result<Vec<Plain>> {
 /// [`events`], recording each untagged plain scalar in `plain`.
 fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result<Vec<Event>> {
     let nul_escape = text.contains("%00");
+    // libyaml with its encoding set reads a leading BOM as a character, indenting the
+    // first line by one, so it is fed without it and its marks shifted past it.
+    let bom = if text.starts_with('\u{feff}') { 3 } else { 0 };
     struct Parser(Box<MaybeUninit<unsafe_libyaml::yaml_parser_t>>);
     impl Drop for Parser {
         fn drop(&mut self) {
@@ -308,7 +311,7 @@ fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result
         let mut parser = Parser(raw);
         let p = parser.0.as_mut_ptr();
         unsafe_libyaml::yaml_parser_set_encoding(p, unsafe_libyaml::YAML_UTF8_ENCODING);
-        unsafe_libyaml::yaml_parser_set_input_string(p, text.as_ptr(), text.len() as _);
+        unsafe_libyaml::yaml_parser_set_input_string(p, text[bom..].as_ptr(), (text.len() - bom) as _);
         loop {
             let mut event = MaybeUninit::<unsafe_libyaml::yaml_event_t>::uninit();
             // serde_yaml_ng parsed the same text, so this does not fail.
@@ -327,8 +330,6 @@ fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result
                     unsafe_libyaml::YAML_DOCUMENT_START_EVENT => true,
                     _ => false,
                 };
-                // libyaml skips a leading BOM without counting it in its marks.
-                let bom = if text.starts_with('\u{feff}') { 3 } else { 0 };
                 let (start, end) = (
                     event.start_mark.index as usize + bom,
                     event.end_mark.index as usize + bom,
@@ -363,7 +364,7 @@ fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result
                     let value = std::slice::from_raw_parts(s.value, s.length as usize);
                     // The span starts at an anchor; a scalar folded over lines is not
                     // its source.
-                    let end = event.end_mark.index as usize;
+                    let end = event.end_mark.index as usize + bom;
                     if let Some(plain) = plain.as_deref_mut()
                         && s.style == unsafe_libyaml::YAML_PLAIN_SCALAR_STYLE
                         && s.tag.is_null()

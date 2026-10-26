@@ -36,6 +36,9 @@ pub use schema::{coerce_typed_scalars, go_bool, go_int};
 /// literal walk, which reads `text` itself; such a mapping key stays text, as yaml.v3
 /// reads it into a string-keyed map.
 pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
+    // serde_yaml_ng, like libyaml with its encoding set, reads a leading BOM as part of
+    // the first line, which then fails a second top-level key; yaml.v3 skips it.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let parse = |text: &str| serde_yaml_ng::from_str::<Value>(text);
     // Without an underscore or a leading zero, only a failed parse needs a second look.
     let maybe_leading_zero = text
@@ -1601,6 +1604,21 @@ oauth-excluded-models: {{c: [{numbers}]}}
             body_value("1_000", &["server", "github-token"]).unwrap(),
             Value::from("1_000")
         );
+    }
+
+    /// yaml.v3 skips a leading BOM; serde_yaml_ng and libyaml read it as part of the
+    /// first line, so a second top-level key failed the load.
+    #[test]
+    fn a_leading_bom_is_skipped() {
+        let cfg = Config::parse(
+            "\u{feff}server: {github-token: !!binary dG9r}\nrouting: {retry: {request-retry: 3}}\n\
+             x: [18446744073709551616, 007]\n",
+        )
+        .unwrap();
+        assert_eq!(cfg.document["server"]["github-token"].as_str(), Some("tok"));
+        assert_eq!(cfg.routing.retry.request_retry, 3);
+        let x = yaml_value("\u{feff}a: b\nx: [18446744073709551616, 007]\n").unwrap();
+        assert_eq!(x["x"], yaml_value("[1.8446744073709552e19, 7]").unwrap());
     }
 
     /// yaml.v3 reads a plain scalar into any Go string setting as its text, so a setting
