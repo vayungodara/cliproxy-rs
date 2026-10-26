@@ -17,6 +17,7 @@ use cpa_common::gostr::GoStr;
 use cpa_common::json as gj;
 use cpa_common::thinking::{self, ModelCaps, RequestThinking, parse_suffix};
 
+use crate::gemini_stream::ClaudeInputTokens;
 use crate::openai_compat_go as go;
 use crate::openai_compat_http::{self as wire, Clients, GoHeaders};
 use crate::openai_compat_multipart as multipart;
@@ -370,9 +371,12 @@ impl OpenAICompatExecutor {
                     })
                     .boxed();
             }
+            let claude =
+                ClaudeInputTokens::new(req.source_format, Format::OpenAI, req.response_format, original.clone());
             let stream = frames(
                 lines,
                 translator,
+                claude,
                 req.response_format == Format::OpenAIResponse,
                 capture,
                 req.usage.clone(),
@@ -718,6 +722,9 @@ fn trim(bytes: &[u8]) -> &[u8] {
 /// every frame, and the terminal rules for `[DONE]` and EOF.
 struct Frames {
     translator: Box<dyn StreamTranslator>,
+    /// `TranslateStreamWithClaudeInputTokens` (Go f3e36f19): a Claude client's
+    /// `message_start` gets the estimate of its request when the upstream reports none.
+    claude: ClaudeInputTokens,
     responses: bool,
     event: String,
     data: Vec<Vec<u8>>,
@@ -762,7 +769,8 @@ impl Frames {
     /// follows it, so plugin stream hooks run once per line, as in Go.
     fn translate(&mut self, line: &[u8]) -> bool {
         match self.translator.event(line) {
-            Ok(out) => {
+            Ok(mut out) => {
+                self.claude.apply(&mut out);
                 self.ready.extend(out.into_iter().map(Ok));
                 false
             }
@@ -872,12 +880,14 @@ impl Frames {
 fn frames(
     lines: ExecStream,
     translator: Box<dyn StreamTranslator>,
+    claude: ClaudeInputTokens,
     responses: bool,
     capture: wire::Capture,
     usage: cpa_core::exec::UsageSink,
 ) -> ExecStream {
     let state = Frames {
         translator,
+        claude,
         responses,
         event: String::new(),
         data: Vec::new(),
