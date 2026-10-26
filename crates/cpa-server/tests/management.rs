@@ -4946,6 +4946,31 @@ async fn json_numbers_in_string_settings_keep_their_text() {
     .await;
     assert_eq!(status, 200, "{text}");
     assert!(f.file().contains("github-token: 5\n"), "{}", f.file());
+    // An integer beyond 64 bits, which Go reads as its text too.
+    let big = "123456789012345678901234567890";
+    let (status, text) = call(
+        &base,
+        wreq::Method::PUT,
+        "/v8/management/config/server/github-token",
+        big,
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
+    let cfg = cpa_core::config::Config::parse(&f.file()).unwrap();
+    assert_eq!(
+        cfg.document["server"]["github-token"].as_str(),
+        Some(big),
+        "{}",
+        f.file()
+    );
+    let (status, text) = call(
+        &base,
+        wreq::Method::PUT,
+        "/v8/management/config/server/github-token",
+        "5",
+    )
+    .await;
+    assert_eq!(status, 200, "{text}");
     let (_, view) = call(
         &base,
         wreq::Method::GET,

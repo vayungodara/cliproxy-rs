@@ -261,6 +261,21 @@ enum Event {
 /// Fails on a tagged node or a document start whose source contains `%00`: libyaml
 /// cuts a tag at the NUL, so its tag would not be the one Go reads.
 fn events(text: &str) -> anyhow::Result<Vec<Event>> {
+    events_with(text, None)
+}
+
+/// Each untagged plain scalar of `text`: its byte span and its value.
+pub(super) fn plain_scalars(text: &str) -> anyhow::Result<Vec<(std::ops::Range<usize>, Vec<u8>)>> {
+    let mut out = Vec::new();
+    events_with(text, Some(&mut out))?;
+    Ok(out)
+}
+
+/// [`events`], recording each untagged plain scalar in `plain`.
+fn events_with(
+    text: &str,
+    mut plain: Option<&mut Vec<(std::ops::Range<usize>, Vec<u8>)>>,
+) -> anyhow::Result<Vec<Event>> {
     let nul_escape = text.contains("%00");
     struct Parser(Box<MaybeUninit<unsafe_libyaml::yaml_parser_t>>);
     impl Drop for Parser {
@@ -319,6 +334,18 @@ fn events(text: &str) -> anyhow::Result<Vec<Event>> {
             let next = match kind {
                 unsafe_libyaml::YAML_SCALAR_EVENT => {
                     let s = &event.data.scalar;
+                    let value = std::slice::from_raw_parts(s.value, s.length as usize);
+                    // The span starts at an anchor; a scalar folded over lines is not
+                    // its source.
+                    let end = event.end_mark.index as usize;
+                    if let Some(plain) = plain.as_deref_mut()
+                        && s.style == unsafe_libyaml::YAML_PLAIN_SCALAR_STYLE
+                        && s.tag.is_null()
+                        && let Some(start) = end.checked_sub(value.len())
+                        && text.as_bytes().get(start..end) == Some(value)
+                    {
+                        plain.push((start..end, value.to_vec()));
+                    }
                     Some(Event::Scalar {
                         anchor: bytes(s.anchor),
                         tag: bytes(s.tag),

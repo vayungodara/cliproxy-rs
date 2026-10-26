@@ -59,7 +59,7 @@ pub fn load_scan_filters(path: &str) -> Result<(Vec<String>, Vec<String>), Strin
     let Ok(text) = std::fs::read_to_string(&path) else {
         return Ok(Default::default());
     };
-    if serde_yaml_ng::from_str::<Yaml>(&text).is_err() {
+    if cpa_core::config::parse_yaml(&text).is_err() {
         return Ok(Default::default());
     }
     let refused = |e: anyhow::Error| format!("discovery interface filters in {}: {e}", path.display());

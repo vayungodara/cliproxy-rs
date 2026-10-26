@@ -1048,7 +1048,10 @@ fn config_sync_locked(
             let t = l.trim();
             !t.is_empty() && !t.starts_with('#') && t != "---" && t != "..."
         });
-        let mut value = match serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(body) {
+        let parsed = std::str::from_utf8(body)
+            .map_err(|_| ())
+            .and_then(|t| cpa_core::config::parse_yaml(t).map_err(drop));
+        let mut value = match parsed {
             Ok(v) if has_document => v,
             _ => return error(400, "invalid_body"),
         };
