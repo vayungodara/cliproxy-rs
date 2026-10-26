@@ -30,15 +30,20 @@ pub use schema::{coerce_typed_scalars, go_bool, go_int};
 /// `text` parsed as serde_yaml_ng does, except for plain scalars it reads otherwise
 /// than yaml.v3: an integer beyond int64 and uint64, which serde_yaml_ng refuses when
 /// it fits 128 bits (yaml.v3 reads a decimal one as a float and any other, `0x…` or
-/// `0o…`, as text), and a number with underscores (`1_000`), which serde_yaml_ng reads
-/// as text and yaml.v3 as the number without them. Those scalars are read as yaml.v3
-/// reads them. A string setting still gets the scalar's text from the literal walk,
-/// which reads `text` itself; a mapping key with underscores stays text, as yaml.v3
+/// `0o…`, as text), and a number with underscores (`1_000`) or a leading zero (`007`,
+/// `08`), which serde_yaml_ng reads as text and yaml.v3 as a number. Those scalars are
+/// read as yaml.v3 reads them. A string setting still gets the scalar's text from the
+/// literal walk, which reads `text` itself; such a mapping key stays text, as yaml.v3
 /// reads it into a string-keyed map.
 pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     let parse = |text: &str| serde_yaml_ng::from_str::<Value>(text);
-    // Without an underscore, only a failed parse needs a second look.
-    let err = if text.contains('_') {
+    // Without an underscore or a leading zero, only a failed parse needs a second look.
+    let maybe_leading_zero = text
+        .as_bytes()
+        .windows(3)
+        .any(|w| w[1] == b'0' && w[2].is_ascii_digit() && !(w[0].is_ascii_alphanumeric() || w[0] == b'.'))
+        || text.starts_with('0');
+    let err = if text.contains('_') || maybe_leading_zero {
         None
     } else {
         match parse(text) {
@@ -63,8 +68,10 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
         let Ok(scalar) = std::str::from_utf8(&plain.value) else {
             continue;
         };
-        let read = if scalar.contains('_') {
-            (!plain.key).then(|| go_underscored(scalar)).flatten()
+        let unsigned = scalar.strip_prefix(['+', '-']).unwrap_or(scalar).as_bytes();
+        let leading_zero = unsigned.first() == Some(&b'0') && unsigned.get(1).is_some_and(u8::is_ascii_digit);
+        let read = if scalar.contains('_') || leading_zero {
+            (!plain.key).then(|| go_resolved(scalar)).flatten()
         } else {
             go_big_integer(scalar)
         };
@@ -82,12 +89,13 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     parse(&out)
 }
 
-/// yaml.v3's reading of a plain scalar with underscores (its `resolve`), written so
-/// that serde_yaml_ng reads the same; `None` where yaml.v3 reads text. A scalar that
+/// yaml.v3's reading of a plain scalar with underscores or a leading zero (its
+/// `resolve`), written so that serde_yaml_ng reads the same; `None` where yaml.v3 reads
+/// text or a timestamp (`0001-01-01`), which serde_yaml_ng reads as text. A scalar that
 /// starts with a digit or sign drops its underscores and reads as an integer (`0x`,
 /// `0o`, `0b` or a leading `0` for octal), else as a float in YAML's float syntax; one
 /// that starts with `.` reads as a float when each underscore sits between digits.
-fn go_underscored(text: &str) -> Option<String> {
+fn go_resolved(text: &str) -> Option<String> {
     let plain = text.replace('_', "");
     let float = |s: &str| {
         let f = go_yaml_float(s)?;
@@ -1529,7 +1537,9 @@ oauth-excluded-models: {{c: [{numbers}]}}
     }
 
     /// yaml.v3 (v3.0.1, Go 1.26.4) drops a plain number's underscores before resolving
-    /// it; serde_yaml_ng read each of these as text.
+    /// it and reads a leading zero as octal (or decimal, failing that); serde_yaml_ng
+    /// read each of these as text. A timestamp stays text, as Go's `time.Time` has no
+    /// config setting.
     #[test]
     fn underscore_numbers_read_as_in_go() {
         let go: [(&str, Value); 20] = [
@@ -1554,21 +1564,39 @@ oauth-excluded-models: {{c: [{numbers}]}}
             ("._5", "._5".into()),
             ("0x1_FFFF_FFFF_FFFF_FFFF_FF", "0x1_FFFF_FFFF_FFFF_FFFF_FF".into()),
         ];
+        let leading_zero: [(&str, Value); 11] = [
+            ("007", 7.into()),
+            ("-007", (-7).into()),
+            ("00", 0.into()),
+            ("08", 8.0.into()),
+            ("09.5", 9.5.into()),
+            ("07e1", 70.0.into()),
+            ("01000000000000000000000", 9223372036854775808u64.into()),
+            ("01777777777777777777777", u64::MAX.into()),
+            ("02000000000000000000000", 2e21.into()),
+            ("0111111111111111111111111", 1.1111111111111111e23.into()),
+            ("0001-01-01", "0001-01-01".into()),
+        ];
+        let go = go.into_iter().chain(leading_zero).collect::<Vec<_>>();
         let list = go.iter().map(|(text, _)| *text).collect::<Vec<_>>().join(", ");
         let any = yaml_value(&format!("x: [{list}]\n")).unwrap();
         for ((text, want), got) in go.iter().zip(any["x"].as_sequence().unwrap()) {
             assert_eq!(got, want, "{text}");
         }
+        // Without an underscore in the file too.
+        assert_eq!(yaml_value("x: 007\n").unwrap()["x"], Value::from(7));
+        assert_eq!(yaml_value("007").unwrap(), Value::from(7));
         // A string setting keeps the text, an int setting gets the number, and a key
         // stays text, as yaml.v3 reads it into a string-keyed map.
         let cfg = Config::parse(
             "server: {github-token: 1_000}\nrouting: {retry: {request-retry: 1_0}}\n\
-             oauth-excluded-models: {1_0: [a]}\n",
+             oauth-excluded-models: {1_0: [a], 007: [b]}\n",
         )
         .unwrap();
         assert_eq!(cfg.document["server"]["github-token"].as_str(), Some("1_000"));
         assert_eq!(cfg.routing.retry.request_retry, 10);
         assert!(cfg.document["oauth"]["excluded-models"].get("1_0").is_some());
+        assert!(cfg.document["oauth"]["excluded-models"].get("007").is_some());
         assert_eq!(
             body_value("1_000", &["server", "github-token"]).unwrap(),
             Value::from("1_000")
