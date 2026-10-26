@@ -23,7 +23,7 @@ Columns:
 | Payload rules | 1 | 1 | 0 | 0 | 0 | 0 |
 | Codex | 19 | 18 | 1 | 0 | 0 | 0 |
 | Gemini, Vertex and AI Studio | 20 | 17 | 2 | 0 | 1 | 0 |
-| xAI | 8 | 2 | 6 | 0 | 0 | 0 |
+| xAI | 8 | 3 | 5 | 0 | 0 | 0 |
 | OpenAI-compatible and Responses translation | 6 | 3 | 3 | 0 | 0 | 0 |
 | Devin and Meta | 8 | 0 | 8 | 0 | 0 | 0 |
 | Credentials, selection and cooldowns | 22 | 9 | 11 | 0 | 2 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **135** | **86** | **0** | **64** | **3** |
+| **All** | **288** | **136** | **85** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -195,7 +195,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`90654da5`](https://github.com/router-for-me/CLIProxyAPI/commit/90654da5) | feat(xai): dynamically fetch latest Grok CLI version from npm registry with fallback | yes | to port | M (+200 −3) | Grok CLI version fetched from npm at startup |
 | [`34e73c75`](https://github.com/router-for-me/CLIProxyAPI/commit/34e73c75) | fix(xai): add proxy support and semver validation to Grok CLI updater | yes | to port | M (+131 −32) | proxy and semver checks for the version fetch |
 | [`76c87ce9`](https://github.com/router-for-me/CLIProxyAPI/commit/76c87ce9) | fix(xai): reset terminal error on websocket connection configuration | yes | to port | S (+1 −0) | WebSocket terminal error reset |
-| [`bbfd7886`](https://github.com/router-for-me/CLIProxyAPI/commit/bbfd7886) | fix(xai): drop web_search options the Responses API rejects | yes | to port | S (+31 −5) | drop web_search options the Responses API rejects |
+| [`bbfd7886`](https://github.com/router-for-me/CLIProxyAPI/commit/bbfd7886) | fix(xai): drop web_search options the Responses API rejects | yes | ported here | S (+31 −5) | `xai_request` drops `external_web_access` and `search_context_size` from every web_search tool, including tools inside a namespace, and forwards the other options. Checked by the xAI v8.0.35 scenarios `web_search_unsupported_options` (Go's TestXAIExecutorPrepareStripsUnsupportedWebSearchOptions input) and `web_search_context_size_only_stream`. |
 | [`45ccd9c3`](https://github.com/router-for-me/CLIProxyAPI/commit/45ccd9c3) | fix(openai): preserve model prefix when routing xAI image requests | yes | to port | M (+70 −14) | preserve model prefix when routing xAI image requests |
 
 ## OpenAI-compatible and Responses translation

@@ -986,9 +986,15 @@ fn normalize_tool(tool: &Res<'_>, namespace: &str, keep_image: bool) -> Option<(
         tool_type = FUNCTION.into();
         changed = true;
     }
-    if tool_type == WEB_SEARCH && tool.get("external_web_access").exists() {
-        raw = gj::try_delete(&raw, "external_web_access").ok()?;
-        changed = true;
+    if tool_type == WEB_SEARCH {
+        // web_search options the xAI Responses API rejects with "Argument not
+        // supported" (Go bbfd7886); the ones it accepts are forwarded as is.
+        for field in ["external_web_access", "search_context_size"] {
+            if gj::get(&raw, field).exists() {
+                raw = gj::try_delete(&raw, field).ok()?;
+                changed = true;
+            }
+        }
     }
     let schema = gj::parse(&schema);
     if tool_type == FUNCTION && !schema.get("parameters").exists() {

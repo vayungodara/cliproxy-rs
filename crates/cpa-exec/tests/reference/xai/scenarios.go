@@ -251,6 +251,16 @@ func scenarios() []scenario {
 		{Name: "allowed_tools_web_search_mixed", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
 			Config:  "xai:\n  inject-x-search: true\n",
 			Payload: `{"model":"grok-4.3","input":"find","tools":[{"type":"web_search"},{"type":"function","name":"f","parameters":{"type":"object","properties":{}}}],"tool_choice":{"type":"allowed_tools","mode":"required","tools":[{"type":"web_search"},{"type":"function","name":"f"},{"type":"function","name":"gone"}]}}`, Upstream: textTurn("grok-4.3")},
+		// bbfd7886: web_search options xAI rejects (external_web_access,
+		// search_context_size) are dropped, top level and inside a namespace; the
+		// options it accepts stay. The first is Go's
+		// TestXAIExecutorPrepareStripsUnsupportedWebSearchOptions.
+		{Name: "web_search_unsupported_options", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
+			Payload:  `{"model":"grok-4.3","input":[{"role":"user","content":"hello"}],"tools":[{"type":"web_search","external_web_access":true,"search_context_size":"high","search_content_types":["text","image"],"user_location":{"type":"approximate","country":"NL"},"filters":{"allowed_domains":["github.com"]}},{"type":"namespace","name":"research","description":"Research tools.","tools":[{"type":"web_search","search_context_size":"low"}]}]}`,
+			Upstream: textTurn("grok-4.3")},
+		{Name: "web_search_context_size_only_stream", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "stream",
+			Payload:  `{"model":"grok-4.3","stream":true,"input":"find","tools":[{"search_context_size":"medium","type":"web_search","user_location":{"type":"approximate","city":"Utrecht"}},{"type":"function","name":"search_context_size","parameters":{"type":"object","properties":{"search_context_size":{"type":"string"}}}}]}`,
+			Upstream: textTurn("grok-4.3")},
 		{Name: "orphaned_tool_choice_dropped", ConfigAuth: -1, Attributes: apiKey, Model: "grok-4.3", Source: "openai-response", Op: "execute",
 			Config:  "xai:\n  inject-x-search: true\n",
 			Payload: `{"model":"grok-4.3","input":"hi","tools":[{"type":"tool_search"}],"tool_choice":{"type":"function","name":"missing"},"parallel_tool_calls":true}`, Upstream: textTurn("grok-4.3")},
