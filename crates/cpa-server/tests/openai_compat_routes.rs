@@ -13,11 +13,13 @@ use cpa_exec::Executors;
 use cpa_exec::claude::ClaudeExecutor;
 use cpa_server::router;
 
-/// Requests seen, and the compact failure to answer with (`None` answers `{"ok":true}`).
+/// Requests seen, the compact failure to answer with (`None` answers `{"ok":true}`),
+/// and the SSE body to stream (`None` streams `CHUNK` and `[DONE]`).
 #[derive(Default)]
 struct Seen(
     Mutex<Vec<(String, Option<String>, String)>>,
     Mutex<Option<(u16, &'static str)>>,
+    Mutex<Option<String>>,
 );
 
 const CHAT: &str = r#"{"id":"c1","object":"chat.completion","created":1,"model":"up-model","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}"#;
@@ -46,7 +48,8 @@ async fn upstream(State(seen): State<Arc<Seen>>, req: Request) -> Response {
         };
     }
     if stream {
-        let sse = format!("data: {CHUNK}\n\ndata: [DONE]\n\n");
+        let sse = seen.2.lock().unwrap().clone();
+        let sse = sse.unwrap_or_else(|| format!("data: {CHUNK}\n\ndata: [DONE]\n\n"));
         ([("content-type", "text/event-stream")], Bytes::from(sse)).into_response()
     } else {
         ([("content-type", "application/json")], CHAT).into_response()
@@ -166,6 +169,37 @@ async fn streaming_requests_usage_and_ends_with_done() {
         body,
         r#"{"model":"up-model","stream":true,"messages":[{"role":"user","content":"hi"}],"stream_options":{"include_usage":true}}"#
     );
+}
+
+/// Go 97dd9eec (`openai_handlers_stream_truncation_test.go`): a stream that closes
+/// cleanly before any chunk carried a `finish_reason` ends with a 502 error frame
+/// instead of `[DONE]`, on Chat Completions and legacy Completions. Expected bodies come
+/// from Go's handlers (tests/reference/stream_truncation).
+#[tokio::test]
+async fn a_stream_without_a_finish_reason_ends_with_an_error() {
+    let fixture: serde_json::Value = serde_json::from_str(include_str!("fixtures/stream_truncation_go.json")).unwrap();
+    let cases = fixture.as_array().unwrap();
+    assert_eq!(cases.len(), 16);
+    let (url, seen) = proxy().await;
+    for case in cases {
+        let name = case["name"].as_str().unwrap();
+        let path = case["path"].as_str().unwrap();
+        let sse: String = case["chunks"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| format!("data: {}\n\n", c.as_str().unwrap()))
+            .collect();
+        *seen.2.lock().unwrap() = Some(sse);
+        let body = if path == "/v1/completions" {
+            r#"{"model":"fast","prompt":"hi","stream":true}"#
+        } else {
+            r#"{"model":"fast","messages":[{"role":"user","content":"hi"}],"stream":true}"#
+        };
+        let (status, text) = send(&url, path, &[], body.into()).await;
+        assert_eq!(status, 200, "{name}: {text}");
+        assert_eq!(text, case["out"].as_str().unwrap(), "{name}");
+    }
 }
 
 async fn send(url: &str, path: &str, headers: &[(&str, &str)], body: Vec<u8>) -> (u16, String) {
