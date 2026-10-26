@@ -26,12 +26,57 @@ pub use document::{ConfigDocument, archive_comments, credential_error, is_v8_lay
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
 
+/// More integers beyond 64 bits than a config has; [`parse_yaml`] parses once per each.
+const MAX_BIG_INTEGERS: usize = 64;
+
+/// `text` parsed as serde_yaml_ng does, except for a plain integer beyond int64 and
+/// uint64, which serde_yaml_ng refuses when it fits 128 bits. yaml.v3 reads a decimal
+/// one as a float and any other (`0x…`, `0o…`) as text, so that scalar is read so. A
+/// string setting still gets the integer's text from the literal walk, which reads
+/// `text` itself.
+pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
+    let mut text = std::borrow::Cow::Borrowed(text);
+    for _ in 0..=MAX_BIG_INTEGERS {
+        let err = match serde_yaml_ng::from_str::<Value>(&text) {
+            Ok(value) => return Ok(value),
+            Err(err) => err,
+        };
+        let message = err.to_string();
+        let at = err
+            .location()
+            .map(|l| l.index())
+            .filter(|_| message.contains(" as u128,") || message.contains(" as i128,"));
+        let Some((at, rest)) = at.and_then(|at| Some((at, text.get(at..)?))) else {
+            return Err(err);
+        };
+        let end = at
+            + rest
+                .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '+' | '-')))
+                .unwrap_or(rest.len());
+        let literal = &text[at..end];
+        let value = if literal
+            .trim_start_matches(['+', '-'])
+            .bytes()
+            .all(|b| b.is_ascii_digit() || b == b'_')
+        {
+            match literal.replace('_', "").parse::<f64>() {
+                Ok(f) => format!("{f:e}"),
+                Err(_) => return Err(err),
+            }
+        } else {
+            format!("'{literal}'")
+        };
+        text.to_mut().replace_range(at..end, &value);
+    }
+    serde_yaml_ng::from_str::<Value>(&text)
+}
+
 /// A config text with its tagged scalars as yaml.v3 decodes them (`!!binary` values
 /// base64-decoded, aliases of them included), merges not yet expanded. The management
 /// document reads config text through here and the loader through [`config_value`], so
 /// a view or a save candidate sees the tagged values the loader sees.
 pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
-    let mut value = serde_yaml_ng::from_str::<Value>(text)?;
+    let mut value = parse_yaml(text)?;
     binary::decode(text, &mut value, None, false)?;
     Ok(value)
 }
@@ -41,7 +86,7 @@ pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
 /// number or boolean. The management views keep [`yaml_value`]'s YAML types, as Go's
 /// read the file's nodes.
 pub fn config_value(text: &str) -> anyhow::Result<Value> {
-    let mut value = serde_yaml_ng::from_str::<Value>(text)?;
+    let mut value = parse_yaml(text)?;
     binary::decode(text, &mut value, Some(&[]), false)?;
     Ok(value)
 }
@@ -71,7 +116,7 @@ pub fn body_value(text: &str, keys: &[&str]) -> anyhow::Result<Value> {
             _ => {}
         }
     }
-    let parsed = serde_yaml_ng::from_str::<Value>(text)?;
+    let parsed = parse_yaml(text)?;
     let mut value = parsed.clone();
     binary::decode(text, &mut value, Some(keys), true)?;
     keep_written(&mut value, parsed);
@@ -309,7 +354,7 @@ fn persist_secret_hash(path: &Path, text: &str, hash: &str) -> anyhow::Result<()
 /// comments; Go keeps the node comments.
 fn with_secret_hash(text: &str, hash: &str) -> anyhow::Result<String> {
     let expanded = |t: &str| -> anyhow::Result<Value> {
-        let mut root: Value = serde_yaml_ng::from_str(t)?;
+        let mut root: Value = parse_yaml(t)?;
         expand_merges(&mut root)?;
         Ok(root)
     };
@@ -318,7 +363,7 @@ fn with_secret_hash(text: &str, hash: &str) -> anyhow::Result<String> {
     let v8 = lookup(mapping, "management.secret-key").is_some();
     let parent = if v8 { "management" } else { "remote-management" };
     // In place only over a literal key: an inherited one would stay in the merge.
-    let literal = serde_yaml_ng::from_str::<Value>(text)
+    let literal = parse_yaml(text)
         .ok()
         .and_then(|raw| raw.get(parent)?.as_mapping()?.get("secret-key").cloned())
         .is_some();
@@ -588,7 +633,7 @@ fn scalar_texts(text: &str) -> anyhow::Result<Value> {
         }
     }
     use serde::Deserialize as _;
-    let shape: Value = serde_yaml_ng::from_str(text)?;
+    let shape: Value = parse_yaml(text)?;
     Ok(Shaped(&shape).deserialize(serde_yaml_ng::Deserializer::from_str(text))?)
 }
 
@@ -1256,6 +1301,29 @@ oauth-excluded-models: {{c: [{numbers}]}}
         .unwrap();
         assert_eq!(doc["x"][1 << 20], Value::from(0));
         assert_eq!(doc["oauth-excluded-models"]["c"][1 << 20], Value::from("0"));
+    }
+
+    /// yaml.v3 (v8.0.35) reads a plain integer beyond int64 and uint64 as a float when it
+    /// is decimal and as text otherwise, and a string setting as its text; serde_yaml_ng
+    /// refused one that fits 128 bits, failing the load.
+    #[test]
+    fn integers_beyond_64_bits_read_as_in_go() {
+        let token = "123456789012345678901234567890";
+        let cfg = Config::parse(&format!("server:\n  github-token: {token}\n")).unwrap();
+        assert_eq!(cfg.document["server"]["github-token"].as_str(), Some(token));
+        assert_eq!(
+            body_value(token, &["server", "github-token"]).unwrap(),
+            Value::from(token)
+        );
+        let any = yaml_value("x: [18446744073709551616, -9223372036854775809, 0x1FFFFFFFFFFFFFFFFF]\n").unwrap();
+        let want: Vec<Value> = vec![
+            1.8446744073709552e19.into(),
+            (-9.223372036854776e18).into(),
+            "0x1FFFFFFFFFFFFFFFFF".into(),
+        ];
+        assert_eq!(any["x"].as_sequence().unwrap(), &want);
+        // Go: cannot unmarshal !!float into int.
+        assert!(Config::parse("routing: {retry: {request-retry: 18446744073709551616}}\n").is_err());
     }
 
     /// yaml.v3 reads a plain scalar into any Go string setting as its text, so a setting

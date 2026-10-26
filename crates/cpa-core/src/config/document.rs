@@ -382,7 +382,7 @@ impl ConfigDocument {
             old: "api-keys",
             new: "access.api-keys",
         }];
-        let legacy_client_keys = serde_yaml_ng::from_str::<Value>(original)
+        let legacy_client_keys = super::parse_yaml(original)
             .ok()?
             .get("api-keys")
             .is_some_and(|v| !v.is_mapping());

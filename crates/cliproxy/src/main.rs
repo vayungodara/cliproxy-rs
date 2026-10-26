@@ -500,8 +500,8 @@ fn runtime(config: Option<&Path>) -> io::Result<tokio::runtime::Runtime> {
 
 /// `worker-threads` as written in `path`, if any.
 fn configured_workers(path: &Path) -> Option<u64> {
-    let raw = std::fs::read(path).ok()?;
-    let doc = serde_yaml_ng::from_slice::<serde_yaml_ng::Value>(&raw).ok()?;
+    let raw = std::fs::read_to_string(path).ok()?;
+    let doc = cpa_core::config::parse_yaml(&raw).ok()?;
     doc.get("worker-threads")?.as_u64()
 }
 
