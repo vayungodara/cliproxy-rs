@@ -512,6 +512,9 @@ impl ConfigDocument {
     /// block values at the root); anything the syntax tree cannot express falls back
     /// to a full block re-emit that keeps the head comment only.
     pub fn render_preserving(&self, original: &str) -> anyhow::Result<String> {
+        // Go's save writes its parsed nodes, which drops a leading BOM; the edit reads
+        // the text after it, so its comments stay.
+        let original = original.strip_prefix('\u{feff}').unwrap_or(original);
         // A number a JSON body set in a string setting reads back as its text.
         let mut expected = self.0.clone();
         super::binary::as_reread(&mut expected);
