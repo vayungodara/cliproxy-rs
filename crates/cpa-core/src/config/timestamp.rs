@@ -86,16 +86,29 @@ pub(super) fn go_timestamp(text: &str) -> Option<String> {
     Some(format!("{time}{zone}"))
 }
 
-/// Why [`super::parse_yaml`] refuses a timestamp with a zone offset of 24 hours or more,
-/// which Go reads but cannot marshal as JSON (`time.Time.MarshalJSON`), so its payload
-/// rules skip it and its JSON views fail.
-pub(super) const WIDE_OFFSET: &str =
+const WIDE_OFFSET: &str =
     "a timestamp in the config file has a zone offset of 24 hours or more, which is not supported";
 
-/// Whether `time`, as [`go_timestamp`] writes it, has a zone offset of 24 hours or more.
-pub(super) fn wide_offset(time: &str) -> bool {
-    let b = time.as_bytes();
-    b.len() > 6 && matches!(b[b.len() - 6], b'+' | b'-') && &time[b.len() - 5..] >= "24:00"
+/// Refuses a [`TAG`] value with a zone offset of 24 hours or more, which Go reads but
+/// cannot marshal as JSON (`time.Time.MarshalJSON`), so its payload rules skip it and its
+/// JSON views fail. Part of the config decode, not of [`super::parse_yaml`], whose
+/// callers read only their own settings, as Go's do.
+pub(super) fn refuse_wide_offsets(value: &serde_yaml_ng::Value) -> anyhow::Result<()> {
+    use serde_yaml_ng::Value;
+    match value {
+        Value::Tagged(t) if t.tag == TAG => {
+            let wide = |time: &str| {
+                let b = time.as_bytes();
+                b.len() > 6 && matches!(b[b.len() - 6], b'+' | b'-') && &time[b.len() - 5..] >= "24:00"
+            };
+            anyhow::ensure!(!t.value.as_str().is_some_and(wide), WIDE_OFFSET);
+        }
+        Value::Tagged(t) => refuse_wide_offsets(&t.value)?,
+        Value::Sequence(items) => items.iter().try_for_each(refuse_wide_offsets)?,
+        Value::Mapping(m) => m.values().try_for_each(refuse_wide_offsets)?,
+        _ => {}
+    }
+    Ok(())
 }
 
 /// Go's `getnum` without a fixed width: one digit, or two.
@@ -122,7 +135,9 @@ impl serde::Serialize for AsJson<'_> {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         use serde_yaml_ng::Value;
         match self.0 {
-            Value::Tagged(t) if t.tag == TAG => t.value.serialize(s),
+            // A `time.Time`; other tags print their value too (yaml.v3 decodes a
+            // local tag into `any` as the node's value).
+            Value::Tagged(t) => AsJson(&t.value).serialize(s),
             Value::Sequence(items) => s.collect_seq(items.iter().map(AsJson)),
             Value::Mapping(m) => s.collect_map(m.iter().map(|(k, v)| (k, AsJson(v)))),
             other => other.serialize(s),

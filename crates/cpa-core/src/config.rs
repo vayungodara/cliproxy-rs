@@ -68,9 +68,6 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
         let (Some(read), Some(before)) = (read, text.get(last..plain.span.start)) else {
             continue;
         };
-        if read.starts_with(timestamp::TAG) && timestamp::wide_offset(&read) {
-            return Err(serde::de::Error::custom(timestamp::WIDE_OFFSET));
-        }
         out.push_str(before);
         out.push_str(&read);
         last = plain.span.end;
@@ -136,13 +133,13 @@ fn may_resolve(text: &str) -> bool {
             .any(|w| zero(&w[1..]) && !(w[0].is_ascii_alphanumeric() || w[0] == b'.'))
 }
 
-/// Whether `value` holds a string that may be a plain timestamp, or a [`TIMESTAMP_TAG`]
-/// value; mapping keys keep their text.
+/// Whether `value` holds a string, key or value, that may be a plain timestamp, or a
+/// [`TIMESTAMP_TAG`] value.
 fn has_timestamp(value: &Value) -> bool {
     match value {
         Value::String(s) => timestamp::go_timestamp(s).is_some(),
         Value::Sequence(items) => items.iter().any(has_timestamp),
-        Value::Mapping(m) => m.values().any(has_timestamp),
+        Value::Mapping(m) => m.iter().any(|(k, v)| has_timestamp(k) || has_timestamp(v)),
         Value::Tagged(t) => t.tag == timestamp::TAG || has_timestamp(&t.value),
         _ => false,
     }
@@ -153,7 +150,8 @@ fn has_timestamp(value: &Value) -> bool {
 /// serde_yaml_ng would refuse it.
 fn go_read(scalar: &str, key: bool) -> Option<String> {
     if !key && let Some(time) = timestamp::go_timestamp(scalar) {
-        return Some(format!("{} {time}", timestamp::TAG));
+        // Verbatim, so a `%TAG !` directive cannot redefine it.
+        return Some(format!("!<{}> {time}", timestamp::TAG));
     }
     let unsigned = scalar.strip_prefix(['+', '-']).unwrap_or(scalar).as_bytes();
     let leading_zero = unsigned.first() == Some(&b'0')
@@ -305,6 +303,7 @@ fn go_big_integer(text: &str) -> Option<String> {
 /// a view or a save candidate sees the tagged values the loader sees.
 pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
     let mut value = parse_yaml(text)?;
+    timestamp::refuse_wide_offsets(&value)?;
     binary::decode(text, &mut value, None, binary::Mode::File)?;
     Ok(value)
 }
@@ -315,6 +314,7 @@ pub fn yaml_value(text: &str) -> anyhow::Result<Value> {
 /// read the file's nodes.
 pub fn config_value(text: &str) -> anyhow::Result<Value> {
     let mut value = parse_yaml(text)?;
+    timestamp::refuse_wide_offsets(&value)?;
     binary::decode(text, &mut value, Some(&[]), binary::Mode::File)?;
     Ok(value)
 }
@@ -1791,9 +1791,43 @@ oauth-excluded-models: {{c: [{numbers}]}}
         assert!(saved.contains(hash), "{saved}");
         let prepared = prepared_for_upload("management: {secret-key: plain}\nx: [2001-12-14]\n").unwrap();
         assert!(prepared.contains("$2"), "{prepared}");
-        // Go cannot marshal an offset of 24 hours or more as JSON.
-        let wide = yaml_value("x: 2001-12-14T21:59:43+24:00\n").unwrap_err();
-        assert!(format!("{wide:#}").contains("24 hours"), "{wide:#}");
+        // Folded over lines, under a `%TAG !` directive, and inside a local tag, which
+        // Go's `any` prints as its value (all recorded with yaml.v3).
+        for (text, want) in [
+            (
+                "x: 2001-12-14\n  21:59:43\n",
+                serde_json::json!({"x": "2001-12-14T21:59:43Z"}),
+            ),
+            (
+                "x: [2001-12-14\n  21:59:43]\n",
+                serde_json::json!({"x": ["2001-12-14T21:59:43Z"]}),
+            ),
+            (
+                "%TAG ! tag:example.com,2000:\n---\nx: 2001-12-14\n",
+                serde_json::json!({"x": "2001-12-14T00:00:00Z"}),
+            ),
+            (
+                "x: !y {at: 2001-12-14}\n",
+                serde_json::json!({"x": {"at": "2001-12-14T00:00:00Z"}}),
+            ),
+        ] {
+            let json = serde_json::to_value(AsJson(&yaml_value(text).unwrap())).unwrap();
+            assert_eq!(json, want, "{text}");
+        }
+        let directive = yaml_value("%TAG ! tag:example.com,2000:\n---\nx: 2001-12-14\n").unwrap();
+        assert!(
+            matches!(&directive["x"], Value::Tagged(t) if t.tag == TIMESTAMP_TAG),
+            "{directive:?}"
+        );
+        // A string key that reads as a timestamp is quoted, as Go's Marshal quotes it.
+        let key = yaml_string(&yaml_value("{'2001-12-14': a}").unwrap()).unwrap();
+        assert_eq!(key, "\"2001-12-14\": a\n");
+        // Go cannot marshal an offset of 24 hours or more as JSON. The config decode
+        // refuses it; a reader of other settings, such as discovery's, still parses.
+        let wide = "x: 2001-12-14T21:59:43+24:00\n";
+        let err = yaml_value(wide).unwrap_err();
+        assert!(format!("{err:#}").contains("24 hours"), "{err:#}");
+        assert!(config_value(wide).is_err() && parse_yaml(wide).is_ok());
     }
 
     /// yaml.v3 skips a leading BOM; serde_yaml_ng and libyaml read it as part of the
