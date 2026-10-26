@@ -108,7 +108,7 @@ pub fn overlay(raw: &[u8], base: Option<&Config>) -> anyhow::Result<Config> {
         Some(Yaml::Bool(true)),
     );
     set(&mut doc, &["plugins", "store-auth"], None);
-    let mut cfg = Config::parse(&serde_yaml_ng::to_string(&doc)?)?;
+    let mut cfg = Config::parse(&cpa_core::config::yaml_string(&doc)?)?;
     // Go hands plugins their raw nodes from Home's text; the overlay leaves them as sent.
     cfg.plugin_configs = parsed.plugin_configs;
     Ok(cfg)

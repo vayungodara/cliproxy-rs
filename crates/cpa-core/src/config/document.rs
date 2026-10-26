@@ -368,7 +368,7 @@ impl ConfigDocument {
         self.0
     }
     pub fn yaml(&self) -> anyhow::Result<String> {
-        Ok(serde_yaml_ng::to_string(&self.0)?)
+        Ok(super::yaml_string(&self.0)?)
     }
 
     /// Comment-preserving v8 text of `original`: legacy root entries move under their
@@ -825,7 +825,7 @@ fn sync_mapping(dst: &yaml_edit::Mapping, src: &Mapping, before: &Mapping) -> an
             let text = match value {
                 Value::Mapping(m) if !m.is_empty() => super::text::emit_value(value),
                 Value::Sequence(s) if !s.is_empty() => super::text::emit_value(value),
-                _ => serde_yaml_ng::to_string(value)?,
+                _ => super::yaml_string(value)?,
             };
             let parsed: yaml_edit::Document = text.parse()?;
             if let Some(map) = parsed.as_mapping() {
@@ -1213,6 +1213,30 @@ mod tests {
         assert_eq!(
             view.value()["oauth"]["model-alias"]["codex"][0]["name"],
             Value::from(31)
+        );
+    }
+
+    /// A re-emitted section keeps a string that would read as a number when plain
+    /// (`1_000`, `007`): it is quoted, so the save's round-trip check passes and the
+    /// value stays a string, as in Go.
+    #[test]
+    fn re_emitted_number_like_strings_stay_strings() {
+        let original = "requests:\n  payload:\n    default: []\n";
+        let mut doc = ConfigDocument::parse(original).unwrap();
+        let params = "[{models: [{name: m}], params: {a: '1_000', b: '007', c: '0b-1'}}]";
+        doc.update(
+            &["requests", "payload", "default"],
+            serde_yaml_ng::from_str(params).unwrap(),
+            false,
+        )
+        .unwrap();
+        let text = doc.render_preserving(original).unwrap();
+        let cfg = crate::config::Config::parse(&text).unwrap();
+        let got = &cfg.document["requests"]["payload"]["default"][0]["params"];
+        assert_eq!(
+            *got,
+            serde_yaml_ng::from_str::<Value>("{a: '1_000', b: '007', c: '0b-1'}").unwrap(),
+            "{text}"
         );
     }
 

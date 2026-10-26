@@ -397,9 +397,9 @@ fn families_v8(legacy: &[&str]) -> Vec<&'static str> {
         .collect()
 }
 
-/// A YAML scalar or key in the form serde_yaml_ng would write it.
+/// A YAML scalar or key in the form [`super::yaml_string`] writes it.
 fn scalar(value: &Value) -> String {
-    serde_yaml_ng::to_string(value)
+    super::yaml_string(value)
         .unwrap_or_default()
         .trim_end_matches('\n')
         .to_owned()
