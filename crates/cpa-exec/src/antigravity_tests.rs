@@ -444,6 +444,7 @@ async fn replay_go_scenarios(scenarios: &[Value]) -> usize {
             }
             events = normalized_events;
         }
+        crate::gemini::tests::check_refused_capture(name, s, &mut events);
         assert!(events.is_empty(), "{name}: extra captures {events:?}");
         ran += 1;
     }

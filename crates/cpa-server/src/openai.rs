@@ -165,7 +165,7 @@ pub async fn chat_completions(
                 Err(failure) => errors::openai(&failure),
                 Ok(Done::Buffered { body, .. }) => respond::json(200, "application/json", body),
                 Ok(Done::Stream { first, rest, .. }) => {
-                    respond::sse(respond::stream(first, rest, ChatSse { completions: false }, keepalive))
+                    respond::sse(respond::stream(first, rest, ChatSse::new(false), keepalive))
                 }
             }
         },
@@ -236,7 +236,7 @@ pub async fn completions(
                     respond::json(200, "application/json", chat_to_completions(&chat))
                 }
                 Ok(Done::Stream { first, rest, .. }) => {
-                    respond::sse(respond::stream(first, rest, ChatSse { completions: true }, keepalive))
+                    respond::sse(respond::stream(first, rest, ChatSse::new(true), keepalive))
                 }
             }
         },
@@ -395,23 +395,53 @@ fn chat_chunk_to_completions(root: &Value) -> Option<String> {
 /// Chat Completions SSE: `data:` frames, an error frame, then `data: [DONE]`.
 struct ChatSse {
     completions: bool,
+    /// A chunk reached the writer (Go's peek loop received one). Go answers a stream
+    /// that closes before any with `[DONE]`: `CloseError` lives in `handleStreamResult`.
+    delivered: bool,
+    /// A written chunk carried a `finish_reason` (Go 97dd9eec `sawFinishReason`).
+    finished: bool,
+}
+
+impl ChatSse {
+    fn new(completions: bool) -> Self {
+        ChatSse {
+            completions,
+            delivered: false,
+            finished: false,
+        }
+    }
+}
+
+/// Go `chunkHasFinishReason`: any choice with a non-null, non-empty `finish_reason`.
+fn chunk_has_finish_reason(chunk: &[u8]) -> bool {
+    let chunk = chunk.trim_ascii();
+    let chunk = chunk.strip_prefix(b"data:").map_or(chunk, <[u8]>::trim_ascii);
+    cpa_common::json::get(chunk, "choices")
+        .array()
+        .iter()
+        .any(|choice| !choice.get("finish_reason").bytes().is_empty())
 }
 
 impl Writer for ChatSse {
     fn chunk(&mut self, event: Bytes) -> Vec<Bytes> {
-        let frame = respond::ensure_frame(event);
+        // Set before the legacy conversion: a first chunk it drops still started the stream.
+        self.delivered = true;
         if !self.completions {
-            return vec![frame];
+            self.finished |= chunk_has_finish_reason(&event);
+            return vec![respond::ensure_frame(event)];
         }
+        let frame = respond::ensure_frame(event);
         let Some(payload) = respond::data_payload(&frame) else {
             return Vec::new();
         };
         let Ok(root) = serde_json::from_slice::<Value>(&payload) else {
             return Vec::new();
         };
-        chat_chunk_to_completions(&root)
-            .map(|c| vec![Bytes::from(format!("data: {c}\n\n"))])
-            .unwrap_or_default()
+        let Some(converted) = chat_chunk_to_completions(&root) else {
+            return Vec::new();
+        };
+        self.finished |= chunk_has_finish_reason(converted.as_bytes());
+        vec![Bytes::from(format!("data: {converted}\n\n"))]
     }
 
     fn error(&mut self, error: &ExecError) -> Vec<Bytes> {
@@ -421,6 +451,12 @@ impl Writer for ChatSse {
     }
 
     fn end(&mut self) -> Vec<Bytes> {
+        // Go 97dd9eec: a stream that closes cleanly before any chunk carried a
+        // finish_reason was truncated; report it instead of completing with [DONE].
+        if self.delivered && !self.finished {
+            let body = errors::openai_body(502, "upstream stream closed before any chunk carried finish_reason");
+            return vec![Bytes::from(format!("data: {body}\n\n"))];
+        }
         vec![Bytes::from_static(b"data: [DONE]\n\n")]
     }
 }
