@@ -450,14 +450,34 @@ fn bind_session(req: &mut ExecRequest) {
     req.session = (!id.is_empty()).then(|| cpa_common::session::bound_session_identity(&id));
 }
 
-/// Replaces the random parts Go and Rust both generate: interaction IDs, the per-response
-/// UUID of fallback item IDs (Go b0db5448), `created` timestamps and RFC 3339 times.
+/// Replaces the random parts Go and Rust both generate: interaction IDs, `created`
+/// timestamps and RFC 3339 times.
 fn mask_output(text: &str) -> String {
-    let re = regex::Regex::new(
-        r#"interaction_[0-9a-f-]{12}|item_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_|"created(_at)?":\d+|\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z"#,
-    )
-    .unwrap();
+    let re =
+        regex::Regex::new(r#"interaction_[0-9a-f-]{12}|"created(_at)?":\d+|\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z"#)
+            .unwrap();
     re.replace_all(text, "<masked>").into_owned()
+}
+
+/// [`mask_output`] over one side's frames, with the per-response UUIDs of fallback item
+/// IDs (Go b0db5448) numbered in order of appearance, so every item of a response must
+/// share one UUID and distinct UUIDs stay distinct.
+fn mask_frames<'a>(frames: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    let re = regex::Regex::new("item_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_").unwrap();
+    let mut ids: Vec<String> = Vec::new();
+    frames
+        .into_iter()
+        .map(|frame| {
+            re.replace_all(&mask_output(frame), |c: &regex::Captures<'_>| {
+                let n = ids.iter().position(|id| *id == c[1]).unwrap_or_else(|| {
+                    ids.push(c[1].to_owned());
+                    ids.len() - 1
+                });
+                format!("item_<uuid{n}>_")
+            })
+            .into_owned()
+        })
+        .collect()
 }
 
 const EXECUTOR_FIXTURES: [&str; 42] = [
@@ -612,8 +632,8 @@ async fn check_executor_fixture(name: &str) {
     }
     if let Some(body) = go["body"].as_str().filter(|b| !b.is_empty()) {
         assert_eq!(
-            down.body.as_deref().map(mask_output),
-            Some(mask_output(body)),
+            down.body.as_deref().map(|b| mask_frames([b])),
+            Some(mask_frames([body])),
             "{name}: body"
         );
         return;
@@ -625,7 +645,7 @@ async fn check_executor_fixture(name: &str) {
             .as_array()
             .unwrap()
             .iter()
-            .map(|c| mask_output(c.as_str().unwrap()))
+            .map(|c| c.as_str().unwrap().to_owned())
             .collect()
     } else {
         go["chunks"]
@@ -633,12 +653,13 @@ async fn check_executor_fixture(name: &str) {
             .map(|c| {
                 c.iter()
                     .filter_map(|c| cpa_translate::stream::frame(client, c.as_str().unwrap().as_bytes()))
-                    .map(|f| mask_output(&String::from_utf8(f).unwrap()))
+                    .map(|f| String::from_utf8(f).unwrap())
                     .collect()
             })
             .unwrap_or_default()
     };
-    let rust_frames: Vec<String> = down.chunks.iter().map(|c| mask_output(c)).collect();
+    let go_frames = mask_frames(go_frames.iter().map(String::as_str));
+    let rust_frames = mask_frames(down.chunks.iter().map(String::as_str));
     assert_eq!(rust_frames, go_frames, "{name}: stream frames");
     match go["stream_err"].as_str() {
         Some(message) => {
