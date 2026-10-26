@@ -192,11 +192,6 @@ const PENDING: &[(&str, &str, &str)] = &[
         "TestLocalShellRoundTrip:103",
         "Responses local_shell tool (91c934f6)",
     ),
-    (
-        "openai-response->interactions",
-        "TestInteractionsApplyPatchTerminalIdentityFallback:32:stream#7",
-        "unique fallback item IDs (b0db5448)",
-    ),
 ];
 
 /// A key names one fixture; a key ending in `#*` names that fixture and its numbered repeats

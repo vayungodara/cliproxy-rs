@@ -5925,61 +5925,61 @@
      "out": 0,
      "data": 1,
      "path": "item.id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 0,
      "data": 1,
      "path": "item.call_id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 1,
      "data": 1,
      "path": "item_id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 1,
      "data": 1,
      "path": "call_id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 2,
      "data": 1,
      "path": "item_id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 2,
      "data": 1,
      "path": "call_id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 3,
      "data": 1,
      "path": "item.id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 3,
      "data": 1,
      "path": "item.call_id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 4,
      "data": 1,
      "path": "response.output.0.id",
-     "prefix": "item_e"
+     "prefix": "item_"
     },
     {
      "out": 4,
      "data": 1,
      "path": "response.output.0.call_id",
-     "prefix": "item_e"
+     "prefix": "item_"
     }
    ]
   },

@@ -24,7 +24,7 @@ Columns:
 | Codex | 19 | 18 | 1 | 0 | 0 | 0 |
 | Gemini, Vertex and AI Studio | 20 | 17 | 2 | 0 | 1 | 0 |
 | xAI | 8 | 2 | 6 | 0 | 0 | 0 |
-| OpenAI-compatible and Responses translation | 6 | 2 | 4 | 0 | 0 | 0 |
+| OpenAI-compatible and Responses translation | 6 | 3 | 3 | 0 | 0 | 0 |
 | Devin and Meta | 8 | 0 | 8 | 0 | 0 | 0 |
 | Credentials, selection and cooldowns | 22 | 9 | 11 | 0 | 2 | 0 |
 | Model registry and catalogs | 11 | 9 | 1 | 0 | 1 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **128** | **93** | **0** | **64** | **3** |
+| **All** | **288** | **129** | **92** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -207,7 +207,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`0ea4e1dc`](https://github.com/router-for-me/CLIProxyAPI/commit/0ea4e1dc) | fix(openai): complete responses stream on clean EOF after finish reason | yes | ported here | M (+56 −6) | Responses stream completes on clean EOF after the finish reason; the OpenAI-compatible Responses stream now also applies `EnsureResponsesUsageDetails`, which Go's translator did since `6fecc6e`; replays Go-recorded `responses_eof_*` scenarios |
 | [`d2597a24`](https://github.com/router-for-me/CLIProxyAPI/commit/d2597a24) | fix(openai): preserve unknown encrypted content in responses compat mode | yes | to port | S (+5 −1) | unknown encrypted content kept in Responses compat mode |
 | [`f8e4a840`](https://github.com/router-for-me/CLIProxyAPI/commit/f8e4a840) | fix(openai-compat): measure streaming TTFT on effective token frames | no | to port | S (+4 −2) | partly ported: the usage record's served model now comes from stream frames that pass the checks, not from every line (`openai_compat.rs`), checked by the v8.0.35 `stream_multiline_with_done` recording; still to port: TTFT measured on token frames (the executor reports no TTFT marks yet, so the server approximates TTFT) |
-| [`b0db5448`](https://github.com/router-for-me/CLIProxyAPI/commit/b0db5448) | feat(translator): use unique prefixes for fallback item IDs in OpenAI responses stream | yes | to port | S (+18 −6) | use unique prefixes for fallback item IDs in OpenAI responses stream |
+| [`b0db5448`](https://github.com/router-for-me/CLIProxyAPI/commit/b0db5448) | feat(translator): use unique prefixes for fallback item IDs in OpenAI responses stream | yes | ported here | S (+18 −6) | Interactions to Responses stream: fallback item IDs carry a per-response UUID (`item_<uuid>_<n>`); checked by the v8.0.35 pair goldens, the Devin Responses stream fixtures and a cross-response unit test |
 
 ## Devin and Meta
 

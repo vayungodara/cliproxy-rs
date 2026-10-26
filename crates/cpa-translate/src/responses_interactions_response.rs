@@ -322,6 +322,9 @@ struct ToResponses {
     translated: Vec<u8>,
     tool_input_failed: bool,
     id: Vec<u8>,
+    /// `ItemIDPrefix` (Go b0db5448): a random UUID per response, so the fallback item IDs
+    /// of different responses never collide.
+    item_prefix: String,
     environment: Vec<u8>,
     calls: HashMap<i64, Call>,
     item_ids: HashMap<i64, Vec<u8>>,
@@ -354,8 +357,14 @@ pub(crate) fn interactions_to_responses_stream(ctx: &ResponseCtx<'_>) -> Box<dyn
             tool_identity_map(source, antigravity)
         },
         antigravity,
+        item_prefix: uuid::Uuid::new_v4().to_string(),
         ..ToResponses::default()
     })
+}
+
+/// interactionsFallbackItemID.
+fn fallback_item_id(prefix: &str, index: i64) -> Vec<u8> {
+    format!("item_{prefix}_{index}").into_bytes()
 }
 
 fn index_root(index: i64) -> Res<'static> {
@@ -555,7 +564,7 @@ impl ToResponses {
         {
             return self.update_call(index, &step, true);
         }
-        let fallback = format!("item_{index}").into_bytes();
+        let fallback = fallback_item_id(&self.item_prefix, index);
         let item_id = first_nonblank(&[&step.get("id").bytes(), &step.get("call_id").bytes(), &fallback]);
         if kind == b"function_call" {
             return self.update_call(index, &step, true);
@@ -1088,7 +1097,7 @@ impl ToResponses {
         } else {
             call.fragments.clear();
             if !call.item_id_seen && !call.added {
-                call.id = first_nonblank(&[&call.call_id, format!("item_{index}").as_bytes()]);
+                call.id = first_nonblank(&[&call.call_id, &fallback_item_id(&self.item_prefix, index)]);
             }
             if !call.call_id_seen && !call.added {
                 call.call_id = call.id.clone();
@@ -1186,7 +1195,7 @@ impl ToResponses {
             let call = self.calls.get_mut(&index).expect("present");
             if call.patch.is_none() {
                 if !call.item_id_seen {
-                    call.id = first_nonblank(&[&call.call_id, format!("item_{index}").as_bytes()]);
+                    call.id = first_nonblank(&[&call.call_id, &fallback_item_id(&self.item_prefix, index)]);
                 }
                 if !call.call_id_seen {
                     call.call_id = call.id.clone();
@@ -1978,6 +1987,46 @@ mod tests {
                 text.contains(&format!(r#""name":"{client}""#)),
                 "stream {upstream}: {text}"
             );
+        }
+    }
+
+    /// Go b0db5448 (TestInteractionsResponsesGeneratedItemIDsDoNotCollideAcrossResponses):
+    /// a step without an ID gets a fallback item ID that differs between two responses
+    /// carrying the same events.
+    #[test]
+    fn fallback_item_ids_differ_across_responses() {
+        let ctx = ResponseCtx {
+            model: "devin/gpt-6-1-sol",
+            original_request: b"",
+            translated_request: b"",
+            tool_search: false,
+        };
+        for step in [
+            r#"{"type":"model_output"}"#,
+            r#"{"type":"function_call","name":"exec_command","arguments":{}}"#,
+        ] {
+            let ids: Vec<String> = (0..2)
+                .map(|_| {
+                    let mut stream = interactions_to_responses_stream(&ctx);
+                    let mut out = vec![];
+                    for event in [
+                        r#"{"event_type":"interaction.created","interaction":{"id":"interaction_1"}}"#.to_owned(),
+                        format!(r#"{{"event_type":"step.start","index":0,"step":{step}}}"#),
+                    ] {
+                        out.extend(stream.line(event.as_bytes()).unwrap());
+                    }
+                    let added = out
+                        .iter()
+                        .find_map(|chunk| {
+                            let data = chunk.split(|b| *b == b'\n').find_map(|l| l.strip_prefix(b"data: "))?;
+                            (*gj::get(data, "type").bytes() == *b"response.output_item.added").then(|| data.to_vec())
+                        })
+                        .expect("output_item.added");
+                    gj::get(&added, "item.id").str().into_owned()
+                })
+                .collect();
+            assert!(ids.iter().all(|id| id.starts_with("item_")), "{step}: {ids:?}");
+            assert_ne!(ids[0], ids[1], "{step}");
         }
     }
 }

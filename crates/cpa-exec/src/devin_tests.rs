@@ -450,12 +450,13 @@ fn bind_session(req: &mut ExecRequest) {
     req.session = (!id.is_empty()).then(|| cpa_common::session::bound_session_identity(&id));
 }
 
-/// Replaces the random parts Go and Rust both generate: interaction IDs, `created`
-/// timestamps and RFC 3339 times.
+/// Replaces the random parts Go and Rust both generate: interaction IDs, the per-response
+/// UUID of fallback item IDs (Go b0db5448), `created` timestamps and RFC 3339 times.
 fn mask_output(text: &str) -> String {
-    let re =
-        regex::Regex::new(r#"interaction_[0-9a-f-]{12}|"created(_at)?":\d+|\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z"#)
-            .unwrap();
+    let re = regex::Regex::new(
+        r#"interaction_[0-9a-f-]{12}|item_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}_|"created(_at)?":\d+|\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z"#,
+    )
+    .unwrap();
     re.replace_all(text, "<masked>").into_owned()
 }
 

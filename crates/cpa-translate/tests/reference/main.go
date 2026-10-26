@@ -506,6 +506,15 @@ func digitFreePrefix(a, b string) string {
 	for i < len(a) && i < len(b) && a[i] == b[i] && !(a[i] >= '0' && a[i] <= '9') {
 		i++
 	}
+	// Two random hex values can share leading letters (item_<uuid>): stop at the last
+	// separator when only hex letters follow it.
+	j := i
+	for j > 0 && a[j-1] >= 'a' && a[j-1] <= 'f' {
+		j--
+	}
+	if j < i && j > 0 && (a[j-1] == '_' || a[j-1] == '-') {
+		i = j
+	}
 	return a[:i]
 }
 

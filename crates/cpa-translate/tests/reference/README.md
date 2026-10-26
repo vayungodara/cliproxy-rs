@@ -38,7 +38,9 @@ and JSON/SSE literals from that pair's Go tests, and adds the shared edge matric
 gjson number and array coercions, malformed bytes and JSON, Claude user-ID seeds, and tool
 call/result states. Every case runs twice. JSON leaves that differ between the runs
 (random IDs) or hold the current time are recorded as `dynamic`; the Rust test checks
-their shape (digit-free prefix, timestamp window) and compares them as numbered
+their shape (the two runs' common prefix up to the first digit, cut back to the last `_` or
+`-` when only hex letters follow it, as two random UUIDs can share leading letters;
+timestamp window) and compares them as numbered
 placeholders, so a repeated ID must stay consistent. All other bytes are compared
 exactly, chunk by chunk for streams. Fixtures with invalid UTF-8 set `bytes` and store
 each byte as the character with the same value.
