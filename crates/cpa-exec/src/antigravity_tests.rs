@@ -184,7 +184,21 @@ fn check_capsules(name: &str, text: &str, summary: &str) {
 #[tokio::test]
 async fn go_reference_scenarios() {
     cpa_core::registry::install_overlay(Some(Arc::new(WebSearchModels)));
-    let ran = replay_go_scenarios(scenarios()).await;
+    // The v8.0.35 set re-records, under the same name, base scenarios whose output it
+    // changed (v8_0_35.go); those replay there instead.
+    let newer: Value = serde_json::from_str(include_str!("../tests/fixtures/antigravity_v8_0_35_go.json")).unwrap();
+    let rerecorded: Vec<&Value> = newer["executor"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|s| &s["name"])
+        .collect();
+    let current: Vec<Value> = scenarios()
+        .iter()
+        .filter(|s| !rerecorded.contains(&&s["name"]))
+        .cloned()
+        .collect();
+    let ran = replay_go_scenarios(&current).await;
     assert!(ran >= 49, "fixture lost scenarios: {ran}");
 }
 

@@ -30,7 +30,7 @@ func v8035Scenarios() []execScenario {
 		return &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: body, Missing: missing}
 	}
 	responsesHello := `{"model":"gemini-3.7-flash","input":"hello","stream":true}`
-	return []execScenario{
+	out := []execScenario{
 		{Name: "stream_client_drop_mid_read", Op: "stream", Source: "gemini", Model: "gemini-3.7-flash",
 			Payload: geminiHello, Upstream: stalled(partial), CancelWhenIdle: true},
 		{Name: "stream_client_drop_after_terminal", Op: "stream", Source: "gemini", Model: "gemini-3.7-flash",
@@ -72,4 +72,17 @@ func v8035Scenarios() []execScenario {
 		replay("replay_after_completed_gemini", "gemini", geminiHello,
 			events(thought+final+`data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"thought":true,"text":"late","thoughtSignature":"bGF0ZS1zaWduYXR1cmUtYWZ0ZXItY29tcGxldGlvbg=="}]}}],"modelVersion":"gemini-3.7-flash"}}`+"\n\n", 0)),
 	}
+	// Base scenarios (executor.go) whose OpenAI chat output v8.0.35 changed: thoughts
+	// tokens count in completion_tokens (ab151f5d) and stream deltas carry no
+	// "tool_calls": null (dfe0a0ef). Recorded again under their own names; the Rust
+	// replay takes these in place of the 6fecc6e recordings.
+	rerecorded := map[string]bool{
+		"openai_stream": true, "go_stream_no_finish_reason_openai": true, "go_stream_split_terminal_usage": true,
+	}
+	for _, s := range execScenarios() {
+		if rerecorded[s.Name] {
+			out = append(out, s)
+		}
+	}
+	return out
 }

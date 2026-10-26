@@ -611,15 +611,19 @@ struct Stream {
 
 const CHUNK: &[u8] = br#"{"id":"","object":"chat.completion.chunk","created":12345,"model":"model","choices":[{"index":0,"delta":{"role":null,"content":null,"reasoning_content":null,"tool_calls":null},"finish_reason":null,"native_finish_reason":null}]}"#;
 
-/// setOpenAIUsageMetadata (completion tokens exclude thoughts here).
+/// setOpenAIUsageMetadata: completion tokens include thoughts (Go ab151f5d).
 fn set_usage(t: &mut Vec<u8>, usage: &Res<'_>) {
     let cached = usage.get("cachedContentTokenCount").int();
-    gj::set_int(t, "usage.completion_tokens", usage.get("candidatesTokenCount").int());
+    let thoughts = usage.get("thoughtsTokenCount").int();
+    gj::set_int(
+        t,
+        "usage.completion_tokens",
+        usage.get("candidatesTokenCount").int().wrapping_add(thoughts),
+    );
     let total = usage.get("totalTokenCount");
     if total.exists() {
         gj::set_int(t, "usage.total_tokens", total.int());
     }
-    let thoughts = usage.get("thoughtsTokenCount").int();
     gj::set_int(t, "usage.prompt_tokens", usage.get("promptTokenCount").int());
     if thoughts > 0 {
         gj::set_int(t, "usage.completion_tokens_details.reasoning_tokens", thoughts);

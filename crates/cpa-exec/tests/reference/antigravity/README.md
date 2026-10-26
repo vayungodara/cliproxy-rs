@@ -34,5 +34,8 @@ cancels the request once the stream is idle; the usage record carries Go's
 replay (Go a4acc9f7 and, for `replay_after_completed_*`, c997cbb5's commit at a
 Responses client's `response.completed`; the `replay_*` scenarios each send a
 `Session-Id` and record under `replay` what the ledger holds for `replay_key` once the
-attempt ended). Its
+attempt ended). It also re-records, under their own names, the base scenarios whose
+OpenAI chat output v8.0.35 changed (thoughts tokens in `completion_tokens`, ab151f5d;
+no `"tool_calls": null` in stream deltas, dfe0a0ef): `go_reference_scenarios` skips
+every base scenario the v8.0.35 file names, and `go_v8_0_35_scenarios` replays it. Its
 `requestId` is random; the replay normalizes it.
