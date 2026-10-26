@@ -367,6 +367,13 @@ func scenarios() []scenario {
 			return s
 		}(),
 		func() scenario {
+			// f3e36f19: a Claude client's message_start carries the O200k estimate of its
+			// request when the upstream reports no input tokens yet.
+			s := stream("claude_stream_message_start_input_tokens", `{"model":"chat","max_tokens":32,"stream":true,"system":"be brief","messages":[{"role":"user","content":"hello there, how are you today?"}]}`, sse("data: "+chunk1+"\n\ndata: "+chunk2+"\n\ndata: [DONE]\n\n"))
+			s.Source = "claude"
+			return s
+		}(),
+		func() scenario {
 			// Codex clients get integer parameter types restored before translation.
 			s := chat("codex_user_agent_tool_integers", "acme-chat", "chat", `{"model":"chat","messages":[],"tools":[{"type":"function","function":{"name":"exec_command","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"},"cmd":{"type":"string"}}}}}]}`, jsonOK)
 			s.Headers = map[string]string{"User-Agent": "codex_cli_rs/0.50.0"}

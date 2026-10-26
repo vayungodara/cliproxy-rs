@@ -122,6 +122,11 @@ type usageOut struct {
 	Failed              bool   `json:"failed"`
 	FailStatus          int    `json:"fail_status,omitempty"`
 	FailBody            string `json:"fail_body,omitempty"`
+	// ExecutorType, Model and Quality are recorded since d9451cb6's openapi route,
+	// whose records name the OpenAI-compatible executor.
+	ExecutorType string `json:"executor_type,omitempty"`
+	Model        string `json:"model,omitempty"`
+	Quality      string `json:"quality,omitempty"`
 }
 
 // usageCapture receives every record the default usage manager dispatches.
@@ -140,12 +145,15 @@ func awaitUsage(name string) *usageOut {
 			panic(fmt.Sprintf("%s: usage record of %q", name, r.TraceID))
 		}
 		d := r.Detail
-		return &usageOut{
+		out := &usageOut{
 			InputTokens: d.InputTokens, OutputTokens: d.OutputTokens, ReasoningTokens: d.ReasoningTokens,
 			CachedTokens: d.CachedTokens, CacheReadTokens: d.CacheReadTokens, CacheCreationTokens: d.CacheCreationTokens,
 			TotalTokens: d.TotalTokens, ResponseModel: r.ResponseModel, ReasoningEffort: r.ReasoningEffort, Failed: r.Failed,
 			FailStatus: r.Fail.StatusCode, FailBody: r.Fail.Body,
 		}
+		out.ExecutorType, out.Model = r.ExecutorType, r.Model
+		out.Quality = string(coreusage.EnsureTokenBreakdownForProvider(d, r.Provider, r.ExecutorType).TokenBreakdown.Quality)
+		return out
 	case <-time.After(300 * time.Millisecond):
 		return nil
 	}

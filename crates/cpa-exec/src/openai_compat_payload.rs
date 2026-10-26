@@ -207,50 +207,9 @@ pub(crate) fn find_model<'a>(compat: &'a Compat, model: &str) -> Option<&'a Comp
         .or_else(|| compat.models.iter().find(|m| model.go_eq_fold(&model_name(&m.alias))))
 }
 
-fn attribute<'a>(credential: &'a Credential, key: &str) -> &'a str {
-    credential.attributes.get(key).map_or("", |v| v.trim())
-}
-
-/// `normalizeAuthKind`.
-fn normalize_auth_kind(kind: &str) -> &'static str {
-    match kind.trim().go_lower().as_str() {
-        "apikey" | "api_key" | "api-key" => "apikey",
-        "oauth" | "oauth2" => "oauth",
-        _ => "",
-    }
-}
-
-/// `Auth.AuthKind`: explicit kind, then the field-shape fallbacks.
+/// `Auth.AuthKind`, empty when unclassified.
 pub(crate) fn auth_kind(credential: &Credential) -> &'static str {
-    let explicit = normalize_auth_kind(attribute(credential, "auth_kind"));
-    if !explicit.is_empty() {
-        return explicit;
-    }
-    let explicit = normalize_auth_kind(credential.str("auth_kind").unwrap_or_default());
-    if !explicit.is_empty() {
-        return explicit;
-    }
-    if !attribute(credential, "api_key").is_empty() {
-        return "apikey";
-    }
-    let oauth_keys = [
-        "access_token",
-        "refresh_token",
-        "id_token",
-        "email",
-        "token_type",
-        "expires_at",
-        "expired",
-    ];
-    let has_oauth = oauth_keys
-        .iter()
-        .any(|k| credential.str(k).is_some_and(|v| !v.trim().is_empty()))
-        || credential
-            .metadata
-            .get("token")
-            .and_then(serde_json::Value::as_object)
-            .is_some_and(|t| !t.is_empty());
-    if has_oauth { "oauth" } else { "" }
+    cpa_core::registry::dynamic::auth_kind(credential).unwrap_or_default()
 }
 
 /// `ShouldUseMaxCompletionTokensForModel`.

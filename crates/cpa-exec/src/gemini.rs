@@ -339,6 +339,25 @@ pub(crate) fn capture_request(
 /// Go's `http.Response` holds them.
 pub(crate) use crate::kimi_http::capture_metadata;
 
+/// Go's transport refusal of a URL it parsed (an unsupported scheme or no host,
+/// [`crate::xai_url::transport_refusal`]): the request is logged, then the error, and
+/// nothing is sent.
+pub(crate) fn refuse_unsendable(
+    capture: &CaptureSink,
+    credential: &Credential,
+    provider: &str,
+    url: &str,
+    headers: &GoHeaders,
+    body: &Bytes,
+) -> Result<(), ExecError> {
+    let Some(error) = crate::xai_url::transport_refusal(url) else {
+        return Ok(());
+    };
+    capture_request(capture, credential, provider, url, headers.pairs(), body);
+    capture.record(CaptureEvent::ResponseError(&String::from_utf8_lossy(&error.body)));
+    Err(error)
+}
+
 /// `RecordAPIRequest`, `Client.Do`, then `RecordAPIResponseMetadata`, or
 /// `RecordAPIResponseError` when the request fails. `lines`: the caller scans the body
 /// line by line, so a body cut short fails with Go's `unexpected EOF`

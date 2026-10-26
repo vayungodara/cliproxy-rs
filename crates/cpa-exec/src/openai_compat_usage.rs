@@ -359,7 +359,7 @@ pub(crate) fn http_capture_problems(events: &[Captured], a: &HttpAttempt<'_>) ->
         .filter_map(|l| l.split_once(':'))
         .map(|(n, v)| (n.to_ascii_lowercase(), v.trim().to_owned()))
         .collect();
-    let (auth_type, auth_value) = crate::openai_compat_http::account_info(a.credential);
+    let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(a.credential);
     let requests = events.iter().filter(|e| matches!(e, Captured::Request { .. })).count();
     if requests != 1 {
         problems.push(format!("capture: {requests} request events for one attempt"));

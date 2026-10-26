@@ -760,7 +760,7 @@ impl WsCapture {
                 auth_value: String::new(),
             };
         }
-        let (auth_type, auth_value) = crate::openai_compat_http::account_info(credential);
+        let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(credential);
         Self {
             headers: crate::openai_compat_http::header_pairs(headers),
             sink,

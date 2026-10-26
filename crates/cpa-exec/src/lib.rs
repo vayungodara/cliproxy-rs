@@ -93,6 +93,7 @@ mod translate;
 mod upstream;
 pub mod vertex;
 pub mod vertex_auth;
+mod vertex_openapi;
 mod wire;
 mod ws_observation;
 pub mod wsrelay;

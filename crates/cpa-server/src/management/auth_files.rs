@@ -492,43 +492,7 @@ fn note_disabled(state: &Management, id: &str, disabled: Option<bool>) {
 
 /// Go `Auth.AuthKind`: `oauth`, `apikey` or unknown.
 pub(super) fn auth_kind(c: &Credential) -> Option<&'static str> {
-    let normalize = |s: &str| match s.trim().go_lower().as_str() {
-        "apikey" | "api_key" | "api-key" => Some("apikey"),
-        "oauth" | "oauth2" => Some("oauth"),
-        _ => None,
-    };
-    let meta = |key: &str| {
-        c.metadata
-            .get(key)
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .unwrap_or_default()
-    };
-    normalize(c.attributes.get("auth_kind").map(String::as_str).unwrap_or_default())
-        .or_else(|| normalize(meta("auth_kind")))
-        .or_else(|| {
-            c.attributes
-                .get("api_key")
-                .is_some_and(|k| !k.trim().is_empty())
-                .then_some("apikey")
-        })
-        .or_else(|| {
-            let keys = [
-                "access_token",
-                "refresh_token",
-                "id_token",
-                "email",
-                "token_type",
-                "expires_at",
-                "expired",
-            ];
-            let token = c
-                .metadata
-                .get("token")
-                .and_then(Value::as_object)
-                .is_some_and(|t| !t.is_empty());
-            (keys.iter().any(|k| !meta(k).is_empty()) || token).then_some("oauth")
-        })
+    cpa_core::registry::dynamic::auth_kind(c)
 }
 
 fn int_value(v: &Value) -> Option<i64> {
@@ -620,20 +584,12 @@ fn entry(state: &Management, c: &Credential, v8: bool, quota: &QuotaPlugins) -> 
     if let Some(project) = meta_str(c, "project_id").map(str::trim).filter(|p| !p.is_empty()) {
         e.insert("project_id", project.into());
     }
-    match auth_kind(c) {
-        Some("oauth") => {
-            e.insert("account_type", "oauth".into());
-            if !email.is_empty() {
-                e.insert("account", email.into());
-            }
-        }
-        Some(_) => {
-            e.insert("account_type", "api_key".into());
-            if let Some(key) = c.attributes.get("api_key").map(|k| k.trim()).filter(|k| !k.is_empty()) {
-                e.insert("account", key.into());
-            }
-        }
-        None => {}
+    let (account_type, account) = cpa_core::registry::dynamic::account_info(c);
+    if !account_type.is_empty() {
+        e.insert("account_type", account_type.into());
+    }
+    if !account.is_empty() {
+        e.insert("account", account.into());
     }
     let meta = path.map(std::fs::metadata);
     let modified = meta
@@ -1666,13 +1622,9 @@ fn virtual_source_status(state: &Management, target: &Credential, disabled: bool
             }
         }
     };
-    // Go `NormalizeCredentialMetadata`, whose aliases include the OpenAPI pair the field
-    // edits do not take: the alias goes, and a canonical spelling already there wins.
-    let openapi = [
-        ("openapi-location", "openapi_location"),
-        ("openapi-models", "openapi_models"),
-    ];
-    for (alias, canon) in ALIASES.iter().chain(openapi.iter()) {
+    // Go `NormalizeCredentialMetadata`: the alias goes, and a canonical spelling already
+    // there wins.
+    for (alias, canon) in ALIASES {
         if let Some(v) = meta.remove(*alias) {
             meta.entry(*canon).or_insert(v);
         }
@@ -1737,6 +1689,8 @@ const ALIASES: &[(&str, &str)] = &[
     ("excluded-models", "excluded_models"),
     ("fingerprint-profile", "fingerprint_profile"),
     ("model-aliases", "model_aliases"),
+    ("openapi-location", "openapi_location"),
+    ("openapi-models", "openapi_models"),
     ("proxy-url", "proxy_url"),
     ("request-retry", "request_retry"),
     ("request-scoped-errors", "request_scoped_errors"),

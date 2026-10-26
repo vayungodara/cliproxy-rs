@@ -229,25 +229,32 @@ pub fn auth_kind(c: &Credential) -> Option<&'static str> {
     ]
     .iter()
     .any(|k| c.str(k).is_some_and(|v| !v.trim().is_empty()))
-        || c.metadata
-            .get("token")
-            .and_then(Value::as_object)
-            .is_some_and(|t| !t.is_empty());
+        // A token object, a Sign in with ChatGPT section (7b0319fb) or a Vertex service
+        // account (d9451cb6).
+        || ["token", "siwc", "service_account"].iter().any(|k| {
+            c.metadata
+                .get(*k)
+                .and_then(Value::as_object)
+                .is_some_and(|t| !t.is_empty())
+        });
     oauth.then_some("oauth")
 }
 
 /// Go `Auth.AccountInfo()`: the account kind and value request logs print. OAuth
-/// reports the trimmed metadata `email`, an API key the trimmed `api_key` attribute;
-/// an unclassified credential reports nothing.
+/// reports the trimmed metadata `email`, else (d9451cb6) the service account's
+/// `client_email`; an API key the trimmed `api_key` attribute; an unclassified
+/// credential reports nothing.
 pub fn account_info(c: &Credential) -> (&'static str, String) {
+    fn trimmed(v: Option<&Value>) -> Option<&str> {
+        v.and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty())
+    }
     match auth_kind(c) {
         Some("oauth") => (
             "oauth",
-            c.metadata
-                .get("email")
-                .and_then(Value::as_str)
-                .map(|e| e.trim().to_owned())
-                .unwrap_or_default(),
+            trimmed(c.metadata.get("email"))
+                .or_else(|| trimmed(c.metadata.get("service_account").and_then(|sa| sa.get("client_email"))))
+                .unwrap_or_default()
+                .to_owned(),
         ),
         Some("apikey") => (
             "api_key",
@@ -1076,7 +1083,10 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
     };
     let models = match provider.as_str() {
         "gemini" | "gemini-interactions" => with_config(channel("gemini"), "google", "gemini", "gemini"),
-        "vertex" => with_config(channel("vertex"), "google", "vertex", "vertex"),
+        "vertex" if matches!(c.source, Source::Config { .. }) => {
+            with_config(channel("vertex"), "google", "vertex", "vertex")
+        }
+        "vertex" => vertex_service_account_models(aliases, c, channel("vertex"), now),
         "aistudio" => channel("aistudio"),
         "antigravity" => with_web_search_hints(&c.id, channel("antigravity")),
         "claude" => with_config(channel("claude"), "anthropic", "claude", "claude"),
@@ -1116,6 +1126,90 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
     let models = append_plugin_models(&provider, models, &excluded);
     // ponytail: oauth.settings max-context-length overrides are not applied yet.
     apply_prefix(models, credential_prefix(c), cfg.routing.force_model_prefix)
+}
+
+/// The model names an auth file lists (Go d9451cb6): a comma-separated string, an
+/// array of strings, or an array of entries with a string `name`.
+pub fn for_each_model_name(raw: &Value, mut f: impl FnMut(&str)) {
+    match raw {
+        Value::String(s) => s.split(',').for_each(f),
+        Value::Array(items) => {
+            for item in items {
+                match item {
+                    Value::String(s) => f(s),
+                    Value::Object(entry) => {
+                        if let Some(name) = entry.get("name").and_then(Value::as_str) {
+                            f(name);
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Go `appendVertexServiceAccountModels` (d9451cb6): a Vertex file's catalog plus the
+/// partner and open models it names (the `openapi_models` attribute, the file's
+/// `openapi_models` and `models`) and the OAuth alias targets, each new one as a
+/// user-defined Vertex model owned by its publisher.
+fn vertex_service_account_models(
+    aliases: &HashMap<String, Vec<OAuthAlias>>,
+    c: &Credential,
+    mut models: Vec<Spec>,
+    now: i64,
+) -> Vec<Spec> {
+    let mut seen: std::collections::HashSet<String> = models.iter().map(|m| m.id.trim().go_lower()).collect();
+    let mut extra = Vec::new();
+    let mut add = |raw: &str| {
+        let name = raw.trim();
+        if !name.is_empty() && seen.insert(name.go_lower()) {
+            extra.push(name.to_owned());
+        }
+    };
+    if let Some(raw) = c.attributes.get("openapi_models") {
+        raw.split(',').for_each(&mut add);
+    }
+    for key in ["openapi_models", "openapi-models", "models"] {
+        if let Some(raw) = c.metadata.get(key) {
+            for_each_model_name(raw, &mut add);
+        }
+    }
+    for entry in oauth_aliases_for(aliases, c) {
+        add(&entry.name);
+    }
+    models.extend(extra.into_iter().map(|name| {
+        let owned_by = name
+            .split_once('/')
+            .map(|(publisher, _)| publisher.trim())
+            .filter(|p| !p.is_empty())
+            .unwrap_or("google")
+            .to_owned();
+        // `modelconfig.ResolveModelInfo`: the catalog's thinking for the base name.
+        let thinking = pinned()
+            .lookup(canonical_model(&name))
+            .and_then(|i| i.thinking.clone())
+            .or_else(|| {
+                Some(ThinkingSupport {
+                    levels: vec!["low".into(), "medium".into(), "high".into()],
+                    ..ThinkingSupport::default()
+                })
+            });
+        Spec {
+            id: name.clone(),
+            metadata_model_id: name.clone(),
+            object: "model".into(),
+            created: now,
+            owned_by,
+            kind: "vertex".into(),
+            display_name: name,
+            thinking,
+            user_defined: true,
+            ..Spec::default()
+        }
+    }));
+    models
 }
 
 struct Registration {
