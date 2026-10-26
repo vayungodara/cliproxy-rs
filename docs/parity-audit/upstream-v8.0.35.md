@@ -32,12 +32,12 @@ Columns:
 | Plugins | 12 | 0 | 12 | 0 | 0 | 0 |
 | Server, handlers and streaming | 12 | 4 | 8 | 0 | 0 | 0 |
 | Usage and logging | 3 | 2 | 1 | 0 | 0 | 0 |
-| Antigravity | 25 | 10 | 15 | 0 | 0 | 0 |
+| Antigravity | 25 | 11 | 14 | 0 | 0 | 0 |
 | Docs and assets | 20 | 0 | 0 | 0 | 20 | 0 |
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **130** | **91** | **0** | **64** | **3** |
+| **All** | **288** | **131** | **90** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -350,7 +350,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`dfe0a0ef`](https://github.com/router-for-me/CLIProxyAPI/commit/dfe0a0ef) | fix(antigravity): omit tool_calls from default streaming delta template | yes | to port | S (+1 −1) | no `tool_calls` in the default delta template; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`a2718314`](https://github.com/router-for-me/CLIProxyAPI/commit/a2718314) | fix(antigravity): drop trailing thought-only model turns | yes | to port | M (+51 −1) | trailing thought-only model turns dropped; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`091ff27f`](https://github.com/router-for-me/CLIProxyAPI/commit/091ff27f) | feat(antigravity): persist model capability hints in auth metadata | yes | to port | L (+801 −77) | model capability hints in auth metadata; see DIFFERENCES-FROM-GO.md#antigravity |
-| [`912a038b`](https://github.com/router-for-me/CLIProxyAPI/commit/912a038b) | fix(antigravity): correct token usage calculations for cached tokens in Gemini responses | yes | to port | S (+11 −3) | correct token usage calculations for cached tokens in Gemini responses |
+| [`912a038b`](https://github.com/router-for-me/CLIProxyAPI/commit/912a038b) | fix(antigravity): correct token usage calculations for cached tokens in Gemini responses | yes | ported here | S (+11 −3) | The Antigravity to Claude stream translator now reports input_tokens as the prompt minus cached tokens, clamped at 0; the zero-candidates fallback subtracts the raw prompt, and the output fallback adds the cached tokens back. Go's non-stream converter is unchanged and Rust already matched it. Checked by the claude-antigravity pair goldens recorded at ae3ee3be (Go's zero-candidates test plus TestRSFixAntigravityClaudeCachedUsage, stream and non-stream). |
 | [`8fb633c9`](https://github.com/router-for-me/CLIProxyAPI/commit/8fb633c9) | fix(antigravity): raise fallback client version to 2.23.0 | yes | to port | S (+2 −2) | raise fallback client version to 2.23.0 |
 | [`5efe9758`](https://github.com/router-for-me/CLIProxyAPI/commit/5efe9758) | feat(antigravity): flatten multi-branch tool unions for Claude model requests | yes | ported here | M (+116 −32) | Claude-model parameter schemas flatten multi-branch unions (`for_antigravity_claude_tool`); cleaner in `gemini_schema.json.gz`, executor calls in `antigravity_helpers_go.json`, re-recorded at v8.0.35 with the Claude flag |
 | [`b8d4e14a`](https://github.com/router-for-me/CLIProxyAPI/commit/b8d4e14a) | feat(runtime): optimize antigravity schema sanitization to scale linearly with declarations | no | ported here | M (+161 −21) | Rust already cleaned each declaration on its own bytes in one pass; now Go does too, and a repeated declarations key is cleaned at its first occurrence in both (the DIFFERENCES entry is gone). Checked by 42 Go-recorded vectors in `antigravity_helpers_go.json` (repeated and escaped keys, both spellings, non-object elements, whitespace, repeated keys inside a declaration) and `many_declarations_match_go` |

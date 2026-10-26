@@ -694,7 +694,11 @@ impl Stream {
         };
         let mut output = self.candidates_tokens.wrapping_add(self.thoughts_tokens);
         if output == 0 && self.total_tokens > 0 {
-            output = self.total_tokens.wrapping_sub(self.prompt_tokens).max(0);
+            // The total includes the cached tokens input_tokens leave out (Go 912a038b).
+            output = self
+                .total_tokens
+                .wrapping_sub(self.prompt_tokens.wrapping_add(self.cached_tokens))
+                .max(0);
         }
         let mut delta = format!(
             r#"{{"type":"message_delta","delta":{{"stop_reason":"{stop_reason}","stop_sequence":null}},"usage":{{"input_tokens":{},"output_tokens":{output}}}}}"#,
@@ -791,15 +795,18 @@ impl Stream {
         let usage = gj::get(raw, "response.usageMetadata");
         if usage.exists() {
             self.has_usage = true;
+            // Go 912a038b: input_tokens leave the cache out and stop at 0; the candidates
+            // fallback uses the raw prompt, which totalTokenCount includes.
+            let raw_prompt = usage.get("promptTokenCount").int();
             self.cached_tokens = usage.get("cachedContentTokenCount").int();
-            self.prompt_tokens = usage.get("promptTokenCount").int().wrapping_sub(self.cached_tokens);
+            self.prompt_tokens = raw_prompt.wrapping_sub(self.cached_tokens).max(0);
             self.candidates_tokens = usage.get("candidatesTokenCount").int();
             self.thoughts_tokens = usage.get("thoughtsTokenCount").int();
             self.total_tokens = usage.get("totalTokenCount").int();
             if self.candidates_tokens == 0 && self.total_tokens > 0 {
                 self.candidates_tokens = self
                     .total_tokens
-                    .wrapping_sub(self.prompt_tokens)
+                    .wrapping_sub(raw_prompt)
                     .wrapping_sub(self.thoughts_tokens)
                     .max(0);
             }

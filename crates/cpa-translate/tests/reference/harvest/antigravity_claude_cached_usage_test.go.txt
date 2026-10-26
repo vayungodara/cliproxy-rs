@@ -1,0 +1,36 @@
+package claude
+
+// Copied into internal/translator/antigravity/claude of the scratch copy before the
+// harvest (README): cached-token usage shapes for Go 912a038b. Each stream case feeds one
+// payload and [DONE]; each also runs non-stream. The harvest records the calls.
+
+import (
+	"context"
+	"testing"
+)
+
+func TestRSFixAntigravityClaudeCachedUsage(t *testing.T) {
+	request := []byte(`{"model":"gemini-3.8-flash-high"}`)
+	for _, usage := range []string{
+		// Cached larger than the prompt: input_tokens clamps at 0.
+		`{"promptTokenCount":100,"cachedContentTokenCount":150,"candidatesTokenCount":7,"totalTokenCount":107}`,
+		// Only totalTokenCount: the candidates fallback uses the raw prompt.
+		`{"promptTokenCount":1000,"cachedContentTokenCount":800,"totalTokenCount":1250}`,
+		`{"promptTokenCount":1000,"cachedContentTokenCount":800,"thoughtsTokenCount":30,"totalTokenCount":1250}`,
+		// Fallback below zero, with and without a cache.
+		`{"promptTokenCount":1000,"cachedContentTokenCount":800,"totalTokenCount":900}`,
+		`{"promptTokenCount":1000,"totalTokenCount":1250}`,
+		// Cached larger than the prompt with only a total.
+		`{"promptTokenCount":100,"cachedContentTokenCount":150,"totalTokenCount":160}`,
+		// No candidates count and no total.
+		`{"promptTokenCount":40,"cachedContentTokenCount":10}`,
+	} {
+		for _, text := range []string{"", "hi"} {
+			payload := []byte(`{"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"` + text + `"}]},"finishReason":"STOP"}],"usageMetadata":` + usage + `,"modelVersion":"gemini-3.8-flash-n","responseId":"resp_cached"}}`)
+			var param any
+			ConvertAntigravityResponseToClaude(context.Background(), "gemini-3.8-flash-high", request, request, payload, &param)
+			ConvertAntigravityResponseToClaude(context.Background(), "gemini-3.8-flash-high", request, request, []byte("[DONE]"), &param)
+			ConvertAntigravityResponseToClaudeNonStream(context.Background(), "gemini-3.8-flash-high", request, request, payload, nil)
+		}
+	}
+}

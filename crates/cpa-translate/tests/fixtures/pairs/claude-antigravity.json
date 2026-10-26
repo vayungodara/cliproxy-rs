@@ -9459,6 +9459,490 @@
      "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"  \"},{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
     ]
    ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToClaudeStream_ZeroCandidatesDoesNotCountCachedAsOutput:calls",
+   "path": "stream",
+   "model": "gemini-3-flash",
+   "lines": [
+    "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"\"}]},\n\t\t\t\t\"finishReason\": \"STOP\"\n\t\t\t}],\n\t\t\t\"usageMetadata\": {\"promptTokenCount\": 142871, \"cachedContentTokenCount\": 140830, \"candidatesTokenCount\": 0, \"thoughtsTokenCount\": 0, \"totalTokenCount\": 142871},\n\t\t\t\"modelVersion\": \"gemini-3.8-flash-n\",\n\t\t\t\"responseId\": \"resp_cached_zero_candidates\"\n\t\t}\n\t}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached_zero_candidates\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":2041,\"output_tokens\":0,\"cache_read_input_tokens\":140830}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"cachedContentTokenCount\":150,\"candidatesTokenCount\":7,\"totalTokenCount\":107},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":100,\"output_tokens\":7,\"cache_read_input_tokens\":150}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#2",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"cachedContentTokenCount\":150,\"candidatesTokenCount\":7,\"totalTokenCount\":107},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":100,\"output_tokens\":7,\"cache_read_input_tokens\":150}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#3",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":1000,\"output_tokens\":250,\"cache_read_input_tokens\":800}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#4",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":1000,\"output_tokens\":250,\"cache_read_input_tokens\":800}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#5",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"thoughtsTokenCount\":30,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":1000,\"output_tokens\":30,\"cache_read_input_tokens\":800}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#6",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"thoughtsTokenCount\":30,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":1000,\"output_tokens\":30,\"cache_read_input_tokens\":800}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#7",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"totalTokenCount\":900},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":1000,\"output_tokens\":0,\"cache_read_input_tokens\":800}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#8",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"totalTokenCount\":900},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":1000,\"output_tokens\":0,\"cache_read_input_tokens\":800}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#9",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":1000,\"output_tokens\":250}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#10",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":1000,\"output_tokens\":250}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#11",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"cachedContentTokenCount\":150,\"totalTokenCount\":160},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":100,\"output_tokens\":60,\"cache_read_input_tokens\":150}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#12",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"cachedContentTokenCount\":150,\"totalTokenCount\":160},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":100,\"output_tokens\":60,\"cache_read_input_tokens\":150}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#13",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":40,\"cachedContentTokenCount\":10},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":40,\"output_tokens\":0,\"cache_read_input_tokens\":10}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:33#14",
+   "path": "non_stream",
+   "model": "gemini-3.8-flash-high",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":40,\"cachedContentTokenCount\":10},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "outputs": [
+    [
+     "{\"id\":\"resp_cached\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"gemini-3.8-flash-n\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":40,\"output_tokens\":0,\"cache_read_input_tokens\":10}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToClaudeStream_ZeroCandidatesDoesNotCountCachedAsOutput:256:stream",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"\"}]},\n\t\t\t\t\"finishReason\": \"STOP\"\n\t\t\t}],\n\t\t\t\"usageMetadata\": {\"promptTokenCount\": 142871, \"cachedContentTokenCount\": 140830, \"candidatesTokenCount\": 0, \"thoughtsTokenCount\": 0, \"totalTokenCount\": 142871},\n\t\t\t\"modelVersion\": \"gemini-3.8-flash-n\",\n\t\t\t\"responseId\": \"resp_cached_zero_candidates\"\n\t\t}\n\t}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached_zero_candidates\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":2041,\"output_tokens\":0,\"cache_read_input_tokens\":140830}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"cachedContentTokenCount\":150,\"candidatesTokenCount\":7,\"totalTokenCount\":107},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":0,\"output_tokens\":7,\"cache_read_input_tokens\":150}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#2",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"cachedContentTokenCount\":150,\"candidatesTokenCount\":7,\"totalTokenCount\":107},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":0,\"output_tokens\":7,\"cache_read_input_tokens\":150}}\n\n\n"
+    ],
+    [
+     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#3",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":200,\"output_tokens\":250,\"cache_read_input_tokens\":800}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#4",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":200,\"output_tokens\":250,\"cache_read_input_tokens\":800}}\n\n\n"
+    ],
+    [
+     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#5",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"thoughtsTokenCount\":30,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":200,\"output_tokens\":250,\"cache_read_input_tokens\":800}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#6",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"thoughtsTokenCount\":30,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":200,\"output_tokens\":250,\"cache_read_input_tokens\":800}}\n\n\n"
+    ],
+    [
+     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#7",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"totalTokenCount\":900},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":200,\"output_tokens\":0,\"cache_read_input_tokens\":800}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#8",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"cachedContentTokenCount\":800,\"totalTokenCount\":900},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":200,\"output_tokens\":0,\"cache_read_input_tokens\":800}}\n\n\n"
+    ],
+    [
+     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#9",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":1000,\"output_tokens\":250}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#10",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":1000,\"totalTokenCount\":1250},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":1000,\"output_tokens\":250}}\n\n\n"
+    ],
+    [
+     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#11",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"cachedContentTokenCount\":150,\"totalTokenCount\":160},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":0,\"output_tokens\":60,\"cache_read_input_tokens\":150}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#12",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":100,\"cachedContentTokenCount\":150,\"totalTokenCount\":160},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":0,\"output_tokens\":60,\"cache_read_input_tokens\":150}}\n\n\n"
+    ],
+    [
+     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#13",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":40,\"cachedContentTokenCount\":10},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\n"
+    ],
+    [
+     "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":30,\"output_tokens\":0,\"cache_read_input_tokens\":10}}\n\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
+  },
+  {
+   "name": "TestRSFixAntigravityClaudeCachedUsage:31:stream#14",
+   "path": "stream",
+   "model": "gemini-3.8-flash-high",
+   "original": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "translated": "{\"model\":\"gemini-3.8-flash-high\"}",
+   "lines": [
+    "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},\"finishReason\":\"STOP\"}],\"usageMetadata\":{\"promptTokenCount\":40,\"cachedContentTokenCount\":10},\"modelVersion\":\"gemini-3.8-flash-n\",\"responseId\":\"resp_cached\"}}",
+    "[DONE]"
+   ],
+   "outputs": [
+    [
+     "event: message_start\ndata: {\"type\": \"message_start\", \"message\": {\"id\": \"resp_cached\", \"type\": \"message\", \"role\": \"assistant\", \"content\": [], \"model\": \"gemini-3.8-flash-n\", \"stop_reason\": null, \"stop_sequence\": null, \"usage\": {\"input_tokens\": 0, \"output_tokens\": 0}}}\n\n\nevent: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi\"}}\n\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n\nevent: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":30,\"output_tokens\":0,\"cache_read_input_tokens\":10}}\n\n\n"
+    ],
+    [
+     "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
+    ]
+   ]
   }
  ],
  "token_count": true,

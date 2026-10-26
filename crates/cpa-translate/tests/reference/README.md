@@ -15,7 +15,11 @@ and `interactions-gemini`, `gemini-interactions`, `interactions-interactions`,
 `claude-antigravity` and `openai-antigravity` are `6fecc6e` files with fixtures recorded at
 `ae3ee3be` appended: the request fixtures of v8.0.35's new f51624aa tests, plus three
 `TestConvertAntigravityResponseToClaude_StripsExecutorInjectedUnderscore` fixtures (Go
-202b8b8c) the same harvest picked up; their other fixtures
+202b8b8c) the same harvest picked up. `claude-antigravity` also has 30 fixtures for Go
+912a038b (cached-token usage): Go's
+`TestConvertAntigravityResponseToClaudeStream_ZeroCandidatesDoesNotCountCachedAsOutput` and
+`TestRSFixAntigravityClaudeCachedUsage` from `harvest/antigravity_claude_cached_usage_test.go.txt`,
+stream and non-stream. Their other fixtures
 were not re-recorded, because their v8.0.35 response changes come from commits not ported
 yet. Regenerate those files from a v8.0.35 checkout and the others
 from `6fecc6e`, each with its own harvest: run the script below once per reference, with
@@ -136,6 +140,9 @@ scratch=$(mktemp -d)
 tool=$(mktemp -d)
 cp "$crate"/tests/reference/harvest/main.go "$tool/"
 (cd "$tool" && go mod init harvesttool && go run . "$scratch")
+# Extra Go tests that exist only for this harness (v8.0.35 harvest only):
+cp "$crate"/tests/reference/harvest/antigravity_claude_cached_usage_test.go.txt \
+  "$scratch"/internal/translator/antigravity/claude/rsfix_cached_usage_test.go
 (cd "$scratch" && go mod download && HARVEST_OUT="$scratch/calls.jsonl" \
   go test -count=1 ./internal/translator/... ./sdk/translator/... ./test/... \
     ./internal/util/... ./internal/client/codex/apply-patch/...)
