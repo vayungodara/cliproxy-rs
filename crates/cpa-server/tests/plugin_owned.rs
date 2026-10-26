@@ -1931,7 +1931,9 @@ async fn plugin_response_hooks_run_once_per_openai_compatible_stream_frame() {
         &compat,
         &[],
         |records| {
-            let body = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, r#"{"plugin":true}"#);
+            // The finish reason keeps [DONE]: without one the stream ends with an error (Go 97dd9eec).
+            let chunk = r#"{"plugin":true,"choices":[{"finish_reason":"stop"}]}"#;
+            let body = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, chunk);
             canned(records, "norm", "response.normalize_after", json!({ "Body": body }));
         },
     )
@@ -1941,7 +1943,10 @@ async fn plugin_response_hooks_run_once_per_openai_compatible_stream_frame() {
     };
     let (got, body) = env.chat_stream("up-model").await;
     assert_eq!(got, 200, "{body}");
-    assert_eq!(body, "data: {\"plugin\":true}\n\ndata: [DONE]\n\n");
+    assert_eq!(
+        body,
+        "data: {\"plugin\":true,\"choices\":[{\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+    );
     let asked = calls(&env.records, "norm", "response.normalize_after");
     assert_eq!(
         asked.len(),
