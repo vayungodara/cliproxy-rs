@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use crate::proxy::{self, GoClients, GoHeaders, Hooks, Proxy};
 
 /// `antigravityFallbackVersion`.
-pub const FALLBACK_VERSION: &str = "2.9.1";
+pub const FALLBACK_VERSION: &str = "2.23.0";
 const HUB_PLATFORM: &str = "darwin/arm64";
 const CACHE_TTL: Duration = Duration::from_secs(6 * 3600);
 const FETCH_TIMEOUT: Duration = Duration::from_secs(10);

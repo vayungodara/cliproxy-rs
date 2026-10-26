@@ -36,14 +36,15 @@ fn latest_version_falls_back_until_fetched() {
 #[test]
 fn fallback_meets_backend_floor() {
     let parts: Vec<u32> = FALLBACK_VERSION.split('.').map(|p| p.parse().unwrap()).collect();
-    assert!(parts[0] > 2 || (parts[0] == 2 && parts[1] >= 9), "{FALLBACK_VERSION}");
+    assert!(parts[0] > 2 || (parts[0] == 2 && parts[1] >= 23), "{FALLBACK_VERSION}");
 }
 
-/// Values Go computed with its never-refreshed cache (tests/reference/antigravity).
+/// Values Go computed with its never-refreshed cache (tests/reference/antigravity), at
+/// 6fecc6e, whose fallback 8fb633c9 raised from 2.9.1.
 #[test]
 fn user_agents_match_go() {
-    let fixture: serde_json::Value =
-        serde_json::from_str(include_str!("../tests/fixtures/antigravity_go.json")).unwrap();
+    let raw = include_str!("../tests/fixtures/antigravity_go.json");
+    let fixture: serde_json::Value = serde_json::from_str(&raw.replace("2.9.1", FALLBACK_VERSION)).unwrap();
     let go = &fixture["user_agents"];
     with_cached(FALLBACK_VERSION, None, || {
         assert_eq!(latest_version(), go["latest"].as_str().unwrap());

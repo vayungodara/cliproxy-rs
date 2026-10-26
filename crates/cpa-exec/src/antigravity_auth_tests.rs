@@ -27,8 +27,10 @@ use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use super::*;
 use crate::proxy::Hooks;
 
+/// Recorded at 6fecc6e, whose fallback client version 8fb633c9 raised to 2.23.0.
 fn fixture() -> Value {
-    serde_json::from_str(include_str!("../tests/fixtures/antigravity_go.json")).unwrap()
+    let raw = include_str!("../tests/fixtures/antigravity_go.json");
+    serde_json::from_str(&raw.replace("2.9.1", crate::antigravity_version::FALLBACK_VERSION)).unwrap()
 }
 
 /// The test CA and `*.googleapis.com` leaf recorded with the Vertex goldens.

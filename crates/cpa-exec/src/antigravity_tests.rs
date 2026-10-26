@@ -200,7 +200,16 @@ async fn go_v8_0_27_scenarios() {
 /// The scenarios recorded from Go v8.0.35 for the behaviour ported from it.
 #[tokio::test]
 async fn go_v8_0_35_scenarios() {
-    let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/antigravity_v8_0_35_go.json")).unwrap();
+    let raw = include_str!("../tests/fixtures/antigravity_v8_0_35_go.json");
+    // normalize masks the hub version; Go's never-fetched default is its fallback (8fb633c9).
+    let hub = regex::Regex::new(r"antigravity/hub/([0-9.]+) darwin/arm64").unwrap();
+    let versions: std::collections::BTreeSet<&str> =
+        hub.captures_iter(raw).map(|c| c.get(1).unwrap().as_str()).collect();
+    assert_eq!(
+        versions.into_iter().collect::<Vec<_>>(),
+        [crate::antigravity_version::FALLBACK_VERSION]
+    );
+    let fixture: Value = serde_json::from_str(raw).unwrap();
     assert_eq!(fixture["go"], "v8.0.35");
     let scenarios = fixture["executor"].as_array().unwrap();
     assert_eq!(replay_go_scenarios(scenarios).await, scenarios.len());
