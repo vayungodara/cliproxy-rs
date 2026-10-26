@@ -402,8 +402,11 @@ async fn usage_records_match_go() {
             if !name.starts_with("usage_") {
                 continue;
             }
-            let reply = s.get("upstream").unwrap_or_else(|| &s["replies"][0]);
-            let up = scripted(reply).await;
+            // A scenario Go answers before any upstream request has no reply.
+            let up = match s.get("upstream").or_else(|| s["replies"].get(0)) {
+                Some(reply) => scripted(reply).await,
+                None => "http://127.0.0.1:1".to_owned(),
+            };
             let config = format!(
                 "{}access:\n  api-keys: [client-key]\n{}",
                 auth_dir_line(),
@@ -435,7 +438,12 @@ async fn usage_records_match_go() {
                 other => panic!("{name}: no route for {other}"),
             };
             let (status, _, text) = post(&url, path, s["payload"].as_str().unwrap()).await;
-            assert_eq!(status, 200, "{name}: {text}");
+            // A stream's error comes after its 200 status line.
+            let want_status = match s["error"]["status"].as_u64() {
+                Some(status) if s["op"] == "execute" => status as u16,
+                _ => 200,
+            };
+            assert_eq!(status, want_status, "{name}: {text}");
             let mut records = Vec::new();
             for _ in 0..50 {
                 records = queue.pop_oldest(10);
@@ -465,6 +473,12 @@ async fn usage_records_match_go() {
                 "{name}: response_model"
             );
             assert_eq!(got["failed"], want["failed"], "{name}: failed");
+            // Recorded since d9451cb6: the executor identity, which picks the token rule.
+            if let Some(executor_type) = want.get("executor_type") {
+                assert_eq!(&got["executor_type"], executor_type, "{name}: executor_type");
+                assert_eq!(got["model"], want["model"], "{name}: model");
+                assert_eq!(got["token_breakdown"]["quality"], want["quality"], "{name}: quality");
+            }
             // Go's Interactions paths never set a translated effort: the record keeps the
             // conductor's context value (the client's effort), which the executor-level
             // generator does not bind. The Gemini and Vertex paths replace it.
@@ -478,7 +492,7 @@ async fn usage_records_match_go() {
             ran += 1;
         }
     }
-    assert_eq!(ran, 8, "usage scenarios in the Go fixtures");
+    assert_eq!(ran, 11, "usage scenarios in the Go fixtures");
 }
 
 /// With session affinity, a Gemini body nested far deeper than any conversation is
@@ -526,4 +540,87 @@ async fn deeply_nested_body_skips_prefix_matching() {
     assert_eq!(sessions.len(), 2);
     assert!(!sessions[0].starts_with("s-lcp:"), "{sessions:?}");
     assert!(sessions[1].starts_with("s-lcp:v1:"), "{sessions:?}");
+}
+
+/// Go v8.0.35: a service account whose `base_url` Go's URL parser refuses fails with the
+/// parse error after one token exchange (`oa_sa_escaped_base` in vertex_go_v8.0.35.json); the statusless error starts no retry round and
+/// cools the model, so the next request is refused without another token exchange.
+#[tokio::test]
+async fn vertex_openapi_refused_url_cools_the_model_without_retry_rounds() {
+    let tokens = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let counter = tokens.clone();
+    let up = serve(axum::Router::new().fallback(move || {
+        counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        async { r#"{"access_token":"ya29.fake-access","expires_in":3599,"token_type":"Bearer"}"# }
+    }))
+    .await;
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../cpa-exec/tests/fixtures/vertex_go.json")).unwrap();
+    let auth_dir = auth_dir_line();
+    let port = up.rsplit(':').next().unwrap().to_owned();
+    let dir = auth_dir.trim().trim_start_matches("auth-dir: ").to_owned();
+    let file = serde_json::json!({
+        "type": "vertex",
+        "project_id": "proj-1",
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "openapi": true,
+        // An escaped loopback host (the token mock's): even a regression that sent the
+        // request could only reach the mock, where it counts as another call.
+        "base_url": format!("http://%31%32%37.0.0.1:{port}/v1"),
+        "service_account": {
+            "type": "service_account",
+            "project_id": "proj-1",
+            "client_email": "svc@proj-1.iam.gserviceaccount.com",
+            "private_key_id": "kid-1",
+            "private_key": fixture["keys"]["pkcs1"],
+            "token_uri": format!("{up}/token"),
+        },
+    });
+    std::fs::write(format!("{dir}/vertex-sa.json"), file.to_string()).unwrap();
+    let config = Config::parse(&format!(
+        "{auth_dir}access:\n  api-keys: [client-key]\nrouting:\n  retry:\n    request-retry: 2\n"
+    ))
+    .unwrap();
+    // The token endpoint is the local mock; the refused base URL never connects.
+    let credentials: Vec<_> = cpa_core::config::credentials::load(&config)
+        .into_iter()
+        .map(cpa_server::testing::local)
+        .collect();
+    assert_eq!(credentials.len(), 1);
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let url = serve(router(Arc::new(cpa_server::testing::runtime(
+        config,
+        credentials,
+        executors,
+    ))))
+    .await;
+    let body = r#"{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}]}"#;
+    let parse = format!(
+        r#"parse \"http://%31%32%37.0.0.1:{port}/v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions\": invalid URL escape \"%31\""#
+    );
+    let (status, _, text) = post(&url, "/v1/chat/completions", body).await;
+    assert_eq!(status, 500, "{text}");
+    assert!(text.contains(&parse), "{text}");
+    assert_eq!(
+        tokens.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "one token exchange"
+    );
+    let (status, _, text) = post(&url, "/v1/chat/completions", body).await;
+    assert_eq!(status, 503, "{text}");
+    assert!(
+        text.contains("auth_unavailable") && text.contains("last upstream error: parse"),
+        "{text}"
+    );
+    assert_eq!(
+        tokens.load(std::sync::atomic::Ordering::SeqCst),
+        1,
+        "no exchange for a cooled model"
+    );
 }

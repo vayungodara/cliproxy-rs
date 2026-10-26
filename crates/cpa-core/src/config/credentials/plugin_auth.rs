@@ -514,7 +514,7 @@ fn build(
         return Ok(Vec::new());
     }
     let excluded = excluded_union(&[&per_account]);
-    let aliases = oauth_aliases(meta.get("model_aliases"));
+    let aliases = oauth_aliases(meta);
     let fingerprint = meta
         .get("fingerprint_profile")
         .and_then(Json::as_str)

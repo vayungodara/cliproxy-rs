@@ -643,9 +643,16 @@ async fn terminal_errors_flush_pending_frames_first() {
         (vec![Err(ExecError::local(502, FailureScope::Transport, "cut"))], 502),
     ] {
         let lines: ExecStream = futures_util::stream::iter(lines).boxed();
-        let out: Vec<_> = frames(lines, Box::new(Pending), true, Default::default(), Default::default())
-            .collect()
-            .await;
+        let out: Vec<_> = frames(
+            lines,
+            Box::new(Pending),
+            ClaudeInputTokens::new(Format::OpenAI, Format::OpenAI, Format::OpenAI, Bytes::new()),
+            true,
+            Default::default(),
+            Default::default(),
+        )
+        .collect()
+        .await;
         assert_eq!(out.len(), 2);
         assert_eq!(out[0].as_ref().unwrap(), &Bytes::from_static(b"event: pending\n\n"));
         assert_eq!(out[1].as_ref().unwrap_err().status, status);

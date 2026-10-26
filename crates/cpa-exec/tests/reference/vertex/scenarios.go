@@ -120,6 +120,54 @@ api-keys:
         - api-key: vk-fake-usage
 `
 
+// usageOAConfig names a partner model without an alias (d9451cb6).
+const usageOAConfig = `
+api-keys:
+  vertex:
+    - base-url: http://UPSTREAM/api
+      models:
+        - name: meta/llama-4
+      keys:
+        - api-key: vk-fake-usage
+`
+
+// usageOAPublisherConfig names a partner model by its publisher resource behind an
+// alias: the route normalizes it to meta/llama-3.3-70b-instruct-maas.
+const usageOAPublisherConfig = `
+api-keys:
+  vertex:
+    - base-url: http://UPSTREAM/api
+      models:
+        - name: publishers/meta/models/llama-3.3-70b-instruct-maas
+          alias: u-llama
+      keys:
+        - api-key: vk-fake-usage
+`
+
+// escapedHostConfig: a Google host spelled with a percent escape passes the
+// Google-host check as a relay base.
+const escapedHostConfig = `
+api-keys:
+  vertex:
+    - base-url: https://%61iplatform.googleapis.com
+      models:
+        - name: meta/llama-4
+      keys:
+        - api-key: vk-fake-escaped
+`
+
+// emptyHostConfig: a base URL Go parses as opaque, with no host.
+const emptyHostConfig = `
+api-keys:
+  vertex:
+    - base-url: https:relay.example
+      models:
+        - name: meta/llama-4
+        - name: gemini-2.5-flash
+      keys:
+        - api-key: vk-fake-empty-host
+`
+
 // interactionsKeyConfig opts its first key into native Interactions (2d5351b3); the
 // second key does not.
 const interactionsKeyConfig = `
@@ -422,11 +470,172 @@ requests:
 			s.Metadata["access_token"] = "ya29.from-file"
 			delete(s.Metadata, "service_account")
 		}),
+		// d9451cb6: partner and open models, and credentials that opt in with
+		// `openapi`, go to the OpenAI-compatible endpoints/openapi route.
+		with(sa("oa_sa_execute", "execute", "global", "deepseek-ai/deepseek-v4.1-flash-maas", `{"model":"deepseek-ai/deepseek-v4.1-flash-maas","messages":[{"role":"user","content":"hello maas"}]}`, token, chatOK), func(s *scenario) {
+			s.Source = "openai"
+		}),
+		with(sa("oa_sa_stream_location_override", "stream", "", "meta/llama-4-maverick-17b-128e-instruct-maas", `{"model":"meta/llama-4-maverick-17b-128e-instruct-maas","messages":[{"role":"user","content":"hi"}],"stream":true}`, token, chatSSE), func(s *scenario) {
+			s.Source = "openai"
+			s.Metadata["openapi_location"] = "us-east5"
+		}),
+		with(sa("oa_sa_publisher_resource", "execute", "us-central1", "publishers/Meta/models/llama-3.3-70b-instruct-maas(high)", `{"model":"x","messages":[{"role":"user","content":"hi"}]}`, token, chatOK), func(s *scenario) {
+			s.Source = "openai"
+		}),
+		with(sa("oa_sa_explicit_optin_gemini", "execute", "", "gemini-2.5-flash", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}]}`, token, chatOK), func(s *scenario) {
+			s.Source = "openai"
+			s.Metadata["openapi"] = "1"
+		}),
+		with(sa("oa_sa_explicit_optin_imagen", "execute", "", "imagen-4.0-generate-001", `{"model":"imagen-4.0-generate-001","contents":[{"role":"user","parts":[{"text":"a cat"}]}]}`, token, imagenOK), func(s *scenario) {
+			s.Metadata["openapi"] = true
+		}),
+		with(sa("oa_sa_explicit_optout", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","contents":`+userHi+`}`, token, jsonOK), func(s *scenario) {
+			s.Metadata["openapi"] = "false"
+		}),
+		with(sa("oa_sa_claude_stream", "stream", "", "qwen/qwen3-coder-480b-a35b-instruct-maas", `{"model":"qwen/qwen3-coder-480b-a35b-instruct-maas","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, token, chatSSE), func(s *scenario) {
+			s.Source = "claude"
+		}),
+		with(sa("oa_sa_before_interactions", "execute", "", "deepseek-ai/deepseek-v4.1-flash-maas", `{"model":"deepseek-ai/deepseek-v4.1-flash-maas","input":"hi"}`, token, chatOK), func(s *scenario) {
+			s.Source = "interactions"
+			s.Metadata["interactions"] = true
+		}),
+		with(sa("oa_sa_base_url", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, token, chatOK), func(s *scenario) {
+			s.Source = "openai"
+			s.Metadata["base_url"] = "https://europe-west4-aiplatform.googleapis.com/v1beta1/"
+		}),
+		with(sa("oa_sa_token_error", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, reply{Status: 400, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"error":"invalid_grant","error_description":"bad"}`}), func(s *scenario) {
+			s.Source = "openai"
+		}),
+		with(sa("oa_sa_empty_token", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json; charset=utf-8"}}, Body: `{"access_token":"","expires_in":3599,"token_type":"Bearer"}`}), func(s *scenario) {
+			s.Source = "openai"
+		}),
+		with(sa("oa_sa_upstream_error", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, token, reply{Status: 429, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"error":{"code":429,"message":"quota","status":"RESOURCE_EXHAUSTED"}}`}), func(s *scenario) {
+			s.Source = "openai"
+		}),
+		with(sa("oa_sa_count", "count", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"count these tokens"}]}`), func(s *scenario) {
+			s.Source = "openai"
+		}),
+		with(sa("oa_file_access_token_rejected", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Source = "openai"
+			s.Metadata["access_token"] = "ya29.from-file"
+			delete(s.Metadata, "service_account")
+		}),
+		with(key("oa_key_third_party", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, chatOK), func(s *scenario) {
+			s.Source = "openai"
+		}),
+		with(key("oa_key_third_party_stream", "stream", "mistralai/mistral-small-2503", "", `{"model":"mistralai/mistral-small-2503","messages":[{"role":"user","content":"hi"}],"stream":true}`, chatSSE), func(s *scenario) {
+			s.Source = "openai"
+			s.ConfigAuth = 1
+		}),
+		with(key("oa_key_publishers_prefix", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, chatOK), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = keyPrefixConfig
+		}),
+		with(key("oa_key_version_base", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, chatOK), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = keyPrefixConfig
+			s.ConfigAuth = 1
+		}),
+		with(key("oa_key_google_host_rejected", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Source = "openai"
+			s.ConfigAuth = 2
+			s.Via = ""
+		}),
+		// A base URL whose host carries a percent escape: Go's url.Parse refuses it in
+		// http.NewRequest, so the key (or the fresh service-account token) never leaves.
+		with(key("oa_key_escaped_host", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = escapedHostConfig
+			s.Via = ""
+		}),
+		with(sa("oa_sa_escaped_base", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, token), func(s *scenario) {
+			s.Source = "openai"
+			s.Metadata["base_url"] = "https://%65vil.example/v1"
+		}),
+		// A base URL Go parses without a host (`https:relay.example`, `https:///v1`):
+		// http.NewRequest accepts it and the transport refuses it, after the token
+		// exchange on the service-account paths, so nothing reaches a host.
+		with(key("oa_key_empty_host", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = emptyHostConfig
+			s.Via = ""
+		}),
+		with(sa("oa_sa_empty_host", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, token), func(s *scenario) {
+			s.Source = "openai"
+			s.Metadata["base_url"] = "https:///v1"
+		}),
+		with(key("key_empty_host", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, "")), func(s *scenario) {
+			s.Config = emptyHostConfig
+			s.Via = ""
+		}),
+		with(interactionsKey("int_key_empty_host", "execute", "gemini-3-pro-preview", `{"model":"vertex-int","input":"hi"}`), func(s *scenario) {
+			s.Config = strings.Replace(interactionsKeyConfig, "http://UPSTREAM/api/", "https:relay.example", 1)
+			s.Via = ""
+		}),
+		// A base URL without a scheme (`relay.example`): Go's transport refuses the
+		// scheme before it looks for a host.
+		with(key("oa_key_schemeless_base", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = strings.Replace(emptyHostConfig, "https:relay.example", "relay.example", 1)
+			s.Via = ""
+		}),
+		with(key("key_schemeless_base", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, "")), func(s *scenario) {
+			s.Config = strings.Replace(emptyHostConfig, "https:relay.example", "relay.example", 1)
+			s.Via = ""
+		}),
+		with(key("oa_key_payload_rules", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}],"temperature":0.5}`, chatOK), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = keyConfig + oaPayloadRules
+		}),
+		// A chat.completion chunk with a finish_reason ends the response model
+		// (d9451cb6's response_model.go): the usage-only chunk after it names another model.
+		// The key lists the model by name only (vertex_compat.go keeps it without an alias).
+		with(usageKey("usage_oa_key_stream_terminal_model", "openai", "stream", `{"model":"meta/llama-4","stream":true,"messages":[{"role":"user","content":"hi"}]}`,
+			reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: " + `{"id":"c1","object":"chat.completion.chunk","created":1,"model":"meta/llama-4-served","choices":[{"index":0,"delta":{"content":"hi"},"finish_reason":"stop"}]}` + "\n\ndata: " + `{"id":"c1","object":"chat.completion.chunk","created":1,"model":"meta/other","choices":[],"usage":{"prompt_tokens":4,"completion_tokens":1,"total_tokens":5}}` + "\n\ndata: [DONE]\n\n"}), func(s *scenario) {
+			s.Config = usageOAConfig
+			s.Model = "meta/llama-4"
+			s.RequestedModel = "meta/llama-4"
+		}),
+		// Reasoning inside completion_tokens: the record names OpenAICompatExecutor, whose
+		// token rule counts it as a subset, and the normalized publisher model.
+		with(usageKey("usage_oa_key_reasoning_publisher_model", "openai", "execute", `{"model":"u-llama","messages":[{"role":"user","content":"hi"}]}`,
+			reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"id":"c1","object":"chat.completion","created":1,"model":"meta/llama-3.3-70b-instruct-maas","choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":50,"total_tokens":60,"completion_tokens_details":{"reasoning_tokens":30}}}`}), func(s *scenario) {
+			s.Config = usageOAPublisherConfig
+			s.Model = "publishers/meta/models/llama-3.3-70b-instruct-maas"
+			s.RequestedModel = "u-llama"
+		}),
+		// A credential-stage failure keeps the Vertex executor's identity but already
+		// names the normalized model.
+		with(usageKey("usage_oa_key_google_host_rejected", "openai", "execute", `{"model":"u-llama","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Config = strings.Replace(usageOAPublisherConfig, "http://UPSTREAM/api", "https://us-central1-aiplatform.googleapis.com", 1)
+			s.Model = "publishers/meta/models/llama-3.3-70b-instruct-maas"
+			s.RequestedModel = "u-llama"
+			s.Via = ""
+		}),
 		with(key("key_codex_tool_integer_types", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"tools":[{"type":"function","name":"shell","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"}}}}]}`, jsonOK), func(s *scenario) {
 			s.Source = "openai-response"
 			s.Headers = map[string]string{"User-Agent": "codex_cli_rs/0.50.0 (Mac OS 15.0)"}
 		}),
 	}
 }
+
+// The endpoints/openapi answers (d9451cb6).
+var chatOK = reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"id":"chatcmpl-vertex-maas-1","object":"chat.completion","created":1700000000,"model":"deepseek-ai/deepseek-v4.1-flash-maas","choices":[{"index":0,"message":{"role":"assistant","content":"hello from vertex maas"},"finish_reason":"stop"}],"usage":{"prompt_tokens":8,"completion_tokens":5,"total_tokens":13}}`}
+
+var chatSSE = reply{Status: 200, Headers: [][2]string{{"Content-Type", "text/event-stream"}}, Body: "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\ndata: [DONE]\n\n"}
+
+// oaPayloadRules: the openapi route applies rules for the openai protocol of the vertex
+// executor, after the built-in edits.
+const oaPayloadRules = `
+payload:
+  default:
+    - models: [{name: "meta/*", protocol: openai}]
+      params: {max_tokens: 77}
+  override:
+    - models: [{name: "meta/*", protocol: openai}]
+      params: {temperature: 0.1}
+    - models: [{name: "meta/*", protocol: gemini}]
+      params: {generationConfig.temperature: 0.9}
+`
 
 var _ = strings.TrimSpace

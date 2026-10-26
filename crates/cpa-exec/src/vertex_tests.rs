@@ -295,6 +295,8 @@ async fn go_reference_scenarios() {
                 e["message"].as_str().unwrap().to_owned(),
             )
         });
+        // A statusless Rust error is rendered 500 too.
+        let error = error.map(|(status, message)| (if status == 0 { 500 } else { status }, message));
         let error = error.map(|(status, message)| match want_error {
             Some((500, _)) if mid_stream && s["error"]["status"] == 0 => (500, message),
             _ => (status, message),
@@ -336,6 +338,22 @@ async fn go_reference_scenarios() {
             .collect();
         assert_eq!(got, want, "{name}: upstream requests");
         reports.check(s);
+        // The record's identity (recorded since d9451cb6): the Vertex executor and the
+        // requested base model unless the attempt was handed to another executor.
+        if let Some(executor_type) = s["usage"]["executor_type"].as_str() {
+            let base = cpa_common::thinking::parse_suffix(s["model"].as_str().unwrap()).model_name;
+            let identity = reports
+                .delegated
+                .lock()
+                .unwrap()
+                .clone()
+                .unwrap_or_else(|| ("GeminiVertexExecutor".into(), base));
+            let want = (
+                executor_type.to_owned(),
+                s["usage"]["model"].as_str().unwrap().to_owned(),
+            );
+            assert_eq!(identity, want, "{name}: usage identity");
+        }
         // Every model request is captured with its reply; the token exchange is not
         // (Go logs only the executor's own request).
         let mut events: std::collections::VecDeque<_> = captures.events().into();
@@ -346,10 +364,13 @@ async fn go_reference_scenarios() {
                 continue;
             }
             // Go AccountInfo: config keys are API-key accounts, file credentials OAuth ones
-            // named by their email.
+            // named by their email. The endpoints/openapi route sends the key as a bearer.
             let key_value = wire
                 .lines()
-                .find_map(|l| l.strip_prefix("X-Goog-Api-Key: "))
+                .find_map(|l| {
+                    l.strip_prefix("X-Goog-Api-Key: ")
+                        .or_else(|| l.strip_prefix("Authorization: Bearer "))
+                })
                 .unwrap_or_default();
             let email = s["metadata"]["email"].as_str().unwrap_or_default();
             let account = if s["config_auth"].as_i64().unwrap() >= 0 {
@@ -365,6 +386,23 @@ async fn go_reference_scenarios() {
                 s["op"] == "stream",
                 "vertex",
                 Some(account),
+            );
+        }
+        // Go logs a request its transport then refuses (no host, or an unsupported
+        // scheme), and the error.
+        if let Some(message) = s["error"]["message"]
+            .as_str()
+            .filter(|m| m.ends_with("http: no Host in request URL") || m.contains("\": unsupported protocol scheme \""))
+        {
+            let url = message.split('"').nth(1).unwrap();
+            assert!(
+                matches!(events.pop_front(), Some(crate::gemini::tests::Captured::Request { url: u, .. }) if u == url),
+                "{name}: refused request capture"
+            );
+            assert_eq!(
+                events.pop_front(),
+                Some(crate::gemini::tests::Captured::Error(message.to_owned())),
+                "{name}: refused error capture"
             );
         }
         assert!(events.is_empty(), "{name}: extra captures {events:?}");

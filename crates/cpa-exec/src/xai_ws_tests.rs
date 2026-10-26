@@ -568,7 +568,7 @@ fn capture_problems(
             _ => {}
         }
     }
-    let (auth_type, auth_value) = crate::openai_compat_http::account_info(credential);
+    let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(credential);
     for event in events {
         if let Captured::Request {
             websocket,

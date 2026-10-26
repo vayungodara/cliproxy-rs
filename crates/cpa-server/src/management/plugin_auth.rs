@@ -22,7 +22,7 @@ use cpa_plugin::hostauth::{AuthManager, HostAuth, SavedAuths, SavedRefresh};
 use serde_json::Value;
 
 use super::Management;
-use super::auth_files::{auth_kind, file_name, parse_time, path_of, recent_requests, status_message};
+use super::auth_files::{file_name, parse_time, path_of, recent_requests, status_message};
 
 /// Gives the runtime's plugin host this management state as its auth manager.
 pub(crate) fn attach(state: &Arc<Management>) {
@@ -221,23 +221,7 @@ fn host_auth(state: &Management, c: &Credential) -> HostAuth {
     let last_refresh = ["last_refresh", "lastRefresh", "last_refreshed_at", "lastRefreshedAt"]
         .iter()
         .find_map(|key| c.metadata.get(*key).and_then(parse_time));
-    let email = c
-        .metadata
-        .get("email")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .unwrap_or_default();
-    let (account_type, account) = match auth_kind(c) {
-        Some("oauth") => ("oauth", email.to_owned()),
-        Some(_) => (
-            "api_key",
-            c.attributes
-                .get("api_key")
-                .map(|k| k.trim().to_owned())
-                .unwrap_or_default(),
-        ),
-        None => ("", String::new()),
-    };
+    let (account_type, account) = cpa_core::registry::dynamic::account_info(c);
     HostAuth {
         id: c.id.clone(),
         index: credentials::auth_index(c),

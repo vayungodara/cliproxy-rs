@@ -84,25 +84,6 @@ pub(crate) fn publish_failure(usage: &UsageSink, error: &ExecError) {
 
 // --- upstream request capture (helps/logging_helpers.go) --------------------------------
 
-/// Go `Auth.AccountInfo`: `("oauth", email)` or `("api_key", key)` by auth kind.
-pub(crate) fn account_info(credential: &Credential) -> (&'static str, String) {
-    match cpa_core::registry::dynamic::auth_kind(credential) {
-        Some("oauth") => (
-            "oauth",
-            credential.str("email").map(|e| e.trim().to_owned()).unwrap_or_default(),
-        ),
-        Some("apikey") => (
-            "api_key",
-            credential
-                .attributes
-                .get("api_key")
-                .map(|k| k.trim().to_owned())
-                .unwrap_or_default(),
-        ),
-        _ => ("", String::new()),
-    }
-}
-
 /// Response headers as Go's `http.Header`: canonical names, every value in order.
 pub(crate) fn header_pairs(headers: &HeaderMap) -> Vec<(String, String)> {
     headers
@@ -136,7 +117,7 @@ impl Capture {
     ) -> Self {
         let sink = req.capture().clone();
         if sink.enabled() {
-            let (auth_type, auth_value) = account_info(credential);
+            let (auth_type, auth_value) = cpa_core::registry::dynamic::account_info(credential);
             sink.record(CaptureEvent::Request(UpstreamRequest {
                 url,
                 method,

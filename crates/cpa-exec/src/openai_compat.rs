@@ -17,6 +17,7 @@ use cpa_common::gostr::GoStr;
 use cpa_common::json as gj;
 use cpa_common::thinking::{self, ModelCaps, RequestThinking, parse_suffix};
 
+use crate::gemini_stream::ClaudeInputTokens;
 use crate::openai_compat_go as go;
 use crate::openai_compat_http::{self as wire, Clients, GoHeaders};
 use crate::openai_compat_multipart as multipart;
@@ -263,159 +264,10 @@ impl OpenAICompatExecutor {
 
     /// Execute (`stream` false) and ExecuteStream (`stream` true) for chat and compact.
     async fn chat(&self, credential: &Credential, req: ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
-        let base_model = parse_suffix(&req.model).model_name;
         let (base_url, api_key) = credentials(credential);
-        if base_url.is_empty() {
-            return Err(missing_base_url());
-        }
-        let compact = req.alt.as_deref() == Some(COMPACT_ALT);
-        // ExecuteStream always targets chat completions, even with the compact alt.
-        let (target, path) = if compact && !req.stream {
-            (Format::OpenAIResponse, "/responses/compact")
-        } else {
-            (Format::OpenAI, "/chat/completions")
-        };
-        let response_pair = cpa_translate::pair(req.response_format, target);
-        if response_pair.is_none() && req.response_format != target {
-            return Err(not_registered("response", req.response_format, target));
-        }
         let compat = payload::resolve_compat(credential, cfg);
-        let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
-        let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
-        let original = translate_body(
-            &req,
-            cfg,
-            target,
-            &base_model,
-            req.stream,
-            original_payload(&req),
-            is_compat,
-        );
-        let mut body = translate_body(&req, cfg, target, &base_model, req.stream, &req.body, is_compat)?;
-        let original = crate::translate::baseline_or_working(original, &body);
-        body = apply_thinking(body, &req, target, &credential.provider, caps.as_ref())?;
-        let requested = route_model(&req);
-        if payload::excludes_images(compat.as_ref(), &base_model, requested) {
-            body = payload::normalize_tool_results_text_only(body);
-        }
-        if !compact {
-            let mct = payload::uses_max_completion_tokens(compat.as_ref(), &base_model, requested);
-            body = payload::normalize_max_tokens(body, mct);
-            body = prompt_cache_key(compat.as_ref(), &credential.provider, &req, &base_model, body);
-        }
-        if compact && !req.stream {
-            gj::delete(&mut body, "stream");
-            body = payload::sanitize_reasoning_encrypted_content(body);
-        }
-        if req.stream {
-            payload::set_bool_if_different(&mut body, "stream_options.include_usage", true);
-        }
-        if req.usage.enabled() {
-            req.usage.request(target, &body);
-        }
-        // The payload rules are the last change to the body (868e137).
-        body = apply_payload_rules(cfg, &req, &base_model, target, &original, body);
-        let mut headers = base_headers(&api_key, "application/json");
-        apply_custom(&mut headers, credential, &req);
-        if req.stream {
-            headers.set("Accept", "text/event-stream");
-            headers.set("Cache-Control", "no-cache");
-        }
         let client = self.clients.for_credential(credential, cfg);
-        let url = endpoint(&base_url, path);
-        let capture = wire::Capture::request(
-            &req,
-            credential,
-            &credential.provider,
-            &url,
-            "POST",
-            headers.pairs(),
-            &body,
-        );
-        let upstream = wire::send(&client, &url, headers, Bytes::from(body.clone())).await;
-        capture.sent(&upstream);
-        let upstream = upstream?;
-        if !(200..300).contains(&upstream.status) {
-            return Err(upstream_error(upstream, &capture).await);
-        }
-        let response_headers = upstream.headers.clone();
-        let original = if req.original_body.is_empty() {
-            req.body.clone()
-        } else {
-            req.original_body.clone()
-        };
-        if req.stream {
-            let translator: Box<dyn StreamTranslator> = match response_pair {
-                Some(pair) => crate::translate::stream(
-                    pair,
-                    &ResponseCtx {
-                        model: &req.model,
-                        original_request: &original,
-                        translated_request: &body,
-                        tool_search: false,
-                    },
-                    &req,
-                ),
-                None => Box::new(Identity),
-            };
-            let mut lines = wire::lines(upstream, MAX_LINE);
-            if req.usage.enabled() {
-                // ObserveResponseModel and StreamUsageBuffer.ObserveOpenAIStream per line.
-                let usage = req.usage.clone();
-                lines = lines
-                    .inspect(move |line| {
-                        if let Ok(line) = line {
-                            usage.response_line(Format::OpenAI, line);
-                        }
-                    })
-                    .boxed();
-            }
-            let stream = frames(
-                lines,
-                translator,
-                req.response_format == Format::OpenAIResponse,
-                capture,
-                req.usage.clone(),
-            );
-            return Ok(ExecResponse {
-                status: 200,
-                headers: response_headers,
-                body: ResponseBody::Stream(stream),
-            });
-        }
-        let raw = wire::read_all(upstream).await;
-        capture.read(&raw);
-        let raw = raw?;
-        // ObserveResponseModel(body) and Publish(ParseOpenAIUsage(body)).
-        if req.usage.enabled() {
-            req.usage.response_body(target, &raw);
-        }
-        let ctx = ResponseCtx {
-            model: &req.model,
-            original_request: &original,
-            translated_request: &body,
-            tool_search: false,
-        };
-        let mut out = match response_pair {
-            Some(pair) => (pair.non_stream)(&ctx, &raw)
-                .map_err(|_| ExecError::local(502, FailureScope::Request, EMPTY_TRANSLATION))?,
-            // Go's TranslateNonStream still runs the plugin response hooks.
-            None => {
-                cpa_translate::hooks::unregistered_non_stream(target.as_str(), req.response_format.as_str(), &ctx, &raw)
-                    .unwrap_or_else(|| raw.to_vec())
-            }
-        };
-        if out.is_empty() {
-            return Err(ExecError::local(502, FailureScope::Request, EMPTY_TRANSLATION));
-        }
-        if req.response_format == Format::OpenAIResponse {
-            out = payload::ensure_responses_usage_details(&out);
-        }
-        Ok(ExecResponse {
-            status: 200,
-            headers: response_headers,
-            body: ResponseBody::Buffered(Bytes::from(out)),
-        })
+        chat_with(&client, credential, req, cfg, &base_url, &api_key, compat.as_ref()).await
     }
 
     /// `executeImages` / `executeImagesStream`: the body (JSON or multipart) goes to
@@ -518,6 +370,180 @@ impl OpenAICompatExecutor {
             body: ResponseBody::Buffered(data),
         })
     }
+}
+
+/// `executeWithCredentials` / `executeStreamWithCredentials` (Go d9451cb6): the chat
+/// request at `base_url` with `api_key`, for this executor's credentials and for
+/// Vertex's endpoints/openapi route (which passes no compatibility config).
+pub(crate) async fn chat_with(
+    client: &wreq::Client,
+    credential: &Credential,
+    req: ExecRequest,
+    cfg: &Config,
+    base_url: &str,
+    api_key: &str,
+    compat: Option<&payload::Compat>,
+) -> Result<ExecResponse, ExecError> {
+    let base_model = parse_suffix(&req.model).model_name;
+    if base_url.is_empty() {
+        return Err(missing_base_url());
+    }
+    let compact = req.alt.as_deref() == Some(COMPACT_ALT);
+    // ExecuteStream always targets chat completions, even with the compact alt.
+    let (target, path) = if compact && !req.stream {
+        (Format::OpenAIResponse, "/responses/compact")
+    } else {
+        (Format::OpenAI, "/chat/completions")
+    };
+    let response_pair = cpa_translate::pair(req.response_format, target);
+    if response_pair.is_none() && req.response_format != target {
+        return Err(not_registered("response", req.response_format, target));
+    }
+    let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
+    let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+    let original = translate_body(
+        &req,
+        cfg,
+        target,
+        &base_model,
+        req.stream,
+        original_payload(&req),
+        is_compat,
+    );
+    let mut body = translate_body(&req, cfg, target, &base_model, req.stream, &req.body, is_compat)?;
+    let original = crate::translate::baseline_or_working(original, &body);
+    body = apply_thinking(body, &req, target, &credential.provider, caps.as_ref())?;
+    let requested = route_model(&req);
+    if payload::excludes_images(compat, &base_model, requested) {
+        body = payload::normalize_tool_results_text_only(body);
+    }
+    if !compact {
+        let mct = payload::uses_max_completion_tokens(compat, &base_model, requested);
+        body = payload::normalize_max_tokens(body, mct);
+        body = prompt_cache_key(compat, &credential.provider, &req, &base_model, body);
+    }
+    if compact && !req.stream {
+        gj::delete(&mut body, "stream");
+        body = payload::sanitize_reasoning_encrypted_content(body);
+    }
+    if req.stream {
+        payload::set_bool_if_different(&mut body, "stream_options.include_usage", true);
+    }
+    if req.usage.enabled() {
+        req.usage.request(target, &body);
+    }
+    // The payload rules are the last change to the body (868e137).
+    body = apply_payload_rules(cfg, &req, &base_model, target, &original, body);
+    let mut headers = base_headers(api_key, "application/json");
+    apply_custom(&mut headers, credential, &req);
+    if req.stream {
+        headers.set("Accept", "text/event-stream");
+        headers.set("Cache-Control", "no-cache");
+    }
+    let url = endpoint(base_url, path);
+    // Go's `http.NewRequestWithContext` refuses a URL its parser rejects (an escaped
+    // host such as `%61iplatform.googleapis.com`) and its transport one without a host
+    // (`https:relay.example`), before anything is sent; the url crate would read a host
+    // from both and send the key there.
+    crate::xai_url::new_request(&url)?;
+    let capture = wire::Capture::request(
+        &req,
+        credential,
+        &credential.provider,
+        &url,
+        "POST",
+        headers.pairs(),
+        &body,
+    );
+    let upstream = match crate::xai_url::transport_refusal(&url) {
+        Some(error) => Err(error),
+        None => wire::send(client, &url, headers, Bytes::from(body.clone())).await,
+    };
+    capture.sent(&upstream);
+    let upstream = upstream?;
+    if !(200..300).contains(&upstream.status) {
+        return Err(upstream_error(upstream, &capture).await);
+    }
+    let response_headers = upstream.headers.clone();
+    let original = if req.original_body.is_empty() {
+        req.body.clone()
+    } else {
+        req.original_body.clone()
+    };
+    if req.stream {
+        let translator: Box<dyn StreamTranslator> = match response_pair {
+            Some(pair) => crate::translate::stream(
+                pair,
+                &ResponseCtx {
+                    model: &req.model,
+                    original_request: &original,
+                    translated_request: &body,
+                    tool_search: false,
+                },
+                &req,
+            ),
+            None => Box::new(Identity),
+        };
+        let mut lines = wire::lines(upstream, MAX_LINE);
+        if req.usage.enabled() {
+            // ObserveResponseModel and StreamUsageBuffer.ObserveOpenAIStream per line.
+            let usage = req.usage.clone();
+            lines = lines
+                .inspect(move |line| {
+                    if let Ok(line) = line {
+                        usage.response_line(Format::OpenAI, line);
+                    }
+                })
+                .boxed();
+        }
+        let claude = ClaudeInputTokens::new(req.source_format, Format::OpenAI, req.response_format, original.clone());
+        let stream = frames(
+            lines,
+            translator,
+            claude,
+            req.response_format == Format::OpenAIResponse,
+            capture,
+            req.usage.clone(),
+        );
+        return Ok(ExecResponse {
+            status: 200,
+            headers: response_headers,
+            body: ResponseBody::Stream(stream),
+        });
+    }
+    let raw = wire::read_all(upstream).await;
+    capture.read(&raw);
+    let raw = raw?;
+    // ObserveResponseModel(body) and Publish(ParseOpenAIUsage(body)).
+    if req.usage.enabled() {
+        req.usage.response_body(target, &raw);
+    }
+    let ctx = ResponseCtx {
+        model: &req.model,
+        original_request: &original,
+        translated_request: &body,
+        tool_search: false,
+    };
+    let mut out = match response_pair {
+        Some(pair) => (pair.non_stream)(&ctx, &raw)
+            .map_err(|_| ExecError::local(502, FailureScope::Request, EMPTY_TRANSLATION))?,
+        // Go's TranslateNonStream still runs the plugin response hooks.
+        None => {
+            cpa_translate::hooks::unregistered_non_stream(target.as_str(), req.response_format.as_str(), &ctx, &raw)
+                .unwrap_or_else(|| raw.to_vec())
+        }
+    };
+    if out.is_empty() {
+        return Err(ExecError::local(502, FailureScope::Request, EMPTY_TRANSLATION));
+    }
+    if req.response_format == Format::OpenAIResponse {
+        out = payload::ensure_responses_usage_details(&out);
+    }
+    Ok(ExecResponse {
+        status: 200,
+        headers: response_headers,
+        body: ResponseBody::Buffered(Bytes::from(out)),
+    })
 }
 
 /// `ApplyMediaPayloadConfig` on a prepared images request (868e137): the payload rules
@@ -648,7 +674,11 @@ fn provider_session_uuid(provider: &str, req: &ExecRequest) -> Option<String> {
 }
 
 /// `CountTokens`: a local tiktoken estimate of the translated chat request.
-fn count_tokens(credential: &Credential, req: &ExecRequest, cfg: &Config) -> Result<ExecResponse, ExecError> {
+pub(crate) fn count_tokens(
+    credential: &Credential,
+    req: &ExecRequest,
+    cfg: &Config,
+) -> Result<ExecResponse, ExecError> {
     let base_model = parse_suffix(&req.model).model_name;
     let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
     let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
@@ -718,6 +748,9 @@ fn trim(bytes: &[u8]) -> &[u8] {
 /// every frame, and the terminal rules for `[DONE]` and EOF.
 struct Frames {
     translator: Box<dyn StreamTranslator>,
+    /// `TranslateStreamWithClaudeInputTokens` (Go f3e36f19): a Claude client's
+    /// `message_start` gets the estimate of its request when the upstream reports none.
+    claude: ClaudeInputTokens,
     responses: bool,
     event: String,
     data: Vec<Vec<u8>>,
@@ -762,7 +795,8 @@ impl Frames {
     /// follows it, so plugin stream hooks run once per line, as in Go.
     fn translate(&mut self, line: &[u8]) -> bool {
         match self.translator.event(line) {
-            Ok(out) => {
+            Ok(mut out) => {
+                self.claude.apply(&mut out);
                 self.ready.extend(out.into_iter().map(Ok));
                 false
             }
@@ -872,12 +906,14 @@ impl Frames {
 fn frames(
     lines: ExecStream,
     translator: Box<dyn StreamTranslator>,
+    claude: ClaudeInputTokens,
     responses: bool,
     capture: wire::Capture,
     usage: cpa_core::exec::UsageSink,
 ) -> ExecStream {
     let state = Frames {
         translator,
+        claude,
         responses,
         event: String::new(),
         data: Vec::new(),

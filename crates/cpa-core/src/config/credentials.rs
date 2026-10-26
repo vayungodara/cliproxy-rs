@@ -1140,8 +1140,11 @@ fn file_credentials(
             }
         }
     }
-    if let Some(aliases) = oauth_aliases(meta.get("model_aliases")) {
+    if let Some(aliases) = oauth_aliases(&meta) {
         attrs.insert("model_aliases".into(), aliases);
+    }
+    if let Some(names) = openapi_models(&meta) {
+        attrs.insert("openapi_models".into(), names);
     }
     // Invalid rules must not drop the credential: keep the valid entries and warn (Go
     // 1a28c61e). Only the credential's own rules are stored; the global
@@ -1254,10 +1257,16 @@ pub fn upload_fallback(auth_dir: &Path, path: &Path, data: &[u8]) -> Option<Cred
     })
 }
 
-fn oauth_aliases(raw: Option<&Json>) -> Option<String> {
+/// Go `extractOAuthModelAliasesFromMetadata`: the entries of `model_aliases`, then
+/// (d9451cb6) of `models`, sanitized as one list, as the `model_aliases` attribute.
+fn oauth_aliases(meta: &Map<String, Json>) -> Option<String> {
+    let entries: Vec<Map<String, Json>> = ["model_aliases", "models"]
+        .into_iter()
+        .filter_map(|key| go_alias_entries(meta.get(key)?))
+        .flatten()
+        .collect();
     let mut seen = HashSet::new();
-    let clean: Vec<Json> = raw?
-        .as_array()?
+    let clean: Vec<Json> = entries
         .iter()
         .filter_map(|e| {
             let name = e.get("name")?.as_str()?.trim();
@@ -1284,6 +1293,64 @@ fn oauth_aliases(raw: Option<&Json>) -> Option<String> {
         })
         .collect();
     (!clean.is_empty()).then(|| Json::Array(clean).to_string())
+}
+
+/// `json.Unmarshal` into `[]config.OAuthModelAlias`: each entry's fields under their
+/// tag names, or nothing
+/// when any element does not decode (a string, or a field of the wrong type), since Go
+/// drops the whole list on the error.
+fn go_alias_entries(raw: &Json) -> Option<Vec<Map<String, Json>>> {
+    type IsKind = fn(&Json) -> bool;
+    const FIELDS: [(&str, IsKind); 5] = [
+        ("name", Json::is_string),
+        ("alias", Json::is_string),
+        ("display-name", Json::is_string),
+        ("fork", Json::is_boolean),
+        ("force-mapping", Json::is_boolean),
+    ];
+    let mut out = Vec::new();
+    for item in raw.as_array()? {
+        let entry = match item {
+            Json::Null => continue,
+            Json::Object(entry) => entry,
+            _ => return None,
+        };
+        // Go re-marshals the metadata map (keys sorted) before decoding it, and decoding
+        // matches keys case-insensitively, the last match winning.
+        let mut keys: Vec<(&String, &Json)> = entry.iter().collect();
+        keys.sort_unstable_by(|a, b| a.0.cmp(b.0));
+        let mut fields = Map::new();
+        for (key, value) in keys {
+            let Some((field, ok)) = FIELDS.iter().find(|(f, _)| key.go_eq_fold(f)) else {
+                continue;
+            };
+            if value.is_null() {
+                continue;
+            }
+            if !ok(value) {
+                return None;
+            }
+            fields.insert((*field).to_owned(), value.clone());
+        }
+        out.push(fields);
+    }
+    Some(out)
+}
+
+/// Go `applyOpenAPIModelsAttribute` (d9451cb6): the `openapi_models` and `models`
+/// names (a comma list, strings, or entries' `name`), first spelling of each kept.
+fn openapi_models(meta: &Map<String, Json>) -> Option<String> {
+    let mut seen = HashSet::new();
+    let mut names = Vec::new();
+    for raw in ["openapi_models", "models"].into_iter().filter_map(|key| meta.get(key)) {
+        crate::registry::dynamic::for_each_model_name(raw, |name| {
+            let name = name.trim();
+            if !name.is_empty() && seen.insert(name.go_lower()) {
+                names.push(name.to_owned());
+            }
+        });
+    }
+    (!names.is_empty()).then(|| names.join(","))
 }
 
 /// Go `codex.ParseJWTToken(...).GetPlanType()`, defaulting to "free".
@@ -1659,6 +1726,99 @@ mod tests {
                 ("friendly".to_owned(), "Friendly".to_owned())
             ]
         );
+    }
+
+    /// Go d9451cb6 (tests/reference/vertex_openapi_models): an auth file's
+    /// `model_aliases` attribute (now also from `models`, a list Go drops whole when an
+    /// entry does not decode) and `openapi_models` attribute, the models it registers
+    /// (a Vertex file adds the partner models it names and the OAuth alias targets),
+    /// the upstream model of each request, and AuthKind / AccountInfo for service
+    /// accounts and Sign in with ChatGPT sections.
+    #[test]
+    fn vertex_openapi_models_follow_go() {
+        use crate::registry::dynamic;
+        let go: Json =
+            serde_json::from_str(include_str!("../../tests/fixtures/vertex_openapi_models_go.json")).unwrap();
+        let cfg = Config::parse(go["yaml"].as_str().unwrap()).unwrap();
+        let aliases = dynamic::global_aliases(&cfg);
+        let dir = Path::new("/auths");
+        for f in go["files"].as_array().unwrap() {
+            let name = f["name"].as_str().unwrap();
+            let path = dir.join(format!("{name}.json"));
+            let c = from_file(&cfg, dir, &path, f["body"].as_str().unwrap().as_bytes())
+                .unwrap()
+                .unwrap();
+            let attrs: BTreeMap<&str, &str> = ["model_aliases", "openapi_models", "auth_kind", "excluded_models"]
+                .into_iter()
+                .filter_map(|k| Some((k, c.attributes.get(k)?.as_str())))
+                .collect();
+            assert_eq!(
+                serde_json::to_value(&attrs).unwrap(),
+                f["attributes"],
+                "{name}: attributes"
+            );
+            let mut models: Vec<Json> = dynamic::models_for(&cfg, &aliases, &c, 0)
+                .into_iter()
+                .map(|m| {
+                    let mut out = serde_json::json!({"id": m.id, "metadata_model_id": m.metadata_model_id,
+                        "display_name": m.display_name, "owned_by": m.owned_by, "type": m.kind,
+                        "user_defined": m.user_defined, "thinking": m.thinking.is_some()});
+                    if let Some(t) = &m.thinking {
+                        for (k, v) in [
+                            ("levels", Json::from(t.levels.clone())),
+                            ("min", Json::from(t.min)),
+                            ("max", Json::from(t.max)),
+                            ("zero", Json::from(t.zero_allowed)),
+                            ("dynamic", Json::from(t.dynamic_allowed)),
+                        ] {
+                            if !(v == 0 || v == false || v.as_array().is_some_and(Vec::is_empty)) {
+                                out[k] = v;
+                            }
+                        }
+                    }
+                    out
+                })
+                .collect();
+            models.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
+            assert_eq!(Json::Array(models.clone()), f["models"], "{name}: models");
+            for e in f["exec"].as_array().unwrap() {
+                let request = e["request"].as_str().unwrap();
+                let (upstream, _) = dynamic::execution_models(&aliases, &c, request);
+                let upstream = upstream.first().map_or(request, String::as_str);
+                assert_eq!(upstream, e["upstream"], "{name}: {request}");
+                let supports = models
+                    .iter()
+                    .any(|m| m["id"].as_str().unwrap().go_eq_fold(request.trim()));
+                assert_eq!(supports, e["supports"], "{name}: supports {request}");
+            }
+        }
+        for a in go["accounts"].as_array().unwrap() {
+            let meta: Map<String, Json> = serde_json::from_str(a["metadata"].as_str().unwrap()).unwrap();
+            let c = Credential {
+                id: "x".into(),
+                provider: "vertex".into(),
+                source: Source::File(dir.join("x.json")),
+                disabled: false,
+                label: String::new(),
+                attributes: BTreeMap::new(),
+                metadata: meta,
+                revision: 0,
+                next_refresh_after: None,
+            };
+            let (kind, value) = dynamic::account_info(&c);
+            assert_eq!(
+                dynamic::auth_kind(&c).unwrap_or_default(),
+                a["kind"],
+                "{}",
+                a["metadata"]
+            );
+            assert_eq!(
+                (kind, value.as_str()),
+                (a["type"].as_str().unwrap(), a["value"].as_str().unwrap()),
+                "{}",
+                a["metadata"]
+            );
+        }
     }
 
     /// Go v8.0.35 `buildVertexCompatConfigModels` after the config load's sanitizer

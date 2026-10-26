@@ -1109,7 +1109,10 @@ fn response_model_event(line: &[u8], provider: &str) -> (String, bool) {
                 &gj::parse(data),
                 &["candidates.0.finishReason", "response.candidates.0.finishReason"],
             );
+            // d9451cb6: Vertex's endpoints/openapi route answers in Chat Completions.
             let terminal = (finish.exists() && !finish.str().is_empty())
+                || gj::get(data, "object").str() == "chat.completion"
+                || !gj::get(data, "choices.0.finish_reason").str().is_empty()
                 || interactions_terminal(&event_type(data), &gj::get(data, "interaction.status").str());
             (model, terminal)
         }
@@ -1926,6 +1929,8 @@ struct Reported {
     claude_cache: Option<cpa_core::exec::ClaudeCacheTelemetry>,
     /// The plugin executor's provider when a plugin runs the attempt.
     plugin_provider: Option<String>,
+    /// The executor type and model of the built-in executor the attempt was handed to.
+    delegated: Option<(String, String)>,
 }
 
 impl Reported {
@@ -1996,6 +2001,10 @@ impl cpa_core::exec::UsageObserver for Observer {
 
     fn plugin_executor(&self, provider: &str) {
         self.lock().plugin_provider = Some(provider.to_owned());
+    }
+
+    fn delegated_executor(&self, executor_type: &str, model: &str) {
+        self.lock().delegated = Some((executor_type.to_owned(), model.to_owned()));
     }
 
     fn plugin_response_body(&self, protocol: &str, body: &[u8]) {
@@ -2270,6 +2279,9 @@ impl Tracker {
             record.provider.clone_from(provider);
             record.executor_type = "executorAdapter".into();
         }
+        if let Some((executor_type, model)) = reported.delegated.clone() {
+            (record.executor_type, record.model) = (executor_type, model);
+        }
         let mut telemetry_only = false;
         let (latency, ttft);
         if let Some(outcome) = reported.outcome {
@@ -2509,12 +2521,9 @@ pub fn source(c: &cpa_core::credential::Credential, client_key: &str) -> String 
     {
         return project.to_owned();
     }
-    let account = match cpa_core::registry::dynamic::auth_kind(c) {
-        Some("oauth") => meta("email"),
-        Some("apikey") => attr("api_key"),
-        _ => None,
-    };
-    account
+    let (_, account) = cpa_core::registry::dynamic::account_info(c);
+    Some(account.as_str())
+        .filter(|a| !a.is_empty())
         .or_else(|| meta("email"))
         .or_else(|| attr("api_key"))
         .unwrap_or(client_key.trim())
@@ -2668,6 +2677,23 @@ mod tests {
     use serde_json::Value;
 
     const FIXTURE: &str = include_str!("../tests/fixtures/server_go.json");
+
+    /// Go `resolveUsageSource` after d9451cb6: without a project, a Vertex service account
+    /// is named by `AccountInfo`, its trimmed `client_email`, not by the client key.
+    #[test]
+    fn a_service_account_without_a_project_is_its_own_usage_source() {
+        let metadata = serde_json::json!({
+            "type": "vertex",
+            "service_account": {"client_email": " sa@p.iam.gserviceaccount.com "},
+        });
+        let credential = cpa_core::credential::Credential::from_file(
+            std::path::Path::new("/auth"),
+            std::path::Path::new("/auth/vertex-sa.json"),
+            metadata.as_object().unwrap().clone(),
+        )
+        .unwrap();
+        assert_eq!(source(&credential, "client-key"), "sa@p.iam.gserviceaccount.com");
+    }
 
     #[test]
     fn go_timestamps() {
