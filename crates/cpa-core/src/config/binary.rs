@@ -264,18 +264,24 @@ fn events(text: &str) -> anyhow::Result<Vec<Event>> {
     events_with(text, None)
 }
 
-/// Each untagged plain scalar of `text`: its byte span and its value.
-pub(super) fn plain_scalars(text: &str) -> anyhow::Result<Vec<(std::ops::Range<usize>, Vec<u8>)>> {
+/// An untagged plain scalar of a text.
+pub(super) struct Plain {
+    /// Its byte span in the text.
+    pub span: std::ops::Range<usize>,
+    pub value: Vec<u8>,
+    /// Whether it is a mapping key.
+    pub key: bool,
+}
+
+/// Each untagged plain scalar of `text`.
+pub(super) fn plain_scalars(text: &str) -> anyhow::Result<Vec<Plain>> {
     let mut out = Vec::new();
     events_with(text, Some(&mut out))?;
     Ok(out)
 }
 
 /// [`events`], recording each untagged plain scalar in `plain`.
-fn events_with(
-    text: &str,
-    mut plain: Option<&mut Vec<(std::ops::Range<usize>, Vec<u8>)>>,
-) -> anyhow::Result<Vec<Event>> {
+fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result<Vec<Event>> {
     let nul_escape = text.contains("%00");
     struct Parser(Box<MaybeUninit<unsafe_libyaml::yaml_parser_t>>);
     impl Drop for Parser {
@@ -289,6 +295,8 @@ fn events_with(
         (!ptr.is_null()).then(|| unsafe { CStr::from_ptr(ptr.cast()) }.to_bytes().to_vec())
     }
     let mut out = Vec::new();
+    // Each open collection: whether it is a mapping, and its nodes so far.
+    let mut open: Vec<(bool, usize)> = Vec::new();
     // SAFETY: the parser is boxed, so it does not move while libyaml holds pointers
     // into it; `text` outlives it; each event is deleted once its data is copied.
     unsafe {
@@ -331,17 +339,42 @@ fn events_with(
                     bail!(UNSUPPORTED_TAG);
                 }
             }
+            let key = match kind {
+                unsafe_libyaml::YAML_SCALAR_EVENT
+                | unsafe_libyaml::YAML_ALIAS_EVENT
+                | unsafe_libyaml::YAML_SEQUENCE_START_EVENT
+                | unsafe_libyaml::YAML_MAPPING_START_EVENT => open.last_mut().is_some_and(|(mapping, nodes)| {
+                    *nodes += 1;
+                    *mapping && *nodes % 2 == 1
+                }),
+                _ => false,
+            };
+            match kind {
+                unsafe_libyaml::YAML_SEQUENCE_START_EVENT => open.push((false, 0)),
+                unsafe_libyaml::YAML_MAPPING_START_EVENT => open.push((true, 0)),
+                unsafe_libyaml::YAML_SEQUENCE_END_EVENT | unsafe_libyaml::YAML_MAPPING_END_EVENT => {
+                    open.pop();
+                }
+                _ => {}
+            }
             let next = match kind {
                 unsafe_libyaml::YAML_SCALAR_EVENT => {
                     let s = &event.data.scalar;
+                    let value = std::slice::from_raw_parts(s.value, s.length as usize);
+                    // The span starts at an anchor; a scalar folded over lines is not
+                    // its source.
+                    let end = event.end_mark.index as usize;
                     if let Some(plain) = plain.as_deref_mut()
                         && s.style == unsafe_libyaml::YAML_PLAIN_SCALAR_STYLE
                         && s.tag.is_null()
+                        && let Some(start) = end.checked_sub(value.len())
+                        && text.as_bytes().get(start..end) == Some(value)
                     {
-                        plain.push((
-                            event.start_mark.index as usize..event.end_mark.index as usize,
-                            std::slice::from_raw_parts(s.value, s.length as usize).to_vec(),
-                        ));
+                        plain.push(Plain {
+                            span: start..end,
+                            value: value.to_vec(),
+                            key,
+                        });
                     }
                     Some(Event::Scalar {
                         anchor: bytes(s.anchor),

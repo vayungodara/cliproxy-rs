@@ -27,39 +27,130 @@ pub use document::{ConfigDocument, archive_comments, credential_error, is_v8_lay
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
 
-/// `text` parsed as serde_yaml_ng does, except for a plain integer beyond int64 and
-/// uint64, which serde_yaml_ng refuses when it fits 128 bits. yaml.v3 reads a decimal
-/// one as a float and any other (`0x…`, `0o…`) as text, so those scalars are read so.
-/// A string setting still gets the integer's text from the literal walk, which reads
-/// `text` itself.
+/// `text` parsed as serde_yaml_ng does, except for plain scalars it reads otherwise
+/// than yaml.v3: an integer beyond int64 and uint64, which serde_yaml_ng refuses when
+/// it fits 128 bits (yaml.v3 reads a decimal one as a float and any other, `0x…` or
+/// `0o…`, as text), and a number with underscores (`1_000`), which serde_yaml_ng reads
+/// as text and yaml.v3 as the number without them. Those scalars are read as yaml.v3
+/// reads them. A string setting still gets the scalar's text from the literal walk,
+/// which reads `text` itself; a mapping key with underscores stays text, as yaml.v3
+/// reads it into a string-keyed map.
 pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
-    let err = match serde_yaml_ng::from_str::<Value>(text) {
-        Ok(value) => return Ok(value),
-        Err(err) => err,
+    let parse = |text: &str| serde_yaml_ng::from_str::<Value>(text);
+    // Without an underscore, only a failed parse needs a second look.
+    let err = if text.contains('_') {
+        None
+    } else {
+        match parse(text) {
+            Ok(value) => return Ok(value),
+            Err(err) => {
+                let message = err.to_string();
+                if !(message.contains(" as u128,") || message.contains(" as i128,")) {
+                    return Err(err);
+                }
+                Some(err)
+            }
+        }
     };
-    let message = err.to_string();
-    if !(message.contains(" as u128,") || message.contains(" as i128,")) {
-        return Err(err);
-    }
+    let as_is = |err: Option<serde_yaml_ng::Error>| err.map_or_else(|| parse(text), Err);
     let Ok(scalars) = binary::plain_scalars(text) else {
-        return Err(err);
+        return as_is(err);
     };
     // One pass over the scalars, then one parse.
     let mut out = String::with_capacity(text.len());
     let mut last = 0;
-    for (span, value) in scalars {
-        let Some(read) = std::str::from_utf8(&value).ok().and_then(go_big_integer) else {
+    for plain in scalars {
+        let Ok(scalar) = std::str::from_utf8(&plain.value) else {
             continue;
         };
-        let Some(before) = text.get(last..span.start) else {
-            return Err(err);
+        let read = if scalar.contains('_') {
+            (!plain.key).then(|| go_underscored(scalar)).flatten()
+        } else {
+            go_big_integer(scalar)
+        };
+        let (Some(read), Some(before)) = (read, text.get(last..plain.span.start)) else {
+            continue;
         };
         out.push_str(before);
         out.push_str(&read);
-        last = span.end;
+        last = plain.span.end;
+    }
+    if last == 0 {
+        return as_is(err);
     }
     out.push_str(&text[last.min(text.len())..]);
-    serde_yaml_ng::from_str(&out)
+    parse(&out)
+}
+
+/// yaml.v3's reading of a plain scalar with underscores (its `resolve`), written so
+/// that serde_yaml_ng reads the same; `None` where yaml.v3 reads text. A scalar that
+/// starts with a digit or sign drops its underscores and reads as an integer (`0x`,
+/// `0o`, `0b` or a leading `0` for octal), else as a float in YAML's float syntax; one
+/// that starts with `.` reads as a float when each underscore sits between digits.
+fn go_underscored(text: &str) -> Option<String> {
+    let plain = text.replace('_', "");
+    let float = |s: &str| {
+        let f = go_yaml_float(s)?;
+        Some(format!("{f:e}"))
+    };
+    match text.as_bytes().first()? {
+        b'.' => {
+            let bytes = text.as_bytes();
+            let between_digits = bytes.iter().enumerate().all(|(i, &b)| {
+                b != b'_'
+                    || (i > 0 && bytes[i - 1].is_ascii_digit() && bytes.get(i + 1).is_some_and(u8::is_ascii_digit))
+            });
+            if between_digits { float(&plain) } else { None }
+        }
+        b'0'..=b'9' | b'+' | b'-' => {
+            let negative = plain.starts_with('-');
+            let signed = plain.starts_with(['+', '-']);
+            let unsigned = plain.strip_prefix(['+', '-']).unwrap_or(&plain);
+            let (radix, digits) = match unsigned.get(..2) {
+                Some("0x" | "0X") => (16, &unsigned[2..]),
+                Some("0o" | "0O") => (8, &unsigned[2..]),
+                Some("0b" | "0B") => (2, &unsigned[2..]),
+                _ if unsigned.len() > 1 && unsigned.starts_with('0') => (8, &unsigned[1..]),
+                _ => (10, unsigned),
+            };
+            if !digits.is_empty() && digits.chars().all(|c| c.is_digit(radix)) {
+                // Go's ParseInt, then ParseUint (which takes no sign).
+                if let Ok(n) = u64::from_str_radix(digits, radix) {
+                    if negative && n <= 1 << 63 {
+                        return Some(format!("-{n}"));
+                    }
+                    if !negative && (n <= i64::MAX as u64 || !signed) {
+                        return Some(n.to_string());
+                    }
+                }
+            }
+            float(&plain)
+        }
+        _ => None,
+    }
+}
+
+/// `s` as a float when it has yaml.v3's float syntax and Go parses it in range.
+fn go_yaml_float(s: &str) -> Option<f64> {
+    let digits = |s: &str| s.len() - s.trim_start_matches(|c: char| c.is_ascii_digit()).len();
+    let rest = s.strip_prefix(['+', '-']).unwrap_or(s);
+    let (mantissa, exponent) = match rest.find(['e', 'E']) {
+        Some(at) => (&rest[..at], Some(&rest[at + 1..])),
+        None => (rest, None),
+    };
+    let mantissa_ok = match mantissa.split_once('.') {
+        Some(("", frac)) => !frac.is_empty() && digits(frac) == frac.len(),
+        Some((int, frac)) => !int.is_empty() && digits(int) == int.len() && digits(frac) == frac.len(),
+        None => !mantissa.is_empty() && digits(mantissa) == mantissa.len(),
+    };
+    let exponent_ok = exponent.is_none_or(|e| {
+        let e = e.strip_prefix(['+', '-']).unwrap_or(e);
+        !e.is_empty() && digits(e) == e.len()
+    });
+    if !(mantissa_ok && exponent_ok) {
+        return None;
+    }
+    s.parse::<f64>().ok().filter(|f| f.is_finite())
 }
 
 /// yaml.v3's reading of a plain integer beyond int64 and uint64, written so that
@@ -1407,6 +1498,53 @@ oauth-excluded-models: {{c: [{numbers}]}}
         assert_eq!(bom["a"], yaml_value("['0x1FFFFFFFFFFFFFFFFF', x]").unwrap());
         // Go: cannot unmarshal !!float into int.
         assert!(Config::parse("routing: {retry: {request-retry: 18446744073709551616}}\n").is_err());
+    }
+
+    /// yaml.v3 (v3.0.1, Go 1.26.4) drops a plain number's underscores before resolving
+    /// it; serde_yaml_ng read each of these as text.
+    #[test]
+    fn underscore_numbers_read_as_in_go() {
+        let go: [(&str, Value); 20] = [
+            ("1_000", 1000.into()),
+            ("+_1", 1.into()),
+            ("-1_000", (-1000).into()),
+            ("1__0", 10.into()),
+            ("1_", 1.into()),
+            ("0_x1F", 31.into()),
+            ("-0x1_F", (-31).into()),
+            ("007_1", 57.into()),
+            ("-0b1_0", (-2).into()),
+            ("18_446_744_073_709_551_615", u64::MAX.into()),
+            ("1_0.5", 10.5.into()),
+            ("1_0e1_0", 1e11.into()),
+            ("1._5", 1.5.into()),
+            (".5_0", 0.5.into()),
+            ("-.5_0", (-0.5).into()),
+            ("1_000_000_000_000_000_000_000", 1e21.into()),
+            ("_1", "_1".into()),
+            (".5_", ".5_".into()),
+            ("._5", "._5".into()),
+            ("0x1_FFFF_FFFF_FFFF_FFFF_FF", "0x1_FFFF_FFFF_FFFF_FFFF_FF".into()),
+        ];
+        let list = go.iter().map(|(text, _)| *text).collect::<Vec<_>>().join(", ");
+        let any = yaml_value(&format!("x: [{list}]\n")).unwrap();
+        for ((text, want), got) in go.iter().zip(any["x"].as_sequence().unwrap()) {
+            assert_eq!(got, want, "{text}");
+        }
+        // A string setting keeps the text, an int setting gets the number, and a key
+        // stays text, as yaml.v3 reads it into a string-keyed map.
+        let cfg = Config::parse(
+            "server: {github-token: 1_000}\nrouting: {retry: {request-retry: 1_0}}\n\
+             oauth-excluded-models: {1_0: [a]}\n",
+        )
+        .unwrap();
+        assert_eq!(cfg.document["server"]["github-token"].as_str(), Some("1_000"));
+        assert_eq!(cfg.routing.retry.request_retry, 10);
+        assert!(cfg.document["oauth"]["excluded-models"].get("1_0").is_some());
+        assert_eq!(
+            body_value("1_000", &["server", "github-token"]).unwrap(),
+            Value::from("1_000")
+        );
     }
 
     /// yaml.v3 reads a plain scalar into any Go string setting as its text, so a setting
