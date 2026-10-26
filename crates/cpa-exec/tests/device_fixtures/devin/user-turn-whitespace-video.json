@@ -1,0 +1,44 @@
+{
+  "name": "user-turn-whitespace-video",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:39897",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\" \\n\"},{\"type\":\"video\",\"mime_type\":\"video/mp4\",\"uri\":\"https://example.test/a.mp4\"}]}]}",
+    "model": "devin/swe-2",
+    "source": "interactions",
+    "stream": false
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "err_status": 400,
+    "err_body": "unsupported content part: video"
+  },
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:39897"
+    },
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "fail_body": "unsupported content part: video",
+        "fail_status": 400,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "devin/swe-2",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "service_tier": "",
+        "total_tokens": 0,
+        "ttft_set": false
+      }
+    ]
+  }
+}

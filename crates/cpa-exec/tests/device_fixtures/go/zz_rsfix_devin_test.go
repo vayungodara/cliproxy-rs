@@ -228,6 +228,15 @@ func TestRSFixDevin(t *testing.T) {
 		{name: "chat-payload-nan", source: sdktranslator.FormatOpenAI, model: "swe-2", body: chat,
 			cfg: "payload:\n  override:\n    - models: [{name: swe-2, protocol: devin}]\n      params: {\"completion_config.temperature\": \"NaN\"}\n",
 			responses: []rsfixResponse{dvResp(dvPlainFrames("ok")...)}},
+		// v8.0.35 (f51624aa): a user turn left with nothing but media Devin cannot send is
+		// refused before any upstream call.
+		{name: "user-turn-image-uri", source: sdktranslator.FormatInteractions, model: "devin/swe-2", body: dvUserTurn(`{"type":"user_input","content":[{"type":"image","mime_type":"image/png","uri":"https://example.test/a.png"}]}`)},
+		{name: "user-turn-document-file-uri-stream", source: sdktranslator.FormatInteractions, model: "devin/swe-2", stream: true, body: dvUserTurn(`{"type":"user_input","content":[{"type":"document","mime_type":"application/pdf","fileUri":"gs://b/a.pdf"}]}`)},
+		{name: "user-turn-inline-audio", source: sdktranslator.FormatInteractions, model: "devin/swe-2", body: dvUserTurn(`{"type":"user_input","content":[{"type":"audio","mime_type":"audio/wav","data":"UklGRg=="}]}`)},
+		{name: "user-turn-whitespace-video", source: sdktranslator.FormatInteractions, model: "devin/swe-2", body: dvUserTurn(`{"type":"user_input","content":[{"type":"text","text":" \n"},{"type":"video","mime_type":"video/mp4","uri":"https://example.test/a.mp4"}]}`)},
+		{name: "user-turn-emptied-before-text", source: sdktranslator.FormatInteractions, model: "devin/swe-2", body: `{"input":[{"type":"user_input","content":[{"type":"image","mime_type":"image/png","uri":"https://example.test/a.png"}]},{"type":"model_output","content":[{"type":"text","text":"ok"}]},{"type":"user_input","content":[{"type":"text","text":"next"}]}]}`},
+		{name: "user-turn-gemini-file-data", source: sdktranslator.FormatGemini, model: "gemini-3-flash", body: `{"contents":[{"role":"user","parts":[{"text":"a"}]},{"role":"model","parts":[{"text":"b"}]},{"role":"user","parts":[{"fileData":{"mimeType":"image/png","fileUri":"gs://b/a.png"}}]}]}`},
+		{name: "user-turn-claude-whitespace-image-stream", source: sdktranslator.FormatClaude, model: "claude-sonnet-4-5", stream: true, body: `{"max_tokens":8,"messages":[{"role":"user","content":"a"},{"role":"assistant","content":"b"},{"role":"user","content":[{"type":"text","text":"  "},{"type":"image","source":{"type":"file","file_id":"f1"}}]}],"stream":true}`},
 	}
 	sessions := 0
 	for _, tc := range cases {
@@ -671,6 +680,61 @@ func TestRSFixDevinVectors(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = os.WriteFile(filepath.Join(dir, "devin", "vectors.json"), append(raw, '\n'), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// dvUserTurn is an Interactions body: a text turn, a model turn, then steps.
+func dvUserTurn(steps string) string {
+	return `{"input":[{"type":"user_input","content":[{"type":"text","text":"a"}]},{"type":"model_output","content":[{"type":"text","text":"b"}]},` + steps + `]}`
+}
+
+// TestRSFixDevinUserTurns writes devin/user_turns.json: parseInteractionsPayload then
+// helps.CheckDevinUserTurns (v8.0.35, f51624aa), as the refusal or the prompts kept.
+func TestRSFixDevinUserTurns(t *testing.T) {
+	dir := rsfixOut(t)
+	image := `{"type":"image","mime_type":"image/png","uri":"https://example.test/a.png"}`
+	var cases []map[string]any
+	for _, payload := range []string{
+		dvUserTurn(`{"type":"user_input","content":[{"type":"text","text":"keep me"},` + image + `]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":"text","text":"keep me"}]},{"type":"user_input","content":[` + image + `]}`),
+		dvUserTurn(`{"type":"user_input","content":[` + image + `]},{"type":"user_input","content":[{"type":"text","text":"keep me"}]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":"image","mime_type":"image/png","data":"aGVsbG8="}]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":"image","mime_type":"image/png","uri":"data:image/png;base64,aGVsbG8="}]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":"image","file_uri":"data:image/jpeg;base64,SU1H"}]}`),
+		dvUserTurn(`{"type":"user_input","content":[` + image + `]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":"input_file","file_id":"f"},{"type":"input_audio","data":""}]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":"text","text":"x"},{"type":"thing","uri":"gs://b/a"}]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":"thing","uri":"gs://b/a"}]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":" Video ","uri":"https://example.test/v"}]}`),
+		dvUserTurn(`{"type":"user_input","content":[{"type":"audio","text":"spoken","uri":"https://example.test/a"}]}`),
+		`{"input":[{"type":"function_call","id":"c1","name":"f"},{"type":"function_result","call_id":"c1","result":"r"},{"type":"user_input","content":[` + image + `]}]}`,
+		`{"input":[{"type":"function_result","call_id":"orphan","result":"r"},{"type":"user_input","content":[` + image + `]}]}`,
+		`{"input":[{"type":"function_result","call_id":"orphan","result":""},{"type":"user_input","content":[` + image + `]}]}`,
+		`{"input":[{"type":"user_input","content":[` + image + `]},{"type":"user_input","content":[{"type":"document","uri":"gs://b/a.pdf"}]}]}`,
+		`{"input":[{"type":"user_input","content":[{"type":"text","text":"  "}]},{"type":"user_input","content":[{"type":"document","uri":"gs://b/a.pdf"}]},{"type":"model_output","content":"ok"},{"type":"user_input","content":[` + image + `]}]}`,
+		`{"messages":[{"role":"user","content":"a"},{"role":"assistant","content":"b"},{"role":"user","content":[{"type":"image_url","image_url":{"url":"https://example.test/a.png"}}]}]}`,
+		`{"messages":[{"role":"user","content":[{"type":"text","text":"hi"},{"type":"file","file":{"file_id":"f"}}]}]}`,
+	} {
+		_, prompts, _, _, _, _, _, _, _ := parseInteractionsPayload([]byte(payload), nil)
+		entry := map[string]any{"payload": payload}
+		kept, err := helps.CheckDevinUserTurns(prompts)
+		if err != nil {
+			entry["error"] = err.Error()
+		} else {
+			var out []map[string]any
+			for _, p := range kept {
+				out = append(out, map[string]any{"source": p.Source, "content": p.Content, "images": len(p.Images), "orphaned": p.IsOrphanedTool, "dropped": p.DroppedPart})
+			}
+			entry["prompts"] = out
+		}
+		cases = append(cases, entry)
+	}
+	raw, _ := json.MarshalIndent(cases, "", "  ")
+	if err := os.MkdirAll(filepath.Join(dir, "devin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "devin", "user_turns.json"), append(raw, '\n'), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -1,0 +1,44 @@
+{
+  "name": "user-turn-claude-whitespace-image-stream",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:36881",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"max_tokens\":8,\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"  \"},{\"type\":\"image\",\"source\":{\"type\":\"file\",\"file_id\":\"f1\"}}]}],\"stream\":true}",
+    "model": "claude-sonnet-4-5",
+    "source": "claude",
+    "stream": true
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "err_status": 400,
+    "err_body": "unsupported content part: image"
+  },
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:36881"
+    },
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "fail_body": "unsupported content part: image",
+        "fail_status": 400,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "claude-sonnet-4-5",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "service_tier": "",
+        "total_tokens": 0,
+        "ttft_set": false
+      }
+    ]
+  }
+}
