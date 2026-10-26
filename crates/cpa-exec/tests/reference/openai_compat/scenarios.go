@@ -130,6 +130,17 @@ func stream(name, payload string, up *upstream) scenario {
 	return s
 }
 
+// responsesEOF streams the chunks to a Responses client and ends without [DONE].
+func responsesEOF(name, payload string, chunks ...string) scenario {
+	body := ""
+	for _, c := range chunks {
+		body += "data: " + c + "\n\n"
+	}
+	s := chat(name, "acme-chat", "chat", payload, sse(body))
+	s.Source, s.Op, s.Stream = "openai-response", "stream", true
+	return s
+}
+
 func scenarios() []scenario {
 	hi := `{"model":"chat","messages":[{"role":"user","content":"hi"}]}`
 	out := []scenario{
@@ -415,6 +426,40 @@ func scenarios() []scenario {
 		func() scenario {
 			s := chat("apply_patch_stream_chat_client_ignores_bridge", "acme-chat", "chat", `{"model":"chat","messages":[{"role":"user","content":"x"}],"tools":[{"type":"function","function":{"name":"apply_patch","parameters":{"type":"object"}}}]}`, applyPatchStream(`{"input":7}`, true))
 			s.Op, s.Stream = "stream", true
+			return s
+		}(),
+		// v8.0.35 (0ea4e1dc): a Responses stream that ends cleanly without [DONE] completes
+		// when the finish_reason left every item done; otherwise it still fails.
+		responsesEOF("responses_eof_after_finish_reason", `{"model":"chat","input":"hello","stream":true}`,
+			chunk1, `{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`,
+			`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[],"usage":{"prompt_tokens":3,"completion_tokens":1,"total_tokens":4}}`),
+		responsesEOF("responses_eof_after_length_finish", `{"model":"chat","input":"hello","stream":true}`, chunk1,
+			`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{},"finish_reason":"length"}]}`),
+		responsesEOF("responses_eof_after_tool_call_finish", `{"model":"chat","input":"weather?","stream":true,"tools":[{"type":"function","name":"get_weather","parameters":{"type":"object"}}]}`,
+			`{"id":"t1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"role":"assistant","tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"get_weather","arguments":""}}]},"finish_reason":null}]}`,
+			`{"id":"t1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"city\":\"Oslo\"}"}}]},"finish_reason":null}]}`,
+			`{"id":"t1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}`),
+		responsesEOF("responses_eof_after_reasoning_finish", `{"model":"chat","input":"think","stream":true}`,
+			`{"id":"r1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"hmm"},"finish_reason":null}]}`,
+			`{"id":"r1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":null}]}`,
+			`{"id":"r1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`),
+		responsesEOF("responses_eof_reasoning_only_finish", `{"model":"chat","input":"think","stream":true}`,
+			`{"id":"r2","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"role":"assistant","reasoning_content":"hmm"},"finish_reason":"stop"}]}`),
+		responsesEOF("responses_eof_finish_reason_without_items", `{"model":"chat","input":"hello","stream":true}`,
+			`{"id":"e1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":"stop"}]}`),
+		responsesEOF("responses_eof_content_after_finish_reason", `{"model":"chat","input":"hello","stream":true}`,
+			`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{"role":"assistant","content":"he"},"finish_reason":"stop"}]}`, chunk1),
+		func() scenario {
+			s := responsesEOF("responses_eof_finish_reason_then_incomplete_frame", `{"model":"chat","input":"hello","stream":true}`, chunk1,
+				`{"id":"c1","object":"chat.completion.chunk","created":1,"model":"acme-chat","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}`)
+			s.Upstream.Body += `data: {"id":`
+			return s
+		}(),
+		func() scenario {
+			up := applyPatchStream(`{"input":"*** Begin Patch\n*** End Patch\n"}`, true)
+			up.Body = strings.TrimSuffix(up.Body, "data: [DONE]\n\n")
+			s := chat("responses_eof_after_apply_patch_finish", "acme-chat", "chat", applyPatchRequest, up)
+			s.Source, s.Op, s.Stream = "openai-response", "stream", true
 			return s
 		}(),
 		func() scenario {

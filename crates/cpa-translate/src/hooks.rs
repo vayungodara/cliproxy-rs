@@ -260,4 +260,8 @@ impl GoStream for Hooked {
     fn finalize_tool_input(&mut self) -> Vec<Vec<u8>> {
         self.inner.as_mut().map(|i| i.finalize_tool_input()).unwrap_or_default()
     }
+
+    fn can_finalize_response_stream(&self) -> bool {
+        self.inner.as_ref().is_some_and(|i| i.can_finalize_response_stream())
+    }
 }

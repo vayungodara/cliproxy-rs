@@ -93,9 +93,9 @@ pub fn yaml_string(value: &Value) -> Result<String, serde_yaml_ng::Error> {
     let mut out = String::with_capacity(text.len() + 2);
     let mut last = 0;
     for plain in scalars {
-        let flagged = std::str::from_utf8(&plain.value)
-            .ok()
-            .and_then(|s| go_read(s, plain.key));
+        // A key is checked as a value: yaml.v3 reads a plain `1_000:` key as a number,
+        // which in an untyped map is no longer the string key it was.
+        let flagged = std::str::from_utf8(&plain.value).ok().and_then(|s| go_read(s, false));
         if flagged.is_none() {
             continue;
         }
@@ -1743,6 +1743,11 @@ oauth-excluded-models: {{c: [{numbers}]}}
         let value = Value::Sequence(strings.iter().map(|s| Value::from(*s)).collect());
         let text = yaml_string(&value).unwrap();
         assert_eq!(parse_yaml(&text).unwrap(), value, "{text}");
+        // String keys too, which Go would otherwise read as numbers.
+        let keys = yaml_value("{'1_000': a, '007': b, 7: c}").unwrap();
+        let text = yaml_string(&keys).unwrap();
+        assert_eq!(text, "\"1_000\": a\n'007': b\n7: c\n");
+        assert_eq!(parse_yaml(&text).unwrap(), keys, "{text}");
         assert_eq!(
             yaml_string(&yaml_value("[7, 1000, 0.5]").unwrap()).unwrap(),
             "- 7\n- 1000\n- 0.5\n"

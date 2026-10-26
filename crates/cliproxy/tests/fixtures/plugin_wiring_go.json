@@ -19,7 +19,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":\"Missing API key\"}"
@@ -82,7 +82,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"data\":[],\"object\":\"list\"}"
@@ -122,7 +122,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"unknown provider for model no-such-model\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\",\"param\":\"model\"}}"
@@ -155,7 +155,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":{\"message\":\"Not Found\",\"type\":\"not_found\"}}"
@@ -202,7 +202,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":\"Missing API key\"}"
@@ -243,7 +243,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":\"Missing API key\"}"
@@ -262,7 +262,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Missing API key\",\"param\":null,\"type\":\"authentication_error\"}}"
@@ -308,7 +308,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"data\":[],\"object\":\"list\"}"
@@ -326,7 +326,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"status\":\"ok\"}"
@@ -381,7 +381,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"data\":[],\"object\":\"list\"}"
@@ -414,7 +414,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"data\":[],\"object\":\"list\"}"
@@ -461,7 +461,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":\"Invalid API key\"}"
@@ -479,7 +479,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":\"Missing API key\"}"
@@ -497,7 +497,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"data\":[],\"object\":\"list\"}"
@@ -522,7 +522,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":{\"code\":\"invalid_api_key\",\"message\":\"Invalid API key\",\"param\":null,\"type\":\"authentication_error\"}}"
@@ -600,7 +600,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"error\":\"Missing API key\"}"
@@ -647,7 +647,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"data\":[],\"object\":\"list\"}"
@@ -710,7 +710,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"unknown provider for model m1\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\",\"param\":\"model\"}}"
@@ -771,7 +771,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"model\":\"m1\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
@@ -827,7 +827,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"model\":\"m1\",\"service_tier\":\"flex\",\"generate\":false,\"reasoning_effort\":\"high\",\"messages\":[]}"
@@ -891,7 +891,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"id\":\"c1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"m1\",\"content\":[{\"type\":\"text\",\"text\":\"hello\"}],\"stop_reason\":\"end_turn\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}"
@@ -947,7 +947,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"m1\",\"output\":[{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hello\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"output_tokens\":2,\"total_tokens\":5,\"output_tokens_details\":{\"reasoning_tokens\":0},\"input_tokens_details\":{\"cached_tokens\":0}}}"
@@ -1015,7 +1015,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream"
             },
@@ -1072,7 +1072,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream"
             },
@@ -1129,7 +1129,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream"
             },
@@ -1198,11 +1198,11 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream"
             },
-            "body": "data: one\n\ndata: two\n\ndata: three\n\ndata: [DONE]\n\n"
+            "body": "data: one\n\ndata: two\n\ndata: three\n\ndata: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
           }
         },
         {
@@ -1259,7 +1259,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream"
             },
@@ -1297,7 +1297,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"nope\",\"type\":\"permission_error\",\"code\":\"insufficient_quota\"}}"
@@ -1322,7 +1322,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"type\":\"error\",\"error\":{\"type\":\"permission_error\",\"message\":\"nope\"}}"
@@ -1438,7 +1438,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"slow down\",\"type\":\"rate_limit_error\",\"code\":\"rate_limit_exceeded\"}}"
@@ -1475,7 +1475,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"no status\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}"
@@ -1571,7 +1571,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"id\":\"\",\"object\":\"chat.completion\",\"created\":0,\"model\":\"\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":0,\"completion_tokens\":0,\"total_tokens\":0}}"
@@ -1596,7 +1596,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"model\":\"m1\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
@@ -1684,7 +1684,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"unknown provider for model m1\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\",\"param\":\"model\"}}"
@@ -1721,7 +1721,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"unknown provider for model m1\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\",\"param\":\"model\"}}"
@@ -1758,7 +1758,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"unknown provider for model m1\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\",\"param\":\"model\"}}"
@@ -1795,7 +1795,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"unknown provider for model m1\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\",\"param\":\"model\"}}"
@@ -1863,7 +1863,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"error\":{\"message\":\"auth_not_found: no auth available (providers=openai-compatible-up, model=up-model)\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}"
@@ -1900,7 +1900,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET"
             },
@@ -1938,7 +1938,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET"
             },
@@ -2074,7 +2074,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET"
             },
@@ -2196,7 +2196,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET",
               "X-Resp": "3",
@@ -2300,7 +2300,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "text/plain",
               "X-T": "t"
             },
@@ -2346,7 +2346,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET"
             },
@@ -2438,7 +2438,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET"
             },
@@ -2535,7 +2535,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream",
               "X-Chunk": "h",
@@ -2655,7 +2655,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream",
               "X-Cpa-Trace-Id": "SET"
@@ -2806,7 +2806,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "{\"plugin\":\"intercepted\"}"
@@ -2885,11 +2885,11 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream"
             },
-            "body": "data: one\n\ndata: two\n\ndata: three\n\ndata: [DONE]\n\n"
+            "body": "data: one\n\ndata: two\n\ndata: three\n\ndata: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
           }
         },
         {
@@ -2980,7 +2980,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json"
             },
             "body": "later"
@@ -3105,7 +3105,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET",
               "X-Keep": "k",
@@ -3137,7 +3137,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream",
               "X-Chunk": "c",
@@ -3201,7 +3201,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream",
               "X-Cpa-Trace-Id": "SET"
@@ -3338,7 +3338,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET"
             },
@@ -3360,7 +3360,7 @@
             {
               "label": "us",
               "method": "usage.handle",
-              "request": "{\"RequestID\":\"#\",\"TraceID\":\"#\",\"Provider\":\"openai-compatible-up\",\"BaseURL\":\"UPSTREAM/v1\",\"ExecutorType\":\"OpenAICompatExecutor\",\"Model\":\"up-model\",\"Alias\":\"up-alias\",\"APIKey\":\"k1\",\"SessionID\":\"derived:ctx:v1:cd84352e2e7e824a7ad05895ffeea6c6dc5896310793e89a12ee532966f7957e\",\"ParentSessionID\":\"\",\"AuthID\":\"#\",\"AuthIndex\":\"#\",\"AuthType\":\"apikey\",\"Source\":\"fake-up\",\"ReasoningEffort\":\"\",\"ServiceTier\":\"flex\",\"ResponseServiceTier\":\"default\",\"ResponseModel\":\"up-model-2025\",\"Generate\":true,\"Stream\":false,\"RequestedAt\":\"#\",\"Latency\":0,\"TTFT\":0,\"Failed\":false,\"Failure\":{\"StatusCode\":0,\"Body\":\"\"},\"Detail\":{\"InputTokens\":1,\"OutputTokens\":2,\"ReasoningTokens\":0,\"CachedTokens\":1,\"CacheReadTokens\":1,\"CacheCreationTokens\":0,\"TotalTokens\":3},\"ResponseHeaders\":{\"Content-Length\":[\"304\"],\"Content-Type\":[\"application/json\"],\"X-Up\":[\"u\"]}}"
+              "request": "{\"RequestID\":\"#\",\"TraceID\":\"#\",\"Provider\":\"openai-compatible-up\",\"BaseURL\":\"UPSTREAM/v1\",\"ExecutorType\":\"OpenAICompatExecutor\",\"Model\":\"up-model\",\"Alias\":\"up-alias\",\"APIKey\":\"k1\",\"IsNativeKey\":true,\"AccessProvider\":\"config-inline\",\"SessionID\":\"derived:ctx:v1:cd84352e2e7e824a7ad05895ffeea6c6dc5896310793e89a12ee532966f7957e\",\"ParentSessionID\":\"\",\"AuthID\":\"#\",\"AuthIndex\":\"#\",\"AuthType\":\"apikey\",\"Source\":\"fake-up\",\"ReasoningEffort\":\"\",\"ServiceTier\":\"flex\",\"ResponseServiceTier\":\"default\",\"ResponseModel\":\"up-model-2025\",\"Generate\":true,\"Stream\":false,\"RequestedAt\":\"#\",\"Latency\":0,\"TTFT\":0,\"Failed\":false,\"Failure\":{\"StatusCode\":0,\"Body\":\"\"},\"Detail\":{\"InputTokens\":1,\"OutputTokens\":2,\"ReasoningTokens\":0,\"CachedTokens\":1,\"CacheReadTokens\":1,\"CacheCreationTokens\":0,\"TotalTokens\":3},\"ResponseHeaders\":{\"Content-Length\":[\"304\"],\"Content-Type\":[\"application/json\"],\"X-Up\":[\"u\"]}}"
             }
           ]
         },
@@ -3387,7 +3387,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Cache-Control": "no-cache",
               "Content-Type": "text/event-stream",
               "X-Cpa-Trace-Id": "SET"
@@ -3410,7 +3410,7 @@
             {
               "label": "us",
               "method": "usage.handle",
-              "request": "{\"RequestID\":\"#\",\"TraceID\":\"#\",\"Provider\":\"openai-compatible-sse\",\"BaseURL\":\"UPSTREAM/sse\",\"ExecutorType\":\"OpenAICompatExecutor\",\"Model\":\"sse-model\",\"Alias\":\"sse-alias\",\"APIKey\":\"k1\",\"SessionID\":\"\",\"ParentSessionID\":\"\",\"AuthID\":\"#\",\"AuthIndex\":\"#\",\"AuthType\":\"apikey\",\"Source\":\"fake-sse\",\"ReasoningEffort\":\"\",\"ServiceTier\":\"auto\",\"ResponseServiceTier\":\"\",\"ResponseModel\":\"sse-model\",\"Generate\":true,\"Stream\":true,\"RequestedAt\":\"#\",\"Latency\":0,\"TTFT\":0,\"Failed\":false,\"Failure\":{\"StatusCode\":0,\"Body\":\"\"},\"Detail\":{\"InputTokens\":4,\"OutputTokens\":5,\"ReasoningTokens\":0,\"CachedTokens\":0,\"CacheReadTokens\":0,\"CacheCreationTokens\":0,\"TotalTokens\":9},\"ResponseHeaders\":{\"Content-Length\":[\"368\"],\"Content-Type\":[\"text/event-stream\"]}}"
+              "request": "{\"RequestID\":\"#\",\"TraceID\":\"#\",\"Provider\":\"openai-compatible-sse\",\"BaseURL\":\"UPSTREAM/sse\",\"ExecutorType\":\"OpenAICompatExecutor\",\"Model\":\"sse-model\",\"Alias\":\"sse-alias\",\"APIKey\":\"k1\",\"IsNativeKey\":true,\"AccessProvider\":\"config-inline\",\"SessionID\":\"\",\"ParentSessionID\":\"\",\"AuthID\":\"#\",\"AuthIndex\":\"#\",\"AuthType\":\"apikey\",\"Source\":\"fake-sse\",\"ReasoningEffort\":\"\",\"ServiceTier\":\"auto\",\"ResponseServiceTier\":\"\",\"ResponseModel\":\"sse-model\",\"Generate\":true,\"Stream\":true,\"RequestedAt\":\"#\",\"Latency\":0,\"TTFT\":0,\"Failed\":false,\"Failure\":{\"StatusCode\":0,\"Body\":\"\"},\"Detail\":{\"InputTokens\":4,\"OutputTokens\":5,\"ReasoningTokens\":0,\"CachedTokens\":0,\"CacheReadTokens\":0,\"CacheCreationTokens\":0,\"TotalTokens\":9},\"ResponseHeaders\":{\"Content-Length\":[\"368\"],\"Content-Type\":[\"text/event-stream\"]}}"
             }
           ]
         },
@@ -3437,7 +3437,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json",
               "X-Cpa-Trace-Id": "SET"
             },
@@ -3459,7 +3459,7 @@
             {
               "label": "us",
               "method": "usage.handle",
-              "request": "{\"RequestID\":\"#\",\"TraceID\":\"#\",\"Provider\":\"openai-compatible-down\",\"BaseURL\":\"UPSTREAM/down\",\"ExecutorType\":\"OpenAICompatExecutor\",\"Model\":\"down-model\",\"Alias\":\"down-alias\",\"APIKey\":\"k1\",\"SessionID\":\"\",\"ParentSessionID\":\"\",\"AuthID\":\"#\",\"AuthIndex\":\"#\",\"AuthType\":\"apikey\",\"Source\":\"fake-down\",\"ReasoningEffort\":\"\",\"ServiceTier\":\"auto\",\"ResponseServiceTier\":\"\",\"ResponseModel\":\"\",\"Generate\":true,\"Stream\":false,\"RequestedAt\":\"#\",\"Latency\":0,\"TTFT\":0,\"Failed\":true,\"Failure\":{\"StatusCode\":404,\"Body\":\"status 404\"},\"Detail\":{\"InputTokens\":0,\"OutputTokens\":0,\"ReasoningTokens\":0,\"CachedTokens\":0,\"CacheReadTokens\":0,\"CacheCreationTokens\":0,\"TotalTokens\":0},\"ResponseHeaders\":{\"Content-Length\":[\"0\"]}}"
+              "request": "{\"RequestID\":\"#\",\"TraceID\":\"#\",\"Provider\":\"openai-compatible-down\",\"BaseURL\":\"UPSTREAM/down\",\"ExecutorType\":\"OpenAICompatExecutor\",\"Model\":\"down-model\",\"Alias\":\"down-alias\",\"APIKey\":\"k1\",\"IsNativeKey\":true,\"AccessProvider\":\"config-inline\",\"SessionID\":\"\",\"ParentSessionID\":\"\",\"AuthID\":\"#\",\"AuthIndex\":\"#\",\"AuthType\":\"apikey\",\"Source\":\"fake-down\",\"ReasoningEffort\":\"\",\"ServiceTier\":\"auto\",\"ResponseServiceTier\":\"\",\"ResponseModel\":\"\",\"Generate\":true,\"Stream\":false,\"RequestedAt\":\"#\",\"Latency\":0,\"TTFT\":0,\"Failed\":true,\"Failure\":{\"StatusCode\":404,\"Body\":\"status 404\"},\"Detail\":{\"InputTokens\":0,\"OutputTokens\":0,\"ReasoningTokens\":0,\"CachedTokens\":0,\"CacheReadTokens\":0,\"CacheCreationTokens\":0,\"TotalTokens\":0},\"ResponseHeaders\":{\"Content-Length\":[\"0\"]}}"
             }
           ]
         }
@@ -3490,7 +3490,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8"
             },
             "body": "{\"data\":[],\"object\":\"list\"}"
@@ -3551,7 +3551,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8",
               "X-Models": "m"
             },
@@ -3576,7 +3576,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8",
               "X-Models": "m"
             },
@@ -3601,7 +3601,7 @@
               "Access-Control-Allow-Headers": "*",
               "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
               "Access-Control-Allow-Origin": "*",
-              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, X-Request-Id, OpenAI-Request-Id",
+              "Access-Control-Expose-Headers": "X-CPA-TRACE-ID, X-CPA-VERSION, X-CPA-COMMIT, X-CPA-BUILD-DATE, X-CPA-SUPPORT-PLUGIN, X-CPA-HOME-VERSION, X-CPA-HOME-BUILD-DATE, X-SERVER-VERSION, X-SERVER-BUILD-DATE, Location, Retry-After, ETag, X-Request-Id, OpenAI-Request-Id",
               "Content-Type": "application/json; charset=utf-8",
               "X-Models": "m"
             },

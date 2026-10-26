@@ -676,35 +676,30 @@ fn turn_error(lost: &ExecError) -> ExecError {
     }
 }
 
-/// `buildCodexResponsesWebsocketURL`.
+/// `buildCodexResponsesWebsocketURL`. Go returns its parse, scheme and empty-host errors
+/// as plain errors before dialing.
+// ponytail: Go re-serializes the parsed URL (`URL.String()`); the text after the scheme is
+// kept as given, which differs only for escapes Go would normalize.
 fn ws_url(http_url: &str) -> Result<String, ExecError> {
-    let mut url = url::Url::parse(http_url.trim()).map_err(|_| {
-        ExecError::local(
-            500,
-            FailureScope::Credential,
-            "codex websockets executor: invalid base URL",
-        )
-    })?;
-    let scheme = match url.scheme().to_ascii_lowercase().as_str() {
+    let raw = http_url.trim();
+    let parsed = crate::xai_url::parse(raw).map_err(crate::xai_url::statusless)?;
+    let scheme = match parsed.scheme.as_str() {
         "http" => "ws",
         "https" => "wss",
         other => {
-            return Err(ExecError::local(
-                500,
-                FailureScope::Credential,
-                format!("codex websockets executor: unsupported responses websocket URL scheme {other:?}"),
-            ));
+            return Err(crate::xai_url::statusless(format!(
+                "codex websockets executor: unsupported responses websocket URL scheme {}",
+                cpa_common::gostr::quote(other)
+            )));
         }
     };
-    if url.host_str().unwrap_or_default().is_empty() {
-        return Err(ExecError::local(
-            500,
-            FailureScope::Credential,
+    if parsed.host.trim().is_empty() {
+        return Err(crate::xai_url::statusless(
             "codex websockets executor: responses websocket URL host is empty",
         ));
     }
-    url.set_scheme(scheme).expect("ws schemes are valid");
-    Ok(url.into())
+    let rest = &raw[raw.find(':').map_or(0, |i| i + 1)..];
+    Ok(format!("{scheme}:{rest}"))
 }
 
 /// A WebSocket turn's body after the prompt cache key, in Go's order:

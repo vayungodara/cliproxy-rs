@@ -217,7 +217,7 @@ fn ends_in_version(base: &str) -> bool {
 /// `http.NewRequestWithContext`'s URL parse. Go builds the request before the token
 /// exchange, so a URL it rejects fails without contacting the token endpoint. A URL
 /// its transport refuses (no host, or a scheme other than http and https) passes here
-/// and fails at the send ([`g::refuse_unsendable`]).
+/// and fails at the send ([`g::send_captured`]).
 fn check_url(url: &str) -> Result<(), ExecError> {
     crate::xai_url::new_request(url)?;
     if crate::xai_url::transport_refusal(url).is_some() {
@@ -593,7 +593,6 @@ impl VertexExecutor {
         }
         g::set_custom_headers(&mut headers, credential, req);
         g::interactions_revision(&mut headers, req);
-        g::refuse_unsendable(req.capture(), credential, PROVIDER, &url, &headers, &body)?;
         g::interactions_exchange(req, credential, PROVIDER, &client, &url, headers, body).await
     }
 
@@ -707,7 +706,6 @@ impl VertexExecutor {
         let capture = req.capture();
         let client = self.client(credential, cfg);
         let body = Bytes::from(body);
-        g::refuse_unsendable(capture, credential, PROVIDER, &url, &headers, &body)?;
         let upstream = g::send_captured(
             capture,
             credential,
@@ -790,7 +788,6 @@ impl VertexExecutor {
         let capture = req.capture();
         let client = self.client(credential, cfg);
         let body = Bytes::from(body);
-        g::refuse_unsendable(capture, credential, PROVIDER, &url, &headers, &body)?;
         let upstream = g::send_captured(
             capture,
             credential,

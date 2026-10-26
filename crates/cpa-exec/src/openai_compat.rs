@@ -785,10 +785,22 @@ impl Frames {
     /// A terminal error: a Responses client first gets the frame its Go framer would
     /// flush (`responsesSSEFramer.Flush`), then the error.
     fn terminal(&mut self, error: ExecError) {
-        let flushed = self.translator.flush_frames();
+        let mut flushed = self.translator.flush_frames();
+        self.usage_details(&mut flushed);
         self.ready.extend(flushed.into_iter().map(Ok));
         self.ready.push_back(Err(error));
         self.failed = true;
+    }
+
+    /// TranslateStreamWithClaudeInputTokens: Responses usage gets its detail fields
+    /// unless the apply_patch bridge failed. Go patches before the SSE framer, so frames
+    /// the framer flushes later get them too.
+    fn usage_details(&self, out: &mut [Bytes]) {
+        if self.responses && !self.translator.tool_input_failed() {
+            for chunk in out {
+                *chunk = Bytes::from(payload::ensure_responses_usage_details(chunk));
+            }
+        }
     }
 
     /// One Go `TranslateStream` call per frame's joined `data:` line: no blank line
@@ -796,6 +808,7 @@ impl Frames {
     fn translate(&mut self, line: &[u8]) -> bool {
         match self.translator.event(line) {
             Ok(mut out) => {
+                self.usage_details(&mut out);
                 self.claude.apply(&mut out);
                 self.ready.extend(out.into_iter().map(Ok));
                 false
@@ -882,6 +895,15 @@ impl Frames {
             return;
         }
         if !self.seen_done {
+            // 0ea4e1dc: a finish reason that left every item done completes the stream.
+            if self.responses && self.translator.can_finalize_response_stream() {
+                if self.translate(b"data: [DONE]") {
+                    return;
+                }
+                self.seen_done = !self.translator.can_finalize_response_stream();
+            }
+        }
+        if !self.seen_done {
             if self.responses {
                 self.fail(502, "upstream stream closed before [DONE]");
                 return;
@@ -895,7 +917,10 @@ impl Frames {
 
     fn finish(&mut self) {
         match self.translator.finish() {
-            Ok(out) => self.ready.extend(out.into_iter().map(Ok)),
+            Ok(mut out) => {
+                self.usage_details(&mut out);
+                self.ready.extend(out.into_iter().map(Ok));
+            }
             Err(e) => {
                 self.fail(502, e.to_string());
             }

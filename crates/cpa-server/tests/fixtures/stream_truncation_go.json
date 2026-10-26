@@ -1,0 +1,138 @@
+[
+  {
+    "name": "multi_chunk_missing",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"}}]}",
+      "{\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"do_thing\",\"arguments\":\"{\\\"a\\\":1\"}}]}}]}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"}}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"do_thing\",\"arguments\":\"{\\\"a\\\":1\"}}]}}]}\n\ndata: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
+  },
+  {
+    "name": "null_or_empty",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"part1\"},\"finish_reason\":null}]}",
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"part2\"},\"finish_reason\":\"\"}]}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"part1\"},\"finish_reason\":null}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"part2\"},\"finish_reason\":\"\"}]}\n\ndata: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
+  },
+  {
+    "name": "single_chunk_missing",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"hello\"}}]}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"hello\"}}]}\n\ndata: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
+  },
+  {
+    "name": "multi_chunk_present",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"}}]}",
+      "{\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"do_thing\",\"arguments\":\"{\\\"a\\\":1}\"}}]}}]}",
+      "{\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"}}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"name\":\"do_thing\",\"arguments\":\"{\\\"a\\\":1}\"}}]}}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "single_chunk_present",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"instant\"},\"finish_reason\":\"stop\"}]}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"instant\"},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "usage_after_finish",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"}}]}",
+      "{\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}",
+      "{\"choices\":[],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7}}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"}}]}\n\ndata: {\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: {\"choices\":[],\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":2,\"total_tokens\":7}}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "legacy_missing",
+    "path": "/v1/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"}}]}",
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"trunc\"}}]}"
+    ],
+    "out": "data: {\"id\":\"\",\"object\":\"text_completion\",\"created\":0,\"model\":\"\",\"choices\":[{\"index\":0,\"text\":\"trunc\"}]}\n\ndata: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
+  },
+  {
+    "name": "legacy_present",
+    "path": "/v1/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"}}]}",
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hello\"},\"finish_reason\":\"stop\"}]}"
+    ],
+    "out": "data: {\"id\":\"\",\"object\":\"text_completion\",\"created\":0,\"model\":\"\",\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"text\":\"hello\"}]}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "legacy_single_present",
+    "path": "/v1/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"single\"},\"finish_reason\":\"stop\"}]}"
+    ],
+    "out": "data: {\"id\":\"\",\"object\":\"text_completion\",\"created\":0,\"model\":\"\",\"choices\":[{\"finish_reason\":\"stop\",\"index\":0,\"text\":\"single\"}]}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "finish_reason_zero",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":0}]}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":0}]}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "finish_reason_false",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":false}]}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":false}]}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "choices_object",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":{\"index\":0,\"finish_reason\":\"stop\"}}"
+    ],
+    "out": "data: {\"choices\":{\"index\":0,\"finish_reason\":\"stop\"}}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "second_choice_finishes",
+    "path": "/v1/chat/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"}},{\"index\":1,\"finish_reason\":\"length\"}]}"
+    ],
+    "out": "data: {\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"}},{\"index\":1,\"finish_reason\":\"length\"}]}\n\ndata: [DONE]\n\n"
+  },
+  {
+    "name": "legacy_null_finish",
+    "path": "/v1/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":null}]}"
+    ],
+    "out": "data: {\"id\":\"\",\"object\":\"text_completion\",\"created\":0,\"model\":\"\",\"choices\":[{\"finish_reason\":\"\",\"index\":0,\"text\":\"x\"}]}\n\ndata: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
+  },
+  {
+    "name": "legacy_null_string_finish",
+    "path": "/v1/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"content\":\"x\"},\"finish_reason\":\"null\"}]}"
+    ],
+    "out": "data: {\"id\":\"\",\"object\":\"text_completion\",\"created\":0,\"model\":\"\",\"choices\":[{\"index\":0,\"text\":\"x\"}]}\n\ndata: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
+  },
+  {
+    "name": "legacy_dropped_first",
+    "path": "/v1/completions",
+    "chunks": [
+      "{\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"}}]}"
+    ],
+    "out": "data: {\"error\":{\"message\":\"upstream stream closed before any chunk carried finish_reason\",\"type\":\"server_error\",\"code\":\"internal_server_error\"}}\n\n"
+  }
+]

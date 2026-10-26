@@ -67,6 +67,8 @@ struct State {
     created: i64,
     started: bool,
     completed_emitted: bool,
+    /// CompletionPending: the last finish_reason left every item done (0ea4e1dc).
+    completion_pending: bool,
     reasoning_id: Vec<u8>,
     reasoning_index: i64,
     msg_text: HashMap<i64, Vec<u8>>,
@@ -321,6 +323,17 @@ impl State {
         gj::set_str(&mut item, "item.content.0.text", &text);
         out.push(event("response.output_item.done", &item));
         self.msg_item_done.insert(index);
+    }
+
+    /// canFinalizeResponse: a finish reason, at least one message or tool item, every one
+    /// of them done, and no open reasoning.
+    fn can_finalize_response(&self) -> bool {
+        self.tool_error.is_none()
+            && !self.finish_reason.is_empty()
+            && !(self.msg_item_added.is_empty() && self.func_item_added.is_empty())
+            && self.msg_item_added.iter().all(|i| self.msg_item_done.contains(i))
+            && self.func_item_added.iter().all(|k| self.func_item_done.contains(k))
+            && self.reasoning_id.is_empty()
     }
 
     /// finalizeOpenItems: messages, reasoning, then tool calls in output order.
@@ -703,6 +716,7 @@ impl State {
         if !finish.is_empty() {
             self.finish_reason = finish;
             self.finalize_open_items(out);
+            self.completion_pending = self.can_finalize_response();
         }
         self.tool_error.is_none()
     }
@@ -811,9 +825,18 @@ impl GoStream for State {
         self.tool_error.is_some()
     }
 
-    /// FinalizeToolInput: a patch-enabled stream that ends without its terminator fails.
+    fn can_finalize_response_stream(&self) -> bool {
+        self.tool_error.is_none() && !self.completed_emitted && self.completion_pending
+    }
+
+    /// FinalizeToolInput: a patch-enabled stream that ends without its terminator fails,
+    /// unless EOF can complete it.
     fn finalize_tool_input(&mut self) -> Vec<Vec<u8>> {
-        if self.tool_error.is_some() || self.completed_emitted || !self.index().has_apply_patch() {
+        if self.tool_error.is_some()
+            || self.completed_emitted
+            || self.can_finalize_response_stream()
+            || !self.index().has_apply_patch()
+        {
             return vec![];
         }
         self.tool_error = Some("upstream apply_patch stream ended before protocol completion".into());

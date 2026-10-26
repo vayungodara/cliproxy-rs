@@ -636,6 +636,12 @@ fn ws_url_follows_go() {
         String::from_utf8_lossy(&ws_url("https:///x").unwrap_err().body),
         "xai websockets executor: responses websocket URL host is empty"
     );
+    // Go returns these as plain errors before dialing: no status and no retry round,
+    // and the model cools for the credential.
+    for bad in ["ftp://h/x", "https:///x", "https://%61pi.x.ai/v1/responses"] {
+        let e = ws_url(bad).unwrap_err();
+        assert_eq!((e.status, e.scope), (0, cpa_core::exec::FailureScope::Model), "{bad}");
+    }
 }
 
 /// Go sets no read deadline on xAI sockets; the shared reader's must outlast any session.
