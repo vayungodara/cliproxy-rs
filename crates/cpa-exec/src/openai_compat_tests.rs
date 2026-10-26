@@ -256,7 +256,12 @@ fn want_bytes(s: &Value) -> Option<Vec<u8>> {
 
 #[tokio::test]
 async fn go_reference_scenarios() {
-    let fixture: Value = serde_json::from_str(FIXTURE).unwrap();
+    // The `responses_eof_*` scenarios are recorded at v8.0.35 (0ea4e1dc).
+    let fixture = crate::payload_barrier::with_v8_0_35(
+        FIXTURE,
+        include_str!("../tests/fixtures/openai_compat_go_v8.0.35.json"),
+        "scenarios",
+    );
     let scenarios = fixture["scenarios"].as_array().unwrap();
     assert!(scenarios.len() >= 60, "fixture lost scenarios");
     let executor = OpenAICompatExecutor::default();

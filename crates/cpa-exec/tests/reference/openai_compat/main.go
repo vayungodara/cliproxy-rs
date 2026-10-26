@@ -475,7 +475,19 @@ func main() {
 	for i := range all {
 		run(&all[i])
 	}
-	data, err := json.MarshalIndent(map[string]any{"scenarios": all, "vectors": vectors()}, "", "  ")
+	out := map[string]any{"scenarios": all, "vectors": vectors()}
+	if only := os.Getenv("RSFIX_ONLY"); only != "" {
+		// A partial recording (the v8.0.35 overlay): every scenario runs, the matching ones are written.
+		re := regexp.MustCompile(only)
+		var kept []scenario
+		for _, s := range all {
+			if re.MatchString(s.Name) {
+				kept = append(kept, s)
+			}
+		}
+		out = map[string]any{"scenarios": kept}
+	}
+	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		panic(err)
 	}

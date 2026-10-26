@@ -796,6 +796,13 @@ impl Frames {
     fn translate(&mut self, line: &[u8]) -> bool {
         match self.translator.event(line) {
             Ok(mut out) => {
+                // TranslateStreamWithClaudeInputTokens: Responses usage gets its detail
+                // fields unless the apply_patch bridge failed.
+                if self.responses && !self.translator.tool_input_failed() {
+                    for chunk in &mut out {
+                        *chunk = Bytes::from(payload::ensure_responses_usage_details(chunk));
+                    }
+                }
                 self.claude.apply(&mut out);
                 self.ready.extend(out.into_iter().map(Ok));
                 false
@@ -880,6 +887,15 @@ impl Frames {
         }
         if self.failed || self.end_tool_input() {
             return;
+        }
+        if !self.seen_done {
+            // 0ea4e1dc: a finish reason that left every item done completes the stream.
+            if self.responses && self.translator.can_finalize_response_stream() {
+                if self.translate(b"data: [DONE]") {
+                    return;
+                }
+                self.seen_done = !self.translator.can_finalize_response_stream();
+            }
         }
         if !self.seen_done {
             if self.responses {
