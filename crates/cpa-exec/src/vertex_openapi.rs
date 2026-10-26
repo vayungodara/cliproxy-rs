@@ -9,9 +9,10 @@ use serde_json::Value;
 
 const DEFAULT_LOCATION: &str = "us-central1";
 
-/// `strings.HasPrefix(strings.ToLower(s), prefix)` then `s[len(prefix):]`. For these
-/// ASCII prefixes Go's lowercase match implies an ASCII case variant (no letter of them
-/// has a non-ASCII lowercase source, unlike `k`), so the original's bytes are sliced.
+/// `strings.HasPrefix(strings.ToLower(s), prefix)` then `s[len(prefix):]`, matching
+/// ASCII case variants only. Go also lowercases `İ` (U+0130, two bytes) to `i`, so it
+/// matches `publİshers/<p>/models/<m>`, but then slices the original one byte short:
+/// the rest starts with `/`, the publisher is empty and the cut fails, as here.
 fn strip_prefix_lower<'a>(s: &'a str, prefix: &str) -> Option<&'a str> {
     let head = s.get(..prefix.len())?;
     head.eq_ignore_ascii_case(prefix).then(|| &s[prefix.len()..])
