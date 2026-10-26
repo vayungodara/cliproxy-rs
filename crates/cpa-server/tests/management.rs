@@ -1201,6 +1201,42 @@ async fn openapi_field_aliases_patch_their_canonical_keys() {
     server.abort();
 }
 
+/// Go d9451cb6 `AccountInfo`: a service-account file without a top-level `email` is an
+/// OAuth account named by the service account's trimmed `client_email`, in both the v0
+/// and v8 auth-file lists; no `email` key is listed (Go `buildAuthFileEntryLocked`).
+#[tokio::test]
+async fn a_service_account_file_lists_its_client_email_as_the_account() {
+    let f = Fixture::from_yaml("sa-account", |auth, hash| {
+        std::fs::write(
+            auth.join("vertex-sa.json"),
+            r#"{"type":"vertex","project_id":"p","service_account":{"client_email":" sa@p.iam.gserviceaccount.com ","private_key":"unused"}}"#,
+        )
+        .unwrap();
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            auth.display()
+        )
+    });
+    let (base, server) = f.server().await;
+    for path in ["/v8/management/credentials", "/v0/management/auth-files"] {
+        let listed: Value = wreq::Client::new()
+            .get(format!("{base}{path}"))
+            .bearer_auth("fake-management-only")
+            .send()
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        let entry = &listed["files"][0];
+        assert_eq!(entry["account"], "sa@p.iam.gserviceaccount.com", "{path}: {entry}");
+        assert_eq!(entry["account_type"], "oauth", "{path}: {entry}");
+        assert_eq!(entry["project_id"], "p", "{path}: {entry}");
+        assert!(entry.get("email").is_none(), "{path}: {entry}");
+    }
+    server.abort();
+}
+
 /// Go `TestCodexExcludedModelsCredentialPriorityAfterPatchAndReload` (b015f208,
 /// 94d1a9a0): a credential's own excluded models replace the global
 /// `oauth.excluded-models`; with none, the current global list applies, so a later

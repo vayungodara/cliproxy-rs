@@ -584,20 +584,12 @@ fn entry(state: &Management, c: &Credential, v8: bool, quota: &QuotaPlugins) -> 
     if let Some(project) = meta_str(c, "project_id").map(str::trim).filter(|p| !p.is_empty()) {
         e.insert("project_id", project.into());
     }
-    match auth_kind(c) {
-        Some("oauth") => {
-            e.insert("account_type", "oauth".into());
-            if !email.is_empty() {
-                e.insert("account", email.into());
-            }
-        }
-        Some(_) => {
-            e.insert("account_type", "api_key".into());
-            if let Some(key) = c.attributes.get("api_key").map(|k| k.trim()).filter(|k| !k.is_empty()) {
-                e.insert("account", key.into());
-            }
-        }
-        None => {}
+    let (account_type, account) = cpa_core::registry::dynamic::account_info(c);
+    if !account_type.is_empty() {
+        e.insert("account_type", account_type.into());
+    }
+    if !account.is_empty() {
+        e.insert("account", account.into());
     }
     let meta = path.map(std::fs::metadata);
     let modified = meta
@@ -1630,13 +1622,9 @@ fn virtual_source_status(state: &Management, target: &Credential, disabled: bool
             }
         }
     };
-    // Go `NormalizeCredentialMetadata`, whose aliases include the OpenAPI pair the field
-    // edits do not take: the alias goes, and a canonical spelling already there wins.
-    let openapi = [
-        ("openapi-location", "openapi_location"),
-        ("openapi-models", "openapi_models"),
-    ];
-    for (alias, canon) in ALIASES.iter().chain(openapi.iter()) {
+    // Go `NormalizeCredentialMetadata`: the alias goes, and a canonical spelling already
+    // there wins.
+    for (alias, canon) in ALIASES {
         if let Some(v) = meta.remove(*alias) {
             meta.entry(*canon).or_insert(v);
         }
