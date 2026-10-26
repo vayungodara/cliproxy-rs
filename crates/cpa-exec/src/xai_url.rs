@@ -337,6 +337,29 @@ pub(crate) fn quote_bytes(b: &[u8]) -> String {
     out
 }
 
+/// A Go executor returns `http.NewRequest`'s and `Client.Do`'s URL errors as they are:
+/// no status (rendered 500), no retry round, and the model cools for the credential.
+pub(crate) fn statusless(message: impl Into<String>) -> cpa_core::exec::ExecError {
+    cpa_core::exec::ExecError::local(0, cpa_core::exec::FailureScope::Model, message)
+}
+
+/// `http.NewRequest`'s parse of `raw`: Go refuses the URL before anything is sent.
+pub(crate) fn new_request(raw: &str) -> Result<(), cpa_core::exec::ExecError> {
+    parse(raw).map(drop).map_err(statusless)
+}
+
+/// `Client.Do` of a POST to `raw` when Go parsed no host from it (`https:relay.example`,
+/// `https:///v1`): the transport refuses it, after the request is logged and before
+/// anything is sent. The url crate would read a host from those and send there.
+pub(crate) fn hostless_post(raw: &str) -> Option<cpa_core::exec::ExecError> {
+    parse(raw).ok().filter(|u| u.host.is_empty()).map(|_| {
+        statusless(format!(
+            "Post {}: http: no Host in request URL",
+            quote_bytes(raw.as_bytes())
+        ))
+    })
+}
+
 /// Whether the HTTP client, which parses URLs with WHATWG rules (`url`), would contact
 /// the same scheme, host and port that Go's `net/url` parses from `raw`, and `false` where
 /// Go refuses `raw`, as it does `https://evil.example\[::1%25.x.ai]/` (an invalid

@@ -156,6 +156,18 @@ api-keys:
         - api-key: vk-fake-escaped
 `
 
+// emptyHostConfig: a base URL Go parses as opaque, with no host.
+const emptyHostConfig = `
+api-keys:
+  vertex:
+    - base-url: https:relay.example
+      models:
+        - name: meta/llama-4
+        - name: gemini-2.5-flash
+      keys:
+        - api-key: vk-fake-empty-host
+`
+
 // interactionsKeyConfig opts its first key into native Interactions (2d5351b3); the
 // second key does not.
 const interactionsKeyConfig = `
@@ -539,6 +551,26 @@ requests:
 		with(sa("oa_sa_escaped_base", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, token), func(s *scenario) {
 			s.Source = "openai"
 			s.Metadata["base_url"] = "https://%65vil.example/v1"
+		}),
+		// A base URL Go parses without a host (`https:relay.example`, `https:///v1`):
+		// http.NewRequest accepts it and the transport refuses it, after the token
+		// exchange on the service-account paths, so nothing reaches a host.
+		with(key("oa_key_empty_host", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = emptyHostConfig
+			s.Via = ""
+		}),
+		with(sa("oa_sa_empty_host", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, token), func(s *scenario) {
+			s.Source = "openai"
+			s.Metadata["base_url"] = "https:///v1"
+		}),
+		with(key("key_empty_host", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, "")), func(s *scenario) {
+			s.Config = emptyHostConfig
+			s.Via = ""
+		}),
+		with(interactionsKey("int_key_empty_host", "execute", "gemini-3-pro-preview", `{"model":"vertex-int","input":"hi"}`), func(s *scenario) {
+			s.Config = strings.Replace(interactionsKeyConfig, "http://UPSTREAM/api/", "https:relay.example", 1)
+			s.Via = ""
 		}),
 		with(key("oa_key_payload_rules", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}],"temperature":0.5}`, chatOK), func(s *scenario) {
 			s.Source = "openai"

@@ -38,6 +38,8 @@ pub(crate) struct UsageReports {
     /// A failure the executor published itself: status, body and whether it carries
     /// the usage seen so far.
     failure: Mutex<Option<(u16, String, bool)>>,
+    /// The executor type and model of an executor the attempt was handed to.
+    pub(crate) delegated: Mutex<Option<(String, String)>>,
 }
 
 impl UsageReports {
@@ -103,6 +105,10 @@ impl cpa_core::exec::UsageObserver for UsageReports {
     fn request(&self, format: Format, payload: &[u8]) {
         let effort = cpa_common::thinking::extract_translated_reasoning_effort(payload, format.as_str());
         *self.effort.lock().unwrap() = Some(effort);
+    }
+
+    fn delegated_executor(&self, executor_type: &str, model: &str) {
+        *self.delegated.lock().unwrap() = Some((executor_type.to_owned(), model.to_owned()));
     }
 }
 

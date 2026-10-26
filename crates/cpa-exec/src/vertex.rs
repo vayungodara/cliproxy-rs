@@ -215,9 +215,10 @@ fn ends_in_version(base: &str) -> bool {
 }
 
 /// `http.NewRequestWithContext`'s URL parse. Go builds the request before the token
-/// exchange, so a URL it rejects fails without contacting the token endpoint.
+/// exchange, so a URL it rejects fails without contacting the token endpoint. A URL
+/// without a host passes here and fails at the send ([`g::refuse_hostless`]).
 fn check_url(url: &str) -> Result<(), ExecError> {
-    crate::xai_url::parse(url).map_err(plain_error)?;
+    crate::xai_url::new_request(url)?;
     // The shared client's own URL check (`proxy::send`), before the token exchange too.
     url::Url::parse(url).map_err(|_| ExecError::local(500, FailureScope::Request, "invalid upstream URL"))?;
     Ok(())
@@ -588,6 +589,7 @@ impl VertexExecutor {
         }
         g::set_custom_headers(&mut headers, credential, req);
         g::interactions_revision(&mut headers, req);
+        g::refuse_hostless(req.capture(), credential, PROVIDER, &url, &headers, &body)?;
         g::interactions_exchange(req, credential, PROVIDER, &client, &url, headers, body).await
     }
 
@@ -701,6 +703,7 @@ impl VertexExecutor {
         let capture = req.capture();
         let client = self.client(credential, cfg);
         let body = Bytes::from(body);
+        g::refuse_hostless(capture, credential, PROVIDER, &url, &headers, &body)?;
         let upstream = g::send_captured(
             capture,
             credential,
@@ -783,6 +786,7 @@ impl VertexExecutor {
         let capture = req.capture();
         let client = self.client(credential, cfg);
         let body = Bytes::from(body);
+        g::refuse_hostless(capture, credential, PROVIDER, &url, &headers, &body)?;
         let upstream = g::send_captured(
             capture,
             credential,

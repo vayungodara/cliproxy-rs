@@ -442,9 +442,10 @@ pub(crate) async fn chat_with(
     }
     let url = endpoint(base_url, path);
     // Go's `http.NewRequestWithContext` refuses a URL its parser rejects (an escaped
-    // host such as `%61iplatform.googleapis.com`) before anything is sent; the url
-    // crate would decode the escape and send the key to the decoded host.
-    crate::xai_url::parse(&url).map_err(plain_err)?;
+    // host such as `%61iplatform.googleapis.com`) and its transport one without a host
+    // (`https:relay.example`), before anything is sent; the url crate would read a host
+    // from both and send the key there.
+    crate::xai_url::new_request(&url)?;
     let capture = wire::Capture::request(
         &req,
         credential,
@@ -454,7 +455,10 @@ pub(crate) async fn chat_with(
         headers.pairs(),
         &body,
     );
-    let upstream = wire::send(client, &url, headers, Bytes::from(body.clone())).await;
+    let upstream = match crate::xai_url::hostless_post(&url) {
+        Some(error) => Err(error),
+        None => wire::send(client, &url, headers, Bytes::from(body.clone())).await,
+    };
     capture.sent(&upstream);
     let upstream = upstream?;
     if !(200..300).contains(&upstream.status) {
