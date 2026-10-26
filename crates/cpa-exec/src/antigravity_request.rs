@@ -274,14 +274,11 @@ fn sanitize_tool_schemas(body: Vec<u8>, antigravity_schema: bool, claude: bool) 
     gj::try_set_raw(&body, "request.tools", cleaned).unwrap_or(body)
 }
 
-/// `sanitizeAntigravityToolSchemaDocument`: `parametersJsonSchema` renamed onto
-/// `parameters`, then every declaration schema cleaned nested one level down. Go edits
-/// the document by path, each edit searching it from the start; every edit stays inside
-/// one declaration, so each declaration is edited on its own bytes and the results are
-/// spliced back in one pass.
-// ponytail: when one tool object repeats `functionDeclarations` (or its snake_case key),
-// only the first occurrence is cleaned, where Go's path edits can land on either. JSON
-// encoders do not repeat keys; fall back to Go's path edits if a client ever does.
+/// `sanitizeAntigravityToolSchemaDocumentForModel` (Go b8d4e14a): in each declaration,
+/// `parametersJsonSchema` renamed onto `parameters`, then every declaration schema
+/// cleaned nested one level down, each declaration on its own bytes and the results
+/// spliced back in one pass. A repeated declarations key is cleaned at its first
+/// occurrence only, as Go's `Get` and `SetRawBytes` on the tool find it.
 fn sanitize_tool_schema_document(document: Vec<u8>, antigravity_schema: bool, claude: bool) -> Vec<u8> {
     let tools = gj::get(&document, "request.tools");
     if !tools.is_array() {
@@ -1379,5 +1376,33 @@ mod tests {
             started.elapsed()
         );
         assert_eq!(String::from_utf8(many).unwrap(), body(&cleaned));
+    }
+
+    /// Go b8d4e14a's TestSanitizeAntigravityRequestSchemasScalesLinearlyWithDeclarations:
+    /// 256 declarations, each renamed and cleaned on its own bytes, with Go's expected
+    /// bytes. (The fixture skips this call: Go's recorder drops records over 32 KiB.)
+    #[test]
+    fn many_declarations_match_go() {
+        let pad = "x".repeat(4096);
+        let (mut input, mut want) = (Vec::new(), Vec::new());
+        for i in 0..256 {
+            input.push(format!(
+                r#"{{"name":"tool_{i}","description":"{pad}","parametersJsonSchema":{{"type":"object","$id":"drop","properties":{{"q":{{"type":"string"}}}}}}}}"#
+            ));
+            want.push(format!(
+                r#"{{"name":"tool_{i}","description":"{pad}","parameters":{{"type":"object","properties":{{"q":{{"type":"string"}},"_":{{"type":"boolean"}}}},"required":["_"]}}}}"#
+            ));
+        }
+        let wrap = |list: &[String]| {
+            format!(
+                r#"{{"request":{{"tools":[{{"functionDeclarations":[{}]}}]}}}}"#,
+                list.join(",")
+            )
+        };
+        let got = sanitize_request_schemas(wrap(&input).into_bytes(), true, false);
+        assert!(
+            String::from_utf8(got).unwrap() == wrap(&want),
+            "sanitized tools diverged from Go's bytes"
+        );
     }
 }
