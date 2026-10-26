@@ -52,14 +52,29 @@ cp "$crate/tests/reference/server/main.go" "$tmp/main.go"
 
 `../../fixtures/server_go_v8.0.35.json` holds the `auth_kind` section recorded at v8.0.35
 (`ae3ee3be`), where a true `use_siwc` classifies a credential as OAuth first (7b0319fb);
-`registry::tests` reads it instead of the `6fecc6e` section. Record it with the run
-above against a v8.0.35 checkout (`git -C "$reference" checkout ae3ee3be`), passing all
-three overlays (`auth`, `helps` and `redisqueue`, each to its package's
-`zz_golden_export.go`) and selecting the section with `RSFIX_ONLY` (a Go regexp on the
-top-level key):
+`registry::tests` reads it instead of the `6fecc6e` section. At v8.0.35 the generator also
+calls golden-only exports from `internal/runtime/executor/helps` and
+`internal/redisqueue`, so all three overlays must compile in. `RSFIX_ONLY` (a Go regexp on
+the top-level key) only selects which sections are written:
 
 ```sh
-RSFIX_ONLY='^auth_kind$' go run -overlay overlay.json . "$crate/tests/fixtures/server_go_v8.0.35.json"
+reference=/absolute/path/to/CLIProxyAPI   # at ae3ee3be
+crate=/absolute/path/to/cliproxy-rs/crates/cpa-server
+tmp=$(mktemp -d)
+cp "$crate/tests/reference/server/main.go" "$tmp/main.go"
+(
+  cd "$tmp"
+  go mod init github.com/router-for-me/CLIProxyAPI/v8/fixture
+  go mod edit -require=github.com/router-for-me/CLIProxyAPI/v8@v8.0.0
+  go mod edit -replace=github.com/router-for-me/CLIProxyAPI/v8="$reference"
+  go mod tidy
+  for pkg in auth helps redisqueue; do
+    cp "$crate/tests/reference/server/${pkg}_export.go.overlay" "$tmp/${pkg}_export.go.src"
+  done
+  printf '{"Replace":{"%s/sdk/cliproxy/auth/zz_golden_export.go":"%s/auth_export.go.src","%s/internal/runtime/executor/helps/zz_golden_export.go":"%s/helps_export.go.src","%s/internal/redisqueue/zz_golden_export.go":"%s/redisqueue_export.go.src"}}' \
+    "$reference" "$tmp" "$reference" "$tmp" "$reference" "$tmp" > overlay.json
+  RSFIX_ONLY='^auth_kind$' go run -overlay overlay.json . "$crate/tests/fixtures/server_go_v8.0.35.json"
+)
 ```
 
 Inputs that carry secrets use `fake` values only.
