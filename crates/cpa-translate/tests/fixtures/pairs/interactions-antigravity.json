@@ -3626,6 +3626,19 @@
      "prefix": "interaction_"
     }
    ]
+  },
+  {
+   "name": "interactions-antigravity/user-turn/document-file-id",
+   "path": "request",
+   "model": "gemini-3-flash",
+   "stream": true,
+   "input": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"file_id\":\"f\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[],\"stream\":true,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
   }
  ],
  "token_count": false,

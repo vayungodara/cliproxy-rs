@@ -137,8 +137,9 @@ fn translate(req: &ExecRequest, cfg: &Config, count: bool) -> Result<(Vec<u8>, &
     let (from, to) = (req.source_format, Format::Gemini);
     let stream = req.stream && !count;
     let original = g::original_request(req);
-    let original_translated = g::translate(req, cfg, to, &base_model, original, stream, false)?;
+    let original_translated = g::translate(req, cfg, to, &base_model, original, stream, false);
     let body = g::translate(req, cfg, to, &base_model, &req.body, stream, false)?;
+    let original_translated = crate::translate::baseline_or_working(original_translated, &body);
     let body = cpa_common::thinking::apply_thinking_with_source_payload(
         &body,
         &req.body,

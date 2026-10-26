@@ -290,8 +290,9 @@ impl OpenAICompatExecutor {
             req.stream,
             original_payload(&req),
             is_compat,
-        )?;
+        );
         let mut body = translate_body(&req, cfg, target, &base_model, req.stream, &req.body, is_compat)?;
+        let original = crate::translate::baseline_or_working(original, &body);
         body = apply_thinking(body, &req, target, &credential.provider, caps.as_ref())?;
         let requested = route_model(&req);
         if payload::excludes_images(compat.as_ref(), &base_model, requested) {

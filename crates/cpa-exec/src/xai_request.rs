@@ -173,9 +173,10 @@ pub(crate) async fn prepare(
     let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
     let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
     let client = crate::codex_client::Client::new(&req.headers, cfg, PROVIDER, is_compat);
-    let original_translated = translate(req, &client, to, &base_model, stream, &original_payload)?;
-    let original_translated = preserve_output_controls(original_translated, &original_payload, req.source_format);
+    let original_translated = translate(req, &client, to, &base_model, stream, &original_payload);
     let body = translate(req, &client, to, &base_model, stream, &req.body)?;
+    let original_translated = crate::translate::baseline_or_working(original_translated, &body);
+    let original_translated = preserve_output_controls(original_translated, &original_payload, req.source_format);
     let body = preserve_output_controls(body, &req.body, req.source_format);
     let mut body = thinking::apply_request_thinking(&RequestThinking {
         body: &body,

@@ -159,6 +159,15 @@ pub fn strip_invalid_gemini_signature_thinking_blocks(payload: &[u8]) -> Vec<u8>
 // compatibility endpoints; deeply nested bodies run on a sized stack as registered
 // requests do.
 
+/// ConvertOpenAIResponsesRequestToOpenAIChatCompletions as Go's Chat Completions handler
+/// calls it: the converted body, even when the conversion would refuse an emptied turn.
+/// The only error left is a failed stack reservation for a deeply nested body.
+pub fn responses_to_chat_completions_body(model: &str, body: &[u8], stream: bool) -> Result<Vec<u8>, Error> {
+    deep_stack(levels(&[body]), || {
+        Ok(openai_responses::convert_with_refusal(model, body, stream).0)
+    })
+}
+
 /// ConvertOpenAIRequestToClaudeWithCompat.
 pub fn openai_to_claude_with_compat(ctx: &RequestCtx<'_>, body: &[u8]) -> Result<Vec<u8>, Error> {
     deep_stack(levels(&[body]), || claude_chat_request::request_with_compat(ctx, body))

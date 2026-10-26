@@ -1054,3 +1054,40 @@ payload:
     assert!(got.is_err(), "{:?}", mock.request());
     assert_eq!(mock.request(), None);
 }
+
+/// Go ignores a refusal only the original (baseline) body hits: the working body is the
+/// one sent (TranslateRequestPairWithAPIKeyModelCompatibilityAndUpdateIntent).
+#[tokio::test]
+async fn a_refused_baseline_alone_does_not_refuse_the_request() {
+    let reply = serde_json::json!({
+        "status": 200,
+        "headers": [["Content-Type", "application/json"]],
+        "body": r#"{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP"}]}"#,
+    });
+    let mock = Mock::start(&reply).await;
+    let cfg = Config::parse("").unwrap();
+    let mut s = serde_json::json!({
+        "provider": "gemini", "config_auth": -1, "op": "execute", "source": "claude", "model": "gemini-2.5-pro",
+        "attributes": {"api_key": "test-key", "base_url": "http://UPSTREAM"},
+        "payload": r#"{"model":"gemini-2.5-pro","max_tokens":16,"messages":[{"role":"user","content":[{"type":"text","text":"hi"}]}]}"#,
+        "original": r#"{"model":"gemini-2.5-pro","max_tokens":16,"messages":[{"role":"user","content":[{"type":"container_upload","source":{"type":"file","file_id":"f1"}}]}]}"#,
+    });
+    let cred = credential(&s, &cfg, mock.addr());
+    GeminiExecutor::default()
+        .execute(&cred, request(&s), &cfg)
+        .await
+        .unwrap();
+    let wire = mock.request().unwrap();
+    assert!(wire.contains(r#""text":"hi""#), "{wire}");
+    // The working body's own refusal still answers without calling upstream.
+    s["payload"] = s["original"].clone();
+    let mock = Mock::start(&reply).await;
+    let cred = credential(&s, &cfg, mock.addr());
+    assert!(
+        GeminiExecutor::default()
+            .execute(&cred, request(&s), &cfg)
+            .await
+            .is_err()
+    );
+    assert_eq!(mock.request(), None);
+}

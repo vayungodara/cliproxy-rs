@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use cpa_common::json::{self as gj, AnyValue, Kind, Res};
 
 use crate::claude_responses::{extract_call_id, normalize_tool_call_outputs};
-use crate::common::{align_openai_tool_call_messages_with, go_lower, trim_space};
+use crate::common::{UserTurnDrops, align_openai_tool_call_messages_with, go_lower, trim_space};
 use crate::responses_tools::{tool_description, tool_parameters};
 
 // ---------------------------------------------------------------------------------------
@@ -692,8 +692,54 @@ fn message_part(item: &Res<'_>) -> Option<Vec<u8>> {
             }
             Some(part)
         }
+        b"input_file" => input_file_part(item),
+        b"input_audio" => input_audio_part(item),
         _ => None,
     }
+}
+
+/// responsesInputFileToChatPart: None without a file id or inline bytes, because Chat
+/// Completions has no field for a bare url.
+fn input_file_part(item: &Res<'_>) -> Option<Vec<u8>> {
+    let id = item.get("file_id").bytes();
+    let data = item.get("file_data").bytes();
+    if id.is_empty() && data.is_empty() {
+        return None;
+    }
+    let mut part = br#"{"type":"file","file":{}}"#.to_vec();
+    if !id.is_empty() {
+        gj::set_str(&mut part, "file.file_id", &id);
+    }
+    if !data.is_empty() {
+        gj::set_str(&mut part, "file.file_data", &data);
+    }
+    let filename = item.get("filename").bytes();
+    if !filename.is_empty() {
+        gj::set_str(&mut part, "file.filename", &filename);
+    }
+    Some(part)
+}
+
+/// responsesInputAudioToChatPart: None without bytes.
+fn input_audio_part(item: &Res<'_>) -> Option<Vec<u8>> {
+    let audio = item.get("input_audio");
+    let mut data = audio.get("data").bytes().into_owned();
+    if data.is_empty() {
+        data = item.get("data").bytes().into_owned();
+    }
+    if data.is_empty() {
+        return None;
+    }
+    let mut format = audio.get("format").bytes().into_owned();
+    if format.is_empty() {
+        format = item.get("format").bytes().into_owned();
+    }
+    let mut part = br#"{"type":"input_audio","input_audio":{"data":""}}"#.to_vec();
+    gj::set_str(&mut part, "input_audio.data", &data);
+    if !format.is_empty() {
+        gj::set_str(&mut part, "input_audio.format", &format);
+    }
+    Some(part)
 }
 
 struct Conversation<'i> {
@@ -708,6 +754,7 @@ struct Conversation<'i> {
     output_counts: HashMap<Vec<u8>, usize>,
     duplicate_outputs: Vec<Vec<u8>>,
     mergeable_assistant: Option<usize>,
+    drops: UserTurnDrops,
 }
 
 impl Conversation<'_> {
@@ -792,6 +839,9 @@ impl Conversation<'_> {
 
     fn message(&mut self, item: &Res<'_>) {
         let mut role = item.get("role").bytes().into_owned();
+        // Only a real user turn can be refused; developer text is sent as user text but
+        // never counts as the user's own turn.
+        let user_turn = role == b"user";
         if role == b"developer" {
             role = b"user".to_vec();
         }
@@ -805,10 +855,30 @@ impl Conversation<'_> {
         let content = item.get("content");
         if content.is_array() {
             let mut parts = vec![];
+            // Counts the parts this turn really sends; an empty text part does not.
+            let mut sendable = 0;
             content.each(|_, part| {
-                parts.extend(message_part(&part));
+                let kind = part.get("type").bytes();
+                match message_part(&part) {
+                    Some(converted) => {
+                        if !matches!(kind.as_ref(), b"" | b"input_text" | b"output_text")
+                            || !part.get("text").bytes().is_empty()
+                        {
+                            sendable += 1;
+                        }
+                        parts.push(converted);
+                    }
+                    // Chat Completions takes a file id or inline bytes only.
+                    None if user_turn && matches!(kind.as_ref(), b"input_file" | b"input_audio") => {
+                        self.drops.drop_part(&String::from_utf8_lossy(&kind));
+                    }
+                    None => {}
+                }
                 true
             });
+            if user_turn {
+                self.drops.end_turn(sendable);
+            }
             gj::set_items(&mut message, "content", &parts);
         } else if content.kind == Kind::String {
             gj::set_str(&mut message, "content", &content.s);
@@ -899,7 +969,15 @@ impl Conversation<'_> {
 }
 
 /// ConvertOpenAIResponsesRequestToOpenAIChatCompletions.
-pub(crate) fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
+pub(crate) fn convert(model: &str, raw: &[u8], stream: bool) -> Result<Vec<u8>, crate::Error> {
+    let (out, refused) = convert_with_refusal(model, raw, stream);
+    refused.map(|()| out)
+}
+
+/// convertOpenAIResponsesRequestToOpenAIChatCompletions: the body, and separately the
+/// refusal of a user turn left empty. Go's Chat Completions handler ignores the refusal
+/// and sends the body (`ConvertOpenAIResponsesRequestToOpenAIChatCompletions`).
+pub(crate) fn convert_with_refusal(model: &str, raw: &[u8], stream: bool) -> (Vec<u8>, Result<(), crate::Error>) {
     let mut out = br#"{"model":"","messages":[],"stream":false}"#.to_vec();
     let root = gj::parse(raw);
     let index = ToolIndex::new(&root);
@@ -928,6 +1006,7 @@ pub(crate) fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
         output_counts: HashMap::new(),
         duplicate_outputs: vec![],
         mergeable_assistant: None,
+        drops: UserTurnDrops::default(),
     };
     let instructions = root.get("instructions");
     if instructions.exists() {
@@ -1056,5 +1135,5 @@ pub(crate) fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
             gj::set_str(&mut out, "reasoning_effort", &effort);
         }
     }
-    out
+    (out, conversation.drops.result())
 }

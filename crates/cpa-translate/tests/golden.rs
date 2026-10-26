@@ -148,6 +148,56 @@ const PENDING: &[(&str, &str, &str)] = &[
         "signature replay: Meta Muse envelopes (7a0b7563, cc5682c5, 674dbe8f, a68c7d8e)",
     ),
     (
+        "openai-response->openai",
+        "TestLocalShellDeclarationSurvivesChatTranslation:16",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "openai-response->openai",
+        "TestLocalShellHistoryWithoutDeclaration:171#*",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "openai-response->openai",
+        "TestLocalShellInvalidActions:37#*",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "openai-response->openai",
+        "TestLocalShellInvalidActions:44:stream#*",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "openai-response->openai",
+        "TestLocalShellOnlyExplicitLocalEnvironment:157#*",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "openai-response->openai",
+        "TestLocalShellRoundTrip:37",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "openai-response->openai",
+        "TestLocalShellRoundTrip:44:stream",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "openai-response->openai",
+        "TestLocalShellRoundTrip:69",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "openai-response->openai",
+        "TestLocalShellRoundTrip:103",
+        "Responses local_shell tool (91c934f6)",
+    ),
+    (
+        "interactions->antigravity",
+        "interactions-antigravity/user-turn/document-file-id",
+        "the Antigravity Interactions refusal of an emptied user turn (f51624aa)",
+    ),
+    (
         "openai-response->interactions",
         "TestInteractionsApplyPatchTerminalIdentityFallback:32:stream#7",
         "unique fallback item IDs (b0db5448)",
@@ -373,10 +423,6 @@ fn check(client: Format, upstream: Format, f: &Value, bytes: bool, tool_search: 
 /// Pair fixtures (recorded at 6fecc6e) whose behaviour a later Go commit changed, each
 /// replayed at v8.0.35 by the named golden instead.
 const SUPERSEDED: &[(&str, &str)] = &[
-    (
-        "openai->codex codex-events/non-stream/0",
-        "16d98881 joins every output_text part: codex_chat_go.json pair_codex_events_non_stream_0",
-    ),
     (
         "interactions->antigravity interactions/parts/media",
         "f51624aa reads an Interactions part's uri as file_uri; \
