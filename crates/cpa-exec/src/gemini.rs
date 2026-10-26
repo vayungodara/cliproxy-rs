@@ -214,12 +214,14 @@ fn translate_pair(
 ) -> Result<(Vec<u8>, Vec<u8>), ExecError> {
     // Go translates the original first; equal payloads once.
     let source = original_request(req);
-    let original = translate(req, cfg, target, model, source, req.stream, compat)?;
+    let original = translate(req, cfg, target, model, source, req.stream, compat);
     if *source == req.body {
+        let original = original?;
         return Ok((original.clone(), original));
     }
+    // Only the working payload is sent upstream, so only its refusal counts.
     let working = translate(req, cfg, target, model, &req.body, req.stream, compat)?;
-    Ok((original, working))
+    Ok((crate::translate::baseline_or_working(original, &working), working))
 }
 
 /// `helps.ApplyRequestThinking`.

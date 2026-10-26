@@ -1024,3 +1024,34 @@ async fn request_capture_matches_go() {
         crate::kimi_fixture::assert_capture_like_go(name, &r.fx, &r.capture, &r.url, &["Host"]);
     }
 }
+
+/// Go ignores a refusal only the original (baseline) body hits
+/// (TranslateRequestWithAPIKeyModelCompatibility returns no error): the working body is
+/// the one sent, and only its own refusal refuses the request.
+#[tokio::test]
+async fn a_refused_baseline_alone_does_not_refuse_the_request() {
+    let fx = fixture("meta", "responses-nonstream-collected");
+    let origin = go_origin(&fx).unwrap();
+    let hi = br#"{"model":"muse-spark-1.3","max_tokens":16,"messages":[{"role":"user","content":[{"type":"text","text":"hi"}]}]}"#;
+    let refused = br#"{"model":"muse-spark-1.3","max_tokens":16,"messages":[{"role":"user","content":[{"type":"container_upload","source":{"type":"file","file_id":"f1"}}]}]}"#;
+    for baseline_only in [true, false] {
+        let mock = Mock::start(&fx["responses"]).await;
+        let credential = meta_credential(&fx, &origin, &mock.url);
+        let mut req = request(&fx, "");
+        req.source_format = Format::Claude;
+        req.response_format = Format::Claude;
+        let (body, original): (&'static [u8], &'static [u8]) =
+            if baseline_only { (hi, refused) } else { (refused, hi) };
+        req.body = Bytes::from_static(body);
+        req.original_body = Bytes::from_static(original);
+        let result = MetaExecutor::with_client(default_client())
+            .execute(&credential, req, &cfg())
+            .await;
+        assert_eq!(result.is_ok(), baseline_only, "baseline_only={baseline_only}");
+        let captured = mock.captured();
+        assert_eq!(captured.len(), usize::from(baseline_only));
+        if let Some(sent) = captured.first() {
+            assert!(String::from_utf8_lossy(&sent.body).contains(r#""text":"hi""#));
+        }
+    }
+}

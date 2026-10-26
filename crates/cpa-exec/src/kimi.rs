@@ -431,8 +431,9 @@ async fn execute_chat(
     };
     // Go translates the original request first (stream false) for payload-rule
     // defaults, then the working one.
-    let original_translated = translate(original(&req), false)?;
+    let original_translated = translate(original(&req), false);
     let translated = translate(&req.body, req.stream)?;
+    let original_translated = crate::translate::baseline_or_working(original_translated, &translated);
     let upstream_model = normalize_upstream_model(&base_model);
     let mut body = gj::try_set_str(&translated, "model", &upstream_model)
         .map_err(|e| internal_error(format!("kimi executor: failed to set model in payload: {e}")))?;

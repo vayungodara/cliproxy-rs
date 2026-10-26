@@ -557,3 +557,24 @@ fn responses_tool_call_ids_are_stripped_like_go() {
     // Other sources keep their IDs.
     assert_eq!(strip_tool_call_ids(with.to_vec(), Format::Gemini), with.to_vec());
 }
+
+/// Go translates the original (baseline) body without checking its error: only the
+/// working body's refusal refuses the request.
+#[test]
+fn a_refused_baseline_alone_does_not_refuse_the_request() {
+    let cfg = Config::parse("").unwrap();
+    let s = serde_json::json!({"op": "execute", "source": "claude", "model": "gemini-2.5-pro", "payload": r#"{"model":"gemini-2.5-pro","max_tokens":16,"messages":[{"role":"user","content":[{"type":"text","text":"hi"}]}]}"#});
+    let mut req = request(&s);
+    req.original_body = Bytes::from_static(br#"{"model":"gemini-2.5-pro","max_tokens":16,"messages":[{"role":"user","content":[{"type":"container_upload","source":{"type":"file","file_id":"f1"}}]}]}"#);
+    let (original, body) = VertexExecutor::default()
+        .prepared_body(&req, &cfg, "gemini-2.5-pro")
+        .unwrap();
+    assert_eq!(gj::get(&body, "contents.0.parts.0.text").str(), "hi");
+    assert_eq!(gj::get(&original, "contents.0.parts.0.text").str(), "hi");
+    std::mem::swap(&mut req.body, &mut req.original_body);
+    assert!(
+        VertexExecutor::default()
+            .prepared_body(&req, &cfg, "gemini-2.5-pro")
+            .is_err()
+    );
+}
