@@ -820,6 +820,609 @@
       ]
     },
     {
+      "name": "trailing_thought_stream",
+      "go_tests": [
+        "TestAntigravityDropsTrailingStructuredReasoningTurn"
+      ],
+      "op": "stream",
+      "source": "openai-response",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"model\":\"gemini-3.8-flash-high\",\"stream\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"include\":[\"reasoning.encrypted_content\"],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Say OK.\"}]},{\"type\":\"reasoning\",\"id\":\"rs_repro_0\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}],\"content\":null}]}",
+      "auth_id": "trailing_thought_stream",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 349\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-a007bbc0-e14e-4802-b3ab-575fea3d0eac\"}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-3.8-flash-high\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-3.8-flash-high\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"text\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-3.8-flash-high\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"output\":[{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}]}}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "high",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_execute",
+      "go_tests": [
+        "TestAntigravityDropsTrailingStructuredReasoningTurn"
+      ],
+      "op": "execute",
+      "source": "openai-response",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"model\":\"gemini-3.8-flash-high\",\"stream\":false,\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"include\":[\"reasoning.encrypted_content\"],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Say OK.\"}]},{\"type\":\"reasoning\",\"id\":\"rs_repro_0\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}],\"content\":null}]}",
+      "auth_id": "trailing_thought_execute",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "application/json"
+          ]
+        ],
+        "body": "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}"
+      },
+      "request": "POST /v1internal:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 349\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-1159964d-6ed2-4f88-a5be-5c7220350aba\"}",
+      "output": "{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-3.8-flash-high\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"output\":[{\"id\":\"msg_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}]}",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "high",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_empty_content",
+      "go_tests": [
+        "TestAntigravityDropsTrailingStructuredReasoningTurn"
+      ],
+      "op": "stream",
+      "source": "openai-response",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"model\":\"gemini-3.8-flash-high\",\"stream\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"include\":[\"reasoning.encrypted_content\"],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Say OK.\"}]},{\"type\":\"reasoning\",\"id\":\"rs_repro_0\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}],\"content\":[]}]}",
+      "auth_id": "trailing_thought_empty_content",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 349\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-c9a309c8-df60-4d79-998f-277314df08ef\"}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-3.8-flash-high\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-3.8-flash-high\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"text\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-3.8-flash-high\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"output\":[{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}]}}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "high",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_pro_agent",
+      "go_tests": [
+        "TestAntigravityDropsTrailingStructuredReasoningTurn"
+      ],
+      "op": "stream",
+      "source": "openai-response",
+      "model": "gemini-pro-agent",
+      "payload": "{\"model\":\"gemini-pro-agent\",\"stream\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"include\":[\"reasoning.encrypted_content\"],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Say OK.\"}]},{\"type\":\"reasoning\",\"id\":\"rs_repro_0\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}],\"content\":null}]}",
+      "auth_id": "trailing_thought_pro_agent",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 344\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingBudget\":24576,\"includeThoughts\":true}},\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-pro-agent\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-e2257c9a-5c65-4360-a537-3b1e7e97b171\"}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-pro-agent\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-pro-agent\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"text\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-pro-agent\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"output\":[{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}]}}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "high",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_after_tool_output",
+      "go_tests": [
+        "TestAntigravityDropsTrailingStructuredReasoningTurn"
+      ],
+      "op": "stream",
+      "source": "openai-response",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"model\":\"gemini-3.8-flash-high\",\"stream\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"include\":[\"reasoning.encrypted_content\"],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Say OK.\"}]},{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"run\",\"arguments\":\"{}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"done\"},{\"type\":\"reasoning\",\"id\":\"rs_repro_0\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"thinking\"}],\"content\":null}]}",
+      "auth_id": "trailing_thought_after_tool_output",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 592\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"run\",\"args\":{},\"id\":\"call_1\"},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"parts\":[{\"functionResponse\":{\"name\":\"run\",\"response\":{\"result\":\"done\"},\"id\":\"call_1\"}}],\"role\":\"model\"}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-9cd118c3-39aa-496b-9a99-61764bdcffb7\"}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-3.8-flash-high\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-3.8-flash-high\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"text\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-3.8-flash-high\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"output\":[{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}]}}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "high",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_plain_summary",
+      "go_tests": [
+        "TestAntigravityDropsTrailingStructuredReasoningTurn"
+      ],
+      "op": "stream",
+      "source": "openai-response",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"model\":\"gemini-3.8-flash-high\",\"stream\":true,\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"include\":[\"reasoning.encrypted_content\"],\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Say OK.\"}]},{\"type\":\"reasoning\",\"id\":\"rs_repro_0\",\"summary\":[\"thinking\"],\"content\":null}]}",
+      "auth_id": "trailing_thought_plain_summary",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 349\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]}],\"generationConfig\":{\"thinkingConfig\":{\"thinkingLevel\":\"high\",\"includeThoughts\":true}},\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-2352e30c-b82d-4abe-be33-db2abf743099\"}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-3.8-flash-high\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-3.8-flash-high\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"text\":\"OK\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_resp_resp-tt_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"resp_resp-tt\",\"object\":\"response\",\"created_at\":1793036083,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"gemini-3.8-flash-high\",\"reasoning\":{\"effort\":\"high\",\"summary\":\"detailed\"},\"output\":[{\"id\":\"msg_resp_resp-tt_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"OK\"}],\"role\":\"assistant\"}]}}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "high",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_two_turns",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"thinking\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"more\"},{\"thought\":true,\"text\":\"again\"}]}]}",
+      "auth_id": "trailing_thought_two_turns",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 263\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]}],\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-18ec2b0e-ff03-470b-8609-76d9dbf30467\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_with_text",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"thinking\"},{\"text\":\"answer\"}]}]}",
+      "auth_id": "trailing_thought_with_text",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 381\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"thinking\"},{\"text\":\"answer\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-495a68d4-d1d0-4d1f-ba3d-1576cca11c6a\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_with_call",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"functionCall\":{\"name\":\"run\",\"args\":{}}}]}]}",
+      "auth_id": "trailing_thought_with_call",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 439\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"functionCall\":{\"name\":\"run\",\"args\":{}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-7ce03965-9c40-45aa-acbb-2a24c41b0bef\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_false",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":false,\"text\":\"thinking\"}]}]}",
+      "auth_id": "trailing_thought_false",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 364\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":false,\"text\":\"thinking\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-124446c9-3f45-4c15-ad64-bef50d238d9f\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_empty_parts",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[]}]}",
+      "auth_id": "trailing_thought_empty_parts",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 329\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-69a1562b-eb8d-4889-b17f-6beea5b9a3a4\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_only_turn",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"contents\":[{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"thinking\"}]}]}",
+      "auth_id": "trailing_thought_only_turn",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "derived_session": "session-trailing-thought",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 356\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"thinking\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"sessionId\":\"-5301096975189768832\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-f7929d50-ad0b-4099-8263-1d1ad2dc5c98\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "trailing_thought_before_user",
+      "op": "stream",
+      "source": "gemini",
+      "model": "gemini-3.8-flash-high",
+      "payload": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"thinking\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]}]}",
+      "auth_id": "trailing_thought_before_user",
+      "metadata": {
+        "access_token": "ya29.fake-ag",
+        "email": "ag@example.com",
+        "expired": "2099-01-01T00:00:00Z",
+        "project_id": "proj-ag",
+        "type": "antigravity"
+      },
+      "attributes": {
+        "base_url": "http://UPSTREAM"
+      },
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}}\r\n\r\n"
+      },
+      "request": "POST /v1internal:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: antigravity/hub/2.23.0 darwin/arm64\r\nContent-Length: 370\r\nAuthorization: Bearer ya29.fake-ag\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"project\":\"proj-ag\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]},{\"role\":\"model\",\"parts\":[{\"thought\":true,\"text\":\"thinking\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"Say OK.\"}]}],\"sessionId\":\"-8105138087138217437\"},\"model\":\"gemini-3.8-flash-high\",\"userAgent\":\"antigravity\",\"requestType\":\"agent\",\"requestId\":\"agent-ac51c709-2ca5-4c7d-add1-6f120d2c1000\"}",
+      "chunks": [
+        "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"OK\"}]},\"finishReason\":\"STOP\"}],\"responseId\":\"resp-tt\"}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
       "name": "openai_stream",
       "op": "stream",
       "source": "openai",

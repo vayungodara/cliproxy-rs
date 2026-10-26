@@ -72,6 +72,62 @@ func v8035Scenarios() []execScenario {
 		replay("replay_after_completed_gemini", "gemini", geminiHello,
 			events(thought+final+`data: {"response":{"candidates":[{"content":{"role":"model","parts":[{"thought":true,"text":"late","thoughtSignature":"bGF0ZS1zaWduYXR1cmUtYWZ0ZXItY29tcGxldGlvbg=="}]}}],"modelVersion":"gemini-3.7-flash"}}`+"\n\n", 0)),
 	}
+	// a2718314: trailing model turns made only of thought parts are dropped before the
+	// boundary user turns (Gemini models only), keeping at least one turn. The Responses
+	// cases are Go's TestAntigravityDropsTrailingStructuredReasoningTurn.
+	okStream := sseOK(`{"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"OK"}]},"finishReason":"STOP"}],"responseId":"resp-tt"}}`)
+	okJSON := jsonOK(`{"response":{"candidates":[{"content":{"role":"model","parts":[{"text":"OK"}]},"finishReason":"STOP"}],"responseId":"resp-tt"}}`)
+	reasoningTail := func(model string, stream bool, prefix, summary, content string) string {
+		streamValue := "false"
+		if stream {
+			streamValue = "true"
+		}
+		return `{"model":"` + model + `","stream":` + streamValue + `,` +
+			`"reasoning":{"effort":"high","summary":"detailed"},"include":["reasoning.encrypted_content"],"input":[` +
+			`{"type":"message","role":"user","content":[{"type":"input_text","text":"Say OK."}]},` + prefix +
+			`{"type":"reasoning","id":"rs_repro_0","summary":` + summary + `,"content":` + content + `}` +
+			`]}`
+	}
+	const toolPrefix = `{"type":"function_call","call_id":"call_1","name":"run","arguments":"{}"},` +
+		`{"type":"function_call_output","call_id":"call_1","output":"done"},`
+	const structured = `[{"type":"summary_text","text":"thinking"}]`
+	trailing := func(name, model string, stream bool, prefix, summary, content string) execScenario {
+		op, up := "execute", okJSON
+		if stream {
+			op, up = "stream", okStream
+		}
+		return execScenario{Name: name, Op: op, Source: "openai-response", Model: model,
+			GoTests: []string{"TestAntigravityDropsTrailingStructuredReasoningTurn"},
+			Payload: reasoningTail(model, stream, prefix, summary, content), Upstream: up}
+	}
+	geminiTail := func(name, model, contents string) execScenario {
+		return execScenario{Name: name, Op: "stream", Source: "gemini", Model: model,
+			Payload: `{"contents":` + contents + `}`, Upstream: okStream}
+	}
+	const userTurn = `{"role":"user","parts":[{"text":"Say OK."}]}`
+	const thoughtTurn = `{"role":"model","parts":[{"thought":true,"text":"thinking"}]}`
+	out = append(out,
+		trailing("trailing_thought_stream", "gemini-3.8-flash-high", true, "", structured, "null"),
+		trailing("trailing_thought_execute", "gemini-3.8-flash-high", false, "", structured, "null"),
+		trailing("trailing_thought_empty_content", "gemini-3.8-flash-high", true, "", structured, "[]"),
+		trailing("trailing_thought_pro_agent", "gemini-pro-agent", true, "", structured, "null"),
+		trailing("trailing_thought_after_tool_output", "gemini-3.8-flash-high", true, toolPrefix, structured, "null"),
+		trailing("trailing_thought_plain_summary", "gemini-3.8-flash-high", true, "", `["thinking"]`, "null"),
+		// Every trailing thought-only turn goes; one with text, a function call, a false
+		// thought or no parts stays, as does one ahead of a user turn, and a lone turn is kept.
+		geminiTail("trailing_thought_two_turns", "gemini-3.8-flash-high", `[`+userTurn+`,`+thoughtTurn+`,{"role":"model","parts":[{"thought":true,"text":"more"},{"thought":true,"text":"again"}]}]`),
+		geminiTail("trailing_thought_with_text", "gemini-3.8-flash-high", `[`+userTurn+`,{"role":"model","parts":[{"thought":true,"text":"thinking"},{"text":"answer"}]}]`),
+		geminiTail("trailing_thought_with_call", "gemini-3.8-flash-high", `[`+userTurn+`,{"role":"model","parts":[{"thought":true,"functionCall":{"name":"run","args":{}}}]}]`),
+		geminiTail("trailing_thought_false", "gemini-3.8-flash-high", `[`+userTurn+`,{"role":"model","parts":[{"thought":false,"text":"thinking"}]}]`),
+		geminiTail("trailing_thought_empty_parts", "gemini-3.8-flash-high", `[`+userTurn+`,{"role":"model","parts":[]}]`),
+		// No user text to derive a session from: the conductor's session ID keeps it stable.
+		func() execScenario {
+			s := geminiTail("trailing_thought_only_turn", "gemini-3.8-flash-high", `[`+thoughtTurn+`]`)
+			s.DerivedSession = "session-trailing-thought"
+			return s
+		}(),
+		geminiTail("trailing_thought_before_user", "gemini-3.8-flash-high", `[`+userTurn+`,`+thoughtTurn+`,`+userTurn+`]`),
+	)
 	// Base scenarios (executor.go) whose OpenAI chat output v8.0.35 changed: thoughts
 	// tokens count in completion_tokens (ab151f5d) and stream deltas carry no
 	// "tool_calls": null (dfe0a0ef). Recorded again under their own names; the Rust

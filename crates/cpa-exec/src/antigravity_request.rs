@@ -416,11 +416,14 @@ pub(crate) fn ensure_leading_user_content(model: &str, body: Vec<u8>) -> Vec<u8>
     payload::ensure_leading_user_content(body, "request.contents")
 }
 
-/// `ensureAntigravityGeminiBoundaryUserContent`.
+/// `ensureAntigravityGeminiBoundaryUserContent`: trailing thought-only model turns are
+/// dropped first (Go a2718314), so the request does not end on a replayed reasoning
+/// turn behind only a synthetic empty user turn.
 pub(crate) fn ensure_boundary_user_content(model: &str, body: Vec<u8>) -> Vec<u8> {
     if lower_contains(model, "claude") {
         return body;
     }
+    let body = payload::drop_trailing_thought_only_content(body, "request.contents");
     let body = payload::ensure_leading_user_content(body, "request.contents");
     payload::ensure_trailing_user_content(body, "request.contents")
 }
