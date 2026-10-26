@@ -1418,52 +1418,26 @@ async fn late_interrupts_for_finished_responses_are_done() {
 #[path = "codex_duplex_tests.rs"]
 mod duplex;
 
-/// `buildCodexResponsesWebsocketURL` answers, recorded from Go v8.0.35. Every refusal is a
-/// plain Go error before dialing: statusless and Model-scoped, as in `xai_ws`.
+/// `buildCodexResponsesWebsocketURL` answers, recorded from Go v8.0.35 with the inputs of `url.Parse` and
+/// `URL.String()` (tests/reference/go_url).
 #[test]
 fn ws_url_follows_go() {
-    for (input, want) in [
-        (
-            "https://example.com/backend/responses",
-            "wss://example.com/backend/responses",
-        ),
-        (" HTTP://127.0.0.1:9/v1/responses ", "ws://127.0.0.1:9/v1/responses"),
-        (
-            "HTTPS://Example.COM/a%2Fb/responses",
-            "wss://Example.COM/a%2Fb/responses",
-        ),
-        ("https://:443/responses", "wss://:443/responses"),
-    ] {
-        assert_eq!(ws_url(input).unwrap(), want, "{input}");
-    }
-    for (input, want) in [
-        (
-            "ws://h/responses",
-            r#"codex websockets executor: unsupported responses websocket URL scheme "ws""#,
-        ),
-        (
-            "FTP://h/x",
-            r#"codex websockets executor: unsupported responses websocket URL scheme "ftp""#,
-        ),
-        (
-            "relay.example/responses",
-            r#"codex websockets executor: unsupported responses websocket URL scheme """#,
-        ),
-        (
-            "https:///responses",
-            "codex websockets executor: responses websocket URL host is empty",
-        ),
-        (
-            "https:example.com/responses",
-            "codex websockets executor: responses websocket URL host is empty",
-        ),
-        (
-            "https://%61pi.example/responses",
-            r#"parse "https://%61pi.example/responses": invalid URL escape "%61""#,
-        ),
-    ] {
-        let e = ws_url(input).unwrap_err();
-        assert_eq!(String::from_utf8_lossy(&e.body), want, "{input}");
-        assert_eq!((e.status, e.scope), (0, FailureScope::Model), "{input}");
+    let cases: Value = serde_json::from_str(include_str!("../tests/fixtures/go_url_string.json")).unwrap();
+    for case in cases.as_array().unwrap() {
+        let input = case["in"].as_str().unwrap();
+        let want = &case["codex_ws"];
+        match ws_url(input) {
+            Ok(got) => assert_eq!(Some(got.as_str()), want["out"].as_str(), "{input}"),
+            Err(e) => {
+                assert_eq!(
+                    String::from_utf8_lossy(&e.body),
+                    want["err"].as_str().unwrap(),
+                    "{input}"
+                );
+                // A plain Go error before dialing: no status, no retry round, and the
+                // model cools for the credential.
+                assert_eq!((e.status, e.scope), (0, cpa_core::exec::FailureScope::Model), "{input}");
+            }
+        }
     }
 }

@@ -1,7 +1,7 @@
 //! The `net/url` reads the store makes, over cpa-exec's port of Go's `url.Parse`.
 
 use cpa_core::gostr::GoStr;
-pub use cpa_exec::xai_url::GoUrl;
+pub use cpa_exec::xai_url::{GoUrl, string};
 
 /// `url.Parse`; `None` where Go returns an error.
 pub fn parse(raw: &str) -> Option<GoUrl> {
@@ -106,40 +106,6 @@ pub fn path(u: &GoUrl) -> String {
     path_unescape(&u.raw_path).unwrap_or_else(|_| u.raw_path.clone())
 }
 
-/// Go `URL.String()` of a non-opaque URL, from its parts as written.
-// ponytail: the parts are re-joined as written; Go re-escapes the path, host and
-// user info, which only differs for unusual escapes.
-pub fn string(u: &GoUrl) -> String {
-    let mut out = String::new();
-    if !u.scheme.is_empty() {
-        out.push_str(&u.scheme);
-        out.push(':');
-    }
-    if !u.scheme.is_empty() || !u.host.is_empty() || u.has_user {
-        if !u.host.is_empty() || !u.raw_path.is_empty() || u.has_user {
-            out.push_str("//");
-        }
-        if u.has_user {
-            out.push_str(&u.userinfo);
-            out.push('@');
-        }
-        out.push_str(&u.host);
-    }
-    if !u.raw_path.is_empty() && !u.raw_path.starts_with('/') && !u.host.is_empty() {
-        out.push('/');
-    }
-    out.push_str(&u.raw_path);
-    if u.force_query || !u.raw_query.is_empty() {
-        out.push('?');
-        out.push_str(&u.raw_query);
-    }
-    if !u.fragment.is_empty() {
-        out.push('#');
-        out.push_str(&u.fragment);
-    }
-    out
-}
-
 /// Go `URL.Parse(ref)`: `url.Parse` of the reference, then `ResolveReference` against
 /// `base` (a non-opaque URL).
 pub fn resolve(base: &GoUrl, reference: &str) -> Result<GoUrl, String> {
@@ -161,6 +127,7 @@ pub fn resolve(base: &GoUrl, reference: &str) -> Result<GoUrl, String> {
     }
     // The "abs_path" or "rel_path" cases.
     url.host = base.host.clone();
+    url.escaped_host = base.escaped_host.clone();
     url.hostname = base.hostname.clone();
     url.port = base.port.clone();
     url.has_user = base.has_user;

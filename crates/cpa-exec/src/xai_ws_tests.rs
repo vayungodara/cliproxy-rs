@@ -617,30 +617,27 @@ fn websockets_flag_follows_go() {
     assert!(!websockets_enabled(&c), "numbers are not bools");
 }
 
+/// `buildXAIResponsesWebsocketURL` answers, recorded from Go v8.0.35 with the inputs of `url.Parse` and
+/// `URL.String()` (tests/reference/go_url).
 #[test]
 fn ws_url_follows_go() {
-    assert_eq!(
-        ws_url("https://api.x.ai/v1/responses").unwrap(),
-        "wss://api.x.ai/v1/responses"
-    );
-    assert_eq!(
-        ws_url(" HTTP://127.0.0.1:9/v1/responses ").unwrap(),
-        "ws://127.0.0.1:9/v1/responses"
-    );
-    assert_eq!(ws_url("wss://h/x").unwrap(), "wss://h/x");
-    assert_eq!(
-        String::from_utf8_lossy(&ws_url("ftp://h/x").unwrap_err().body),
-        r#"xai websockets executor: unsupported responses websocket URL scheme "ftp""#
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&ws_url("https:///x").unwrap_err().body),
-        "xai websockets executor: responses websocket URL host is empty"
-    );
-    // Go returns these as plain errors before dialing: no status and no retry round,
-    // and the model cools for the credential.
-    for bad in ["ftp://h/x", "https:///x", "https://%61pi.x.ai/v1/responses"] {
-        let e = ws_url(bad).unwrap_err();
-        assert_eq!((e.status, e.scope), (0, cpa_core::exec::FailureScope::Model), "{bad}");
+    let cases: Value = serde_json::from_str(include_str!("../tests/fixtures/go_url_string.json")).unwrap();
+    for case in cases.as_array().unwrap() {
+        let input = case["in"].as_str().unwrap();
+        let want = &case["xai_ws"];
+        match ws_url(input) {
+            Ok(got) => assert_eq!(Some(got.as_str()), want["out"].as_str(), "{input}"),
+            Err(e) => {
+                assert_eq!(
+                    String::from_utf8_lossy(&e.body),
+                    want["err"].as_str().unwrap(),
+                    "{input}"
+                );
+                // A plain Go error before dialing: no status, no retry round, and the
+                // model cools for the credential.
+                assert_eq!((e.status, e.scope), (0, cpa_core::exec::FailureScope::Model), "{input}");
+            }
+        }
     }
 }
 
