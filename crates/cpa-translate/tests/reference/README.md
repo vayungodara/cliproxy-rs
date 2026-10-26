@@ -19,7 +19,11 @@ and `interactions-gemini`, `gemini-interactions`, `interactions-interactions`,
 912a038b (cached-token usage): Go's
 `TestConvertAntigravityResponseToClaudeStream_ZeroCandidatesDoesNotCountCachedAsOutput` and
 `TestRSFixAntigravityClaudeCachedUsage` from `harvest/antigravity_claude_cached_usage_test.go.txt`,
-stream and non-stream. Their other fixtures
+stream and non-stream. `openai-antigravity`'s stream fixtures were re-recorded at `ae3ee3be`
+for Go ab151f5d and dfe0a0ef (thoughts tokens in `completion_tokens`, no `"tool_calls":
+null` in deltas), with those commits' Go tests appended and the removed
+`TestConvertAntigravityResponseToOpenAIIncludesZeroCompletionTokensWhenMissing` dropped.
+Their other fixtures
 were not re-recorded, because their v8.0.35 response changes come from commits not ported
 yet. Regenerate those files from a v8.0.35 checkout and the others
 from `6fecc6e`, each with its own harvest: run the script below once per reference, with

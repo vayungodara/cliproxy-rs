@@ -609,7 +609,7 @@ struct Stream {
     names: HashMap<Vec<u8>, Vec<u8>>,
 }
 
-const CHUNK: &[u8] = br#"{"id":"","object":"chat.completion.chunk","created":12345,"model":"model","choices":[{"index":0,"delta":{"role":null,"content":null,"reasoning_content":null,"tool_calls":null},"finish_reason":null,"native_finish_reason":null}]}"#;
+const CHUNK: &[u8] = br#"{"id":"","object":"chat.completion.chunk","created":12345,"model":"model","choices":[{"index":0,"delta":{"role":null,"content":null,"reasoning_content":null},"finish_reason":null,"native_finish_reason":null}]}"#;
 
 /// setOpenAIUsageMetadata: completion tokens include thoughts (Go ab151f5d).
 fn set_usage(t: &mut Vec<u8>, usage: &Res<'_>) {

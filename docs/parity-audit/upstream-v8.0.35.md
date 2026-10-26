@@ -32,12 +32,12 @@ Columns:
 | Plugins | 12 | 0 | 12 | 0 | 0 | 0 |
 | Server, handlers and streaming | 12 | 4 | 8 | 0 | 0 | 0 |
 | Usage and logging | 3 | 2 | 1 | 0 | 0 | 0 |
-| Antigravity | 25 | 13 | 12 | 0 | 0 | 0 |
+| Antigravity | 25 | 14 | 11 | 0 | 0 | 0 |
 | Docs and assets | 20 | 0 | 0 | 0 | 20 | 0 |
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **133** | **88** | **0** | **64** | **3** |
+| **All** | **288** | **134** | **87** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -347,7 +347,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`17dc1b81`](https://github.com/router-for-me/CLIProxyAPI/commit/17dc1b81) | feat(antigravity): enhance context hash rejection logging and introduce replay phases | yes | to port | M (+47 −26) | context hash rejection logging, replay phases; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`40f4df07`](https://github.com/router-for-me/CLIProxyAPI/commit/40f4df07) | feat(antigravity): enhance context hash rejection logging and batch retry logic | yes | to port | M (+71 −23) | context hash rejection batch retry; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`ab151f5d`](https://github.com/router-for-me/CLIProxyAPI/commit/ab151f5d) | fix(antigravity): include thoughts token count in openai completion tokens | yes | ported here | S (+1 −1) | The Antigravity to OpenAI chat stream adds `thoughtsTokenCount` to `usage.completion_tokens`. The openai-antigravity stream fixtures whose usage changes were re-recorded from Go, and Go's TestConvertAntigravityResponseToOpenAICompletionTokensIncludeThoughts was added; it replaces the removed IncludesZeroCompletionTokensWhenMissing. |
-| [`dfe0a0ef`](https://github.com/router-for-me/CLIProxyAPI/commit/dfe0a0ef) | fix(antigravity): omit tool_calls from default streaming delta template | yes | to port | S (+1 −1) | no `tool_calls` in the default delta template; see DIFFERENCES-FROM-GO.md#antigravity |
+| [`dfe0a0ef`](https://github.com/router-for-me/CLIProxyAPI/commit/dfe0a0ef) | fix(antigravity): omit tool_calls from default streaming delta template | yes | ported here | S (+1 −1) | The Antigravity to OpenAI chat stream's delta template has no `"tool_calls": null`, so a function call's `tool_calls` now follows any `images`. The openai-antigravity stream fixtures were re-recorded at ae3ee3be, Go's TestConvertAntigravityResponseToOpenAI_OmitToolCallsWhenAbsentInStreamingDelta was added, and three Antigravity executor scenarios were re-recorded in the v8.0.35 set. |
 | [`a2718314`](https://github.com/router-for-me/CLIProxyAPI/commit/a2718314) | fix(antigravity): drop trailing thought-only model turns | yes | to port | M (+51 −1) | trailing thought-only model turns dropped; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`091ff27f`](https://github.com/router-for-me/CLIProxyAPI/commit/091ff27f) | feat(antigravity): persist model capability hints in auth metadata | yes | to port | L (+801 −77) | model capability hints in auth metadata; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`912a038b`](https://github.com/router-for-me/CLIProxyAPI/commit/912a038b) | fix(antigravity): correct token usage calculations for cached tokens in Gemini responses | yes | ported here | S (+11 −3) | The Antigravity to Claude stream translator now reports input_tokens as the prompt minus cached tokens, clamped at 0; the zero-candidates fallback subtracts the raw prompt, and the output fallback adds the cached tokens back. Go's non-stream converter is unchanged and Rust already matched it. Checked by the claude-antigravity pair goldens recorded at ae3ee3be (Go's zero-candidates test plus TestRSFixAntigravityClaudeCachedUsage, stream and non-stream). |
