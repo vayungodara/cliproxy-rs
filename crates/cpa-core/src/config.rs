@@ -129,7 +129,11 @@ fn go_read(scalar: &str, key: bool) -> Option<String> {
             .get(1)
             .is_some_and(|b| b.is_ascii_digit() || matches!(b, b'b' | b'o'));
     if scalar.contains('_') || leading_zero {
-        (!key).then(|| go_resolved(scalar)).flatten()
+        // A `0o` or `0b` integer beyond 64 bits that Go reads as text.
+        (!key)
+            .then(|| go_resolved(scalar))
+            .flatten()
+            .or_else(|| go_big_integer(scalar))
     } else {
         go_big_integer(scalar)
     }
@@ -175,6 +179,11 @@ fn go_resolved(text: &str) -> Option<String> {
                     }
                     if !negative && (n <= i64::MAX as u64 || !signed) {
                         return Some(n.to_string());
+                    }
+                    // `+0x…`, `+0o…` or `+0b…` past int64: ParseInt overflows and
+                    // ParseUint takes no sign, so Go reads text; serde_yaml_ng a u64.
+                    if !negative && unsigned.as_bytes().get(1).is_some_and(u8::is_ascii_alphabetic) {
+                        return Some(format!("'{text}'"));
                     }
                 }
             }
@@ -1652,7 +1661,22 @@ oauth-excluded-models: {{c: [{numbers}]}}
                 "0b+1111111111111111111111111111111111111111111111111111111111111111".into(),
             ),
         ];
-        let go = go.into_iter().chain(leading_zero).chain(signed).collect::<Vec<_>>();
+        // Go's text: beyond 64 bits, or a `+` past int64.
+        let zeros = "0".repeat(64);
+        let wide = [
+            "0o2000000000000000000000".to_owned(),
+            "+0o2000000000000000000000".to_owned(),
+            format!("-0b1{zeros}"),
+            "+0o1000000000000000000000".to_owned(),
+            "+0b1_000000000000000000000000000000000000000000000000000000000000000".to_owned(),
+        ];
+        let wide: Vec<(&str, Value)> = wide.iter().map(|t| (t.as_str(), Value::from(t.as_str()))).collect();
+        let go = go
+            .into_iter()
+            .chain(leading_zero)
+            .chain(signed)
+            .chain(wide)
+            .collect::<Vec<_>>();
         let list = go.iter().map(|(text, _)| *text).collect::<Vec<_>>().join(", ");
         let any = yaml_value(&format!("x: [{list}]\n")).unwrap();
         for ((text, want), got) in go.iter().zip(any["x"].as_sequence().unwrap()) {
@@ -1672,6 +1696,9 @@ oauth-excluded-models: {{c: [{numbers}]}}
         assert_eq!(cfg.routing.retry.request_retry, 10);
         assert!(cfg.document["oauth"]["excluded-models"].get("1_0").is_some());
         assert!(cfg.document["oauth"]["excluded-models"].get("007").is_some());
+        let key = yaml_value(&format!("0o2000000000000000000000: a\n-0b1{zeros}: b\n")).unwrap();
+        assert_eq!(key["0o2000000000000000000000"], Value::from("a"));
+        assert_eq!(key[format!("-0b1{zeros}").as_str()], Value::from("b"));
         assert_eq!(
             body_value("1_000", &["server", "github-token"]).unwrap(),
             Value::from("1_000")
