@@ -47,7 +47,9 @@ to the end of the pipeline (`868e137`): `meta/payload-rules-and-headers.json` (r
 the rules now run after the instructions default) and
 `kimi/{chat,responses}-payload-override-after-normalize.json` (a configured temperature
 survives the temperature normalization). Record them the same way from a v8.0.35
-checkout and copy only those files.
+checkout and copy only those files. `meta/claude-stream-input-estimate.json` (a Claude client's
+`message_start` estimate, f3e36f19) is a v8.0.35 recording too:
+`-run 'TestRSFixMeta$/claude-stream-input-estimate'`.
 
 Devin's request logs follow v8.0.35 too, where Go logs the payload rules' JSON view of
 the protobuf (`FinalizeDevinPayload`) instead of its readable request summary:

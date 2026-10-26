@@ -261,6 +261,12 @@ impl MetaExecutor {
             ResponseBody::Stream(stream_events(
                 tapped,
                 crate::translate::stream(prepared.response, &ctx, &req),
+                crate::gemini_stream::ClaudeInputTokens::new(
+                    req.source_format,
+                    Format::Codex,
+                    req.response_format,
+                    original(&req).clone(),
+                ),
                 responses_client,
                 prepared.apply_patch,
                 usage,
@@ -653,6 +659,7 @@ fn collect_completed(
 fn stream_events(
     upstream: ExecStream,
     translator: Box<dyn StreamTranslator>,
+    claude: crate::gemini_stream::ClaudeInputTokens,
     responses_client: bool,
     bridge: apply_patch_responses::State,
     usage: DeferredUsage,
@@ -661,6 +668,8 @@ fn stream_events(
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
+        /// `TranslateStreamWithClaudeInputTokens`' estimate for a Claude client.
+        claude: crate::gemini_stream::ClaudeInputTokens,
         bridge: apply_patch_responses::State,
         usage: DeferredUsage,
         capture: cpa_core::exec::CaptureSink,
@@ -688,6 +697,9 @@ fn stream_events(
                 };
                 match self.translator.event(&line) {
                     Ok(mut frames) => {
+                        if !self.translator.tool_input_failed() {
+                            self.claude.apply(&mut frames);
+                        }
                         if complete && self.responses_client {
                             frames.extend(self.translator.flush_frames());
                         }
@@ -777,6 +789,7 @@ fn stream_events(
         State {
             upstream,
             translator,
+            claude,
             bridge,
             usage,
             capture,

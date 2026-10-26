@@ -1,0 +1,108 @@
+{
+  "name": "claude-stream-input-estimate",
+  "credential": {
+    "access_token": "meta-key-fixture",
+    "api_key": "meta-key-fixture",
+    "auth_kind": "oauth",
+    "base_url": "http://127.0.0.1:34015/v1",
+    "dca_token": "dca:fixture",
+    "type": "meta"
+  },
+  "attributes": {
+    "auth_kind": "oauth"
+  },
+  "request": {
+    "body": "{\"model\":\"muse-spark-1.3\",\"max_tokens\":64,\"system\":\"Answer briefly.\",\"messages\":[{\"role\":\"user\",\"content\":\"How many tokens does this request carry?\"}],\"stream\":true}",
+    "model": "muse-spark-1.3",
+    "source": "claude",
+    "stream": true
+  },
+  "responses": [
+    {
+      "status": 200,
+      "headers": [
+        [
+          "Content-Type",
+          "text/event-stream"
+        ]
+      ],
+      "body": "event: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_m\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi there\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_m\",\"status\":\"completed\",\"model\":\"muse-spark-1.3\",\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}\n\n"
+    }
+  ],
+  "upstream": [
+    {
+      "method": "POST",
+      "target": "/v1/responses",
+      "headers": [
+        [
+          "Host",
+          "127.0.0.1:34015"
+        ],
+        [
+          "User-Agent",
+          "muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)"
+        ],
+        [
+          "Content-Length",
+          "397"
+        ],
+        [
+          "Accept",
+          "text/event-stream"
+        ],
+        [
+          "Authorization",
+          "Bearer meta-key-fixture"
+        ],
+        [
+          "Cache-Control",
+          "no-cache"
+        ],
+        [
+          "Content-Type",
+          "application/json"
+        ],
+        [
+          "X-Client-Id",
+          "tbh:tui"
+        ],
+        [
+          "Accept-Encoding",
+          "gzip"
+        ]
+      ],
+      "body": "{\"model\":\"muse-spark-1.3\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"Answer briefly.\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"How many tokens does this request carry?\"}]}],\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"medium\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"]}"
+    }
+  ],
+  "downstream": {
+    "chunks": [
+      "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"resp_m\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"\",\"stop_sequence\":null,\"usage\":{\"input_tokens\":13,\"output_tokens\":0},\"content\":[],\"stop_reason\":null}}\n\n",
+      "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\nevent: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"hi there\"}}\n\nevent: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+      "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":5,\"output_tokens\":2}}\n\nevent: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+    ]
+  },
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:34015",
+      "request": "=== API REQUEST 1 ===\nTimestamp: \u003ctime\u003e\nUpstream URL: http://127.0.0.1:34015/v1/responses\nHTTP Method: POST\nAuth: provider=meta, auth_id=meta-fixture.json, label=meta, type=oauth\n\nHeaders:\nAccept: text/event-stream\nAuthorization: Bearer meta...ture\nCache-Control: no-cache\nContent-Type: application/json\nUser-Agent: muse-build/1.3.0 (interactive; macos-aarch64; build ac7280f2aca67769d1455a8847bb502b617d50f6)\nX-Client-Id: tbh:tui\n\nBody:\n{\"model\":\"muse-spark-1.3\",\"instructions\":\"\",\"input\":[{\"type\":\"message\",\"role\":\"developer\",\"content\":[{\"type\":\"input_text\",\"text\":\"Answer briefly.\"}]},{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"How many tokens does this request carry?\"}]}],\"parallel_tool_calls\":true,\"reasoning\":{\"effort\":\"medium\"},\"stream\":true,\"store\":false,\"include\":[\"reasoning.encrypted_content\"]}\n\n",
+      "response": "=== API RESPONSE 1 ===\nTimestamp: \u003ctime\u003e\n\nStatus: 200\nHeaders:\nContent-Length: 524\nContent-Type: text/event-stream\n\nBody:\nevent: response.created\ndata: {\"type\":\"response.created\",\"response\":{\"id\":\"resp_m\",\"status\":\"in_progress\"}}\n\nevent: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"output_index\":0,\"item\":{\"id\":\"msg_1\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"hi there\"}]}}\n\nevent: response.completed\ndata: {\"type\":\"response.completed\",\"response\":{\"id\":\"resp_m\",\"status\":\"completed\",\"model\":\"muse-spark-1.3\",\"output\":[],\"usage\":{\"input_tokens\":5,\"output_tokens\":2,\"total_tokens\":7}}}\n"
+    },
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "fail_body": "",
+        "fail_status": 0,
+        "failed": false,
+        "input_tokens": 5,
+        "model": "muse-spark-1.3",
+        "output_tokens": 2,
+        "reasoning_effort": "medium",
+        "reasoning_tokens": 0,
+        "response_model": "muse-spark-1.3",
+        "service_tier": "",
+        "total_tokens": 7,
+        "ttft_set": true
+      }
+    ]
+  }
+}
