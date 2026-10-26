@@ -42,12 +42,7 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     let parse = |text: &str| serde_yaml_ng::from_str::<Value>(text);
     // Without an underscore or a leading zero, only a failed parse needs a second look;
     // it keeps its error when no scalar is rewritten.
-    let maybe_leading_zero = text
-        .as_bytes()
-        .windows(3)
-        .any(|w| w[1] == b'0' && w[2].is_ascii_digit() && !(w[0].is_ascii_alphanumeric() || w[0] == b'.'))
-        || text.starts_with('0');
-    let err = if text.contains('_') || maybe_leading_zero {
+    let err = if may_resolve(text) {
         None
     } else {
         match parse(text) {
@@ -63,16 +58,9 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     let mut out = String::with_capacity(text.len());
     let mut last = 0;
     for plain in scalars {
-        let Ok(scalar) = std::str::from_utf8(&plain.value) else {
-            continue;
-        };
-        let unsigned = scalar.strip_prefix(['+', '-']).unwrap_or(scalar).as_bytes();
-        let leading_zero = unsigned.first() == Some(&b'0') && unsigned.get(1).is_some_and(u8::is_ascii_digit);
-        let read = if scalar.contains('_') || leading_zero {
-            (!plain.key).then(|| go_resolved(scalar)).flatten()
-        } else {
-            go_big_integer(scalar)
-        };
+        let read = std::str::from_utf8(&plain.value)
+            .ok()
+            .and_then(|s| go_read(s, plain.key));
         let (Some(read), Some(before)) = (read, text.get(last..plain.span.start)) else {
             continue;
         };
@@ -85,6 +73,69 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
     }
     out.push_str(&text[last.min(text.len())..]);
     parse(&out)
+}
+
+/// `value` as serde_yaml_ng writes it, except that a string [`parse_yaml`] would read
+/// back as a number when written plain (`1_000`, `0_8`, `0b-1`) is double-quoted, as
+/// yaml.v3 quotes it. serde_yaml_ng quotes only the strings it reads as something else
+/// itself.
+pub fn yaml_string(value: &Value) -> Result<String, serde_yaml_ng::Error> {
+    let text = serde_yaml_ng::to_string(value)?;
+    // A number serde_yaml_ng writes has no underscore or leading zero, so each scalar
+    // flagged here is a string. It quotes a string beyond 64 bits (`'18446744073709551616'`)
+    // itself.
+    if !may_resolve(&text) {
+        return Ok(text);
+    }
+    let Ok(scalars) = binary::plain_scalars(&text) else {
+        return Ok(text);
+    };
+    let mut out = String::with_capacity(text.len() + 2);
+    let mut last = 0;
+    for plain in scalars {
+        let flagged = std::str::from_utf8(&plain.value)
+            .ok()
+            .and_then(|s| go_read(s, plain.key));
+        if flagged.is_none() {
+            continue;
+        }
+        // The flagged spellings hold only ASCII letters, digits and `_.+-`.
+        out.push_str(&text[last..plain.span.start]);
+        out.push('"');
+        out.push_str(&text[plain.span.clone()]);
+        out.push('"');
+        last = plain.span.end;
+    }
+    out.push_str(&text[last..]);
+    Ok(out)
+}
+
+/// Whether `text` may hold a plain scalar with an underscore or a leading zero, which
+/// [`go_read`] rewrites without a parse error to point at it.
+fn may_resolve(text: &str) -> bool {
+    let zero = |w: &[u8]| w[0] == b'0' && (w[1].is_ascii_digit() || matches!(w[1], b'b' | b'o'));
+    text.contains('_')
+        || text.as_bytes().starts_with(b"0")
+        || text
+            .as_bytes()
+            .windows(3)
+            .any(|w| zero(&w[1..]) && !(w[0].is_ascii_alphanumeric() || w[0] == b'.'))
+}
+
+/// What [`parse_yaml`] writes for a plain scalar so that serde_yaml_ng reads it as
+/// yaml.v3 does; `None` where they agree. A mapping key keeps its text unless
+/// serde_yaml_ng would refuse it.
+fn go_read(scalar: &str, key: bool) -> Option<String> {
+    let unsigned = scalar.strip_prefix(['+', '-']).unwrap_or(scalar).as_bytes();
+    let leading_zero = unsigned.first() == Some(&b'0')
+        && unsigned
+            .get(1)
+            .is_some_and(|b| b.is_ascii_digit() || matches!(b, b'b' | b'o'));
+    if scalar.contains('_') || leading_zero {
+        (!key).then(|| go_resolved(scalar)).flatten()
+    } else {
+        go_big_integer(scalar)
+    }
 }
 
 /// yaml.v3's reading of a plain scalar with underscores or a leading zero (its
@@ -130,7 +181,23 @@ fn go_resolved(text: &str) -> Option<String> {
                     }
                 }
             }
-            float(&plain)
+            if let Some(f) = float(&plain) {
+                return Some(f);
+            }
+            // Go's last resort: `0b` or `0o` then ParseInt of the rest, which takes a
+            // sign (`0b-1` is -1), then ParseUint.
+            let (radix, rest) = match plain.get(..2)? {
+                "0b" => (2, &plain[2..]),
+                "0o" => (8, &plain[2..]),
+                _ => return None,
+            };
+            let n = i64::from_str_radix(rest, radix).map(|n| n.to_string());
+            let unsigned = || {
+                (!rest.starts_with('+'))
+                    .then(|| u64::from_str_radix(rest, radix).ok())
+                    .flatten()
+            };
+            n.ok().or_else(|| unsigned().map(|n| n.to_string()))
         }
         _ => None,
     }
@@ -546,7 +613,7 @@ fn with_secret_hash(text: &str, hash: &str) -> anyhow::Result<String> {
     let updated = match in_place.flatten().filter(|t| expanded(t).is_ok_and(|v| v == want)) {
         Some(t) => t,
         None => {
-            let t = serde_yaml_ng::to_string(&want)?;
+            let t = yaml_string(&want)?;
             // The re-emitted tree writes parsed values (`0x1F` becomes `31`) and drops
             // tags; Go keeps each node's text and tag. Refuse rather than change
             // another setting: on any explicit tag, any key that is not a string, or
@@ -1536,8 +1603,8 @@ oauth-excluded-models: {{c: [{numbers}]}}
 
     /// yaml.v3 (v3.0.1, Go 1.26.4) drops a plain number's underscores before resolving
     /// it and reads a leading zero as octal (or decimal, failing that); serde_yaml_ng
-    /// read each of these as text. A timestamp stays text, as Go's `time.Time` has no
-    /// config setting.
+    /// read each of these as text. A timestamp still reads as text here, where yaml.v3
+    /// reads one in an untyped value as a `time.Time`.
     #[test]
     fn underscore_numbers_read_as_in_go() {
         let go: [(&str, Value); 20] = [
@@ -1575,7 +1642,20 @@ oauth-excluded-models: {{c: [{numbers}]}}
             ("0111111111111111111111111", 1.1111111111111111e23.into()),
             ("0001-01-01", "0001-01-01".into()),
         ];
-        let go = go.into_iter().chain(leading_zero).collect::<Vec<_>>();
+        // Go's last resort reads a sign after `0b` or `0o`.
+        let signed: [(&str, Value); 7] = [
+            ("0b_-1", (-1).into()),
+            ("0o_+17", 15.into()),
+            ("0o_-7", (-7).into()),
+            ("0b-1", (-1).into()),
+            ("0o+17", 15.into()),
+            ("+0b-1", "+0b-1".into()),
+            (
+                "0b+1111111111111111111111111111111111111111111111111111111111111111",
+                "0b+1111111111111111111111111111111111111111111111111111111111111111".into(),
+            ),
+        ];
+        let go = go.into_iter().chain(leading_zero).chain(signed).collect::<Vec<_>>();
         let list = go.iter().map(|(text, _)| *text).collect::<Vec<_>>().join(", ");
         let any = yaml_value(&format!("x: [{list}]\n")).unwrap();
         for ((text, want), got) in go.iter().zip(any["x"].as_sequence().unwrap()) {
@@ -1614,6 +1694,39 @@ oauth-excluded-models: {{c: [{numbers}]}}
         assert_eq!(cfg.routing.retry.request_retry, 3);
         let x = yaml_value("\u{feff}a: b\nx: [18446744073709551616, 007]\n").unwrap();
         assert_eq!(x["x"], yaml_value("[1.8446744073709552e19, 7]").unwrap());
+    }
+
+    /// A string that would read back as a number when written plain is double-quoted
+    /// where a write re-emits it, as yaml.v3 quotes it, so it stays that string.
+    #[test]
+    fn re_emitted_strings_read_back_as_strings() {
+        let strings = [
+            "1_000",
+            "0_7",
+            "0_8",
+            "1_0.5",
+            "0x_1F",
+            ".5_0",
+            "007",
+            "0b-1",
+            "0o+17",
+            "18446744073709551616",
+            "-18446744073709551616",
+        ];
+        let value = Value::Sequence(strings.iter().map(|s| Value::from(*s)).collect());
+        let text = yaml_string(&value).unwrap();
+        assert_eq!(parse_yaml(&text).unwrap(), value, "{text}");
+        assert_eq!(
+            yaml_string(&yaml_value("[7, 1000, 0.5]").unwrap()).unwrap(),
+            "- 7\n- 1000\n- 0.5\n"
+        );
+        // The secret-key fallback re-emits the whole file.
+        let text = "base: &b {secret-key: plain}\nmanagement: {<<: *b}\n\
+                    requests: {payload: {default: [{models: [{name: m}], params: {a: '1_000', b: '007'}}]}}\n";
+        let saved = with_secret_hash(text, "$2a$10$abcdefghijklmnopqrstuuvwxyzabcdefghijklmnopqrstuvwxy").unwrap();
+        let params = &parse_yaml(&saved).unwrap()["requests"]["payload"]["default"][0]["params"];
+        assert_eq!(params["a"], Value::from("1_000"), "{saved}");
+        assert_eq!(params["b"], Value::from("007"), "{saved}");
     }
 
     /// yaml.v3 reads a plain scalar into any Go string setting as its text, so a setting
