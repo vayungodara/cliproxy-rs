@@ -22,7 +22,7 @@ Columns:
 | Translation to and from Claude | 17 | 14 | 3 | 0 | 0 | 0 |
 | Payload rules | 1 | 1 | 0 | 0 | 0 | 0 |
 | Codex | 19 | 18 | 1 | 0 | 0 | 0 |
-| Gemini, Vertex and AI Studio | 20 | 16 | 3 | 0 | 1 | 0 |
+| Gemini, Vertex and AI Studio | 20 | 17 | 2 | 0 | 1 | 0 |
 | xAI | 8 | 2 | 6 | 0 | 0 | 0 |
 | OpenAI-compatible and Responses translation | 6 | 0 | 6 | 0 | 0 | 0 |
 | Devin and Meta | 8 | 0 | 8 | 0 | 0 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **124** | **97** | **0** | **64** | **3** |
+| **All** | **288** | **125** | **96** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -182,7 +182,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`a43026d7`](https://github.com/router-for-me/CLIProxyAPI/commit/a43026d7) | feat(gemini): strip unsupported contentMediaType and contentEncoding JSON schema keywords | yes | ported here | S (+1 −1) | `contentMediaType` and `contentEncoding` stripped; same golden |
 | [`c558d320`](https://github.com/router-for-me/CLIProxyAPI/commit/c558d320) | feat(util): inline local schema references in Gemini cleaners and preserve literal values | yes | ported here | L (+474 −40) | local references inlined on every cleaning route, literal values kept verbatim; same golden. The 256 KiB budget charges each inlined copy, but not the type and nullable fallback copies or the per-reference sizing, so neither output size nor time is bounded by it (as in Go). Kimi now calls the shared `InlineLocalRefs` port, which xAI already used, so both providers' tool schemas share that unbounded cost |
 | [`5de9de9a`](https://github.com/router-for-me/CLIProxyAPI/commit/5de9de9a) | perf(gemini): pin request payload and resolved tool maps per stream in OpenAI response translators | no | nothing to port | M (+46 −22) | pin request payload and resolved tool maps per stream; the Rust stream states already resolve them once when built, and the output is unchanged |
-| [`d9451cb6`](https://github.com/router-for-me/CLIProxyAPI/commit/d9451cb6) | feat(vertex): support partner and open models via endpoints/openapi route | yes | to port | L (+624 −24) | partly ported: a Vertex API-key model with a name and no alias is kept by the config load and registers under its trimmed name, like the other API-key sections (Go-recorded `vertex_models_go.json`). Partner and open models, and `openapi` opt-ins, take the endpoints/openapi route through the OpenAI-compatible executor before the Interactions check (`vertex_openapi.rs`, `vertex.rs`; Go-recorded `oa_*` scenarios), and a Chat Completions answer ends the response model (`usage_oa_key_stream_terminal_model`). Still to port: the synthesizer's `openapi_models` and `models` aliases, the service-account catalog models, the `openapi-*` metadata keys, and service accounts in auth classification and AccountInfo |
+| [`d9451cb6`](https://github.com/router-for-me/CLIProxyAPI/commit/d9451cb6) | feat(vertex): support partner and open models via endpoints/openapi route | yes | ported here | L (+624 −24) | partner and open models, and `openapi` opt-ins, take the endpoints/openapi route through the OpenAI-compatible executor before the Interactions check (`vertex_openapi.rs`, `vertex.rs`; Go-recorded `oa_*` scenarios), and a Chat Completions answer ends the response model (`usage_oa_key_stream_terminal_model`); a Vertex API-key model with a name and no alias is kept by the config load (`vertex_models_go.json`); auth files carry `models` aliases and an `openapi_models` attribute, a Vertex file registers the partner models it names and the OAuth alias targets, the fields patch writes the `openapi-*` keys canonically, and service accounts count as OAuth with their `client_email` as the account (Go-recorded `vertex_openapi_models_go.json`) |
 | [`154d5144`](https://github.com/router-for-me/CLIProxyAPI/commit/154d5144) | fix(util): strip readOnly and writeOnly keywords in Gemini schema cleaners | yes | ported here | S (+1 −1) | `readOnly` and `writeOnly` stripped; same golden |
 
 ## xAI

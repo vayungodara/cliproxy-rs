@@ -1168,6 +1168,39 @@ async fn config_key_field_patch_is_not_found() {
     server.abort();
 }
 
+/// Go d9451cb6: the fields patch writes `openapi-location` and `openapi-models` under
+/// their canonical names, and a Vertex file then registers the partner models it lists.
+#[tokio::test]
+async fn openapi_field_aliases_patch_their_canonical_keys() {
+    let f = Fixture::from_yaml("openapi-fields", |auth, hash| {
+        std::fs::write(auth.join("vertex.json"), r#"{"type":"vertex","project_id":"p"}"#).unwrap();
+        format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n",
+            auth.display()
+        )
+    });
+    let id = f.rt.store().snapshot()[0].id.clone();
+    let (base, server) = f.server().await;
+    assert!(!f.rt.registry().client_supports(&id, "meta/llama-4"));
+    let r = wreq::Client::new()
+        .patch(format!("{base}/v8/management/credentials/fields"))
+        .bearer_auth("fake-management-only")
+        .json(&json!({"name": "vertex.json", "openapi-location": "us-east5", "openapi-models": ["meta/llama-4"]}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(r.status(), 200, "{}", r.text().await.unwrap());
+    let saved: Value = serde_json::from_slice(&std::fs::read(f.dir.join("auth").join("vertex.json")).unwrap()).unwrap();
+    assert_eq!(saved["openapi_location"], "us-east5", "{saved}");
+    assert_eq!(saved["openapi_models"], json!(["meta/llama-4"]), "{saved}");
+    assert!(
+        saved.get("openapi-location").is_none() && saved.get("openapi-models").is_none(),
+        "{saved}"
+    );
+    assert!(f.rt.registry().client_supports(&id, "meta/llama-4"));
+    server.abort();
+}
+
 /// Go `TestCodexExcludedModelsCredentialPriorityAfterPatchAndReload` (b015f208,
 /// 94d1a9a0): a credential's own excluded models replace the global
 /// `oauth.excluded-models`; with none, the current global list applies, so a later

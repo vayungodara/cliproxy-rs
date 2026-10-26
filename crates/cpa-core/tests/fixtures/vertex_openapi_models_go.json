@@ -1,0 +1,3347 @@
+{
+  "accounts": [
+    {
+      "metadata": "{\"service_account\":{\"client_email\":\" sa@p.iam.gserviceaccount.com \"}}",
+      "kind": "oauth",
+      "type": "oauth",
+      "value": "sa@p.iam.gserviceaccount.com"
+    },
+    {
+      "metadata": "{\"service_account\":{\"client_email\":7}}",
+      "kind": "oauth",
+      "type": "oauth",
+      "value": ""
+    },
+    {
+      "metadata": "{\"service_account\":{}}",
+      "kind": "",
+      "type": "",
+      "value": ""
+    },
+    {
+      "metadata": "{\"service_account\":\"x\"}",
+      "kind": "",
+      "type": "",
+      "value": ""
+    },
+    {
+      "metadata": "{\"email\":\" \",\"service_account\":{\"client_email\":\"sa2@p\"}}",
+      "kind": "oauth",
+      "type": "oauth",
+      "value": "sa2@p"
+    },
+    {
+      "metadata": "{\"email\":\"e@x\",\"service_account\":{\"client_email\":\"sa3@p\"}}",
+      "kind": "oauth",
+      "type": "oauth",
+      "value": "e@x"
+    },
+    {
+      "metadata": "{\"siwc\":{\"refresh_token\":\"r\"}}",
+      "kind": "oauth",
+      "type": "oauth",
+      "value": ""
+    },
+    {
+      "metadata": "{\"siwc\":{}}",
+      "kind": "",
+      "type": "",
+      "value": ""
+    },
+    {
+      "metadata": "{\"project_id\":\"p\"}",
+      "kind": "",
+      "type": "",
+      "value": ""
+    }
+  ],
+  "files": [
+    {
+      "name": "openapi_list",
+      "body": "{\"type\":\"vertex\",\"project_id\":\"p\",\"location\":\"global\",\"openapi_models\":[\"qwen/qwen3-coder-480b-a35b-instruct-maas\"]}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "openapi_models": "qwen/qwen3-coder-480b-a35b-instruct-maas"
+      },
+      "models": [
+        {
+          "id": "deepseek-flash",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "g-pro",
+          "metadata_model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro Preview",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.6-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.6 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.8 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-4-argon",
+          "metadata_model_id": "",
+          "display_name": "Gemini 4 Argon",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "imagen-3.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-3.0-generate-002",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-ultra-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Ultra Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "qwen/qwen3-coder-480b-a35b-instruct-maas",
+          "metadata_model_id": "qwen/qwen3-coder-480b-a35b-instruct-maas",
+          "display_name": "qwen/qwen3-coder-480b-a35b-instruct-maas",
+          "owned_by": "qwen",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "deepseek-flash",
+          "upstream": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "supports": true
+        },
+        {
+          "request": "qwen/qwen3-coder-480b-a35b-instruct-maas",
+          "upstream": "qwen/qwen3-coder-480b-a35b-instruct-maas",
+          "supports": true
+        },
+        {
+          "request": "g-pro",
+          "upstream": "gemini-2.5-pro",
+          "supports": true
+        }
+      ]
+    },
+    {
+      "name": "models_aliases",
+      "body": "{\"type\":\"vertex\",\"project_id\":\"p\",\"models\":[{\"name\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"alias\":\"ds-maas\"},{\"name\":\"xai/grok-4-maas\"}],\"service_account\":{\"client_email\":\"sa@test.iam.gserviceaccount.com\"}}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "model_aliases": "[{\"name\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"alias\":\"ds-maas\"}]",
+        "openapi_models": "deepseek-ai/deepseek-v4.1-flash-maas,xai/grok-4-maas"
+      },
+      "models": [
+        {
+          "id": "deepseek-flash",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "ds-maas",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "g-pro",
+          "metadata_model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro Preview",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.6-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.6 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.8 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-4-argon",
+          "metadata_model_id": "",
+          "display_name": "Gemini 4 Argon",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "imagen-3.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-3.0-generate-002",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-ultra-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Ultra Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "xai/grok-4-maas",
+          "metadata_model_id": "xai/grok-4-maas",
+          "display_name": "xai/grok-4-maas",
+          "owned_by": "xai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "ds-maas",
+          "upstream": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "supports": true
+        },
+        {
+          "request": "xai/grok-4-maas",
+          "upstream": "xai/grok-4-maas",
+          "supports": true
+        },
+        {
+          "request": "deepseek-flash",
+          "upstream": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "supports": true
+        }
+      ]
+    },
+    {
+      "name": "openapi_string_dedup",
+      "body": "{\"type\":\"vertex\",\"project_id\":\"p\",\"openapi-models\":\" meta/llama-4 , Meta/Llama-4,,deepseek-ai/x \",\"models\":[\"mistralai/mistral-small-2503\",{\"name\":\"META/LLAMA-4\"},{\"alias\":\"no-name\"},7]}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "openapi_models": "meta/llama-4,deepseek-ai/x,mistralai/mistral-small-2503"
+      },
+      "models": [
+        {
+          "id": "deepseek-ai/x",
+          "metadata_model_id": "deepseek-ai/x",
+          "display_name": "deepseek-ai/x",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "deepseek-flash",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "g-pro",
+          "metadata_model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro Preview",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.6-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.6 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.8 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-4-argon",
+          "metadata_model_id": "",
+          "display_name": "Gemini 4 Argon",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "imagen-3.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-3.0-generate-002",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-ultra-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Ultra Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "meta/llama-4",
+          "metadata_model_id": "meta/llama-4",
+          "display_name": "meta/llama-4",
+          "owned_by": "meta",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "mistralai/mistral-small-2503",
+          "metadata_model_id": "mistralai/mistral-small-2503",
+          "display_name": "mistralai/mistral-small-2503",
+          "owned_by": "mistralai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "meta/llama-4",
+          "upstream": "meta/llama-4",
+          "supports": true
+        },
+        {
+          "request": "Meta/Llama-4",
+          "upstream": "Meta/Llama-4",
+          "supports": true
+        },
+        {
+          "request": "mistralai/mistral-small-2503",
+          "upstream": "mistralai/mistral-small-2503",
+          "supports": true
+        }
+      ]
+    },
+    {
+      "name": "static_and_thinking",
+      "body": "{\"type\":\"vertex\",\"project_id\":\"p\",\"openapi_models\":[\"gemini-2.5-pro\",\"GEMINI-2.5-FLASH\",\"claude-sonnet-4-5\",\"gemini-2.5-flash(high)\",\"publishers/meta/models/llama-4\"]}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "openapi_models": "gemini-2.5-pro,GEMINI-2.5-FLASH,claude-sonnet-4-5,gemini-2.5-flash(high),publishers/meta/models/llama-4"
+      },
+      "models": [
+        {
+          "id": "claude-sonnet-4-5",
+          "metadata_model_id": "claude-sonnet-4-5",
+          "display_name": "claude-sonnet-4-5",
+          "owned_by": "google",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "deepseek-flash",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "g-pro",
+          "metadata_model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash(high)",
+          "metadata_model_id": "gemini-2.5-flash(high)",
+          "display_name": "gemini-2.5-flash(high)",
+          "owned_by": "google",
+          "type": "vertex",
+          "user_defined": true,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro Preview",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.6-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.6 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.8 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-4-argon",
+          "metadata_model_id": "",
+          "display_name": "Gemini 4 Argon",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "imagen-3.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-3.0-generate-002",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-ultra-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Ultra Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "publishers/meta/models/llama-4",
+          "metadata_model_id": "publishers/meta/models/llama-4",
+          "display_name": "publishers/meta/models/llama-4",
+          "owned_by": "publishers",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "claude-sonnet-4-5",
+          "upstream": "claude-sonnet-4-5",
+          "supports": true
+        },
+        {
+          "request": "gemini-2.5-flash(high)",
+          "upstream": "gemini-2.5-flash(high)",
+          "supports": true
+        }
+      ]
+    },
+    {
+      "name": "excluded",
+      "body": "{\"type\":\"vertex\",\"project_id\":\"p\",\"openapi_models\":\"meta/llama-4,meta/llama-3\",\"excluded_models\":[\"meta/llama-3*\"]}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "excluded_models": "meta/llama-3*",
+        "openapi_models": "meta/llama-4,meta/llama-3"
+      },
+      "models": [
+        {
+          "id": "deepseek-flash",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "g-pro",
+          "metadata_model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro Preview",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.6-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.6 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.8 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-4-argon",
+          "metadata_model_id": "",
+          "display_name": "Gemini 4 Argon",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "imagen-3.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-3.0-generate-002",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-ultra-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Ultra Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "meta/llama-4",
+          "metadata_model_id": "meta/llama-4",
+          "display_name": "meta/llama-4",
+          "owned_by": "meta",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "meta/llama-4",
+          "upstream": "meta/llama-4",
+          "supports": true
+        },
+        {
+          "request": "meta/llama-3",
+          "upstream": "meta/llama-3",
+          "supports": false
+        }
+      ]
+    },
+    {
+      "name": "both_alias_keys",
+      "body": "{\"type\":\"vertex\",\"project_id\":\"p\",\"model_aliases\":[{\"name\":\"meta/llama-4\",\"alias\":\"ll\"}],\"models\":[{\"name\":\"meta/llama-3\",\"alias\":\"LL\"},{\"name\":\"qwen/q\",\"alias\":\"qq\",\"fork\":true}]}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "model_aliases": "[{\"name\":\"meta/llama-4\",\"alias\":\"ll\"},{\"name\":\"qwen/q\",\"alias\":\"qq\",\"fork\":true}]",
+        "openapi_models": "meta/llama-3,qwen/q"
+      },
+      "models": [
+        {
+          "id": "deepseek-flash",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "g-pro",
+          "metadata_model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro Preview",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.6-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.6 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.8 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-4-argon",
+          "metadata_model_id": "",
+          "display_name": "Gemini 4 Argon",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "imagen-3.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-3.0-generate-002",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-ultra-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Ultra Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "ll",
+          "metadata_model_id": "meta/llama-4",
+          "display_name": "meta/llama-4",
+          "owned_by": "meta",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "meta/llama-3",
+          "metadata_model_id": "meta/llama-3",
+          "display_name": "meta/llama-3",
+          "owned_by": "meta",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "qq",
+          "metadata_model_id": "qwen/q",
+          "display_name": "qwen/q",
+          "owned_by": "qwen",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "qwen/q",
+          "metadata_model_id": "qwen/q",
+          "display_name": "qwen/q",
+          "owned_by": "qwen",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "ll",
+          "upstream": "meta/llama-4",
+          "supports": true
+        },
+        {
+          "request": "LL",
+          "upstream": "meta/llama-4",
+          "supports": true
+        },
+        {
+          "request": "qq",
+          "upstream": "qwen/q",
+          "supports": true
+        },
+        {
+          "request": "qwen/q",
+          "upstream": "qwen/q",
+          "supports": true
+        },
+        {
+          "request": "meta/llama-3",
+          "upstream": "meta/llama-3",
+          "supports": true
+        }
+      ]
+    },
+    {
+      "name": "bad_models_array",
+      "body": "{\"type\":\"vertex\",\"project_id\":\"p\",\"models\":[{\"name\":\"meta/a\",\"alias\":\"aa\"},{\"name\":5,\"alias\":\"bb\"}]}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "openapi_models": "meta/a"
+      },
+      "models": [
+        {
+          "id": "deepseek-flash",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "g-pro",
+          "metadata_model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro Preview",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.6-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.6 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.8 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-4-argon",
+          "metadata_model_id": "",
+          "display_name": "Gemini 4 Argon",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "imagen-3.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-3.0-generate-002",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-ultra-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Ultra Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "meta/a",
+          "metadata_model_id": "meta/a",
+          "display_name": "meta/a",
+          "owned_by": "meta",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "aa",
+          "upstream": "aa",
+          "supports": false
+        },
+        {
+          "request": "meta/a",
+          "upstream": "meta/a",
+          "supports": true
+        }
+      ]
+    },
+    {
+      "name": "case_insensitive_keys",
+      "body": "{\"type\":\"vertex\",\"project_id\":\"p\",\"models\":[{\"Name\":\"meta/a\",\"ALIAS\":\"x1\"},null,{\"name\":\"meta/b\",\"alias\":\"x2\",\"Alias\":\"x3\",\"fork\":null},{\"name\":\"meta/c\",\"alias\":\"x4\",\"Display-Name\":\" C \",\"FORCE-MAPPING\":true}]}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "model_aliases": "[{\"name\":\"meta/a\",\"alias\":\"x1\"},{\"name\":\"meta/b\",\"alias\":\"x2\"},{\"name\":\"meta/c\",\"alias\":\"x4\",\"display-name\":\"C\",\"force-mapping\":true}]",
+        "openapi_models": "meta/b,meta/c"
+      },
+      "models": [
+        {
+          "id": "deepseek-flash",
+          "metadata_model_id": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "display_name": "deepseek-ai/deepseek-v4.1-flash-maas",
+          "owned_by": "deepseek-ai",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "g-pro",
+          "metadata_model_id": "gemini-2.5-pro",
+          "display_name": "Gemini 2.5 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-2.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 2.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "max": 24576,
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3-pro-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3 Pro Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-image",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Image",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.1-pro-preview",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.1 Pro Preview",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.5-flash-lite",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.5 Flash Lite",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.6-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.6 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "minimal",
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 32768,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-3.8-flash",
+          "metadata_model_id": "",
+          "display_name": "Gemini 3.8 Flash",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "gemini-4-argon",
+          "metadata_model_id": "",
+          "display_name": "Gemini 4 Argon",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "min": 128,
+          "max": 65535,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "imagen-3.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-3.0-generate-002",
+          "metadata_model_id": "",
+          "display_name": "Imagen 3.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-fast-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Fast Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "imagen-4.0-ultra-generate-001",
+          "metadata_model_id": "",
+          "display_name": "Imagen 4.0 Ultra Generate",
+          "owned_by": "google",
+          "type": "gemini",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "x1",
+          "metadata_model_id": "meta/a",
+          "display_name": "meta/a",
+          "owned_by": "meta",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "x2",
+          "metadata_model_id": "meta/b",
+          "display_name": "meta/b",
+          "owned_by": "meta",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        },
+        {
+          "id": "x4",
+          "metadata_model_id": "meta/c",
+          "display_name": "C",
+          "owned_by": "meta",
+          "type": "vertex",
+          "user_defined": true,
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ],
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "x1",
+          "upstream": "meta/a",
+          "supports": true
+        },
+        {
+          "request": "x2",
+          "upstream": "meta/b",
+          "supports": true
+        },
+        {
+          "request": "x3",
+          "upstream": "x3",
+          "supports": false
+        },
+        {
+          "request": "x4",
+          "upstream": "meta/c",
+          "supports": true
+        }
+      ]
+    },
+    {
+      "name": "claude_file_models",
+      "body": "{\"type\":\"claude\",\"access_token\":\"t\",\"email\":\"c@x.test\",\"models\":[{\"name\":\"claude-sonnet-4-5\",\"alias\":\"sonnet\"}],\"openapi_models\":[\"x/y\"]}",
+      "attributes": {
+        "auth_kind": "oauth",
+        "model_aliases": "[{\"name\":\"claude-sonnet-4-5\",\"alias\":\"sonnet\"}]",
+        "openapi_models": "x/y,claude-sonnet-4-5"
+      },
+      "models": [
+        {
+          "id": "claude-3-5-haiku-20241022",
+          "metadata_model_id": "",
+          "display_name": "Claude 3.5 Haiku",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "thinking": false
+        },
+        {
+          "id": "claude-3-7-sonnet-20250219",
+          "metadata_model_id": "",
+          "display_name": "Claude 3.7 Sonnet",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "min": 1024,
+          "max": 128000,
+          "thinking": true
+        },
+        {
+          "id": "claude-fable-5",
+          "metadata_model_id": "",
+          "display_name": "Claude Fable 5",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-fable-5-1",
+          "metadata_model_id": "",
+          "display_name": "Claude Fable 5.1",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-haiku-4-5-20251001",
+          "metadata_model_id": "",
+          "display_name": "Claude 4.5 Haiku",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "min": 1024,
+          "max": 128000,
+          "zero": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-haiku-5-5",
+          "metadata_model_id": "",
+          "display_name": "Claude Haiku 5.5",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-opus-4-1-20250805",
+          "metadata_model_id": "",
+          "display_name": "Claude 4.1 Opus",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "min": 1024,
+          "max": 128000,
+          "thinking": true
+        },
+        {
+          "id": "claude-opus-4-20250514",
+          "metadata_model_id": "",
+          "display_name": "Claude 4 Opus",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "min": 1024,
+          "max": 128000,
+          "thinking": true
+        },
+        {
+          "id": "claude-opus-4-5-20251101",
+          "metadata_model_id": "",
+          "display_name": "Claude 4.5 Opus",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "min": 1024,
+          "max": 128000,
+          "zero": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-opus-4-6",
+          "metadata_model_id": "",
+          "display_name": "Claude 4.6 Opus",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ],
+          "min": 1024,
+          "max": 128000,
+          "zero": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-opus-4-7",
+          "metadata_model_id": "",
+          "display_name": "Claude Opus 4.7",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-opus-4-8",
+          "metadata_model_id": "",
+          "display_name": "Claude Opus 4.8",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-opus-5",
+          "metadata_model_id": "",
+          "display_name": "Claude Opus 5",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-opus-5-5",
+          "metadata_model_id": "",
+          "display_name": "Claude Opus 5.5",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-sonnet-4-20250514",
+          "metadata_model_id": "",
+          "display_name": "Claude 4 Sonnet",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "min": 1024,
+          "max": 128000,
+          "thinking": true
+        },
+        {
+          "id": "claude-sonnet-4-5-20250929",
+          "metadata_model_id": "",
+          "display_name": "Claude 4.5 Sonnet",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "min": 1024,
+          "max": 128000,
+          "zero": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-sonnet-4-6",
+          "metadata_model_id": "",
+          "display_name": "Claude 4.6 Sonnet",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "max"
+          ],
+          "min": 1024,
+          "max": 128000,
+          "zero": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-sonnet-5",
+          "metadata_model_id": "",
+          "display_name": "Claude Sonnet 5",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        },
+        {
+          "id": "claude-sonnet-5-5",
+          "metadata_model_id": "",
+          "display_name": "Claude Sonnet 5.5",
+          "owned_by": "anthropic",
+          "type": "claude",
+          "user_defined": false,
+          "levels": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ],
+          "zero": true,
+          "dynamic": true,
+          "thinking": true
+        }
+      ],
+      "exec": [
+        {
+          "request": "sonnet",
+          "upstream": "claude-sonnet-4-5",
+          "supports": false
+        },
+        {
+          "request": "global-sonnet",
+          "upstream": "claude-sonnet-4-5",
+          "supports": false
+        },
+        {
+          "request": "x/y",
+          "upstream": "x/y",
+          "supports": false
+        }
+      ]
+    }
+  ],
+  "yaml": "oauth-model-alias:\n  vertex:\n    - {name: deepseek-ai/deepseek-v4.1-flash-maas, alias: deepseek-flash}\n    - {name: gemini-2.5-pro, alias: g-pro}\n  claude:\n    - {name: claude-sonnet-4-5, alias: global-sonnet}\n"
+}
