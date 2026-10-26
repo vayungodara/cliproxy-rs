@@ -23,6 +23,8 @@ pub(crate) enum Report {
     Publish,
     /// `publish_failure`: Go's status and the published error text.
     PublishFailure(u16, String),
+    /// `publish_failure_with_usage` (Go `StreamUsageBuffer.PublishFailure`).
+    PublishFailureWithUsage(u16, String),
     Discard,
     /// `round_trip_started` (Go `StartResponseTTFT`).
     RoundTrip,
@@ -60,6 +62,12 @@ impl cpa_core::exec::UsageObserver for Recorder {
             .lock()
             .unwrap()
             .push(Report::PublishFailure(status, body.to_owned()));
+    }
+    fn publish_failure_with_usage(&self, status: u16, body: &str) {
+        self.0
+            .lock()
+            .unwrap()
+            .push(Report::PublishFailureWithUsage(status, body.to_owned()));
     }
     fn discard(&self) {
         self.0.lock().unwrap().push(Report::Discard);
@@ -144,7 +152,8 @@ fn payload(line: &[u8]) -> Option<&[u8]> {
 
 /// The record Go publishes for one attempt, derived from the reports.
 pub(crate) fn derived(reports: &[Report], failed: bool) -> Value {
-    record(reports, failed).0
+    let keep = reports.iter().any(|r| matches!(r, Report::PublishFailureWithUsage(..)));
+    record(reports, failed, keep).0
 }
 
 /// What the server publishes for the attempt from the executor's reports (the rules of
@@ -156,19 +165,24 @@ pub(crate) fn published(reports: &[Report], failed: bool) -> Option<Value> {
     if reports.iter().any(|r| matches!(r, Report::Discard)) {
         return None;
     }
-    if let Some(i) = reports
-        .iter()
-        .position(|r| matches!(r, Report::Publish | Report::PublishFailure(..)))
-    {
-        return Some(record(&reports[..i], matches!(reports[i], Report::PublishFailure(..))).0);
+    if let Some(i) = reports.iter().position(|r| {
+        matches!(
+            r,
+            Report::Publish | Report::PublishFailure(..) | Report::PublishFailureWithUsage(..)
+        )
+    }) {
+        let keep = matches!(reports[i], Report::PublishFailureWithUsage(..));
+        let failed = keep || matches!(reports[i], Report::PublishFailure(..));
+        return Some(record(&reports[..i], failed, keep).0);
     }
-    let (value, has_usage) = record(reports, failed);
+    let (value, has_usage) = record(reports, failed, false);
     let required = reports.iter().any(|r| matches!(r, Report::UsageRequired));
     (failed || has_usage || !required).then_some(value)
 }
 
-/// The record and whether any usage was reported.
-fn record(reports: &[Report], failed: bool) -> (Value, bool) {
+/// The record and whether any usage was reported; a failure keeps the usage only when
+/// `keep` (published with it).
+fn record(reports: &[Report], failed: bool, keep: bool) -> (Value, bool) {
     let mut effort = String::new();
     let mut usage: Option<[i64; 5]> = None;
     let (mut model, mut model_final) = (String::new(), false);
@@ -222,7 +236,11 @@ fn record(reports: &[Report], failed: bool) -> (Value, bool) {
         }
     }
     let has_usage = usage.is_some();
-    let mut t = if failed { [0; 5] } else { usage.unwrap_or_default() };
+    let mut t = if failed && !keep {
+        [0; 5]
+    } else {
+        usage.unwrap_or_default()
+    };
     // EnsureTokenBreakdownForProvider (server-side accounting): OpenAI-style providers
     // count cached input inside input and reasoning inside output, so a missing total is
     // their sum.

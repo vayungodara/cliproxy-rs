@@ -34,6 +34,9 @@ type rsfixResponse struct {
 	Body    string      `json:"body"`
 	// BodyB64 carries binary bodies (Connect frames).
 	BodyB64 string `json:"body_b64,omitempty"`
+	// Missing promises this many bytes beyond Body in Content-Length, then closes the
+	// connection (a read error).
+	Missing int `json:"missing,omitempty"`
 }
 
 type rsfixCaptured struct {
@@ -159,9 +162,9 @@ func (s *rsfixServer) handle(conn net.Conn) {
 		for _, h := range resp.Headers {
 			fmt.Fprintf(&out, "%s: %s\r\n", h[0], h[1])
 		}
-		fmt.Fprintf(&out, "Content-Length: %d\r\n\r\n", len(respBody))
+		fmt.Fprintf(&out, "Content-Length: %d\r\n\r\n", len(respBody)+resp.Missing)
 		out.Write(respBody)
-		if _, errWrite := conn.Write(out.Bytes()); errWrite != nil {
+		if _, errWrite := conn.Write(out.Bytes()); errWrite != nil || resp.Missing > 0 {
 			return
 		}
 	}

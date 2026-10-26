@@ -414,6 +414,7 @@ impl LineState for RawLines {
     fn line(&mut self, line: &[u8]) -> Emit {
         // Go's reporter sees each raw line (model and usage, unfiltered).
         self.0.usage.response_line(Format::Gemini, line);
+        self.0.observe_finish_signal(line);
         self.0.translate(&g::line_event(line))
     }
 
@@ -741,6 +742,7 @@ impl VertexExecutor {
         }
         let output = Output::new(req, Format::Gemini, &body)
             .with_claude_stream_errors()
+            .require_finish_signal()
             .fail_on_client_drop(g::DropRule::BeforeTerminal { delivered: false });
         let lines = g::captured_lines(proxy::lines(upstream.body, g::MAX_LINE), capture.clone());
         let stream = g::drive(lines, RawLines(output));

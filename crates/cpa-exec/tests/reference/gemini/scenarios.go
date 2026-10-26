@@ -97,6 +97,8 @@ func gem(model, contents, extra string) string {
 var jsonOK = &upstream{Status: 200, Headers: [][2]string{{"Content-Type", "application/json; charset=UTF-8"}, {"X-Upstream", "1"}}, Body: `{"candidates":[{"content":{"role":"model","parts":[{"text":"ok"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":1,"totalTokenCount":4},"modelVersion":"gemini-2.5-flash","createTime":"2026-10-01T12:00:00.123456Z","responseId":"r1"}`}
 
 const sseChunk1 = `{"candidates":[{"content":{"role":"model","parts":[{"text":"he"}]},"index":0}],"usageMetadata":{"promptTokenCount":3,"totalTokenCount":3},"modelVersion":"gemini-2.5-flash","createTime":"2026-10-01T12:00:00.123456Z","responseId":"r1"}`
+const claudeHi = `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`
+
 const sseChunk2 = `{"candidates":[{"content":{"role":"model","parts":[{"text":"llo"}]},"finishReason":"STOP","index":0}],"usageMetadata":{"promptTokenCount":3,"candidatesTokenCount":2,"totalTokenCount":5},"modelVersion":"gemini-2.5-flash","createTime":"2026-10-01T12:00:00.123456Z","responseId":"r1"}`
 
 func sse(body string) *upstream {
@@ -205,6 +207,11 @@ func usageScenarios() []scenario {
 		u("usage_claude_stream_malformed_function_call", "gemini", "claude", "stream", "gemini-2.5-flash", "u-flash",
 			`{"model":"u-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`,
 			sse("data: "+nonTerminal+"\n\ndata: "+malformedChunk+"\n\n")),
+		// v8.0.35 (4f2e5270): a Claude client's stream that ends without a finish reason
+		// fails with 502 and keeps the usage seen so far.
+		u("usage_claude_stream_eof_without_finish", "gemini", "claude", "stream", "gemini-2.5-flash", "u-flash",
+			`{"model":"u-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`,
+			sse("data: "+nonTerminal+"\n\n")),
 		u("usage_claude_stream_terminal_usage", "gemini", "claude", "stream", "gemini-2.5-flash", "u-flash",
 			`{"model":"u-flash","max_tokens":64,"thinking":{"type":"enabled","budget_tokens":2048},"messages":[{"role":"user","content":"hi"}],"stream":true}`,
 			sse("data: "+nonTerminal+"\n\ndata: "+terminalUsage+"\n\n")),
@@ -306,6 +313,14 @@ func scenarios() []scenario {
 		// v8.0.35 (5ec31442): a read error ends the stream without the synthetic [DONE].
 		with(g("responses_stream_read_error", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":"hi","stream":true}`, with2(sse("data: "+sseChunk1+"\n\n"), 40)), func(s *scenario) { s.Source = "openai-response" }),
 		with(g("claude_stream_read_error", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","max_tokens":64,"messages":[{"role":"user","content":"hi"}],"stream":true}`, with2(sse("data: "+sseChunk1+"\n\n"), 40)), func(s *scenario) { s.Source = "claude" }),
+		// v8.0.35 (4f2e5270): a Claude client's stream needs a non-blank finishReason on
+		// any candidate or a blockReason on some line; other clients still get [DONE].
+		with(g("claude_stream_blank_finish_reason", "stream", "gemini-2.5-flash", "", claudeHi, sse("data: "+strings.Replace(sseChunk2, `"STOP"`, `" \t"`, 1)+"\n\n")), func(s *scenario) { s.Source = "claude" }),
+		with(g("claude_stream_second_candidate_finishes", "stream", "gemini-2.5-flash", "", claudeHi, sse("data: "+`{"candidates":[{"content":{"role":"model","parts":[{"text":"he"}]},"index":0},{"content":{"role":"model","parts":[{"text":"x"}]},"finishReason":"STOP","index":1}],"modelVersion":"gemini-2.5-flash","responseId":"r1"}`+"\n\n")), func(s *scenario) { s.Source = "claude" }),
+		with(g("claude_stream_block_reason", "stream", "gemini-2.5-flash", "", claudeHi, sse("data: "+`{"promptFeedback":{"blockReason":"SAFETY"},"usageMetadata":{"promptTokenCount":3,"totalTokenCount":3},"modelVersion":"gemini-2.5-flash","responseId":"r1"}`+"\n\n")), func(s *scenario) { s.Source = "claude" }),
+		with(g("claude_stream_wrapped_finish_reason", "stream", "gemini-2.5-flash", "", claudeHi, sse("data: "+sseChunk1+"\n\ndata: "+`{"response":{"candidates":[{"finishReason":"STOP","index":0}]}}`+"\n\n")), func(s *scenario) { s.Source = "claude" }),
+		with(g("claude_stream_finish_then_more", "stream", "gemini-2.5-flash", "", claudeHi, sse("data: "+sseChunk2+"\n\ndata: "+sseChunk1+"\n\n")), func(s *scenario) { s.Source = "claude" }),
+		with(g("openai_stream_eof_without_finish", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}],"stream":true}`, sse("data: "+sseChunk1+"\n\n")), func(s *scenario) { s.Source = "openai" }),
 		// The client goes away while the executor waits on the upstream: Go's scanner
 		// fails with context canceled (before and after the finish reason alike).
 		with(g("stream_client_drop_mid_read", "stream", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}],"stream":true}`, stall(sse("data: "+sseChunk1+"\n\n"))), func(s *scenario) { s.Source = "openai"; s.CancelWhenIdle = true }),

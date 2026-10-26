@@ -106,11 +106,15 @@ that goes away mid-stream (`stream_client_drop_*` and the Interactions
 `int_stream_client_drop_*`: the upstream `stall`s after its body and
 the generator cancels the request once the stream is idle; the usage record then carries
 Go's `fail_status` and `fail_body`), and base URLs Go refuses (`gen_escaped_host_base`,
-`stream_hostless_base`, `count_schemeless_base`). Every case
+`stream_hostless_base`, `count_schemeless_base`), and `4f2e5270`'s finish-signal check for
+Claude clients (`claude_stream_blank_finish_reason`, `claude_stream_second_candidate_finishes`,
+`claude_stream_block_reason`, `claude_stream_wrapped_finish_reason`,
+`claude_stream_finish_then_more`, `openai_stream_eof_without_finish` and
+`usage_claude_stream_eof_without_finish`). Every case
 still runs; `RSFIX_ONLY` (a Go regexp on the name) selects the ones written:
 
 ```sh
-RSFIX_ONLY='^(count_payload_rules_not_applied|stream_usage_trace_id|claude_malformed_function_call_execute|claude_malformed_function_call_stream|openai_malformed_function_call_execute|responses_stream_read_error|claude_stream_read_error|gen_trailing_function_response_media|gen_trailing_function_response_file|gen_trailing_user_function_response_media|usage_claude_stream_non_terminal_usage|usage_claude_stream_malformed_function_call|stream_client_drop_mid_read|stream_client_drop_after_finish|int_stream_client_drop_mid_read|int_stream_client_drop_after_completed|gen_escaped_host_base|stream_hostless_base|count_schemeless_base)$' \
+RSFIX_ONLY='^(count_payload_rules_not_applied|stream_usage_trace_id|claude_malformed_function_call_execute|claude_malformed_function_call_stream|openai_malformed_function_call_execute|responses_stream_read_error|claude_stream_read_error|gen_trailing_function_response_media|gen_trailing_function_response_file|gen_trailing_user_function_response_media|usage_claude_stream_non_terminal_usage|usage_claude_stream_malformed_function_call|stream_client_drop_mid_read|stream_client_drop_after_finish|int_stream_client_drop_mid_read|int_stream_client_drop_after_completed|gen_escaped_host_base|stream_hostless_base|count_schemeless_base|claude_stream_blank_finish_reason|claude_stream_second_candidate_finishes|claude_stream_block_reason|claude_stream_wrapped_finish_reason|claude_stream_finish_then_more|openai_stream_eof_without_finish|usage_claude_stream_eof_without_finish)$' \
   go run . "$crate/tests/fixtures/gemini_go_v8.0.35.json"
 ```
 

@@ -67,7 +67,9 @@ impl Captured {
 }
 
 /// One scripted upstream answer: status, ordered headers, body.
-type Scripted = (u16, Vec<(String, String)>, Vec<u8>);
+/// Status, headers, body and `missing`: bytes the Content-Length promises beyond the body,
+/// after which the connection closes (a read error).
+type Scripted = (u16, Vec<(String, String)>, Vec<u8>, usize);
 
 /// Raw HTTP/1.1 capture server answering with scripted responses in order.
 pub(crate) struct Mock {
@@ -100,7 +102,8 @@ impl Mock {
                                     .collect()
                             })
                             .unwrap_or_default();
-                        (r["status"].as_u64().unwrap() as u16, headers, body)
+                        let missing = r["missing"].as_u64().unwrap_or(0) as usize;
+                        (r["status"].as_u64().unwrap() as u16, headers, body, missing)
                     })
                     .collect()
             })
@@ -108,7 +111,7 @@ impl Mock {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}", listener.local_addr().unwrap());
         if let Some(origin) = go_origin {
-            for (_, _, body) in &mut scripted {
+            for (_, _, body, _) in &mut scripted {
                 if let Ok(text) = std::str::from_utf8(body) {
                     *body = text.replace(origin, &url).into_bytes();
                 }
@@ -176,18 +179,19 @@ impl Mock {
                             headers,
                             body,
                         });
-                        let (status, headers, body) = queue.lock().unwrap().pop_front().unwrap_or((
+                        let (status, headers, body, missing) = queue.lock().unwrap().pop_front().unwrap_or((
                             500,
                             Vec::new(),
                             b"no scripted response".to_vec(),
+                            0,
                         ));
                         let mut out = format!("HTTP/1.1 {status} {}\r\n", reason(status)).into_bytes();
                         for (n, v) in &headers {
                             out.extend_from_slice(format!("{n}: {v}\r\n").as_bytes());
                         }
-                        out.extend_from_slice(format!("Content-Length: {}\r\n\r\n", body.len()).as_bytes());
+                        out.extend_from_slice(format!("Content-Length: {}\r\n\r\n", body.len() + missing).as_bytes());
                         out.extend_from_slice(&body);
-                        if write.write_all(&out).await.is_err() {
+                        if write.write_all(&out).await.is_err() || missing > 0 {
                             return;
                         }
                     }
@@ -507,6 +511,8 @@ pub(crate) enum UsageEvent {
     Token(bool),
     Publish,
     PublishFailure(u16, String),
+    /// `publish_failure_with_usage`: the failure keeps the usage reported so far.
+    PublishFailureWithUsage(u16, String),
     UsageRequired,
     Discard,
 }
@@ -549,6 +555,9 @@ impl cpa_core::exec::UsageObserver for UsageLog {
     }
     fn publish_failure(&self, status: u16, body: &str) {
         self.event(UsageEvent::PublishFailure(status, body.into()));
+    }
+    fn publish_failure_with_usage(&self, status: u16, body: &str) {
+        self.event(UsageEvent::PublishFailureWithUsage(status, body.into()));
     }
     fn usage_required(&self) {
         self.event(UsageEvent::UsageRequired);
@@ -675,7 +684,9 @@ fn rust_record(log: &UsageLog, failure: Option<&(u16, String)>) -> Option<(bool,
     let events = log.events();
     let published = events.iter().find_map(|e| match e {
         UsageEvent::Publish => Some((false, 0, String::new())),
-        UsageEvent::PublishFailure(status, body) => Some((true, *status, body.trim().to_owned())),
+        UsageEvent::PublishFailure(status, body) | UsageEvent::PublishFailureWithUsage(status, body) => {
+            Some((true, *status, body.trim().to_owned()))
+        }
         _ => None,
     });
     if published.is_some() {
@@ -780,7 +791,10 @@ pub(crate) fn assert_usage_like_go(name: &str, fx: &Value, log: &UsageLog, failu
         "{name}: translated reasoning effort"
     );
     let payloads = log.payloads();
-    let tokens = if record["failed"].as_bool() == Some(true) {
+    let kept = events
+        .iter()
+        .any(|e| matches!(e, UsageEvent::PublishFailureWithUsage(..)));
+    let tokens = if record["failed"].as_bool() == Some(true) && !kept {
         // Go's `PublishFailure` publishes an empty detail: nothing reported may carry tokens.
         let carried: Vec<_> = payloads
             .iter()

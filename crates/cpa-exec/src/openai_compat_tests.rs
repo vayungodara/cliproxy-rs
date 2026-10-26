@@ -529,7 +529,9 @@ fn stream_failure_logged(
         "{name}: logged"
     );
     let published = reports.iter().find_map(|r| match r {
-        Report::PublishFailure(status, body) => Some((*status, body.as_str())),
+        Report::PublishFailure(status, body) | Report::PublishFailureWithUsage(status, body) => {
+            Some((*status, body.as_str()))
+        }
         _ => None,
     });
     let status = error["status"].as_u64().unwrap() as u16;
@@ -652,7 +654,7 @@ async fn terminal_errors_flush_pending_frames_first() {
             lines,
             Box::new(Pending),
             ClaudeInputTokens::new(Format::OpenAI, Format::OpenAI, Format::OpenAI, Bytes::new()),
-            true,
+            Format::OpenAIResponse,
             Default::default(),
             Default::default(),
         )
