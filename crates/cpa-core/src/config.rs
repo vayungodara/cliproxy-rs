@@ -49,7 +49,7 @@ pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
         None
     } else {
         match parse(text) {
-            Ok(value) if !has_timestamp(&value) => return Ok(value),
+            Ok(value) if !needs_scan(&value) => return Ok(value),
             Ok(_) => None,
             Err(err) => Some(err),
         }
@@ -89,7 +89,7 @@ pub fn yaml_string(value: &Value) -> Result<String, serde_yaml_ng::Error> {
     // A number serde_yaml_ng writes has no underscore or leading zero, so each scalar
     // flagged here is a string. It quotes a string beyond 64 bits (`'18446744073709551616'`)
     // itself.
-    if !may_resolve(&text) && !has_timestamp(value) {
+    if !may_resolve(&text) && !needs_scan(value) {
         return Ok(text);
     }
     let Ok(scalars) = binary::plain_scalars(&text) else {
@@ -124,7 +124,7 @@ pub fn yaml_string(value: &Value) -> Result<String, serde_yaml_ng::Error> {
 /// Whether `text` may hold a plain scalar with an underscore or a leading zero, which
 /// [`go_read`] rewrites without a parse error to point at it.
 fn may_resolve(text: &str) -> bool {
-    let zero = |w: &[u8]| w[0] == b'0' && (w[1].is_ascii_digit() || matches!(w[1], b'b' | b'o'));
+    let zero = |w: &[u8]| w[0] == b'0' && (w[1].is_ascii_digit() || matches!(w[1], b'b' | b'o' | b'X' | b'O' | b'B'));
     text.contains('_')
         || text.as_bytes().starts_with(b"0")
         || text
@@ -133,14 +133,15 @@ fn may_resolve(text: &str) -> bool {
             .any(|w| zero(&w[1..]) && !(w[0].is_ascii_alphanumeric() || w[0] == b'.'))
 }
 
-/// Whether `value` holds a string, key or value, that may be a plain timestamp, or a
-/// [`TIMESTAMP_TAG`] value.
-fn has_timestamp(value: &Value) -> bool {
+/// Whether `value` holds a string, key or value, that may be a plain timestamp, a
+/// [`TIMESTAMP_TAG`] value, or an integer past int64, which `+` makes a float in Go.
+fn needs_scan(value: &Value) -> bool {
     match value {
         Value::String(s) => timestamp::go_timestamp(s).is_some(),
-        Value::Sequence(items) => items.iter().any(has_timestamp),
-        Value::Mapping(m) => m.iter().any(|(k, v)| has_timestamp(k) || has_timestamp(v)),
-        Value::Tagged(t) => t.tag == timestamp::TAG || has_timestamp(&t.value),
+        Value::Number(n) => n.as_i64().is_none() && n.as_u64().is_some(),
+        Value::Sequence(items) => items.iter().any(needs_scan),
+        Value::Mapping(m) => m.iter().any(|(k, v)| needs_scan(k) || needs_scan(v)),
+        Value::Tagged(t) => t.tag == timestamp::TAG || needs_scan(&t.value),
         _ => false,
     }
 }
@@ -157,15 +158,15 @@ fn go_read(scalar: &str, key: bool) -> Option<String> {
     let leading_zero = unsigned.first() == Some(&b'0')
         && unsigned
             .get(1)
-            .is_some_and(|b| b.is_ascii_digit() || matches!(b, b'b' | b'o'));
+            .is_some_and(|b| b.is_ascii_digit() || matches!(b, b'b' | b'o' | b'X' | b'O' | b'B'));
     if scalar.contains('_') || leading_zero {
         // A `0o` or `0b` integer beyond 64 bits that Go reads as text.
         (!key)
             .then(|| go_resolved(scalar))
             .flatten()
-            .or_else(|| go_big_integer(scalar))
+            .or_else(|| go_big_integer(scalar, key))
     } else {
-        go_big_integer(scalar)
+        go_big_integer(scalar, key)
     }
 }
 
@@ -265,8 +266,10 @@ fn go_yaml_float(s: &str) -> Option<f64> {
 /// yaml.v3's reading of a plain integer beyond int64 and uint64 that serde_yaml_ng
 /// refuses (one that fits u128, or i128 when negative, and is not a decimal with a
 /// leading zero), written so that serde_yaml_ng reads the same: a decimal one as its
-/// float, any other quoted. `None` for any other scalar, which serde_yaml_ng reads.
-fn go_big_integer(text: &str) -> Option<String> {
+/// float, any other quoted. A value with a `+` past int64 reads so too: Go's ParseUint
+/// takes no sign, where serde_yaml_ng reads a u64. `None` for any other scalar, which
+/// serde_yaml_ng reads.
+fn go_big_integer(text: &str, key: bool) -> Option<String> {
     let negative = text.starts_with('-');
     let unsigned = text.strip_prefix(['+', '-']).unwrap_or(text);
     let (radix, digits) = match unsigned.get(..2) {
@@ -284,6 +287,8 @@ fn go_big_integer(text: &str) -> Option<String> {
     }
     let fits = if negative {
         i64::from_str_radix(&format!("-{digits}"), radix).is_ok()
+    } else if text.starts_with('+') && !key {
+        i64::from_str_radix(digits, radix).is_ok()
     } else {
         u64::from_str_radix(digits, radix).is_ok()
     };
@@ -1707,11 +1712,32 @@ oauth-excluded-models: {{c: [{numbers}]}}
             "+0b1_000000000000000000000000000000000000000000000000000000000000000".to_owned(),
         ];
         let wide: Vec<(&str, Value)> = wide.iter().map(|t| (t.as_str(), Value::from(t.as_str()))).collect();
+        // Upper-case prefixes, which Go's ParseInt takes, and a `+` past int64, which its
+        // ParseUint does not, so a decimal one is a float and any other text.
+        let prefixes: [(&str, Value); 16] = [
+            ("0X1F", 31.into()),
+            ("-0X1F", (-31).into()),
+            ("+0X1F", 31.into()),
+            ("0O17", 15.into()),
+            ("0B10", 2.into()),
+            ("-0B10", (-2).into()),
+            ("0X", "0X".into()),
+            ("0O8", "0O8".into()),
+            ("0B2", "0B2".into()),
+            ("0X8000000000000000", (1u64 << 63).into()),
+            ("0XFFFFFFFFFFFFFFFF", u64::MAX.into()),
+            ("0X10000000000000000", "0X10000000000000000".into()),
+            ("+9223372036854775807", i64::MAX.into()),
+            ("+9223372036854775808", 9223372036854775808f64.into()),
+            ("+18446744073709551615", 18446744073709551615f64.into()),
+            ("+0x8000000000000000", "+0x8000000000000000".into()),
+        ];
         let go = go
             .into_iter()
             .chain(leading_zero)
             .chain(signed)
             .chain(wide)
+            .chain(prefixes)
             .collect::<Vec<_>>();
         let list = go.iter().map(|(text, _)| *text).collect::<Vec<_>>().join(", ");
         let any = yaml_value(&format!("x: [{list}]\n")).unwrap();
@@ -1720,6 +1746,18 @@ oauth-excluded-models: {{c: [{numbers}]}}
         }
         // Without an underscore in the file too.
         assert_eq!(yaml_value("x: 007\n").unwrap()["x"], Value::from(7));
+        assert_eq!(yaml_value("x: 0X1F\n").unwrap()["x"], Value::from(31));
+        assert_eq!(
+            yaml_value("x: +9223372036854775808\n").unwrap()["x"],
+            Value::from(9223372036854775808f64)
+        );
+        assert_eq!(
+            yaml_value("x: 9223372036854775808\n").unwrap()["x"],
+            Value::from(1u64 << 63)
+        );
+        let cfg = Config::parse("server: {github-token: 0X1F}\nrouting: {retry: {request-retry: 0X1F}}\n").unwrap();
+        assert_eq!(cfg.document["server"]["github-token"].as_str(), Some("0X1F"));
+        assert_eq!(cfg.routing.retry.request_retry, 31);
         assert_eq!(yaml_value("007").unwrap(), Value::from(7));
         // A string setting keeps the text, an int setting gets the number, and a key
         // stays text, as yaml.v3 reads it into a string-keyed map.
@@ -1886,6 +1924,9 @@ oauth-excluded-models: {{c: [{numbers}]}}
             "007",
             "0b-1",
             "0o+17",
+            "0X1F",
+            "0O17",
+            "+9223372036854775808",
             "18446744073709551616",
             "-18446744073709551616",
             "2001-12-14",
