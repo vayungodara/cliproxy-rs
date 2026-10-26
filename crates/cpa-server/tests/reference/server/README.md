@@ -50,4 +50,16 @@ cp "$crate/tests/reference/server/main.go" "$tmp/main.go"
 )
 ```
 
+`../../fixtures/server_go_v8.0.35.json` holds the `auth_kind` section recorded at v8.0.35
+(`ae3ee3be`), where a true `use_siwc` classifies a credential as OAuth first (7b0319fb);
+`registry::tests` reads it instead of the `6fecc6e` section. Record it with the run
+above against a v8.0.35 checkout (`git -C "$reference" checkout ae3ee3be`), passing all
+three overlays (`auth`, `helps` and `redisqueue`, each to its package's
+`zz_golden_export.go`) and selecting the section with `RSFIX_ONLY` (a Go regexp on the
+top-level key):
+
+```sh
+RSFIX_ONLY='^auth_kind$' go run -overlay overlay.json . "$crate/tests/fixtures/server_go_v8.0.35.json"
+```
+
 Inputs that carry secrets use `fake` values only.

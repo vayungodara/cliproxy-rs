@@ -1304,6 +1304,18 @@ func authKinds() []authKindCase {
 		{Metadata: map[string]any{"email": "  "}},
 		{Metadata: map[string]any{"auth_kind": 7, "access_token": "t"}},
 		{},
+		// v8.0.35 (7b0319fb): IsCodexUseSIWC wins before auth_kind. Metadata numbers are
+		// float64, as a loaded file gives them.
+		{Metadata: map[string]any{"use_siwc": true, "auth_kind": "apikey"}},
+		{Attributes: map[string]string{"auth_kind": "apikey", "use_siwc": " TRUE "}},
+		{Attributes: map[string]string{"api_key": "k", "use_siwc": "1"}},
+		{Attributes: map[string]string{"api_key": "k", "use_siwc": "false"}, Metadata: map[string]any{"use_siwc": "t"}},
+		{Attributes: map[string]string{"api_key": "k", "use_siwc": "yes"}, Metadata: map[string]any{"use_siwc": float64(2)}},
+		{Attributes: map[string]string{"api_key": "k"}, Metadata: map[string]any{"use_siwc": float64(0)}},
+		{Metadata: map[string]any{"use_siwc": " yes ", "auth_kind": "api_key"}},
+		{Metadata: map[string]any{"use_siwc": "", "auth_kind": "api_key"}},
+		{Metadata: map[string]any{"use_siwc": false, "auth_kind": "apikey", "email": "a@b"}},
+		{Metadata: map[string]any{"use_siwc": true}},
 	}
 	for i := range cases {
 		a := &auth.Auth{Attributes: cases[i].Attributes, Metadata: cases[i].Metadata}
@@ -1715,6 +1727,15 @@ func main() {
 	out["session"] = sessions()
 	out["affinity"] = affinities()
 	out["cooldown_files"] = cooldownFiles()
+	// RSFIX_ONLY (a Go regexp on the top-level key) keeps only the matching sections.
+	if only := os.Getenv("RSFIX_ONLY"); only != "" {
+		re := regexp.MustCompile(only)
+		for key := range out {
+			if !re.MatchString(key) {
+				delete(out, key)
+			}
+		}
+	}
 	data, err := json.MarshalIndent(out, "", "  ")
 	if err != nil {
 		panic(err)

@@ -63,12 +63,13 @@ mod tests {
         serde_json::from_str(include_str!("../tests/fixtures/server_go.json")).unwrap()
     }
 
-    /// Go `Auth.AuthKind` goldens (`authKinds`).
+    /// Go `Auth.AuthKind` goldens (`authKinds`), recorded at v8.0.35, where a true
+    /// `use_siwc` classifies the credential as OAuth first (7b0319fb).
     #[test]
     fn auth_kind_matches_go() {
-        let fixture = golden();
+        let fixture: Value = serde_json::from_str(include_str!("../tests/fixtures/server_go_v8.0.35.json")).unwrap();
         let cases = fixture["auth_kind"].as_array().unwrap();
-        assert_eq!(cases.len(), 16);
+        assert_eq!(cases.len(), 26);
         for case in cases {
             let meta = serde_json::json!({"type": "x"}).as_object().unwrap().clone();
             let mut c = Credential::from_file(Path::new("/a"), Path::new("/a/x.json"), meta).unwrap();

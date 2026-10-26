@@ -199,11 +199,36 @@ pub fn thinking_value(t: &ThinkingSupport) -> Value {
     Value::Object(m)
 }
 
-/// Go `Auth.AuthKind()` (sdk/cliproxy/auth/classification.go): a recognised
-/// `auth_kind` attribute, then a recognised `auth_kind` metadata string, then a
-/// non-empty `api_key` attribute (`apikey`), then OAuth token metadata (`oauth`).
-/// Unrecognised kinds fall through to the next source.
+/// Go `IsCodexUseSIWC`, for any provider: a `use_siwc` attribute that
+/// `strconv.ParseBool` reads as true, else the metadata flag (`parseBoolAny`: a bool, a
+/// string `ParseBool` accepts, or a non-zero number).
+pub fn uses_siwc(c: &Credential) -> bool {
+    fn parse_bool(s: &str) -> Option<bool> {
+        match s {
+            "1" | "t" | "T" | "TRUE" | "true" | "True" => Some(true),
+            "0" | "f" | "F" | "FALSE" | "false" | "False" => Some(false),
+            _ => None,
+        }
+    }
+    if c.attributes.get("use_siwc").and_then(|v| parse_bool(v.trim())) == Some(true) {
+        return true;
+    }
+    match c.metadata.get("use_siwc") {
+        Some(Value::Bool(b)) => *b,
+        Some(Value::String(s)) => parse_bool(s.trim()).unwrap_or(false),
+        Some(Value::Number(n)) => n.as_f64().is_some_and(|f| f != 0.0),
+        _ => false,
+    }
+}
+
+/// Go `Auth.AuthKind()` (sdk/cliproxy/auth/classification.go): a true `use_siwc`
+/// (`oauth`, 7b0319fb), a recognised `auth_kind` attribute, then a recognised
+/// `auth_kind` metadata string, then a non-empty `api_key` attribute (`apikey`), then
+/// OAuth token metadata (`oauth`). Unrecognised kinds fall through to the next source.
 pub fn auth_kind(c: &Credential) -> Option<&'static str> {
+    if uses_siwc(c) {
+        return Some("oauth");
+    }
     let normalize = |s: &str| match s.trim().go_lower().as_str() {
         "apikey" | "api_key" | "api-key" => Some("apikey"),
         "oauth" | "oauth2" => Some("oauth"),

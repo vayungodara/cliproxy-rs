@@ -1,0 +1,212 @@
+{
+  "auth_kind": [
+    {
+      "attributes": {
+        "auth_kind": "apikey"
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": " API-Key "
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "auth_kind": "OAuth2"
+      },
+      "metadata": null,
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "auth_kind": "weird"
+      },
+      "metadata": null,
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": "weird"
+      },
+      "metadata": {
+        "auth_kind": "api_key"
+      },
+      "kind": "apikey"
+    },
+    {
+      "attributes": {
+        "auth_kind": "weird"
+      },
+      "metadata": {
+        "auth_kind": "unknown",
+        "email": "a@b"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "api_key": "k",
+        "auth_kind": "oauth"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "   "
+      },
+      "metadata": null,
+      "kind": ""
+    },
+    {
+      "attributes": {
+        "api_key": "   "
+      },
+      "metadata": {
+        "refresh_token": "r"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "api_key": "k"
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "token": {
+          "access_token": "x"
+        }
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "token": {}
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "expired": "2026-01-01T00:00:00Z"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "email": "  "
+      },
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "access_token": "t",
+        "auth_kind": 7
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": null,
+      "metadata": null,
+      "kind": ""
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "auth_kind": "apikey",
+        "use_siwc": true
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "auth_kind": "apikey",
+        "use_siwc": " TRUE "
+      },
+      "metadata": null,
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "use_siwc": "1"
+      },
+      "metadata": null,
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "use_siwc": "false"
+      },
+      "metadata": {
+        "use_siwc": "t"
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "k",
+        "use_siwc": "yes"
+      },
+      "metadata": {
+        "use_siwc": 2
+      },
+      "kind": "oauth"
+    },
+    {
+      "attributes": {
+        "api_key": "k"
+      },
+      "metadata": {
+        "use_siwc": 0
+      },
+      "kind": "apikey"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "auth_kind": "api_key",
+        "use_siwc": " yes "
+      },
+      "kind": "apikey"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "auth_kind": "api_key",
+        "use_siwc": ""
+      },
+      "kind": "apikey"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "auth_kind": "apikey",
+        "email": "a@b",
+        "use_siwc": false
+      },
+      "kind": "apikey"
+    },
+    {
+      "attributes": null,
+      "metadata": {
+        "use_siwc": true
+      },
+      "kind": "oauth"
+    }
+  ]
+}
