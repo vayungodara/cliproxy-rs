@@ -1802,6 +1802,19 @@ oauth-excluded-models: {{c: [{numbers}]}}
                 "x: [2001-12-14\n  21:59:43]\n",
                 serde_json::json!({"x": ["2001-12-14T21:59:43Z"]}),
             ),
+            // Anchored too, with the anchor on the scalar's line or its own.
+            (
+                "x: &a 2001-12-14\n  21:59:43\ny: *a\n",
+                serde_json::json!({"x": "2001-12-14T21:59:43Z", "y": "2001-12-14T21:59:43Z"}),
+            ),
+            (
+                "x: &a\n  2001-12-14\n  21:59:43\ny: *a\n",
+                serde_json::json!({"x": "2001-12-14T21:59:43Z", "y": "2001-12-14T21:59:43Z"}),
+            ),
+            (
+                "x: [&a 2001-12-14\n  21:59:43, *a]\n",
+                serde_json::json!({"x": ["2001-12-14T21:59:43Z", "2001-12-14T21:59:43Z"]}),
+            ),
             (
                 "%TAG ! tag:example.com,2000:\n---\nx: 2001-12-14\n",
                 serde_json::json!({"x": "2001-12-14T00:00:00Z"}),
