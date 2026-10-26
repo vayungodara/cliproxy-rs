@@ -46,7 +46,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzQsImlhdCI6MTc5Mjk3OTYzNH0.NUXo0QE7t51dqWK8iPF931_US9z3F3K8aw07vI9bE11Ynm63rm7EtEykI-aYRAZe8u74U8W3jDiUDk30J565zYy2pvAMNoQnchf5nI6SG-uAfXZQo5KzjED97XSEqu163uSqi4S1gO5yhWcSowJhGApLiUmkbudviBJmoyDCm4jDmOCKhUj3SruZa5epzEftFDIsY5l0eSdoBSvYpUYK8yj5V47WwsqYeIO0IyqAtsfJVq1TH4FwULJ36eUSj95enzRDgrsK8elf-nHfHQBDQCBegv_pqSEofIbcQ80ObZCFmcev3-jA9QJ5oYAYAsy0wNkt1_AanRxILUu6Jpvsww\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDMsImlhdCI6MTc5Mjk4NTQ0M30.AAjQxOqNdSxxSwAXeJG8oBN3xlgEm09fuoWKP6JEFjHpMIkM3T4vE7JoB0ROkPTpqyQkOnnrid1H-Dw-KIyF5_l2z4bVidmigeArglrBXFCV9YtVydOJQfgAnyPPjS0wtHT7WoNHHqChbqG9AuCk4L0YtPJskj61ZV8YLgKAdkhFl8LOagHbdtmiiSLtmTt9ftLtqjYmGygRcbpcG25L_raxCTHQifqVX97ruPv0PB3zhcj0XYS9JdwnW0fN6xy-LkDlFGdrGBZ0tDwZzXsq50W1sHqkOmI5JBlqRmnfulx2ioSdld4QGRITRqkrKk5sPFkaX_yZkcIvYjdnsFNtgg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 755\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"lookup\",\"response\":{\"result\":\"done\"}}}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"lookup\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
       ],
       "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":4}}",
@@ -1540,7 +1540,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzgsImlhdCI6MTc5Mjk3OTYzOH0.NIivoqSoISDdOcN9RgP3JVsV6it_U5bO3UVVmBmMQkhTmKp-O6vicxmhUyKIxYN3F2QymsMqLph2fN4prR-7VPkfKVkKeaW38fZuS4oe5AdkD-kEJMBkvw1NZGA2fHWdorWoD2hWtOCTg5WzCy0Gsyxn8pCbH--6b6Nzav0aQCOllHynvBhB6cK_9buWtAferhHibsdmVqijh1JLniI2a-RkoXSiA3UMXJJXEo-iPrN54wU7z6Jq-jprYOSv-UDyV25hir9GE9oKQDTvPvm6H2b7RZZ7whhLy1VGerXoDMPBAW4bHUiwQI3bfD6eHcDSgaFtNZb6jfi37s6T3lgUEw\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1beta1/projects/proj-1/locations/global/interactions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}"
       ],
       "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
@@ -1607,7 +1607,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzgsImlhdCI6MTc5Mjk3OTYzOH0.NIivoqSoISDdOcN9RgP3JVsV6it_U5bO3UVVmBmMQkhTmKp-O6vicxmhUyKIxYN3F2QymsMqLph2fN4prR-7VPkfKVkKeaW38fZuS4oe5AdkD-kEJMBkvw1NZGA2fHWdorWoD2hWtOCTg5WzCy0Gsyxn8pCbH--6b6Nzav0aQCOllHynvBhB6cK_9buWtAferhHibsdmVqijh1JLniI2a-RkoXSiA3UMXJJXEo-iPrN54wU7z6Jq-jprYOSv-UDyV25hir9GE9oKQDTvPvm6H2b7RZZ7whhLy1VGerXoDMPBAW4bHUiwQI3bfD6eHcDSgaFtNZb6jfi37s6T3lgUEw\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1beta1/projects/proj-1/locations/global/interactions?alt=sse HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 59\r\nApi-Revision: 2026-05-20\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}"
       ],
       "chunks": [
@@ -1681,7 +1681,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzgsImlhdCI6MTc5Mjk3OTYzOH0.NIivoqSoISDdOcN9RgP3JVsV6it_U5bO3UVVmBmMQkhTmKp-O6vicxmhUyKIxYN3F2QymsMqLph2fN4prR-7VPkfKVkKeaW38fZuS4oe5AdkD-kEJMBkvw1NZGA2fHWdorWoD2hWtOCTg5WzCy0Gsyxn8pCbH--6b6Nzav0aQCOllHynvBhB6cK_9buWtAferhHibsdmVqijh1JLniI2a-RkoXSiA3UMXJJXEo-iPrN54wU7z6Jq-jprYOSv-UDyV25hir9GE9oKQDTvPvm6H2b7RZZ7whhLy1VGerXoDMPBAW4bHUiwQI3bfD6eHcDSgaFtNZb6jfi37s6T3lgUEw\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/europe-west1/publishers/google/models/gemini-3-pro-preview:generateContent HTTP/1.1\r\nHost: europe-west1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 94\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi regional\"}]}]}"
       ],
       "output": "{\"id\":\"r1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-pro-preview\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1,\"total_tokens\":4}}",
@@ -1897,7 +1897,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzgsImlhdCI6MTc5Mjk3OTYzOH0.NIivoqSoISDdOcN9RgP3JVsV6it_U5bO3UVVmBmMQkhTmKp-O6vicxmhUyKIxYN3F2QymsMqLph2fN4prR-7VPkfKVkKeaW38fZuS4oe5AdkD-kEJMBkvw1NZGA2fHWdorWoD2hWtOCTg5WzCy0Gsyxn8pCbH--6b6Nzav0aQCOllHynvBhB6cK_9buWtAferhHibsdmVqijh1JLniI2a-RkoXSiA3UMXJJXEo-iPrN54wU7z6Jq-jprYOSv-UDyV25hir9GE9oKQDTvPvm6H2b7RZZ7whhLy1VGerXoDMPBAW4bHUiwQI3bfD6eHcDSgaFtNZb6jfi37s6T3lgUEw\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 401,
@@ -2017,7 +2017,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzgsImlhdCI6MTc5Mjk3OTYzOH0.NIivoqSoISDdOcN9RgP3JVsV6it_U5bO3UVVmBmMQkhTmKp-O6vicxmhUyKIxYN3F2QymsMqLph2fN4prR-7VPkfKVkKeaW38fZuS4oe5AdkD-kEJMBkvw1NZGA2fHWdorWoD2hWtOCTg5WzCy0Gsyxn8pCbH--6b6Nzav0aQCOllHynvBhB6cK_9buWtAferhHibsdmVqijh1JLniI2a-RkoXSiA3UMXJJXEo-iPrN54wU7z6Jq-jprYOSv-UDyV25hir9GE9oKQDTvPvm6H2b7RZZ7whhLy1VGerXoDMPBAW4bHUiwQI3bfD6eHcDSgaFtNZb6jfi37s6T3lgUEw\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/global/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 100\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hello maas\"}]}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
@@ -2084,7 +2084,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-east5/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-east5-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 154\r\nAccept: text/event-stream\r\nAuthorization: Bearer ya29.fake-access\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4-maverick-17b-128e-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
       ],
       "chunks": [
@@ -2154,7 +2154,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 114\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-3.3-70b-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\"}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
@@ -2221,7 +2221,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 79\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"google/gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
@@ -2288,10 +2288,10 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 65\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"sampleCount\":1}}"
       ],
-      "output": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"}},{\"inlineData\":{\"data\":\"AAAA\",\"mimeType\":\"image/png\"}}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"imagen-4.0-generate-001\",\"responseId\":\"imagen-1792979649224827435\",\"usageMetadata\":{\"candidatesTokenCount\":0,\"promptTokenCount\":0,\"totalTokenCount\":0}}",
+      "output": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"}},{\"inlineData\":{\"data\":\"AAAA\",\"mimeType\":\"image/png\"}}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"imagen-4.0-generate-001\",\"responseId\":\"imagen-1792985458634532324\",\"usageMetadata\":{\"candidatesTokenCount\":0,\"promptTokenCount\":0,\"totalTokenCount\":0}}",
       "usage": {
         "input_tokens": 0,
         "output_tokens": 0,
@@ -2355,7 +2355,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/meta/llama-4:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 413\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
       ],
       "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
@@ -2421,7 +2421,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 166\r\nAccept: text/event-stream\r\nAuthorization: Bearer ya29.fake-access\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"qwen/qwen3-coder-480b-a35b-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":64,\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
       ],
       "chunks": [
@@ -2496,7 +2496,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 92\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hello from vertex maas\"}]}],\"finish_reason\":\"stop\",\"usage\":{\"input_tokens\":8,\"total_input_tokens\":8,\"output_tokens\":5,\"total_output_tokens\":5,\"total_tokens\":13}}",
@@ -2563,7 +2563,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1beta1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: europe-west4-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
@@ -2619,7 +2619,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 500,
@@ -2679,7 +2679,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDgsImlhdCI6MTc5Mjk4NTQ0OH0.C_iJw33GR3gpes9zQhA-vLW3pPnkpSNRKChcJe8pXB_l4UUCS59sTpljR-JP9A1mqdyWIGag76oV1do2ouGMQpA06ToJvy_I1idLAKIuaAA-dvmnCpNxx70UkRluO4ugsfQlHssCydwuu7R5KL1Hi3uwyFo-eMSLQSgryU_CqZzPbePCk8mhZ6Mn-dPdlvOjAltWaRy9fcNCGQn9sr5df6xECwH94cfFJgUUPV0ud8OMpczYUzZvDPQOMDjyBQJ8O-A_u74D4G1rLEkocchsY4HNK7HNUyJTaLTYxUNoO4zWBM2OdrSmvfe2BOUpC8XHLcYf9s5CL6JoSvrIPBnR7w\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 401,
@@ -2749,7 +2749,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyMzksImlhdCI6MTc5Mjk3OTYzOX0.LkVdJY-3Z03Gl6KI5foNz5xziPb8CCdQ0-Rg5w_NtsfyFu0E44v8lTG0mZwHyCaGyrtL97KAvwro9iDogH7Z3-coEV5dlr2XGLdiBS46gNTH49axfIwRb4yawhOsl-5jHt7WXwu3C8pSw3vhxDqm5eISJjqmFP99fj2vieFMax1h2Iy7mLS4xH0inRi3DsKC8tOMlELIB-DBNh-xK2G0s9oqeQZ-PuJhuamx1t0RiT2iMLppTbpXLpG73ff_8NKLTEXfqhPsu4PRbIDZF4QSWVlaN7IH0DT_LLArcpQikSOUAFE4byJRzk06-q5snl5rxyDy-IpaMKDOb4rUS42POg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDksImlhdCI6MTc5Mjk4NTQ0OX0.mzK-PhRkMRV5SmlR2OnQQjkwO-fMqyY-R8ozRH9RNmZJxMnaEUxpcQlmHFpYS7hy5n4jo1B1nPjMdJOXUM-5-VKQmgEtPw46KBeBuNg4f3YnmJKPTJa4vuuTIVsvu8gM0Zy987LFuFuxz_bOjHMEtWUsyZbm6cwMZRweSos8pTSglxmatPQWUs1gn3Lk1KE104dyzfyu-5DVn42GqFxo_kxuIpQvfVSZq-SR8VHUSl8Yy4e09M9NnQIy7-KCb--4eXB6fgSZM96aIuAHxxw8rsrweEZTHFCw059bDkaIjQVV8nlNIO86IMeyI3KBy7IiffLTpib6S5Pd-K7sI0nz5g\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
       ],
       "error": {
@@ -3115,7 +3115,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyNDAsImlhdCI6MTc5Mjk3OTY0MH0.qwyBBMxKKxR0jLnmkRDSy2HNmMff-JQASzc15p7ABJv7hbyM3QVoEzhSU_Qp8SLRYY9aQrSfmwAkQxniZXLDKUZuD9gucxXDIXN-01I7lFPmO6Y6AuhbHWPBuzhpXtQLUCPSU9USsjz-qRuotdrw5YtHCro1oH51Vxs4RtQugbK45UBV820OqE1OMMHIsUvIpo0VszsKZS-fqj40L3rC2TwAEA709lIY3SecblVYQzJ8L8nK7-yv7JQgIilwSR-OJDkClzJqX7sGiOJUv4z6qPdsy92pykNTA73lNwOSVRj86W-xmvAM8-KQq_AQxtrlhkPFWUH9dpwF3Izp2zqCtg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDksImlhdCI6MTc5Mjk4NTQ0OX0.mzK-PhRkMRV5SmlR2OnQQjkwO-fMqyY-R8ozRH9RNmZJxMnaEUxpcQlmHFpYS7hy5n4jo1B1nPjMdJOXUM-5-VKQmgEtPw46KBeBuNg4f3YnmJKPTJa4vuuTIVsvu8gM0Zy987LFuFuxz_bOjHMEtWUsyZbm6cwMZRweSos8pTSglxmatPQWUs1gn3Lk1KE104dyzfyu-5DVn42GqFxo_kxuIpQvfVSZq-SR8VHUSl8Yy4e09M9NnQIy7-KCb--4eXB6fgSZM96aIuAHxxw8rsrweEZTHFCw059bDkaIjQVV8nlNIO86IMeyI3KBy7IiffLTpib6S5Pd-K7sI0nz5g\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 0,
@@ -3214,7 +3214,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODMyNDAsImlhdCI6MTc5Mjk3OTY0MH0.qwyBBMxKKxR0jLnmkRDSy2HNmMff-JQASzc15p7ABJv7hbyM3QVoEzhSU_Qp8SLRYY9aQrSfmwAkQxniZXLDKUZuD9gucxXDIXN-01I7lFPmO6Y6AuhbHWPBuzhpXtQLUCPSU9USsjz-qRuotdrw5YtHCro1oH51Vxs4RtQugbK45UBV820OqE1OMMHIsUvIpo0VszsKZS-fqj40L3rC2TwAEA709lIY3SecblVYQzJ8L8nK7-yv7JQgIilwSR-OJDkClzJqX7sGiOJUv4z6qPdsy92pykNTA73lNwOSVRj86W-xmvAM8-KQq_AQxtrlhkPFWUH9dpwF3Izp2zqCtg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5ODkwNDksImlhdCI6MTc5Mjk4NTQ0OX0.mzK-PhRkMRV5SmlR2OnQQjkwO-fMqyY-R8ozRH9RNmZJxMnaEUxpcQlmHFpYS7hy5n4jo1B1nPjMdJOXUM-5-VKQmgEtPw46KBeBuNg4f3YnmJKPTJa4vuuTIVsvu8gM0Zy987LFuFuxz_bOjHMEtWUsyZbm6cwMZRweSos8pTSglxmatPQWUs1gn3Lk1KE104dyzfyu-5DVn42GqFxo_kxuIpQvfVSZq-SR8VHUSl8Yy4e09M9NnQIy7-KCb--4eXB6fgSZM96aIuAHxxw8rsrweEZTHFCw059bDkaIjQVV8nlNIO86IMeyI3KBy7IiffLTpib6S5Pd-K7sI0nz5g\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 0,
@@ -3369,6 +3369,110 @@
         "fail_body": "Post \"https:relay.example/v1beta1/interactions\": http: no Host in request URL",
         "executor_type": "GeminiVertexExecutor",
         "model": "gemini-3-pro-preview",
+        "quality": "complete"
+      }
+    },
+    {
+      "name": "oa_key_schemeless_base",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: relay.example\n      models:\n        - name: meta/llama-4\n        - name: gemini-2.5-flash\n      keys:\n        - api-key: vk-fake-empty-host\n",
+      "config_auth": 0,
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "meta/llama-4",
+          "object": "",
+          "created": 0,
+          "owned_by": "",
+          "type": "vertex"
+        }
+      },
+      "error": {
+        "status": 0,
+        "message": "Post \"relay.example/v1/endpoints/openapi/chat/completions\": unsupported protocol scheme \"\""
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "Post \"relay.example/v1/endpoints/openapi/chat/completions\": unsupported protocol scheme \"\"",
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
+      }
+    },
+    {
+      "name": "key_schemeless_base",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: relay.example\n      models:\n        - name: meta/llama-4\n        - name: gemini-2.5-flash\n      keys:\n        - api-key: vk-fake-empty-host\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "error": {
+        "status": 0,
+        "message": "Post \"relay.example/v1/publishers/google/models/gemini-2.5-flash:generateContent\": unsupported protocol scheme \"\""
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "Post \"relay.example/v1/publishers/google/models/gemini-2.5-flash:generateContent\": unsupported protocol scheme \"\"",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
         "quality": "complete"
       }
     },

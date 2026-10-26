@@ -455,7 +455,7 @@ pub(crate) async fn chat_with(
         headers.pairs(),
         &body,
     );
-    let upstream = match crate::xai_url::hostless_post(&url) {
+    let upstream = match crate::xai_url::transport_refusal(&url) {
         Some(error) => Err(error),
         None => wire::send(client, &url, headers, Bytes::from(body.clone())).await,
     };

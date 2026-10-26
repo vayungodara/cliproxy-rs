@@ -388,20 +388,21 @@ async fn go_reference_scenarios() {
                 Some(account),
             );
         }
-        // Go logs a request its transport then refuses for want of a host, and the error.
+        // Go logs a request its transport then refuses (no host, or an unsupported
+        // scheme), and the error.
         if let Some(message) = s["error"]["message"]
             .as_str()
-            .filter(|m| m.ends_with("http: no Host in request URL"))
+            .filter(|m| m.ends_with("http: no Host in request URL") || m.contains("\": unsupported protocol scheme \""))
         {
             let url = message.split('"').nth(1).unwrap();
             assert!(
                 matches!(events.pop_front(), Some(crate::gemini::tests::Captured::Request { url: u, .. }) if u == url),
-                "{name}: hostless request capture"
+                "{name}: refused request capture"
             );
             assert_eq!(
                 events.pop_front(),
                 Some(crate::gemini::tests::Captured::Error(message.to_owned())),
-                "{name}: hostless error capture"
+                "{name}: refused error capture"
             );
         }
         assert!(events.is_empty(), "{name}: extra captures {events:?}");

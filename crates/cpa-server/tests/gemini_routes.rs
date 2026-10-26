@@ -543,7 +543,7 @@ async fn deeply_nested_body_skips_prefix_matching() {
 }
 
 /// Go v8.0.35: a service account whose `base_url` Go's URL parser refuses fails with the
-/// parse error after one token exchange; the statusless error starts no retry round and
+/// parse error after one token exchange (`oa_sa_escaped_base` in vertex_go_v8.0.35.json); the statusless error starts no retry round and
 /// cools the model, so the next request is refused without another token exchange.
 #[tokio::test]
 async fn vertex_openapi_refused_url_cools_the_model_without_retry_rounds() {
@@ -557,13 +557,16 @@ async fn vertex_openapi_refused_url_cools_the_model_without_retry_rounds() {
     let fixture: serde_json::Value =
         serde_json::from_str(include_str!("../../cpa-exec/tests/fixtures/vertex_go.json")).unwrap();
     let auth_dir = auth_dir_line();
+    let port = up.rsplit(':').next().unwrap().to_owned();
     let dir = auth_dir.trim().trim_start_matches("auth-dir: ").to_owned();
     let file = serde_json::json!({
         "type": "vertex",
         "project_id": "proj-1",
         "email": "svc@proj-1.iam.gserviceaccount.com",
         "openapi": true,
-        "base_url": "https://%65vil.example/v1",
+        // An escaped loopback host (the token mock's): even a regression that sent the
+        // request could only reach the mock, where it counts as another call.
+        "base_url": format!("http://%31%32%37.0.0.1:{port}/v1"),
         "service_account": {
             "type": "service_account",
             "project_id": "proj-1",
@@ -598,10 +601,12 @@ async fn vertex_openapi_refused_url_cools_the_model_without_retry_rounds() {
     ))))
     .await;
     let body = r#"{"model":"gemini-2.5-flash","messages":[{"role":"user","content":"hi"}]}"#;
-    let parse = r#"parse \"https://%65vil.example/v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions\": invalid URL escape \"%65\""#;
+    let parse = format!(
+        r#"parse \"http://%31%32%37.0.0.1:{port}/v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions\": invalid URL escape \"%31\""#
+    );
     let (status, _, text) = post(&url, "/v1/chat/completions", body).await;
     assert_eq!(status, 500, "{text}");
-    assert!(text.contains(parse), "{text}");
+    assert!(text.contains(&parse), "{text}");
     assert_eq!(
         tokens.load(std::sync::atomic::Ordering::SeqCst),
         1,

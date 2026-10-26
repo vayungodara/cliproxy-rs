@@ -572,6 +572,17 @@ requests:
 			s.Config = strings.Replace(interactionsKeyConfig, "http://UPSTREAM/api/", "https:relay.example", 1)
 			s.Via = ""
 		}),
+		// A base URL without a scheme (`relay.example`): Go's transport refuses the
+		// scheme before it looks for a host.
+		with(key("oa_key_schemeless_base", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = strings.Replace(emptyHostConfig, "https:relay.example", "relay.example", 1)
+			s.Via = ""
+		}),
+		with(key("key_schemeless_base", "execute", "gemini-2.5-flash", "", gem("gemini-2.5-flash", userHi, "")), func(s *scenario) {
+			s.Config = strings.Replace(emptyHostConfig, "https:relay.example", "relay.example", 1)
+			s.Via = ""
+		}),
 		with(key("oa_key_payload_rules", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}],"temperature":0.5}`, chatOK), func(s *scenario) {
 			s.Source = "openai"
 			s.Config = keyConfig + oaPayloadRules
