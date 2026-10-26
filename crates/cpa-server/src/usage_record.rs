@@ -1109,7 +1109,10 @@ fn response_model_event(line: &[u8], provider: &str) -> (String, bool) {
                 &gj::parse(data),
                 &["candidates.0.finishReason", "response.candidates.0.finishReason"],
             );
+            // d9451cb6: Vertex's endpoints/openapi route answers in Chat Completions.
             let terminal = (finish.exists() && !finish.str().is_empty())
+                || gj::get(data, "object").str() == "chat.completion"
+                || !gj::get(data, "choices.0.finish_reason").str().is_empty()
                 || interactions_terminal(&event_type(data), &gj::get(data, "interaction.status").str());
             (model, terminal)
         }

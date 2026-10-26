@@ -1,6 +1,69 @@
 {
   "scenarios": [
     {
+      "name": "sa_responses_tool_ids_stripped",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"done\"}],\"tools\":[{\"type\":\"function\",\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"}}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzIsImlhdCI6MTc5Mjk3MTUzMn0.B6Cojje-MpZ2eEXo9jLDf-N2c4lxdYKeRqZ5Il0EU2_WW2E-6lBWsJFJmjS-6DNNUmM7z2D-L_RcESMKaLGI7ezOAoBP9ydsUwPqic1vD6KYm9XtVNYSTj9AYOV8F20RAW2hREBUyH-1V70jjfi3C7Ql3kr1-TcMhgBOiFS24_7Jn1whxp42pYQkO83AhM55vnI1-wWItAsUgpOlyYea__0FphuAUl5v9WUT9Q0ChDIoYGZDHHuBEX-mygjRFFefMdN23-7S0MNcEthLN0gl-qRfiSpgbzZ4-MHD0PmyERzO0ffTdz2NjV9F0v2kQebChNN43SJEhsWIfbwjcYBgfg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 755\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"lookup\",\"response\":{\"result\":\"done\"}}}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"lookup\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
       "name": "key_stream_trailing_slash_base",
       "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
       "config_auth": 1,
@@ -45,6 +108,253 @@
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
         "failed": false
+      }
+    },
+    {
+      "name": "key_stream_client_drop_mid_read",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "openai",
+      "op": "stream",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
+          "missing": 40,
+          "stall": true
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}],\"usage\":{\"completion_tokens\":0,\"total_tokens\":3,\"prompt_tokens\":3}}"
+      ],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 499,
+        "fail_body": "context canceled"
+      },
+      "cancel_when_idle": true
+    },
+    {
+      "name": "key_stream_client_drop_after_terminal",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "openai",
+      "op": "stream",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
+          "missing": 40,
+          "stall": true
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "chunks": [
+        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}],\"usage\":{\"completion_tokens\":0,\"total_tokens\":3,\"prompt_tokens\":3}}",
+        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"llo\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":2,\"total_tokens\":5,\"prompt_tokens\":3}}"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      },
+      "cancel_when_idle": true
+    },
+    {
+      "name": "key_responses_stream_read_error",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\",\"stream\":true}",
+      "source": "openai-response",
+      "op": "stream",
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
+          "missing": 40
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n"
+      ],
+      "error": {
+        "status": 0,
+        "message": "unexpected EOF"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "unexpected EOF"
       }
     },
     {
@@ -626,7 +936,9 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": true
+        "failed": true,
+        "fail_status": 502,
+        "fail_body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
       }
     },
     {
@@ -708,394 +1020,10 @@
         "total_tokens": 5,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": true
-      }
-    },
-    {
-      "name": "sa_responses_tool_ids_stripped",
-      "config_auth": -1,
-      "metadata": {
-        "email": "svc@proj-1.iam.gserviceaccount.com",
-        "project_id": "proj-1",
-        "proxy_url": "http://PROXY",
-        "service_account": {
-          "client_email": "svc@proj-1.iam.gserviceaccount.com",
-          "private_key": "SA_KEY",
-          "private_key_id": "kid-1",
-          "project_id": "proj-1",
-          "token_uri": "https://oauth2.googleapis.com/token",
-          "type": "service_account"
-        },
-        "type": "vertex"
-      },
-      "key": "pkcs1",
-      "model": "gemini-2.5-flash",
-      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]},{\"type\":\"function_call\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":\"{\\\"q\\\":1}\"},{\"type\":\"function_call_output\",\"call_id\":\"call_1\",\"output\":\"done\"}],\"tools\":[{\"type\":\"function\",\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"}}]}",
-      "source": "openai-response",
-      "op": "execute",
-      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
-      "replies": [
-        {
-          "status": 200,
-          "headers": [
-            [
-              "Content-Type",
-              "application/json; charset=utf-8"
-            ]
-          ],
-          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
-        },
-        {
-          "status": 200,
-          "headers": [
-            [
-              "Content-Type",
-              "application/json; charset=UTF-8"
-            ]
-          ],
-          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-        }
-      ],
-      "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NTE3MjgsImlhdCI6MTc5Mjk0ODEyOH0.w5VPr3AmnvdnScU8QoTVPAijpoXClc9S8mMJGJcspXehmdiH5Nj2uz-p-e8hQl2u8eFedOb500mXlKu49OB3PFNN1y6_KGlp0noy_Z7zk-5TUZHG2VA48Z6hZL3kAP6zzXPsrRWXRdQoa7uupZ1S8M6ddU-8V2UB9QL1iX--X4YLGtpHKvzLKFsub5aEI_757JQIoYy9FSnS0NKxXEw4UgaYreGFtDzKdnZUC2KSJ4jlyqebmYVG8A1rwQe9alPHhIAfFUBrSRk4fBtklZhDHvZKAd8t-JXYn7AxKhBaCifGDUkcjycbpdPG2AtPo_7d8tVqUwUTqUDY7yU_y721Vw\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
-        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 755\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"lookup\",\"response\":{\"result\":\"done\"}}}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"lookup\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
-      ],
-      "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":4}}",
-      "usage": {
-        "input_tokens": 3,
-        "output_tokens": 1,
-        "reasoning_tokens": 0,
-        "cached_tokens": 0,
-        "cache_read_tokens": 0,
-        "cache_creation_tokens": 0,
-        "total_tokens": 4,
-        "response_model": "gemini-2.5-flash",
-        "reasoning_effort": "",
-        "failed": false
-      }
-    },
-    {
-      "name": "key_codex_tool_integer_types",
-      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
-      "config_auth": 0,
-      "model": "gemini-2.5-flash",
-      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"shell\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}",
-      "source": "openai-response",
-      "op": "execute",
-      "headers": {
-        "User-Agent": "codex_cli_rs/0.50.0 (Mac OS 15.0)"
-      },
-      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
-      "resolved": {
-        "info": {
-          "id": "gemini-2.5-flash",
-          "object": "model",
-          "created": 1750118400,
-          "owned_by": "google",
-          "type": "vertex",
-          "display_name": "Gemini 2.5 Flash",
-          "name": "models/gemini-2.5-flash",
-          "version": "001",
-          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
-          "inputTokenLimit": 1048576,
-          "outputTokenLimit": 65536,
-          "supportedGenerationMethods": [
-            "generateContent",
-            "countTokens",
-            "createCachedContent",
-            "batchGenerateContent"
-          ],
-          "supportedInputModalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "supportedOutputModalities": [
-            "text"
-          ],
-          "thinking": {
-            "max": 24576,
-            "zero_allowed": true,
-            "dynamic_allowed": true
-          }
-        }
-      },
-      "via": "plain",
-      "replies": [
-        {
-          "status": 200,
-          "headers": [
-            [
-              "Content-Type",
-              "application/json; charset=UTF-8"
-            ]
-          ],
-          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
-        }
-      ],
-      "requests": [
-        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 575\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"shell\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
-      ],
-      "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"shell\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}},\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":4}}",
-      "usage": {
-        "input_tokens": 3,
-        "output_tokens": 1,
-        "reasoning_tokens": 0,
-        "cached_tokens": 0,
-        "cache_read_tokens": 0,
-        "cache_creation_tokens": 0,
-        "total_tokens": 4,
-        "response_model": "gemini-2.5-flash",
-        "reasoning_effort": "",
-        "failed": false
-      }
-    },
-    {
-      "name": "key_responses_stream_read_error",
-      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
-      "config_auth": 0,
-      "model": "gemini-2.5-flash",
-      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":\"hi\",\"stream\":true}",
-      "source": "openai-response",
-      "op": "stream",
-      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
-      "resolved": {
-        "info": {
-          "id": "gemini-2.5-flash",
-          "object": "model",
-          "created": 1750118400,
-          "owned_by": "google",
-          "type": "vertex",
-          "display_name": "Gemini 2.5 Flash",
-          "name": "models/gemini-2.5-flash",
-          "version": "001",
-          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
-          "inputTokenLimit": 1048576,
-          "outputTokenLimit": 65536,
-          "supportedGenerationMethods": [
-            "generateContent",
-            "countTokens",
-            "createCachedContent",
-            "batchGenerateContent"
-          ],
-          "supportedInputModalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "supportedOutputModalities": [
-            "text"
-          ],
-          "thinking": {
-            "max": 24576,
-            "zero_allowed": true,
-            "dynamic_allowed": true
-          }
-        }
-      },
-      "via": "plain",
-      "replies": [
-        {
-          "status": 200,
-          "headers": [
-            [
-              "Content-Type",
-              "text/event-stream"
-            ]
-          ],
-          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
-          "missing": 40
-        }
-      ],
-      "requests": [
-        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
-      ],
-      "chunks": [
-        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
-        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"in_progress\",\"output\":[],\"model\":\"gemini-2.5-flash\"}}\n\n",
-        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_resp_r1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
-        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
-        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_resp_r1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n"
-      ],
-      "error": {
-        "status": 0,
-        "message": "unexpected EOF"
-      },
-      "usage": {
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "reasoning_tokens": 0,
-        "cached_tokens": 0,
-        "cache_read_tokens": 0,
-        "cache_creation_tokens": 0,
-        "total_tokens": 0,
-        "response_model": "gemini-2.5-flash",
-        "reasoning_effort": "",
-        "failed": true
-      }
-    },
-    {
-      "name": "key_stream_client_drop_mid_read",
-      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
-      "config_auth": 0,
-      "model": "gemini-2.5-flash",
-      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
-      "source": "openai",
-      "op": "stream",
-      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
-      "resolved": {
-        "info": {
-          "id": "gemini-2.5-flash",
-          "object": "model",
-          "created": 1750118400,
-          "owned_by": "google",
-          "type": "vertex",
-          "display_name": "Gemini 2.5 Flash",
-          "name": "models/gemini-2.5-flash",
-          "version": "001",
-          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
-          "inputTokenLimit": 1048576,
-          "outputTokenLimit": 65536,
-          "supportedGenerationMethods": [
-            "generateContent",
-            "countTokens",
-            "createCachedContent",
-            "batchGenerateContent"
-          ],
-          "supportedInputModalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "supportedOutputModalities": [
-            "text"
-          ],
-          "thinking": {
-            "max": 24576,
-            "zero_allowed": true,
-            "dynamic_allowed": true
-          }
-        }
-      },
-      "via": "plain",
-      "replies": [
-        {
-          "status": 200,
-          "headers": [
-            [
-              "Content-Type",
-              "text/event-stream"
-            ]
-          ],
-          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
-          "missing": 40,
-          "stall": true
-        }
-      ],
-      "requests": [
-        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
-      ],
-      "chunks": [
-        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}],\"usage\":{\"completion_tokens\":0,\"total_tokens\":3,\"prompt_tokens\":3}}"
-      ],
-      "usage": {
-        "input_tokens": 0,
-        "output_tokens": 0,
-        "reasoning_tokens": 0,
-        "cached_tokens": 0,
-        "cache_read_tokens": 0,
-        "cache_creation_tokens": 0,
-        "total_tokens": 0,
-        "response_model": "gemini-2.5-flash",
-        "reasoning_effort": "",
         "failed": true,
-        "fail_status": 499,
-        "fail_body": "context canceled"
-      },
-      "cancel_when_idle": true
-    },
-    {
-      "name": "key_stream_client_drop_after_terminal",
-      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
-      "config_auth": 0,
-      "model": "gemini-2.5-flash",
-      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
-      "source": "openai",
-      "op": "stream",
-      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
-      "resolved": {
-        "info": {
-          "id": "gemini-2.5-flash",
-          "object": "model",
-          "created": 1750118400,
-          "owned_by": "google",
-          "type": "vertex",
-          "display_name": "Gemini 2.5 Flash",
-          "name": "models/gemini-2.5-flash",
-          "version": "001",
-          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
-          "inputTokenLimit": 1048576,
-          "outputTokenLimit": 65536,
-          "supportedGenerationMethods": [
-            "generateContent",
-            "countTokens",
-            "createCachedContent",
-            "batchGenerateContent"
-          ],
-          "supportedInputModalities": [
-            "text",
-            "image",
-            "audio",
-            "video"
-          ],
-          "supportedOutputModalities": [
-            "text"
-          ],
-          "thinking": {
-            "max": 24576,
-            "zero_allowed": true,
-            "dynamic_allowed": true
-          }
-        }
-      },
-      "via": "plain",
-      "replies": [
-        {
-          "status": 200,
-          "headers": [
-            [
-              "Content-Type",
-              "text/event-stream"
-            ]
-          ],
-          "body": "data: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"he\"}]},\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"totalTokenCount\":3},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\ndata: {\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"llo\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":2,\"totalTokenCount\":5},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}\n\n",
-          "missing": 40,
-          "stall": true
-        }
-      ],
-      "requests": [
-        "POST /api/v1/publishers/google/models/gemini-2.5-flash:streamGenerateContent?alt=sse HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 417\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"model\":\"gemini-2.5-flash\",\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
-      ],
-      "chunks": [
-        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":null,\"native_finish_reason\":null}],\"usage\":{\"completion_tokens\":0,\"total_tokens\":3,\"prompt_tokens\":3}}",
-        "{\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1790856000,\"model\":\"gemini-2.5-flash\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"llo\",\"reasoning_content\":null,\"tool_calls\":null},\"finish_reason\":\"stop\",\"native_finish_reason\":\"stop\"}],\"usage\":{\"completion_tokens\":2,\"total_tokens\":5,\"prompt_tokens\":3}}"
-      ],
-      "usage": {
-        "input_tokens": 3,
-        "output_tokens": 2,
-        "reasoning_tokens": 0,
-        "cached_tokens": 0,
-        "cache_read_tokens": 0,
-        "cache_creation_tokens": 0,
-        "total_tokens": 5,
-        "response_model": "gemini-2.5-flash",
-        "reasoning_effort": "",
-        "failed": false
-      },
-      "cancel_when_idle": true
+        "fail_status": 502,
+        "fail_body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
+      }
     },
     {
       "name": "int_key_execute",
@@ -1555,7 +1483,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjQxNTUsImlhdCI6MTc5Mjk2MDU1NX0.Etsep2Z_zTWqx9v_wiDJXjOyyN8BG-ZHiaijZZLUWAOrlRQnK6PiCJoOnoLh-5F7U4mNjcYHtu8pn6qc6QT95ogeO0haarttiTwwTv18ZVsDwJjiUb3hidsPFjFd2c31Elqgfh8wuiOutbUlwRIe5_FWdxBG9iKSUah9lNLTelfYj0vRg5i2gEQc4_7n_kHLNxAUAXy--F0OC4x7JyN2jVlCN6YD6nW_pVuPyzPXgRR4aqvG2ClDgGG23yiWLZTh_eP30ijMqNxqAaMnuZIoUOIHhYWzSo_B75fGGZi1lBVUwzZM4YrviuQWDO4U8FDgqMalET1X16tW8M6Ox3K9Lg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1beta1/projects/proj-1/locations/global/interactions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}"
       ],
       "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
@@ -1619,7 +1547,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjQxNTUsImlhdCI6MTc5Mjk2MDU1NX0.Etsep2Z_zTWqx9v_wiDJXjOyyN8BG-ZHiaijZZLUWAOrlRQnK6PiCJoOnoLh-5F7U4mNjcYHtu8pn6qc6QT95ogeO0haarttiTwwTv18ZVsDwJjiUb3hidsPFjFd2c31Elqgfh8wuiOutbUlwRIe5_FWdxBG9iKSUah9lNLTelfYj0vRg5i2gEQc4_7n_kHLNxAUAXy--F0OC4x7JyN2jVlCN6YD6nW_pVuPyzPXgRR4aqvG2ClDgGG23yiWLZTh_eP30ijMqNxqAaMnuZIoUOIHhYWzSo_B75fGGZi1lBVUwzZM4YrviuQWDO4U8FDgqMalET1X16tW8M6Ox3K9Lg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1beta1/projects/proj-1/locations/global/interactions?alt=sse HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 59\r\nApi-Revision: 2026-05-20\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}"
       ],
       "chunks": [
@@ -1690,7 +1618,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjQxNTUsImlhdCI6MTc5Mjk2MDU1NX0.Etsep2Z_zTWqx9v_wiDJXjOyyN8BG-ZHiaijZZLUWAOrlRQnK6PiCJoOnoLh-5F7U4mNjcYHtu8pn6qc6QT95ogeO0haarttiTwwTv18ZVsDwJjiUb3hidsPFjFd2c31Elqgfh8wuiOutbUlwRIe5_FWdxBG9iKSUah9lNLTelfYj0vRg5i2gEQc4_7n_kHLNxAUAXy--F0OC4x7JyN2jVlCN6YD6nW_pVuPyzPXgRR4aqvG2ClDgGG23yiWLZTh_eP30ijMqNxqAaMnuZIoUOIHhYWzSo_B75fGGZi1lBVUwzZM4YrviuQWDO4U8FDgqMalET1X16tW8M6Ox3K9Lg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/europe-west1/publishers/google/models/gemini-3-pro-preview:generateContent HTTP/1.1\r\nHost: europe-west1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 94\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi regional\"}]}]}"
       ],
       "output": "{\"id\":\"r1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-pro-preview\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1,\"total_tokens\":4}}",
@@ -1771,52 +1699,6 @@
       ],
       "requests": [
         "POST /api/v1beta1/interactions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 173\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-int\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"custom_rule_param\":\"enforced_after_all_transforms\"}"
-      ],
-      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
-      "usage": {
-        "input_tokens": 3,
-        "output_tokens": 1,
-        "reasoning_tokens": 0,
-        "cached_tokens": 0,
-        "cache_read_tokens": 0,
-        "cache_creation_tokens": 0,
-        "total_tokens": 4,
-        "response_model": "gemini-3-pro-preview",
-        "reasoning_effort": "",
-        "failed": false
-      }
-    },
-    {
-      "name": "int_file_access_token_project",
-      "config_auth": -1,
-      "metadata": {
-        "access_token": "ya29.from-file",
-        "email": "svc@proj-1.iam.gserviceaccount.com",
-        "interactions": true,
-        "project_id": "proj-1",
-        "proxy_url": "http://PROXY",
-        "type": "vertex"
-      },
-      "key": "pkcs1",
-      "model": "gemini-3-pro-preview",
-      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
-      "source": "interactions",
-      "op": "execute",
-      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
-      "replies": [
-        {
-          "status": 200,
-          "headers": [
-            [
-              "Content-Type",
-              "application/json"
-            ]
-          ],
-          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
-        }
-      ],
-      "requests": [
-        "POST /v1beta1/projects/proj-1/locations/global/interactions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: ya29.from-file\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}"
       ],
       "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
       "usage": {
@@ -1943,7 +1825,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NjU2OTEsImlhdCI6MTc5Mjk2MjA5MX0.pUxyhQSEwk211lrB1rX8u1-FrspcQLfGSZskvJkv7eIyixkz1Sw0WRML23kAxP_fGyUDJTAwJvBYyyuSML1kHqanCaKnTNVET4kjFCqaOPqI5XiJD4rfEg9uUwiAymGmMlqq5-l06yFAzxcnfIipCIBjSjNncd6Nx3bhaRe8uJyqSlFIlrZMsyniHQMuPngscQFCNcYAb86D2ngIYFDXxcKGt6hHuymfFOaWhdU1ArpVlmJBMERMQk96mZ3kUqJPH7zDryM1nBpZyuT40muHUqGtuNldIfBaRZHUkjK47vWgMt4cW_khMM4hls1BbT8FtGkfgAP-haQ-M32LKFSKDA\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 401,
@@ -1962,6 +1844,1235 @@
         "failed": true,
         "fail_status": 401,
         "fail_body": "missing access token"
+      }
+    },
+    {
+      "name": "int_file_access_token_project",
+      "config_auth": -1,
+      "metadata": {
+        "access_token": "ya29.from-file",
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "interactions": true,
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-3-pro-preview",
+      "payload": "{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}"
+        }
+      ],
+      "requests": [
+        "POST /v1beta1/projects/proj-1/locations/global/interactions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nContent-Type: application/json\r\nX-Goog-Api-Key: ya29.from-file\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}"
+      ],
+      "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-3-pro-preview",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_execute",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "global",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "deepseek-ai/deepseek-v4.1-flash-maas",
+      "payload": "{\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hello maas\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:2d3dca351e034a82b944b0e8ba6556d970b6889c6bd7ce96a11cc13fb954558d",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/global/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 100\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hello maas\"}]}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_stream_location_override",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "openapi_location": "us-east5",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4-maverick-17b-128e-instruct-maas",
+      "payload": "{\"model\":\"meta/llama-4-maverick-17b-128e-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "openai",
+      "op": "stream",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-east5/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-east5-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 154\r\nAccept: text/event-stream\r\nAuthorization: Bearer ya29.fake-access\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4-maverick-17b-128e-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+      ],
+      "chunks": [
+        "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}",
+        "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "meta/llama-4",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_publisher_resource",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "location": "us-central1",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "publishers/Meta/models/llama-3.3-70b-instruct-maas(high)",
+      "payload": "{\"model\":\"x\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 114\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-3.3-70b-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\"}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "high",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_explicit_optin_gemini",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "openapi": "1",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 79\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"google/gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_explicit_optin_imagen",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "openapi": true,
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "imagen-4.0-generate-001",
+      "payload": "{\"model\":\"imagen-4.0-generate-001\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a cat\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:0c6d9ac12680a15802bf5886cdfc1e603ed2de5c5de0072876b436a0a5d64e34",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"predictions\":[{\"bytesBase64Encoded\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"},{\"bytesBase64Encoded\":\"AAAA\"},{\"mimeType\":\"image/png\"}]}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 65\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"sampleCount\":1}}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"}},{\"inlineData\":{\"data\":\"AAAA\",\"mimeType\":\"image/png\"}}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"imagen-4.0-generate-001\",\"responseId\":\"imagen-1792971547207005287\",\"usageMetadata\":{\"candidatesTokenCount\":0,\"promptTokenCount\":0,\"totalTokenCount\":0}}",
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_explicit_optout",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "openapi": "false",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}]}",
+      "source": "gemini",
+      "op": "execute",
+      "session": "derived:ctx:v1:39e4011826e21361d0429d85036f493dd10bf10db89b9f0c5d315b6486284c41",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/meta/llama-4:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 413\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
+      ],
+      "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_claude_stream",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "qwen/qwen3-coder-480b-a35b-instruct-maas",
+      "payload": "{\"model\":\"qwen/qwen3-coder-480b-a35b-instruct-maas\",\"max_tokens\":64,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "claude",
+      "op": "stream",
+      "session": "derived:ctx:v1:8ed3d00f709e2db65d288213eec043173a48ad204192530b3fbef5d5729599c8",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 166\r\nAccept: text/event-stream\r\nAuthorization: Bearer ya29.fake-access\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"qwen/qwen3-coder-480b-a35b-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":64,\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+      ],
+      "chunks": [
+        "event: message_start\ndata: {\"type\":\"message_start\",\"message\":{\"id\":\"c1\",\"type\":\"message\",\"role\":\"assistant\",\"model\":\"meta/llama-4\",\"content\":[],\"stop_reason\":null,\"stop_sequence\":null,\"usage\":{\"input_tokens\":3,\"output_tokens\":0}}}\n\n",
+        "event: content_block_start\ndata: {\"type\":\"content_block_start\",\"index\":0,\"content_block\":{\"type\":\"text\",\"text\":\"\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"he\"}}\n\n",
+        "event: content_block_delta\ndata: {\"type\":\"content_block_delta\",\"index\":0,\"delta\":{\"type\":\"text_delta\",\"text\":\"llo\"}}\n\n",
+        "event: content_block_stop\ndata: {\"type\":\"content_block_stop\",\"index\":0}\n\n",
+        "event: message_delta\ndata: {\"type\":\"message_delta\",\"delta\":{\"stop_reason\":\"end_turn\",\"stop_sequence\":null},\"usage\":{\"input_tokens\":3,\"output_tokens\":2}}\n\n",
+        "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "meta/llama-4",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_before_interactions",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "interactions": true,
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "deepseek-ai/deepseek-v4.1-flash-maas",
+      "payload": "{\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"input\":\"hi\"}",
+      "source": "interactions",
+      "op": "execute",
+      "session": "derived:ctx:v1:50f40ff090573d922a41698341526bdc93c6d4c5056809c8ca8bc16327d9ddb7",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 92\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hello from vertex maas\"}]}],\"finish_reason\":\"stop\",\"usage\":{\"input_tokens\":8,\"total_input_tokens\":8,\"output_tokens\":5,\"total_output_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_base_url",
+      "config_auth": -1,
+      "metadata": {
+        "base_url": "https://europe-west4-aiplatform.googleapis.com/v1beta1/",
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1beta1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: europe-west4-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_sa_token_error",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "replies": [
+        {
+          "status": 400,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"error\":\"invalid_grant\",\"error_description\":\"bad\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+      ],
+      "error": {
+        "status": 500,
+        "message": "internal server error"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 500,
+        "fail_body": "internal server error"
+      }
+    },
+    {
+      "name": "oa_sa_empty_token",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+      ],
+      "error": {
+        "status": 401,
+        "message": "missing access token"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 401,
+        "fail_body": "missing access token"
+      }
+    },
+    {
+      "name": "oa_sa_upstream_error",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        },
+        {
+          "status": 429,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"error\":{\"code\":429,\"message\":\"quota\",\"status\":\"RESOURCE_EXHAUSTED\"}}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+      ],
+      "error": {
+        "status": 429,
+        "message": "{\"error\":{\"code\":429,\"message\":\"quota\",\"status\":\"RESOURCE_EXHAUSTED\"}}"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 429,
+        "fail_body": "{\"error\":{\"code\":429,\"message\":\"quota\",\"status\":\"RESOURCE_EXHAUSTED\"}}"
+      }
+    },
+    {
+      "name": "oa_sa_count",
+      "config_auth": -1,
+      "metadata": {
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"count these tokens\"}]}",
+      "source": "openai",
+      "op": "count",
+      "session": "derived:ctx:v1:9c5efb867101eee54aa03fbf56eb3ef190674650609724c80aefecea44bd339e",
+      "output": "{\"usage\":{\"prompt_tokens\":5,\"completion_tokens\":0,\"total_tokens\":5}}"
+    },
+    {
+      "name": "oa_file_access_token_rejected",
+      "config_auth": -1,
+      "metadata": {
+        "access_token": "ya29.from-file",
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "error": {
+        "status": 400,
+        "message": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 400,
+        "fail_body": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials"
+      }
+    },
+    {
+      "name": "oa_key_third_party",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer vk-fake-1\r\nContent-Type: application/json\r\nX-Session: s-derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_key_third_party_stream",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 1,
+      "model": "mistralai/mistral-small-2503",
+      "payload": "{\"model\":\"mistralai/mistral-small-2503\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true}",
+      "source": "openai",
+      "op": "stream",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /v2/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 138\r\nAccept: text/event-stream\r\nAuthorization: Bearer vk-fake-2\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"mistralai/mistral-small-2503\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
+      ],
+      "chunks": [
+        "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}",
+        "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1700000000,\"model\":\"meta/llama-4\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"llo\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":2,\"total_tokens\":5}}"
+      ],
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 2,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "meta/llama-4",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_key_publishers_prefix",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/v1/projects/p-1/locations/us-central1/publishers/google/models/\n      keys:\n        - api-key: vk-fake-prefix\n    - base-url: http://UPSTREAM/v1beta1/\n      keys:\n        - api-key: vk-fake-beta\n",
+      "config_auth": 0,
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /v1/projects/p-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer vk-fake-prefix\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_key_version_base",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/v1/projects/p-1/locations/us-central1/publishers/google/models/\n      keys:\n        - api-key: vk-fake-prefix\n    - base-url: http://UPSTREAM/v1beta1/\n      keys:\n        - api-key: vk-fake-beta\n",
+      "config_auth": 1,
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /v1beta1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer vk-fake-beta\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "oa_key_google_host_rejected",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 2,
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "error": {
+        "status": 400,
+        "message": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 400,
+        "fail_body": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials"
+      }
+    },
+    {
+      "name": "oa_key_payload_rules",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n\npayload:\n  default:\n    - models: [{name: \"meta/*\", protocol: openai}]\n      params: {max_tokens: 77}\n  override:\n    - models: [{name: \"meta/*\", protocol: openai}]\n      params: {temperature: 0.1}\n    - models: [{name: \"meta/*\", protocol: gemini}]\n      params: {generationConfig.temperature: 0.9}\n",
+      "config_auth": 0,
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"temperature\":0.5}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 102\r\nAuthorization: Bearer vk-fake-1\r\nContent-Type: application/json\r\nX-Session: s-derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"temperature\":0.1,\"max_tokens\":77}"
+      ],
+      "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
+      "usage": {
+        "input_tokens": 8,
+        "output_tokens": 5,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 13,
+        "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "usage_oa_key_stream_terminal_model",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/api\n      models:\n        - name: meta/llama-4\n      keys:\n        - api-key: vk-fake-usage\n",
+      "config_auth": 0,
+      "model": "meta/llama-4",
+      "requested_model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "stream",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "meta/llama-4",
+          "object": "",
+          "created": 0,
+          "owned_by": "",
+          "type": "vertex"
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "text/event-stream"
+            ]
+          ],
+          "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"meta/llama-4-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"meta/other\",\"choices\":[],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":1,\"total_tokens\":5}}\n\ndata: [DONE]\n\n"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer vk-fake-usage\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"stream\":true,\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}"
+      ],
+      "chunks": [
+        "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"meta/llama-4-served\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"hi\"},\"finish_reason\":\"stop\"}]}",
+        "{\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"meta/other\",\"choices\":[],\"usage\":{\"prompt_tokens\":4,\"completion_tokens\":1,\"total_tokens\":5}}"
+      ],
+      "usage": {
+        "input_tokens": 4,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 5,
+        "response_model": "meta/llama-4-served",
+        "reasoning_effort": "",
+        "failed": false
+      }
+    },
+    {
+      "name": "key_codex_tool_integer_types",
+      "config": "\napi-keys:\n  vertex:\n    - name: v1\n      base-url: http://UPSTREAM/api\n      headers:\n        X-Static: static-vertex\n        X-Session: \"s-$CPA-SESSION-ID\"\n      models:\n        - name: gemini-2.5-pro\n          alias: vertex-pro\n          thinking:\n            levels: [low, high]\n        - name: gemini-2.5-flash\n          alias: vertex-flash\n        - name: gemini-2.5-flash-lite\n          alias: vertex-lite\n          display-name: Vertex Lite\n          thinking:\n            min: 512\n            max: 4096\n            zero-allowed: false\n            dynamic-allowed: false\n      keys:\n        - api-key: vk-fake-1\n    - name: v2\n      base-url: http://UPSTREAM/v2/\n      keys:\n        - api-key: vk-fake-2\n    - name: v3\n      proxy-url: http://PROXY\n      models:\n        - name: gemini-2.5-flash\n          alias: flash-default\n      keys:\n        - api-key: vk-fake-3\n",
+      "config_auth": 0,
+      "model": "gemini-2.5-flash",
+      "payload": "{\"model\":\"gemini-2.5-flash\",\"input\":[{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"hi\"}]}],\"tools\":[{\"type\":\"function\",\"name\":\"shell\",\"parameters\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}",
+      "source": "openai-response",
+      "op": "execute",
+      "headers": {
+        "User-Agent": "codex_cli_rs/0.50.0 (Mac OS 15.0)"
+      },
+      "session": "derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec",
+      "resolved": {
+        "info": {
+          "id": "gemini-2.5-flash",
+          "object": "model",
+          "created": 1750118400,
+          "owned_by": "google",
+          "type": "vertex",
+          "display_name": "Gemini 2.5 Flash",
+          "name": "models/gemini-2.5-flash",
+          "version": "001",
+          "description": "Stable version of Gemini 2.5 Flash, our mid-size multimodal model that supports up to 1 million tokens, released in June of 2025.",
+          "inputTokenLimit": 1048576,
+          "outputTokenLimit": 65536,
+          "supportedGenerationMethods": [
+            "generateContent",
+            "countTokens",
+            "createCachedContent",
+            "batchGenerateContent"
+          ],
+          "supportedInputModalities": [
+            "text",
+            "image",
+            "audio",
+            "video"
+          ],
+          "supportedOutputModalities": [
+            "text"
+          ],
+          "thinking": {
+            "max": 24576,
+            "zero_allowed": true,
+            "dynamic_allowed": true
+          }
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=UTF-8"
+            ]
+          ],
+          "body": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 575\r\nContent-Type: application/json\r\nX-Goog-Api-Key: vk-fake-1\r\nX-Session: s-derived:ctx:v1:a7c6eb144606fcd71939d5a8db03a966b2429b779fb62683e8144e1887f311ec\r\nX-Static: static-vertex\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"shell\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"timeout_ms\":{\"type\":\"number\"}}}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
+      ],
+      "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"shell\",\"parameters\":{\"properties\":{\"timeout_ms\":{\"type\":\"number\"}},\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":4}}",
+      "usage": {
+        "input_tokens": 3,
+        "output_tokens": 1,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 4,
+        "response_model": "gemini-2.5-flash",
+        "reasoning_effort": "",
+        "failed": false
       }
     }
   ]

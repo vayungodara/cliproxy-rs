@@ -346,10 +346,13 @@ async fn go_reference_scenarios() {
                 continue;
             }
             // Go AccountInfo: config keys are API-key accounts, file credentials OAuth ones
-            // named by their email.
+            // named by their email. The endpoints/openapi route sends the key as a bearer.
             let key_value = wire
                 .lines()
-                .find_map(|l| l.strip_prefix("X-Goog-Api-Key: "))
+                .find_map(|l| {
+                    l.strip_prefix("X-Goog-Api-Key: ")
+                        .or_else(|| l.strip_prefix("Authorization: Bearer "))
+                })
                 .unwrap_or_default();
             let email = s["metadata"]["email"].as_str().unwrap_or_default();
             let account = if s["config_auth"].as_i64().unwrap() >= 0 {

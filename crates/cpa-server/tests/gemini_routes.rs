@@ -478,7 +478,7 @@ async fn usage_records_match_go() {
             ran += 1;
         }
     }
-    assert_eq!(ran, 8, "usage scenarios in the Go fixtures");
+    assert_eq!(ran, 9, "usage scenarios in the Go fixtures");
 }
 
 /// With session affinity, a Gemini body nested far deeper than any conversation is

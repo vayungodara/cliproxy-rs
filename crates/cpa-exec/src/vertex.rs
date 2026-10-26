@@ -32,7 +32,7 @@ use crate::gemini::{self as g, Emit, LineState, Output};
 use crate::gemini_payload as payload;
 use crate::payload_barrier::Barrier;
 use crate::proxy::{self, GoClients, GoHeaders, Hooks, Proxy};
-use crate::vertex_auth;
+use crate::{vertex_auth, vertex_openapi};
 
 pub const PROVIDER: &str = "vertex";
 const API_VERSION: &str = "v1";
@@ -117,6 +117,20 @@ fn auth_for(credential: &Credential) -> Result<Auth, ExecError> {
         return service_account(credential);
     }
     Ok(Auth::ApiKey { key, base })
+}
+
+/// `normalizeVertexOpenAPIRequest`: the `<publisher>/<model>` upstream model; the client
+/// payload stays the payload-rule baseline.
+fn openapi_request(mut req: ExecRequest) -> ExecRequest {
+    let normalized = vertex_openapi::normalize_model(&req.model);
+    if normalized.is_empty() || normalized == req.model {
+        return req;
+    }
+    if req.original_body.is_empty() && !req.body.is_empty() {
+        req.original_body = req.body.clone();
+    }
+    req.model = normalized;
+    req
 }
 
 /// Go 2d5351b3 `shouldExecuteVertexInteractions`: an Interactions client on a credential
@@ -434,17 +448,88 @@ impl VertexExecutor {
         req: ExecRequest,
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
+        // Go d9451cb6: partner and open models, and credentials that opt in, take the
+        // endpoints/openapi route, before the Interactions check.
+        let openapi = vertex_openapi::should_execute(credential, &req.model);
         if req.operation == Operation::CountTokens {
+            if openapi {
+                return crate::openai_compat::count_tokens(credential, &openapi_request(req), cfg);
+            }
             return self.count_tokens(credential, &req, cfg).await;
         }
         if req.alt.as_deref() == Some(g::COMPACT_ALT) {
             return Err(g::status_err(501, "/responses/compact not supported"));
+        }
+        if openapi {
+            return self.openapi(credential, openapi_request(req), cfg).await;
         }
         if native_interactions(credential, req.source_format) {
             return self.interactions(credential, &req, cfg).await;
         }
         let auth = auth_for(credential)?;
         self.generate(credential, &req, cfg, &auth).await
+    }
+
+    /// Go d9451cb6 `executeOpenAPI` / `executeOpenAPIStream`: the OpenAI-compatible
+    /// executor's chat request at the credential's endpoints/openapi base.
+    async fn openapi(
+        &self,
+        credential: &Credential,
+        req: ExecRequest,
+        cfg: &Config,
+    ) -> Result<ExecResponse, ExecError> {
+        let client = self.client(credential, cfg);
+        let (base_url, token) = self.openapi_credentials(&client, credential).await?;
+        crate::openai_compat::chat_with(&client, credential, req, cfg, &base_url, &token, None).await
+    }
+
+    /// `resolveOpenAPICredentials`: a service account (also when the file carries an
+    /// access token beside it) sends a fresh token to its project's route; an API key
+    /// only to a third-party relay, since Google's hosts need OAuth.
+    async fn openapi_credentials(
+        &self,
+        client: &wreq::Client,
+        credential: &Credential,
+    ) -> Result<(String, String), ExecError> {
+        let (key, base) = api_creds(credential);
+        let has_account = matches!(credential.metadata.get("service_account"), Some(Value::Object(a)) if !a.is_empty());
+        if key.is_empty() || has_account {
+            let Auth::ServiceAccount {
+                project,
+                location,
+                account,
+            } = service_account(credential)?
+            else {
+                unreachable!("service_account answers a service account")
+            };
+            let token = vertex_auth::access_token(client, &account, (self.now)())
+                .await
+                .map_err(|error| {
+                    tracing::error!(%error, "vertex executor: access token error");
+                    g::status_err(500, "internal server error")
+                })?;
+            if token.trim().is_empty() {
+                return Err(g::status_err(401, "missing access token"));
+            }
+            let location = vertex_openapi::location(credential, &location);
+            let base = vertex_openapi::auth_base_url(credential);
+            return Ok((
+                vertex_openapi::service_account_base_url(&base, API_VERSION, &project, &location),
+                token,
+            ));
+        }
+        if vertex_openapi::is_google_host(&base) {
+            return Err(g::status_err(
+                400,
+                "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials",
+            ));
+        }
+        let location = vertex_openapi::location(credential, "");
+        let project = vertex_openapi::auth_project_id(credential);
+        Ok((
+            vertex_openapi::api_key_base_url(&base, API_VERSION, &project, &location),
+            key,
+        ))
     }
 
     /// Go 2d5351b3 `executeInteractions` / `executeInteractionsStream`: the Interactions
