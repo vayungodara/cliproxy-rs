@@ -256,7 +256,8 @@ fn want_bytes(s: &Value) -> Option<Vec<u8>> {
 
 #[tokio::test]
 async fn go_reference_scenarios() {
-    // The `responses_eof_*` scenarios are recorded at v8.0.35 (0ea4e1dc).
+    // The `responses_eof_*` scenarios (0ea4e1dc) and `stream_multiline_with_done`
+    // (f8e4a840: the served model comes from accepted frames) are recorded at v8.0.35.
     let fixture = crate::payload_barrier::with_v8_0_35(
         FIXTURE,
         include_str!("../tests/fixtures/openai_compat_go_v8.0.35.json"),

@@ -261,6 +261,12 @@ impl MetaExecutor {
             ResponseBody::Stream(stream_events(
                 tapped,
                 crate::translate::stream(prepared.response, &ctx, &req),
+                crate::gemini_stream::ClaudeInputTokens::new(
+                    req.source_format,
+                    Format::Codex,
+                    req.response_format,
+                    original(&req).clone(),
+                ),
                 responses_client,
                 prepared.apply_patch,
                 usage,
@@ -653,6 +659,7 @@ fn collect_completed(
 fn stream_events(
     upstream: ExecStream,
     translator: Box<dyn StreamTranslator>,
+    claude: crate::gemini_stream::ClaudeInputTokens,
     responses_client: bool,
     bridge: apply_patch_responses::State,
     usage: DeferredUsage,
@@ -661,6 +668,8 @@ fn stream_events(
     struct State {
         upstream: ExecStream,
         translator: Box<dyn StreamTranslator>,
+        /// `TranslateStreamWithClaudeInputTokens`' estimate for a Claude client.
+        claude: crate::gemini_stream::ClaudeInputTokens,
         bridge: apply_patch_responses::State,
         usage: DeferredUsage,
         capture: cpa_core::exec::CaptureSink,
@@ -688,6 +697,9 @@ fn stream_events(
                 };
                 match self.translator.event(&line) {
                     Ok(mut frames) => {
+                        if !self.translator.tool_input_failed() {
+                            self.claude.apply(&mut frames);
+                        }
                         if complete && self.responses_client {
                             frames.extend(self.translator.flush_frames());
                         }
@@ -777,6 +789,7 @@ fn stream_events(
         State {
             upstream,
             translator,
+            claude,
             bridge,
             usage,
             capture,
@@ -956,10 +969,10 @@ pub(crate) fn is_config_api_key(c: &Credential) -> bool {
     if auth_kind != Some("apikey") {
         return false;
     }
-    if attribute(c, "runtime_only").eq_ignore_ascii_case("true") {
+    if attribute(c, "runtime_only").go_eq_fold("true") {
         return false;
     }
-    match attribute(c, "source_backend").to_ascii_lowercase().as_str() {
+    match attribute(c, "source_backend").go_lower().as_str() {
         "config" => return true,
         "file" | "filesystem" | "git" | "memory" | "runtime" | "runtime_only" | "objectstore" | "object-store"
         | "postgres" | "postgresql" | "database" | "db" => return false,
@@ -967,7 +980,8 @@ pub(crate) fn is_config_api_key(c: &Credential) -> bool {
     }
     let source = attribute(c, "source");
     if !source.is_empty() {
-        return source.to_ascii_lowercase().starts_with("config:") || source.eq_ignore_ascii_case("config");
+        let lower = source.go_lower();
+        return lower.starts_with("config:") || lower == "config";
     }
     if !attribute(c, "path").is_empty() {
         return false;

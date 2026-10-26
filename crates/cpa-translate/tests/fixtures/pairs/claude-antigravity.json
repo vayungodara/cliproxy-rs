@@ -9204,6 +9204,261 @@
      "event: message_stop\ndata: {\"type\":\"message_stop\"}\n\n\n"
     ]
    ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToClaude_StripsExecutorInjectedUnderscore:1650",
+   "path": "request",
+   "model": "claude-sonnet-4-6",
+   "input": "{\"model\":\"claude-sonnet-4-6\",\"tools\":[{\"name\":\"WrappedPlaceholder\",\"input_schema\":{\"type\":\"object\",\"properties\":{\"flag\":{\"type\":\"string\"}},\"additionalProperties\":false}}]}",
+   "outputs": [
+    [
+     "{\"model\":\"claude-sonnet-4-6\",\"request\":{\"contents\":[],\"tools\":[{\"functionDeclarations\":[{\"name\":\"WrappedPlaceholder\",\"parametersJsonSchema\":{\"type\":\"object\",\"properties\":{\"flag\":{\"type\":\"string\"}},\"description\":\"No extra properties allowed\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToClaude_StripsExecutorInjectedUnderscore:literal",
+   "path": "request",
+   "model": "claude-sonnet-4-6",
+   "input": "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"functionCall\":{\"name\":\"WrappedPlaceholder\",\"args\":{\"flag\":\"x\",\"_\":true}}}]},\"finishReason\":\"STOP\"}],\"modelVersion\":\"gemini-3.8-flash-high\",\"responseId\":\"resp-wrapped\"}}",
+   "outputs": [
+    [
+     "{\"model\":\"claude-sonnet-4-6\",\"request\":{\"contents\":[],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertAntigravityResponseToClaude_StripsExecutorInjectedUnderscore:literal#2",
+   "path": "request",
+   "model": "claude-sonnet-4-6",
+   "input": "{\"flag\":\"x\"}",
+   "outputs": [
+    [
+     "{\"model\":\"claude-sonnet-4-6\",\"request\":{\"contents\":[],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertClaudeRequestToAntigravity_ExportedWrapperKeepsAJSONBody:84",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"container_upload\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: container_upload"
+  },
+  {
+   "name": "TestConvertClaudeRequestToAntigravity_RefusesAnyEmptiedUserTurn:44",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"}]},{\"role\":\"user\",\"content\":[{\"type\":\"container_upload\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: container_upload"
+  },
+  {
+   "name": "TestConvertClaudeRequestToAntigravity_RefusesAnyEmptiedUserTurn:44#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"system\":\"sys\",\"messages\":[{\"role\":\"system\",\"content\":\"reminder\"},{\"role\":\"user\",\"content\":[{\"type\":\"container_upload\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"\\u003csystem-reminder\\u003e\\nreminder\\n\\u003c/system-reminder\\u003e\"}]}],\"systemInstruction\":{\"role\":\"user\",\"parts\":[{\"text\":\"sys\"}]},\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: container_upload"
+  },
+  {
+   "name": "TestConvertClaudeRequestToAntigravity_RefusesAnyEmptiedUserTurn:44#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"container_upload\",\"file_id\":\"file-1\"}]},{\"role\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"role\":\"user\",\"content\":\"next\"}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"next\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: container_upload"
+  },
+  {
+   "name": "TestConvertClaudeRequestToAntigravity_RefusesAnyEmptiedUserTurn:44#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":[{\"type\":\"document\",\"source\":{\"type\":\"file\",\"file_id\":\"file-1\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestConvertClaudeRequestToAntigravity_KeepsTurnWithTextBesideAttachment:61",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"container_upload\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestConvertClaudeRequestToAntigravity_Base64DocumentBecomesInlineData:72",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":[{\"type\":\"document\",\"source\":{\"type\":\"base64\",\"media_type\":\"application/pdf\",\"data\":\"JVBERi0xLjQK\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"application/pdf\",\"data\":\"JVBERi0xLjQK\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestClaudeToAntigravityRegistryCarriesTheRefusal:91:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"},{\"role\":\"assistant\",\"content\":\"hi\"},{\"role\":\"user\",\"content\":[{\"type\":\"container_upload\",\"file_id\":\"file-1\"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hello\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: container_upload"
+  },
+  {
+   "name": "TestClaudeToAntigravityUnrepresentableImageOnlyTurnIsRefused:106:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"url\",\"url\":\"https://example.test/a.png\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestClaudeToAntigravityUnrepresentableImageOnlyTurnIsRefused:106:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"file\",\"file_id\":\"file-1\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestClaudeToAntigravityUnrepresentableImageBesideTextStillSucceeds:106:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"image\",\"source\":{\"type\":\"url\",\"url\":\"https://example.test/a.png\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestClaudeToAntigravityUnrepresentableImageBesideTextStillSucceeds:106:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"image\",\"source\":{\"type\":\"file\",\"file_id\":\"file-1\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestClaudeToAntigravityEmptyTextDoesNotHideAnUnrepresentableImage:106:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"\"},{\"type\":\"image\",\"source\":{\"type\":\"url\",\"url\":\"https://example.test/a.png\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestClaudeToAntigravityBase64ImageOnlyTurnStaysInlineData:106:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"base64\",\"media_type\":\"image/png\",\"data\":\"aGVsbG8=\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"aGVsbG8=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
+  },
+  {
+   "name": "TestClaudeToAntigravityWhitespaceTextDoesNotHideAnUnrepresentableImage:106:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"  \"},{\"type\":\"image\",\"source\":{\"type\":\"file\",\"file_id\":\"file-1\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"  \"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestClaudeToAntigravityWhitespaceTextDoesNotHideAnUnrepresentableImage:106:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\" \\n\\t\"},{\"type\":\"image\",\"source\":{\"type\":\"file\",\"file_id\":\"file-1\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\" \\n\\t\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestClaudeToAntigravityWhitespaceTextDoesNotHideAnUnrepresentableImage:106:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"\\u00a0\"},{\"type\":\"image\",\"source\":{\"type\":\"file\",\"file_id\":\"file-1\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\" \"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestClaudeToAntigravityWhitespaceTextDoesNotHideAnUnrepresentableImage:106:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"image\",\"source\":{\"type\":\"url\",\"url\":\"https://example.test/a.png\"}},{\"type\":\"text\",\"text\":\"  \"}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"  \"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestClaudeToAntigravityRealTextBesideWhitespaceAndAnImageStillSucceeds:106:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"  \"},{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"image\",\"source\":{\"type\":\"file\",\"file_id\":\"file-1\"}}]}]}",
+   "outputs": [
+    [
+     "{\"model\":\"m\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"  \"},{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}}"
+    ]
+   ]
   }
  ],
  "token_count": true,

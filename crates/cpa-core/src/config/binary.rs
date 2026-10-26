@@ -168,7 +168,8 @@ fn scalar_literal_field<'a>(value: &'a Value, keys: &mut Vec<Option<&'a str>>) -
             keys.pop();
             found
         }),
-        Value::Number(_) | Value::Bool(_) => literal_field(keys),
+        // A plain timestamp is tagged ([`super::timestamp::TAG`]).
+        Value::Number(_) | Value::Bool(_) | Value::Tagged(_) => literal_field(keys),
         _ => false,
     }
 }
@@ -271,9 +272,11 @@ pub(super) struct Plain {
     pub value: Vec<u8>,
     /// Whether it is a mapping key.
     pub key: bool,
+    /// Where its [`super::timestamp::TAG`] starts, when it has that tag.
+    pub timestamp_tag: Option<usize>,
 }
 
-/// Each untagged plain scalar of `text`.
+/// Each plain scalar of `text` that is untagged or has [`super::timestamp::TAG`].
 pub(super) fn plain_scalars(text: &str) -> anyhow::Result<Vec<Plain>> {
     let mut out = Vec::new();
     events_with(text, Some(&mut out))?;
@@ -362,19 +365,29 @@ fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result
                 unsafe_libyaml::YAML_SCALAR_EVENT => {
                     let s = &event.data.scalar;
                     let value = std::slice::from_raw_parts(s.value, s.length as usize);
-                    // The span starts at an anchor; a scalar folded over lines is not
-                    // its source.
+                    // The event's span starts at an anchor or tag, so the scalar is the
+                    // source bytes that equal its value. One folded over lines
+                    // (`2001-12-14\n  21:59:43`) is not its source; without an anchor or
+                    // tag its event spans just the scalar.
                     let end = event.end_mark.index as usize + bom;
+                    let timestamp = bytes(s.tag).is_some_and(|t| t == super::timestamp::TAG.as_bytes());
+                    let span = end
+                        .checked_sub(value.len())
+                        .filter(|&start| text.as_bytes().get(start..end) == Some(value))
+                        .map(|start| start..end)
+                        .or_else(|| {
+                            (s.anchor.is_null() && s.tag.is_null()).then(|| event.start_mark.index as usize + bom..end)
+                        });
                     if let Some(plain) = plain.as_deref_mut()
                         && s.style == unsafe_libyaml::YAML_PLAIN_SCALAR_STYLE
-                        && s.tag.is_null()
-                        && let Some(start) = end.checked_sub(value.len())
-                        && text.as_bytes().get(start..end) == Some(value)
+                        && (s.tag.is_null() || timestamp)
+                        && let Some(span) = span
                     {
                         plain.push(Plain {
-                            span: start..end,
+                            span,
                             value: value.to_vec(),
                             key,
+                            timestamp_tag: timestamp.then_some(event.start_mark.index as usize + bom),
                         });
                     }
                     Some(Event::Scalar {

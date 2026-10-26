@@ -38,6 +38,7 @@ func TestRSFixMeta(t *testing.T) {
 	mintOK := `{"api_key":"minted-key","base_url":"","user_email":"u@example.com","user_full_name":"U Ser","subs_tier_name":"Plus","subs_tier_id":"","is_subs_active":true,"has_payment_method":false}`
 	cases := []struct {
 		name      string
+		source    sdktranslator.Format
 		stream    bool
 		count     bool
 		refresh   bool
@@ -90,6 +91,11 @@ func TestRSFixMeta(t *testing.T) {
 			responses: []rsfixResponse{sseResp(`data: {"type":"response.completed","response":{"id":"r","model":"muse-spark-1.3","service_tier":"priority","output":[],"usage":{"input_tokens":3,"output_tokens":1,"total_tokens":4}}}` + "\n\n" + `data: {"type":"response.incomplete","response":{"id":"r","service_tier":"flex"}}` + "\n\n")}},
 		{name: "stream-nbsp-data", stream: true, body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta,
 			responses: []rsfixResponse{sseResp(`data: {"type":"response.created","response":{"id":"r","model":"m1"}}` + "\n\n" + "data:\u00a0" + `{"type":"response.completed","response":{"id":"r","model":"m2","output":[],"usage":{"input_tokens":7,"output_tokens":0}}}` + "\n\n")}},
+		// f3e36f19: a Claude client's message_start without upstream input tokens gets the
+		// estimate of its original request (TranslateStreamWithClaudeInputTokens).
+		{name: "claude-stream-input-estimate", source: sdktranslator.FormatClaude, stream: true,
+			body: `{"model":"muse-spark-1.3","max_tokens":64,"system":"Answer briefly.","messages":[{"role":"user","content":"How many tokens does this request carry?"}],"stream":true}`, meta: apiMeta,
+			responses: []rsfixResponse{sseResp("event: response.created\n" + created + "\n\nevent: response.output_item.done\n" + itemDone + "\n\nevent: response.completed\n" + completedEmpty + "\n\n")}},
 		{name: "compact-rejected", alt: "responses/compact", body: `{"model":"muse-spark-1.3","input":"hi"}`, meta: apiMeta},
 		{name: "count-tokens", count: true, body: `{"model":"muse-spark-1.3","instructions":"Be brief.","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hello world"}]},{"type":"function_call","name":"lookup","arguments":"{\"q\":1}"},{"type":"function_call_output","output":"result text"}],"tools":[{"type":"function","name":"lookup","description":"Find things","parameters":{"type":"object"}}],"text":{"format":{"type":"json_schema","name":"out","schema":{"type":"object"}}}}`, meta: apiMeta},
 		{name: "config-apikey-headers", body: `{"model":"muse-spark-1.3","input":"hi"}`, noBase: true,
@@ -153,7 +159,11 @@ func TestRSFixMeta(t *testing.T) {
 			}
 			auth := &cliproxyauth.Auth{ID: "meta-fixture.json", Provider: "meta", Label: rsfixLabel("meta", meta, attrs), Attributes: attrs, Metadata: meta}
 			req := cliproxyexecutor.Request{Model: modelOf(tc.body), Payload: []byte(tc.body)}
-			opts := cliproxyexecutor.Options{SourceFormat: sdktranslator.FormatOpenAIResponse, Stream: tc.stream, Alt: tc.alt, OriginalRequest: []byte(tc.body), Headers: tc.headers}
+			source := tc.source
+			if source == "" {
+				source = sdktranslator.FormatOpenAIResponse
+			}
+			opts := cliproxyexecutor.Options{SourceFormat: source, Stream: tc.stream, Alt: tc.alt, OriginalRequest: []byte(tc.body), Headers: tc.headers}
 			cfg := &config.Config{}
 			if tc.cfg != "" {
 				parsed, err := config.ParseConfigBytes([]byte(tc.cfg))
@@ -214,7 +224,7 @@ func TestRSFixMeta(t *testing.T) {
 				var sc scoped
 				extra["credential_scoped"] = errors.As(execErr, &sc) && sc.IsCredentialScoped()
 			}
-			request := map[string]any{"source": "openai-response", "model": modelOf(tc.body), "stream": tc.stream, "body": tc.body}
+			request := map[string]any{"source": source.String(), "model": modelOf(tc.body), "stream": tc.stream, "body": tc.body}
 			if tc.alt != "" {
 				request["alt"] = tc.alt
 			}

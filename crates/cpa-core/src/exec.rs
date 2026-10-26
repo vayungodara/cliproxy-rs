@@ -123,6 +123,11 @@ pub trait UsageObserver: Send + Sync {
     /// One upstream stream line in `format`, as received (Go feeds each scanner line to
     /// its `StreamUsageBuffer` and `ObserveResponseModel`).
     fn response_line(&self, format: Format, line: &[u8]);
+    /// [`UsageObserver::response_line`] for usage only (Go's `StreamUsageBuffer`): the
+    /// executor observes the served model on whole payloads instead.
+    fn response_usage_line(&self, format: Format, line: &[u8]) {
+        let _ = (format, line);
+    }
     /// The translated payload sent upstream in `format` (Go
     /// `SetTranslatedReasoningEffort`: the record's `reasoning_effort`).
     fn request(&self, format: Format, payload: &[u8]);
@@ -354,6 +359,13 @@ impl UsageSink {
     pub fn response_line(&self, format: Format, line: &[u8]) {
         if let Some(o) = &self.0 {
             o.response_line(format, line);
+        }
+    }
+
+    /// [`UsageObserver::response_usage_line`].
+    pub fn response_usage_line(&self, format: Format, line: &[u8]) {
+        if let Some(o) = &self.0 {
+            o.response_usage_line(format, line);
         }
     }
 

@@ -168,8 +168,14 @@ fn assert_downstream(r: &Run, name: &str) {
         assert_eq!(r.body.as_deref(), Some(body), "{name}: response body");
     }
     // Stream output is client framing: Go's chunks joined by its Responses route
-    // (responsesSSEFramer, before route repair), recorded as `frames`.
-    let go_frames: Vec<&str> = down["frames"]
+    // (responsesSSEFramer, before route repair), recorded as `frames`; other clients get
+    // the chunks as they are.
+    let key = if r.fx["request"]["source"] == "openai-response" {
+        "frames"
+    } else {
+        "chunks"
+    };
+    let go_frames: Vec<&str> = down[key]
         .as_array()
         .map(|c| c.iter().filter_map(Value::as_str).collect())
         .unwrap_or_default();
@@ -233,6 +239,7 @@ async fn execution_matches_go_byte_for_byte() {
         "apply-patch-stream-event-lines",
         "stream-tier-merge",
         "stream-nbsp-data",
+        "claude-stream-input-estimate",
     ] {
         let r = run(name).await;
         assert_upstream(&r, name);
@@ -360,6 +367,31 @@ fn needs_prepare_matches_should_prepare_request_auth() {
         &[("api_key", "dca:invalid-for-config"), ("source", "config:meta[0]")],
     );
     assert!(is_config_api_key(&config_dca));
+    // Go `AuthSourceKind` folds with strings.ToLower and EqualFold, which map U+0130 to
+    // `i` (outputs of Go's IsConfigAPIKeyAuth at ae3ee3be).
+    for (attrs, want) in [
+        (&[("auth_kind", "apikey"), ("source_backend", "CONFİG")][..], true),
+        (&[("auth_kind", "apikey"), ("source", "CONFİG:meta[0]")][..], true),
+        (&[("auth_kind", "apikey"), ("source", " Config ")][..], true),
+        (
+            &[("auth_kind", "apikey"), ("source", "config"), ("runtime_only", "TRUE")][..],
+            false,
+        ),
+        (
+            &[
+                ("auth_kind", "apikey"),
+                ("source", "config:meta[0]"),
+                ("source_backend", "Fİle"),
+            ][..],
+            false,
+        ),
+    ] {
+        assert_eq!(
+            is_config_api_key(&cred(json!({"type":"meta"}), attrs)),
+            want,
+            "{attrs:?}"
+        );
+    }
     assert!(!exec.needs_prepare(&config_dca, &cfg));
     assert!(exec.needs_prepare(
         &cred(
@@ -949,6 +981,12 @@ async fn apply_patch_failures_end_meta_streams_like_go() {
         let out: Vec<String> = stream_events(
             upstream,
             translator,
+            crate::gemini_stream::ClaudeInputTokens::new(
+                Format::OpenAIResponse,
+                Format::Codex,
+                Format::OpenAIResponse,
+                Bytes::new(),
+            ),
             false,
             inactive,
             Default::default(),
@@ -1006,6 +1044,7 @@ async fn usage_reports_match_go_records() {
         "apply-patch-stream-event-lines",
         "stream-tier-merge",
         "stream-nbsp-data",
+        "claude-stream-input-estimate",
     ] {
         let r = run(name).await;
         let failure = r.error.as_ref().map(crate::kimi_fixture::go_failure);

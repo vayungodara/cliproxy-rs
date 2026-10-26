@@ -85,6 +85,8 @@ payload:
       params: {"multi.#(k==1)#.r": '{"y":2}'}
     - models: [{name: "lno-*"}]
       params: {"items.#(k==1)#.y": '{"a":1}'}
+    - models: [{name: "time-*"}]
+      params: {raw_at: 2001-12-14T21:59:43.10-05:00}
   override:
     - models: [{name: "gpt-*"}]
       params: {max_tokens: 100}
@@ -162,6 +164,12 @@ payload:
       params: {'a.#(!=0)': 9}
     - models: [{name: "qp6-*", not-exist: ['a.#(==~null)']}]
       params: {hit: 9}
+    - models: [{name: "time-*"}]
+      params: {at: 2001-12-14 21:59:43.10}
+    - models: [{name: "time-*", match: [{when: 2001-1-2}]}]
+      params: {matched: true}
+    - models: [{name: "time-*"}]
+      params: {text: '2001-12-14'}
   override-raw:
     - models: [{name: "rawo-*"}]
       params: {"@reverse": '{', x: '9'}
@@ -333,6 +341,8 @@ var payloadInputs = []payloadCase{
 		Original: `{"items":[{}],"items":[{"x":1},{"y":1},{}]}`, Tracked: []string{"items", "whole"}},
 	{Name: "codex_target_skips_integer_tools", Target: "codex", Model: "zz", Protocol: "codex", Headers: [][]string{{"User-Agent", "codex_cli_rs/0.50"}},
 		Payload: `{"tools":[{"type":"function","name":"exec_command","parameters":{"properties":{"timeout_ms":{"type":"number"}}}}]}`},
+	// A plain timestamp in params is a time.Time, marshaled as RFC 3339 text, raw too.
+	{Name: "timestamps", Model: "time-1", Protocol: "openai", Payload: `{"when":"2001-01-02T00:00:00Z"}`},
 }
 
 type headerCase struct {

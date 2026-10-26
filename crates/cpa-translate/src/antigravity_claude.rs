@@ -13,8 +13,8 @@ use cpa_common::signature::{
 use crate::Registered;
 use crate::antigravity_claude_response as response;
 use crate::common::{
-    align_claude_tool_results, claude_message_system_reminder_text, go_lower, is_claude_code_attribution_text,
-    thinking_text, trim_space,
+    UserTurnDrops, align_claude_tool_results, claude_message_system_reminder_text, gemini_part_is_sendable, go_lower,
+    is_claude_code_attribution_text, thinking_text, trim_space,
 };
 use crate::gemini::{
     attach_default_safety_settings, merge_adjacent_contents, set_function_response_raw, set_function_response_result,
@@ -25,7 +25,7 @@ use crate::responses_tools::{map_sanitized_function_name, sanitized_function_nam
 
 pub static PAIR: Registered = registered!(
     Claude -> Antigravity,
-    request: |ctx, body| Ok(convert(ctx.model, body)),
+    request: |ctx, body| convert(ctx.model, body),
     non_stream: response::non_stream,
     go_stream: response::go_stream,
     token_count: Some(crate::openai_claude::claude_input_tokens),
@@ -774,6 +774,22 @@ fn inline_data(source: &Res<'_>) -> Vec<u8> {
     part
 }
 
+/// claudeBase64InlineData: a document's base64 source as an `inlineData` part; a file
+/// id or URL carries no bytes, so it has none.
+fn base64_inline_data(source: &Res<'_>) -> Option<Vec<u8>> {
+    let mime = source.get("media_type").bytes();
+    let data = source.get("data").bytes();
+    if source.get("type").bytes().as_ref() != b"base64" || mime.is_empty() || data.is_empty() {
+        return None;
+    }
+    let mut inline = b"{}".to_vec();
+    gj::set_str(&mut inline, "mimeType", &mime);
+    gj::set_str(&mut inline, "data", &data);
+    let mut part = b"{}".to_vec();
+    gj::set_raw(&mut part, "inlineData", inline);
+    Some(part)
+}
+
 fn is_base64_image(block: &Res<'_>) -> bool {
     block.get("type").bytes().as_ref() == b"image" && block.get("source.type").bytes().as_ref() == b"base64"
 }
@@ -892,11 +908,13 @@ fn reorder_model_parts(content: &mut Vec<u8>, parts: &[Vec<u8>]) {
     }
 }
 
-/// ConvertClaudeRequestToAntigravity.
-fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
+/// ConvertClaudeRequestToAntigravity. A user turn left with nothing to send by an
+/// attachment Antigravity cannot receive is refused (f51624aa `UserTurnDrops`).
+fn convert(model: &str, raw: &[u8]) -> Result<Vec<u8>, crate::Error> {
     if should_build_web_search(model, raw) {
-        return web_search_request(model, raw);
+        return Ok(web_search_request(model, raw));
     }
+    let mut drops = UserTurnDrops::default();
     let mut translate_thoughts = true;
     let names = sanitized_function_name_map(raw);
 
@@ -1045,14 +1063,27 @@ fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
                         let source = block.get("source");
                         if source.get("type").bytes().as_ref() == b"base64" {
                             parts.items.push(inline_data(&source));
+                        } else if original == b"user" {
+                            // A url or file source cannot be inlined: dropped, and the turn
+                            // is refused only if nothing else is left.
+                            drops.drop_part("image");
                         }
                     }
+                    kind @ (b"document" | b"container_upload") => match base64_inline_data(&block.get("source")) {
+                        Some(part) => parts.items.push(part),
+                        None if original == b"user" => drops.drop_part(&String::from_utf8_lossy(kind)),
+                        None => {}
+                    },
                     _ => {}
                 }
             }
             if !parts.pending.is_empty() {
                 let pending = std::mem::take(&mut parts.pending);
                 parts.carrier(&pending);
+            }
+            if original == b"user" {
+                // Whitespace-only text is forwarded but never keeps an emptied turn alive.
+                drops.end_turn(parts.items.iter().filter(|p| gemini_part_is_sendable(p)).count());
             }
             if parts.items.is_empty() {
                 continue;
@@ -1171,11 +1202,15 @@ fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
             gj::set_f64(&mut out, &format!("request.generationConfig.{to}"), v.num);
         }
     }
+    drops.result()?;
     let out = attach_default_safety_settings(out, "request.safetySettings");
     if provider(model) == Provider::Gemini {
-        return sig::sanitize_gemini_request_thought_signatures(&out, "request.contents");
+        return Ok(sig::sanitize_gemini_request_thought_signatures(
+            &out,
+            "request.contents",
+        ));
     }
-    out
+    Ok(out)
 }
 
 /// The `tools` value for the request: one tool holding the deduplicated declarations made

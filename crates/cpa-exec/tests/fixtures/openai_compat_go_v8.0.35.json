@@ -1,6 +1,59 @@
 {
   "scenarios": [
     {
+      "name": "stream_multiline_with_done",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\ndata: [DONE]\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "",
+        "failed": true
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 105\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream_options\":{\"include_usage\":true}}",
+      "error": {
+        "status": 502,
+        "message": "upstream stream ended with incomplete data before [DONE]",
+        "retry_after_ms": -1,
+        "credential_scoped": false
+      }
+    },
+    {
       "name": "responses_eof_after_finish_reason",
       "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
       "config_auth": 0,

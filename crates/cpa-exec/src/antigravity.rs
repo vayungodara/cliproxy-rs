@@ -505,7 +505,6 @@ impl AntigravityExecutor {
         }
         let model = parse_suffix(&req.model).model_name;
         self.check_cooldown(credential, cfg, &model)?;
-        self.maybe_refresh_credits(credential, cfg);
         if req.stream {
             self.stream(credential, req, cfg, &model).await
         } else if ag::merges_stream(&model) {
@@ -534,6 +533,9 @@ impl AntigravityExecutor {
         // Go translates the original request once: it is both the payload-rule baseline
         // and, after thinking, the working body.
         let original_translated = self.translate(req, cfg, model, envelope_stream)?;
+        // ensureAccessToken's credits lookup, after a translation refusal would have
+        // returned (Go f51624aa); every execute path prepares exactly once.
+        self.maybe_refresh_credits(credential, cfg);
         let mut translated =
             gemini::apply_thinking(req, original_translated.clone(), from, to, PROVIDER, resolved.as_ref())?;
         if let Some(matcher) = self.matcher(cfg) {
@@ -561,6 +563,11 @@ impl AntigravityExecutor {
     }
 
     /// `TranslateRequestEnvelopeWithCodexMultiAgentV2` of the working payload.
+    // ponytail: this runs after Runtime::acquire has prepared the credential, so a request
+    // the translator refuses (f51624aa's emptied user turns) can still refresh a stale
+    // token first, and a failed refresh answers instead of Go's 400 (DIFFERENCES-FROM-GO).
+    // Upgrade path: a pre-acquire translation check that refuses before credential
+    // preparation, as Go translates before ensureAccessToken.
     fn translate(&self, req: &ExecRequest, cfg: &Config, model: &str, stream: bool) -> Result<Vec<u8>, ExecError> {
         let ctx = RequestCtx {
             model,
@@ -899,18 +906,20 @@ impl AntigravityExecutor {
         req: ExecRequest,
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
-        self.maybe_refresh_credits(credential, cfg);
         let mut req = req;
         let model = parse_suffix(&req.model).model_name;
         let (from, to) = (req.source_format, Format::Antigravity);
         let validated = ag::validate_request_signatures(&model, from, gemini::original_request(&req));
         req.body = Bytes::from(validated);
+        let resolved = gemini::resolved(&req);
+        // Go translates first, so a refused request neither looks up credits nor
+        // reports the missing token (antigravity_executor_tokens.go).
+        let body = self.translate(&req, cfg, &model, false)?;
+        self.maybe_refresh_credits(credential, cfg);
         let token = credential.str("access_token").map(str::trim).unwrap_or_default();
         if token.is_empty() {
             return Err(gemini::status_err(401, "missing access token"));
         }
-        let resolved = gemini::resolved(&req);
-        let body = self.translate(&req, cfg, &model, false)?;
         let original = body.clone();
         let mut body = gemini::apply_thinking(&req, body, from, to, PROVIDER, resolved.as_ref())?;
         if let Some(matcher) = self.matcher(cfg) {

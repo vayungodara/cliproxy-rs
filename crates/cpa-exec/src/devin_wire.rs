@@ -406,6 +406,8 @@ pub(crate) struct Prompt {
     pub tool_call_id: Vec<u8>,
     pub original_tool_call_id: Vec<u8>,
     pub is_orphaned_tool: bool,
+    /// The type of a user media part Devin cannot send; never on the wire.
+    pub dropped_part: String,
     pub thinking: Vec<u8>,
     pub signature: Vec<u8>,
     pub signature_type: Vec<u8>,

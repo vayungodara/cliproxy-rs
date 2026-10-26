@@ -986,7 +986,7 @@ fn raw_models(v: Option<&Value>) -> Vec<Json> {
         .into_iter()
         .flatten()
         .filter(|m| m.is_mapping())
-        .filter_map(|m| serde_json::to_value(m).ok())
+        .filter_map(|m| serde_json::to_value(super::AsJson(m)).ok())
         .collect()
 }
 

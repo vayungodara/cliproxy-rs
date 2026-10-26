@@ -10,10 +10,14 @@ that commit instead: the pairs translating to and from Claude
 `openai-response-gemini`, `openai-response-antigravity` and
 `openai-response-interactions`, re-recorded for the v8.0.35 Gemini Responses translator,
 and `interactions-gemini`, `gemini-interactions`, `interactions-interactions`,
-`openai-interactions`, `openai-codex` and `openai-response-openai`, re-recorded for the
-v8.0.35 refusal of emptied user turns. `interactions-antigravity` is still a `6fecc6e`
-file except for its last fixture, `user-turn/document-file-id`, which was recorded at
-v8.0.35 and stays PENDING until that port lands. Regenerate those files from a v8.0.35 checkout and the others
+`openai-interactions`, `openai-codex`, `openai-response-openai` and
+`interactions-antigravity`, re-recorded for the v8.0.35 refusal of emptied user turns.
+`claude-antigravity` and `openai-antigravity` are `6fecc6e` files with fixtures recorded at
+`ae3ee3be` appended: the request fixtures of v8.0.35's new f51624aa tests, plus three
+`TestConvertAntigravityResponseToClaude_StripsExecutorInjectedUnderscore` fixtures (Go
+202b8b8c) the same harvest picked up; their other fixtures
+were not re-recorded, because their v8.0.35 response changes come from commits not ported
+yet. Regenerate those files from a v8.0.35 checkout and the others
 from `6fecc6e`, each with its own harvest: run the script below once per reference, with
 `pairs` restricted to that reference's files (as written, it lists every pair file, which
 would rewrite the other reference's files too). The generator builds against v8.0.35, whose

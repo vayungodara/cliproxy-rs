@@ -4931,16 +4931,17 @@ async fn v0_config_yaml_saves_by_submitted_version() {
     }
 }
 
-/// A v8 YAML upload keeps string settings written as plain numbers as written: the
-/// saved file holds `0x1F` and `1.50`, the runtime loads that text, and the JSON view
-/// answers the YAML numbers, as Go does.
+/// A v8 YAML upload keeps string settings written as plain numbers or dates as written:
+/// the saved file holds `0x1F`, `1.50` and `2001-12-14`, the runtime loads that text,
+/// and the JSON view answers what yaml.v3 decodes into `any`, as Go does: the numbers,
+/// and the date as a `time.Time`'s RFC 3339 text.
 #[tokio::test]
 async fn v8_yaml_upload_keeps_string_settings_written_as_numbers() {
     let f = Fixture::new("v8-yaml-literals");
     let (base, server) = f.server().await;
     let hash = f.rt.config().management.secret_key.clone();
     let body = private_config(
-        "server: {github-token: 0x1F}\noauth: {model-alias: {codex: [{name: 1.50, alias: b}]}}\n",
+        "server: {github-token: 0x1F}\noauth: {model-alias: {codex: [{name: 1.50, alias: 2001-12-14}]}}\n",
         &f.dir.join("auth"),
         &hash,
         false,
@@ -4949,7 +4950,7 @@ async fn v8_yaml_upload_keeps_string_settings_written_as_numbers() {
     assert_eq!(status, 200, "{text}");
     let file = f.file();
     assert!(
-        file.contains("github-token: 0x1F") && file.contains("name: 1.50"),
+        file.contains("github-token: 0x1F") && file.contains("name: 1.50") && file.contains("alias: 2001-12-14"),
         "{file}"
     );
     let cfg = cpa_core::config::Config::parse(&file).unwrap();
@@ -4958,12 +4959,21 @@ async fn v8_yaml_upload_keeps_string_settings_written_as_numbers() {
         cfg.document["oauth"]["model-alias"]["codex"][0]["name"].as_str(),
         Some("1.50")
     );
+    assert_eq!(
+        cfg.document["oauth"]["model-alias"]["codex"][0]["alias"].as_str(),
+        Some("2001-12-14")
+    );
     let (_, view) = call(&base, wreq::Method::GET, "/v8/management/config", "").await;
     let view: serde_json::Value = serde_json::from_str(&view).unwrap();
     assert_eq!(view["server"]["github-token"], serde_json::json!(31), "{view}");
     assert_eq!(
         view["oauth"]["model-alias"]["codex"][0]["name"],
         serde_json::json!(1.5),
+        "{view}"
+    );
+    assert_eq!(
+        view["oauth"]["model-alias"]["codex"][0]["alias"],
+        serde_json::json!("2001-12-14T00:00:00Z"),
         "{view}"
     );
     server.abort();
