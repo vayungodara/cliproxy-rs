@@ -368,15 +368,28 @@ fn events_with(text: &str, mut plain: Option<&mut Vec<Plain>>) -> anyhow::Result
                     // The event's span starts at an anchor or tag, so the scalar is the
                     // source bytes that equal its value. One folded over lines
                     // (`2001-12-14\n  21:59:43`) is not its source: an untagged one starts
-                    // at the event, or after its `&anchor` and the blanks that follow it.
-                    // A comment between the two leaves the scalar as it is.
+                    // at the event, or after its `&anchor` and the blanks, line breaks
+                    // (NEL, LS and PS too, as libyaml reads them) and comments after it.
                     let end = event.end_mark.index as usize + bom;
                     let timestamp = bytes(s.tag).is_some_and(|t| t == super::timestamp::TAG.as_bytes());
                     let folded_start = || {
                         let anchor = bytes(s.anchor).map_or(0, |a| 1 + a.len());
                         let after = event.start_mark.index as usize + bom + anchor;
-                        let blanks = text.as_bytes().get(after..end)?;
-                        let first = after + blanks.iter().take_while(|b| b" \t\r\n".contains(b)).count();
+                        let rest = text.get(after..end)?;
+                        let mut comment = false;
+                        let skipped = rest
+                            .char_indices()
+                            .find(|&(_, c)| {
+                                let line_break = matches!(c, '\r' | '\n' | '\u{85}' | '\u{2028}' | '\u{2029}');
+                                if line_break {
+                                    comment = false;
+                                } else if c == '#' {
+                                    comment = true;
+                                }
+                                !(comment || line_break || matches!(c, ' ' | '\t'))
+                            })
+                            .map(|(i, _)| i)?;
+                        let first = after + skipped;
                         (text.as_bytes().get(first) == value.first()).then_some(first)
                     };
                     let span = end
