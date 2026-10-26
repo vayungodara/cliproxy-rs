@@ -1,6 +1,6 @@
 #!/bin/sh
 # Regenerates ../../fixtures/plugin_wiring_go.json from Go's server binary.
-# Usage: gen.sh /absolute/path/to/CLIProxyAPI   (checkout at 6fecc6e; not modified)
+# Usage: gen.sh /absolute/path/to/CLIProxyAPI   (checkout at ae3ee3be; not modified)
 # Run it with the network denied: the servers and the upstream are on loopback.
 set -eu
 # Offline: no toolchain download, modules from the local cache only.

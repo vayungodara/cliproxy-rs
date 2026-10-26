@@ -24,7 +24,7 @@ Columns:
 | Codex | 19 | 18 | 1 | 0 | 0 | 0 |
 | Gemini, Vertex and AI Studio | 20 | 17 | 2 | 0 | 1 | 0 |
 | xAI | 8 | 2 | 6 | 0 | 0 | 0 |
-| OpenAI-compatible and Responses translation | 6 | 0 | 6 | 0 | 0 | 0 |
+| OpenAI-compatible and Responses translation | 6 | 2 | 4 | 0 | 0 | 0 |
 | Devin and Meta | 8 | 0 | 8 | 0 | 0 | 0 |
 | Credentials, selection and cooldowns | 22 | 9 | 11 | 0 | 2 | 0 |
 | Model registry and catalogs | 11 | 9 | 1 | 0 | 1 | 0 |
@@ -37,7 +37,7 @@ Columns:
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **125** | **96** | **0** | **64** | **3** |
+| **All** | **288** | **127** | **94** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -203,8 +203,8 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | Commit | Subject | User-visible | This PR | Size | Notes |
 |---|---|---|---|---|---|
 | [`91c934f6`](https://github.com/router-for-me/CLIProxyAPI/commit/91c934f6) | feat(responses): support local shell tool translation | yes | to port | M (+213 −6) | Responses `local_shell` tool |
-| [`97dd9eec`](https://github.com/router-for-me/CLIProxyAPI/commit/97dd9eec) | fix(openai): report error on truncated stream missing finish_reason | yes | to port | S (+33 −3) | error on a truncated stream without `finish_reason` |
-| [`0ea4e1dc`](https://github.com/router-for-me/CLIProxyAPI/commit/0ea4e1dc) | fix(openai): complete responses stream on clean EOF after finish reason | yes | to port | M (+56 −6) | Responses stream completes on clean EOF after the finish reason |
+| [`97dd9eec`](https://github.com/router-for-me/CLIProxyAPI/commit/97dd9eec) | fix(openai): report error on truncated stream missing finish_reason | yes | ported here | S (+33 −3) | a Chat Completions or legacy Completions stream that closes before any chunk carried a `finish_reason` ends with a 502 error frame, not `[DONE]`; replays Go-recorded handler cases (`stream_truncation_go.json`) |
+| [`0ea4e1dc`](https://github.com/router-for-me/CLIProxyAPI/commit/0ea4e1dc) | fix(openai): complete responses stream on clean EOF after finish reason | yes | ported here | M (+56 −6) | Responses stream completes on clean EOF after the finish reason; the OpenAI-compatible Responses stream now also applies `EnsureResponsesUsageDetails`, which Go's translator did since `6fecc6e`; replays Go-recorded `responses_eof_*` scenarios |
 | [`d2597a24`](https://github.com/router-for-me/CLIProxyAPI/commit/d2597a24) | fix(openai): preserve unknown encrypted content in responses compat mode | yes | to port | S (+5 −1) | unknown encrypted content kept in Responses compat mode |
 | [`f8e4a840`](https://github.com/router-for-me/CLIProxyAPI/commit/f8e4a840) | fix(openai-compat): measure streaming TTFT on effective token frames | no | to port | S (+4 −2) | TTFT measured on token frames (usage timing only) |
 | [`b0db5448`](https://github.com/router-for-me/CLIProxyAPI/commit/b0db5448) | feat(translator): use unique prefixes for fallback item IDs in OpenAI responses stream | yes | to port | S (+18 −6) | use unique prefixes for fallback item IDs in OpenAI responses stream |

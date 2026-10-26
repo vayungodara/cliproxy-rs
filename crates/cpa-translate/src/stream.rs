@@ -24,6 +24,10 @@ pub trait GoStream: Send {
     fn finalize_tool_input(&mut self) -> Vec<Vec<u8>> {
         vec![]
     }
+    /// Go's `CanFinalizeResponseStream()`.
+    fn can_finalize_response_stream(&self) -> bool {
+        false
+    }
 }
 
 /// bufio.ScanLines over one event: split on `\n`, drop one trailing `\r` per line, and
@@ -400,6 +404,10 @@ impl StreamTranslator for Framed {
 
     fn tool_input_failed(&self) -> bool {
         self.inner.tool_input_failed()
+    }
+
+    fn can_finalize_response_stream(&self) -> bool {
+        self.failed.is_none() && self.inner.can_finalize_response_stream()
     }
 
     /// A stack that cannot be reserved emits nothing; every later `event` and `finish`

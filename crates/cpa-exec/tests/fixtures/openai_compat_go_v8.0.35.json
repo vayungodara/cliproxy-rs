@@ -1,0 +1,538 @@
+{
+  "scenarios": [
+    {
+      "name": "responses_eof_after_finish_reason",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"hello\",\"stream\":true}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[],\"usage\":{\"prompt_tokens\":3,\"completion_tokens\":1,\"total_tokens\":4}}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 3,
+        "output": 1,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 4,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":9,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"chat\",\"output\":[{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"total_tokens\":4,\"output_tokens_details\":{\"reasoning_tokens\":0}}}}\n\n"
+      ]
+    },
+    {
+      "name": "responses_eof_after_length_finish",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"hello\",\"stream\":true}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"length\"}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"incomplete\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.incomplete\ndata: {\"type\":\"response.incomplete\",\"sequence_number\":9,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"incomplete\",\"background\":false,\"error\":null,\"incomplete_details\":{\"reason\":\"max_output_tokens\"},\"model\":\"chat\",\"output\":[{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"incomplete\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}],\"role\":\"assistant\"}]}}\n\n"
+      ]
+    },
+    {
+      "name": "responses_eof_after_tool_call_finish",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"weather?\",\"stream\":true,\"tools\":[{\"type\":\"function\",\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\"}}]}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"t1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"call_1\",\"type\":\"function\",\"function\":{\"name\":\"get_weather\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"t1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"city\\\":\\\"Oslo\\\"}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"t1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 237\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"weather?\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"\",\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"t1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"t1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"fc_call_1\",\"type\":\"function_call\",\"status\":\"in_progress\",\"arguments\":\"\",\"call_id\":\"call_1\",\"name\":\"get_weather\"}}\n\n",
+        "event: response.function_call_arguments.delta\ndata: {\"type\":\"response.function_call_arguments.delta\",\"sequence_number\":4,\"item_id\":\"fc_call_1\",\"output_index\":0,\"delta\":\"{\\\"city\\\":\\\"Oslo\\\"}\"}\n\n",
+        "event: response.function_call_arguments.done\ndata: {\"type\":\"response.function_call_arguments.done\",\"sequence_number\":5,\"item_id\":\"fc_call_1\",\"output_index\":0,\"arguments\":\"{\\\"city\\\":\\\"Oslo\\\"}\"}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":6,\"output_index\":0,\"item\":{\"id\":\"fc_call_1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"city\\\":\\\"Oslo\\\"}\",\"call_id\":\"call_1\",\"name\":\"get_weather\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":7,\"response\":{\"id\":\"t1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"chat\",\"tools\":[{\"name\":\"get_weather\",\"parameters\":{\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"fc_call_1\",\"type\":\"function_call\",\"status\":\"completed\",\"arguments\":\"{\\\"city\\\":\\\"Oslo\\\"}\",\"call_id\":\"call_1\",\"name\":\"get_weather\"}]}}\n\n"
+      ]
+    },
+    {
+      "name": "responses_eof_after_reasoning_finish",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"think\",\"stream\":true}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"reasoning_content\":\"hmm\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"ok\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"think\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"rs_r1_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"summary\":[]}}\n\n",
+        "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"sequence_number\":4,\"item_id\":\"rs_r1_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"}}\n\n",
+        "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"sequence_number\":5,\"item_id\":\"rs_r1_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"hmm\"}\n\n",
+        "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"sequence_number\":6,\"item_id\":\"rs_r1_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"hmm\"}\n\n",
+        "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"sequence_number\":7,\"item_id\":\"rs_r1_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"hmm\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"rs_r1_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"hmm\"}]},\"output_index\":0,\"sequence_number\":8}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":9,\"output_index\":1,\"item\":{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":10,\"item_id\":\"msg_r1_0\",\"output_index\":1,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":11,\"item_id\":\"msg_r1_0\",\"output_index\":1,\"content_index\":0,\"delta\":\"ok\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":12,\"item_id\":\"msg_r1_0\",\"output_index\":1,\"content_index\":0,\"text\":\"ok\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":13,\"item_id\":\"msg_r1_0\",\"output_index\":1,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":14,\"output_index\":1,\"item\":{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":15,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"chat\",\"output\":[{\"id\":\"rs_r1_0\",\"type\":\"reasoning\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"hmm\"}]},{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}]}}\n\n"
+      ]
+    },
+    {
+      "name": "responses_eof_reasoning_only_finish",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"think\",\"stream\":true}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"r2\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"reasoning_content\":\"hmm\"},\"finish_reason\":\"stop\"}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"think\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r2\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"r2\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"rs_r2_0\",\"type\":\"reasoning\",\"status\":\"in_progress\",\"summary\":[]}}\n\n",
+        "event: response.reasoning_summary_part.added\ndata: {\"type\":\"response.reasoning_summary_part.added\",\"sequence_number\":4,\"item_id\":\"rs_r2_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"\"}}\n\n",
+        "event: response.reasoning_summary_text.delta\ndata: {\"type\":\"response.reasoning_summary_text.delta\",\"sequence_number\":5,\"item_id\":\"rs_r2_0\",\"output_index\":0,\"summary_index\":0,\"delta\":\"hmm\"}\n\n",
+        "event: response.reasoning_summary_text.done\ndata: {\"type\":\"response.reasoning_summary_text.done\",\"sequence_number\":6,\"item_id\":\"rs_r2_0\",\"output_index\":0,\"summary_index\":0,\"text\":\"hmm\"}\n\n",
+        "event: response.reasoning_summary_part.done\ndata: {\"type\":\"response.reasoning_summary_part.done\",\"sequence_number\":7,\"item_id\":\"rs_r2_0\",\"output_index\":0,\"summary_index\":0,\"part\":{\"type\":\"summary_text\",\"text\":\"hmm\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"item\":{\"id\":\"rs_r2_0\",\"type\":\"reasoning\",\"encrypted_content\":\"\",\"summary\":[{\"type\":\"summary_text\",\"text\":\"hmm\"}]},\"output_index\":0,\"sequence_number\":8}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "upstream stream closed before [DONE]",
+        "retry_after_ms": -1,
+        "credential_scoped": false
+      }
+    },
+    {
+      "name": "responses_eof_finish_reason_without_items",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"hello\",\"stream\":true}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"e1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\"},\"finish_reason\":\"stop\"}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"e1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"e1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "upstream stream closed before [DONE]",
+        "retry_after_ms": -1,
+        "credential_scoped": false
+      }
+    },
+    {
+      "name": "responses_eof_content_after_finish_reason",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"hello\",\"stream\":true}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}],\"role\":\"assistant\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":9,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":10,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"chat\",\"output\":[{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"hehe\"}],\"role\":\"assistant\"}]}}\n\n"
+      ]
+    },
+    {
+      "name": "responses_eof_finish_reason_then_incomplete_frame",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":\"hello\",\"stream\":true}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"he\"},\"finish_reason\":null}]}\n\ndata: {\"id\":\"c1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: {\"id\":"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": true
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 122\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"hello\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"c1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"in_progress\",\"content\":[],\"role\":\"assistant\"}}\n\n",
+        "event: response.content_part.added\ndata: {\"type\":\"response.content_part.added\",\"sequence_number\":4,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"\"}}\n\n",
+        "event: response.output_text.delta\ndata: {\"type\":\"response.output_text.delta\",\"sequence_number\":5,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"delta\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.output_text.done\ndata: {\"type\":\"response.output_text.done\",\"sequence_number\":6,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"text\":\"he\",\"logprobs\":[]}\n\n",
+        "event: response.content_part.done\ndata: {\"type\":\"response.content_part.done\",\"sequence_number\":7,\"item_id\":\"msg_c1_0\",\"output_index\":0,\"content_index\":0,\"part\":{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":8,\"output_index\":0,\"item\":{\"id\":\"msg_c1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"he\"}],\"role\":\"assistant\"}}\n\n"
+      ],
+      "error": {
+        "status": 502,
+        "message": "upstream stream ended with incomplete SSE data frame",
+        "retry_after_ms": -1,
+        "credential_scoped": false
+      }
+    },
+    {
+      "name": "responses_eof_after_apply_patch_finish",
+      "config": "\napi-keys:\n  openai-compatibility:\n    - name: Acme\n      base-url: http://UPSTREAM/v1\n      headers:\n        X-Static: static-value\n        X-Forward: $X-Client-Trace\n        X-Missing: $X-Not-Sent\n      models:\n        - name: acme-chat\n          alias: chat\n        - name: acme-mct\n          alias: mct\n          use-max-completion-tokens: true\n        - name: acme-text\n          alias: text\n          input-modalities: [text]\n        - name: acme-image\n          alias: img\n          image: true\n        - name: gpt-4o\n          alias: four\n        - name: acme-compat\n          alias: cc\n          is-compat: true\n      keys:\n        - api-key: sk-fake-acme\n    - name: cachey\n      base-url: http://UPSTREAM/v2/\n      support-prompt-cache-key: true\n      models:\n        - name: cache-model\n          alias: cm\n      keys:\n        - api-key: sk-fake-cache\n",
+      "config_auth": 0,
+      "provider": "openai-compatible-acme",
+      "model": "acme-chat",
+      "requested_model": "chat",
+      "payload": "{\"model\":\"chat\",\"input\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"tools\":[{\"type\":\"custom\",\"name\":\"apply_patch\",\"format\":{\"type\":\"grammar\",\"syntax\":\"lark\",\"definition\":\"start: patch\"}}]}",
+      "source": "openai-response",
+      "stream": true,
+      "op": "stream",
+      "upstream": {
+        "status": 200,
+        "headers": [
+          [
+            "Content-Type",
+            "text/event-stream"
+          ]
+        ],
+        "body": "data: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"tool_calls\":[{\"index\":0,\"id\":\"c1\",\"type\":\"function\",\"function\":{\"name\":\"apply_patch\",\"arguments\":\"\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{\"tool_calls\":[{\"index\":0,\"function\":{\"arguments\":\"{\\\"input\\\":\\\"*** Begin Patch\\\\n*** End Patch\\\\n\\\"}\"}}]},\"finish_reason\":null}]}\n\ndata: {\"id\":\"r1\",\"object\":\"chat.completion.chunk\",\"created\":1,\"model\":\"acme-chat\",\"choices\":[{\"index\":0,\"delta\":{},\"finish_reason\":\"tool_calls\"}]}\n\n"
+      },
+      "resolved_model": {
+        "created": 0,
+        "id": "acme-chat",
+        "object": "",
+        "owned_by": "",
+        "thinking": {
+          "levels": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "type": "openai-compatibility"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "reasoning": 0,
+        "cached": 0,
+        "total": 0,
+        "effort": "",
+        "response_model": "acme-chat",
+        "failed": false
+      },
+      "request": "POST /v1/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 1051\r\nAccept: text/event-stream\r\nAuthorization: Bearer sk-fake-acme\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nX-Static: static-value\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"acme-chat\",\"messages\":[{\"role\":\"user\",\"content\":\"edit a.txt\"}],\"stream\":true,\"tools\":[{\"function\":{\"description\":\"Call this function with a JSON object whose input field contains the complete patch text.\\nUse the Codex apply_patch format, not a conventional git unified diff.\\nStart with *** Begin Patch and end with *** End Patch.\\nUse *** Add File: path, *** Delete File: path, or *** Update File: path.\\nEvery added-file content line starts with +.\\nFor updates, use @@; context lines start with one space, removed lines with -, and added lines with +.\\nUse *** Move to: path for a rename and *** End of File when required by the patch grammar.\\nExample input:\\n*** Begin Patch\\n*** Update File: src/main.go\\n@@\\n-old\\n+new\\n*** End Patch\\n\\nOriginal patch grammar:\\nstart: patch\",\"name\":\"apply_patch\",\"parameters\":{\"additionalProperties\":false,\"properties\":{\"input\":{\"description\":\"The complete apply_patch patch text.\",\"type\":\"string\"}},\"required\":[\"input\"],\"type\":\"object\"}},\"type\":\"function\"}],\"stream_options\":{\"include_usage\":true}}",
+      "chunks": [
+        "event: response.created\ndata: {\"type\":\"response.created\",\"sequence_number\":1,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"background\":false,\"error\":null,\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.in_progress\ndata: {\"type\":\"response.in_progress\",\"sequence_number\":2,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"in_progress\",\"output\":[],\"model\":\"chat\"}}\n\n",
+        "event: response.output_item.added\ndata: {\"type\":\"response.output_item.added\",\"sequence_number\":3,\"output_index\":0,\"item\":{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"in_progress\",\"input\":\"\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}}\n\n",
+        "event: response.custom_tool_call_input.delta\ndata: {\"type\":\"response.custom_tool_call_input.delta\",\"item_id\":\"ctc_c1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":4,\"delta\":\"*** Begin Patch\\n*** End Patch\\n\"}\n\n",
+        "event: response.custom_tool_call_input.done\ndata: {\"type\":\"response.custom_tool_call_input.done\",\"item_id\":\"ctc_c1\",\"call_id\":\"c1\",\"output_index\":0,\"sequence_number\":5,\"input\":\"*** Begin Patch\\n*** End Patch\\n\"}\n\n",
+        "event: response.output_item.done\ndata: {\"type\":\"response.output_item.done\",\"sequence_number\":6,\"output_index\":0,\"item\":{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n*** End Patch\\n\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}}\n\n",
+        "event: response.completed\ndata: {\"type\":\"response.completed\",\"sequence_number\":7,\"response\":{\"id\":\"r1\",\"object\":\"response\",\"created_at\":1,\"status\":\"completed\",\"background\":false,\"error\":null,\"model\":\"chat\",\"tools\":[{\"format\":{\"definition\":\"start: patch\",\"syntax\":\"lark\",\"type\":\"grammar\"},\"name\":\"apply_patch\",\"type\":\"custom\"}],\"output\":[{\"id\":\"ctc_c1\",\"type\":\"custom_tool_call\",\"status\":\"completed\",\"input\":\"*** Begin Patch\\n*** End Patch\\n\",\"call_id\":\"c1\",\"name\":\"apply_patch\"}]}}\n\n"
+      ]
+    }
+  ]
+}
