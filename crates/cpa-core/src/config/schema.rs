@@ -495,9 +495,6 @@ mod tests {
         serde_yaml_ng::from_str(text).unwrap()
     }
 
-    /// `oauth.providers.codex.chatgpt-keep-alive` is a cliproxy-rs addition in the schema:
-    /// strict management writes accept it as a bool, still reject other keys Go does not
-    /// know, and the v8 migration keeps it instead of commenting it out.
     /// Go's `ParseConfigBytes` and `ValidateV8Config` take an empty
     /// `client.codex.web-search-result-cache` as its zero config.
     #[test]
@@ -507,6 +504,9 @@ mod tests {
         crate::config::Config::parse(text).unwrap();
     }
 
+    /// `oauth.providers.codex.chatgpt-keep-alive` is a cliproxy-rs addition in the schema:
+    /// strict management writes accept it as a bool, still reject other keys Go does not
+    /// know, and the v8 migration keeps it instead of commenting it out.
     #[test]
     fn chatgpt_keep_alive_is_a_known_codex_bool() {
         let on = yaml("oauth:\n  providers:\n    codex:\n      chatgpt-keep-alive: true\n");
