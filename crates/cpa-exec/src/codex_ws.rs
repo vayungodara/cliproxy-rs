@@ -678,14 +678,11 @@ fn turn_error(lost: &ExecError) -> ExecError {
 
 /// `buildCodexResponsesWebsocketURL`. Go returns its parse, scheme and empty-host errors
 /// as plain errors before dialing.
-// ponytail: Go re-serializes the parsed URL (`URL.String()`); the text after the scheme is
-// kept as given, which differs only for escapes Go would normalize.
 fn ws_url(http_url: &str) -> Result<String, ExecError> {
-    let raw = http_url.trim();
-    let parsed = crate::xai_url::parse(raw).map_err(crate::xai_url::statusless)?;
-    let scheme = match parsed.scheme.as_str() {
-        "http" => "ws",
-        "https" => "wss",
+    let mut parsed = crate::xai_url::parse(http_url.trim()).map_err(crate::xai_url::statusless)?;
+    parsed.scheme = match parsed.scheme.as_str() {
+        "http" => "ws".to_owned(),
+        "https" => "wss".to_owned(),
         other => {
             return Err(crate::xai_url::statusless(format!(
                 "codex websockets executor: unsupported responses websocket URL scheme {}",
@@ -698,8 +695,7 @@ fn ws_url(http_url: &str) -> Result<String, ExecError> {
             "codex websockets executor: responses websocket URL host is empty",
         ));
     }
-    let rest = &raw[raw.find(':').map_or(0, |i| i + 1)..];
-    Ok(format!("{scheme}:{rest}"))
+    Ok(crate::xai_url::string(&parsed))
 }
 
 /// A WebSocket turn's body after the prompt cache key, in Go's order:

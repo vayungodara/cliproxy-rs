@@ -491,15 +491,12 @@ fn plain(message: impl Into<String>) -> ExecError {
 }
 
 /// `buildXAIResponsesWebsocketURL`.
-// ponytail: Go re-serializes the parsed URL (`URL.String()`); the text after the scheme is
-// kept as given, which differs only for escapes Go would normalize.
 fn ws_url(http_url: &str) -> Result<String, ExecError> {
-    let raw = http_url.trim();
-    let parsed = crate::xai_url::parse(raw).map_err(crate::xai_url::statusless)?;
-    let scheme = match parsed.scheme.as_str() {
-        "http" => "ws",
-        "https" => "wss",
-        "ws" | "wss" => parsed.scheme.as_str(),
+    let mut parsed = crate::xai_url::parse(http_url.trim()).map_err(crate::xai_url::statusless)?;
+    parsed.scheme = match parsed.scheme.as_str() {
+        "http" => "ws".to_owned(),
+        "https" => "wss".to_owned(),
+        "ws" | "wss" => parsed.scheme.clone(),
         other => {
             return Err(crate::xai_url::statusless(format!(
                 "xai websockets executor: unsupported responses websocket URL scheme {}",
@@ -507,14 +504,12 @@ fn ws_url(http_url: &str) -> Result<String, ExecError> {
             )));
         }
     };
-    // Go's `URL.Host` is the hostname with its port.
-    if parsed.hostname.trim().is_empty() && parsed.port.is_empty() {
+    if parsed.host.trim().is_empty() {
         return Err(crate::xai_url::statusless(
             "xai websockets executor: responses websocket URL host is empty",
         ));
     }
-    let rest = &raw[raw.find(':').map_or(0, |i| i + 1)..];
-    Ok(format!("{scheme}:{rest}"))
+    Ok(crate::xai_url::string(&parsed))
 }
 
 /// `buildXAIWebsocketRequestBody`: every turn is a stored `response.create`; the
