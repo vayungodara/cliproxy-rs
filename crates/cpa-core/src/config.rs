@@ -595,6 +595,8 @@ fn persist_secret_hash(path: &Path, text: &str, hash: &str) -> anyhow::Result<()
 /// Go's `updateNestedScalarYAML` writes it. ponytail: that fallback re-emits without
 /// comments; Go keeps the node comments.
 fn with_secret_hash(text: &str, hash: &str) -> anyhow::Result<String> {
+    // Go's save writes its parsed nodes, which drops a leading BOM.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let expanded = |t: &str| -> anyhow::Result<Value> {
         let mut root: Value = parse_yaml(t)?;
         expand_merges(&mut root)?;
@@ -875,6 +877,8 @@ fn scalar_texts(text: &str) -> anyhow::Result<Value> {
         }
     }
     use serde::Deserialize as _;
+    // The shape and the text must hold the same nodes; parse_yaml skips a BOM.
+    let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let shape: Value = parse_yaml(text)?;
     Ok(Shaped(&shape).deserialize(serde_yaml_ng::Deserializer::from_str(text))?)
 }
@@ -1721,6 +1725,33 @@ oauth-excluded-models: {{c: [{numbers}]}}
         assert_eq!(cfg.routing.retry.request_retry, 3);
         let x = yaml_value("\u{feff}a: b\nx: [18446744073709551616, 007]\n").unwrap();
         assert_eq!(x["x"], yaml_value("[1.8446744073709552e19, 7]").unwrap());
+        // Go's save (SaveConfigPreserveComments, recorded at ae3ee3be) drops the BOM and
+        // keeps the head comment, in the v8 layout and when it migrates a legacy one.
+        for original in [
+            "\u{feff}# head\nserver:\n  port: 1\n",
+            "\u{feff}# head\nport: 1\nhost: x\n",
+        ] {
+            let mut doc = ConfigDocument::parse(original).unwrap();
+            doc.update(&["server", "port"], Value::from(2), false).unwrap();
+            let basis = doc.migrated_text(original).unwrap_or_else(|| original.to_owned());
+            let saved = doc.render_preserving(&basis).unwrap();
+            assert!(saved.starts_with("# head\n"), "{saved:?}");
+            assert_eq!(Config::parse(&saved).unwrap().port, 2, "{saved:?}");
+        }
+        // The plaintext management key is hashed in place, and through a merge.
+        let hash = "$2a$10$abcdefghijklmnopqrstuuvwxyzabcdefghijklmnopqrstuvwxy";
+        for text in [
+            "\u{feff}management:\n  secret-key: plain\n",
+            "\u{feff}b: &b {secret-key: plain}\nmanagement: {<<: *b}\n",
+        ] {
+            let saved = with_secret_hash(text, hash).unwrap();
+            assert!(!saved.starts_with('\u{feff}') && saved.contains(hash), "{saved:?}");
+        }
+        let prepared = prepared_for_upload("\u{feff}management:\n  secret-key: plain\nport: 1\n").unwrap();
+        assert!(
+            !prepared.starts_with('\u{feff}') && prepared.contains("$2"),
+            "{prepared:?}"
+        );
     }
 
     /// A string that would read back as a number when written plain is double-quoted
