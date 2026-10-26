@@ -289,6 +289,18 @@
    ]
   },
   {
+   "name": "TestInteractionsToAntigravityExportedWrapperKeepsAJSONBody:148",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: audio"
+  },
+  {
    "name": "TestConvertAntigravityResponseToInteractionsStream:calls",
    "path": "stream",
    "model": "gemini-3-flash",
@@ -297,8 +309,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945097379500\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945097379500\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012965798511977\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012965798511977\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"ok\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ]
@@ -327,8 +339,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945098579104\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945098579104\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012965799745343\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012965799745343\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
@@ -358,8 +370,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945099798520\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945099798520\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012965800971528\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012965800971528\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"signature\":\"sig_trailing\",\"type\":\"thought_signature\"},\"event_type\":\"step.delta\"}\n\n"
     ]
@@ -397,7 +409,7 @@
    "input": "{\"tools\":[{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build\"},{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945102118630\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012965803472078\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -416,7 +428,7 @@
    "input": "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"role\": \"model\",\n\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_fc\"},\n\t\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t\t]\n\t\t\t\t}\n\t\t\t}]\n\t\t}\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945103241995\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+     "{\"id\":\"interaction_1793012965804612096\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
     ]
    ],
    "dynamic": [
@@ -435,7 +447,7 @@
    "input": "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"role\": \"model\",\n\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_rt_fc\"},\n\t\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t\t]\n\t\t\t\t}\n\t\t\t}]\n\t\t}\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945104435786\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+     "{\"id\":\"interaction_1793012965805815352\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
     ]
    ],
    "dynamic": [
@@ -454,7 +466,7 @@
    "input": "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"role\": \"model\",\n\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t{\"text\": \"answer\"},\n\t\t\t\t\t\t{\"text\": \"\", \"thoughtSignature\": \"sig_trailing_rt\"}\n\t\t\t\t\t]\n\t\t\t\t}\n\t\t\t}]\n\t\t}\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945105592835\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
+     "{\"id\":\"interaction_1793012965807045362\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
     ]
    ],
    "dynamic": [
@@ -859,7 +871,7 @@
    "input": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"file_uri\":\"gs://f\"},{\"type\":\"image\",\"fileUri\":\"\",\"mime_type\":\"image/png\",\"data\":\"iVBO\"},{\"type\":\"image\",\"mimeType\":\"image/gif\"},{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://u\"}},{\"type\":\"audio\",\"mime_type\":\"audio/flac\",\"data\":\"ZkxhQw\"},{\"type\":\"audio\",\"data\":\"x\"},{\"type\":\"input_audio\",\"input_audio\":{\"data\":\"d\",\"format\":\"wav\"}},{\"type\":\"input_audio\"},{\"type\":\"video\",\"file\":{\"file_data\":\"AA\",\"filename\":\"v.mp4\"}},{\"type\":\"document\",\"uri\":\"x\",\"url\":\"https://d/a.pdf\",\"mimeType\":\"application/pdf\"},{\"type\":\"file\",\"file_uri\":\"\",\"url\":\"u\",\"mime_type\":\"text/csv\"},{\"type\":\"file\",\"mime_type\":\"application/json\",\"data\":\"e30\"},{\"type\":\"file\"}]}]}",
    "outputs": [
     [
-     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"iVBO\"}}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"audio/flac\",\"data\":\"ZkxhQw\"}}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"audio/wav\",\"data\":\"d\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"iVBO\"}}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"audio/flac\",\"data\":\"ZkxhQw\"}}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"audio/wav\",\"data\":\"d\"}}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"x\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
     ]
    ]
   },
@@ -1723,6 +1735,19 @@
    ]
   },
   {
+   "name": "interactions-antigravity/user-turn/document-file-id",
+   "path": "request",
+   "model": "gemini-3-flash",
+   "stream": true,
+   "input": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"file_id\":\"f\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[],\"stream\":true,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
    "name": "antigravity-up/bare",
    "path": "stream",
    "model": "gemini-3-flash",
@@ -1734,8 +1759,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945296806054\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945296806054\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012965997736491\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012965997736491\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"bare\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
@@ -1744,7 +1769,7 @@
     ],
     [
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945296806054\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012965997736491\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-26T11:09:25Z\",\"updated\":\"2026-10-26T11:09:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
      "event: done\ndata: [DONE]\n\n"
     ]
    ],
@@ -1796,8 +1821,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945298174843\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945298174843\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012965999016655\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012965999016655\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -1831,12 +1856,12 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945299397133\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945299397133\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966000248450\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966000248450\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"done\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945299397133\",\"status\":\"completed\",\"usage\":{\"total_tokens\":9,\"total_input_tokens\":0,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":0}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966000248450\",\"status\":\"completed\",\"usage\":{\"total_tokens\":9,\"total_input_tokens\":0,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":0}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     [
      "event: done\ndata: [DONE]\n\n"
@@ -1893,8 +1918,8 @@
     [],
     [],
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945300761106\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945300761106\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966001517434\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966001517434\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
@@ -1931,8 +1956,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945301989075\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945301989075\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966002833151\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966002833151\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"a\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
@@ -1942,7 +1967,7 @@
      "event: step.delta\ndata: {\"index\":1,\"delta\":{\"text\":\"b\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945301989075\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":1,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":1}],\"total_cached_tokens\":0,\"total_output_tokens\":1,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966002833151\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":1,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":1}],\"total_cached_tokens\":0,\"total_output_tokens\":1,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     []
    ],
@@ -1991,9 +2016,9 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945303431903\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945303431903\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
-     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945303450962\",\"call_id\":\"step_1790992945303450962\",\"name\":\"x/y\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966004130726\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966004130726\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966004147895\",\"call_id\":\"step_1793012966004147895\",\"name\":\"x/y\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
     ],
@@ -2001,7 +2026,7 @@
      "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":1,\"delta\":{\"text\":\"t\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945303431903\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966004130726\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     []
    ],
@@ -2062,8 +2087,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945304768064\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945304768064\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966005458124\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966005458124\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"plan\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"signature\":\"sig\",\"type\":\"thought_signature\"},\"event_type\":\"step.delta\"}\n\n",
@@ -2075,15 +2100,15 @@
      "event: step.start\ndata: {\"index\":2,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":2,\"delta\":{\"signature\":\"s2\",\"type\":\"thought_signature\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":2,\"event_type\":\"step.stop\"}\n\n",
-     "event: step.start\ndata: {\"index\":3,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945304815324\",\"call_id\":\"step_1790992945304815324\",\"name\":\"a b\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.start\ndata: {\"index\":3,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966005507178\",\"call_id\":\"step_1793012966005507178\",\"name\":\"a b\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":3,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"\\u003cx\\u003e\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":3,\"event_type\":\"step.stop\"}\n\n",
-     "event: step.start\ndata: {\"index\":4,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945304823753\",\"call_id\":\"step_1790992945304823753\",\"name\":\"plain\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.start\ndata: {\"index\":4,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966005516641\",\"call_id\":\"step_1793012966005516641\",\"name\":\"plain\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":4,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":4,\"event_type\":\"step.stop\"}\n\n"
     ],
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945304768064\",\"status\":\"completed\",\"usage\":{\"total_tokens\":11,\"total_input_tokens\":4,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":4}],\"total_cached_tokens\":0,\"total_output_tokens\":5,\"total_tool_use_tokens\":0,\"total_thought_tokens\":2},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966005458124\",\"status\":\"completed\",\"usage\":{\"total_tokens\":11,\"total_input_tokens\":4,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":4}],\"total_cached_tokens\":0,\"total_output_tokens\":5,\"total_tool_use_tokens\":0,\"total_thought_tokens\":2},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     []
    ],
@@ -2157,8 +2182,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945306274669\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945306274669\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966006900089\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966006900089\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"Hi \\u003cb\\u003e é\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
@@ -2195,23 +2220,23 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945307614876\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945307614876\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
-     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945307657553\",\"call_id\":\"step_1790992945307657553\",\"name\":\"a b\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966008188396\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966008188396\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966008221967\",\"call_id\":\"step_1793012966008221967\",\"name\":\"a b\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"\\u003cx\\u003e\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945307667754\",\"call_id\":\"step_1790992945307667754\",\"name\":\"x/y\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966008231538\",\"call_id\":\"step_1793012966008231538\",\"name\":\"x/y\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":1,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n",
      "event: step.start\ndata: {\"index\":2,\"step\":{\"type\":\"function_result\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":2,\"delta\":{\"type\":\"function_result\",\"name\":\"a b\",\"result\":{}},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":2,\"event_type\":\"step.stop\"}\n\n",
-     "event: step.start\ndata: {\"index\":3,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945307679405\",\"call_id\":\"step_1790992945307679405\",\"name\":\"unknown\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.start\ndata: {\"index\":3,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966008245135\",\"call_id\":\"step_1793012966008245135\",\"name\":\"unknown\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":3,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":3,\"event_type\":\"step.stop\"}\n\n"
     ],
     [
-     "event: step.start\ndata: {\"index\":4,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945307693078\",\"call_id\":\"step_1790992945307693078\",\"name\":\"a b\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.start\ndata: {\"index\":4,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966008260344\",\"call_id\":\"step_1793012966008260344\",\"name\":\"a b\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":4,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":4,\"event_type\":\"step.stop\"}\n\n"
     ],
@@ -2291,8 +2316,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945309046155\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945309046155\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966009638650\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966009638650\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     []
    ],
@@ -2319,7 +2344,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945310299237\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Hello \u003cb\u003e\"}]},{\"type\":\"function_call\",\"name\":\"a b\",\"arguments\":{}}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
+     "{\"id\":\"interaction_1793012966010958127\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"Hello \u003cb\u003e\"}]},{\"type\":\"function_call\",\"name\":\"a b\",\"arguments\":{}}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
     ]
    ],
    "dynamic": [
@@ -2339,7 +2364,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945311495213\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"function_call\",\"name\":\"x/y\",\"arguments\":{}}]}"
+     "{\"id\":\"interaction_1793012966012183818\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"function_call\",\"name\":\"x/y\",\"arguments\":{}}]}"
     ]
    ],
    "dynamic": [
@@ -2359,7 +2384,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945312730282\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"function_call\",\"name\":\"a b\",\"arguments\":{}}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
+     "{\"id\":\"interaction_1793012966013403726\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"function_call\",\"name\":\"a b\",\"arguments\":{}}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
     ]
    ],
    "dynamic": [
@@ -2379,7 +2404,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945313892189\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966014600866\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2399,7 +2424,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945315123174\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966015818233\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2419,7 +2444,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945316296231\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966016991590\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2438,7 +2463,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945317422818\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966018123573\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2458,7 +2483,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945318564746\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966019249125\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2479,7 +2504,7 @@
    "original": "{\"model\":\"client-model\",\"tools\":[{\"functionDeclarations\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945319690898\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"bad\\ufffd\"}]}]}"
+     "{\"id\":\"interaction_1793012966020371971\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"bad\\ufffd\"}]}]}"
     ]
    ],
    "dynamic": [
@@ -2501,14 +2526,14 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945320860339\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945320860339\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966021513159\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966021513159\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"late\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945320860339\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":1,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":1}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966021513159\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":1,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":1}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ]
    ],
    "dynamic": [
@@ -2559,8 +2584,8 @@
    "outputs": [
     [],
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945322844243\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945322844243\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966022831628\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966022831628\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"prefixed\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
@@ -2596,8 +2621,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945324029046\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945324029046\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966024038318\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966024038318\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"a\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
@@ -2631,8 +2656,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945325277122\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945325277122\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966025245405\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966025245405\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"Hi \u003cb\u003e\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
@@ -2646,7 +2671,7 @@
      "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n"
     ],
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945325277122\",\"status\":\"completed\",\"usage\":{\"total_tokens\":9,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":1,\"total_output_tokens\":4,\"total_tool_use_tokens\":0,\"total_thought_tokens\":2},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966025245405\",\"status\":\"completed\",\"usage\":{\"total_tokens\":9,\"total_input_tokens\":3,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":3}],\"total_cached_tokens\":1,\"total_output_tokens\":4,\"total_tool_use_tokens\":0,\"total_thought_tokens\":2},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     []
    ],
@@ -2694,8 +2719,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945326672039\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945326672039\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966026537573\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966026537573\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"think\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"content\":{\"text\":\"more\",\"type\":\"text\"},\"type\":\"thought_summary\"},\"event_type\":\"step.delta\"}\n\n",
@@ -2714,7 +2739,7 @@
      "event: step.start\ndata: {\"index\":4,\"step\":{\"type\":\"function_call\",\"id\":\"fc2\",\"call_id\":\"fc2\",\"name\":\"g\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":4,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":4,\"event_type\":\"step.stop\"}\n\n",
-     "event: step.start\ndata: {\"index\":5,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945326732341\",\"call_id\":\"step_1790992945326732341\",\"name\":\"h\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.start\ndata: {\"index\":5,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966026579532\",\"call_id\":\"step_1793012966026579532\",\"name\":\"h\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":5,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":5,\"event_type\":\"step.stop\"}\n\n",
      "event: step.start\ndata: {\"index\":6,\"step\":{\"type\":\"function_result\"},\"event_type\":\"step.start\"}\n\n",
@@ -2729,7 +2754,7 @@
      "event: step.start\ndata: {\"index\":9,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":9,\"delta\":{\"signature\":\"ex\",\"type\":\"thought_signature\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":9,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945326672039\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":5,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":5}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966026537573\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":5,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":5}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     [],
     []
@@ -2789,11 +2814,11 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945328248483\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945328248483\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966028011012\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966028011012\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945328248483\",\"status\":\"completed\",\"usage\":{\"total_tokens\":1,\"total_input_tokens\":7,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":7}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966028011012\",\"status\":\"completed\",\"usage\":{\"total_tokens\":1,\"total_input_tokens\":7,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":7}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ]
    ],
    "dynamic": [
@@ -2841,8 +2866,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945329498119\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945329498119\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966029260838\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966029260838\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"a\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
@@ -2850,7 +2875,7 @@
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
     ],
     [
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945329498119\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":2,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":2}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966029260838\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":2,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":2}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     []
    ],
@@ -2905,7 +2930,7 @@
    "input": "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"x\"}]}}],\"usage_metadata\":{\"prompt_token_count\":\"9\",\"total_token_count\":2.5}}}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945332281265\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"x\"}]}],\"usage\":{\"input_tokens\":9,\"output_tokens\":0,\"total_tokens\":2}}"
+     "{\"id\":\"interaction_1793012966031854801\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"x\"}]}],\"usage\":{\"input_tokens\":9,\"output_tokens\":0,\"total_tokens\":2}}"
     ]
    ],
    "dynamic": [
@@ -2924,7 +2949,7 @@
    "input": "{\"response\":{}}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945333532644\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966033055980\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2943,7 +2968,7 @@
    "input": "not json",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945334671595\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966034191499\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2962,7 +2987,7 @@
    "input": "{\"response\":{\"candidates\":[]}}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945335788518\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966035307582\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -2981,7 +3006,7 @@
    "input": "{\"response\":{\"responseId\":\"\",\"candidates\":[{\"content\":{\"parts\":[]}}],\"usageMetadata\":{}}}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945336942902\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
+     "{\"id\":\"interaction_1793012966036423060\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0}}"
     ]
    ],
    "dynamic": [
@@ -3005,16 +3030,16 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945338185415\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945338185415\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966037560182\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966037560182\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"a\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"b\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945338231474\",\"call_id\":\"step_1790992945338231474\",\"name\":\"a b\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966037602143\",\"call_id\":\"step_1793012966037602143\",\"name\":\"a b\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":1,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945338185415\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":1,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":1}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966037560182\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":1,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":1}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     [],
     []
@@ -3074,9 +3099,9 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945339860828\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945339860828\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945339860828\",\"status\":\"completed\",\"usage\":{\"total_tokens\":3,\"total_input_tokens\":0,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":0}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966038928820\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966038928820\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966038928820\",\"status\":\"completed\",\"usage\":{\"total_tokens\":3,\"total_input_tokens\":0,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":0}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ]
    ],
    "dynamic": [
@@ -3123,15 +3148,15 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945341224015\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945341224015\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
-     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"step_1790992945341244870\",\"call_id\":\"step_1790992945341244870\",\"name\":\"x/y\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966040238107\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966040238107\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"step_1793012966040263742\",\"call_id\":\"step_1793012966040263742\",\"name\":\"x/y\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
      "event: step.start\ndata: {\"index\":1,\"step\":{\"type\":\"function_result\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":1,\"delta\":{\"type\":\"function_result\",\"name\":\"a b\",\"result\":{\"r\":1}},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":1,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945341224015\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":2,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":2}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966040238107\",\"status\":\"completed\",\"usage\":{\"total_tokens\":0,\"total_input_tokens\":2,\"input_tokens_by_modality\":[{\"modality\":\"text\",\"tokens\":2}],\"total_cached_tokens\":0,\"total_output_tokens\":0,\"total_tool_use_tokens\":0,\"total_thought_tokens\":0},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n"
     ],
     []
    ],
@@ -3192,14 +3217,14 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945342795623\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945342795623\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966041559798\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966041559798\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"p\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ],
     [
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n",
-     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1790992945342795623\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-03T02:02:25Z\",\"updated\":\"2026-10-03T02:02:25Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
+     "event: interaction.completed\ndata: {\"interaction\":{\"id\":\"interaction_1793012966041559798\",\"status\":\"completed\",\"usage\":{},\"created\":\"2026-10-26T11:09:26Z\",\"updated\":\"2026-10-26T11:09:26Z\",\"service_tier\":\"standard\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.completed\"}\n\n",
      "event: done\ndata: [DONE]\n\n"
     ],
     []
@@ -3250,8 +3275,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1790992945344039790\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1790992945344039790\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966042828624\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3-flash\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966042828624\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n"
     ],
     [],
     [],
@@ -3292,7 +3317,7 @@
    "original": "{\"tools\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945346651489\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"bare\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0,\"cached_tokens\":3}}"
+     "{\"id\":\"interaction_1793012966045362465\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"bare\"}]}],\"usage\":{\"input_tokens\":0,\"output_tokens\":0,\"total_tokens\":0,\"cached_tokens\":3}}"
     ]
    ],
    "dynamic": [
@@ -3312,7 +3337,7 @@
    "original": "{\"tools\":[{\"name\":\"a b\"},{\"name\":\"x/y\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1790992945347895569\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
+     "{\"id\":\"interaction_1793012966046539927\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-flash\",\"steps\":[]}"
     ]
    ],
    "dynamic": [
@@ -3322,6 +3347,328 @@
      "path": "id",
      "prefix": "interaction_"
     }
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"role\":\"developer\",\"parts\":[{\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"developer\",\"parts\":[{\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#6",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#7",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"user_input\",\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#8",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#9",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#10",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#11",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"role\":\"system\",\"content\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#12",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"system\",\"content\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#13",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"system\",\"text\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepDoesNotHideAnEmptiedUserTurn:16:envelope#14",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"system\",\"text\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepStillSendsItsText:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"system\",\"text\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepStillSendsItsText:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"role\":\"developer\",\"parts\":[{\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepStillSendsItsText:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepStillSendsItsText:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepStillSendsItsText:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepStillSendsItsText:16:envelope#6",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityDeveloperOrSystemStepStillSendsItsText:16:envelope#7",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"role\":\"system\",\"content\":\"note\"}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"developer\",\"parts\":[{\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"developer\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"system\",\"content\":[{\"type\":\"text\",\"text\":\"note\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"role\":\"developer\",\"content\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#6",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"system\",\"content\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityRealUserTextBesideAnUnrepresentableAttachmentSurvivesAnInstructionStep:16:envelope#7",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"system\",\"text\":\"note\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"note\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
    ]
   },
   {
@@ -3376,7 +3723,7 @@
    "original": "{\"tools\":[{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build\"},{\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs\"}]}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1791031651642610984\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"antigravity-test\",\"steps\":[{\"type\":\"function_call\",\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs\",\"arguments\":{}}]}"
+     "{\"id\":\"interaction_1793012966104920171\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"antigravity-test\",\"steps\":[{\"type\":\"function_call\",\"name\":\"mcp__plugin_cloudflare_cloudflare-builds__workers_builds_get_build_logs\",\"arguments\":{}}]}"
     ]
    ],
    "dynamic": [
@@ -3417,7 +3764,7 @@
    "input": "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"role\": \"model\",\n\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_fc\"},\n\t\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t\t]\n\t\t\t\t}\n\t\t\t}]\n\t\t}\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1791031651647721950\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.8-flash-high\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+     "{\"id\":\"interaction_1793012966109510295\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.8-flash-high\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
     ]
    ],
    "dynamic": [
@@ -3436,7 +3783,7 @@
    "input": "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"role\": \"model\",\n\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t{\"functionCall\": {\"name\": \"lookup\", \"id\": \"call_1\", \"args\": {\"q\": \"x\"}}, \"thoughtSignature\": \"sig_rt_fc\"},\n\t\t\t\t\t\t{\"functionCall\": {\"name\": \"search\", \"id\": \"call_2\", \"args\": {\"q\": \"y\"}}}\n\t\t\t\t\t]\n\t\t\t\t}\n\t\t\t}]\n\t\t}\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1791031651648957926\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.8-flash-high\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
+     "{\"id\":\"interaction_1793012966110692868\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.8-flash-high\",\"steps\":[{\"type\":\"thought\",\"signature\":\"sig_rt_fc\"},{\"type\":\"function_call\",\"name\":\"lookup\",\"arguments\":{\"q\": \"x\"},\"call_id\":\"call_1\"},{\"type\":\"function_call\",\"name\":\"search\",\"arguments\":{\"q\": \"y\"},\"call_id\":\"call_2\"}]}"
     ]
    ],
    "dynamic": [
@@ -3466,7 +3813,7 @@
    "input": "{\n\t\t\"response\": {\n\t\t\t\"candidates\": [{\n\t\t\t\t\"content\": {\n\t\t\t\t\t\"role\": \"model\",\n\t\t\t\t\t\"parts\": [\n\t\t\t\t\t\t{\"text\": \"answer\"},\n\t\t\t\t\t\t{\"text\": \"\", \"thoughtSignature\": \"sig_trailing_rt\"}\n\t\t\t\t\t]\n\t\t\t\t}\n\t\t\t}]\n\t\t}\n\t}",
    "outputs": [
     [
-     "{\"id\":\"interaction_1791031651652737710\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.8-flash-high\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
+     "{\"id\":\"interaction_1793012966114189842\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3.8-flash-high\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"answer\"}]},{\"type\":\"thought\",\"signature\":\"sig_trailing_rt\"}]}"
     ]
    ],
    "dynamic": [
@@ -3486,6 +3833,223 @@
    "outputs": [
     [
      "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"answer\"},{\"text\":\"\",\"thoughtSignature\":\"sig_trailing_rt\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3.8-flash-high\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityKeepsTheMediaGeminiToInteractionsWrites:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"uri\":\"gs://b/a.png\",\"mime_type\":\"image/png\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"image/png\",\"fileUri\":\"gs://b/a.png\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityReadsURIAsFileURI:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"mime_type\":\"application/pdf\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://b/a.pdf\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityReadsURIAsFileURI:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"mime_type\":\"application/pdf\",\"file_uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://b/a.pdf\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityReadsURIAsFileURI:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"mime_type\":\"application/pdf\",\"fileUri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"application/pdf\",\"fileUri\":\"gs://b/a.pdf\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityInlineDataStillConverts:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"data\":\"aGVsbG8=\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"inlineData\":{\"mimeType\":\"image/png\",\"data\":\"aGVsbG8=\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: audio"
+  },
+  {
+   "name": "TestInteractionsToAntigravityUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: image"
+  },
+  {
+   "name": "TestInteractionsToAntigravityUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: document"
+  },
+  {
+   "name": "TestInteractionsToAntigravityUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://example.test/a.png\"}}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: image_url"
+  },
+  {
+   "name": "TestInteractionsToAntigravityUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"\"},{\"type\":\"video\",\"mime_type\":\"video/mp4\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: video"
+  },
+  {
+   "name": "TestInteractionsToAntigravityUnrepresentableAttachmentOnlyTurnIsRefused:16:envelope#6",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\" \\n\"},{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\" \\n\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: audio"
+  },
+  {
+   "name": "TestInteractionsToAntigravityUnrepresentableNativePartIsRefused:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"image/png\"}}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: fileData"
+  },
+  {
+   "name": "TestInteractionsToAntigravityRefusesAnEmptiedTurnBeforeALaterTextTurn:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"next\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"next\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ],
+   "request_error": "unsupported content part: audio"
+  },
+  {
+   "name": "TestInteractionsToAntigravityUnrepresentableAttachmentBesideTextStillSucceeds:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityNeighbouringStepKeepsTheTurnAlive:16:envelope",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityNeighbouringStepKeepsTheTurnAlive:16:envelope#2",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"role\":\"user\",\"steps\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityNeighbouringStepKeepsTheTurnAlive:16:envelope#3",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityNeighbouringStepKeepsTheTurnAlive:16:envelope#4",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"function_call\",\"name\":\"f\",\"call_id\":\"c1\",\"arguments\":{}},{\"type\":\"function_result\",\"name\":\"f\",\"call_id\":\"c1\",\"result\":{\"ok\":true}},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"},{\"functionCall\":{\"name\":\"f\",\"args\":{},\"id\":\"c1\"}}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"f\",\"response\":{\"ok\":true},\"id\":\"c1\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
+    ]
+   ]
+  },
+  {
+   "name": "TestInteractionsToAntigravityNeighbouringStepKeepsTheTurnAlive:16:envelope#5",
+   "path": "request",
+   "model": "m",
+   "input": "{\"model\":\"m\",\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},\"keep me\",{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"mime_type\":\"audio/wav\"}]}]}",
+   "outputs": [
+    [
+     "{\"project\":\"\",\"request\":{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"text\":\"keep me\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"m\"}"
     ]
    ]
   },
@@ -3545,8 +4109,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031651662639182\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"antigravity-test\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031651662639182\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966158834660\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"antigravity-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966158834660\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"model_output\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"text\":\"ok\",\"type\":\"text\"},\"event_type\":\"step.delta\"}\n\n"
     ]
@@ -3575,8 +4139,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031651663892196\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"antigravity-test\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031651663892196\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966160004694\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"antigravity-test\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966160004694\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"function_call\",\"id\":\"call_1\",\"call_id\":\"call_1\",\"name\":\"lookup\",\"arguments\":{}},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"arguments\":\"{\\\"q\\\":\\\"x\\\"}\",\"type\":\"arguments_delta\"},\"event_type\":\"step.delta\"}\n\n",
      "event: step.stop\ndata: {\"index\":0,\"event_type\":\"step.stop\"}\n\n"
@@ -3606,8 +4170,8 @@
    ],
    "outputs": [
     [
-     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1791031651665166579\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3.8-flash-high\"},\"event_type\":\"interaction.created\"}\n\n",
-     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1791031651665166579\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
+     "event: interaction.created\ndata: {\"interaction\":{\"id\":\"interaction_1793012966161209847\",\"status\":\"in_progress\",\"object\":\"interaction\",\"model\":\"gemini-3.8-flash-high\"},\"event_type\":\"interaction.created\"}\n\n",
+     "event: interaction.status_update\ndata: {\"interaction_id\":\"interaction_1793012966161209847\",\"status\":\"in_progress\",\"event_type\":\"interaction.status_update\"}\n\n",
      "event: step.start\ndata: {\"index\":0,\"step\":{\"type\":\"thought\"},\"event_type\":\"step.start\"}\n\n",
      "event: step.delta\ndata: {\"index\":0,\"delta\":{\"signature\":\"sig_trailing\",\"type\":\"thought_signature\"},\"event_type\":\"step.delta\"}\n\n"
     ]
@@ -3626,21 +4190,9 @@
      "prefix": "interaction_"
     }
    ]
-  },
-  {
-   "name": "interactions-antigravity/user-turn/document-file-id",
-   "path": "request",
-   "model": "gemini-3-flash",
-   "stream": true,
-   "input": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"file_id\":\"f\"}]}]}",
-   "outputs": [
-    [
-     "{\"project\":\"\",\"request\":{\"contents\":[],\"stream\":true,\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]},\"model\":\"gemini-3-flash\"}"
-    ]
-   ],
-   "request_error": "unsupported content part: document"
   }
  ],
+ "reference": "ae3ee3be",
  "token_count": false,
  "upstream": "antigravity"
 }

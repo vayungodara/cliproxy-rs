@@ -54,6 +54,10 @@ the protobuf (`FinalizeDevinPayload`) instead of its readable request summary:
 
 - `devin/{chat-payload-rules,chat-payload-nan,interactions-payload-bad-signature,interactions-temperature-infinite}.json`
   are v8.0.35 recordings (`TestRSFixDevin`, copied whole).
+- `devin/user-turn-*.json` (refusals of user turns left with media Devin cannot send, Go
+  f51624aa) and `devin/user_turns.json` (`CheckDevinUserTurns` after
+  `parseInteractionsPayload`) are v8.0.35 recordings too, made with
+  `-run 'TestRSFixDevin$/user-turn|TestRSFixDevinUserTurns'` and copied whole.
 - In every other Devin fixture, only the `Body:` section of `extra.capture.request` is
   replaced, by v8.0.35's view of the frame that fixture's `upstream` recorded:
 

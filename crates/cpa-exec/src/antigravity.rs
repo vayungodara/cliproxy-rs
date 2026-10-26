@@ -561,6 +561,11 @@ impl AntigravityExecutor {
     }
 
     /// `TranslateRequestEnvelopeWithCodexMultiAgentV2` of the working payload.
+    // ponytail: this runs after Runtime::acquire has prepared the credential, so a request
+    // the translator refuses (f51624aa's emptied user turns) can still refresh a stale
+    // token first, and a failed refresh answers instead of Go's 400 (DIFFERENCES-FROM-GO).
+    // Upgrade path: a pre-acquire translation check that refuses before credential
+    // preparation, as Go translates before ensureAccessToken.
     fn translate(&self, req: &ExecRequest, cfg: &Config, model: &str, stream: bool) -> Result<Vec<u8>, ExecError> {
         let ctx = RequestCtx {
             model,

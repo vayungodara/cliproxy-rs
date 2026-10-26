@@ -1,0 +1,44 @@
+{
+  "name": "user-turn-gemini-file-data",
+  "credential": {
+    "api_key": "devin-session-token$fixture",
+    "base_url": "http://127.0.0.1:43929",
+    "device_seed": "seed-1",
+    "session_token": "devin-session-token$fixture",
+    "type": "devin"
+  },
+  "request": {
+    "body": "{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"a\"}]},{\"role\":\"model\",\"parts\":[{\"text\":\"b\"}]},{\"role\":\"user\",\"parts\":[{\"fileData\":{\"mimeType\":\"image/png\",\"fileUri\":\"gs://b/a.png\"}}]}]}",
+    "model": "gemini-3-flash",
+    "source": "gemini",
+    "stream": false
+  },
+  "responses": null,
+  "upstream": null,
+  "downstream": {
+    "err_status": 400,
+    "err_body": "unsupported content part: image"
+  },
+  "extra": {
+    "capture": {
+      "origin": "http://127.0.0.1:43929"
+    },
+    "usage": [
+      {
+        "cached_tokens": 0,
+        "fail_body": "unsupported content part: image",
+        "fail_status": 400,
+        "failed": true,
+        "input_tokens": 0,
+        "model": "gemini-3-flash",
+        "output_tokens": 0,
+        "reasoning_effort": "",
+        "reasoning_tokens": 0,
+        "response_model": "",
+        "service_tier": "",
+        "total_tokens": 0,
+        "ttft_set": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,315 @@
+[
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"},{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "keep me",
+        "dropped": "image",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "keep me",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"keep me\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "keep me",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"data\":\"aGVsbG8=\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "[Image 1: pasted_image_1.png]",
+        "dropped": "",
+        "images": 1,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"data:image/png;base64,aGVsbG8=\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "[Image 1: pasted_image_1.png]",
+        "dropped": "",
+        "images": 1,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"file_uri\":\"data:image/jpeg;base64,SU1H\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "[Image 1: pasted_image_1.jpg]",
+        "dropped": "",
+        "images": 1,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "error": "unsupported content part: image",
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]}]}"
+  },
+  {
+    "error": "unsupported content part: input_file",
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"input_file\",\"file_id\":\"f\"},{\"type\":\"input_audio\",\"data\":\"\"}]}]}"
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"x\"},{\"type\":\"thing\",\"uri\":\"gs://b/a\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "x",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"thing\",\"uri\":\"gs://b/a\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "error": "unsupported content part: video",
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\" Video \",\"uri\":\"https://example.test/v\"}]}]}"
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"a\"}]},{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"b\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"audio\",\"text\":\"spoken\",\"uri\":\"https://example.test/a\"}]}]}",
+    "prompts": [
+      {
+        "content": "a",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      },
+      {
+        "content": "b",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "spoken",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"function_call\",\"id\":\"c1\",\"name\":\"f\"},{\"type\":\"function_result\",\"call_id\":\"c1\",\"result\":\"r\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]}]}",
+    "prompts": [
+      {
+        "content": "",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 2
+      },
+      {
+        "content": "r",
+        "dropped": "",
+        "images": 0,
+        "orphaned": false,
+        "source": 4
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"function_result\",\"call_id\":\"orphan\",\"result\":\"r\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]}]}",
+    "prompts": [
+      {
+        "content": "r",
+        "dropped": "",
+        "images": 0,
+        "orphaned": true,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "payload": "{\"input\":[{\"type\":\"function_result\",\"call_id\":\"orphan\",\"result\":\"\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]}]}",
+    "prompts": [
+      {
+        "content": "{}",
+        "dropped": "",
+        "images": 0,
+        "orphaned": true,
+        "source": 1
+      }
+    ]
+  },
+  {
+    "error": "unsupported content part: image",
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]}]}"
+  },
+  {
+    "error": "unsupported content part: document",
+    "payload": "{\"input\":[{\"type\":\"user_input\",\"content\":[{\"type\":\"text\",\"text\":\"  \"}]},{\"type\":\"user_input\",\"content\":[{\"type\":\"document\",\"uri\":\"gs://b/a.pdf\"}]},{\"type\":\"model_output\",\"content\":\"ok\"},{\"type\":\"user_input\",\"content\":[{\"type\":\"image\",\"mime_type\":\"image/png\",\"uri\":\"https://example.test/a.png\"}]}]}"
+  },
+  {
+    "error": "unsupported content part: image_url",
+    "payload": "{\"messages\":[{\"role\":\"user\",\"content\":\"a\"},{\"role\":\"assistant\",\"content\":\"b\"},{\"role\":\"user\",\"content\":[{\"type\":\"image_url\",\"image_url\":{\"url\":\"https://example.test/a.png\"}}]}]}"
+  },
+  {
+    "payload": "{\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"hi\"},{\"type\":\"file\",\"file\":{\"file_id\":\"f\"}}]}]}",
+    "prompts": [
+      {
+        "content": "hi",
+        "dropped": "file",
+        "images": 0,
+        "orphaned": false,
+        "source": 1
+      }
+    ]
+  }
+]

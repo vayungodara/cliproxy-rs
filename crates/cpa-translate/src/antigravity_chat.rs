@@ -10,8 +10,8 @@ use cpa_common::json::{self as gj, Kind, Res};
 
 use crate::antigravity_gemini::{has_response_payload, restore_names, sanitize_claude_signatures};
 use crate::common::{
-    go_lower, go_upper, normalize_openai_file_data, now_nanos, parse_rfc3339_unix, restore_sanitized_tool_name,
-    sanitize_claude_tool_id, system_reminder_text, trim_space,
+    UserTurnDrops, gemini_part_is_sendable, go_lower, go_upper, normalize_openai_file_data, now_nanos,
+    parse_rfc3339_unix, restore_sanitized_tool_name, sanitize_claude_tool_id, system_reminder_text, trim_space,
 };
 use crate::gemini::attach_default_safety_settings;
 use crate::gemini_chat_request::{audio_mime, content_node, function_declaration, text_part};
@@ -21,7 +21,7 @@ use crate::{Error, Registered, ResponseCtx, thinking};
 
 pub static PAIR: Registered = registered!(
     OpenAI -> Antigravity,
-    request: |ctx, body| Ok(convert(ctx.model, body)),
+    request: |ctx, body| convert(ctx.model, body),
     non_stream: non_stream,
     go_stream: go_stream,
     token_count: None,
@@ -73,8 +73,11 @@ fn demoted_text(text: Vec<u8>, demoted: bool) -> Vec<u8> {
 }
 
 /// ConvertOpenAIRequestToAntigravity.
-fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
+/// Also refuses (`UserTurnDrops`, f51624aa) a user turn left with nothing to send by
+/// attachments Antigravity cannot receive.
+fn convert(model: &str, raw: &[u8]) -> Result<Vec<u8>, Error> {
     let names = sanitized_function_name_map(raw);
+    let mut drops = UserTurnDrops::default();
     let mut out = br#"{"project":"","request":{"contents":[]},"model":"gemini-2.5-pro"}"#.to_vec();
     gj::set_str(&mut out, "model", model);
     let config = gj::get(raw, "generationConfig");
@@ -166,7 +169,7 @@ fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
 
     let messages = gj::get(raw, "messages");
     if messages.is_array() {
-        let (system, contents) = convert_messages(&messages.array(), &names);
+        let (system, contents) = convert_messages(&messages.array(), &names, &mut drops);
         if !system.is_empty() {
             gj::set_raw(&mut out, "request.systemInstruction", content_node("user", &system));
         }
@@ -177,7 +180,8 @@ fn convert(model: &str, raw: &[u8]) -> Vec<u8> {
     if go_lower(model.as_bytes()).windows(6).any(|w| w == b"claude") {
         out = sanitize_claude_signatures(out);
     }
-    attach_default_safety_settings(out, "request.safetySettings")
+    drops.result()?;
+    Ok(attach_default_safety_settings(out, "request.safetySettings"))
 }
 
 /// normalizeAntigravityOpenAIThinkingConfig: snake-case and misplaced thinking fields of a
@@ -244,7 +248,11 @@ fn set_bool_if_valid(out: &mut Vec<u8>, path: &str, value: &Res<'_>) {
 }
 
 /// The system instruction parts and the contents for `messages`.
-fn convert_messages(arr: &[Res<'_>], names: &HashMap<Vec<u8>, Vec<u8>>) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
+fn convert_messages(
+    arr: &[Res<'_>],
+    names: &HashMap<Vec<u8>, Vec<u8>>,
+    drops: &mut UserTurnDrops,
+) -> (Vec<Vec<u8>>, Vec<Vec<u8>>) {
     let mut system = vec![];
     let mut contents = vec![];
     let mut in_conversation = false;
@@ -264,7 +272,9 @@ fn convert_messages(arr: &[Res<'_>], names: &HashMap<Vec<u8>, Vec<u8>>) -> (Vec<
             }
         } else if role == b"user" || system_like {
             in_conversation = true;
-            let parts = user_parts(&content, system_like);
+            let parts = user_parts(&content, system_like, drops);
+            // Whitespace-only text is forwarded but never keeps an emptied turn alive.
+            drops.end_turn(parts.iter().filter(|p| gemini_part_is_sendable(p)).count());
             if !parts.is_empty() {
                 contents.push(content_node("user", &parts));
             }
@@ -276,7 +286,7 @@ fn convert_messages(arr: &[Res<'_>], names: &HashMap<Vec<u8>, Vec<u8>>) -> (Vec<
     (system, contents)
 }
 
-fn user_parts(content: &Res<'_>, demoted: bool) -> Vec<Vec<u8>> {
+fn user_parts(content: &Res<'_>, demoted: bool, drops: &mut UserTurnDrops) -> Vec<Vec<u8>> {
     let mut parts = vec![];
     if content.kind == Kind::String {
         parts.push(text_part(&demoted_text(content.s.to_vec(), demoted)));
@@ -294,18 +304,31 @@ fn user_parts(content: &Res<'_>, demoted: bool) -> Vec<Vec<u8>> {
                         parts.push(text_part(&demoted_text(text, demoted)));
                     }
                 }
-                b"image_url" => parts.extend(data_url_part(&item.get("image_url.url").bytes())),
-                b"video_url" => parts.extend(data_url_part(&item.get("video_url.url").bytes())),
+                // Only a base64 data URL can be inlined; a remote URL has no equivalent.
+                kind @ (b"image_url" | b"video_url") => {
+                    let field = if kind == b"image_url" {
+                        "image_url.url"
+                    } else {
+                        "video_url.url"
+                    };
+                    match normalize_openai_file_data(b"", b"", &item.get(field).bytes()) {
+                        Some((mime, data)) => parts.push(inline_part(&mime, &data, false)),
+                        None => drops.drop_part(&String::from_utf8_lossy(kind)),
+                    }
+                }
                 b"file" => {
                     let filename = item.get("file.filename").bytes();
                     let data = item.get("file.file_data").bytes();
-                    if let Some((mime, data)) = normalize_openai_file_data(&filename, b"", &data) {
-                        parts.push(inline_part(&mime, &data, false));
+                    match normalize_openai_file_data(&filename, b"", &data) {
+                        Some((mime, data)) => parts.push(inline_part(&mime, &data, false)),
+                        None => drops.drop_part("file"),
                     }
                 }
                 b"input_audio" => {
                     let data = item.get("input_audio.data").bytes();
-                    if !data.is_empty() {
+                    if data.is_empty() {
+                        drops.drop_part("input_audio");
+                    } else {
                         let mime = audio_mime(&item.get("input_audio.format").bytes());
                         parts.push(inline_part(&mime, &data, true));
                     }

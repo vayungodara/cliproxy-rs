@@ -21,7 +21,7 @@ use crate::{Error, Registered, ResponseCtx};
 
 pub static PAIR: Registered = registered!(
     Interactions -> Antigravity,
-    request: |ctx, body| Ok(convert(ctx.model, body, ctx.stream)),
+    request: |ctx, body| convert(ctx.model, body, ctx.stream),
     non_stream: non_stream,
     go_stream: go_stream,
     token_count: None,
@@ -34,8 +34,9 @@ pub(crate) const NAME_FIELDS: [&str; 2] = ["functionCall", "functionResponse"];
 
 /// ConvertInteractionsRequestToAntigravity. Every edit Go makes lands under `request`, so
 /// the request object is built on its own and spliced into the envelope: sjson edits of a
-/// nested object produce the same bytes as edits of a standalone one.
-fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
+/// nested object produce the same bytes as edits of a standalone one. A user turn left
+/// empty by an attachment Antigravity cannot carry is refused (f51624aa), as for Gemini.
+fn convert(model: &str, raw: &[u8], stream: bool) -> Result<Vec<u8>, Error> {
     let root = gj::parse(raw);
     let names = sanitized_function_name_map(raw);
     let mut req = br#"{"contents":[]}"#.to_vec();
@@ -47,9 +48,8 @@ fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
     copy_reasoning(&mut req, &root);
     copy_response_modalities(&mut req, &root);
     copy_tool_choice(&mut req, &root);
-    // ponytail: the user-turn refusal (f51624aa) is not applied here yet; it lands with
-    // the Antigravity port.
-    let (items, _) = input_contents(&root.get("input"));
+    let (items, refused) = input_contents(&root.get("input"));
+    refused?;
     gj::set_items(&mut req, "contents", &items);
     copy_tools(&mut req, &root, &names);
     if gj::get(&req, "toolConfig.functionCallingConfig.mode").bytes().as_ref() == b"NONE" {
@@ -66,7 +66,7 @@ fn convert(model: &str, raw: &[u8], stream: bool) -> Vec<u8> {
     let mut out = br#"{"project":"","request":{"contents":[]},"model":""}"#.to_vec();
     gj::set_str(&mut out, "model", model);
     gj::set_raw(&mut out, "request", req);
-    out
+    Ok(out)
 }
 
 /// antigravityThinkingSummariesIncludeThoughts.
