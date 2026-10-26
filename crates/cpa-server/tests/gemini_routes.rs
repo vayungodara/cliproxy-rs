@@ -402,8 +402,11 @@ async fn usage_records_match_go() {
             if !name.starts_with("usage_") {
                 continue;
             }
-            let reply = s.get("upstream").unwrap_or_else(|| &s["replies"][0]);
-            let up = scripted(reply).await;
+            // A scenario Go answers before any upstream request has no reply.
+            let up = match s.get("upstream").or_else(|| s["replies"].get(0)) {
+                Some(reply) => scripted(reply).await,
+                None => "http://127.0.0.1:1".to_owned(),
+            };
             let config = format!(
                 "{}access:\n  api-keys: [client-key]\n{}",
                 auth_dir_line(),
@@ -435,7 +438,12 @@ async fn usage_records_match_go() {
                 other => panic!("{name}: no route for {other}"),
             };
             let (status, _, text) = post(&url, path, s["payload"].as_str().unwrap()).await;
-            assert_eq!(status, 200, "{name}: {text}");
+            // A stream's error comes after its 200 status line.
+            let want_status = match s["error"]["status"].as_u64() {
+                Some(status) if s["op"] == "execute" => status as u16,
+                _ => 200,
+            };
+            assert_eq!(status, want_status, "{name}: {text}");
             let mut records = Vec::new();
             for _ in 0..50 {
                 records = queue.pop_oldest(10);
@@ -465,6 +473,12 @@ async fn usage_records_match_go() {
                 "{name}: response_model"
             );
             assert_eq!(got["failed"], want["failed"], "{name}: failed");
+            // Recorded since d9451cb6: the executor identity, which picks the token rule.
+            if let Some(executor_type) = want.get("executor_type") {
+                assert_eq!(&got["executor_type"], executor_type, "{name}: executor_type");
+                assert_eq!(got["model"], want["model"], "{name}: model");
+                assert_eq!(got["token_breakdown"]["quality"], want["quality"], "{name}: quality");
+            }
             // Go's Interactions paths never set a translated effort: the record keeps the
             // conductor's context value (the client's effort), which the executor-level
             // generator does not bind. The Gemini and Vertex paths replace it.
@@ -478,7 +492,7 @@ async fn usage_records_match_go() {
             ran += 1;
         }
     }
-    assert_eq!(ran, 9, "usage scenarios in the Go fixtures");
+    assert_eq!(ran, 11, "usage scenarios in the Go fixtures");
 }
 
 /// With session affinity, a Gemini body nested far deeper than any conversation is

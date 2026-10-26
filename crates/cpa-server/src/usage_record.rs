@@ -1929,6 +1929,8 @@ struct Reported {
     claude_cache: Option<cpa_core::exec::ClaudeCacheTelemetry>,
     /// The plugin executor's provider when a plugin runs the attempt.
     plugin_provider: Option<String>,
+    /// The executor type and model of the built-in executor the attempt was handed to.
+    delegated: Option<(String, String)>,
 }
 
 impl Reported {
@@ -1999,6 +2001,10 @@ impl cpa_core::exec::UsageObserver for Observer {
 
     fn plugin_executor(&self, provider: &str) {
         self.lock().plugin_provider = Some(provider.to_owned());
+    }
+
+    fn delegated_executor(&self, executor_type: &str, model: &str) {
+        self.lock().delegated = Some((executor_type.to_owned(), model.to_owned()));
     }
 
     fn plugin_response_body(&self, protocol: &str, body: &[u8]) {
@@ -2272,6 +2278,9 @@ impl Tracker {
             // Go `ExecutorTypeName` of the host's `*executorAdapter`.
             record.provider.clone_from(provider);
             record.executor_type = "executorAdapter".into();
+        }
+        if let Some((executor_type, model)) = reported.delegated.clone() {
+            (record.executor_type, record.model) = (executor_type, model);
         }
         let mut telemetry_only = false;
         let (latency, ttft);

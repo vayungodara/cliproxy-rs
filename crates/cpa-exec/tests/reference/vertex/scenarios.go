@@ -131,6 +131,31 @@ api-keys:
         - api-key: vk-fake-usage
 `
 
+// usageOAPublisherConfig names a partner model by its publisher resource behind an
+// alias: the route normalizes it to meta/llama-3.3-70b-instruct-maas.
+const usageOAPublisherConfig = `
+api-keys:
+  vertex:
+    - base-url: http://UPSTREAM/api
+      models:
+        - name: publishers/meta/models/llama-3.3-70b-instruct-maas
+          alias: u-llama
+      keys:
+        - api-key: vk-fake-usage
+`
+
+// escapedHostConfig: a Google host spelled with a percent escape passes the
+// Google-host check as a relay base.
+const escapedHostConfig = `
+api-keys:
+  vertex:
+    - base-url: https://%61iplatform.googleapis.com
+      models:
+        - name: meta/llama-4
+      keys:
+        - api-key: vk-fake-escaped
+`
+
 // interactionsKeyConfig opts its first key into native Interactions (2d5351b3); the
 // second key does not.
 const interactionsKeyConfig = `
@@ -504,6 +529,17 @@ requests:
 			s.ConfigAuth = 2
 			s.Via = ""
 		}),
+		// A base URL whose host carries a percent escape: Go's url.Parse refuses it in
+		// http.NewRequest, so the key (or the fresh service-account token) never leaves.
+		with(key("oa_key_escaped_host", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Source = "openai"
+			s.Config = escapedHostConfig
+			s.Via = ""
+		}),
+		with(sa("oa_sa_escaped_base", "execute", "", "meta/llama-4", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}]}`, token), func(s *scenario) {
+			s.Source = "openai"
+			s.Metadata["base_url"] = "https://%65vil.example/v1"
+		}),
 		with(key("oa_key_payload_rules", "execute", "meta/llama-4", "", `{"model":"meta/llama-4","messages":[{"role":"user","content":"hi"}],"temperature":0.5}`, chatOK), func(s *scenario) {
 			s.Source = "openai"
 			s.Config = keyConfig + oaPayloadRules
@@ -516,6 +552,22 @@ requests:
 			s.Config = usageOAConfig
 			s.Model = "meta/llama-4"
 			s.RequestedModel = "meta/llama-4"
+		}),
+		// Reasoning inside completion_tokens: the record names OpenAICompatExecutor, whose
+		// token rule counts it as a subset, and the normalized publisher model.
+		with(usageKey("usage_oa_key_reasoning_publisher_model", "openai", "execute", `{"model":"u-llama","messages":[{"role":"user","content":"hi"}]}`,
+			reply{Status: 200, Headers: [][2]string{{"Content-Type", "application/json"}}, Body: `{"id":"c1","object":"chat.completion","created":1,"model":"meta/llama-3.3-70b-instruct-maas","choices":[{"index":0,"message":{"role":"assistant","content":"hi"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":50,"total_tokens":60,"completion_tokens_details":{"reasoning_tokens":30}}}`}), func(s *scenario) {
+			s.Config = usageOAPublisherConfig
+			s.Model = "publishers/meta/models/llama-3.3-70b-instruct-maas"
+			s.RequestedModel = "u-llama"
+		}),
+		// A credential-stage failure keeps the Vertex executor's identity but already
+		// names the normalized model.
+		with(usageKey("usage_oa_key_google_host_rejected", "openai", "execute", `{"model":"u-llama","messages":[{"role":"user","content":"hi"}]}`), func(s *scenario) {
+			s.Config = strings.Replace(usageOAPublisherConfig, "http://UPSTREAM/api", "https://us-central1-aiplatform.googleapis.com", 1)
+			s.Model = "publishers/meta/models/llama-3.3-70b-instruct-maas"
+			s.RequestedModel = "u-llama"
+			s.Via = ""
 		}),
 		with(key("key_codex_tool_integer_types", "execute", "gemini-2.5-flash", "", `{"model":"gemini-2.5-flash","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}],"tools":[{"type":"function","name":"shell","parameters":{"type":"object","properties":{"timeout_ms":{"type":"number"}}}}]}`, jsonOK), func(s *scenario) {
 			s.Source = "openai-response"

@@ -441,6 +441,10 @@ pub(crate) async fn chat_with(
         headers.set("Cache-Control", "no-cache");
     }
     let url = endpoint(base_url, path);
+    // Go's `http.NewRequestWithContext` refuses a URL its parser rejects (an escaped
+    // host such as `%61iplatform.googleapis.com`) before anything is sent; the url
+    // crate would decode the escape and send the key to the decoded host.
+    crate::xai_url::parse(&url).map_err(plain_err)?;
     let capture = wire::Capture::request(
         &req,
         credential,

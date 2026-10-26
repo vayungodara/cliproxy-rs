@@ -132,6 +132,12 @@ pub trait UsageObserver: Send + Sync {
     fn plugin_executor(&self, provider: &str) {
         let _ = provider;
     }
+    /// The attempt runs on another built-in executor's code (Go's Vertex openapi route
+    /// calls `OpenAICompatExecutor.executeWithCredentials`, whose reporter names its
+    /// own `executor_type`, picking the token rule, and `model`).
+    fn delegated_executor(&self, executor_type: &str, model: &str) {
+        let _ = (executor_type, model);
+    }
     /// Go `ParsePluginExecutorResponseUsage`: a plugin executor's whole response in its
     /// output `protocol`, which may be a format cliproxy-rs does not know.
     fn plugin_response_body(&self, protocol: &str, body: &[u8]) {
@@ -360,6 +366,12 @@ impl UsageSink {
     pub fn plugin_executor(&self, provider: &str) {
         if let Some(o) = &self.0 {
             o.plugin_executor(provider);
+        }
+    }
+
+    pub fn delegated_executor(&self, executor_type: &str, model: &str) {
+        if let Some(o) = &self.0 {
+            o.delegated_executor(executor_type, model);
         }
     }
 

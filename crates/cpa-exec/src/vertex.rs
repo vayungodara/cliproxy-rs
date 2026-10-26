@@ -479,7 +479,17 @@ impl VertexExecutor {
         cfg: &Config,
     ) -> Result<ExecResponse, ExecError> {
         let client = self.client(credential, cfg);
-        let (base_url, token) = self.openapi_credentials(&client, credential).await?;
+        let credentials = self.openapi_credentials(&client, credential).await;
+        // Go reports a credential failure as the Vertex executor and everything after
+        // it through `OpenAICompatExecutor`'s reporter; both name the normalized model.
+        let executor = if credentials.is_ok() {
+            "OpenAICompatExecutor"
+        } else {
+            "GeminiVertexExecutor"
+        };
+        req.usage
+            .delegated_executor(executor, &parse_suffix(&req.model).model_name);
+        let (base_url, token) = credentials?;
         crate::openai_compat::chat_with(&client, credential, req, cfg, &base_url, &token, None).await
     }
 

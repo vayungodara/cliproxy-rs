@@ -46,7 +46,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzIsImlhdCI6MTc5Mjk3MTUzMn0.B6Cojje-MpZ2eEXo9jLDf-N2c4lxdYKeRqZ5Il0EU2_WW2E-6lBWsJFJmjS-6DNNUmM7z2D-L_RcESMKaLGI7ezOAoBP9ydsUwPqic1vD6KYm9XtVNYSTj9AYOV8F20RAW2hREBUyH-1V70jjfi3C7Ql3kr1-TcMhgBOiFS24_7Jn1whxp42pYQkO83AhM55vnI1-wWItAsUgpOlyYea__0FphuAUl5v9WUT9Q0ChDIoYGZDHHuBEX-mygjRFFefMdN23-7S0MNcEthLN0gl-qRfiSpgbzZ4-MHD0PmyERzO0ffTdz2NjV9F0v2kQebChNN43SJEhsWIfbwjcYBgfg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzAsImlhdCI6MTc5Mjk3NTc3MH0.caqXdk0StsqC9dAsRkIJ-eNPSGh26TdPNe3nxgifIFv3rKEllqAbcTNb4NcWBNAtxlXTPOdfLIJKEpzSZz1m01oRqIQIf23tXhND4Z0X1SHyNkPOnquXlpEbZySclM9DnFac0TXOshVWhI8ZLd9bJv1TN1wOBePBg_YGRxeQ14kVZ7wajHPiW6YJsEmEtMPVUc6SBKadsPVjxbSSlcRbw4qWawDoyRNNGKVshs_S0xxO7XYV1NbWLLoPDVl9j41Lmp4cv7hB8UufT76Fd7Mk66v7Iu20lVrpWM97psrjwCaprXKh3JQi-j-nXG0phI_py9plWFsSfzNRawMF6ZqzvQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/gemini-2.5-flash:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 755\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]},{\"role\":\"model\",\"parts\":[{\"functionCall\":{\"name\":\"lookup\",\"args\":{\"q\":1}},\"thoughtSignature\":\"skip_thought_signature_validator\"}]},{\"role\":\"user\",\"parts\":[{\"functionResponse\":{\"name\":\"lookup\",\"response\":{\"result\":\"done\"}}}]}],\"tools\":[{\"functionDeclarations\":[{\"name\":\"lookup\",\"description\":\"\",\"parametersJsonSchema\":{\"type\":\"object\"}}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}],\"model\":\"gemini-2.5-flash\"}"
       ],
       "output": "{\"id\":\"resp_r1\",\"object\":\"response\",\"created_at\":1790856000,\"status\":\"completed\",\"background\":false,\"error\":null,\"incomplete_details\":null,\"model\":\"gemini-2.5-flash\",\"tools\":[{\"name\":\"lookup\",\"parameters\":{\"type\":\"object\"},\"type\":\"function\"}],\"output\":[{\"id\":\"msg_r1_0\",\"type\":\"message\",\"status\":\"completed\",\"content\":[{\"type\":\"output_text\",\"annotations\":[],\"logprobs\":[],\"text\":\"ok\"}],\"role\":\"assistant\"}],\"usage\":{\"input_tokens\":3,\"input_tokens_details\":{\"cached_tokens\":0},\"output_tokens\":1,\"output_tokens_details\":{\"reasoning_tokens\":0},\"total_tokens\":4}}",
@@ -60,7 +60,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -107,7 +110,10 @@
         "total_tokens": 5,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -187,7 +193,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 499,
-        "fail_body": "context canceled"
+        "fail_body": "context canceled",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       },
       "cancel_when_idle": true
     },
@@ -267,7 +276,10 @@
         "total_tokens": 5,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       },
       "cancel_when_idle": true
     },
@@ -354,7 +366,10 @@
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
         "failed": true,
-        "fail_body": "unexpected EOF"
+        "fail_body": "unexpected EOF",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -401,7 +416,10 @@
         "total_tokens": 5,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -467,7 +485,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -540,7 +561,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -621,7 +645,10 @@
         "total_tokens": 5,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -703,7 +730,10 @@
         "total_tokens": 5,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -785,7 +815,10 @@
         "total_tokens": 5,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -859,7 +892,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -938,7 +974,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 502,
-        "fail_body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
+        "fail_body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -1022,7 +1061,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 502,
-        "fail_body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}"
+        "fail_body": "{\"type\":\"error\",\"error\":{\"type\":\"api_error\",\"message\":\"Gemini response finished with MALFORMED_FUNCTION_CALL\"}}",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -1104,7 +1146,10 @@
         "total_tokens": 4,
         "response_model": "gemini-3-pro-preview",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1190,7 +1235,10 @@
         "total_tokens": 5,
         "response_model": "gemini-3-pro-preview",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1274,7 +1322,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 429,
-        "fail_body": "{\"error\":{\"code\":429,\"message\":\"slow\"}}"
+        "fail_body": "{\"error\":{\"code\":429,\"message\":\"slow\"}}",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1353,7 +1404,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1432,7 +1486,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1483,7 +1540,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzUsImlhdCI6MTc5Mjk3NTc3NX0.HB_0Ii3IcHI3f-xl_49rE4fdPL7a7X5HCendUI-nwbL-1IzdrHu1iOArRiO7pojMFCl5NIJvlOijwiQB4DiWg7TPSOLBct9cVmyhG7EBYAPpjIbpu187Mdd8w75ghZB97p7HMd9Ok2JUeFG4ueExtwy172pH6VZbmKElnJVskfj2ocHDF-Jk2gJfGdP2iFG6RS0gNHnUbCjtkew0V-_Z67_QKto20KWxoYVy-smWfOtYn-X8ll1hIJJVBXRABYbigf5cKMSAZybKZqsrvvxqeo3M6-HFZZ7fFCNKTUyVM6HmcmpeA8J--A8K3bme_aCR-XSRiufpDGDpEhUDXoOzTQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1beta1/projects/proj-1/locations/global/interactions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 45\r\nApi-Revision: 2026-05-20\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\"}"
       ],
       "output": "{\"id\":\"int_1\",\"model\":\"gemini-3-pro-preview\",\"status\":\"completed\",\"outputs\":[{\"type\":\"text\",\"text\":\"ok\"}],\"usage\":{\"total_input_tokens\":3,\"total_output_tokens\":1,\"total_tokens\":4}}",
@@ -1497,7 +1554,10 @@
         "total_tokens": 4,
         "response_model": "gemini-3-pro-preview",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1547,7 +1607,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzUsImlhdCI6MTc5Mjk3NTc3NX0.HB_0Ii3IcHI3f-xl_49rE4fdPL7a7X5HCendUI-nwbL-1IzdrHu1iOArRiO7pojMFCl5NIJvlOijwiQB4DiWg7TPSOLBct9cVmyhG7EBYAPpjIbpu187Mdd8w75ghZB97p7HMd9Ok2JUeFG4ueExtwy172pH6VZbmKElnJVskfj2ocHDF-Jk2gJfGdP2iFG6RS0gNHnUbCjtkew0V-_Z67_QKto20KWxoYVy-smWfOtYn-X8ll1hIJJVBXRABYbigf5cKMSAZybKZqsrvvxqeo3M6-HFZZ7fFCNKTUyVM6HmcmpeA8J--A8K3bme_aCR-XSRiufpDGDpEhUDXoOzTQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1beta1/projects/proj-1/locations/global/interactions?alt=sse HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 59\r\nApi-Revision: 2026-05-20\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"input\":\"hi\",\"stream\":true}"
       ],
       "chunks": [
@@ -1568,7 +1628,10 @@
         "total_tokens": 5,
         "response_model": "gemini-3-pro-preview",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1618,7 +1681,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzUsImlhdCI6MTc5Mjk3NTc3NX0.HB_0Ii3IcHI3f-xl_49rE4fdPL7a7X5HCendUI-nwbL-1IzdrHu1iOArRiO7pojMFCl5NIJvlOijwiQB4DiWg7TPSOLBct9cVmyhG7EBYAPpjIbpu187Mdd8w75ghZB97p7HMd9Ok2JUeFG4ueExtwy172pH6VZbmKElnJVskfj2ocHDF-Jk2gJfGdP2iFG6RS0gNHnUbCjtkew0V-_Z67_QKto20KWxoYVy-smWfOtYn-X8ll1hIJJVBXRABYbigf5cKMSAZybKZqsrvvxqeo3M6-HFZZ7fFCNKTUyVM6HmcmpeA8J--A8K3bme_aCR-XSRiufpDGDpEhUDXoOzTQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/europe-west1/publishers/google/models/gemini-3-pro-preview:generateContent HTTP/1.1\r\nHost: europe-west1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 94\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"gemini-3-pro-preview\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi regional\"}]}]}"
       ],
       "output": "{\"id\":\"r1\",\"object\":\"interaction\",\"status\":\"completed\",\"model\":\"gemini-3-pro-preview\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"text\":\"ok\"}]}],\"usage\":{\"input_tokens\":3,\"output_tokens\":1,\"total_tokens\":4}}",
@@ -1632,7 +1695,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1711,7 +1777,10 @@
         "total_tokens": 4,
         "response_model": "gemini-3-pro-preview",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1775,7 +1844,10 @@
         "response_model": "",
         "reasoning_effort": "",
         "failed": true,
-        "fail_body": "parse \"https://aiplatform.googleapis.com/v1beta1/projects/p%zz/locations/global/interactions\": invalid URL escape \"%zz\""
+        "fail_body": "parse \"https://aiplatform.googleapis.com/v1beta1/projects/p%zz/locations/global/interactions\": invalid URL escape \"%zz\"",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1825,7 +1897,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzUsImlhdCI6MTc5Mjk3NTc3NX0.HB_0Ii3IcHI3f-xl_49rE4fdPL7a7X5HCendUI-nwbL-1IzdrHu1iOArRiO7pojMFCl5NIJvlOijwiQB4DiWg7TPSOLBct9cVmyhG7EBYAPpjIbpu187Mdd8w75ghZB97p7HMd9Ok2JUeFG4ueExtwy172pH6VZbmKElnJVskfj2ocHDF-Jk2gJfGdP2iFG6RS0gNHnUbCjtkew0V-_Z67_QKto20KWxoYVy-smWfOtYn-X8ll1hIJJVBXRABYbigf5cKMSAZybKZqsrvvxqeo3M6-HFZZ7fFCNKTUyVM6HmcmpeA8J--A8K3bme_aCR-XSRiufpDGDpEhUDXoOzTQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 401,
@@ -1843,7 +1915,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 401,
-        "fail_body": "missing access token"
+        "fail_body": "missing access token",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1889,7 +1964,10 @@
         "total_tokens": 4,
         "response_model": "gemini-3-pro-preview",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-3-pro-preview",
+        "quality": "complete"
       }
     },
     {
@@ -1939,7 +2017,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzYsImlhdCI6MTc5Mjk3MTUzNn0.nE9zrVTPhITFrLwjth1KAmXsNcatY2VW9SfUTQn8sAw_UP16AjCNcHOc0zwDQ0PhLeHXckImyMB3wgMMVuWLJeCgpyDmk76hNKeXhNVeXHRVXw9koxPY3bmy4dwbBxYPtsq2bIY80LBjeK93HNaNFnnz9_Co1RKCWBYiHvHEksb1sUK6jJEFxSvtg1uqUZIpUGssl2StrWV_f9TH0H0xoEg7E9DeQQYxHKND5Gl4RYqDcuF29e2xKMJykM9_RjkOyJH0s8vwDvrufJ1CRmjBePUjx08aRnKO2UeH-CulbMlp6lXSSl_Ut0VEcq5dL5WgSikeq757ILU0u2kqjIAsGQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzUsImlhdCI6MTc5Mjk3NTc3NX0.HB_0Ii3IcHI3f-xl_49rE4fdPL7a7X5HCendUI-nwbL-1IzdrHu1iOArRiO7pojMFCl5NIJvlOijwiQB4DiWg7TPSOLBct9cVmyhG7EBYAPpjIbpu187Mdd8w75ghZB97p7HMd9Ok2JUeFG4ueExtwy172pH6VZbmKElnJVskfj2ocHDF-Jk2gJfGdP2iFG6RS0gNHnUbCjtkew0V-_Z67_QKto20KWxoYVy-smWfOtYn-X8ll1hIJJVBXRABYbigf5cKMSAZybKZqsrvvxqeo3M6-HFZZ7fFCNKTUyVM6HmcmpeA8J--A8K3bme_aCR-XSRiufpDGDpEhUDXoOzTQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/global/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 100\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hello maas\"}]}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
@@ -1953,7 +2031,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "quality": "complete"
       }
     },
     {
@@ -2003,7 +2084,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzUsImlhdCI6MTc5Mjk3NTc3NX0.HB_0Ii3IcHI3f-xl_49rE4fdPL7a7X5HCendUI-nwbL-1IzdrHu1iOArRiO7pojMFCl5NIJvlOijwiQB4DiWg7TPSOLBct9cVmyhG7EBYAPpjIbpu187Mdd8w75ghZB97p7HMd9Ok2JUeFG4ueExtwy172pH6VZbmKElnJVskfj2ocHDF-Jk2gJfGdP2iFG6RS0gNHnUbCjtkew0V-_Z67_QKto20KWxoYVy-smWfOtYn-X8ll1hIJJVBXRABYbigf5cKMSAZybKZqsrvvxqeo3M6-HFZZ7fFCNKTUyVM6HmcmpeA8J--A8K3bme_aCR-XSRiufpDGDpEhUDXoOzTQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-east5/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-east5-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 154\r\nAccept: text/event-stream\r\nAuthorization: Bearer ya29.fake-access\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4-maverick-17b-128e-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
       ],
       "chunks": [
@@ -2020,7 +2101,10 @@
         "total_tokens": 5,
         "response_model": "meta/llama-4",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4-maverick-17b-128e-instruct-maas",
+        "quality": "complete"
       }
     },
     {
@@ -2070,7 +2154,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzUsImlhdCI6MTc5Mjk3NTc3NX0.HB_0Ii3IcHI3f-xl_49rE4fdPL7a7X5HCendUI-nwbL-1IzdrHu1iOArRiO7pojMFCl5NIJvlOijwiQB4DiWg7TPSOLBct9cVmyhG7EBYAPpjIbpu187Mdd8w75ghZB97p7HMd9Ok2JUeFG4ueExtwy172pH6VZbmKElnJVskfj2ocHDF-Jk2gJfGdP2iFG6RS0gNHnUbCjtkew0V-_Z67_QKto20KWxoYVy-smWfOtYn-X8ll1hIJJVBXRABYbigf5cKMSAZybKZqsrvvxqeo3M6-HFZZ7fFCNKTUyVM6HmcmpeA8J--A8K3bme_aCR-XSRiufpDGDpEhUDXoOzTQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 114\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-3.3-70b-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"reasoning_effort\":\"high\"}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
@@ -2084,7 +2168,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "high",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-3.3-70b-instruct-maas",
+        "quality": "complete"
       }
     },
     {
@@ -2134,7 +2221,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzUsImlhdCI6MTc5Mjk3NTc3NX0.HB_0Ii3IcHI3f-xl_49rE4fdPL7a7X5HCendUI-nwbL-1IzdrHu1iOArRiO7pojMFCl5NIJvlOijwiQB4DiWg7TPSOLBct9cVmyhG7EBYAPpjIbpu187Mdd8w75ghZB97p7HMd9Ok2JUeFG4ueExtwy172pH6VZbmKElnJVskfj2ocHDF-Jk2gJfGdP2iFG6RS0gNHnUbCjtkew0V-_Z67_QKto20KWxoYVy-smWfOtYn-X8ll1hIJJVBXRABYbigf5cKMSAZybKZqsrvvxqeo3M6-HFZZ7fFCNKTUyVM6HmcmpeA8J--A8K3bme_aCR-XSRiufpDGDpEhUDXoOzTQ\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 79\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"google/gemini-2.5-flash\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
@@ -2148,7 +2235,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "google/gemini-2.5-flash",
+        "quality": "complete"
       }
     },
     {
@@ -2198,10 +2288,10 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzYsImlhdCI6MTc5Mjk3NTc3Nn0.sI-91FrzsNfIvc7r03ZMiLJyZ0TKp-gsVbAR9lhUNCaUw9Tmsu_TecPVtaK2hDoyoAx7ZcGVE_HhyfnuOWb0qUJSKBODF4uYMFnzbJCxOC0Kth9260r-6UFzvaz9Qoo1OVFGICAWk8_k6FyriooWSvC6pYTFICNg4oqFX4UA2nS_nhwKaC71MmHYeEOoWZq6QwrKW5zOhc5KH4RrcU66xgJG1gmKFcA5rKTGCwJm2TZi1Ef3_63SQkUJ113SIsHTq7RflyC-6fBTtflCRm1FIyiTDz49Tqqezqf9FA0Sb6AEWYKViIgJ5Jv6gHA75NLD7DWv7sYe3esHYi5uQkm5Tg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/imagen-4.0-generate-001:predict HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 65\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"instances\":[{\"prompt\":\"a cat\"}],\"parameters\":{\"sampleCount\":1}}"
       ],
-      "output": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"}},{\"inlineData\":{\"data\":\"AAAA\",\"mimeType\":\"image/png\"}}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"imagen-4.0-generate-001\",\"responseId\":\"imagen-1792971547207005287\",\"usageMetadata\":{\"candidatesTokenCount\":0,\"promptTokenCount\":0,\"totalTokenCount\":0}}",
+      "output": "{\"candidates\":[{\"content\":{\"parts\":[{\"inlineData\":{\"data\":\"iVBORw0KGgo=\",\"mimeType\":\"image/jpeg\"}},{\"inlineData\":{\"data\":\"AAAA\",\"mimeType\":\"image/png\"}}],\"role\":\"model\"},\"finishReason\":\"STOP\"}],\"modelVersion\":\"imagen-4.0-generate-001\",\"responseId\":\"imagen-1792975786011223915\",\"usageMetadata\":{\"candidatesTokenCount\":0,\"promptTokenCount\":0,\"totalTokenCount\":0}}",
       "usage": {
         "input_tokens": 0,
         "output_tokens": 0,
@@ -2212,7 +2302,10 @@
         "total_tokens": 0,
         "response_model": "",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "imagen-4.0-generate-001",
+        "quality": "complete"
       }
     },
     {
@@ -2262,7 +2355,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzYsImlhdCI6MTc5Mjk3NTc3Nn0.sI-91FrzsNfIvc7r03ZMiLJyZ0TKp-gsVbAR9lhUNCaUw9Tmsu_TecPVtaK2hDoyoAx7ZcGVE_HhyfnuOWb0qUJSKBODF4uYMFnzbJCxOC0Kth9260r-6UFzvaz9Qoo1OVFGICAWk8_k6FyriooWSvC6pYTFICNg4oqFX4UA2nS_nhwKaC71MmHYeEOoWZq6QwrKW5zOhc5KH4RrcU66xgJG1gmKFcA5rKTGCwJm2TZi1Ef3_63SQkUJ113SIsHTq7RflyC-6fBTtflCRm1FIyiTDz49Tqqezqf9FA0Sb6AEWYKViIgJ5Jv6gHA75NLD7DWv7sYe3esHYi5uQkm5Tg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/publishers/google/models/meta/llama-4:generateContent HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 413\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"contents\":[{\"role\":\"user\",\"parts\":[{\"text\":\"hi\"}]}],\"safetySettings\":[{\"category\":\"HARM_CATEGORY_HARASSMENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_HATE_SPEECH\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_SEXUALLY_EXPLICIT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_DANGEROUS_CONTENT\",\"threshold\":\"OFF\"},{\"category\":\"HARM_CATEGORY_CIVIC_INTEGRITY\",\"threshold\":\"BLOCK_NONE\"}]}"
       ],
       "output": "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"text\":\"ok\"}]},\"finishReason\":\"STOP\",\"index\":0}],\"usageMetadata\":{\"promptTokenCount\":3,\"candidatesTokenCount\":1,\"totalTokenCount\":4},\"modelVersion\":\"gemini-2.5-flash\",\"createTime\":\"2026-10-01T12:00:00.123456Z\",\"responseId\":\"r1\"}",
@@ -2276,7 +2369,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2325,7 +2421,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzYsImlhdCI6MTc5Mjk3NTc3Nn0.sI-91FrzsNfIvc7r03ZMiLJyZ0TKp-gsVbAR9lhUNCaUw9Tmsu_TecPVtaK2hDoyoAx7ZcGVE_HhyfnuOWb0qUJSKBODF4uYMFnzbJCxOC0Kth9260r-6UFzvaz9Qoo1OVFGICAWk8_k6FyriooWSvC6pYTFICNg4oqFX4UA2nS_nhwKaC71MmHYeEOoWZq6QwrKW5zOhc5KH4RrcU66xgJG1gmKFcA5rKTGCwJm2TZi1Ef3_63SQkUJ113SIsHTq7RflyC-6fBTtflCRm1FIyiTDz49Tqqezqf9FA0Sb6AEWYKViIgJ5Jv6gHA75NLD7DWv7sYe3esHYi5uQkm5Tg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 166\r\nAccept: text/event-stream\r\nAuthorization: Bearer ya29.fake-access\r\nCache-Control: no-cache\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"qwen/qwen3-coder-480b-a35b-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":64,\"stream\":true,\"stream_options\":{\"include_usage\":true}}"
       ],
       "chunks": [
@@ -2347,7 +2443,10 @@
         "total_tokens": 5,
         "response_model": "meta/llama-4",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "qwen/qwen3-coder-480b-a35b-instruct-maas",
+        "quality": "complete"
       }
     },
     {
@@ -2397,7 +2496,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzYsImlhdCI6MTc5Mjk3NTc3Nn0.sI-91FrzsNfIvc7r03ZMiLJyZ0TKp-gsVbAR9lhUNCaUw9Tmsu_TecPVtaK2hDoyoAx7ZcGVE_HhyfnuOWb0qUJSKBODF4uYMFnzbJCxOC0Kth9260r-6UFzvaz9Qoo1OVFGICAWk8_k6FyriooWSvC6pYTFICNg4oqFX4UA2nS_nhwKaC71MmHYeEOoWZq6QwrKW5zOhc5KH4RrcU66xgJG1gmKFcA5rKTGCwJm2TZi1Ef3_63SQkUJ113SIsHTq7RflyC-6fBTtflCRm1FIyiTDz49Tqqezqf9FA0Sb6AEWYKViIgJ5Jv6gHA75NLD7DWv7sYe3esHYi5uQkm5Tg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 92\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"status\":\"completed\",\"object\":\"interaction\",\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"steps\":[{\"type\":\"model_output\",\"content\":[{\"type\":\"text\",\"text\":\"hello from vertex maas\"}]}],\"finish_reason\":\"stop\",\"usage\":{\"input_tokens\":8,\"total_input_tokens\":8,\"output_tokens\":5,\"total_output_tokens\":5,\"total_tokens\":13}}",
@@ -2411,7 +2510,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "deepseek-ai/deepseek-v4.1-flash-maas",
+        "quality": "complete"
       }
     },
     {
@@ -2461,7 +2563,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzYsImlhdCI6MTc5Mjk3NTc3Nn0.sI-91FrzsNfIvc7r03ZMiLJyZ0TKp-gsVbAR9lhUNCaUw9Tmsu_TecPVtaK2hDoyoAx7ZcGVE_HhyfnuOWb0qUJSKBODF4uYMFnzbJCxOC0Kth9260r-6UFzvaz9Qoo1OVFGICAWk8_k6FyriooWSvC6pYTFICNg4oqFX4UA2nS_nhwKaC71MmHYeEOoWZq6QwrKW5zOhc5KH4RrcU66xgJG1gmKFcA5rKTGCwJm2TZi1Ef3_63SQkUJ113SIsHTq7RflyC-6fBTtflCRm1FIyiTDz49Tqqezqf9FA0Sb6AEWYKViIgJ5Jv6gHA75NLD7DWv7sYe3esHYi5uQkm5Tg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1beta1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: europe-west4-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
       ],
       "output": "{\"id\":\"chatcmpl-vertex-maas-1\",\"object\":\"chat.completion\",\"created\":1700000000,\"model\":\"deepseek-ai/deepseek-v4.1-flash-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hello from vertex maas\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":8,\"completion_tokens\":5,\"total_tokens\":13}}",
@@ -2475,7 +2577,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2514,7 +2619,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzYsImlhdCI6MTc5Mjk3NTc3Nn0.sI-91FrzsNfIvc7r03ZMiLJyZ0TKp-gsVbAR9lhUNCaUw9Tmsu_TecPVtaK2hDoyoAx7ZcGVE_HhyfnuOWb0qUJSKBODF4uYMFnzbJCxOC0Kth9260r-6UFzvaz9Qoo1OVFGICAWk8_k6FyriooWSvC6pYTFICNg4oqFX4UA2nS_nhwKaC71MmHYeEOoWZq6QwrKW5zOhc5KH4RrcU66xgJG1gmKFcA5rKTGCwJm2TZi1Ef3_63SQkUJ113SIsHTq7RflyC-6fBTtflCRm1FIyiTDz49Tqqezqf9FA0Sb6AEWYKViIgJ5Jv6gHA75NLD7DWv7sYe3esHYi5uQkm5Tg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 500,
@@ -2532,7 +2637,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 500,
-        "fail_body": "internal server error"
+        "fail_body": "internal server error",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2571,7 +2679,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzYsImlhdCI6MTc5Mjk3NTc3Nn0.sI-91FrzsNfIvc7r03ZMiLJyZ0TKp-gsVbAR9lhUNCaUw9Tmsu_TecPVtaK2hDoyoAx7ZcGVE_HhyfnuOWb0qUJSKBODF4uYMFnzbJCxOC0Kth9260r-6UFzvaz9Qoo1OVFGICAWk8_k6FyriooWSvC6pYTFICNg4oqFX4UA2nS_nhwKaC71MmHYeEOoWZq6QwrKW5zOhc5KH4RrcU66xgJG1gmKFcA5rKTGCwJm2TZi1Ef3_63SQkUJ113SIsHTq7RflyC-6fBTtflCRm1FIyiTDz49Tqqezqf9FA0Sb6AEWYKViIgJ5Jv6gHA75NLD7DWv7sYe3esHYi5uQkm5Tg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
       ],
       "error": {
         "status": 401,
@@ -2589,7 +2697,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 401,
-        "fail_body": "missing access token"
+        "fail_body": "missing access token",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2638,7 +2749,7 @@
         }
       ],
       "requests": [
-        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzUxMzcsImlhdCI6MTc5Mjk3MTUzN30.a7uDzfAtlY90V6L2nBttWOSLksgQ5myTfu3RaR12ufCZYSLa3XjVvPeAoqP5J9Xh7vC2eCaYnpoD3UOnrgVhDZK0QUcppnvHMErQLlH-930yFU0qGWSzJYEt7RxYEPAvyVOzd3BOT9Nwdk38k8vOJ86bootxJ6b-I_8WXv_6keIGhvtQxwMX4kiUvSGI_v7f1NdDw2kSpz3P5WR0vvxhHeLI01LoVBSCt8td514vEW3oxsCaqucVzgujiJRwzSOW7nnuDMEQD3uWM9-7VZLa26iJCiXtreUjmdWfVNHFmR9qCwELr3GFDIEAy0V80hnbuHobu6mAA8APgyObYRY05Q\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzYsImlhdCI6MTc5Mjk3NTc3Nn0.sI-91FrzsNfIvc7r03ZMiLJyZ0TKp-gsVbAR9lhUNCaUw9Tmsu_TecPVtaK2hDoyoAx7ZcGVE_HhyfnuOWb0qUJSKBODF4uYMFnzbJCxOC0Kth9260r-6UFzvaz9Qoo1OVFGICAWk8_k6FyriooWSvC6pYTFICNg4oqFX4UA2nS_nhwKaC71MmHYeEOoWZq6QwrKW5zOhc5KH4RrcU66xgJG1gmKFcA5rKTGCwJm2TZi1Ef3_63SQkUJ113SIsHTq7RflyC-6fBTtflCRm1FIyiTDz49Tqqezqf9FA0Sb6AEWYKViIgJ5Jv6gHA75NLD7DWv7sYe3esHYi5uQkm5Tg\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
         "POST /v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: us-central1-aiplatform.googleapis.com\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 68\r\nAuthorization: Bearer ya29.fake-access\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
       ],
       "error": {
@@ -2657,7 +2768,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 429,
-        "fail_body": "{\"error\":{\"code\":429,\"message\":\"quota\",\"status\":\"RESOURCE_EXHAUSTED\"}}"
+        "fail_body": "{\"error\":{\"code\":429,\"message\":\"quota\",\"status\":\"RESOURCE_EXHAUSTED\"}}",
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2717,7 +2831,10 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 400,
-        "fail_body": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials"
+        "fail_body": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2756,7 +2873,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2798,7 +2918,10 @@
         "total_tokens": 5,
         "response_model": "meta/llama-4",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "mistralai/mistral-small-2503",
+        "quality": "complete"
       }
     },
     {
@@ -2837,7 +2960,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2876,7 +3002,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2904,7 +3033,109 @@
         "reasoning_effort": "",
         "failed": true,
         "fail_status": 400,
-        "fail_body": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials"
+        "fail_body": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
+      }
+    },
+    {
+      "name": "oa_key_escaped_host",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: https://%61iplatform.googleapis.com\n      models:\n        - name: meta/llama-4\n      keys:\n        - api-key: vk-fake-escaped\n",
+      "config_auth": 0,
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "meta/llama-4",
+          "object": "",
+          "created": 0,
+          "owned_by": "",
+          "type": "vertex"
+        }
+      },
+      "error": {
+        "status": 0,
+        "message": "parse \"https://%61iplatform.googleapis.com/v1/endpoints/openapi/chat/completions\": invalid URL escape \"%61\""
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "parse \"https://%61iplatform.googleapis.com/v1/endpoints/openapi/chat/completions\": invalid URL escape \"%61\"",
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
+      }
+    },
+    {
+      "name": "oa_sa_escaped_base",
+      "config_auth": -1,
+      "metadata": {
+        "base_url": "https://%65vil.example/v1",
+        "email": "svc@proj-1.iam.gserviceaccount.com",
+        "project_id": "proj-1",
+        "proxy_url": "http://PROXY",
+        "service_account": {
+          "client_email": "svc@proj-1.iam.gserviceaccount.com",
+          "private_key": "SA_KEY",
+          "private_key_id": "kid-1",
+          "project_id": "proj-1",
+          "token_uri": "https://oauth2.googleapis.com/token",
+          "type": "service_account"
+        },
+        "type": "vertex"
+      },
+      "key": "pkcs1",
+      "model": "meta/llama-4",
+      "payload": "{\"model\":\"meta/llama-4\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json; charset=utf-8"
+            ]
+          ],
+          "body": "{\"access_token\":\"ya29.fake-access\",\"expires_in\":3599,\"token_type\":\"Bearer\"}"
+        }
+      ],
+      "requests": [
+        "POST /token HTTP/1.1\r\nHost: oauth2.googleapis.com\r\nUser-Agent: Go-http-client/1.1\r\nContent-Length: 713\r\nContent-Type: application/x-www-form-urlencoded\r\nAccept-Encoding: gzip\r\n\r\nassertion=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtpZC0xIn0.eyJpc3MiOiJzdmNAcHJvai0xLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiYXVkIjoiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJleHAiOjE3OTI5NzkzNzcsImlhdCI6MTc5Mjk3NTc3N30.uibS3sPoReFHnMZku_WHQTCQrr0XrtDlfN6H-F3Q9lz6w1Nt242wkMHTAqJ95fAWjc6bYJjoJa_V60U8bqUYdjMXuiJB4qtKF7dJYBxQ7iXvz5J3OO9EPKHZjT0y0BGhCYuowZa1lJ9iOaClnYe2zIc2OxsqEkSCZXLd5n_XP2jcLxIeS5SeWq3K4B-Kn0QwE1_1No9al6rKim6KW4PGQ1Ic5jkSGEIqhmJUWjXZ_D5kTaR6DcioJMzufAN1WeSqPjjGaLH2dfdAAc0jO2OH_G1At5SOJonJZuw56EHCf1aG9oAawppws6nZLCWAc_-Va7eWpvBqctl1F7yfSo8lHw\u0026grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer"
+      ],
+      "error": {
+        "status": 0,
+        "message": "parse \"https://%65vil.example/v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions\": invalid URL escape \"%65\""
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_body": "parse \"https://%65vil.example/v1/projects/proj-1/locations/us-central1/endpoints/openapi/chat/completions\": invalid URL escape \"%65\"",
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2943,7 +3174,10 @@
         "total_tokens": 13,
         "response_model": "deepseek-ai/deepseek-v4.1-flash-maas",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
       }
     },
     {
@@ -2995,7 +3229,103 @@
         "total_tokens": 5,
         "response_model": "meta/llama-4-served",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-4",
+        "quality": "complete"
+      }
+    },
+    {
+      "name": "usage_oa_key_reasoning_publisher_model",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: http://UPSTREAM/api\n      models:\n        - name: publishers/meta/models/llama-3.3-70b-instruct-maas\n          alias: u-llama\n      keys:\n        - api-key: vk-fake-usage\n",
+      "config_auth": 0,
+      "model": "publishers/meta/models/llama-3.3-70b-instruct-maas",
+      "requested_model": "u-llama",
+      "payload": "{\"model\":\"u-llama\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "publishers/meta/models/llama-3.3-70b-instruct-maas",
+          "object": "",
+          "created": 0,
+          "owned_by": "",
+          "type": "vertex"
+        }
+      },
+      "via": "plain",
+      "replies": [
+        {
+          "status": 200,
+          "headers": [
+            [
+              "Content-Type",
+              "application/json"
+            ]
+          ],
+          "body": "{\"id\":\"c1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"meta/llama-3.3-70b-instruct-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hi\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":50,\"total_tokens\":60,\"completion_tokens_details\":{\"reasoning_tokens\":30}}}"
+        }
+      ],
+      "requests": [
+        "POST /api/v1/endpoints/openapi/chat/completions HTTP/1.1\r\nHost: UPSTREAM\r\nUser-Agent: cli-proxy-openai-compat\r\nContent-Length: 88\r\nAuthorization: Bearer vk-fake-usage\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\n\r\n{\"model\":\"meta/llama-3.3-70b-instruct-maas\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}"
+      ],
+      "output": "{\"id\":\"c1\",\"object\":\"chat.completion\",\"created\":1,\"model\":\"meta/llama-3.3-70b-instruct-maas\",\"choices\":[{\"index\":0,\"message\":{\"role\":\"assistant\",\"content\":\"hi\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":50,\"total_tokens\":60,\"completion_tokens_details\":{\"reasoning_tokens\":30}}}",
+      "usage": {
+        "input_tokens": 10,
+        "output_tokens": 50,
+        "reasoning_tokens": 30,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 60,
+        "response_model": "meta/llama-3.3-70b-instruct-maas",
+        "reasoning_effort": "",
+        "failed": false,
+        "executor_type": "OpenAICompatExecutor",
+        "model": "meta/llama-3.3-70b-instruct-maas",
+        "quality": "complete"
+      }
+    },
+    {
+      "name": "usage_oa_key_google_host_rejected",
+      "config": "\napi-keys:\n  vertex:\n    - base-url: https://us-central1-aiplatform.googleapis.com\n      models:\n        - name: publishers/meta/models/llama-3.3-70b-instruct-maas\n          alias: u-llama\n      keys:\n        - api-key: vk-fake-usage\n",
+      "config_auth": 0,
+      "model": "publishers/meta/models/llama-3.3-70b-instruct-maas",
+      "requested_model": "u-llama",
+      "payload": "{\"model\":\"u-llama\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}]}",
+      "source": "openai",
+      "op": "execute",
+      "session": "derived:ctx:v1:1211c3ff60af63a561f0413f04b6c10dc806fc8a96c651902c73d8817f34b327",
+      "resolved": {
+        "info": {
+          "id": "publishers/meta/models/llama-3.3-70b-instruct-maas",
+          "object": "",
+          "created": 0,
+          "owned_by": "",
+          "type": "vertex"
+        }
+      },
+      "error": {
+        "status": 400,
+        "message": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials"
+      },
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_tokens": 0,
+        "cached_tokens": 0,
+        "cache_read_tokens": 0,
+        "cache_creation_tokens": 0,
+        "total_tokens": 0,
+        "response_model": "",
+        "reasoning_effort": "",
+        "failed": true,
+        "fail_status": 400,
+        "fail_body": "vertex endpoints/openapi on aiplatform.googleapis.com requires service account credentials",
+        "executor_type": "GeminiVertexExecutor",
+        "model": "meta/llama-3.3-70b-instruct-maas",
+        "quality": "complete"
       }
     },
     {
@@ -3072,7 +3402,10 @@
         "total_tokens": 4,
         "response_model": "gemini-2.5-flash",
         "reasoning_effort": "",
-        "failed": false
+        "failed": false,
+        "executor_type": "GeminiVertexExecutor",
+        "model": "gemini-2.5-flash",
+        "quality": "complete"
       }
     }
   ]
