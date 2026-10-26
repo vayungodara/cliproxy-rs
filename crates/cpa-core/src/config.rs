@@ -27,49 +27,69 @@ pub use document::{ConfigDocument, archive_comments, credential_error, is_v8_lay
 pub use schema::validate as validate_config_fields;
 pub use schema::{coerce_typed_scalars, go_bool, go_int};
 
-/// More integers beyond 64 bits than a config has; [`parse_yaml`] parses once per each.
-const MAX_BIG_INTEGERS: usize = 64;
-
 /// `text` parsed as serde_yaml_ng does, except for a plain integer beyond int64 and
 /// uint64, which serde_yaml_ng refuses when it fits 128 bits. yaml.v3 reads a decimal
-/// one as a float and any other (`0x…`, `0o…`) as text, so that scalar is read so. A
-/// string setting still gets the integer's text from the literal walk, which reads
+/// one as a float and any other (`0x…`, `0o…`) as text, so those scalars are read so.
+/// A string setting still gets the integer's text from the literal walk, which reads
 /// `text` itself.
 pub fn parse_yaml(text: &str) -> Result<Value, serde_yaml_ng::Error> {
-    let mut text = std::borrow::Cow::Borrowed(text);
-    for _ in 0..=MAX_BIG_INTEGERS {
-        let err = match serde_yaml_ng::from_str::<Value>(&text) {
-            Ok(value) => return Ok(value),
-            Err(err) => err,
+    let err = match serde_yaml_ng::from_str::<Value>(text) {
+        Ok(value) => return Ok(value),
+        Err(err) => err,
+    };
+    let message = err.to_string();
+    if !(message.contains(" as u128,") || message.contains(" as i128,")) {
+        return Err(err);
+    }
+    let Ok(scalars) = binary::plain_scalars(text) else {
+        return Err(err);
+    };
+    // One pass over the scalars, then one parse.
+    let mut out = String::with_capacity(text.len());
+    let mut last = 0;
+    for (span, value) in scalars {
+        let Some(read) = std::str::from_utf8(&value).ok().and_then(go_big_integer) else {
+            continue;
         };
-        let message = err.to_string();
-        let at = err
-            .location()
-            .map(|l| l.index())
-            .filter(|_| message.contains(" as u128,") || message.contains(" as i128,"));
-        let Some((at, rest)) = at.and_then(|at| Some((at, text.get(at..)?))) else {
+        let Some(before) = text.get(last..span.start) else {
             return Err(err);
         };
-        let end = at
-            + rest
-                .find(|c: char| !(c.is_ascii_alphanumeric() || matches!(c, '_' | '+' | '-')))
-                .unwrap_or(rest.len());
-        let literal = &text[at..end];
-        let value = if literal
-            .trim_start_matches(['+', '-'])
-            .bytes()
-            .all(|b| b.is_ascii_digit() || b == b'_')
-        {
-            match literal.replace('_', "").parse::<f64>() {
-                Ok(f) => format!("{f:e}"),
-                Err(_) => return Err(err),
-            }
-        } else {
-            format!("'{literal}'")
-        };
-        text.to_mut().replace_range(at..end, &value);
+        out.push_str(before);
+        out.push_str(&read);
+        last = span.end;
     }
-    serde_yaml_ng::from_str::<Value>(&text)
+    out.push_str(&text[last.min(text.len())..]);
+    serde_yaml_ng::from_str(&out)
+}
+
+/// yaml.v3's reading of a plain integer beyond int64 and uint64, written so that
+/// serde_yaml_ng reads the same: a decimal one as its float, any other quoted. `None`
+/// for any other scalar.
+fn go_big_integer(text: &str) -> Option<String> {
+    let negative = text.starts_with('-');
+    let unsigned = text.strip_prefix(['+', '-']).unwrap_or(text);
+    let (radix, digits) = match unsigned.get(..2) {
+        Some("0x" | "0X") => (16, &unsigned[2..]),
+        Some("0o" | "0O") => (8, &unsigned[2..]),
+        Some("0b" | "0B") => (2, &unsigned[2..]),
+        _ => (10, unsigned),
+    };
+    if digits.is_empty() || !digits.chars().all(|c| c.is_digit(radix)) {
+        return None;
+    }
+    let fits = if negative {
+        i64::from_str_radix(&format!("-{digits}"), radix).is_ok()
+    } else {
+        u64::from_str_radix(digits, radix).is_ok()
+    };
+    if fits {
+        return None;
+    }
+    Some(if radix == 10 {
+        format!("{:e}", text.parse::<f64>().ok()?)
+    } else {
+        format!("'{text}'")
+    })
 }
 
 /// A config text with its tagged scalars as yaml.v3 decodes them (`!!binary` values
@@ -1374,6 +1394,17 @@ oauth-excluded-models: {{c: [{numbers}]}}
             panic!("{:?}", cfg.plugin_configs)
         };
         assert_eq!(n.value, Value::from(token));
+        // Any number of them, read in one pass; marks after a BOM still line up.
+        let many = yaml_value(&format!("x: [{}]\n", vec!["-18446744073709551616"; 100].join(", "))).unwrap();
+        assert!(
+            many["x"]
+                .as_sequence()
+                .unwrap()
+                .iter()
+                .all(|v| v.as_f64() == Some(-1.8446744073709552e19))
+        );
+        let bom = yaml_value("\u{feff}a: [0x1FFFFFFFFFFFFFFFFF, x]\n").unwrap();
+        assert_eq!(bom["a"], yaml_value("['0x1FFFFFFFFFFFFFFFFF', x]").unwrap());
         // Go: cannot unmarshal !!float into int.
         assert!(Config::parse("routing: {retry: {request-retry: 18446744073709551616}}\n").is_err());
     }
