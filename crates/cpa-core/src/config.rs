@@ -1403,6 +1403,9 @@ oauth-excluded-models: {{c: [{numbers}]}}
                 .iter()
                 .all(|v| v.as_f64() == Some(-1.8446744073709552e19))
         );
+        // An anchored one keeps its anchor.
+        let anchored = yaml_value("a: &n 18446744073709551616\nb: *n\n").unwrap();
+        assert_eq!(anchored["b"].as_f64(), Some(1.8446744073709552e19));
         let bom = yaml_value("\u{feff}a: [0x1FFFFFFFFFFFFFFFFF, x]\n").unwrap();
         assert_eq!(bom["a"], yaml_value("['0x1FFFFFFFFFFFFFFFFF', x]").unwrap());
         // Go: cannot unmarshal !!float into int.

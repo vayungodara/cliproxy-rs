@@ -334,14 +334,17 @@ fn events_with(
             let next = match kind {
                 unsafe_libyaml::YAML_SCALAR_EVENT => {
                     let s = &event.data.scalar;
+                    let value = std::slice::from_raw_parts(s.value, s.length as usize);
+                    // The span starts at an anchor; a scalar folded over lines is not
+                    // its source.
+                    let end = event.end_mark.index as usize;
                     if let Some(plain) = plain.as_deref_mut()
                         && s.style == unsafe_libyaml::YAML_PLAIN_SCALAR_STYLE
                         && s.tag.is_null()
+                        && let Some(start) = end.checked_sub(value.len())
+                        && text.as_bytes().get(start..end) == Some(value)
                     {
-                        plain.push((
-                            event.start_mark.index as usize..event.end_mark.index as usize,
-                            std::slice::from_raw_parts(s.value, s.length as usize).to_vec(),
-                        ));
+                        plain.push((start..end, value.to_vec()));
                     }
                     Some(Event::Scalar {
                         anchor: bytes(s.anchor),
