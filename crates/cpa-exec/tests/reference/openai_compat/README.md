@@ -44,10 +44,11 @@ A Go error without a status code (status 0) is answered 500 by Go's handler.
 (`ae3ee3be303fb07fb8173279923413005bf32177`) with the generator above; the Rust test
 replaces the `6fecc6e` recordings of the same names with them and adds the new ones.
 Today: the nine `responses_eof_*` scenarios (Go 0ea4e1dc: a Responses stream that ends
-on a clean EOF after its finish reason completes). Point `reference` at a v8.0.35
+on a clean EOF after its finish reason completes) and `stream_multiline_with_done` (Go
+f8e4a840: the served model comes only from frames that pass the stream checks). Point `reference` at a v8.0.35
 checkout (`git -C "$reference" checkout ae3ee3be`). Every case still runs; `RSFIX_ONLY`
 (a Go regexp on the name) selects the ones written:
 
 ```sh
-RSFIX_ONLY='^responses_eof_' go run . "$crate/tests/fixtures/openai_compat_go_v8.0.35.json"
+RSFIX_ONLY='^(responses_eof_|stream_multiline_with_done$)' go run . "$crate/tests/fixtures/openai_compat_go_v8.0.35.json"
 ```

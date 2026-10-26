@@ -47,13 +47,19 @@ to the end of the pipeline (`868e137`): `meta/payload-rules-and-headers.json` (r
 the rules now run after the instructions default) and
 `kimi/{chat,responses}-payload-override-after-normalize.json` (a configured temperature
 survives the temperature normalization). Record them the same way from a v8.0.35
-checkout and copy only those files.
+checkout and copy only those files. `meta/claude-stream-input-estimate.json` (a Claude client's
+`message_start` estimate, f3e36f19) is a v8.0.35 recording too:
+`-run 'TestRSFixMeta$/claude-stream-input-estimate'`.
 
 Devin's request logs follow v8.0.35 too, where Go logs the payload rules' JSON view of
 the protobuf (`FinalizeDevinPayload`) instead of its readable request summary:
 
 - `devin/{chat-payload-rules,chat-payload-nan,interactions-payload-bad-signature,interactions-temperature-infinite}.json`
   are v8.0.35 recordings (`TestRSFixDevin`, copied whole).
+- `devin/user-turn-*.json` (refusals of user turns left with media Devin cannot send, Go
+  f51624aa) and `devin/user_turns.json` (`CheckDevinUserTurns` after
+  `parseInteractionsPayload`) are v8.0.35 recordings too, made with
+  `-run 'TestRSFixDevin$/user-turn|TestRSFixDevinUserTurns'` and copied whole.
 - In every other Devin fixture, only the `Body:` section of `extra.capture.request` is
   replaced, by v8.0.35's view of the frame that fixture's `upstream` recorded:
 

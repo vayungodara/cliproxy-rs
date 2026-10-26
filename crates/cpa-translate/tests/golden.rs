@@ -193,11 +193,6 @@ const PENDING: &[(&str, &str, &str)] = &[
         "Responses local_shell tool (91c934f6)",
     ),
     (
-        "interactions->antigravity",
-        "interactions-antigravity/user-turn/document-file-id",
-        "the Antigravity Interactions refusal of an emptied user turn (f51624aa)",
-    ),
-    (
         "openai-response->interactions",
         "TestInteractionsApplyPatchTerminalIdentityFallback:32:stream#7",
         "unique fallback item IDs (b0db5448)",
@@ -422,18 +417,11 @@ fn check(client: Format, upstream: Format, f: &Value, bytes: bool, tool_search: 
 
 /// Pair fixtures (recorded at 6fecc6e) whose behaviour a later Go commit changed, each
 /// replayed at v8.0.35 by the named golden instead.
-const SUPERSEDED: &[(&str, &str)] = &[
-    (
-        "interactions->antigravity interactions/parts/media",
-        "f51624aa reads an Interactions part's uri as file_uri; \
+const SUPERSEDED: &[(&str, &str)] = &[(
+    "claude->antigravity tools/schema/11",
+    "the v8.0.35 schema cleaner (a0fd8448, c558d320): cpa-common gemini_schema.json.gz; \
          the same fixture recorded at v8.0.35 matches",
-    ),
-    (
-        "claude->antigravity tools/schema/11",
-        "the v8.0.35 schema cleaner (a0fd8448, c558d320): cpa-common gemini_schema.json.gz; \
-         the same fixture recorded at v8.0.35 matches",
-    ),
-];
+)];
 
 #[test]
 fn reference_goldens() {

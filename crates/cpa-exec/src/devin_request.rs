@@ -109,12 +109,13 @@ pub(crate) fn parse_interactions(payload: &[u8], original: &[u8]) -> Parsed {
         for step in input.array() {
             match lower(&step.get("type").bytes()).as_str() {
                 "user_input" => {
-                    let (content, images) = step_content(&step);
+                    let (content, images, dropped_part) = step_content(&step);
                     p.prompts.push(Prompt {
                         message_id: message_id(),
                         source: 1,
                         content,
                         images,
+                        dropped_part,
                         ..Prompt::default()
                     });
                 }
@@ -196,12 +197,13 @@ pub(crate) fn parse_interactions(payload: &[u8], original: &[u8]) -> Parsed {
                     }
                 }
                 "user" => {
-                    let (content, images) = step_content(&m);
+                    let (content, images, dropped_part) = step_content(&m);
                     p.prompts.push(Prompt {
                         message_id: message_id(),
                         source: 1,
                         content,
                         images,
+                        dropped_part,
                         ..Prompt::default()
                     });
                 }
@@ -412,10 +414,14 @@ fn image(part: &Res<'_>) -> Option<Image> {
         }
     }
     if data.is_empty() {
+        // uri and file_uri are Interactions spellings of url; only a data URL is usable.
         let url = first_non_empty(&[
             s(&part.get("image_url.url")),
             s(&part.get("image_url")),
             s(&part.get("url")),
+            s(&part.get("uri")),
+            s(&part.get("file_uri")),
+            s(&part.get("fileUri")),
         ]);
         if let Some((m, d)) = parse_data_url(&url) {
             data = d;
@@ -607,11 +613,13 @@ fn function_result_content(step: &Res<'_>) -> (Vec<u8>, Vec<Image>) {
     (text, images)
 }
 
-/// `extractInteractionsStepContent`: text parts joined by newlines, plus images.
-fn step_content(step: &Res<'_>) -> (Vec<u8>, Vec<Image>) {
+/// `extractInteractionsStepContent`: a user step's text and inline images, and the type
+/// of the first media part Devin cannot send (or "").
+fn step_content(step: &Res<'_>) -> (Vec<u8>, Vec<Image>, String) {
     let content = step.get("content");
     let mut texts: Vec<Vec<u8>> = Vec::new();
     let mut images = Vec::new();
+    let mut dropped = String::new();
     if content.kind == Kind::String {
         texts.push(s(&content));
     } else if content.is_array() {
@@ -623,13 +631,59 @@ fn step_content(step: &Res<'_>) -> (Vec<u8>, Vec<Image>) {
                 if !text.is_empty() {
                     texts.push(text);
                 }
+                if dropped.is_empty() {
+                    dropped = unsendable_media_type(&part);
+                }
             }
         }
     } else if step.get("text").exists() {
         texts.push(s(&step.get("text")));
     }
     let text = texts.join(&b'\n');
-    (with_image_headers(text, &images), images)
+    (with_image_headers(text, &images), images, dropped)
+}
+
+/// `devinUnsendableMediaType`: Devin takes only inline images, so a remote uri or any
+/// audio, video or document part names its type; text and other parts give "".
+fn unsendable_media_type(part: &Res<'_>) -> String {
+    if !part.get("text").bytes().is_empty() {
+        return String::new();
+    }
+    let kind = lower(trim_space(&part.get("type").bytes()));
+    match kind.as_str() {
+        "image" | "input_image" | "image_url" | "audio" | "input_audio" | "video" | "document" | "file"
+        | "input_file" => kind,
+        _ => String::new(),
+    }
+}
+
+/// `CheckDevinUserTurns` (f51624aa): a user turn whose prompts dropped media and carry
+/// nothing else to send is refused; otherwise the emptied prompts are removed so no
+/// empty user prompt reaches upstream. A tool result keeps the surrounding turn alive.
+pub(crate) fn check_user_turns(prompts: Vec<Prompt>) -> Result<Vec<Prompt>, cpa_translate::Error> {
+    let has_content = |p: &Prompt| !trim_space(&p.content).is_empty() || !p.images.is_empty();
+    let user = |p: &Prompt| p.source == 1 && !p.is_orphaned_tool;
+    let mut run = cpa_translate::UserRun::default();
+    for prompt in &prompts {
+        if prompt.source == 2 {
+            run.end();
+        } else if user(prompt) {
+            if !prompt.dropped_part.is_empty() {
+                run.drop_part(&prompt.dropped_part);
+            }
+            if has_content(prompt) {
+                run.add();
+            }
+        } else {
+            run.add();
+        }
+    }
+    run.end();
+    run.result()?;
+    Ok(prompts
+        .into_iter()
+        .filter(|p| !(user(p) && !p.dropped_part.is_empty() && !has_content(p)))
+        .collect())
 }
 
 /// `extractInteractionsStepText`.

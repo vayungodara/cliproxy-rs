@@ -422,7 +422,11 @@ impl DevinExecutor {
             )
             .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))?
         };
-        let parsed = parse_interactions(&payload, &req.original_body);
+        let mut parsed = parse_interactions(&payload, &req.original_body);
+        // Devin cannot fetch a remote uri or take audio, video or documents: a user turn
+        // left with nothing else to send is refused before any upstream call.
+        parsed.prompts = crate::devin_request::check_user_turns(std::mem::take(&mut parsed.prompts))
+            .map_err(|e| ExecError::local(400, FailureScope::Request, e.0))?;
         let session = String::from_utf8_lossy(&parsed.session_id).into_owned();
         let session = if session.is_empty() {
             cpa_common::session::cpa_session_id(req.session.as_deref()).unwrap_or_default()

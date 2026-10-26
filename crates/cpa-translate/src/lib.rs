@@ -131,6 +131,8 @@ pub use codex_responses::{
     non_stream_with_bridge as codex_responses_non_stream_with_bridge,
     stream_with_bridge as codex_responses_stream_with_bridge,
 };
+/// translatorcommon.UserRun, for executors that refuse an emptied user turn (Devin).
+pub use common::UserRun;
 pub use replay_cache::set_signature_cache_config as set_antigravity_signature_cache_config;
 
 /// util.GeminiClaudeToolUseID: the Claude-facing provenance ID of a native Gemini call,

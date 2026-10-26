@@ -486,12 +486,13 @@ pub(crate) async fn chat_with(
         };
         let mut lines = wire::lines(upstream, MAX_LINE);
         if req.usage.enabled() {
-            // ObserveResponseModel and StreamUsageBuffer.ObserveOpenAIStream per line.
+            // StreamUsageBuffer.ObserveOpenAIStream per line; the served model is observed
+            // per accepted frame (Frames::frame).
             let usage = req.usage.clone();
             lines = lines
                 .inspect(move |line| {
                     if let Ok(line) = line {
-                        usage.response_line(Format::OpenAI, line);
+                        usage.response_usage_line(Format::OpenAI, line);
                     }
                 })
                 .boxed();
@@ -839,6 +840,9 @@ impl Frames {
         if !done && let Some(status) = payload::stream_data_error(payload_bytes, &event) {
             return self.fail_payload(status, String::from_utf8_lossy(payload_bytes));
         }
+        // ObserveChatTokenEvent (Go f8e4a840): the served model comes from frames that
+        // passed these checks, not from every line.
+        self.usage.response_model_line(payload_bytes);
         let mut line = b"data: ".to_vec();
         line.extend_from_slice(payload_bytes);
         if self.translate(&line) {

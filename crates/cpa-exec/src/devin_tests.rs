@@ -385,6 +385,25 @@ fn interactions_payloads_parse_like_go() {
     }
 }
 
+/// `CheckDevinUserTurns` after `parseInteractionsPayload` (v8.0.35, f51624aa): the
+/// refusal, or the prompts kept.
+#[test]
+fn user_turns_check_like_go() {
+    let cases = fixture("devin", "user_turns");
+    for case in cases.as_array().unwrap() {
+        let payload = case["payload"].as_str().unwrap();
+        let parsed = crate::devin_request::parse_interactions(payload.as_bytes(), b"");
+        let got = match crate::devin_request::check_user_turns(parsed.prompts) {
+            Err(err) => json!({"payload": payload, "error": err.to_string()}),
+            Ok(kept) => json!({"payload": payload, "prompts": kept.iter().map(|p| json!({
+                "source": p.source, "content": String::from_utf8_lossy(&p.content), "images": p.images.len(),
+                "orphaned": p.is_orphaned_tool, "dropped": p.dropped_part,
+            })).collect::<Vec<_>>()}),
+        };
+        assert_eq!(&got, case, "{payload}");
+    }
+}
+
 /// Overwrites the bytes of nested protobuf string fields (`path` of field numbers) with
 /// `X`, so random values of equal length compare equal.
 fn mask_proto(msg: &mut [u8], path: &[i64]) {
@@ -440,7 +459,7 @@ fn mask_output(text: &str) -> String {
     re.replace_all(text, "<masked>").into_owned()
 }
 
-const EXECUTOR_FIXTURES: [&str; 35] = [
+const EXECUTOR_FIXTURES: [&str; 42] = [
     "chat-nonstream",
     "chat-stream",
     "responses-nonstream",
@@ -476,6 +495,13 @@ const EXECUTOR_FIXTURES: [&str; 35] = [
     "interactions-payload-bad-signature",
     "interactions-temperature-infinite",
     "chat-payload-nan",
+    "user-turn-image-uri",
+    "user-turn-document-file-uri-stream",
+    "user-turn-inline-audio",
+    "user-turn-whitespace-video",
+    "user-turn-emptied-before-text",
+    "user-turn-gemini-file-data",
+    "user-turn-claude-whitespace-image-stream",
 ];
 
 /// Runs one executor fixture once (turn indexes are process-wide per session, so every
