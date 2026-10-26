@@ -32,12 +32,12 @@ Columns:
 | Plugins | 12 | 0 | 12 | 0 | 0 | 0 |
 | Server, handlers and streaming | 12 | 4 | 8 | 0 | 0 | 0 |
 | Usage and logging | 3 | 2 | 1 | 0 | 0 | 0 |
-| Antigravity | 25 | 8 | 17 | 0 | 0 | 0 |
+| Antigravity | 25 | 9 | 16 | 0 | 0 | 0 |
 | Docs and assets | 20 | 0 | 0 | 0 | 20 | 0 |
 | Go tests only | 7 | 0 | 0 | 0 | 7 | 0 |
 | Merge commits | 32 | 0 | 0 | 0 | 32 | 0 |
 | Reasoning signature carriage | 8 | 0 | 8 | 0 | 0 | 0 |
-| **All** | **288** | **127** | **94** | **0** | **64** | **3** |
+| **All** | **288** | **128** | **93** | **0** | **64** | **3** |
 
 Suggested order: credential epochs, watcher reconciliation and cooldown fencing first; SIWC security and v8 config concurrency next; plugin model/auth wiring and Home integration alongside them. Port the shared schema cleaner and reasoning-signature carriage series together, then Codex SSE/tool history, Gemini/Vertex tools and OpenAPI models, and the remaining providers. Keep the Antigravity entitlement/probe series (7e857c37, 9521fe29, ad381435, 091ff27f) together. Keep the Claude payload barrier (868e137), Responses tool_search series and deferred-tool cache fix (97ba1e89) together; verify stable prefixes before changing cache semantics. Finish the remaining Claude thinking/date/web-search cache work and catalogs, then SDK, discovery and non-visible performance parity. Sizes are Go diff sizes, not priorities or Rust effort estimates.
 
@@ -343,7 +343,7 @@ Suggested order: credential epochs, watcher reconciliation and cooldown fencing 
 | [`ad381435`](https://github.com/router-for-me/CLIProxyAPI/commit/ad381435) | fix(antigravity): coalesce probes and respect plugin model ownership | yes | to port | M (+144 −99) | coalesced probes, plugin model ownership; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`cbc4cd55`](https://github.com/router-for-me/CLIProxyAPI/commit/cbc4cd55) | feat(interactions): support antigravity session continuation and model detail lookup | yes | to port | L (+299 −14) | Interactions session continuation; see DIFFERENCES-FROM-GO.md#antigravity; the injective `external_` tool-name mapping landed in #76 |
 | [`4e4dede4`](https://github.com/router-for-me/CLIProxyAPI/commit/4e4dede4) | fix(antigravity): surface backend errors and support multi-line stream payloads | yes | ported here | S (+33 −0) | backend errors, multi-line stream payloads; see DIFFERENCES-FROM-GO.md#antigravity |
-| [`a4acc9f7`](https://github.com/router-for-me/CLIProxyAPI/commit/a4acc9f7) | fix(antigravity): treat client disconnect after terminal stream chunk as success | yes | to port | M (+52 −0) | client disconnect after the terminal chunk: the usage record (a success after the terminal chunk, a failure with the usage seen so far before it) is ported with dbc4aad9 and checked by `antigravity_v8_0_35_go.json`; committing the signature replay on such a disconnect is still to port; see DIFFERENCES-FROM-GO.md#antigravity |
+| [`a4acc9f7`](https://github.com/router-for-me/CLIProxyAPI/commit/a4acc9f7) | fix(antigravity): treat client disconnect after terminal stream chunk as success | yes | ported here | M (+52 −0) | client disconnect after the terminal chunk: the usage record (a success after the terminal chunk, a failure with the usage seen so far before it) is ported with dbc4aad9; the reasoning replay commits once a terminal chunk went out, however the stream ends, unless the apply_patch translation failed; both checked by `antigravity_v8_0_35_go.json`; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`17dc1b81`](https://github.com/router-for-me/CLIProxyAPI/commit/17dc1b81) | feat(antigravity): enhance context hash rejection logging and introduce replay phases | yes | to port | M (+47 −26) | context hash rejection logging, replay phases; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`40f4df07`](https://github.com/router-for-me/CLIProxyAPI/commit/40f4df07) | feat(antigravity): enhance context hash rejection logging and batch retry logic | yes | to port | M (+71 −23) | context hash rejection batch retry; see DIFFERENCES-FROM-GO.md#antigravity |
 | [`ab151f5d`](https://github.com/router-for-me/CLIProxyAPI/commit/ab151f5d) | fix(antigravity): include thoughts token count in openai completion tokens | yes | to port | S (+1 −1) | thoughts tokens in completion tokens; see DIFFERENCES-FROM-GO.md#antigravity |

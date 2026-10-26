@@ -735,6 +735,8 @@ pub(crate) struct Output {
     retained: Option<ExecError>,
     /// See [`Output::fail_on_client_drop`].
     drop_rule: DropRule,
+    /// Antigravity's reasoning replay commit (see [`Output::with_replay`]).
+    replay: Option<crate::antigravity_replay::StreamCommit>,
 }
 
 /// What a stream records when the client goes away before it ended.
@@ -798,7 +800,15 @@ impl Output {
             claude_errors: false,
             retained: None,
             drop_rule: DropRule::Off,
+            replay: None,
         }
+    }
+
+    /// Antigravity: commits the reasoning replay at a clean end, and on any other end
+    /// once the [`DropRule::Antigravity`] terminal chunk went out.
+    pub(crate) fn with_replay(mut self, commit: crate::antigravity_replay::StreamCommit) -> Self {
+        self.replay = Some(commit);
+        self
     }
 
     /// Go's scanner error when the client goes away mid-stream: a drop before the
@@ -892,6 +902,9 @@ impl Output {
     pub(crate) fn end_with_done(&mut self) -> Emit {
         let mut emit = self.finalize();
         if !self.stop_retained(&mut emit) && !emit.then(self.translate(b"[DONE]")) && !self.stop_retained(&mut emit) {
+            if let Some(replay) = &mut self.replay {
+                replay.commit();
+            }
             emit.then(self.finish());
         }
         emit
@@ -911,12 +924,7 @@ impl Output {
     pub(crate) fn translate(&mut self, payload: &[u8]) -> Emit {
         let mut out = match self.translator.event(payload) {
             Ok(out) => out,
-            Err(_) => {
-                return Emit {
-                    out: Vec::new(),
-                    stop: Some(bad_gateway()),
-                };
-            }
+            Err(_) => return self.failed(),
         };
         self.frame(&mut out);
         self.post_process(&mut out);
@@ -930,6 +938,9 @@ impl Output {
                     .iter()
                     .any(|path| !cpa_common::gostr::trim_space(&gj::get(payload, *path).bytes()).is_empty());
                 *delivered = finished || out.iter().any(|chunk| is_terminal_chunk(chunk));
+                if let Some(replay) = &mut self.replay {
+                    replay.terminal = *delivered;
+                }
             }
             _ => {}
         }
@@ -949,12 +960,7 @@ impl Output {
     fn finish(&mut self) -> Emit {
         let mut out = match self.translator.finish() {
             Ok(out) => out,
-            Err(_) => {
-                return Emit {
-                    out: Vec::new(),
-                    stop: Some(bad_gateway()),
-                };
-            }
+            Err(_) => return self.failed(),
         };
         self.frame(&mut out);
         self.post_process(&mut out);
@@ -969,10 +975,23 @@ impl Output {
         out
     }
 
-    fn checked(&self, out: Vec<Bytes>) -> Emit {
+    fn checked(&mut self, out: Vec<Bytes>) -> Emit {
+        if self.translator.tool_input_failed() {
+            let mut emit = self.failed();
+            emit.out = out;
+            return emit;
+        }
+        Emit { out, stop: None }
+    }
+
+    /// A translation failure: the stream ends with a 502, and the replay never commits.
+    fn failed(&mut self) -> Emit {
+        if let Some(replay) = &mut self.replay {
+            replay.failed = true;
+        }
         Emit {
-            out,
-            stop: self.translator.tool_input_failed().then(bad_gateway),
+            out: Vec::new(),
+            stop: Some(bad_gateway()),
         }
     }
 

@@ -13,6 +13,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	internalcache "github.com/router-for-me/CLIProxyAPI/v8/internal/cache"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/config"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/registry"
 	"github.com/router-for-me/CLIProxyAPI/v8/internal/runtime/executor"
@@ -129,6 +130,10 @@ type execScenario struct {
 	// CancelWhenIdle cancels the request context once the stream has delivered nothing
 	// for 200 ms: a client that goes away mid-stream.
 	CancelWhenIdle bool `json:"cancel_when_idle,omitempty"`
+	// ReplayKey is a reasoning replay session key; Replay is what the ledger holds under
+	// it for the scenario's model after the attempt (absent when nothing is stored).
+	ReplayKey string   `json:"replay_key,omitempty"`
+	Replay    []string `json:"replay,omitempty"`
 }
 
 type creditsHint struct {
@@ -323,6 +328,12 @@ func runExec(s *execScenario) {
 		panic(s.Op)
 	}
 	s.Usage = awaitUsage(s.Name)
+	if s.ReplayKey != "" {
+		items, _ := internalcache.GetAntigravityReasoningReplayItems(s.Model, s.ReplayKey)
+		for _, item := range items {
+			s.Replay = append(s.Replay, string(item))
+		}
+	}
 	if s.Credits {
 		if hint, ok := cliproxyauth.GetAntigravityCreditsHint(s.AuthID); ok {
 			s.CreditsHint = &creditsHint{Known: hint.Known, Available: hint.Available, CreditAmount: hint.CreditAmount, MinCreditAmount: hint.MinCreditAmount}

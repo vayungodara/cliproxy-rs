@@ -15,15 +15,13 @@
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use bytes::Bytes;
 use cpa_common::cache::{self, MAX_REPLAY_BYTES, MAX_REPLAY_ITEMS, ReplaySnapshot};
 use cpa_common::gostr::{GoStr, lower_bytes, trim_space};
 use cpa_common::json::{self as gj, AnyValue, GoValue, Kind, Res};
 use cpa_common::signature as sig;
-use cpa_core::exec::{ExecError, ExecRequest, ExecStream};
+use cpa_core::exec::{ExecRequest, ExecStream};
 use cpa_core::format::Format;
 use futures_util::StreamExt;
 use http::HeaderMap;
@@ -1745,8 +1743,8 @@ impl Accumulator {
     }
 }
 
-/// A stream's upstream lines observed by `accumulator`, which commits when the client
-/// stream ends without an error (Go commits after a clean scan and the translated tail).
+/// A stream's upstream lines observed by `accumulator`, which the returned
+/// [`StreamCommit`] commits.
 pub(crate) fn observe_stream(lines: ExecStream, accumulator: Accumulator) -> (ExecStream, StreamCommit) {
     let shared = Arc::new(Mutex::new(Some(accumulator)));
     let observer = shared.clone();
@@ -1759,32 +1757,46 @@ pub(crate) fn observe_stream(lines: ExecStream, accumulator: Accumulator) -> (Ex
             }
         })
         .boxed();
-    (lines, StreamCommit(shared))
+    (
+        lines,
+        StreamCommit {
+            accumulator: shared,
+            terminal: false,
+            failed: false,
+        },
+    )
 }
 
-/// The commit half of `observe_stream`.
-pub(crate) struct StreamCommit(Arc<Mutex<Option<Accumulator>>>);
+/// The commit half of `observe_stream`, Go's `commitReplay`: the client stream commits
+/// at a clean end, before the synthetic tail goes out. Once a terminal chunk went out
+/// (Go a4acc9f7's `terminalDelivered`), dropping it commits too, whether the client went
+/// away or an error ended the stream. An apply_patch translation failure never commits.
+pub(crate) struct StreamCommit {
+    accumulator: Arc<Mutex<Option<Accumulator>>>,
+    /// A terminal chunk went out.
+    pub(crate) terminal: bool,
+    /// The apply_patch translation failed (Go's `ApplyPatchTranslationError`).
+    pub(crate) failed: bool,
+}
 
 impl StreamCommit {
-    pub(crate) fn on_clean_end(self, output: ExecStream) -> ExecStream {
-        let failed = Arc::new(AtomicBool::new(false));
-        let seen = failed.clone();
-        let tail = futures_util::stream::once(async move {
-            if !failed.load(Ordering::Relaxed)
-                && let Some(accumulator) = self.0.lock().unwrap_or_else(PoisonError::into_inner).take()
-            {
-                accumulator.commit();
-            }
-        })
-        .filter_map(|()| async { None::<Result<Bytes, ExecError>> });
-        output
-            .inspect(move |item| {
-                if item.is_err() {
-                    seen.store(true, Ordering::Relaxed);
-                }
-            })
-            .chain(tail)
-            .boxed()
+    /// Commits once, unless the translation failed; `Accumulator::commit` itself skips a
+    /// stream whose upstream sent no finish reason.
+    pub(crate) fn commit(&mut self) {
+        if self.failed {
+            return;
+        }
+        if let Some(accumulator) = self.accumulator.lock().unwrap_or_else(PoisonError::into_inner).take() {
+            accumulator.commit();
+        }
+    }
+}
+
+impl Drop for StreamCommit {
+    fn drop(&mut self) {
+        if self.terminal {
+            self.commit();
+        }
     }
 }
 
