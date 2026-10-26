@@ -117,6 +117,8 @@ fn normalize(text: &str) -> String {
             (r"(resp|cmp)_ag_compact_[0-9]+", "${1}_ag_compact_<nano>"),
             (r"cpa-ag-compact-v1:[A-Za-z0-9_-]+", "cpa-ag-compact-v1:<capsule>"),
             (r"srvtoolu_[0-9]+", "srvtoolu_<nano>"),
+            // Gemini-to-Responses IDs: `resp_<UnixNano hex>_<n>`, n a process-wide counter.
+            (r"resp_[0-9a-f]{16}_[0-9]+", "resp_<nano>_<n>"),
             // Interactions: `interaction_<UnixNano>` and RFC 3339 wall-clock stamps.
             (r"interaction_1[0-9]{18}", "interaction_<nano>"),
             (
@@ -377,6 +379,20 @@ async fn replay_go_scenarios(scenarios: &[Value]) -> usize {
             &normalize(s["request"].as_str().unwrap_or("<none>")),
         );
         reports.check(s);
+        if let Some(key) = s["replay_key"].as_str() {
+            let got: Vec<String> = cpa_common::cache::replay_get(s["model"].as_str().unwrap(), key)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|item| String::from_utf8(item).unwrap())
+                .collect();
+            let want: Vec<&str> = s["replay"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+                .collect();
+            assert_eq!(got, want, "{name}: replay ledger");
+        }
         if let Some(want) = s.get("credits_hint").filter(|h| !h.is_null()) {
             let got = credits::hint(&cred.id).unwrap_or_default();
             assert_eq!(
@@ -429,12 +445,14 @@ async fn replay_go_scenarios(scenarios: &[Value]) -> usize {
                 Some(("oauth", email)),
             );
             // An error inside a 2xx stream that was read whole (a backend error object):
-            // Go's RecordAPIResponseError of it.
+            // Go's RecordAPIResponseError of it. An apply_patch failure is not captured.
             let streamed_ok = s["upstream"]["status"]
                 .as_u64()
                 .is_some_and(|s| (200..300).contains(&s))
                 && s["upstream"]["missing"].as_u64().unwrap_or(0) == 0;
-            if let Some(want) = want_error.filter(|_| streamed_ok) {
+            let backend =
+                |e: &&serde_json::Map<String, Value>| e["message"].as_str().is_some_and(|m| m.starts_with('{'));
+            if let Some(want) = want_error.filter(|_| streamed_ok).filter(backend) {
                 match normalized_events.pop_front() {
                     Some(Captured::Error(text)) => {
                         assert_eq!(text, want["message"].as_str().unwrap(), "{name}: capture")

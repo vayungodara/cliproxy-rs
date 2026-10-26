@@ -888,6 +888,7 @@ async fn pending_responses_frame_is_flushed_before_terminal_error() {
         retained: None,
         drop_rule: Default::default(),
         finish_signal: None,
+        replay: None,
     };
     let lines = futures_util::stream::iter([
         Ok(Bytes::from_static(br#"data: {"a":1}"#)),
@@ -961,6 +962,7 @@ async fn apply_patch_hooks_follow_go_order() {
             retained: None,
             drop_rule: Default::default(),
             finish_signal: None,
+            replay: None,
         };
         let lines = futures_util::stream::iter([
             Ok(Bytes::from_static(br#"data: {"a":1}"#)),

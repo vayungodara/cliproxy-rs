@@ -811,13 +811,13 @@ impl AntigravityExecutor {
             whole_events: true,
             ..Default::default()
         };
-        let output = Output::with_options(&req, Format::Antigravity, &prepared.translated, options)
+        let mut output = Output::with_options(&req, Format::Antigravity, &prepared.translated, options)
             .with_claude_original(req.body.clone())
             .fail_on_client_drop(gemini::DropRule::Antigravity { delivered: false });
-        let mut body = gemini::gemini_lines(lines, output, Format::Antigravity);
         if let Some(commit) = commit {
-            body = commit.on_clean_end(body);
+            output = output.with_replay(commit);
         }
+        let body = gemini::gemini_lines(lines, output, Format::Antigravity);
         Ok(ExecResponse {
             status: 200,
             headers,
