@@ -18,7 +18,11 @@ fn collect(path: &Path, files: &mut Vec<std::path::PathBuf>) {
 fn main() {
     // `dashboard` links to ../../ui/dist, so a packaged crate carries the files. Where Git
     // checks the link out as a plain file (Windows without symlinks), read ui/dist itself.
-    let dir = if Path::new("dashboard").is_dir() { "dashboard" } else { "../../ui/dist" };
+    let dir = if Path::new("dashboard").is_dir() {
+        "dashboard"
+    } else {
+        "../../ui/dist"
+    };
     let root = Path::new(dir).canonicalize().expect("ui/dist is required");
     println!("cargo:rerun-if-changed={}", root.display());
     let mut files = Vec::new();
