@@ -1,9 +1,15 @@
 [package]
 name = "cpa-store"
+description = "Part of cliproxy: remote config and auth stores (PostgreSQL, S3-compatible object storage, Git)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+exclude.workspace = true
+keywords = ["llm", "proxy", "cliproxy"]
+categories.workspace = true
 
 [dependencies]
 anyhow.workspace = true

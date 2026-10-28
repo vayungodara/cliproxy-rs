@@ -9,16 +9,23 @@ version = "0.4.0"
 edition = "2024"
 license = "MIT"
 rust-version = "1.88"
+repository = "https://github.com/vayungodara/cliproxy-rs"
+homepage = "https://github.com/vayungodara/cliproxy-rs"
+categories = ["network-programming", "web-programming"]
+# The Go reference recordings and fixtures stay in the repository; a published crate
+# only needs to build.
+exclude = ["tests/"]
 
 [workspace.dependencies]
-cpa-common = { path = "crates/cpa-common" }
-cpa-core = { path = "crates/cpa-core" }
-cpa-exec = { path = "crates/cpa-exec" }
-cpa-home = { path = "crates/cpa-home" }
-cpa-plugin = { path = "crates/cpa-plugin" }
-cpa-server = { path = "crates/cpa-server" }
-cpa-store = { path = "crates/cpa-store" }
-cpa-translate = { path = "crates/cpa-translate" }
+# The versions are for crates.io; a release bumps them with workspace.package.version.
+cpa-common = { path = "crates/cpa-common", version = "0.4.0" }
+cpa-core = { path = "crates/cpa-core", version = "0.4.0" }
+cpa-exec = { path = "crates/cpa-exec", version = "0.4.0" }
+cpa-home = { path = "crates/cpa-home", version = "0.4.0" }
+cpa-plugin = { path = "crates/cpa-plugin", version = "0.4.0" }
+cpa-server = { path = "crates/cpa-server", version = "0.4.0" }
+cpa-store = { path = "crates/cpa-store", version = "0.4.0" }
+cpa-translate = { path = "crates/cpa-translate", version = "0.4.0" }
 
 anyhow = "1"
 axum = "0.8.9"
@@ -41,6 +48,7 @@ lto = "thin"
 codegen-units = 1
 strip = true
 
-# gjson 0.8.1 with SIMD string scanning; behaviour unchanged (vendor/README.md).
+# gjson 0.8.1 with SIMD string scanning; behaviour unchanged (vendor/README.md). A patch
+# applies to this workspace only: a build from crates.io uses upstream gjson 0.8.1.
 [patch.crates-io]
 gjson = { path = "vendor/gjson" }

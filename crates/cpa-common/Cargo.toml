@@ -1,10 +1,15 @@
 [package]
 name = "cpa-common"
-description = "Provider-neutral request helpers shared by translators and executors"
+description = "Part of cliproxy: provider-neutral request helpers shared by translators and executors"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+exclude.workspace = true
+keywords = ["llm", "proxy", "cliproxy"]
+categories.workspace = true
 
 [dependencies]
 cpa-core.workspace = true

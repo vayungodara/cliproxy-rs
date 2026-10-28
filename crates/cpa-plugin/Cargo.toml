@@ -1,10 +1,15 @@
 [package]
 name = "cpa-plugin"
-description = "Native plugin host: CLIProxyAPI C ABI 1, registration schema 6, capabilities, host callbacks and the plugin store"
+description = "Part of cliproxy: the native plugin host (CLIProxyAPI C ABI 1, registration schema 6) and plugin store"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+exclude.workspace = true
+keywords = ["llm", "proxy", "cliproxy", "plugin"]
+categories.workspace = true
 
 [dependencies]
 bytes.workspace = true
