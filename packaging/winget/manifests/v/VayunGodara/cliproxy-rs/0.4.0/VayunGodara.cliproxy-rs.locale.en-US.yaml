@@ -11,7 +11,7 @@ License: MIT
 LicenseUrl: https://github.com/vayungodara/cliproxy-rs/blob/master/LICENSE
 ShortDescription: Use DeepSeek, GLM, Kimi, OpenRouter and more in Codex CLI and Claude Code. One local endpoint, API translation, failover.
 Description: |-
-  cliproxy-rs is a single Rust binary that gives Codex CLI, Claude Code and other clients one local endpoint for many providers, translates between the OpenAI, Anthropic and Gemini API formats, and fails over between credentials. It reads the same config.yaml and auth files as CLIProxyAPI.
+  cliproxy-rs is a single Rust binary that gives Codex CLI, Claude Code and other clients one local endpoint for many providers, translates between the OpenAI, Anthropic and Gemini API formats, and fails over between credentials. It is a Rust rewrite of CLIProxyAPI that reads the same config.yaml and auth files; parity with CLIProxyAPI is partial.
 Moniker: cliproxy
 Tags:
   - llm
