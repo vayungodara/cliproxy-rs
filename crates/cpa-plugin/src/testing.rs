@@ -87,14 +87,18 @@ pub fn built_plugins(tmp: &Path, test: &str) -> Option<&'static Path> {
             let src = goplugins_dir();
             let root = tmp.join("goplugins");
             let out = root.join(build_key(&go, &src));
-            if out.is_dir() {
+            let examples: Vec<String> = std::fs::read_dir(src.join("examples"))
+                .unwrap()
+                .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+                .collect();
+            let complete = |dir: &Path| examples.iter().all(|name| dir.join(format!("{name}.so")).is_file());
+            if complete(&out) {
                 return Some(out);
             }
             let partial = root.join(format!("partial-{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&partial);
             std::fs::create_dir_all(&partial).unwrap();
-            for entry in std::fs::read_dir(src.join("examples")).unwrap() {
-                let name = entry.unwrap().file_name().to_string_lossy().into_owned();
+            for name in &examples {
                 let status = go_command(&go)
                     .current_dir(&src)
                     .args(["build", "-buildmode=c-shared", "-o"])
@@ -111,9 +115,11 @@ pub fn built_plugins(tmp: &Path, test: &str) -> Option<&'static Path> {
                     src.display()
                 );
             }
+            // The rename replaces an empty directory: CI's Rust cache keeps the
+            // directories of the target dir but not their files.
             if let Err(e) = std::fs::rename(&partial, &out) {
                 // Another process finished the same build first; its files are identical.
-                assert!(out.is_dir(), "move the plugin build to {}: {e}", out.display());
+                assert!(complete(&out), "move the plugin build to {}: {e}", out.display());
                 let _ = std::fs::remove_dir_all(&partial);
             }
             Some(out)
