@@ -36,6 +36,16 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 wreq = { version = "6.0.0-rc.31", features = ["stream", "json"] }
 
+# Test builds only, two leaf crates: unoptimized, memchr's SIMD search (the Gemini schema
+# goldens) and bcrypt's Blowfish rounds (every management key hash) took most of the
+# slowest Go comparison tests' time. Debug assertions and overflow checks stay on, and the
+# workspace's own crates, whose stack depth some tests bound, stay unoptimized.
+[profile.test.package.memchr]
+opt-level = 3
+
+[profile.test.package.blowfish]
+opt-level = 3
+
 [profile.release]
 lto = "thin"
 codegen-units = 1
