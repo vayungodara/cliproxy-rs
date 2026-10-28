@@ -24,9 +24,12 @@ fn canned(records: &Path, label: &str, method: &str, result: Value) {
     .unwrap();
 }
 
+/// The records complete so far. A plugin may be appending a record while a test polls,
+/// and a reader can see the first part of a write that crosses a page boundary, so a
+/// last line without its newline is not a record yet.
 fn calls(records: &Path, label: &str, method: &str) -> Vec<Value> {
-    std::fs::read_to_string(records.join(format!("{label}.jsonl")))
-        .unwrap_or_default()
+    let text = std::fs::read_to_string(records.join(format!("{label}.jsonl"))).unwrap_or_default();
+    text[..text.rfind('\n').map_or(0, |end| end + 1)]
         .lines()
         .map(|line| serde_json::from_str::<Value>(line).unwrap())
         .filter(|r| r["method"] == method)
