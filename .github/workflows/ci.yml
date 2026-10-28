@@ -44,7 +44,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build tools
         # BoringSSL (through btls-sys) needs cmake, clang and perl; bindgen needs libclang.
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
+        # The script bounds a stalled mirror download (it says how).
+        run: .github/scripts/apt-install.sh cmake clang libclang-dev perl
       - name: Rust
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -67,7 +68,7 @@ jobs:
           newest() { find /usr/lib/postgresql -mindepth 2 -maxdepth 2 -name bin -type d 2>/dev/null | sort -V | tail -n 1; }
           bin=$(newest)
           if [ -z "$bin" ] || [ ! -x "$bin/initdb" ]; then
-            sudo apt-get install -y --no-install-recommends postgresql
+            .github/scripts/apt-install.sh postgresql
             bin=$(newest)
           fi
           "$bin/initdb" --version
@@ -133,7 +134,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
+        run: .github/scripts/apt-install.sh cmake clang libclang-dev perl
       - name: Rust
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy && rustup default "$RUST_TOOLCHAIN"
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
@@ -192,7 +193,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Build tools
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
+        run: .github/scripts/apt-install.sh cmake clang libclang-dev perl
       - name: Rust
         run: rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal && rustup default "$RUST_TOOLCHAIN"
       # Both entries share one cache; one of them saves it.
