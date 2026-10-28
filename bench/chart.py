@@ -1,35 +1,37 @@
 #!/usr/bin/env python3
-"""Draws the README memory chart from a Claude soak results file (bench/messages.sh).
+"""Draws the README memory chart from a field-mix soak results file (bench/soak.sh).
 
     python3 bench/chart.py [results.jsonl] [output dir]
 
-Defaults: bench/results/2026-10-04-messages.jsonl and docs/img. Writes
-perf-claude-soak-light.svg and perf-claude-soak-dark.svg, and prints the alt text for
-the README. Only measured values are drawn: peak RSS (hwm_kb) and RSS 30 seconds after
-the load (settled_rss_kb), in MB of 1,024 kB as /proc reports them.
+Defaults: bench/results/2026-10-28-field-go.jsonl and docs/img. Writes
+perf-field-soak-light.svg and perf-field-soak-dark.svg, and prints the alt text for
+the README. Only measured values are drawn: peak RSS (hwm_kb) and RSS after the 300
+seconds idle that follow the load (idle_rss_kb), in MB of 1,024 kB as /proc reports
+them. The idle reading is the resting value: one reading per server in the same state,
+five minutes without traffic, like the earlier chart's RSS after the load. The readings
+20 seconds after each batch (rest_rss_kb) are a range over the hour, and Go returns
+freed heap to the kernel over minutes, so they mix live and freed memory differently on
+the two servers; the README text gives them next to the chart.
 
-To redraw from a new soak, point RUNS at its labels and update SUBTITLE.
+To redraw from a new soak, point SESSION and RUNS at its labels and update SUBTITLE.
 """
 import json
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-RESULTS = ROOT / "bench/results/2026-10-04-messages.jsonl"
-SESSION = "final"
-TITLE = "Memory in the Claude soak: CLIProxyAPI (Go) and cliproxy-rs"
-SUBTITLE = ["4 Oct 2026: the cliproxy-rs build of that day (first released in 0.1.2) and CLIProxyAPI 6fecc6e.",
-            "The servers ran one after another on the same VM, not at the same time."]
+RESULTS = ROOT / "bench/results/2026-10-28-field-go.jsonl"
+SESSION = "ci-runners-60min"
+TITLE = "Memory in the field-mix soak: CLIProxyAPI v8.0.35 (Go) and cliproxy-rs 0.4.0"
+SUBTITLE = ["28 Oct 2026: both release binaries, 60 minutes of Claude, Codex and count_tokens requests,",
+            "on two GitHub-hosted Ubuntu 22.04 runners (4 vCPUs each) at the same time."]
 # (panel title, [(server, run label, round label)])
 RUNS = [
-    ("3,000 requests, 306 KB on average",
-     [("go", "go-1", "round 1"), ("go", "go-2", "round 2"),
-      ("rs", "pr-1", "round 1"), ("rs", "pr-2", "round 2")]),
-    ("600 requests, 1.9 MB on average",
-     [("go", "large-go", ""), ("rs", "large-pr", "")]),
+    ("Requests of 200 KB to 2 MB, about 1 MB on average",
+     [("go", "go-8.0.35", ""), ("rs", "0.4.0", "")]),
 ]
-METRICS = [("hwm_kb", "Peak RSS", "peak RSS"), ("settled_rss_kb", "RSS 30 s after the load", "RSS 30 s after the load")]
-NAMES = {"go": "CLIProxyAPI (Go)", "rs": "cliproxy-rs"}
+METRICS = [("hwm_kb", "Peak RSS", "peak RSS"), ("idle_rss_kb", "RSS after 300 s idle", "RSS after 300 s idle")]
+NAMES = {"go": "CLIProxyAPI v8.0.35 (Go)", "rs": "cliproxy-rs 0.4.0"}
 THEMES = {
     "light": {"text": "#1f2328", "muted": "#59636e", "grid": "#d1d9e0", "go": "#818b98", "rs": "#0969da"},
     "dark": {"text": "#f0f6fc", "muted": "#9198a1", "grid": "#3d444d", "go": "#656c76", "rs": "#4493f8"},
@@ -72,7 +74,7 @@ def alt_text(panels):
             groups.append(f"{alt_name}: Go {' and '.join(values['go'])} MB, "
                           f"cliproxy-rs {' and '.join(values['rs'])} MB")
         parts.append(f"{title}, {'; '.join(groups)}")
-    return ("Bar chart of the Claude soak on 4 October 2026, servers run one after another on the same VM. "
+    return ("Bar chart of the field-mix soak on 28 October 2026, 60 minutes on two runners at the same time. "
             + ". ".join(parts) + ".")
 
 
@@ -81,7 +83,8 @@ def svg(panels, theme):
     width, height = 880, 420
     top, bottom = 140, 360
     top_mb = max(value for _, bars in panels for *_, value in bars)
-    scale_max = -(-top_mb // 50) * 50
+    # Room above the tallest bar for its label.
+    scale_max = -(-(top_mb + 15) // 50) * 50
     y = lambda value: bottom - (bottom - top) * value / scale_max
     out = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}" '
            f'viewBox="0 0 {width} {height}" font-family="{FONT}">',
@@ -92,7 +95,7 @@ def svg(panels, theme):
     for server in ("go", "rs"):
         out.append(f'<rect x="{legend_x}" y="94" width="12" height="12" rx="2" fill="{c[server]}"/>')
         out.append(f'<text x="{legend_x + 18}" y="105" font-size="13" fill="{c["text"]}">{NAMES[server]}</text>')
-        legend_x += 170
+        legend_x += 210
     out.append(f'<text x="{legend_x}" y="105" font-size="13" fill="{c["muted"]}">MB, lower is better</text>')
     left = 64
     for tick in range(0, int(scale_max) + 1, 50):
@@ -101,12 +104,14 @@ def svg(panels, theme):
         out.append(f'<text x="{left - 8}" y="{y(tick) + 4:.1f}" font-size="11" text-anchor="end" '
                    f'fill="{c["muted"]}">{tick}</text>')
     panel_x = left + 16
-    panel_widths = [430, 340]
-    for (title, bars), panel_width in zip(panels, panel_widths):
+    panel_width = (width - 24 - panel_x) // len(panels)
+    for title, bars in panels:
         out.append(f'<text x="{panel_x}" y="130" font-size="13" font-weight="600" fill="{c["text"]}">{title}</text>')
         per_metric = len(bars) // len(METRICS)
-        bar_w, gap, group_gap = 34, 6, 60
-        x = panel_x
+        # The metric groups spread over the panel.
+        bar_w, gap = 100, 10
+        group_gap = (panel_width - len(METRICS) * (per_metric * (bar_w + gap) - gap)) // len(METRICS)
+        x = panel_x + group_gap // 2
         for m, (_, metric_name, _) in enumerate(METRICS):
             group = bars[m * per_metric:(m + 1) * per_metric]
             group_w = per_metric * bar_w + (per_metric - 1) * gap
@@ -121,7 +126,7 @@ def svg(panels, theme):
             x += group_gap - gap
         panel_x += panel_width
     out.append(f'<text x="24" y="{height - 12}" font-size="11" fill="{c["muted"]}">'
-               f'Two bars for one server are its two rounds. Methods: docs/BENCHMARKS.md. '
+               f'Methods: docs/BENCHMARKS.md. '
                f'Raw results: bench/results/.</text>')
     out.append("</svg>")
     return "\n".join(out) + "\n"
@@ -132,7 +137,7 @@ def main():
     out_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else ROOT / "docs/img"
     panels = load(results)
     for theme in THEMES:
-        (out_dir / f"perf-claude-soak-{theme}.svg").write_text(svg(panels, theme))
+        (out_dir / f"perf-field-soak-{theme}.svg").write_text(svg(panels, theme))
     print(alt_text(panels))
 
 
