@@ -6,9 +6,9 @@
 experimental = ["setup-scripts"]
 
 [test-groups]
-# Tests that build the Go example plugins (cpa_plugin::testing::built_plugins). They all
-# write the same files under target/tmp/goplugins and each build uses every core, so
-# they run one at a time, as they did when each was alone in its binary.
+# Tests that load the Go example plugins (cpa_plugin::testing::built_plugins, which builds
+# them once for every test process, with every core) run one at a time, as they did when
+# each was alone in its binary.
 go-plugins = { max-threads = 1 }
 
 # The heap gate counts this process's allocations against bench/budgets.txt. It runs
@@ -71,7 +71,8 @@ setup = 'private-tmpdir'
 filter = '''
     binary_id(cpa-translate::golden) | binary_id(cpa-server::legacy_go)
     | binary_id(cpa-server::media_go) | binary_id(cpa-server::quota_trust)
-    | binary_id(cpa-server::manage_go)
+    | binary_id(cpa-server::manage_go) | binary_id(cpa-common::gemini_schema)
+    | binary_id(cpa-server::body_limit_go)
 '''
 priority = 40
 

@@ -70,23 +70,35 @@ pub fn goplugins_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goplugins")
 }
 
-/// `<tmp>/goplugins/<example>.so` for every example, built once per process. `None`
-/// (after printing a SKIPPED line for `test`) when no suitable Go is installed. `tmp`
-/// is the calling test crate's `CARGO_TARGET_TMPDIR`.
+/// `<tmp>/goplugins/<key>/<example>.so` for every example. `None` (after printing a
+/// SKIPPED line for `test`) when no suitable Go is installed. `tmp` is the calling test
+/// crate's `CARGO_TARGET_TMPDIR`.
+///
+/// The key hashes everything the build reads: the module's files and the Go toolchain and
+/// C compiler settings. Nextest runs every test in its own process, so a process finds an
+/// earlier process's build under the same key instead of linking the seven examples again
+/// (3 s on a warm Go build cache). Concurrent first builds each build into a directory of
+/// their own, and the first to rename it into place wins.
 pub fn built_plugins(tmp: &Path, test: &str) -> Option<&'static Path> {
     static BUILT: OnceLock<Option<PathBuf>> = OnceLock::new();
     let built = BUILT
         .get_or_init(|| {
             let go = go_binary()?;
             let src = goplugins_dir();
-            let out = tmp.join("goplugins");
-            std::fs::create_dir_all(&out).unwrap();
+            let root = tmp.join("goplugins");
+            let out = root.join(build_key(&go, &src));
+            if out.is_dir() {
+                return Some(out);
+            }
+            let partial = root.join(format!("partial-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&partial);
+            std::fs::create_dir_all(&partial).unwrap();
             for entry in std::fs::read_dir(src.join("examples")).unwrap() {
                 let name = entry.unwrap().file_name().to_string_lossy().into_owned();
                 let status = go_command(&go)
                     .current_dir(&src)
                     .args(["build", "-buildmode=c-shared", "-o"])
-                    .arg(out.join(format!("{name}.so")))
+                    .arg(partial.join(format!("{name}.so")))
                     .arg(format!("./examples/{name}"))
                     .env("CGO_ENABLED", "1")
                     .status()
@@ -98,6 +110,11 @@ pub fn built_plugins(tmp: &Path, test: &str) -> Option<&'static Path> {
                     go.display(),
                     src.display()
                 );
+            }
+            if let Err(e) = std::fs::rename(&partial, &out) {
+                // Another process finished the same build first; its files are identical.
+                assert!(out.is_dir(), "move the plugin build to {}: {e}", out.display());
+                let _ = std::fs::remove_dir_all(&partial);
             }
             Some(out)
         })
@@ -125,6 +142,52 @@ pub fn built_plugins(tmp: &Path, test: &str) -> Option<&'static Path> {
         );
     }
     built
+}
+
+/// Hex SHA-256 over the build's inputs: every file of the Go module (path and contents)
+/// and the `go env` values that select the toolchain, the target and the C compiler.
+fn build_key(go: &Path, src: &Path) -> String {
+    use sha2::{Digest, Sha256};
+    fn files(dir: &Path, out: &mut Vec<PathBuf>) {
+        for entry in std::fs::read_dir(dir).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                files(&path, out);
+            } else {
+                out.push(path);
+            }
+        }
+    }
+    let mut all = Vec::new();
+    files(src, &mut all);
+    all.sort();
+    let mut hash = Sha256::new();
+    for path in all {
+        let rel = path.strip_prefix(src).unwrap().to_string_lossy().into_owned();
+        let body = std::fs::read(&path).unwrap();
+        for part in [rel.as_bytes(), &body] {
+            hash.update((part.len() as u64).to_le_bytes());
+            hash.update(part);
+        }
+    }
+    let env = go_command(go)
+        .current_dir(src)
+        .env("CGO_ENABLED", "1")
+        .args([
+            "env",
+            "GOVERSION",
+            "GOOS",
+            "GOARCH",
+            "CC",
+            "CGO_CFLAGS",
+            "CGO_LDFLAGS",
+            "GOFLAGS",
+        ])
+        .output()
+        .expect("run go env");
+    assert!(env.status.success(), "go env failed with {}", go.display());
+    hash.update(&env.stdout);
+    hash.finalize().iter().map(|b| format!("{b:02x}")).collect()
 }
 
 /// A fresh scratch directory under `tmp`.
