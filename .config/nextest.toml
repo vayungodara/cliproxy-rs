@@ -6,9 +6,9 @@
 experimental = ["setup-scripts"]
 
 [test-groups]
-# Tests that build the Go example plugins (cpa_plugin::testing::built_plugins). They all
-# write the same files under target/tmp/goplugins and each build uses every core, so
-# they run one at a time, as they did when each was alone in its binary.
+# Tests that load the Go example plugins (cpa_plugin::testing::built_plugins, which builds
+# them once per run, with every core) run one at a time, as they did when each was alone
+# in its binary.
 go-plugins = { max-threads = 1 }
 
 # The heap gate counts this process's allocations against bench/budgets.txt. It runs
@@ -65,13 +65,24 @@ platform = { host = 'cfg(unix)' }
 filter = 'package(cpa-plugin) | binary_id(/^cpa-server::plugin_/) | binary_id(/^cliproxy::plugin_/)'
 setup = 'private-tmpdir'
 
+# One build of the Go test plugins for the whole run (see the script). Every test gets the
+# directory, because tests outside the plugin binaries load the plugins too.
+[scripts.setup.goplugins-dir]
+command = '.config/goplugins-dir.sh'
+
+[[profile.default.scripts]]
+platform = { host = 'cfg(unix)' }
+filter = 'all()'
+setup = 'goplugins-dir'
+
 # The slowest binaries (10 to 30 s tests) start before the short ones, so none of them is
 # left running alone at the end.
 [[profile.default.overrides]]
 filter = '''
     binary_id(cpa-translate::golden) | binary_id(cpa-server::legacy_go)
     | binary_id(cpa-server::media_go) | binary_id(cpa-server::quota_trust)
-    | binary_id(cpa-server::manage_go)
+    | binary_id(cpa-server::manage_go) | binary_id(cpa-common::gemini_schema)
+    | binary_id(cpa-server::body_limit_go)
 '''
 priority = 40
 

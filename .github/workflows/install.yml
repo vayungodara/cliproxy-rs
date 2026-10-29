@@ -7,9 +7,9 @@ name: Installers
 on:
   push:
     branches: [master]
-    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, crates/cliproxy/**, crates/cpa-server/src/logging.rs, crates/cpa-server/build.rs, crates/cpa-server/src/management.rs, ui/dist/**]
+    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, .github/scripts/apt-install.sh, crates/cliproxy/**, crates/cpa-server/src/logging.rs, crates/cpa-server/build.rs, crates/cpa-server/src/management.rs, ui/dist/**]
   pull_request:
-    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, crates/cliproxy/**, crates/cpa-server/src/logging.rs, crates/cpa-server/build.rs, crates/cpa-server/src/management.rs, ui/dist/**]
+    paths: [install.sh, install.ps1, .github/workflows/install.yml, .github/scripts/test-installers.py, .github/scripts/installer-fixture.rs, .github/scripts/apt-install.sh, crates/cliproxy/**, crates/cpa-server/src/logging.rs, crates/cpa-server/build.rs, crates/cpa-server/src/management.rs, ui/dist/**]
   workflow_dispatch:
     inputs:
       version:
@@ -140,7 +140,7 @@ jobs:
           python-version: '3.13'
       - name: Build tools (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends cmake clang libclang-dev perl
+        run: .github/scripts/apt-install.sh cmake clang libclang-dev perl
       - name: Build tools (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -149,7 +149,11 @@ jobs:
           printf '%s\n' 'LIBCLANG_PATH=C:\Program Files\LLVM\bin' >> "$GITHUB_ENV"
       - name: Rust
         run: rustup toolchain install stable --profile minimal && rustup default stable
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6
+      # Saved from master only, as in ci.yml: each pull request saving its own 1.2 GB of
+      # caches pushed master's caches out of the repository's 10 GB.
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/master' }}
       - name: Build the candidate, not a release lacking --log-file
         run: cargo build --locked -p cliproxy
       - name: Build local release fixtures before network isolation
