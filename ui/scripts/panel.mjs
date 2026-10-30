@@ -30,8 +30,10 @@ html = html
   .replace(styleTag, () => `<style>${css}</style>`)
   .replace(/<link rel="preload"[^>]*>\s*/, "")
   .replace(/href="\.\/favicon\.svg"/, () => `href="${icon}"`);
-// Only data: URLs and in-page fragments (#i-icon sprite references) may remain.
-const external = [...html.matchAll(/\b(?:src|href)="(?!data:|#)([^"]*)"/g)].map((m) => m[1]);
+// Only data: URLs and in-page fragments (#i-icon sprite references) may remain, plus the
+// project link in the sidebar footer: the browser opens it on a click and never fetches it.
+const links = new Set(["https://github.com/vayungodara/cliproxy-rs"]);
+const external = [...html.matchAll(/\b(?:src|href)="(?!data:|#)([^"]*)"/g)].map((m) => m[1]).filter((url) => !links.has(url));
 if (external.length) throw new Error(`panel: external references remain: ${external.join(", ")}`);
 
 mkdirSync("dist-panel", { recursive: true });

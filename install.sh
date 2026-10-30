@@ -256,6 +256,7 @@ EOF
   else
     printf '\nNext: open the dashboard, sign in with your management key, and choose Connect account.\n'
   fi
+  printf '\nIf cliproxy-rs helps, a star helps others find it: https://github.com/vayungodara/cliproxy-rs\n'
 }
 
 # Restore the same inode the old server used, then restart using its unchanged config.

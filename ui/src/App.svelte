@@ -148,6 +148,9 @@
       <div class="side-foot">
         {@render theme()}
         <button class="key quiet" onclick={() => (!store.dirty || confirm("Discard unsaved changes?")) && store.logout()}><svg class="i" aria-hidden="true"><use href="#i-out" /></svg>Sign out</button>
+        <a class="key quiet small" href="https://github.com/vayungodara/cliproxy-rs" target="_blank" rel="noopener noreferrer"
+          ><span aria-hidden="true">★</span>GitHub</a
+        >
       </div>
     </nav>
     <div class="main">
