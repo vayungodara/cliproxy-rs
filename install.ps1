@@ -212,6 +212,8 @@ function Install-CliproxyRs([bool]$Service, [bool]$BinaryOnly) {
   } else {
     Write-Host 'Next: open the dashboard, sign in with your management key, and choose Connect account.'
   }
+  Write-Host ''
+  Write-Host 'If cliproxy-rs helps, a star helps others find it: https://github.com/vayungodara/cliproxy-rs'
 }
 
 # Runs a download up to three times, for a brief network or server error.
