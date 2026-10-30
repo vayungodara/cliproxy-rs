@@ -178,7 +178,7 @@ Large prompts (1.9 MB requests), one round.
 - On 306 KB requests this change uses about a third of master's CPU per request and half of Go's, and adds about 20 ms to the time to first byte against Go's 36 to 40 ms and master's 79 to 97 ms. Its throughput (20 requests per second) is close to the 21.4 the fake upstream allows on its own.
 - 30 seconds after the load it holds 29 MB against master's 45 to 50 MB and Go's 80 to 82 MB. Peak RSS barely moved (63 to 64 MB against 66 to 67 MB): the peak is the requests in flight, and trimming only returns what they leave behind.
 - With 1.9 MB prompts master was more than three times slower than Go to first byte; this change's TTFB p50 is 40% lower than Go's, and it holds 43 MB after the run against Go's 184 MB and master's 158 MB.
-- Raw results, including the allocator and trim comparisons: [`bench/results/2026-10-04-messages.jsonl`](../bench/results/2026-10-04-messages.jsonl). The `session` field groups runs that were measured together. [`bench/chart.py`](../bench/chart.py) draws the README chart from this file's `final` session.
+- Raw results, including the allocator and trim comparisons: [`bench/results/2026-10-04-messages.jsonl`](../bench/results/2026-10-04-messages.jsonl). The `session` field groups runs that were measured together. Its `final` session was the README chart until 28 October 2026; [`bench/chart.py`](../bench/chart.py) now draws the [field mix against Go v8.0.35](#against-go-v8035).
 
 ## Field mix: Claude, Codex and count_tokens
 
@@ -237,6 +237,30 @@ CPU per request depends on the machine, and each build had a runner of its own, 
 - Against 0.2.0, this change's resting RSS is 47.6 MB lower at its lowest and 47.8 MB lower at its highest, and its peak 51.1 MB lower.
 - 0.1.2 woke 2,913 times in 30 seconds after the load: its file watcher polled (see [Idle](#idle-wakeups-threads-and-memory)). Both later builds were back to 3 threads and 3 or 4 wakeups in 30 seconds.
 
+### Against Go v8.0.35
+
+Measured on 2026-10-28 with the same load, through `soak.yml`'s `go` input ([run 40708214096](https://github.com/vayungodara/cliproxy-rs/actions/runs/40708214096)): the CLIProxyAPI v8.0.35 release binary (`CLIProxyAPI_8.0.35_linux_amd64.tar.gz`, checked against the release's `checksums.txt`, its tag checked to resolve to `ae3ee3be`; upstream builds it with Go 1.26.4, cgo on and `-ldflags "-s -w"`), run as shipped with no `GOGC` or `GOMEMLIMIT`; the cliproxy-rs 0.4.0 release binary; and a build of 0.4.0's source on the runner. Each ran on its own GitHub-hosted Ubuntu 22.04 runner with 4 vCPUs, all three at the same time. Go and 0.4.0 got the same CPU model (AMD EPYC 7763), the build another (AMD EPYC 9V74). Go reads the same config and served the same load: its only complaints were four startup warnings for the downloads that the network namespace blocks (the Antigravity version, the management panel release and its fallback page, the Grok CLI version from npm), and it kept serving from its fallbacks.
+
+60 minutes each; no request failed, and all three passed the soak's climb checks (the peak is measured, not gated, for both release binaries).
+
+| | Go v8.0.35 | 0.4.0 | 0.4.0's source, built |
+| --- | --- | --- | --- |
+| Requests (Claude / Codex / count_tokens) | 6,798 / 7,922 / 1,656 | 7,852 / 8,308 / 1,821 | 8,117 / 8,523 / 1,882 |
+| Resting RSS over the hour, lowest / highest (MB) | 91.4 / 152.8 | 85.7 / 102.0 | 85.1 / 100.4 |
+| Resting RSS in the first third, lowest / highest (MB) | 91.4 / 148.3 | 85.9 / 100.4 | 85.6 / 100.2 |
+| Resting RSS in the last third, lowest / highest (MB) | 99.0 / 149.9 | 85.7 / 101.2 | 85.6 / 97.5 |
+| Resting `RssAnon`, lowest / highest (MB) | 45.8 / 106.6 | 54.1 / 70.4 | 53.7 / 68.9 |
+| RSS every 10 s, median / highest (MB) | 120.4 / 173.7 | 109.6 / 151.7 | 106.8 / 154.7 |
+| Peak RSS (`VmHWM`, MB) | 198.3 | 161.5 | 158.9 |
+| Server CPU per request (ms), own runner | 146 | 49 | 37 |
+| Threads under load | 12 | 4 | 4 |
+| After 300 s idle: RSS / `RssAnon` (MB), wakeups in 30 s, threads | 75.8 / 29.4, 32, 12 | 97.8 / 66.2, 4, 3 | 88.0 / 56.6, 4, 3 |
+
+- The README chart draws the peak and the RSS after 300 s idle for Go and 0.4.0. The idle reading is one reading per server in the same state, like the Claude soak's RSS 30 s after the load; the resting readings between batches are a range, given above and in the README text next to the chart.
+- Between batches Go's resting RSS swung over 61 MB and cliproxy-rs's over 16 MB. Five minutes after the load Go was down to 75.8 MB, 29.4 MB of it anonymous: its runtime returns freed heap to the kernel over minutes rather than at once. cliproxy-rs trims its heap after the load and then stays put; its 66.2 MB of anonymous memory includes the o200k_base tokenizer that count_tokens builds and keeps (46.8 MB, [above](#what-the-heap-held)).
+- 0.4.0 and the build are the same source. Their idle readings differ by 9.8 MB and their peaks by 2.6 MB, a measure of how much one run varies. Go and 0.4.0 had the same CPU model, so their CPU per request compares; the build's runner had a faster one.
+- Raw results: [`bench/results/2026-10-28-field-go.jsonl`](../bench/results/2026-10-28-field-go.jsonl), one `bench/soak.sh` summary per runner (labels `go-8.0.35`, `0.4.0` and `build`) in the format of the 2026-10-06 file.
+
 ### What the heap held
 
 - Tokenizers, measured as the growth of `RssAnon` after a trim on a fresh server, one small request at a time: Claude count_tokens added 46.5 MB, Codex count_tokens for `gpt-5.5` 46.5 MB, for `gpt-4` 24.0 MB, and a Claude client's streamed request to `gpt-5.5` (whose `message_start` gets an o200k_base estimate of the request, as in Go) 47.1 MB: 164.1 MB of tokenizers on 0.2.0, and 163.8 MB on 0.1.2. Five modules kept seven lazily built `tiktoken_rs::CoreBPE` statics between them (five o200k_base, two cl100k_base), each built and kept for good. With one shared encoder per encoding the same sequence adds 46.8, 0, 24.1 and 0.2 MB: 71.0 MB.
@@ -262,7 +286,7 @@ CPU per request depends on the machine, and each build had a runner of its own, 
 
 ### Gates
 
-- `soak.yml` runs the field mix for an hour on every release tag, next to an hour of the Claude soak's load, and for 300 minutes every week. Either fails if any request fails or if the resting RSS climbs: the highest resting reading of the last third of the run more than 10% plus 2 MB above the highest of the first third, or the lowest of the last third that far above the lowest of the first third (a rising floor under peaks that do not rise). The field mix also fails if `VmHWM` ends above `soak.field.peak_hwm_kb` in [`bench/budgets.txt`](../bench/budgets.txt) (this change's 169.0 MB plus 20%, which 0.2.0 exceeds).
+- `soak.yml` runs the field mix for an hour on every release tag, next to an hour of the Claude soak's load, and for 300 minutes every week. Either fails if any request fails or if the resting RSS climbs: the highest resting reading of the last third of the run more than 10% plus 2 MB above the highest of the first third, or the lowest of the last third that far above the lowest of the first third (a rising floor under peaks that do not rise). The field mix also fails if `VmHWM` ends above `soak.field.peak_hwm_kb` in [`bench/budgets.txt`](../bench/budgets.txt) (this change's 169.0 MB plus 20%, which 0.2.0 exceeds). By hand, `releases` soaks published cliproxy-rs releases and `go` the CLIProxyAPI release at the parity reference next to the build, measured but not gated.
 - Raw results: [`bench/results/2026-10-06-field.jsonl`](../bench/results/2026-10-06-field.jsonl) holds one `bench/soak.sh` summary per run, with the resting readings' lowest and highest over the run and in its first and last thirds, and the requests by kind. Every resting reading behind them is in [`bench/results/2026-10-06-field-batches.tsv`](../bench/results/2026-10-06-field-batches.tsv). The `session` field groups the runs: `ci-runners-60min` (the three runners), `vm2-releases-10min`, `vm2-allocator-10min` and `vm2-mock-check-10min` (the 2-vCPU machine; the allocator runs name their setting in `env`, and the two without one are this change's same-machine runs), `tokenizer-steps` (`RssAnon` in kB after each request on a fresh server), `heaptrack` (bytes still allocated at exit, by site), `malloc-info`, and `lcp-matcher` (live heap by hour, in MB of 10^6 bytes as measured).
 
 ## Large prompts through cloaking: bursts and peaks

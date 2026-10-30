@@ -1,0 +1,9 @@
+cliproxy-rs
+Copyright (c) 2026 Vayun Godara and cliproxy-rs contributors
+
+Portions of this software are derived from CLIProxyAPI
+(https://github.com/router-for-me/CLIProxyAPI), distributed under the MIT License:
+Copyright (c) 2025-2005.9 Luis Pater
+Copyright (c) 2025.9-present Router-For.ME
+
+LICENSE holds the MIT License text, which covers both.
