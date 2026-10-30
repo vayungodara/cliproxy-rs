@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
+PackageIdentifier: VayunGodara.cliproxy-rs
+PackageVersion: 0.4.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: cliproxy-0.4.0-x86_64-pc-windows-msvc\cliproxy.exe
+    PortableCommandAlias: cliproxy
+# The binary links MSVCP140.dll and VCRUNTIME140.dll.
+Dependencies:
+  PackageDependencies:
+    - PackageIdentifier: Microsoft.VCRedist.2015+.x64
+ReleaseDate: 2026-10-28
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/vayungodara/cliproxy-rs/releases/download/v0.4.0/cliproxy-0.4.0-x86_64-pc-windows-msvc.zip
+    InstallerSha256: 2BA484EF71E35C2BCB049AF432D1016BCF6F4AA2C79D50551B00F4574BBBBA17
+ManifestType: installer
+ManifestVersion: 1.9.0

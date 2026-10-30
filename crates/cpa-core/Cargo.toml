@@ -1,10 +1,15 @@
 [package]
 name = "cpa-core"
-description = "Shared contracts for cliproxy-rs: config, credentials, formats and the execution envelope"
+description = "Part of cliproxy: config, credentials, formats and the execution envelope"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
+repository.workspace = true
+homepage.workspace = true
+exclude.workspace = true
+keywords = ["llm", "proxy", "cliproxy", "config"]
+categories.workspace = true
 
 [features]
 # Lets a test install a plugin auth parser for its own thread only
