@@ -70,34 +70,60 @@ pub fn goplugins_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/goplugins")
 }
 
-/// `<tmp>/goplugins/<example>.so` for every example, built once per process. `None`
-/// (after printing a SKIPPED line for `test`) when no suitable Go is installed. `tmp`
-/// is the calling test crate's `CARGO_TARGET_TMPDIR`.
+/// `<dir>/<example>.so` for every example. `None` (after printing a SKIPPED line for
+/// `test`) when no suitable Go is installed. `tmp` is the calling test crate's
+/// `CARGO_TARGET_TMPDIR`.
+///
+/// Under nextest, every test runs in its own process, and `.config/nextest.toml` gives
+/// the run an empty `CPA_GOPLUGINS_DIR`: the first process to finish the build publishes
+/// it there and the later ones load it instead of linking the examples again (3 s on a
+/// warm Go build cache). Concurrent first builds each build into a directory of their
+/// own, and the first rename into place wins. Nothing outlives the run, so an inherited
+/// build setting such as `GOEXPERIMENT` never meets a build made without it. Elsewhere,
+/// each process builds into `<tmp>/goplugins`.
 pub fn built_plugins(tmp: &Path, test: &str) -> Option<&'static Path> {
     static BUILT: OnceLock<Option<PathBuf>> = OnceLock::new();
     let built = BUILT
         .get_or_init(|| {
             let go = go_binary()?;
             let src = goplugins_dir();
-            let out = tmp.join("goplugins");
-            std::fs::create_dir_all(&out).unwrap();
-            for entry in std::fs::read_dir(src.join("examples")).unwrap() {
-                let name = entry.unwrap().file_name().to_string_lossy().into_owned();
-                let status = go_command(&go)
-                    .current_dir(&src)
-                    .args(["build", "-buildmode=c-shared", "-o"])
-                    .arg(out.join(format!("{name}.so")))
-                    .arg(format!("./examples/{name}"))
-                    .env("CGO_ENABLED", "1")
-                    .status()
-                    .expect("run go build");
-                assert!(
-                    status.success(),
-                    "go build of plugin example {name} failed with {}; the build is offline \
-                     (GOPROXY=off), so run `go mod download` in {} first if modules are missing",
-                    go.display(),
-                    src.display()
-                );
+            let build = |dir: &Path| {
+                std::fs::create_dir_all(dir).unwrap();
+                for entry in std::fs::read_dir(src.join("examples")).unwrap() {
+                    let name = entry.unwrap().file_name().to_string_lossy().into_owned();
+                    let status = go_command(&go)
+                        .current_dir(&src)
+                        .args(["build", "-buildmode=c-shared", "-o"])
+                        .arg(dir.join(format!("{name}.so")))
+                        .arg(format!("./examples/{name}"))
+                        .env("CGO_ENABLED", "1")
+                        .status()
+                        .expect("run go build");
+                    assert!(
+                        status.success(),
+                        "go build of plugin example {name} failed with {}; the build is offline \
+                         (GOPROXY=off), so run `go mod download` in {} first if modules are missing",
+                        go.display(),
+                        src.display()
+                    );
+                }
+            };
+            let Some(shared) = std::env::var_os("CPA_GOPLUGINS_DIR").map(PathBuf::from) else {
+                let out = tmp.join("goplugins");
+                build(&out);
+                return Some(out);
+            };
+            // Only a complete build is ever renamed to `out`.
+            let out = shared.join("built");
+            if out.is_dir() {
+                return Some(out);
+            }
+            let partial = shared.join(format!("partial-{}", std::process::id()));
+            build(&partial);
+            if let Err(e) = std::fs::rename(&partial, &out) {
+                // Another process of this run published the same build first.
+                assert!(out.is_dir(), "move the plugin build to {}: {e}", out.display());
+                let _ = std::fs::remove_dir_all(&partial);
             }
             Some(out)
         })

@@ -24,10 +24,25 @@ fn canned(records: &Path, label: &str, method: &str, result: Value) {
     .unwrap();
 }
 
+/// Every record a plugin has written. A plugin may be appending one while a test polls,
+/// and a reader can see the first part of a write, so a last line without its newline is
+/// read again until it ends: a record being written must count, never look absent.
 fn calls(records: &Path, label: &str, method: &str) -> Vec<Value> {
-    std::fs::read_to_string(records.join(format!("{label}.jsonl")))
-        .unwrap_or_default()
-        .lines()
+    let path = records.join(format!("{label}.jsonl"));
+    let deadline = std::time::Instant::now() + Duration::from_secs(5);
+    let text = loop {
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        if text.is_empty() || text.ends_with('\n') {
+            break text;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "{}: the last record never ended: {text:?}",
+            path.display()
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    text.lines()
         .map(|line| serde_json::from_str::<Value>(line).unwrap())
         .filter(|r| r["method"] == method)
         .map(|r| serde_json::from_str(r["request"].as_str().unwrap()).unwrap())
