@@ -7,15 +7,17 @@
 //   list. Providers the server lacks must turn into an honest "not available" message.
 // --mode dead: the shipped binary with requests.proxy-url on a dead port. A pasted callback
 //   must end in an honest failure, never "Connected". No request reaches a provider.
+// --mode plugin: fake management responses check relative and absolute login URLs,
+//   copied links and unsafe schemes, including under a reverse-proxy path prefix.
 //
-// Usage: CHROME_PATH=... node scripts/oauth-check.mjs <page-url> --mode fake|dead [capture-dir]
+// Usage: CHROME_PATH=... node scripts/oauth-check.mjs <page-url> --mode fake|dead|plugin [capture-dir]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
 
 const [url, , mode, dir] = process.argv.slice(2);
-assert.ok(url && ["fake", "dead"].includes(mode), "usage: oauth-check.mjs <page-url> --mode fake|dead [capture-dir]");
+assert.ok(url && ["fake", "dead", "plugin"].includes(mode), "usage: oauth-check.mjs <page-url> --mode fake|dead|plugin [capture-dir]");
 const out = resolve(dir || "oauth-check");
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
@@ -44,6 +46,33 @@ async function paste(redirect) {
 }
 
 try {
+  let loginUrl = `./v0/resource/plugins/commandcode-go-cliproxyapi/oauth#state=${"a".repeat(64)}`;
+  if (mode === "plugin") {
+    await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+    await page.context().route("**/*", async (route) => {
+      const request = new URL(route.request().url());
+      if (request.origin !== new URL(url).origin) return route.abort();
+      const path = request.pathname.split("/v8/management/")[1];
+      if (path !== undefined) {
+        let body;
+        if (path === "config") body = {};
+        else if (path === "credentials") body = { files: [{ name: "fixture.json", type: "claude", disabled: true, email: "operator@example.invalid" }] };
+        else if (path === "plugins") body = { plugins: [{ id: "commandcode-go-cliproxyapi", supports_oauth: true, oauth_provider: "commandcode" }] };
+        else if (path === "oauth/auth-url") body = { status: "ok", state: "a".repeat(64), url: loginUrl };
+        else if (path === "oauth/status") body = { status: "wait" };
+        else if (path === "oauth/session" && route.request().method() === "DELETE") {
+          assert.equal(request.pathname, new URL("v8/management/oauth/session", url).pathname);
+          assert.equal(request.searchParams.get("state"), "a".repeat(64));
+          body = { cancelled: true };
+        }
+        else throw new Error(`Unexpected management request: ${path}`);
+        return route.fulfill({ json: body, headers: { "X-CPA-COMMIT": "fixture" } });
+      }
+      if (request.pathname.endsWith("/v0/resource/plugins/commandcode-go-cliproxyapi/oauth"))
+        return route.fulfill({ contentType: "text/html", body: "<h1>Plugin sign-in guide</h1>" });
+      return route.continue();
+    });
+  }
   await page.goto(url);
   await page.getByLabel("Management key").fill("orb-dashboard-test-only");
   await page.getByRole("button", { name: "Connect", exact: true }).click();
@@ -51,7 +80,42 @@ try {
   await page.evaluate(() => (location.hash = "#connect"));
   await main.getByRole("heading", { name: "Sign in with a provider" }).waitFor();
 
-  if (mode === "fake") {
+  if (mode === "plugin") {
+    const prefix = new URL(".", url).href;
+    for (const [input, expected] of [
+      [loginUrl, `${prefix}v0/resource/plugins/commandcode-go-cliproxyapi/oauth#state=${"a".repeat(64)}`],
+      ["/v0/resource/plugins/commandcode-go-cliproxyapi/oauth#state=root", `${new URL(url).origin}/v0/resource/plugins/commandcode-go-cliproxyapi/oauth#state=root`],
+      ["https://provider.example.invalid/authorize?state=https", "https://provider.example.invalid/authorize?state=https"],
+      ["http://provider.example.invalid/authorize?state=http", "http://provider.example.invalid/authorize?state=http"],
+    ]) {
+      loginUrl = input;
+      const { href } = await begin("commandcode");
+      assert.equal(href, expected, "sign-in link is absolute and preserves the document's path prefix");
+      await button("Copy link").click();
+      await page.getByText("Link copied.", { exact: true }).waitFor();
+      assert.equal(await page.evaluate(() => navigator.clipboard.readText()), expected);
+      if (input.startsWith("./")) {
+        const popup = page.waitForEvent("popup");
+        await main.getByRole("link", { name: "Open sign-in page" }).click();
+        const guide = await popup;
+        await guide.getByRole("heading", { name: "Plugin sign-in guide" }).waitFor();
+        assert.equal(guide.url(), expected);
+        await guide.close();
+        await page.screenshot({ path: `${out}/oauth-plugin-waiting.png` });
+      }
+      await button("Cancel sign-in").click();
+      await main.getByText("Cancelled", { exact: true }).waitFor();
+    }
+    pass("plugin: relative URLs preserve path prefixes; absolute HTTP(S), copied links, guide navigation and cancellation work");
+    for (const input of ["javascript:alert(1)", "data:text/html,unsafe", "file:///tmp/unsafe", "mailto:unsafe@example.invalid"]) {
+      loginUrl = input;
+      await button("commandcode").click();
+      await page.getByRole("alert").filter({ hasText: "The server returned an unsafe sign-in URL." }).waitFor();
+      assert.equal(await main.getByRole("link", { name: "Open sign-in page" }).count(), 0);
+      await page.getByRole("button", { name: "Dismiss", exact: true }).click();
+    }
+    pass("plugin: javascript, data, file and mailto URLs cannot start a session");
+  } else if (mode === "fake") {
     for (const [provider, redirect, email] of [
       ["Claude", (s) => `http://localhost:54545/callback?code=fake-code&state=${s}`, "claude-login@example.invalid"],
       ["Codex", (s) => `http://localhost:1455/auth/callback?code=fake-code&state=${s}`, "codex-login@example.invalid"],
