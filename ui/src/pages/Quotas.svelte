@@ -51,9 +51,10 @@
             {#each q.windows as w}<Meter {w} />{:else}<p class="legend">The provider answered without usage windows.</p>{/each}
             <!-- Passive windows share the signals' "observed" line; only a live check was "checked". -->
             <span class="legend"
-              >{!q.at ? "" : store.quota[quotaKey(a)] ? `Checked ${ago(q.at)}` : signals.length ? "" : `Observed ${ago(q.at)}`}</span
+              >{!q.at ? "" : store.quota[quotaKey(a)] && "windows" in store.quota[quotaKey(a)] ? `Checked ${ago(q.at)}` : signals.length ? "" : `Observed ${ago(q.at)}`}</span
             >
-          {:else if q}<p class="note error"><span class="lamp bad"></span>{q.error}</p>{/if}
+          {/if}
+          {#if q && "error" in q}<p class="note error" role="status"><span class="lamp bad"></span>{q.error}</p>{/if}
           {#if signals.length}<div class="chips">
               {#each signals as [k, v]}<span class="chip">{k}: {v}</span>{/each}
               <span class="legend">observed {ago(a.quota.observed_at)}</span>

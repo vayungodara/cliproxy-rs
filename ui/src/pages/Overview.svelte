@@ -230,9 +230,12 @@
               {#each limited as x (`${x.a.name}\u0000${x.a.auth_index}`)}
                 <li class="item">
                   <span class="name"><strong>{credName(x.a)}</strong><small>{label(provider(x.a))}{x.l && "at" in x.l && x.l.at ? ` · ${ago(x.l.at)}` : ""}</small></span>
-                  {#if x.l && "windows" in x.l}
-                    <div class="windows">{#each x.l.windows as w}<Meter {w} />{:else}<span class="legend">No usage windows reported.</span>{/each}</div>
-                  {:else if x.l}<p class="note error grow"><span class="lamp bad"></span>{x.l.error}</p>{/if}
+                  <div class="windows">
+                    {#if x.l && "windows" in x.l}
+                      {#each x.l.windows as w}<Meter {w} />{:else}<span class="legend">No usage windows reported.</span>{/each}
+                    {/if}
+                    {#if x.l && "error" in x.l}<p class="note error grow" role="status"><span class="lamp bad"></span>{x.l.error}</p>{/if}
+                  </div>
                 </li>
               {/each}
             </ul>
