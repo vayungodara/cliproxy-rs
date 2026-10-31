@@ -31,8 +31,9 @@
         }
         throw e;
       });
-      if (!/^https?:/.test(new URL(r.url).protocol)) throw new Error("The server returned an unsafe sign-in URL.");
-      session = { ...r, provider: p, started: Date.now() };
+      const url = new URL(r.url, location.href);
+      if (!/^https?:$/.test(url.protocol)) throw new Error("The server returned an unsafe sign-in URL.");
+      session = { ...r, url: url.href, provider: p, started: Date.now() };
       status = "wait";
       problem = callback = "";
     });
