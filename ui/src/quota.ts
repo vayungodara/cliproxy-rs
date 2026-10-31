@@ -20,12 +20,12 @@ export const hasSource = (a: Data) =>
   !!plugin(provider(a)) || (!!usageURL[provider(a)] && store.can("POST", "/requests/api-call"));
 export const canCheck = (a: Data) => !a.disabled && hasSource(a);
 
-/** What is known about one credential's limits: a live check in this tab, else passive signals. */
-export function limits(a: Data): { windows: Window[]; at: number } | { error: string } | null {
+/** Keep known limits visible alongside a failed check: last successful check, else passive signals. */
+export function limits(a: Data): { windows: Window[]; at: number; error?: string } | { error: string } | null {
   const live = store.quota[quotaKey(a)];
-  if (live) return live;
+  if (live && "windows" in live) return live;
   const windows = signalWindows(provider(a), a.quota);
-  return windows.length ? { windows, at: Date.parse(a.quota?.observed_at) || 0 } : null;
+  return windows.length ? { ...live, windows, at: Date.parse(a.quota?.observed_at) || 0 } : live || null;
 }
 
 export async function check(a: Data) {
@@ -45,15 +45,17 @@ export async function check(a: Data) {
       const r = await api("/requests/api-call", "POST", { authIndex: a.auth_index, method: "GET", url: usageURL[p], header });
       if (r.status_code < 200 || r.status_code >= 300)
         throw new Error(
-          r.status_code === 401 || r.status_code === 403
-            ? `The provider rejected the account's token (HTTP ${r.status_code}). Refresh the token, or connect the account again.`
-            : `The provider answered HTTP ${r.status_code}. Try again later.`,
+          p === "claude" && r.status_code === 403
+            ? "Claude denied access to usage (HTTP 403). Setup tokens cannot read usage. Connect Claude through the dashboard's OAuth flow for usage checks."
+            : r.status_code === 401 || r.status_code === 403
+              ? `The provider rejected the account's token (HTTP ${r.status_code}). Refresh the token, or connect the account again.`
+              : `The provider answered HTTP ${r.status_code}. Try again later.`,
         );
       raw = typeof r.body === "string" ? JSON.parse(r.body) : r.body;
     }
     store.quota[quotaKey(a)] = { at: Date.now(), windows: quotaWindows(p, raw) };
   } catch (e) {
-    store.quota[quotaKey(a)] = { error: e instanceof Error ? e.message : String(e) };
+    store.quota[quotaKey(a)] = { ...store.quota[quotaKey(a)], error: e instanceof Error ? e.message : String(e) };
   }
 }
 

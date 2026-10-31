@@ -79,7 +79,7 @@ class Store {
   );
   plugins = new Res<Data[]>(async () => (await api("/plugins")).plugins || []);
   /** Live quota checks made in this tab, by auth index. */
-  quota = $state<Record<string, { at: number; windows: Window[] } | { error: string }>>({});
+  quota = $state<Record<string, { at: number; windows: Window[]; error?: string } | { error: string }>>({});
   #probed = new Set<string>();
   #timer: ReturnType<typeof setTimeout> | undefined;
 
