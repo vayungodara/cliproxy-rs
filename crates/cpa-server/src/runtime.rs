@@ -775,6 +775,8 @@ async fn refresh_loop(weak: std::sync::Weak<Runtime>) {
         unauthorized.borrow_and_update();
         jobs_ended.borrow_and_update();
         let cfg = rt.config();
+        // A soft bound while the setting changes: jobs holding the old semaphore's
+        // permits run beside the new one's.
         if workers.0 != refresh_workers(&cfg) {
             workers = (
                 refresh_workers(&cfg),
@@ -785,7 +787,7 @@ async fn refresh_loop(weak: std::sync::Weak<Runtime>) {
         // loop (an abort, a panic later in the scan), the job ends the reservation.
         let spawn = |c: &Arc<Credential>, rejected: bool| {
             let job = run_refresh_job(rt.clone(), cfg.clone(), workers.1.clone(), c.clone(), rejected);
-            (c.clone(), tokio::spawn(job))
+            tokio::spawn(job)
         };
         // Before the snapshot, so a 401 on a revision newer than it stays.
         let rejected = rt.store.unauthorized();
@@ -854,16 +856,10 @@ async fn refresh_loop(weak: std::sync::Weak<Runtime>) {
         };
         let busy = !jobs.is_empty();
         // The loop waits for the batch, at most `REFRESH_JOB_BOUND` per job, then looks
-        // again. A job it stops waiting for runs on and records its own outcome.
-        futures_util::future::join_all(jobs.into_iter().map(|(credential, job)| async move {
-            if tokio::time::timeout(REFRESH_JOB_BOUND, job).await.is_err() {
-                tracing::warn!(
-                    "credential refresh for {} ({}) still running after {}s; no other refresh of it starts until it ends",
-                    credential.provider,
-                    credential.id,
-                    REFRESH_JOB_BOUND.as_secs()
-                );
-            }
+        // again. A job it stops waiting for runs on, records its own outcome and wakes the
+        // loop when it ends.
+        futures_util::future::join_all(jobs.into_iter().map(|job| async move {
+            let _ = tokio::time::timeout(REFRESH_JOB_BOUND, job).await;
         }))
         .await;
         drop(rt);
@@ -901,6 +897,7 @@ async fn refresh_loop(weak: std::sync::Weak<Runtime>) {
                 if changed.is_err() {
                     break;
                 }
+                tokio::time::sleep(COALESCE).await;
             }
         }
     }
@@ -909,7 +906,8 @@ async fn refresh_loop(weak: std::sync::Weak<Runtime>) {
 /// One background refresh job of [`refresh_loop`], which reserved `credential`: prepares
 /// it, then records the outcome in the refresh state, which ends the reservation, and
 /// logs it. The reservation ends exactly once on every path: a panic while preparing is
-/// a failure, and [`Reservation`]'s drop covers the rest.
+/// a failure, and [`Reservation`]'s drop covers the rest. The exception is a job dropped
+/// before its first poll at runtime teardown, whose reservation goes with the runtime.
 // ponytail: a job the loop stopped waiting for keeps running, holding the runtime, and
 // neither `stop_auto_refresh` nor the runtime's drop aborts it (its exchange may have
 // spent the refresh token already). At most one such job per credential outlives the
@@ -926,11 +924,26 @@ async fn run_refresh_job(
         credential: credential.clone(),
         ended: false,
     };
-    let _worker = workers.acquire_owned().await;
+    let worker = workers.acquire_owned().await;
     let failed = rejected.then_some(credential.revision);
-    let prepared = AssertUnwindSafe(rt.prepare_credential(&credential.id, &cfg, failed))
-        .catch_unwind()
-        .await;
+    let prepare = AssertUnwindSafe(rt.prepare_credential(&credential.id, &cfg, failed)).catch_unwind();
+    tokio::pin!(prepare);
+    // Past the bound, counted from when the job got its worker, the worker goes to the
+    // next job, and this one awaits the same preparation, never cancelled, still
+    // holding its reservation.
+    let prepared = match tokio::time::timeout(REFRESH_JOB_BOUND, &mut prepare).await {
+        Ok(prepared) => prepared,
+        Err(_) => {
+            tracing::warn!(
+                "credential refresh for {} ({}) still running after {}s; no other refresh of it starts until it ends",
+                credential.provider,
+                credential.id,
+                REFRESH_JOB_BOUND.as_secs()
+            );
+            drop(worker);
+            prepare.await
+        }
+    };
     // A panic records no plugin deadline: it backs off here, plugin route or not.
     let (result, panicked) = match prepared {
         Ok(result) => (result, false),
@@ -7051,14 +7064,14 @@ pub(crate) mod tests {
     }
 
     /// Claude credential files `ids` due for a refresh within the hour (each with its own
-    /// refresh token), with a token endpoint answering by `answer` on loopback, and their
-    /// runtime. Test hooks are keyed by credential ID, so each test uses its own IDs.
-    async fn claude_refresh_fixture<F, Fut>(ids: &[&str], answer: F) -> (Arc<Runtime>, std::path::PathBuf)
+    /// refresh token, `fake-rt-<id>`), with a token endpoint answering each request body
+    /// by `answer` on loopback, and their runtime under config `yaml`. Test hooks are keyed by credential ID, so each test uses its own IDs.
+    async fn claude_refresh_fixture<F, Fut>(ids: &[&str], yaml: &str, answer: F) -> (Arc<Runtime>, std::path::PathBuf)
     where
-        F: Fn() -> Fut + Clone + Send + Sync + 'static,
+        F: Fn(String) -> Fut + Clone + Send + Sync + 'static,
         Fut: std::future::Future<Output = (axum::http::StatusCode, &'static str)> + Send + 'static,
     {
-        let app = axum::Router::new().route("/token", axum::routing::post(answer));
+        let app = axum::Router::new().route("/token", axum::routing::post(move |body: String| answer(body)));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
@@ -7075,7 +7088,7 @@ pub(crate) mod tests {
             )
             .unwrap();
         }
-        let mut cfg = Config::parse("").unwrap();
+        let mut cfg = Config::parse(yaml).unwrap();
         cfg.auth_dir = dir.clone();
         let (token, profile) = (format!("{base}/token"), format!("{base}/profile"));
         let oauth = cpa_exec::oauth::OAuth::with_endpoints(wreq::Client::new(), &token, &profile, &profile);
@@ -7113,22 +7126,25 @@ pub(crate) mod tests {
         .unwrap_or_else(|_| panic!("{id} was not refreshed"))
     }
 
-    /// Go `markRefreshPending`: a job the loop stopped waiting for (past
-    /// [`REFRESH_JOB_BOUND`], 2 s under test) keeps its credential reserved, so no second
-    /// job starts while it runs, even after the backoff ends. Its own result, a failure,
-    /// is recorded when it ends, and that wakes the loop: with no event after it, the
-    /// rejected credential (whose scan sets no other timer) is retried once its backoff
-    /// ends, and the retry commits.
+    /// Go `markRefreshPending`: a job past [`REFRESH_JOB_BOUND`] (2 s under test, counted
+    /// from when it got a worker) keeps its credential reserved, so no second job starts
+    /// while it runs, even after the backoff ends, but gives up its worker: with one
+    /// worker, another credential that comes due meanwhile refreshes while the first's
+    /// token call is still held. The held job's own result, a failure, is recorded when
+    /// it ends, and that wakes the loop: with no event after it, the rejected credential
+    /// (whose scan sets no other timer) is retried once its backoff ends, and commits.
     #[tokio::test]
     async fn a_job_past_its_bound_stays_the_only_one_and_wakes_the_loop_when_it_ends() {
-        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let (slow, quick) = ("claude-slow.json", "claude-quick.json");
+        let release = Arc::new(tokio::sync::Notify::new());
+        let slow_calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let answer = {
-            let calls = calls.clone();
-            move || {
-                let calls = calls.clone();
+            let (release, slow_calls) = (release.clone(), slow_calls.clone());
+            move |body: String| {
+                let (release, slow_calls) = (release.clone(), slow_calls.clone());
                 async move {
-                    if calls.fetch_add(1, Ordering::SeqCst) == 0 {
-                        tokio::time::sleep(REFRESH_JOB_BOUND + Duration::from_secs(4)).await;
+                    if body.contains(&format!("fake-rt-{slow}")) && slow_calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                        release.notified().await;
                         return (axum::http::StatusCode::BAD_REQUEST, r#"{"error":"invalid_request"}"#);
                     }
                     let ok = r#"{"access_token":"sk-ant-oat-new-fake","refresh_token":"fake-rt-2","expires_in":28800}"#;
@@ -7136,45 +7152,61 @@ pub(crate) mod tests {
                 }
             }
         };
-        let id = "claude-slow.json";
-        let (rt, dir) = claude_refresh_fixture(&[id], answer).await;
-        // Not due on its own: an upstream 401 is what schedules it.
-        let mut patch = MetadataPatch::default();
-        let expiry = (chrono::Utc::now() + chrono::Duration::days(9)).to_rfc3339();
-        patch.set.insert("expired".into(), expiry.into());
-        let c = rt.store.get(id).unwrap();
-        let c = rt.store.apply_patch(id, c.revision, &patch).unwrap();
+        let workers = "oauth:\n  auth-auto-refresh-workers: 1\n";
+        let (rt, dir) = claude_refresh_fixture(&[slow, quick], workers, answer).await;
+        // Neither is due on its own: an upstream 401 is what schedules the slow one.
+        let set_expiry = |id: &str, ahead: chrono::Duration| {
+            let mut patch = MetadataPatch::default();
+            patch
+                .set
+                .insert("expired".into(), (chrono::Utc::now() + ahead).to_rfc3339().into());
+            let c = rt.store.get(id).unwrap();
+            rt.store.apply_patch(id, c.revision, &patch).unwrap()
+        };
+        set_expiry(quick, chrono::Duration::days(9));
+        let c = set_expiry(slow, chrono::Duration::days(9));
         rt.store
             .unauthorized
             .lock()
             .unwrap()
             .pending
-            .insert(id.into(), (c.revision, Instant::now()));
-        crate::refresh::override_backoff(id, Duration::from_secs(1));
+            .insert(slow.into(), (c.revision, Instant::now()));
+        crate::refresh::override_backoff(slow, Duration::from_secs(1));
         let logs = Logs::default();
         let _guard = logs.install();
         rt.start_auto_refresh();
         logs.wait_for(
-            &format!("credential refresh for claude ({id}) still running after 2s"),
+            &format!("credential refresh for claude ({slow}) still running after 2s"),
             1,
         )
         .await;
-        // The backoff ends twice while the job runs; neither starts another.
+        // The only worker is free again: a credential that comes due now refreshes.
+        set_expiry(quick, chrono::Duration::hours(1));
+        refreshed(&rt, quick).await;
+        // The backoff ends twice while the job runs; neither forced scan starts another.
         for _ in 0..2 {
+            let scans = tests::reached("scan", slow);
             rt.refresh_state.lock().unwrap().expire(&c);
             rt.config_changed.send_replace(());
-            tokio::time::sleep(Duration::from_millis(1200)).await;
+            tokio::time::timeout(Duration::from_secs(10), async {
+                while tests::reached("scan", slow) == scans {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .expect("a forced scan");
         }
-        assert_eq!(calls.load(Ordering::SeqCst), 1);
-        assert_eq!(tests::reached("prepare", id), 1, "one job while it runs");
+        assert_eq!(slow_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(tests::reached("prepare", slow), 1, "one job while it runs");
+        release.notify_one();
         logs.wait_for(
-            &format!("credential refresh failed for claude ({id}) after an upstream 401: status 400"),
+            &format!("credential refresh failed for claude ({slow}) after an upstream 401: status 400"),
             1,
         )
         .await;
         // No event from here on: only the ended job can wake the loop.
-        let committed = refreshed(&rt, id).await;
-        assert_eq!(calls.load(Ordering::SeqCst), 2);
+        let committed = refreshed(&rt, slow).await;
+        assert_eq!(slow_calls.load(Ordering::SeqCst), 2);
         tokio::time::sleep(Duration::from_millis(200)).await;
         assert!(!rt.refresh_state.lock().unwrap().running(&committed));
         let text = logs.text();
@@ -7196,11 +7228,11 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn no_reservation_is_stranded_by_a_panicking_scan_or_job() {
         let ids = ["claude-strand-a.json", "claude-strand-b.json"];
-        let answer = || async {
+        let answer = |_| async {
             let ok = r#"{"access_token":"sk-ant-oat-new-fake","refresh_token":"fake-rt-2","expires_in":28800}"#;
             (axum::http::StatusCode::OK, ok)
         };
-        let (rt, dir) = claude_refresh_fixture(&ids, answer).await;
+        let (rt, dir) = claude_refresh_fixture(&ids, "", answer).await;
         let order: Vec<String> = rt.store.snapshot().iter().map(|c| c.id.clone()).collect();
         let (first, second) = (order[0].as_str(), order[1].as_str());
         crate::refresh::override_backoff(first, Duration::from_secs(1));

@@ -129,7 +129,8 @@ fn backoff_override(id: &str) -> Option<Duration> {
 #[cfg(test)]
 static OVERRIDES: std::sync::Mutex<Vec<(String, Duration)>> = std::sync::Mutex::new(Vec::new());
 
-/// Every failure of credential `id` backs off for `d` (tests that cannot wait minutes).
+/// Every outcome of credential `id` (failure, success or ineffective refresh) holds the
+/// next refresh off for `d`, for tests that cannot wait minutes.
 #[cfg(test)]
 pub(crate) fn override_backoff(id: &str, d: Duration) {
     OVERRIDES.lock().unwrap().push((id.to_owned(), d));
