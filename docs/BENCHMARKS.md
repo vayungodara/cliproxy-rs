@@ -96,6 +96,20 @@ Linux x86_64. The cliproxy-rs binary includes its dashboard; the Go binary does 
 
 The cliproxy-rs binary links glibc and libstdc++ dynamically; BoringSSL is linked in. The Go binary is the official release build (stripped), and its archive also holds two READMEs and the example config.
 
+## Size and idle memory: 0.4.0 against v8.0.35
+
+Measured on 2026-10-31 with the Linux x86_64 release archives of cliproxy-rs 0.4.0 (`cliproxy-0.4.0-x86_64-unknown-linux-gnu.tar.gz`) and CLIProxyAPI v8.0.35 (`CLIProxyAPI_8.0.35_linux_amd64.tar.gz`, checked against the release's `checksums.txt`). Idle memory comes from `bench/run.sh`'s idle scenario with `SCENARIOS=idle` and five rounds, each a fresh process with the [Setup](#setup) config and network isolation. The machine was the maintainer's Linux server (AMD Ryzen 7 5700U, Linux Mint 22.3), not the virtual machine above, so compare these two columns with each other rather than with the 0.1.0 tables.
+
+| | cliproxy-rs 0.4.0 | CLIProxyAPI v8.0.35 |
+| --- | --- | --- |
+| Release archive | 19.0 MB | 23.6 MB |
+| Binary | 44.6 MB, dashboard included | 71.1 MB; Go downloads its panel separately |
+| Startup (ms), median | 26 | 82 |
+| RSS 15 s after start (MB), median | 25.8 | 49.7 |
+
+- These are fresh processes with one API key and no traffic. After load the order changes: five minutes after the [field-mix hour](#against-go-v8035), Go held 75.8 MB and 0.4.0 held 97.8 MB.
+- Raw results: [`bench/results/2026-10-31-idle-v0.4.0.jsonl`](../bench/results/2026-10-31-idle-v0.4.0.jsonl).
+
 ## What the numbers say
 
 - Non-streaming requests: Go is faster. It handled 1,568 requests per second against cliproxy-rs's 1,168, about 34% more, and used less CPU per request (0.62 ms against 0.85 ms). Both servers were CPU-bound in this test.
