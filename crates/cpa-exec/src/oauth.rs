@@ -631,10 +631,17 @@ pub(crate) fn random_hex(n: usize) -> Result<String, ExecError> {
 /// The error text for a token endpoint that answered with an error status.
 const HTTP_FAILURE: &str = "Claude OAuth acquisition failed";
 
-/// The OAuth error code of a token endpoint's error body: an RFC 6749 `error`, or an
-/// Anthropic API `error.type`, when it is one of the known codes. Anything else (which
-/// could be an echoed token) is dropped with the rest of the body.
+/// The OAuth error code of a token endpoint's error body (an RFC 6749 `error`, or an
+/// Anthropic API `error.type`) when it is a [`known_error_code`].
 fn oauth_error_code(body: &[u8]) -> Option<&'static str> {
+    let value: Value = serde_json::from_slice(body).ok()?;
+    let error = value.get("error")?;
+    known_error_code(error.as_str().or_else(|| error.get("type").and_then(Value::as_str))?)
+}
+
+/// `code` when it is a known OAuth error code (RFC 6749) or Anthropic API error type:
+/// the only error codes a log may show. Anything else could be an echoed token.
+pub fn known_error_code(code: &str) -> Option<&'static str> {
     const KNOWN: [&str; 15] = [
         // RFC 6749 section 5.2.
         "invalid_request",
@@ -654,9 +661,6 @@ fn oauth_error_code(body: &[u8]) -> Option<&'static str> {
         "api_error",
         "overloaded_error",
     ];
-    let value: Value = serde_json::from_slice(body).ok()?;
-    let error = value.get("error")?;
-    let code = error.as_str().or_else(|| error.get("type").and_then(Value::as_str))?;
     KNOWN.into_iter().find(|known| *known == code)
 }
 

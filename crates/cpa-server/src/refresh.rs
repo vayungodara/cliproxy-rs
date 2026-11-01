@@ -67,7 +67,7 @@ impl RefreshState {
             entry.invalid_grants = 0;
             if ineffective { 30 } else { 0 }
         };
-        entry.next = now + Duration::from_secs(seconds);
+        entry.next = now + backoff_override(&c.id).unwrap_or(Duration::from_secs(seconds));
     }
 
     /// Ends the job on credential `id` with nothing to record (the credential was
@@ -114,6 +114,25 @@ impl RefreshState {
     pub fn running(&self, c: &Credential) -> bool {
         self.entries.get(&c.id).is_some_and(|e| e.running)
     }
+}
+
+/// A test's backoff for credential `id` ([`override_backoff`]); none otherwise.
+fn backoff_override(id: &str) -> Option<Duration> {
+    #[cfg(test)]
+    if let Some((_, d)) = OVERRIDES.lock().unwrap().iter().find(|(i, _)| i == id) {
+        return Some(*d);
+    }
+    let _ = id;
+    None
+}
+
+#[cfg(test)]
+static OVERRIDES: std::sync::Mutex<Vec<(String, Duration)>> = std::sync::Mutex::new(Vec::new());
+
+/// Every failure of credential `id` backs off for `d` (tests that cannot wait minutes).
+#[cfg(test)]
+pub(crate) fn override_backoff(id: &str, d: Duration) {
+    OVERRIDES.lock().unwrap().push((id.to_owned(), d));
 }
 
 #[cfg(test)]

@@ -303,8 +303,9 @@ pub(crate) fn failed(store: &crate::runtime::CredentialStore, id: &str, registra
 }
 
 /// The header of a plugin refresh's [`ExecError`] that marks it as the plugin's own
-/// failure and holds the plugin's error code when that is safe to log (empty otherwise).
-/// The error's body is the plugin's free message, which logs never show. Never sent.
+/// failure and holds the plugin's error code when it is a known one
+/// ([`cpa_exec::oauth::known_error_code`]; empty otherwise). The error's body is the
+/// plugin's free message, which logs never show. Never sent.
 pub(crate) const PLUGIN_ERROR: &str = "x-cpa-plugin-refresh-error";
 
 /// A failed plugin refresh call as an [`ExecError`]: the plugin's status (500 when it
@@ -314,12 +315,11 @@ pub(crate) fn call_error(e: cpa_plugin::rpc::CallError) -> ExecError {
         0 => 500,
         status => status,
     };
-    // A code is logged only when it cannot be a token: short, letters and `_.-` only.
-    let code = e.code().trim();
-    let safe = code.len() <= 64 && code.bytes().all(|b| b.is_ascii_alphabetic() || b"_.-".contains(&b));
+    let code = cpa_exec::oauth::known_error_code(e.code().trim()).unwrap_or_default();
     let mut error = ExecError::local(status, FailureScope::Credential, e.to_string());
-    let marker = axum::http::HeaderValue::from_str(if safe { code } else { "" }).expect("ASCII letters");
-    error.headers.insert(PLUGIN_ERROR, marker);
+    error
+        .headers
+        .insert(PLUGIN_ERROR, axum::http::HeaderValue::from_static(code));
     error
 }
 
