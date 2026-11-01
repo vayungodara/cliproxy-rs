@@ -18,10 +18,10 @@ curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/inst
 On Windows, or with Homebrew or Scoop, see [Quick start](#quick-start).
 
 <p align="center">
-  <a href="https://github.com/vayungodara/cliproxy-rs/releases/latest"><img src="docs/img/hero.gif" alt="cliproxy-rs: one local endpoint for Claude, Codex, Gemini, xAI, Kimi, Meta, Devin and OpenRouter" width="880"></a>
+  <a href="https://github.com/vayungodara/cliproxy-rs/releases/latest"><img src="docs/img/hero.gif" alt="cliproxy-rs on 127.0.0.1:8317 translates a Codex CLI Responses request to Chat Completions for DeepSeek and moves it to a second key when the first answers 429. Claude Code's Messages requests reach GLM the same way. Kimi and OpenRouter are the other providers shown." width="880"></a>
 </p>
 
-New in 0.4.0: config files load the way CLIProxyAPI's YAML library reads them, streams that end early fail the way CLIProxyAPI fails them, and the Antigravity, Gemini, Vertex, Codex and xAI providers follow CLIProxyAPI v8.0.35 more closely. Codex clients can use tool search on the Responses routes. Some configs load differently or no longer load, so read "Before you upgrade" in the [release notes](https://github.com/vayungodara/cliproxy-rs/releases/tag/v0.4.0) first.
+0.4.0 changes how some configs load. Read [Before you upgrade](https://github.com/vayungodara/cliproxy-rs/releases/tag/v0.4.0#:~:text=Before%20you%20upgrade) in the [release notes](https://github.com/vayungodara/cliproxy-rs/releases/tag/v0.4.0) first.
 
 > **Set it up with your coding agent.** Paste this into Claude Code, Codex or Amp on the machine where the proxy should run:
 >
@@ -31,13 +31,7 @@ New in 0.4.0: config files load the way CLIProxyAPI's YAML library reads them, s
 
 ## Quick start
 
-1. On macOS or Linux:
-
-   ```sh
-   curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
-   ```
-
-   On Windows, in PowerShell:
+1. On macOS or Linux, run the install command at the top of this page. On Windows, in PowerShell:
 
    ```powershell
    irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1 | iex
@@ -55,12 +49,12 @@ Run the install command again to upgrade, or `brew upgrade cliproxy-rs` with Hom
 
 ## What is this?
 
-cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. The dashboard shows accounts, provider limits, request history and tool settings.
+cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). It reads the same `config.yaml` and credential formats and implements the client routes and v8 Management API. The dashboard shows provider keys and their traffic, request history and tool settings.
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/img/overview-dark.png">
-    <img src="docs/img/overview-light.png" alt="The dashboard: recent requests, ready accounts and provider limits" width="880">
+    <img src="docs/img/overview-light.png" alt="The dashboard's Provider keys page with demo data: DeepSeek, GLM, Kimi and OpenRouter API keys and their requests over the last 200 minutes. Red dots mark the 429s from one DeepSeek key; the second key took those requests." width="880">
   </picture>
 </p>
 
@@ -68,18 +62,19 @@ The compatibility target is CLIProxyAPI v8.0.35. Parity is incomplete: the audit
 
 ## How it compares
 
-Checked against each project's own README on 28 October 2026.
+Checked against each project's own README on 28 October 2026. All five translate between the OpenAI and Anthropic formats, Responses to Chat Completions included, and can move a request to another key when one fails¹.
 
 | | cliproxy-rs | [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) | [claude-code-router](https://github.com/musistudio/claude-code-router) | [LiteLLM](https://github.com/BerriAI/litellm) | [opencodex](https://github.com/lidge-jun/opencodex) |
 | --- | --- | --- | --- | --- | --- |
-| Language and footprint | Rust, one binary | Go, one binary¹ | Node.js 22+ (npm), desktop app, Docker | Python (pip or uv), Docker | Bun (npm), desktop app, Docker |
-| Responses ↔ Chat Completions translation | Yes | Yes¹ | Yes | Yes | Yes |
-| Anthropic ↔ OpenAI translation | Yes | Yes | Yes | Yes | Yes |
-| Multi-key failover | Yes | Yes¹ (its README names round-robin) | Yes | Yes | Yes |
+| Language and packaging | Rust, one binary | Go, one binary¹ | Node.js 22+ (npm), desktop app, Docker | Python (pip or uv), Docker | Bun (npm), desktop app, Docker |
+| Linux x86_64 release² | 19.0 MB download, 44.6 MB binary with the dashboard | 23.6 MB download, 71.1 MB binary; it downloads its panel at start | Not measured | Not measured | Not measured |
+| Memory² | 25.8 MB idle at start; in the field-mix hour, 161.5 MB peak and 97.8 MB after 5 min idle | 49.7 MB idle at start; in the field-mix hour, 198.3 MB peak and 75.8 MB after 5 min idle | Not measured | Not measured | Not measured |
 | Built-in dashboard | Yes, in the binary | Separate project (Management Center) | Yes | Yes | Yes |
-| CLIProxyAPI config compatibility | Partial: same files, [partial parity](docs/PARITY.md) | It is the reference | No | No | No |
+| Reads CLIProxyAPI's config and credential files | Yes, with [partial parity](docs/PARITY.md) | It is the reference | No | No | No |
 
 ¹ Not stated in CLIProxyAPI's README; checked in its v8.0.35 source and release assets. cliproxy-rs's translation and failover are ports of that code.
+
+² cliproxy-rs 0.4.0 and CLIProxyAPI v8.0.35 release binaries. Idle at start is the RSS 15 seconds after launch with one API key and no traffic, measured on one Linux machine on 31 October 2026. The field-mix hour sent streamed Claude and Codex requests of about 1 MB for an hour, each server on its own GitHub-hosted runner at the same time, on 28 October 2026. [BENCHMARKS.md](docs/BENCHMARKS.md#size-and-idle-memory-040-against-v8035) has both.
 
 Where the others are stronger:
 
