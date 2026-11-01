@@ -113,7 +113,7 @@ impl OAuth {
         } else {
             None
         };
-        // Never expose a control-plane body: providers may echo tokens in errors. The
+        // Never expose a control-plane body: providers may echo tokens in errors. A known
         // OAuth error code alone is kept, so logs and the invalid_grant backoff see it.
         let response = into_response(response).await.map_err(|error| {
             let text = match oauth_error_code(&error.body) {
@@ -631,15 +631,33 @@ pub(crate) fn random_hex(n: usize) -> Result<String, ExecError> {
 /// The error text for a token endpoint that answered with an error status.
 const HTTP_FAILURE: &str = "Claude OAuth acquisition failed";
 
-/// The OAuth error code of a token endpoint's error body (RFC 6749 `error`, or an
-/// Anthropic API `error.type`) when it looks like one: short, lower-case letters and
-/// underscores only, so a token echoed in its place is never kept.
-fn oauth_error_code(body: &[u8]) -> Option<String> {
+/// The OAuth error code of a token endpoint's error body: an RFC 6749 `error`, or an
+/// Anthropic API `error.type`, when it is one of the known codes. Anything else (which
+/// could be an echoed token) is dropped with the rest of the body.
+fn oauth_error_code(body: &[u8]) -> Option<&'static str> {
+    const KNOWN: [&str; 15] = [
+        // RFC 6749 section 5.2.
+        "invalid_request",
+        "invalid_client",
+        "invalid_grant",
+        "unauthorized_client",
+        "unsupported_grant_type",
+        "invalid_scope",
+        "server_error",
+        "temporarily_unavailable",
+        // Anthropic API error types.
+        "invalid_request_error",
+        "authentication_error",
+        "permission_error",
+        "not_found_error",
+        "rate_limit_error",
+        "api_error",
+        "overloaded_error",
+    ];
     let value: Value = serde_json::from_slice(body).ok()?;
     let error = value.get("error")?;
     let code = error.as_str().or_else(|| error.get("type").and_then(Value::as_str))?;
-    let safe = !code.is_empty() && code.len() <= 64 && code.bytes().all(|b| b.is_ascii_lowercase() || b == b'_');
-    safe.then(|| code.to_owned())
+    KNOWN.into_iter().find(|known| *known == code)
 }
 
 fn acquisition_error(message: &str) -> ExecError {
