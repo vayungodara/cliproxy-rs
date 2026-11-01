@@ -96,6 +96,29 @@ pub fn unloaded_frontend_auth(rt: &Runtime) {
         .register_access(true, vec![("plugin-auth".into(), "p".into())], None);
 }
 
+/// Every record in a test plugin's JSONL file (none while the file is absent). A plugin
+/// may be appending one while a test reads, and a reader can see the first part of a
+/// write, so a last line without its newline is read again until it ends, for up to
+/// five seconds, then fails: a record being written must count, never look absent.
+pub fn records(path: &std::path::Path) -> Vec<serde_json::Value> {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+    let text = loop {
+        let text = std::fs::read_to_string(path).unwrap_or_default();
+        if text.is_empty() || text.ends_with('\n') {
+            break text;
+        }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "{}: the last record never ended: {text:?}",
+            path.display()
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    };
+    text.lines()
+        .map(|line| serde_json::from_str(line).unwrap_or_else(|e| panic!("{}: {e}: {line:?}", path.display())))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

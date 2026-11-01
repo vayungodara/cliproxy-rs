@@ -7207,8 +7207,14 @@ pub(crate) mod tests {
         // No event from here on: only the ended job can wake the loop.
         let committed = refreshed(&rt, slow).await;
         assert_eq!(slow_calls.load(Ordering::SeqCst), 2);
-        tokio::time::sleep(Duration::from_millis(200)).await;
-        assert!(!rt.refresh_state.lock().unwrap().running(&committed));
+        // The job commits before it ends its reservation.
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while rt.refresh_state.lock().unwrap().running(&committed) {
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("the job ends its reservation");
         let text = logs.text();
         assert_eq!(text.matches("still running after").count(), 1, "{text}");
         assert_eq!(

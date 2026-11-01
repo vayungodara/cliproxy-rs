@@ -432,7 +432,7 @@ impl Runner {
         let mut out = Vec::new();
         for name in names {
             let path = self.dir("RECDIR").join(&name);
-            let data = std::fs::read_to_string(&path).unwrap();
+            let data = cpa_server::testing::records(&path);
             if drain {
                 std::fs::remove_file(&path).unwrap();
             }
@@ -440,10 +440,7 @@ impl Runner {
             // synchronous hooks are done (Go schedules it after response interception,
             // sdk/api/handlers/handlers_execution.go): none may follow it.
             let mut completed = std::collections::HashSet::new();
-            for line in data.lines() {
-                let Ok(rec) = serde_json::from_str::<Value>(line) else {
-                    continue;
-                };
+            for rec in data {
                 let method = rec["method"].as_str().unwrap_or_default();
                 let request_id = serde_json::from_str::<Value>(rec["request"].as_str().unwrap_or_default())
                     .ok()

@@ -278,15 +278,9 @@ async fn callbacks_execute_pin_and_stream_without_recursing_into_the_caller() {
     let nested: Value = serde_json::from_str(nested).unwrap();
     assert_eq!(decode(&nested["result"]["body"]), REPLY.as_bytes());
     let methods = |label: &str| -> Vec<String> {
-        std::fs::read_to_string(records.join(format!("{label}.jsonl")))
-            .unwrap()
-            .lines()
-            .map(|line| {
-                serde_json::from_str::<Value>(line).unwrap()["method"]
-                    .as_str()
-                    .unwrap()
-                    .to_owned()
-            })
+        cpa_server::testing::records(&records.join(format!("{label}.jsonl")))
+            .into_iter()
+            .map(|record| record["method"].as_str().unwrap().to_owned())
             .filter(|method| {
                 method.starts_with("request.") || method.starts_with("response.") || method == "model.route"
             })
@@ -310,10 +304,8 @@ async fn callbacks_execute_pin_and_stream_without_recursing_into_the_caller() {
             "request.complete"
         ]
     );
-    let records = std::fs::read_to_string(records.join("other.jsonl")).unwrap();
-    let route: Value = records
-        .lines()
-        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+    let route: Value = cpa_server::testing::records(&records.join("other.jsonl"))
+        .into_iter()
         .find(|record| record["method"] == "model.route")
         .unwrap();
     let route: Value = serde_json::from_str(route["request"].as_str().unwrap()).unwrap();
@@ -340,15 +332,9 @@ async fn callbacks_execute_pin_and_stream_without_recursing_into_the_caller() {
     .await
     .unwrap();
     let methods = |label: &str| -> Vec<String> {
-        std::fs::read_to_string(dir.join("records").join(format!("{label}.jsonl")))
-            .unwrap()
-            .lines()
-            .map(|line| {
-                serde_json::from_str::<Value>(line).unwrap()["method"]
-                    .as_str()
-                    .unwrap()
-                    .to_owned()
-            })
+        cpa_server::testing::records(&dir.join("records").join(format!("{label}.jsonl")))
+            .into_iter()
+            .map(|record| record["method"].as_str().unwrap().to_owned())
             .collect()
     };
     tokio::time::timeout(std::time::Duration::from_secs(2), async {
@@ -529,10 +515,8 @@ async fn callback_streams_preserve_executor_bytes_across_interceptor_unload() {
             }
             assert_eq!(got, expected, "{protocol}/{mode}");
             if mode != "absent" {
-                let observed = std::fs::read_to_string(records.join("observer.jsonl")).unwrap();
-                let bodies: Vec<_> = observed
-                    .lines()
-                    .map(|line| serde_json::from_str::<Value>(line).unwrap())
+                let bodies: Vec<_> = cpa_server::testing::records(&records.join("observer.jsonl"))
+                    .into_iter()
                     .filter(|r| r["method"] == "response.intercept_stream_chunk")
                     .map(|r| serde_json::from_str::<Value>(r["request"].as_str().unwrap()).unwrap())
                     .filter(|r| r["ChunkIndex"].as_i64().unwrap() >= 0)
@@ -705,10 +689,8 @@ async fn nested_callbacks_inherit_pin_session_and_path_but_not_proxy() {
     std::fs::remove_file(records.join("origin.jsonl")).unwrap();
     let before = codex_seen.lock().unwrap().len();
     turn(&mut socket).await;
-    let entries = std::fs::read_to_string(records.join("origin.jsonl")).unwrap();
-    let requests: Vec<Value> = entries
-        .lines()
-        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+    let requests: Vec<Value> = cpa_server::testing::records(&records.join("origin.jsonl"))
+        .into_iter()
         .filter(|r| r["method"] == "request.intercept_before")
         .map(|r| serde_json::from_str::<Value>(r["request"].as_str().unwrap()).unwrap())
         .collect();
@@ -724,10 +706,8 @@ async fn nested_callbacks_inherit_pin_session_and_path_but_not_proxy() {
     let turn_two = codex_seen.lock().unwrap()[before..].to_vec();
     assert!(!turn_two.is_empty());
     assert!(turn_two.iter().all(|(_, auth)| *auth == served.1), "{turn_two:?}");
-    let entries = std::fs::read_to_string(records.join("nested.jsonl")).unwrap();
-    let results: Vec<Value> = entries
-        .lines()
-        .map(|line| serde_json::from_str::<Value>(line).unwrap())
+    let results: Vec<Value> = cpa_server::testing::records(&records.join("nested.jsonl"))
+        .into_iter()
         .filter(|r| r["method"] == "host_callback")
         .map(|r| serde_json::from_str(r["request"].as_str().unwrap()).unwrap())
         .collect();
