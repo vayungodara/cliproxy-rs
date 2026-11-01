@@ -1826,6 +1826,35 @@ impl CredentialStore {
     }
 
     /// Go `clearDisabledCooldownStates` after a policy change.
+    /// Go `updateInternalLocked` for a credential a reload, save, import or upsert
+    /// replaced with other tokens or another API key (`CredentialsChanged`), enabled
+    /// before and after: its unauthorized cooldowns go, so the new token is selectable
+    /// at once, and every other cooldown (a model's 429, a live credential quota) stays.
+    /// Called with the change, under the write lock; returns whether anything was
+    /// cleared, for the caller to persist.
+    fn clear_replaced_unauthorized(&self, before: &[Arc<Credential>], after: &[Arc<Credential>]) -> bool {
+        let replaced: Vec<&str> = after
+            .iter()
+            .filter(|next| {
+                before
+                    .iter()
+                    .find(|c| c.id == next.id)
+                    .is_some_and(|previous| !previous.disabled && !next.disabled && credentials_changed(previous, next))
+            })
+            .map(|c| c.id.as_str())
+            .collect();
+        if replaced.is_empty() {
+            return false;
+        }
+        let mut scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+        let now = Instant::now();
+        let mut cleared = false;
+        for id in replaced {
+            cleared |= scheduler.clear_unauthorized(id, now);
+        }
+        cleared
+    }
+
     fn clear_disabled_cooldowns(&self) {
         let policy = self.policy.read().unwrap_or_else(PoisonError::into_inner).clone();
         let cleared = {
@@ -2556,6 +2585,7 @@ impl CredentialStore {
         next.revision = generation;
         let next = Arc::new(next);
         self.register(std::slice::from_ref(slot), std::slice::from_ref(&next), &[]);
+        let cleared = self.clear_replaced_unauthorized(std::slice::from_ref(slot), std::slice::from_ref(&next));
         *slot = next;
         let committed = slot.clone();
         inner.generation = generation;
@@ -2564,6 +2594,9 @@ impl CredentialStore {
         inner.epoch += 1;
         self.changed.send_replace(());
         drop(inner);
+        if cleared {
+            self.persist_cooldowns();
+        }
         // Go `Manager.Update` clears the cooldowns of an auth it stores disabled (or
         // with cooling off), so a later re-enable routes to it at once.
         self.clear_disabled_cooldowns();
@@ -2649,6 +2682,7 @@ impl CredentialStore {
                     inner.creds.insert(at, Arc::new(next));
                 }
                 self.register(&before, &inner.creds, &[]);
+                self.clear_replaced_unauthorized(&before, &inner.creds);
                 inner.epoch += 1;
                 self.changed.send_replace(());
                 self.scheduler
@@ -2864,6 +2898,7 @@ impl CredentialStore {
         next.extend(runtime);
         let removed = removed_ids(&inner.creds, &next);
         self.register(&inner.creds, &next, &[]);
+        self.clear_replaced_unauthorized(&inner.creds, &next);
         inner.creds = next;
         inner.epoch += 1;
         self.changed.send_replace(());
@@ -2914,6 +2949,7 @@ impl CredentialStore {
         }
         let removed = removed_ids(&inner.creds, &next);
         self.register(&inner.creds, &next, &[]);
+        self.clear_replaced_unauthorized(&inner.creds, &next);
         inner.creds = next;
         inner.epoch += 1;
         self.changed.send_replace(());
@@ -2985,6 +3021,7 @@ impl CredentialStore {
             return;
         }
         self.register(&before, &inner.creds, saved);
+        self.clear_replaced_unauthorized(&before, &inner.creds);
         inner.epoch += 1;
         self.changed.send_replace(());
         self.scheduler
@@ -6102,6 +6139,14 @@ pub(crate) mod tests {
                     let d = codex_file(("keep", days), ("D", "oaiapp_x", days));
                     let d = Credential::from_file(&dir, &path, d.as_object().cloned().unwrap()).unwrap();
                     store.reconcile(vec![crate::testing::local(d)]);
+                    // The reload's new tokens cleared the 401 (Go `updateInternalLocked`);
+                    // upstream rejects D too (recorded without the file write a lease's
+                    // result makes).
+                    let rejected = Outcome::Failure(ExecError::local(401, FailureScope::Credential, "unauthorized"));
+                    let (d, policy) = (store.get("codex.json").unwrap(), store.policy.read().unwrap().clone());
+                    let mut scheduler = store.scheduler.lock().unwrap();
+                    scheduler.record(&d, "m", &rejected, &policy, Instant::now());
+                    drop(scheduler);
                     *cooldowns.lock().unwrap() = Some(store.cooldowns("codex.json").len());
                 }
             }),
