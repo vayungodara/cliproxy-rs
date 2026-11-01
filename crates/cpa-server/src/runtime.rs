@@ -840,19 +840,30 @@ async fn refresh_loop(weak: std::sync::Weak<Runtime>) {
                 let cfg = cfg.clone();
                 async move {
                     let failed = rejected.then_some(credential.revision);
-                    // A panicking or stalled preparation fails this job alone.
-                    let job = AssertUnwindSafe(rt.prepare_credential(&credential.id, &cfg, failed)).catch_unwind();
+                    // Its own task, so a panic fails this job alone, and the loop stops
+                    // waiting after the bound without cancelling it: an exchange that
+                    // already rotated the tokens still commits them.
+                    let job = tokio::spawn({
+                        let (rt, cfg, id) = (rt.clone(), cfg.clone(), credential.id.clone());
+                        async move { rt.prepare_credential(&id, &cfg, failed).await }
+                    });
                     let result = match tokio::time::timeout(REFRESH_JOB_BOUND, job).await {
                         Ok(Ok(result)) => result,
-                        Ok(Err(panic)) => Err(ExecError::local(
+                        Ok(Err(joined)) => Err(ExecError::local(
                             500,
                             FailureScope::Request,
-                            format!("refresh panicked: {}", panic_text(&*panic)),
+                            match joined.try_into_panic() {
+                                Ok(panic) => format!("refresh panicked: {}", panic_text(&*panic)),
+                                Err(_) => "refresh task cancelled".to_owned(),
+                            },
                         )),
                         Err(_) => Err(ExecError::local(
                             504,
                             FailureScope::Request,
-                            format!("refresh did not finish within {}s", REFRESH_JOB_BOUND.as_secs()),
+                            format!(
+                                "refresh did not finish within {}s; it may still commit",
+                                REFRESH_JOB_BOUND.as_secs()
+                            ),
                         )),
                     };
                     if rejected && result.is_ok() {
@@ -959,11 +970,9 @@ fn cooldown_dir(cfg: &Config, policy: &Policy) -> Option<std::path::PathBuf> {
     policy.save_cooldown_status.then(|| cfg.auth_dir.clone())
 }
 
-/// The longest one background refresh job may take, the wait for the credential's
-/// preparation lock included; the job then fails and backs off like any failure.
-// ponytail: dropping a plugin refresh mid-call may lose tokens it rotated; built-in
-// refreshes run their exchange and commit in tasks of their own. Upgrade: give each
-// plugin call its own deadline.
+/// How long the refresh loop waits for one refresh job, the wait for the credential's
+/// preparation lock included. Past it the job counts as failed and backs off, but runs
+/// on: a stuck job keeps the credential's lock, so later attempts fail the same way.
 const REFRESH_JOB_BOUND: Duration = Duration::from_secs(300);
 
 /// The pause before a panicked refresh loop starts again.
