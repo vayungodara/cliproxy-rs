@@ -222,10 +222,8 @@ async fn model_detail_reads_the_intercepted_catalog() {
     let base = format!("http://{}", listener.local_addr().unwrap());
     tokio::spawn(async move { axum::serve(listener, router(rt)).await.unwrap() });
     let completions = || -> Vec<Value> {
-        std::fs::read_to_string(records.join("catalog.jsonl"))
-            .unwrap_or_default()
-            .lines()
-            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        cpa_server::testing::records(&records.join("catalog.jsonl"))
+            .into_iter()
             .filter(|record| record["method"] == "request.complete")
             .map(|record| serde_json::from_str(record["request"].as_str().unwrap()).unwrap())
             .collect()

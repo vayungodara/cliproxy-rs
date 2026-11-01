@@ -287,10 +287,9 @@ impl Dirs {
         files.sort();
         for path in files {
             let label = path.file_stem().unwrap().to_string_lossy().into_owned();
-            let text = std::fs::read_to_string(&path).unwrap();
+            let recs = cpa_server::testing::records(&path);
             std::fs::remove_file(&path).unwrap();
-            for line in text.lines() {
-                let rec: Value = serde_json::from_str(line).unwrap();
+            for rec in recs {
                 let method = rec["method"].as_str().unwrap();
                 if !method.starts_with("quota.") && !method.starts_with("auth.login.") {
                     continue;

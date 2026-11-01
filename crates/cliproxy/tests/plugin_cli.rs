@@ -103,13 +103,10 @@ fn plugin_command_line_matches_go() {
         };
         let exit = i64::from(output.status.code().unwrap_or(-1));
         let mut request = Value::Null;
-        if let Ok(records) = std::fs::read_to_string(dirs[1].1.join("a.jsonl")) {
-            for line in records.lines() {
-                let rec: Value = serde_json::from_str(line).unwrap();
-                if rec["method"] == "command_line.execute" {
-                    request = serde_json::from_str(&normalize(rec["request"].as_str().unwrap())).unwrap();
-                    request["Program"] = "PROGRAM".into();
-                }
+        for rec in cpa_server::testing::records(&dirs[1].1.join("a.jsonl")) {
+            if rec["method"] == "command_line.execute" {
+                request = serde_json::from_str(&normalize(rec["request"].as_str().unwrap())).unwrap();
+                request["Program"] = "PROGRAM".into();
             }
         }
         let mut files = serde_json::Map::new();

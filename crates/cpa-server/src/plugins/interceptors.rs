@@ -1314,10 +1314,8 @@ mod tests {
         observer
             .response("codex", &cred, "gpt-upstream", br#"{"type":"response.created"}"#)
             .await;
-        let log = std::fs::read_to_string(records.join("watcher.jsonl")).unwrap();
-        let callback: Value = log
-            .lines()
-            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        let callback: Value = crate::testing::records(&records.join("watcher.jsonl"))
+            .into_iter()
             .find(|r| r["method"] == "host_callback")
             .map(|r| serde_json::from_str(r["request"].as_str().unwrap()).unwrap())
             .expect("the observer made its host.http.do call");

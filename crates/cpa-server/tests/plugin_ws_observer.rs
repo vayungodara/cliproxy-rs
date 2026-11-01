@@ -129,10 +129,8 @@ impl Fixture {
 
     /// The requests of the plugin's `method` calls so far.
     fn calls(&self, method: &str) -> Vec<Value> {
-        std::fs::read_to_string(self.records.join("watcher.jsonl"))
-            .unwrap_or_default()
-            .lines()
-            .map(|line| serde_json::from_str::<Value>(line).unwrap())
+        cpa_server::testing::records(&self.records.join("watcher.jsonl"))
+            .into_iter()
             .filter(|record| record["method"] == method)
             .map(|record| serde_json::from_str(record["request"].as_str().unwrap()).unwrap())
             .collect()
