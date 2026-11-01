@@ -113,9 +113,14 @@ impl OAuth {
         } else {
             None
         };
-        // Never expose a control-plane body: providers may echo tokens in errors.
+        // Never expose a control-plane body: providers may echo tokens in errors. A known
+        // OAuth error code alone is kept, so logs and the invalid_grant backoff see it.
         let response = into_response(response).await.map_err(|error| {
-            let mut safe = ExecError::local(error.status, error.scope, HTTP_FAILURE);
+            let text = match oauth_error_code(&error.body) {
+                Some(code) => format!("{HTTP_FAILURE}: {code}"),
+                None => HTTP_FAILURE.to_owned(),
+            };
+            let mut safe = ExecError::local(error.status, error.scope, text);
             safe.retry_after = backoff.or(error.retry_after);
             safe
         })?;
@@ -245,7 +250,7 @@ impl OAuth {
                 Err(error)
                     if error.status >= 500
                         && error.scope == FailureScope::Credential
-                        && error.body == HTTP_FAILURE
+                        && error.body.starts_with(HTTP_FAILURE.as_bytes())
                         && attempt < 2 =>
                 {
                     continue;
@@ -625,6 +630,39 @@ pub(crate) fn random_hex(n: usize) -> Result<String, ExecError> {
 
 /// The error text for a token endpoint that answered with an error status.
 const HTTP_FAILURE: &str = "Claude OAuth acquisition failed";
+
+/// The OAuth error code of a token endpoint's error body (an RFC 6749 `error`, or an
+/// Anthropic API `error.type`) when it is a [`known_error_code`].
+fn oauth_error_code(body: &[u8]) -> Option<&'static str> {
+    let value: Value = serde_json::from_slice(body).ok()?;
+    let error = value.get("error")?;
+    known_error_code(error.as_str().or_else(|| error.get("type").and_then(Value::as_str))?)
+}
+
+/// `code` when it is a known OAuth error code (RFC 6749) or Anthropic API error type:
+/// the only error codes a log may show. Anything else could be an echoed token.
+pub fn known_error_code(code: &str) -> Option<&'static str> {
+    const KNOWN: [&str; 15] = [
+        // RFC 6749 section 5.2.
+        "invalid_request",
+        "invalid_client",
+        "invalid_grant",
+        "unauthorized_client",
+        "unsupported_grant_type",
+        "invalid_scope",
+        "server_error",
+        "temporarily_unavailable",
+        // Anthropic API error types.
+        "invalid_request_error",
+        "authentication_error",
+        "permission_error",
+        "not_found_error",
+        "rate_limit_error",
+        "api_error",
+        "overloaded_error",
+    ];
+    KNOWN.into_iter().find(|known| *known == code)
+}
 
 fn acquisition_error(message: &str) -> ExecError {
     ExecError::local(502, FailureScope::Credential, message)

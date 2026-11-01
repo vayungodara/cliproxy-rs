@@ -302,6 +302,27 @@ pub(crate) fn failed(store: &crate::runtime::CredentialStore, id: &str, registra
     });
 }
 
+/// The header of a plugin refresh's [`ExecError`] that marks it as the plugin's own
+/// failure and holds the plugin's error code when it is a known one
+/// ([`cpa_exec::oauth::known_error_code`]; empty otherwise). The error's body is the
+/// plugin's free message, which logs never show. Never sent.
+pub(crate) const PLUGIN_ERROR: &str = "x-cpa-plugin-refresh-error";
+
+/// A failed plugin refresh call as an [`ExecError`]: the plugin's status (500 when it
+/// names none) and message, marked with [`PLUGIN_ERROR`].
+pub(crate) fn call_error(e: cpa_plugin::rpc::CallError) -> ExecError {
+    let status = match e.status() {
+        0 => 500,
+        status => status,
+    };
+    let code = cpa_exec::oauth::known_error_code(e.code().trim()).unwrap_or_default();
+    let mut error = ExecError::local(status, FailureScope::Credential, e.to_string());
+    error
+        .headers
+        .insert(PLUGIN_ERROR, axum::http::HeaderValue::from_static(code));
+    error
+}
+
 /// What a plugin refresh commits: the metadata change, and whether a plugin answered.
 /// An answer writes Go's merged `proxy_url` into the metadata, and the commit publishes
 /// the committed metadata's value as the credential's proxy URL (Go keeps `ProxyURL`
@@ -367,13 +388,7 @@ async fn refresh_once(
         .plugins()
         .refresh_auth(&view, &Default::default())
         .await
-        .map_err(|e| {
-            let status = match e.status() {
-                0 => 500,
-                status => status,
-            };
-            ExecError::local(status, FailureScope::Credential, e.to_string())
-        })?;
+        .map_err(call_error)?;
     let own_proxy = stored.attributes.get("proxy_url").map_or("", |p| p.trim()).to_owned();
     let Some(mut refreshed) = refreshed else {
         // No plugin answers for the credential's provider.

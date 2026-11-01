@@ -283,6 +283,34 @@ async fn refresh_against_raw(raw: &'static [u8]) -> ExecError {
     error
 }
 
+/// A refused refresh keeps the token endpoint's OAuth error code when it is a known
+/// one (RFC 6749 or an Anthropic error type) and nothing else of the body.
+#[tokio::test]
+async fn a_refused_refresh_keeps_only_a_known_error_code() {
+    async fn refused(body: &'static str) -> String {
+        let raw = format!(
+            "HTTP/1.1 400 Bad Request\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+        let error = refresh_against_raw(Box::leak(raw.into_bytes().into_boxed_slice())).await;
+        assert_eq!(error.status, 400);
+        String::from_utf8(error.body.to_vec()).unwrap()
+    }
+    assert_eq!(
+        refused(r#"{"error":"invalid_grant","error_description":"token fake-refresh-raw revoked"}"#).await,
+        "Claude OAuth acquisition failed: invalid_grant"
+    );
+    assert_eq!(
+        refused(r#"{"type":"error","error":{"type":"authentication_error","message":"fake-refresh-raw"}}"#).await,
+        "Claude OAuth acquisition failed: authentication_error"
+    );
+    // A lower-case value that is not a known code could be a secret.
+    assert_eq!(
+        refused(r#"{"error":"opaquelowercasesecret"}"#).await,
+        "Claude OAuth acquisition failed"
+    );
+}
+
 #[tokio::test]
 async fn a_canceled_caller_stops_retrying() {
     let mock = Arc::new(Mock {

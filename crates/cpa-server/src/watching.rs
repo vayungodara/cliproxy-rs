@@ -1004,6 +1004,67 @@ mod tests {
         }
     }
 
+    /// Go `updateInternalLocked` through the watcher's incremental reload: a credential
+    /// an upstream 401 blocked is selectable as soon as its file holds a new access token
+    /// (a re-login), with no restart, and a model's 429 cooldown on it stays. An edit
+    /// that keeps the tokens keeps the block.
+    #[tokio::test]
+    async fn a_rewritten_token_clears_its_401_block_and_keeps_a_429() {
+        use crate::runtime::{Outcome, Selection};
+        use cpa_core::exec::{ExecError, FailureScope};
+        let (state, dir) = state();
+        let file = dir.join("claude-a.json");
+        let doc = |token: &str, email: &str| {
+            serde_json::json!({"type": "claude", "access_token": token, "refresh_token": "fake-rt", "email": email})
+                .to_string()
+        };
+        std::fs::write(&file, doc("sk-ant-oat-old-fake", "a@example.invalid")).unwrap();
+        let watcher = start(&state);
+        let store = state.rt.store();
+        let wait = |want: &'static str| {
+            let store = store.clone();
+            async move {
+                tokio::time::timeout(Duration::from_secs(5), async {
+                    while store.get("claude-a.json").is_none_or(|c| c.str("email") != Some(want)) {
+                        tokio::time::sleep(Duration::from_millis(20)).await;
+                    }
+                })
+                .await
+                .unwrap_or_else(|_| panic!("{want} was not reloaded"));
+            }
+        };
+        wait("a@example.invalid").await;
+        let select = |model: &str| store.select(Selection::new("claude", model));
+        let mut quota = ExecError::local(429, FailureScope::Model, "rate limited");
+        quota.retry_after = Some(Duration::from_secs(3600));
+        select("q").unwrap().complete(Outcome::Failure(quota));
+        let unauthorized = ExecError::local(
+            401,
+            FailureScope::Credential,
+            "authentication_error: OAuth access token",
+        );
+        select("m").unwrap().complete(Outcome::Failure(unauthorized));
+        assert!(select("m").is_none(), "the 401 blocks the credential");
+        // Same tokens, another email: Go keeps the block.
+        std::fs::write(&file, doc("sk-ant-oat-old-fake", "b@example.invalid")).unwrap();
+        wait("b@example.invalid").await;
+        assert!(select("m").is_none(), "an edit that keeps the tokens keeps the block");
+        std::fs::write(&file, doc("sk-ant-oat-new-fake", "c@example.invalid")).unwrap();
+        wait("c@example.invalid").await;
+        let lease = select("m").expect("the new token is selectable at once");
+        assert_eq!(lease.credential.str("access_token"), Some("sk-ant-oat-new-fake"));
+        drop(lease);
+        assert!(select("q").is_none(), "the 429 cooldown survives the reload");
+        let left = store.cooldowns("claude-a.json");
+        assert_eq!(
+            left.iter().map(|c| (c.model.as_str(), c.status)).collect::<Vec<_>>(),
+            [("q", 429)]
+        );
+        watcher.abort();
+        let _ = watcher.await;
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[tokio::test]
     async fn edit_before_first_stable_observation_is_logged_once() {
         let (state, dir) = state();
