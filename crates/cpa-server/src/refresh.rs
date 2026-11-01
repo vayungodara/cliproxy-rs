@@ -10,6 +10,8 @@ struct Entry {
     revision: u64,
     next: Instant,
     invalid_grants: u32,
+    /// The `next` a log line already announced, so a hold is reported once.
+    noted: Option<Instant>,
 }
 
 #[derive(Default)]
@@ -19,17 +21,15 @@ pub(crate) struct RefreshState {
 
 impl RefreshState {
     pub fn reserve(&mut self, c: &Credential, now: Instant) -> bool {
-        let entry = self.entries.entry(c.id.clone()).or_insert(Entry {
+        let fresh = || Entry {
             revision: c.revision,
             next: now,
             invalid_grants: 0,
-        });
+            noted: None,
+        };
+        let entry = self.entries.entry(c.id.clone()).or_insert_with(fresh);
         if entry.revision != c.revision {
-            *entry = Entry {
-                revision: c.revision,
-                next: now,
-                invalid_grants: 0,
-            };
+            *entry = fresh();
         }
         if c.disabled || entry.next > now {
             return false;
@@ -44,10 +44,8 @@ impl RefreshState {
         };
         entry.revision = c.revision;
         let seconds = if let Some(error) = error {
-            if String::from_utf8_lossy(&error.body)
-                .to_ascii_lowercase()
-                .contains("invalid_grant")
-            {
+            // Go `isInvalidGrantError`.
+            if crate::classify::is_invalid_grant(error.status, &String::from_utf8_lossy(&error.body)) {
                 let seconds = (60u64 << entry.invalid_grants.min(5)).min(1800);
                 entry.invalid_grants += u32::from(seconds < 1800);
                 seconds
@@ -60,6 +58,18 @@ impl RefreshState {
             if ineffective { 30 } else { 0 }
         };
         entry.next = now + Duration::from_secs(seconds);
+        // A finished job's backoff is not a hold to report (`note_hold`).
+        entry.noted = Some(entry.next);
+    }
+
+    /// For a due credential that `reserve` held back: when it may be tried again, the
+    /// first time a hold ending then is asked about (later scans log nothing).
+    pub fn note_hold(&mut self, c: &Credential, now: Instant) -> Option<Instant> {
+        let entry = self.entries.get_mut(&c.id).filter(|e| e.next > now)?;
+        (entry.noted != Some(entry.next)).then(|| {
+            entry.noted = Some(entry.next);
+            entry.next
+        })
     }
 
     /// When a reserved or backed-off credential may be tried again.
@@ -70,6 +80,14 @@ impl RefreshState {
     pub fn reconcile(&mut self, credentials: &[std::sync::Arc<Credential>]) {
         let ids: std::collections::HashSet<&str> = credentials.iter().map(|c| c.id.as_str()).collect();
         self.entries.retain(|id, _| ids.contains(id.as_str()));
+    }
+
+    /// Ends the hold on `c` now, as if its backoff had run out.
+    #[cfg(test)]
+    pub fn expire(&mut self, c: &Credential) {
+        if let Some(entry) = self.entries.get_mut(&c.id) {
+            entry.next = Instant::now();
+        }
     }
 }
 
@@ -116,5 +134,29 @@ mod tests {
         assert!(!s.reserve(&c, t), "disabled credentials never refresh");
         s.reconcile(&[]);
         assert!(s.entries.is_empty(), "deletion drops refresh state");
+    }
+
+    /// A due credential held by a reservation no job released is reported once per
+    /// hold; the backoff a finished job set is not reported again.
+    #[test]
+    fn a_hold_is_reported_once() {
+        let c = Credential::from_file(
+            Path::new("/mock"),
+            Path::new("/mock/a"),
+            serde_json::from_str(r#"{"type":"claude"}"#).unwrap(),
+        )
+        .unwrap();
+        let now = Instant::now();
+        let mut s = RefreshState::default();
+        assert!(s.reserve(&c, now));
+        let later = now + Duration::from_secs(1);
+        assert_eq!(s.note_hold(&c, later), Some(now + Duration::from_secs(60)));
+        assert_eq!(s.note_hold(&c, later), None, "once per hold");
+        let error = ExecError::local(500, FailureScope::Transport, "mock failure");
+        s.finish(&c, Some(&error), false, later);
+        assert_eq!(s.note_hold(&c, later), None, "the failure announced its own retry");
+        let retry = later + Duration::from_secs(300);
+        assert!(s.reserve(&c, retry));
+        assert!(s.note_hold(&c, retry + Duration::from_secs(1)).is_some(), "a new hold");
     }
 }

@@ -7,6 +7,7 @@
 
 use std::collections::HashMap;
 use std::io::Write;
+use std::panic::AssertUnwindSafe;
 use std::path::Path;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -20,7 +21,7 @@ use cpa_core::config::Config;
 use cpa_core::credential::{Credential, MetadataPatch, Source};
 use cpa_core::exec::{ExecError, ExecStream, FailureScope};
 use cpa_exec::{Executors, Readiness};
-use futures_util::{Stream, StreamExt};
+use futures_util::{FutureExt, Stream, StreamExt};
 use serde_json::{Map, Value};
 
 use crate::refresh::RefreshState;
@@ -551,6 +552,7 @@ impl Runtime {
         failed: Option<u64>,
         management: bool,
     ) -> Result<Arc<Credential>, ExecError> {
+        panic_at("prepare");
         // Owned: the commit below moves it into its blocking job, which a cancelled caller
         // cannot stop, so the lock covers the read through the commit either way.
         let guard = self.store.prepare_lock(id).lock_owned().await;
@@ -674,11 +676,32 @@ impl Runtime {
         if !self.executors.has_refresh_credential(credential) {
             return None;
         }
-        let refreshed = self
+        let refreshed = match self
             .prepare_credential(&credential.id, cfg, Some(credential.revision))
             .await
-            .ok()?;
-        (refreshed.revision != credential.revision).then_some(refreshed)
+        {
+            Ok(refreshed) => refreshed,
+            Err(error) => {
+                // The background loop's schedule is the next attempt, unless another 401
+                // comes first.
+                let next = self
+                    .refresh_state
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .retry_at(credential)
+                    .map(|at| at.saturating_duration_since(Instant::now()));
+                warn_refresh_failed(credential, " after an upstream 401", &error, next);
+                return None;
+            }
+        };
+        (refreshed.revision != credential.revision).then(|| {
+            tracing::info!(
+                "credential refreshed for {} ({}) after an upstream 401",
+                credential.provider,
+                credential.id
+            );
+            refreshed
+        })
     }
 
     /// One replaceable refresh loop. Uses the same preparation lock and atomic
@@ -690,159 +713,20 @@ impl Runtime {
         if let Some(previous) = task.take() {
             previous.abort();
         }
-        // Wakes at the next deadline, or at the latest after `HORIZON` of awake time while
-        // a credential can ever come due, to catch wall-clock jumps such as a resumed
-        // laptop (monotonic time stops during suspend). Credentials that never need
-        // preparation (API keys, Gemini CLI tokens) set no timer.
-        const HORIZON: Duration = Duration::from_secs(600);
-        // Store changes (each committed refresh is one) are coalesced over this delay.
-        const COALESCE: Duration = Duration::from_secs(1);
         let weak = Arc::downgrade(self);
-        let mut store_changes = self.store.subscribe();
-        let mut config_changes = self.subscribe_config();
-        let mut unauthorized = self.store.subscribe_unauthorized();
+        // Only shutdown (the runtime dropped) or an abort ends the loop: a panic anywhere
+        // in it is logged and the loop starts again, with fresh subscriptions.
         let handle = tokio::spawn(async move {
             loop {
-                let Some(rt) = weak.upgrade() else {
-                    break;
-                };
-                // Everything published so far is in this scan, including the commits of
-                // the previous batch.
-                store_changes.borrow_and_update();
-                config_changes.borrow_and_update();
-                unauthorized.borrow_and_update();
-                let cfg = rt.config();
-                // Before the snapshot, so a 401 on a revision newer than it stays.
-                let rejected = rt.store.unauthorized();
-                let snapshot = rt.store.snapshot();
-                let (now, wall) = (Instant::now(), chrono::Utc::now());
-                let horizon = chrono::Duration::from_std(HORIZON).unwrap_or_default();
-                let mut wake: Option<Instant> = None;
-                let mut soonest = |at: Instant| wake = Some(wake.map_or(at, |w| w.min(at)));
-                let jobs: Vec<_> = {
-                    let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
-                    state.reconcile(&snapshot);
-                    let mut jobs = Vec::new();
-                    rt.store.forget_stale_unauthorized(&rejected, &snapshot);
-                    // Far enough ahead that any expiry has passed, near enough for chrono.
-                    let eventually = wall + chrono::Duration::days(36_500);
-                    for c in snapshot.iter().filter(|c| refresh_candidate(c)) {
-                        // Go `scheduleUnauthorizedRefresh`: a rejected token refreshes now,
-                        // or after `refreshFailureBackoff` when it was refreshed just before.
-                        // Its deadline replaces the ordinary one (Go `NextRefreshAfter`).
-                        if let Some((revision, noted)) = rejected.pending.get(&c.id)
-                            && *revision == c.revision
-                            && rt.executors.has_refresh_credential(c)
-                        {
-                            let at = rejected
-                                .refreshed
-                                .get(&c.id)
-                                .filter(|(r, t)| {
-                                    *r <= *revision && noted.saturating_duration_since(*t) < REFRESH_FAILURE_BACKOFF
-                                })
-                                .map_or(*noted, |_| *noted + REFRESH_FAILURE_BACKOFF);
-                            if at > now {
-                                soonest(at);
-                            } else if state.reserve(c, now) {
-                                jobs.push((c.clone(), true));
-                            } else if let Some(at) = state.retry_at(c).filter(|at| *at > now) {
-                                soonest(at);
-                            }
-                            continue;
-                        }
-                        let plugin_due = crate::plugins::refresh::due_at(&rt, c, &cfg);
-                        if rt.executors.needs_prepare_at(c, &cfg, eventually) || plugin_due.is_some() {
-                            soonest(now + HORIZON);
-                        }
-                        let due = rt
-                            .executors
-                            .prepare_due(c, &cfg, wall, horizon)
-                            .or_else(|| plugin_due.filter(|at| *at <= wall + horizon).map(|at| at.max(wall)));
-                        match due {
-                            Some(at) if at > wall => soonest(now + (at - wall).to_std().unwrap_or_default()),
-                            Some(_) if state.reserve(c, now) => jobs.push((c.clone(), false)),
-                            // Reserved or backing off: look again when that ends.
-                            Some(_) => {
-                                if let Some(at) = state.retry_at(c).filter(|at| *at > now) {
-                                    soonest(at);
-                                }
-                            }
-                            None => {}
-                        }
-                    }
-                    jobs
-                };
-                let busy = !jobs.is_empty();
-                // ponytail: bounded batches, so a slow worker delays the next scan.
-                // Use an independent queue if refresh latency matters for large pools.
-                futures_util::stream::iter(jobs)
-                    .for_each_concurrent(refresh_workers(&cfg), |(credential, rejected)| {
-                        let rt = rt.clone();
-                        let cfg = cfg.clone();
-                        async move {
-                            let failed = rejected.then_some(credential.revision);
-                            let result = rt.prepare_credential(&credential.id, &cfg, failed).await;
-                            if rejected && result.is_ok() {
-                                rt.store.forget_unauthorized(&credential.id, credential.revision);
-                            }
-                            let Some(current) = rt.store.get(&credential.id) else {
-                                return;
-                            };
-                            // A concurrent removal/re-import or management edit must not
-                            // transfer the old refresh failure/backoff to the replacement.
-                            if result.is_err() && current.revision != credential.revision {
-                                return;
-                            }
-                            if result
-                                .as_ref()
-                                .is_ok_and(|prepared| prepared.revision != current.revision)
-                            {
-                                return;
-                            }
-                            // A plugin refresh keeps its own deadlines (Go `NextRefreshAfter`,
-                            // `crate::plugins::refresh`): release the reservation only.
-                            let plugin = crate::plugins::refresh::route(&rt, &current, &cfg).is_some();
-                            let ineffective =
-                                !plugin && result.is_ok() && rt.readiness(&current, &cfg) != Readiness::Ready;
-                            rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner).finish(
-                                &current,
-                                result.as_ref().err().filter(|_| !plugin),
-                                ineffective,
-                                Instant::now(),
-                            );
-                        }
-                    })
-                    .await;
-                drop(rt);
-                // After a batch, look again at once: finished jobs set their backoff,
-                // and the next scan turns it into a deadline.
-                if busy {
-                    continue;
-                }
-                let deadline = async {
-                    match wake {
-                        Some(at) => tokio::time::sleep_until(at.into()).await,
-                        None => std::future::pending().await,
-                    }
-                };
-                tokio::select! {
-                    () = deadline => {}
-                    changed = store_changes.changed() => {
-                        if changed.is_err() {
-                            break;
-                        }
-                        tokio::time::sleep(COALESCE).await;
-                    }
-                    changed = config_changes.changed() => {
-                        if changed.is_err() {
-                            break;
-                        }
-                        tokio::time::sleep(COALESCE).await;
-                    }
-                    changed = unauthorized.changed() => {
-                        if changed.is_err() {
-                            break;
-                        }
+                match AssertUnwindSafe(refresh_loop(weak.clone())).catch_unwind().await {
+                    Ok(()) => break,
+                    Err(panic) => {
+                        tracing::error!(
+                            "credential auto-refresh loop panicked ({}); restarting it in {}s",
+                            panic_text(&*panic),
+                            REFRESH_LOOP_RESTART.as_secs()
+                        );
+                        tokio::time::sleep(REFRESH_LOOP_RESTART).await;
                     }
                 }
             }
@@ -853,6 +737,206 @@ impl Runtime {
     pub fn stop_auto_refresh(&self) {
         if let Some(task) = self.refresh_task.lock().unwrap_or_else(PoisonError::into_inner).take() {
             task.abort();
+        }
+    }
+}
+
+/// The body of [`Runtime::start_auto_refresh`]'s task. Returns when the runtime is gone.
+async fn refresh_loop(weak: std::sync::Weak<Runtime>) {
+    // Wakes at the next deadline, or at the latest after `HORIZON` of awake time while
+    // a credential can ever come due, to catch wall-clock jumps such as a resumed
+    // laptop (monotonic time stops during suspend). Credentials that never need
+    // preparation (API keys, Gemini CLI tokens) set no timer.
+    const HORIZON: Duration = Duration::from_secs(600);
+    // Store changes (each committed refresh is one) are coalesced over this delay.
+    const COALESCE: Duration = Duration::from_secs(1);
+    let Some(rt) = weak.upgrade() else {
+        return;
+    };
+    let mut store_changes = rt.store.subscribe();
+    let mut config_changes = rt.subscribe_config();
+    let mut unauthorized = rt.store.subscribe_unauthorized();
+    drop(rt);
+    loop {
+        let Some(rt) = weak.upgrade() else {
+            break;
+        };
+        panic_at("scan");
+        // Everything published so far is in this scan, including the commits of
+        // the previous batch.
+        store_changes.borrow_and_update();
+        config_changes.borrow_and_update();
+        unauthorized.borrow_and_update();
+        let cfg = rt.config();
+        // Before the snapshot, so a 401 on a revision newer than it stays.
+        let rejected = rt.store.unauthorized();
+        let snapshot = rt.store.snapshot();
+        let (now, wall) = (Instant::now(), chrono::Utc::now());
+        let horizon = chrono::Duration::from_std(HORIZON).unwrap_or_default();
+        let mut wake: Option<Instant> = None;
+        let mut soonest = |at: Instant| wake = Some(wake.map_or(at, |w| w.min(at)));
+        let jobs: Vec<_> = {
+            let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
+            state.reconcile(&snapshot);
+            let mut jobs = Vec::new();
+            rt.store.forget_stale_unauthorized(&rejected, &snapshot);
+            // Far enough ahead that any expiry has passed, near enough for chrono.
+            let eventually = wall + chrono::Duration::days(36_500);
+            for c in snapshot.iter().filter(|c| refresh_candidate(c)) {
+                // Go `scheduleUnauthorizedRefresh`: a rejected token refreshes now,
+                // or after `refreshFailureBackoff` when it was refreshed just before.
+                // Its deadline replaces the ordinary one (Go `NextRefreshAfter`).
+                if let Some((revision, noted)) = rejected.pending.get(&c.id)
+                    && *revision == c.revision
+                    && rt.executors.has_refresh_credential(c)
+                {
+                    let at = rejected
+                        .refreshed
+                        .get(&c.id)
+                        .filter(|(r, t)| {
+                            *r <= *revision && noted.saturating_duration_since(*t) < REFRESH_FAILURE_BACKOFF
+                        })
+                        .map_or(*noted, |_| *noted + REFRESH_FAILURE_BACKOFF);
+                    if at > now {
+                        soonest(at);
+                    } else if state.reserve(c, now) {
+                        jobs.push((c.clone(), true));
+                    } else if let Some(at) = state.retry_at(c).filter(|at| *at > now) {
+                        warn_refresh_held(&mut state, c, now);
+                        soonest(at);
+                    }
+                    continue;
+                }
+                let plugin_due = crate::plugins::refresh::due_at(&rt, c, &cfg);
+                if rt.executors.needs_prepare_at(c, &cfg, eventually) || plugin_due.is_some() {
+                    soonest(now + HORIZON);
+                }
+                let due = rt
+                    .executors
+                    .prepare_due(c, &cfg, wall, horizon)
+                    .or_else(|| plugin_due.filter(|at| *at <= wall + horizon).map(|at| at.max(wall)));
+                match due {
+                    Some(at) if at > wall => soonest(now + (at - wall).to_std().unwrap_or_default()),
+                    Some(_) if state.reserve(c, now) => jobs.push((c.clone(), false)),
+                    // Reserved or backing off: look again when that ends. A failure
+                    // announced its own retry; any other hold is logged once.
+                    Some(_) => {
+                        warn_refresh_held(&mut state, c, now);
+                        if let Some(at) = state.retry_at(c).filter(|at| *at > now) {
+                            soonest(at);
+                        }
+                    }
+                    None => {}
+                }
+            }
+            jobs
+        };
+        let busy = !jobs.is_empty();
+        // ponytail: bounded batches, so a slow worker delays the next scan.
+        // Use an independent queue if refresh latency matters for large pools.
+        futures_util::stream::iter(jobs)
+            .for_each_concurrent(refresh_workers(&cfg), |(credential, rejected)| {
+                let rt = rt.clone();
+                let cfg = cfg.clone();
+                async move {
+                    let failed = rejected.then_some(credential.revision);
+                    // A panicking or stalled preparation fails this job alone.
+                    let job = AssertUnwindSafe(rt.prepare_credential(&credential.id, &cfg, failed)).catch_unwind();
+                    let result = match tokio::time::timeout(REFRESH_JOB_BOUND, job).await {
+                        Ok(Ok(result)) => result,
+                        Ok(Err(panic)) => Err(ExecError::local(
+                            500,
+                            FailureScope::Request,
+                            format!("refresh panicked: {}", panic_text(&*panic)),
+                        )),
+                        Err(_) => Err(ExecError::local(
+                            504,
+                            FailureScope::Request,
+                            format!("refresh did not finish within {}s", REFRESH_JOB_BOUND.as_secs()),
+                        )),
+                    };
+                    if rejected && result.is_ok() {
+                        rt.store.forget_unauthorized(&credential.id, credential.revision);
+                    }
+                    let trigger = if rejected { " after an upstream 401" } else { "" };
+                    let current = rt.store.get(&credential.id);
+                    // A concurrent removal/re-import or management edit must not
+                    // transfer the old refresh failure/backoff to the replacement, which
+                    // is tried when it is due.
+                    let Some(current) = current.filter(|c| match &result {
+                        Ok(prepared) => prepared.revision == c.revision,
+                        Err(_) => c.revision == credential.revision,
+                    }) else {
+                        if let Err(error) = &result {
+                            warn_refresh_failed(&credential, trigger, error, None);
+                        }
+                        return;
+                    };
+                    // A plugin refresh keeps its own deadlines (Go `NextRefreshAfter`,
+                    // `crate::plugins::refresh`): release the reservation only.
+                    let plugin = crate::plugins::refresh::route(&rt, &current, &cfg).is_some();
+                    let ineffective = !plugin && result.is_ok() && rt.readiness(&current, &cfg) != Readiness::Ready;
+                    let now = Instant::now();
+                    let retry = {
+                        let mut state = rt.refresh_state.lock().unwrap_or_else(PoisonError::into_inner);
+                        state.finish(&current, result.as_ref().err().filter(|_| !plugin), ineffective, now);
+                        state.retry_at(&current)
+                    };
+                    match &result {
+                        Err(error) => {
+                            let next = if plugin {
+                                crate::plugins::refresh::due_at(&rt, &current, &cfg)
+                                    .map(|at| (at - chrono::Utc::now()).to_std().unwrap_or_default())
+                            } else {
+                                retry.map(|at| at.saturating_duration_since(now))
+                            };
+                            warn_refresh_failed(&current, trigger, error, next);
+                        }
+                        // Go retries an ineffective refresh after 30 s and logs nothing.
+                        Ok(_) if ineffective => {}
+                        Ok(_) if current.revision != credential.revision => {
+                            tracing::info!(
+                                "credential refreshed for {} ({}){trigger}",
+                                current.provider,
+                                current.id
+                            );
+                        }
+                        Ok(_) => {}
+                    }
+                }
+            })
+            .await;
+        drop(rt);
+        // After a batch, look again at once: finished jobs set their backoff,
+        // and the next scan turns it into a deadline.
+        if busy {
+            continue;
+        }
+        let deadline = async {
+            match wake {
+                Some(at) => tokio::time::sleep_until(at.into()).await,
+                None => std::future::pending().await,
+            }
+        };
+        tokio::select! {
+            () = deadline => {}
+            changed = store_changes.changed() => {
+                if changed.is_err() {
+                    break;
+                }
+                tokio::time::sleep(COALESCE).await;
+            }
+            changed = config_changes.changed() => {
+                if changed.is_err() {
+                    break;
+                }
+                tokio::time::sleep(COALESCE).await;
+            }
+            changed = unauthorized.changed() => {
+                if changed.is_err() {
+                    break;
+                }
+            }
         }
     }
 }
@@ -873,6 +957,60 @@ impl Drop for Runtime {
 /// Where cooldowns persist: `auth-dir` while `save-cooldown-status` is on.
 fn cooldown_dir(cfg: &Config, policy: &Policy) -> Option<std::path::PathBuf> {
     policy.save_cooldown_status.then(|| cfg.auth_dir.clone())
+}
+
+/// The longest one background refresh job may take, the wait for the credential's
+/// preparation lock included; the job then fails and backs off like any failure.
+// ponytail: dropping a plugin refresh mid-call may lose tokens it rotated; built-in
+// refreshes run their exchange and commit in tasks of their own. Upgrade: give each
+// plugin call its own deadline.
+const REFRESH_JOB_BOUND: Duration = Duration::from_secs(300);
+
+/// The pause before a panicked refresh loop starts again.
+const REFRESH_LOOP_RESTART: Duration = Duration::from_secs(if cfg!(test) { 0 } else { 5 });
+
+/// One warning per failed refresh (Go logs most of these at Debug; see
+/// DIFFERENCES-FROM-GO.md): provider, credential, status and the sanitized error text,
+/// never tokens, and when the next attempt is. `trigger` names what started it.
+fn warn_refresh_failed(c: &Credential, trigger: &str, error: &ExecError, next: Option<Duration>) {
+    let text = crate::sanitize::summary(&String::from_utf8_lossy(&error.body));
+    let next = match next {
+        Some(after) if !after.is_zero() => format!("next attempt in {}s", ceil_secs(after)),
+        _ => "next attempt when it is next due".to_owned(),
+    };
+    tracing::warn!(
+        "credential refresh failed for {} ({}){trigger}: status {}: {text}; {next}",
+        c.provider,
+        c.id,
+        error.status
+    );
+}
+
+/// A due refresh that [`RefreshState::reserve`] held back, logged once per hold: a
+/// reservation no finished job released. A finished job's own backoff is not logged
+/// here: a failure announced it, and Go is silent about an ineffective refresh.
+fn warn_refresh_held(state: &mut RefreshState, c: &Credential, now: Instant) {
+    if let Some(at) = state.note_hold(c, now) {
+        tracing::warn!(
+            "credential refresh for {} ({}) is due but held back by its previous attempt; next attempt in {}s",
+            c.provider,
+            c.id,
+            ceil_secs(at - now)
+        );
+    }
+}
+
+fn ceil_secs(d: Duration) -> u64 {
+    d.as_secs() + u64::from(d.subsec_nanos() > 0)
+}
+
+/// A panic payload's message.
+fn panic_text(panic: &(dyn std::any::Any + Send)) -> &str {
+    panic
+        .downcast_ref::<&str>()
+        .copied()
+        .or_else(|| panic.downcast_ref::<String>().map(String::as_str))
+        .unwrap_or("non-string payload")
 }
 
 /// Go `refreshFailureBackoff`: an unauthorized refresh waits this long after a refresh
@@ -3653,6 +3791,13 @@ fn refresh_candidate(c: &Credential) -> bool {
     matches!(c.source, Source::File(_)) && !c.disabled && cpa_core::registry::dynamic::auth_kind(c) != Some("apikey")
 }
 
+/// Test hook: panics where a test armed `site` ([`tests::panic_at`]); nothing otherwise.
+fn panic_at(site: &'static str) {
+    #[cfg(test)]
+    tests::panic_at(site);
+    let _ = site;
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -3663,6 +3808,16 @@ pub(crate) mod tests {
         /// Runs once where [`commit_refresh`] meets an edit made since its snapshot,
         /// before it reads the credential again.
         pub(super) static AFTER_STALE: std::cell::Cell<Option<Box<dyn FnOnce()>>> = const { std::cell::Cell::new(None) };
+        /// The site where the next [`panic_at`] call on this thread panics, once.
+        static PANIC_AT: std::cell::Cell<Option<&'static str>> = const { std::cell::Cell::new(None) };
+    }
+
+    /// Panics if a test armed `site` on this thread, disarming it.
+    pub(super) fn panic_at(site: &'static str) {
+        if PANIC_AT.with(|armed| armed.get() == Some(site)) {
+            PANIC_AT.with(|armed| armed.set(None));
+            panic!("injected {site} panic");
+        }
     }
 
     /// Every Codex credential file a refresh or management write waited to lock, in
@@ -6563,15 +6718,204 @@ pub(crate) mod tests {
         assert!(credentials_changed(&a, &b));
     }
 
+    /// Log lines written on this thread while the guard lives.
+    #[derive(Clone, Default)]
+    struct Logs(Arc<Mutex<Vec<u8>>>);
+    impl std::io::Write for Logs {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    impl Logs {
+        fn install(&self) -> tracing::subscriber::DefaultGuard {
+            let writer = self.clone();
+            let subscriber = tracing_subscriber::fmt()
+                .with_ansi(false)
+                .without_time()
+                .with_writer(move || writer.clone())
+                .finish();
+            tracing::subscriber::set_default(subscriber)
+        }
+        fn text(&self) -> String {
+            String::from_utf8(self.0.lock().unwrap().clone()).unwrap()
+        }
+        async fn wait_for(&self, needle: &str, count: usize) {
+            let found = tokio::time::timeout(Duration::from_secs(10), async {
+                while self.text().matches(needle).count() < count {
+                    tokio::time::sleep(Duration::from_millis(20)).await;
+                }
+            });
+            found
+                .await
+                .unwrap_or_else(|_| panic!("{needle:?} not logged {count} times:\n{}", self.text()));
+        }
+    }
+
+    /// A due Claude refresh that fails logs one warning with the status, the OAuth error
+    /// and the next attempt, and is tried again when its backoff ends: invalid_grant
+    /// after Go's 1 min, a 5xx (retried in place twice) after 5 min. A job that panics
+    /// fails alone, a scan that panics restarts the loop, and the next success commits.
+    /// Backoffs are ended by hand ([`RefreshState::expire`]) instead of waited for.
+    #[tokio::test]
+    async fn a_failed_background_refresh_is_logged_and_retried_after_its_backoff() {
+        let answers = Arc::new(Mutex::new(std::collections::VecDeque::from([
+            (
+                400,
+                r#"{"error":"invalid_grant","error_description":"Refresh token sk-ant-ort01-leaked is invalid"}"#,
+            ),
+            (500, r#"{"error":"server_error"}"#),
+            (500, r#"{"error":"server_error"}"#),
+            (500, r#"{"error":"server_error"}"#),
+            (
+                200,
+                r#"{"access_token":"sk-ant-oat-new-fake","refresh_token":"fake-rt-2","expires_in":28800}"#,
+            ),
+        ])));
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let app = axum::Router::new().route(
+            "/token",
+            axum::routing::post({
+                let (answers, calls) = (answers.clone(), calls.clone());
+                move || async move {
+                    calls.fetch_add(1, Ordering::SeqCst);
+                    let (status, body) = answers.lock().unwrap().pop_front().expect("an unexpected exchange");
+                    (axum::http::StatusCode::from_u16(status).unwrap(), body)
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let dir = std::env::temp_dir().join(format!("cpa-refresh-fail-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("claude-a.json");
+        std::fs::write(
+            &path,
+            serde_json::json!({"type": "claude", "access_token": "sk-ant-oat-old-fake", "refresh_token": "fake-rt-1",
+                "expired": (chrono::Utc::now() + chrono::Duration::hours(1)).to_rfc3339(),
+                "account_uuid": "acct-fake", "claude_device_ids": ["b".repeat(64)]})
+            .to_string(),
+        )
+        .unwrap();
+        let mut cfg = Config::parse("").unwrap();
+        cfg.auth_dir = dir.clone();
+        let (token, profile) = (format!("{base}/token"), format!("{base}/profile"));
+        let oauth = cpa_exec::oauth::OAuth::with_endpoints(wreq::Client::new(), &token, &profile, &profile);
+        let rt = Arc::new(crate::testing::runtime(
+            cfg.clone(),
+            cpa_core::config::credentials::from_auth_dir(&cfg)
+                .into_iter()
+                .map(crate::testing::local)
+                .collect(),
+            Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1")
+                    .unwrap()
+                    .with_oauth(oauth),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        ));
+        let logs = Logs::default();
+        let _guard = logs.install();
+        let failed = "credential refresh failed for claude (claude-a.json): status";
+        let retry_in = |rt: &Runtime| {
+            let c = rt.store.get("claude-a.json").unwrap();
+            let at = rt.refresh_state.lock().unwrap().retry_at(&c).unwrap();
+            at.saturating_duration_since(Instant::now())
+        };
+        // Ends the current backoff and wakes the loop.
+        let expire = |rt: &Runtime| {
+            let c = rt.store.get("claude-a.json").unwrap();
+            rt.refresh_state.lock().unwrap().expire(&c);
+            rt.config_changed.send_replace(());
+        };
+        rt.start_auto_refresh();
+        logs.wait_for(failed, 1).await;
+        assert!(
+            logs.text().contains(&format!(
+                "{failed} 400: Claude OAuth acquisition failed: invalid_grant; next attempt in 60s"
+            )),
+            "{}",
+            logs.text()
+        );
+        assert!(
+            (55..=60).contains(&retry_in(&rt).as_secs()),
+            "Go invalidGrantBackoffBase"
+        );
+        // A job that panics is that job's failure; the loop goes on.
+        tests::PANIC_AT.with(|armed| armed.set(Some("prepare")));
+        expire(&rt);
+        logs.wait_for(failed, 2).await;
+        assert!(
+            logs.text()
+                .contains(&format!("{failed} 500: refresh panicked: injected prepare panic"))
+        );
+        expire(&rt);
+        logs.wait_for(failed, 3).await;
+        assert!(
+            logs.text().contains(&format!(
+                "{failed} 500: Claude OAuth acquisition failed: server_error; next attempt in 300s"
+            )),
+            "{}",
+            logs.text()
+        );
+        assert!(
+            (295..=300).contains(&retry_in(&rt).as_secs()),
+            "Go refreshFailureBackoff"
+        );
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            4,
+            "one invalid_grant, then three 5xx tries in place"
+        );
+        // A scan that panics restarts the loop, which then refreshes.
+        tests::PANIC_AT.with(|armed| armed.set(Some("scan")));
+        expire(&rt);
+        logs.wait_for("credential auto-refresh loop panicked (injected scan panic)", 1)
+            .await;
+        let committed = tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                let c = rt.store.get("claude-a.json").unwrap();
+                if c.str("access_token") == Some("sk-ant-oat-new-fake") {
+                    break c;
+                }
+                tokio::time::sleep(Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .expect("the retry after the backoff commits");
+        assert_eq!(committed.str("refresh_token"), Some("fake-rt-2"));
+        let saved: Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["access_token"], "sk-ant-oat-new-fake");
+        assert_eq!(logs.text().matches(failed).count(), 3, "{}", logs.text());
+        let text = logs.text();
+        assert!(
+            !text.contains("fake-rt") && !text.contains("sk-ant-o"),
+            "no token in the logs: {text}"
+        );
+        rt.stop_auto_refresh();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     /// The loop sets no timer while nothing can come due, and a credential added later
     /// is tried after the store change, not on a schedule.
     #[tokio::test]
     async fn refresh_loop_sleeps_until_the_store_changes() {
+        let unreachable = "http://127.0.0.1:1/token";
+        let oauth = cpa_exec::oauth::OAuth::with_endpoints(wreq::Client::new(), unreachable, unreachable, unreachable);
         let rt = Arc::new(crate::testing::runtime(
             Config::parse("").unwrap(),
             Vec::new(),
             Executors {
-                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1")
+                    .unwrap()
+                    .with_oauth(oauth),
                 codex: Default::default(),
                 devices: Default::default(),
                 openai: Default::default(),
@@ -6588,8 +6932,7 @@ pub(crate) mod tests {
         );
         rt.store.reconcile(vec![due]);
         let added = rt.store.get("a.json").unwrap();
-        // The refresh fails (no upstream; the OAuth client retries twice with 1 s and
-        // 2 s pauses), which backs off for five minutes.
+        // The refresh fails (no token endpoint), which backs off for five minutes.
         tokio::time::timeout(Duration::from_secs(20), async {
             loop {
                 let retry = rt.refresh_state.lock().unwrap().retry_at(&added);

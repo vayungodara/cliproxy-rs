@@ -113,9 +113,14 @@ impl OAuth {
         } else {
             None
         };
-        // Never expose a control-plane body: providers may echo tokens in errors.
+        // Never expose a control-plane body: providers may echo tokens in errors. The
+        // OAuth error code alone is kept, so logs and the invalid_grant backoff see it.
         let response = into_response(response).await.map_err(|error| {
-            let mut safe = ExecError::local(error.status, error.scope, HTTP_FAILURE);
+            let text = match oauth_error_code(&error.body) {
+                Some(code) => format!("{HTTP_FAILURE}: {code}"),
+                None => HTTP_FAILURE.to_owned(),
+            };
+            let mut safe = ExecError::local(error.status, error.scope, text);
             safe.retry_after = backoff.or(error.retry_after);
             safe
         })?;
@@ -245,7 +250,7 @@ impl OAuth {
                 Err(error)
                     if error.status >= 500
                         && error.scope == FailureScope::Credential
-                        && error.body == HTTP_FAILURE
+                        && error.body.starts_with(HTTP_FAILURE.as_bytes())
                         && attempt < 2 =>
                 {
                     continue;
@@ -625,6 +630,17 @@ pub(crate) fn random_hex(n: usize) -> Result<String, ExecError> {
 
 /// The error text for a token endpoint that answered with an error status.
 const HTTP_FAILURE: &str = "Claude OAuth acquisition failed";
+
+/// The OAuth error code of a token endpoint's error body (RFC 6749 `error`, or an
+/// Anthropic API `error.type`) when it looks like one: short, lower-case letters and
+/// underscores only, so a token echoed in its place is never kept.
+fn oauth_error_code(body: &[u8]) -> Option<String> {
+    let value: Value = serde_json::from_slice(body).ok()?;
+    let error = value.get("error")?;
+    let code = error.as_str().or_else(|| error.get("type").and_then(Value::as_str))?;
+    let safe = !code.is_empty() && code.len() <= 64 && code.bytes().all(|b| b.is_ascii_lowercase() || b == b'_');
+    safe.then(|| code.to_owned())
+}
 
 fn acquisition_error(message: &str) -> ExecError {
     ExecError::local(502, FailureScope::Credential, message)
