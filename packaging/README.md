@@ -6,7 +6,7 @@ Package files for the published release binaries. Nothing here is submitted auto
 - `aur/`: `cliproxy-rs-bin` for Arch Linux, x86_64 and aarch64.
 - `winget/`: `VayunGodara.cliproxy-rs` for Windows, x64.
 
-The AUR and winget files are for v0.4.0. Their hashes are the release's `SHA256SUMS` entries.
+The AUR and winget files are for v0.4.1. Their hashes are the release's `SHA256SUMS` entries.
 
 ## AUR
 
@@ -17,7 +17,7 @@ git clone ssh://aur@aur.archlinux.org/cliproxy-rs-bin.git
 cp packaging/aur/PKGBUILD packaging/aur/.SRCINFO cliproxy-rs-bin/
 cd cliproxy-rs-bin
 git add PKGBUILD .SRCINFO
-git commit -m "cliproxy-rs-bin 0.4.0"
+git commit -m "cliproxy-rs-bin 0.4.1"
 git push
 ```
 
@@ -33,9 +33,9 @@ makepkg --printsrcinfo > .SRCINFO
 Submissions are pull requests to [microsoft/winget-pkgs](https://github.com/microsoft/winget-pkgs). On Windows:
 
 ```powershell
-winget validate --manifest packaging\winget\manifests\v\VayunGodara\cliproxy-rs\0.4.0
-winget install --manifest packaging\winget\manifests\v\VayunGodara\cliproxy-rs\0.4.0
-wingetcreate submit packaging\winget\manifests\v\VayunGodara\cliproxy-rs\0.4.0
+winget validate --manifest packaging\winget\manifests\v\VayunGodara\cliproxy-rs\0.4.1
+winget install --manifest packaging\winget\manifests\v\VayunGodara\cliproxy-rs\0.4.1
+wingetcreate submit packaging\winget\manifests\v\VayunGodara\cliproxy-rs\0.4.1
 ```
 
 `winget install --manifest` needs `winget settings --enable LocalManifestFiles` in an administrator shell. Without `wingetcreate`, fork winget-pkgs, copy the folder to the same path under `manifests/` and open the pull request.
