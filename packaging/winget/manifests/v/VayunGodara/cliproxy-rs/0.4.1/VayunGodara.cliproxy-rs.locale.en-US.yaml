@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.9.0.schema.json
 PackageIdentifier: VayunGodara.cliproxy-rs
-PackageVersion: 0.4.0
+PackageVersion: 0.4.1
 PackageLocale: en-US
 Publisher: Vayun Godara
 PublisherUrl: https://github.com/vayungodara
@@ -19,6 +19,6 @@ Tags:
   - openai
   - claude-code
   - codex
-ReleaseNotesUrl: https://github.com/vayungodara/cliproxy-rs/releases/tag/v0.4.0
+ReleaseNotesUrl: https://github.com/vayungodara/cliproxy-rs/releases/tag/v0.4.1
 ManifestType: defaultLocale
 ManifestVersion: 1.9.0
