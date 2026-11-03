@@ -31,7 +31,7 @@ The provider's sign-in page uses whatever account your browser is logged into. T
 - Accounts with a known reset go earliest reset first. Accounts whose responses report no reset come after them.
 - Accounts that rank the same take turns, one request each.
 
-Accounts that never report a reset, such as API keys and providers without usage headers, all rank the same, so they take turns exactly as with `round-robin`. When several providers serve the same model, the first provider in the request's provider order is used until none of its accounts is ready, as with `fill-first`; `round-robin` spreads requests across the providers instead.
+Accounts that never report a reset, such as API keys and providers without usage headers, each get their one probe request and then rank the same, so after the first request each they take turns as with `round-robin`. When several providers serve the same model, the first provider in the request's provider order is used until none of its accounts is ready, as with `fill-first`; `round-robin` spreads requests across the providers instead.
 
 With session affinity on, a conversation stays on the account that served its first request while that account is ready. The strategy picks the account for new conversations and for a conversation whose account cools down or reaches a limit.
 

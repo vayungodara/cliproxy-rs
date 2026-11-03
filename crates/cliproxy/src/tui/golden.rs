@@ -231,6 +231,23 @@ fn tabs_render_like_go() {
             // Go's lipgloss wraps a tab bar wider than the screen; this port cuts it.
             want[0] = got[0].clone();
         }
+        let strategy = case["input"]["config"]["routing"]["strategy"]
+            .as_str()
+            .unwrap_or_default();
+        if case["tab"] == "dashboard" && strategy.trim().is_empty() {
+            // docs/DIFFERENCES-FROM-GO.md "Default routing strategy": an unset strategy is
+            // soonest-reset here and round-robin in Go.
+            for line in &mut want {
+                if ["Routing Strategy:", "路由策略:"]
+                    .iter()
+                    .any(|l| line.trim_start().starts_with(l))
+                {
+                    let shown = line.replace("round-robin", "soonest-reset");
+                    assert_ne!(*line, shown, "{name}: Go shows no round-robin default");
+                    *line = shown;
+                }
+            }
+        }
         let got = text(&got.into_iter().map(ratatui::text::Line::raw).collect::<Vec<_>>());
         if got != want {
             let at = got
