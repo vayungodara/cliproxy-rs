@@ -616,6 +616,7 @@ async fn save_if_pending<T: Send + 'static>(
             if !worker.oauth.is_pending(&sid, &owner) {
                 return Ok(None);
             }
+            assert!(!worker.login_panic, "injected login panic");
             write(auth_dir, value).map(Some).map_err(anyhow::Error::msg)
         }))
     })
@@ -627,7 +628,18 @@ async fn save_if_pending<T: Send + 'static>(
             tracing::error!("failed to save {provider} token: {e}");
             Outcome::Failed(save_error.to_owned())
         }
-        Err(_) => Outcome::Failed(save_error.to_owned()),
+        Err(e) => {
+            resume_panic(e);
+            Outcome::Failed(save_error.to_owned())
+        }
+    }
+}
+
+/// A blocking save task that did not finish: its panic goes on to the worker's panic
+/// catch ([`panicked`]); a cancelled task returns, for the caller's save failure.
+fn resume_panic(e: tokio::task::JoinError) {
+    if let Ok(panic) = e.try_into_panic() {
+        std::panic::resume_unwind(panic);
     }
 }
 
@@ -642,7 +654,8 @@ async fn settle(state: &Arc<Management>, sid: &str, outcome: Outcome) {
                 worker.publish((*worker.rt.config()).clone(), None);
             })
             .await;
-            if published.is_err() {
+            if let Err(e) = published {
+                resume_panic(e);
                 return fail_session(state, sid, "Failed to save authentication tokens");
             }
             state.oauth.complete(sid);
@@ -666,15 +679,11 @@ fn fail_session(state: &Management, sid: &str, message: &str) {
 /// The session error after a login worker panicked.
 pub(super) const PANIC_MESSAGE: &str = "Sign-in failed because of an internal error. Start the sign-in again.";
 
-/// Awaits a login worker, catching a panic in it, which is logged with the provider
-/// and state only (a panic payload can quote tokens). Returns whether it panicked.
-/// Go recovers nothing in these goroutines, so there a panic ends the process.
-pub(super) async fn panicked(state: &Management, sid: &str, provider: &str, work: impl Future<Output = ()>) -> bool {
-    let inject = state.login_panic;
-    let work = async move {
-        assert!(!inject, "injected login panic");
-        work.await
-    };
+/// Awaits a login worker, catching a panic in it, including one a blocking save task
+/// passed on ([`resume_panic`]). Its error line names only the provider and the state (a
+/// panic payload can quote tokens). Returns whether it panicked. Go recovers nothing in
+/// these goroutines, so there a panic ends the process.
+pub(super) async fn panicked(sid: &str, provider: &str, work: impl Future<Output = ()>) -> bool {
     let caught = AssertUnwindSafe(work).catch_unwind().await.is_err();
     if caught {
         tracing::error!("{provider} sign-in worker panicked; sign-in {sid} failed");
@@ -694,7 +703,7 @@ fn spawn_login(
 ) {
     let (worker, sid) = (state.clone(), sid.to_owned());
     tokio::spawn(async move {
-        if panicked(&worker, &sid, provider, work).await {
+        if panicked(&sid, provider, work).await {
             fail_session(&worker, &sid, PANIC_MESSAGE);
         }
         if let Some((port, id)) = forwarder {
@@ -797,7 +806,10 @@ async fn remove_legacy_claude(state: &Arc<Management>, legacy: PathBuf) -> Outco
             tracing::error!("canonical Claude credential saved but legacy credential cleanup failed: {e}");
             Outcome::Failed("Failed to save authentication tokens".into())
         }
-        Err(_) => Outcome::Failed("Failed to save authentication tokens".into()),
+        Err(e) => {
+            resume_panic(e);
+            Outcome::Failed("Failed to save authentication tokens".into())
+        }
     }
 }
 

@@ -476,7 +476,7 @@ pub(super) fn callback(state: &Arc<Management>, req: &CallbackRequest, query: Op
         .await;
     };
     let task = tokio::spawn(async move {
-        if super::oauth::panicked(&guard, &guard_sid, "codex SIWC", work).await {
+        if super::oauth::panicked(&guard_sid, "codex SIWC", work).await {
             fail_session(&guard, &guard_sid, &guard_flow, super::oauth::PANIC_MESSAGE);
         }
     });
