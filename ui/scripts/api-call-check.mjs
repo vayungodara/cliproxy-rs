@@ -6,10 +6,13 @@
 // Usage: node scripts/api-call-check.mjs <server-base> [<server-base> ...]
 import assert from "node:assert/strict";
 import { quotaWindows } from "../src/core.ts";
+import { assertPrivateAuthDir } from "./private-auth-dir.mjs";
 
 const KEY = "orb-dashboard-test-only";
 const shapes = [];
 for (const base of process.argv.slice(2)) {
+  // It sends a credential's token through the server: only from a private auth-dir.
+  await assertPrivateAuthDir(base, KEY);
   const api = async (path, init = {}) => {
     const r = await fetch(`${base}/v8/management${path}`, {
       ...init,

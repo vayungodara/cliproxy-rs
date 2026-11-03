@@ -8,16 +8,20 @@
 // --mode dead: the shipped binary with requests.proxy-url on a dead port. A pasted callback
 //   must end in an honest failure, never "Connected". No request reaches a provider.
 // --mode plugin: fake management responses check relative and absolute login URLs,
-//   copied links and unsafe schemes, including under a reverse-proxy path prefix.
+//   copied links and unsafe schemes, including under a reverse-proxy path prefix, and a
+//   sign-in the server forgot while the tab was hidden (the account list decides the result).
 //
 // Usage: CHROME_PATH=... node scripts/oauth-check.mjs <page-url> --mode fake|dead|plugin [capture-dir]
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
+import { assertPrivateAuthDir } from "./private-auth-dir.mjs";
 
 const [url, , mode, dir] = process.argv.slice(2);
 assert.ok(url && ["fake", "dead", "plugin"].includes(mode), "usage: oauth-check.mjs <page-url> --mode fake|dead|plugin [capture-dir]");
+// fake and dead sign in through a real server; plugin mode answers every request itself.
+if (mode !== "plugin") await assertPrivateAuthDir(url, "orb-dashboard-test-only");
 const out = resolve(dir || "oauth-check");
 mkdirSync(out, { recursive: true });
 const browser = await chromium.launch({ executablePath: process.env.CHROME_PATH });
@@ -47,7 +51,25 @@ async function paste(redirect) {
 
 try {
   let loginUrl = `./v0/resource/plugins/commandcode-go-cliproxyapi/oauth#state=${"a".repeat(64)}`;
+  const fixture = { name: "fixture.json", type: "claude", disabled: true, email: "operator@example.invalid", updated_at: "2026-11-01T09:00:00Z" };
+  let files = [fixture],
+    status = { status: "wait" },
+    credsFail = false,
+    delay = 0,
+    polls = [];
   if (mode === "plugin") {
+    // A tab the test can hide, and polling slowed thirtyfold, so a status read right after the
+    // tab comes back can only be the one its return triggered.
+    await page.context().addInitScript(() => {
+      window.__hidden = false;
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => window.__hidden });
+      window.__setHidden = (v) => {
+        window.__hidden = v;
+        document.dispatchEvent(new Event("visibilitychange"));
+      };
+      const slow = window.setInterval;
+      window.setInterval = (f, ms, ...a) => slow(f, ms * 30, ...a);
+    });
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.context().route("**/*", async (route) => {
       const request = new URL(route.request().url());
@@ -56,10 +78,16 @@ try {
       if (path !== undefined) {
         let body;
         if (path === "config") body = {};
-        else if (path === "credentials") body = { files: [{ name: "fixture.json", type: "claude", disabled: true, email: "operator@example.invalid" }] };
+        else if (path === "credentials") {
+          if (credsFail) return route.fulfill({ status: 500, json: { error: "fixture: read failed" } });
+          body = { files };
+        }
         else if (path === "plugins") body = { plugins: [{ id: "commandcode-go-cliproxyapi", supports_oauth: true, oauth_provider: "commandcode" }] };
         else if (path === "oauth/auth-url") body = { status: "ok", state: "a".repeat(64), url: loginUrl };
-        else if (path === "oauth/status") body = { status: "wait" };
+        else if (path === "oauth/status") {
+          (body = status), polls.push(Date.now());
+          if (delay) await new Promise((r) => setTimeout(r, delay));
+        }
         else if (path === "oauth/session" && route.request().method() === "DELETE") {
           assert.equal(request.pathname, new URL("v8/management/oauth/session", url).pathname);
           assert.equal(request.searchParams.get("state"), "a".repeat(64));
@@ -115,6 +143,73 @@ try {
       await page.getByRole("button", { name: "Dismiss", exact: true }).click();
     }
     pass("plugin: javascript, data, file and mailto URLs cannot start a session");
+
+    // Go and older servers forget a successful session a minute after it ends and answer
+    // "unknown or expired state". A tab that was away longer reads the status as it comes
+    // back, and claims success only for exactly one new credential name of exactly this
+    // built-in provider between two successful reads; anything else is "Result unavailable".
+    loginUrl = "https://provider.example.invalid/authorize?state=expired";
+    const unknown = "The proxy no longer has this sign-in’s result. Check Credentials to see whether it was added.";
+    const kimi = { name: "kimi-old.json", type: "kimi", email: "old@example.invalid", updated_at: "2026-11-01T09:00:00Z" };
+    const fresh = (name, type) => ({ name, type, email: `${name}@example.invalid`, updated_at: "2026-11-03T09:00:00Z" });
+    for (const [what, who, before, after, expected, fail] of [
+      ["no new credential", "Kimi", [kimi], [kimi], unknown],
+      ["one new name", "Kimi", [kimi], [kimi, fresh("kimi-new", "kimi")], "kimi-new@example.invalid appeared during this sign-in."],
+      // A refresh, an upload or another sign-in rewrites a file: same name, newer mtime.
+      ["an unrelated rewrite", "Kimi", [kimi], [{ ...kimi, updated_at: "2026-11-03T09:00:00Z" }], unknown],
+      ["a failed read after", "Kimi", [kimi], [kimi, fresh("kimi-new", "kimi")], unknown, true],
+      ["a kimi credential for a kimi-ai sign-in", "Kimi (kimi.ai)", [kimi], [kimi, fresh("kimi-new", "kimi")], unknown],
+      ["a plugin provider", "commandcode", [kimi], [kimi, fresh("commandcode-new", "commandcode")], unknown],
+    ]) {
+      (files = before), (status = { status: "wait" }), (credsFail = false);
+      await begin(who);
+      await page.evaluate(() => window.__setHidden(true));
+      (files = after), (status = { status: "error", error: "unknown or expired state" }), (credsFail = !!fail);
+      polls = [];
+      await page.waitForTimeout(2500);
+      assert.equal(polls.length, 0, `${what}: no status reads while the tab is hidden`);
+      const back = Date.now();
+      await page.evaluate(() => window.__setHidden(false));
+      await main.locator(".flow").getByText(expected, { exact: true }).waitFor({ timeout: 5000 });
+      assert.ok(polls.length === 1 && polls[0] - back < 1000, `${what}: one status read as the tab came back (${polls.map((t) => t - back)} ms)`);
+      await main.locator(".flow .section-head").getByText(expected === unknown ? "Result unavailable" : "Connected", { exact: true }).waitFor();
+      assert.ok(!/in rotation/.test(await main.locator(".flow").textContent()), `${what}: no "in rotation" claim`);
+      await page.screenshot({ path: `${out}/oauth-expired-${what.replaceAll(" ", "-")}.png` });
+    }
+    credsFail = false;
+    pass("plugin: returning to the tab reads the status at once; a forgotten sign-in counts only one new name of exactly its built-in provider, read successfully, and is otherwise \"Result unavailable\"");
+
+    // A status reply delayed past a cancel and a new start belongs to the old sign-in only.
+    (files = [kimi]), (status = { status: "wait" });
+    await begin("Kimi");
+    await page.evaluate(() => window.__setHidden(true));
+    (status = { status: "error", error: "fixture: the old sign-in failed" }), (delay = 2000);
+    await page.evaluate(() => window.__setHidden(false));
+    await page.waitForTimeout(300);
+    status = { status: "wait" };
+    await button("Cancel sign-in").click();
+    await main.getByText("Cancelled", { exact: true }).waitFor();
+    await button("Kimi").click();
+    await main.getByText("Waiting for approval").waitFor();
+    await page.waitForTimeout(2500);
+    delay = 0;
+    assert.equal(await main.getByText("Waiting for approval").count(), 1, "the new sign-in still waits");
+    assert.equal(await main.getByText("fixture: the old sign-in failed").count(), 0, "the old reply was dropped");
+    await button("Cancel sign-in").click();
+    await main.getByText("Cancelled", { exact: true }).waitFor();
+    pass("plugin: a status reply delayed past cancel and restart does not change the new sign-in");
+
+    // An ordinary "ok" for an account that was disabled before: a re-login keeps it disabled,
+    // so the panel must not claim it serves.
+    (files = [{ ...kimi, disabled: true }]), (status = { status: "wait" });
+    await begin("Kimi");
+    status = { status: "ok" };
+    await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    await main.locator(".flow").getByText("Saved on the server.", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor();
+    assert.ok(!/in rotation/.test(await main.locator(".flow").textContent()), 'ok: no "in rotation" claim');
+    await page.screenshot({ path: `${out}/oauth-ok-disabled.png` });
+    pass("plugin: an ordinary successful sign-in says it was saved, never that it is in rotation");
   } else if (mode === "fake") {
     for (const [provider, redirect, email] of [
       ["Claude", (s) => `http://localhost:54545/callback?code=fake-code&state=${s}`, "claude-login@example.invalid"],

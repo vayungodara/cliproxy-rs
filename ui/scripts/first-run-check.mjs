@@ -13,12 +13,15 @@
 // phone width in both themes.
 //
 // Usage: CHROME_PATH=... node scripts/first-run-check.mjs <off-url> <fresh-url> <management-key> [capture-dir]
+import { assertPrivateAuthDir } from "./private-auth-dir.mjs";
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import assert from "node:assert/strict";
 
 const [offUrl, freshUrl, secret, dir] = process.argv.slice(2);
+// The fresh server signs in to Meta: its auth-dir must be private, not the ~/.cli-proxy-api fallback.
+await assertPrivateAuthDir(freshUrl, secret);
 assert.ok(offUrl && freshUrl && secret, "usage: first-run-check.mjs <off-url> <fresh-url> <management-key> [capture-dir]");
 const out = resolve(dir || "first-run");
 mkdirSync(out, { recursive: true });
