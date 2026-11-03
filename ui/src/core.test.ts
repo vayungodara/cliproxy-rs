@@ -6,6 +6,7 @@ import {
   buckets,
   cleanEvent,
   credState,
+  accountRow,
   equal,
   fieldPath,
   level,
@@ -41,7 +42,7 @@ test("diff keeps both sides of a change", () => {
 test("credential state: disabled wins, only live cooldowns count, model cooldowns do not block", () => {
   const cooling = [{ scope: "credential", reason: "quota", retry_at: at(4 * 60_000) }];
   assert.equal(credState({ disabled: true, status: "disabled", cooldowns: cooling }, now).label, "Disabled");
-  assert.deepEqual(credState({ status: "active", cooldowns: cooling }, now), { lamp: "warn", label: "Cooling 4m", detail: "" });
+  assert.deepEqual(credState({ status: "active", cooldowns: cooling }, now), { lamp: "warn", label: "Cooling 4m", detail: "", until: now + 4 * 60_000 });
   // An expired retry time is history, not state.
   assert.equal(credState({ status: "active", cooldowns: [{ scope: "credential", retry_at: at(-1000) }] }, now).label, "Ready");
   const model = credState({ status: "active", cooldowns: [{ scope: "model", model_key: "x", retry_at: at(60_000) }] }, now);
@@ -337,4 +338,51 @@ print(json.dumps({k.arg: k.value.value for n in ast.walk(ast.parse(sys.stdin.rea
   const odd = run("import json, sys, tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))",
     snippet("Codex CLI", `http://h/p"\\q`, key, model).split("# then")[0]);
   assert.equal(odd.model_providers.cliproxy.base_url, `http://h/p"\\q/v1`);
+});
+
+test("account rows: status words, honest unknowns, low, last used and weekly order", () => {
+  const traffic = (last: number) => Array.from({ length: 20 }, (_, i) => ({ success: i === last ? 2 : 0 }));
+  const w = (label: string, used: number, inMs = 3_600_000) => ({ label, used, reset: at(inMs) });
+  const checked = (windows: any[], ago = 3 * 60_000) => ({ windows, at: now - ago });
+  const row = (a: any, q: any = null, live = true, source = true) => accountRow({ status: "active", ...a }, q, live, source, now);
+
+  // In use only for a ready account with a request in the latest bucket; never for a disabled one.
+  assert.deepEqual([row({ recent_requests: traffic(19) }).word, row({ recent_requests: traffic(19) }).sub], ["In use", "serving now"]);
+  assert.equal(row({ disabled: true, recent_requests: traffic(19) }).word, "Disabled");
+  assert.equal(row({ disabled: true }).sub, "never picked");
+  assert.equal(row({ recent_requests: traffic(16) }).word, "Ready");
+  assert.equal(row({ recent_requests: traffic(16) }).last, "used 30m ago");
+  assert.equal(row({ recent_requests: traffic(-1) }).last, "not in 200 min");
+  assert.equal(row({}).last, "");
+
+  // Unknown quota says why and is never a number.
+  assert.deepEqual(row({}).session, { why: "not checked" });
+  assert.deepEqual(row({}, { error: "HTTP 500" }).weekly, { why: "usage read failed" });
+  assert.deepEqual(row({}, null, false, false).weekly, { why: "no usage source" });
+  assert.deepEqual(row({ disabled: true }, { error: "x" }).session, { why: "not checked" });
+  assert.deepEqual(row({}, checked([w("Current session", 40)])).weekly, { why: "not reported" });
+  assert.equal(row({}).age, "never checked");
+  assert.equal(row({ disabled: true }).age, "disabled");
+
+  // The all-models week wins over a scoped one listed first; it orders the rows.
+  const claude = row({}, checked([w("Current week (Opus only)", 90, 86_400_000), w("Current session", 20), w("Current week (all models)", 48, 2 * 86_400_000)]));
+  assert.deepEqual(claude.weekly, { used: 48, reset: "resets in 2d" });
+  assert.equal(claude.next, now + 2 * 86_400_000);
+  assert.equal(claude.age, "checked 3m ago");
+  assert.equal(row({}, checked([w("Current session", 20)])).next, Infinity);
+  const codex = row({}, checked([w("5-hour limit", 91, 47 * 60_000), w("Weekly limit", 63)]), false);
+  assert.deepEqual([codex.session, codex.age], [{ used: 91, reset: "resets in 47m" }, "seen 3m ago"]);
+
+  // Low: a ready account at 85% or more of either window says which.
+  assert.deepEqual([codex.low, codex.sub], [true, "Session 91% used"]);
+  assert.equal(row({}, checked([w("Current session", 84.9), w("Weekly limit", 10)])).low, false);
+  assert.equal(row({}, checked([w("Current session", 8), w("Weekly limit", 86)])).sub, "Weekly 86% used");
+  const cooling = row({ cooldowns: [{ scope: "credential", retry_at: at(20 * 60_000) }] }, checked([w("Current session", 100)]));
+  assert.match(cooling.word, /^Cooling until \d/);
+  assert.deepEqual([cooling.low, cooling.ready, cooling.attention], [false, false, false]);
+
+  // Sign in again: the last numbers stay, dimmed and dated.
+  const refused = row({ status: "error", status_message: "401 unauthorized" }, checked([w("Current session", 41)], 3 * 3_600_000));
+  assert.deepEqual([refused.word, refused.sub, refused.stale, refused.attention], ["Sign in again", "token refused", true, true]);
+  assert.deepEqual(refused.session, { used: 41, reset: "3h old" });
 });

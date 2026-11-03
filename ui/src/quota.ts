@@ -28,7 +28,20 @@ export function limits(a: Data): { windows: Window[]; at: number; error?: string
   return windows.length ? { ...live, windows, at: Date.parse(a.quota?.observed_at) || 0 } : live || null;
 }
 
-export async function check(a: Data) {
+// Checks run one at a time, and each account at most once every 2 minutes, so a burst of
+// clicks never turns into a burst of provider requests.
+const tried = new Map<string, number>();
+let queue: Promise<unknown> = Promise.resolve();
+/** Milliseconds until this account may be checked again; 0 when it may be checked now. */
+export const wait = (a: Data, now = Date.now()) => Math.max(0, (tried.get(quotaKey(a)) ?? -Infinity) + 120_000 - now);
+
+export function check(a: Data) {
+  if (wait(a)) return queue;
+  tried.set(quotaKey(a), Date.now());
+  return (queue = queue.then(() => read(a)));
+}
+
+async function read(a: Data) {
   const p = provider(a);
   try {
     let raw: Data;
@@ -59,7 +72,8 @@ export async function check(a: Data) {
   }
 }
 
-/** One check per supported credential, one after another so the provider is not hammered. */
+/** One check per supported credential that is due, one after another. */
 export async function checkAll(list: Data[]) {
-  for (const a of list) if (canCheck(a)) await check(a);
+  for (const a of list) if (canCheck(a)) check(a);
+  await queue;
 }

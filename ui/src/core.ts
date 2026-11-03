@@ -110,7 +110,7 @@ export function ago(value: unknown, now = Date.now()): string {
   return now - t < 45_000 ? "just now" : `${span(now - t)} ago`;
 }
 
-export type CredState = { lamp: Lamp; label: string; detail: string };
+export type CredState = { lamp: Lamp; label: string; detail: string; until?: number };
 /** One state per credential, derived only from fields Go's /credentials reports. */
 export function credState(a: Data, now = Date.now()): CredState {
   if (a.disabled) return { lamp: "off", label: "Disabled", detail: "" };
@@ -125,6 +125,7 @@ export function credState(a: Data, now = Date.now()): CredState {
       lamp: "warn",
       label: `Limited until ${new Date(limited[0]).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })} · next check ${next}`,
       detail: a.status_message || "",
+      until: limited[0],
     };
   }
   const cooldowns = all.filter((c) => Date.parse(c.retry_at) > now);
@@ -134,7 +135,7 @@ export function credState(a: Data, now = Date.now()): CredState {
     a.unavailable && a.next_retry_after ? Date.parse(a.next_retry_after) : Infinity,
   );
   if (until < Infinity && until > now)
-    return { lamp: "warn", label: `Cooling ${span(until - now)}`, detail: a.status_message || "" };
+    return { lamp: "warn", label: `Cooling ${span(until - now)}`, detail: a.status_message || "", until };
   if (a.unavailable || a.status === "error")
     return {
       lamp: "bad",
@@ -434,4 +435,100 @@ export function snippet(tool: (typeof tools)[number], base: string, key: string,
     default:
       return `curl ${shw(`${v1}/models`)} -H ${shq(`Authorization: Bearer ${key}`)}`;
   }
+}
+
+/** A quota read for one credential: windows with when they were read, or only an error. */
+export type Limits = { windows: Window[]; at: number; error?: string } | { error: string } | null;
+export type Bar = { used: number; reset: string } | { why: string };
+export type AccountRow = {
+  lamp: string;
+  word: string;
+  sub: string;
+  session: Bar;
+  weekly: Bar;
+  stale: boolean;
+  age: string;
+  last: string;
+  /** Weekly reset time for sorting; Infinity when unknown. */
+  next: number;
+  /** Can serve now: Ready or In use. */
+  ready: boolean;
+  low: boolean;
+  attention: boolean;
+};
+const clock = (t: number, now: number) =>
+  new Date(t).toLocaleString([], {
+    ...(new Date(t).toDateString() === new Date(now).toDateString() ? {} : { weekday: "short" }),
+    // 24-hour, as in the approved design: "Cooling until 14:20" fits the status column.
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+/**
+ * One Accounts row, from what the server reports and what this tab read. "In use" is a request
+ * in the latest ten-minute bucket; the server does not say which account it picks, who disabled
+ * one or when. Unknown quota is never 0% or 100%: it says why.
+ * `live`: the windows came from a check made in this tab (else the server observed them).
+ */
+export function accountRow(a: Data, q: Limits, live: boolean, source: boolean, now = Date.now()): AccountRow {
+  const s = credState(a, now);
+  const b = buckets(a);
+  const lastAt = b ? b.total.map((n) => n > 0).lastIndexOf(true) : -1;
+  const windows = q && "windows" in q ? q.windows.filter((w) => w.used !== null) : [];
+  const at = q && "windows" in q ? q.at : 0;
+  const session = windows.find((w) => /session|5-hour|daily|primary/i.test(w.label));
+  const weekly = windows.find((w) => /week.*all|^weekly/i.test(w.label)) || windows.find((w) => /week|secondary/i.test(w.label));
+  const signIn = s.label === "Sign in again";
+  const stale = signIn && windows.length > 0;
+  const why = a.disabled
+    ? "not checked"
+    : windows.length
+      ? "not reported"
+      : q && "error" in q && q.error
+        ? "usage read failed"
+        : source
+          ? "not checked"
+          : "no usage source";
+  const bar = (w?: Window): Bar =>
+    w
+      ? {
+          used: w.used!,
+          reset: stale
+            ? `${span(now - at)} old`
+            : Date.parse(w.reset) > now
+              ? `resets in ${span(Date.parse(w.reset) - now)}`
+              : "",
+        }
+      : { why };
+  const [hi, hiName] = [session, weekly].reduce<[number, string]>(
+    (m, w, i) => (w && w.used! > m[0] ? [w.used!, i ? "Weekly" : "Session"] : m),
+    [-1, ""],
+  );
+  const ready = s.lamp === "ok";
+  const serving = ready && !!b && b.total[b.total.length - 1] > 0;
+  const low = ready && hi >= 85;
+  return {
+    lamp: serving ? "ok live" : s.lamp,
+    word: serving ? "In use" : s.lamp === "warn" && s.until ? `Cooling until ${clock(s.until, now)}` : s.label,
+    sub: serving
+      ? "serving now"
+      : low
+        ? `${hiName} ${hi}% used`
+        : ready
+          ? "can serve now"
+          : signIn
+            ? "token refused"
+            : a.disabled
+              ? "never picked"
+              : s.detail || (s.lamp === "warn" ? "cooling down" : ""),
+    session: bar(session),
+    weekly: bar(weekly),
+    stale,
+    age: a.disabled ? "disabled" : !at ? "never checked" : `${live ? "checked" : "seen"} ${ago(at, now)}`,
+    last: !b ? "" : lastAt < 0 ? `not in ${b.total.length * 10} min` : lastAt === b.total.length - 1 ? "used now" : `used ${span((b.total.length - 1 - lastAt) * 600_000)} ago`,
+    next: (weekly && Date.parse(weekly.reset)) || Infinity,
+    ready,
+    low,
+    attention: s.lamp === "bad",
+  };
 }

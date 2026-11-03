@@ -39,7 +39,7 @@ try {
   assert.equal(evaluate(`document.querySelector('main').textContent.includes('operator@example.invalid')`), true);
   for (const theme of ["dark", "light"]) {
     evaluate(`(()=>{if(document.documentElement.dataset.theme!=='${theme}')document.querySelector('[aria-label^="Use "]').click();return true})()`);
-    for (const page of ["overview", "use", "credentials", "providers", "keys", "models", "payload", "config", "logs", "system"]) {
+    for (const page of ["overview", "use", "accounts", "providers", "keys", "models", "payload", "config", "logs", "system"]) {
       const before = evaluate("window.__calls.length");
       browser("click", `nav a[href="#${page}"]`);
       browser("wait", "800");
@@ -77,14 +77,14 @@ try {
   };
   const actions = [
     ["POST", "/credentials", "upload", `document.querySelector('main label.key[aria-disabled]')?.getAttribute('aria-disabled')==='true'`],
-    ["POST", "/credentials/refresh", "token refresh", `[...document.querySelectorAll('main .head button')].find(b=>b.textContent.includes('Refresh tokens')).disabled`],
+    ["POST", "/credentials/refresh", "token refresh", `[...document.querySelectorAll('.detail button')].find(b=>b.textContent==='Refresh token').disabled`],
     ["PATCH", "/credentials/fields", "editing fields", `document.querySelector('.detail form').inert`],
     ["POST", "/routing/cooldown/reset", "cooldown reset", `[...document.querySelectorAll('.detail button')].find(b=>b.textContent==='Reset cooldown').disabled`],
     ["DELETE", "/credentials", "delete", `[...document.querySelectorAll('.detail button')].find(b=>b.textContent==='Delete').disabled`],
   ];
-  browser("click", 'nav a[href="#credentials"]');
+  browser("click", 'nav a[href="#accounts"]');
   settled();
-  browser("eval", "location.hash='credentials/claude-research.json'");
+  browser("eval", "location.hash='accounts/claude-research.json'");
   browser("wait", ".detail");
   browser("wait", "2500");
   const missingLine = evaluate("[...document.querySelectorAll('main .note')].map(n=>n.textContent).find(t=>t.includes('Not available'))||''");
@@ -99,7 +99,8 @@ try {
 
   // A route the server lacks is read once, not retried in a loop.
   const before = evaluate("window.__calls.length");
-  browser("click", 'nav a[href="#quotas"]');
+  browser("click", 'nav a[href="#overview"]');
+  browser("click", 'nav a[href="#accounts"]');
   browser("wait", "4000");
   const pluginReads = evaluate(`window.__calls.slice(${before}).filter(c=>c.path.endsWith('/plugins')&&c.method==='GET').length`);
   assert.ok(pluginReads <= 1, `GET /plugins read ${pluginReads} times`);
@@ -130,7 +131,7 @@ try {
   browser("find", "role", "button", "click", "--name", "Close");
   console.log("PASS YAML editor: persisted tree, real diff, discarded without writing");
 
-  browser("click", 'nav a[href="#credentials"]');
+  browser("click", 'nav a[href="#accounts"]');
   settled();
   browser("set", "viewport", "390", "844", "2");
   settled();

@@ -149,7 +149,7 @@ try {
     // back, and claims success only for exactly one new credential name of exactly this
     // built-in provider between two successful reads; anything else is "Result unavailable".
     loginUrl = "https://provider.example.invalid/authorize?state=expired";
-    const unknown = "The proxy no longer has this sign-in’s result. Check Credentials to see whether it was added.";
+    const unknown = "The proxy no longer has this sign-in’s result. Check Accounts to see whether it was added.";
     const kimi = { name: "kimi-old.json", type: "kimi", email: "old@example.invalid", updated_at: "2026-11-01T09:00:00Z" };
     const fresh = (name, type) => ({ name, type, email: `${name}@example.invalid`, updated_at: "2026-11-03T09:00:00Z" });
     for (const [what, who, before, after, expected, fail] of [
@@ -239,13 +239,13 @@ try {
       await main.getByText("Connected", { exact: true }).waitFor({ timeout: 30_000 });
       pass(`${provider}: device code ${code} shown, polled to completion`);
     }
-    await page.evaluate(() => (location.hash = "#credentials"));
+    await page.evaluate(() => (location.hash = "#accounts"));
     for (const email of ["claude-login@example.invalid", "codex-login@example.invalid", "meta-login@example.invalid", "xai-login@example.invalid"])
       await main.getByText(email).first().waitFor({ timeout: 15_000 });
     const groups = await main.locator(".group").allTextContents();
     for (const g of ["Kimi", "Devin"]) assert.ok(groups.some((t) => t.startsWith(g)), `${g} group listed`);
     await page.screenshot({ path: `${out}/oauth-credentials-after.png`, fullPage: true });
-    pass("all six new credentials are listed on Credentials");
+    pass("all six new credentials are listed on Accounts");
 
     // A built-in provider this server lacks: honest message, button disabled afterwards.
     await page.evaluate(() => (location.hash = "#connect"));
