@@ -27,6 +27,8 @@ use super::{Management, json as respond};
 use crate::runtime::OAuthDelivery as Delivery;
 
 const SESSION_TTL: Duration = Duration::from_secs(30 * 60);
+/// Go `oauthCompletedSessionTTL`, for a binding failed by a file change. A completed
+/// sign-in keeps [`SESSION_TTL`] instead (DIFFERENCES-FROM-GO.md).
 const COMPLETED_TTL: Duration = Duration::from_secs(60);
 const CALLBACK_WAIT: Duration = Duration::from_secs(5 * 60);
 const ANTHROPIC_CALLBACK_PORT: u16 = 54545;
@@ -158,7 +160,9 @@ impl Sessions {
             s.metadata.clear();
             s.siwc_committing = false;
             s.completed = true;
-            s.expires = Instant::now() + COMPLETED_TTL;
+            // Go keeps it a minute; a user who approves on the provider's tab and comes
+            // back later should still read the success.
+            s.expires = Instant::now() + SESSION_TTL;
         }
     }
 
@@ -1719,6 +1723,10 @@ mod tests {
         s.complete("done");
         assert_eq!(s.get("done"), Some(("meta".into(), String::new(), true)));
         assert!(!s.cancel("done"));
+        // 61 s later the success still reads, and a second callback is still refused.
+        s.lock().get_mut("done").unwrap().expires -= Duration::from_secs(61);
+        assert_eq!(s.get("done"), Some(("meta".into(), String::new(), true)));
+        assert_eq!(s.deliver("meta", "done", "c", ""), Delivery::NotPending);
         s.register("live", "kimi");
         assert!(s.cancel("live"));
         assert!(s.get("live").is_none());
