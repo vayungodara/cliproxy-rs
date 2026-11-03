@@ -527,9 +527,11 @@ fn entry(state: &Management, c: &Credential, v8: bool, quota: &QuotaPlugins) -> 
     let credential_cooldown = cooldowns
         .iter()
         .find(|cd| cd.model.is_empty() && !cd.remaining.is_zero());
+    // Go's terminal unauthorized state: no retry time, a fixed message.
+    let refused = !c.disabled && store.tokens_rejected(c);
     let (status, unavailable) = if c.disabled {
         ("disabled", false)
-    } else if expired || credential_cooldown.is_some() {
+    } else if refused || expired || credential_cooldown.is_some() {
         ("error", true)
     } else {
         ("active", false)
@@ -544,7 +546,15 @@ fn entry(state: &Management, c: &Credential, v8: bool, quota: &QuotaPlugins) -> 
         ("provider", c.provider.trim().into()),
         ("label", c.label.clone().into()),
         ("status", status.into()),
-        ("status_message", status_message(state, c).into()),
+        (
+            "status_message",
+            if refused {
+                "unauthorized (refresh token invalid)"
+            } else {
+                status_message(state, c)
+            }
+            .into(),
+        ),
         ("disabled", c.disabled.into()),
         ("unavailable", unavailable.into()),
         ("runtime_only", runtime.into()),
@@ -614,7 +624,7 @@ fn entry(state: &Management, c: &Credential, v8: bool, quota: &QuotaPlugins) -> 
             break;
         }
     }
-    if let Some(cd) = credential_cooldown.filter(|_| !c.disabled) {
+    if let Some(cd) = credential_cooldown.filter(|_| !c.disabled && !refused) {
         let at = SystemTime::now() + cd.remaining;
         e.insert("next_retry_after", local(at).into());
     }

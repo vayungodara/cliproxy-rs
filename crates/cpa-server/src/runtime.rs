@@ -686,6 +686,29 @@ impl Runtime {
         {
             Ok(refreshed) => refreshed,
             Err(error) => {
+                // Go `refreshAuthForRequestAtEpoch`: neither token can recover without a
+                // new sign-in when the refresh token is refused while the access token
+                // the upstream refused is still current. The credential is neither
+                // selected nor refreshed again until its tokens change.
+                if crate::classify::is_invalid_grant(error.status, &String::from_utf8_lossy(&error.body))
+                    && let Some(current) = self.store.get(&credential.id)
+                    && !current.disabled
+                    && !credentials_changed(credential, &current)
+                {
+                    self.store
+                        .scheduler
+                        .lock()
+                        .unwrap_or_else(PoisonError::into_inner)
+                        .reject_tokens(current);
+                    tracing::warn!(
+                        "credential refresh failed for {} ({}) after an upstream 401: status {}: {}; it is not used again until it is signed in again or its file changes",
+                        credential.provider,
+                        credential.id,
+                        error.status,
+                        refresh_error_text(&error)
+                    );
+                    return None;
+                }
                 // The background loop's schedule is the next attempt, unless another 401
                 // comes first.
                 let next = self
@@ -803,7 +826,25 @@ async fn refresh_loop(weak: std::sync::Weak<Runtime>) {
             rt.store.forget_stale_unauthorized(&rejected, &snapshot);
             // Far enough ahead that any expiry has passed, near enough for chrono.
             let eventually = wall + chrono::Duration::days(36_500);
-            for c in snapshot.iter().filter(|c| refresh_candidate(c)) {
+            // Go `shouldRefresh`: tokens refused for good wait for new ones.
+            let refused = rt.store.rejected_ids(&snapshot);
+            for c in snapshot.iter().filter(|c| !refused.contains(&c.id)) {
+                if !refresh_candidate(c) {
+                    // Go refreshes a disabled credential; here its due refresh waits until
+                    // it is enabled, logged once per revision.
+                    if c.disabled
+                        && refreshable(c)
+                        && rt.executors.needs_prepare_at(c, &cfg, wall)
+                        && state.note_disabled(c)
+                    {
+                        tracing::info!(
+                            "credential refresh for {} ({}) is due but the credential is disabled; it is refreshed once it is enabled",
+                            c.provider,
+                            c.id
+                        );
+                    }
+                    continue;
+                }
                 test_hook("scan", &c.id);
                 // Go `scheduleUnauthorizedRefresh`: a rejected token refreshes now,
                 // or after `refreshFailureBackoff` when it was refreshed just before.
@@ -1063,13 +1104,7 @@ const REFRESH_LOOP_RESTART: Duration = Duration::from_secs(if cfg!(test) { 0 } e
 /// of a plugin's failure only its error code is logged, never its message, and token
 /// endpoint bodies never reach the error text.
 fn warn_refresh_failed(c: &Credential, trigger: &str, error: &ExecError, next: Option<Duration>) {
-    let text = match error.headers.get(crate::plugins::refresh::PLUGIN_ERROR) {
-        Some(code) => match code.to_str().unwrap_or_default() {
-            "" => "plugin refresh failed".to_owned(),
-            code => format!("plugin refresh failed: {code}"),
-        },
-        None => crate::sanitize::summary(&String::from_utf8_lossy(&error.body)),
-    };
+    let text = refresh_error_text(error);
     let next = match next {
         Some(after) if !after.is_zero() => format!("next attempt in {}s", ceil_secs(after)),
         _ => "next attempt when it is next due".to_owned(),
@@ -1080,6 +1115,17 @@ fn warn_refresh_failed(c: &Credential, trigger: &str, error: &ExecError, next: O
         c.id,
         error.status
     );
+}
+
+/// What [`warn_refresh_failed`] logs of a refresh error.
+fn refresh_error_text(error: &ExecError) -> String {
+    match error.headers.get(crate::plugins::refresh::PLUGIN_ERROR) {
+        Some(code) => match code.to_str().unwrap_or_default() {
+            "" => "plugin refresh failed".to_owned(),
+            code => format!("plugin refresh failed: {code}"),
+        },
+        None => crate::sanitize::summary(&String::from_utf8_lossy(&error.body)),
+    }
 }
 
 /// A due refresh held back by its previous job, which is still running: logged once
@@ -1155,7 +1201,7 @@ fn ready<'a>(
         .collect();
     let candidates: Vec<_> = eligible
         .iter()
-        .filter(|(c, m)| scheduler.wait(c, m, now).is_none())
+        .filter(|(c, m)| scheduler.wait(c, m, now).is_none() && !scheduler.tokens_rejected(c))
         .map(|(c, _)| (*c, crate::registry::provider_key(c)))
         .collect();
     if candidates.is_empty() {
@@ -2116,11 +2162,30 @@ impl CredentialStore {
         Suspension::None
     }
 
-    /// Whether `model` is cooling for this credential right now. A probe reservation does
-    /// not count: the lease that holds it is the one asking.
+    /// Whether `model` is cooling for this credential right now, or its tokens were
+    /// refused for good. A probe reservation does not count: the lease that holds it is
+    /// the one asking.
     pub fn blocked(&self, credential: &Credential, model: &str) -> bool {
         let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
-        scheduler.cooling(credential, model, Instant::now())
+        scheduler.cooling(credential, model, Instant::now()) || scheduler.tokens_rejected(credential)
+    }
+
+    /// Whether `c`'s tokens were refused for good ([`crate::scheduler::Scheduler::tokens_rejected`]).
+    pub fn tokens_rejected(&self, c: &Credential) -> bool {
+        self.scheduler
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .tokens_rejected(c)
+    }
+
+    /// The IDs in `snapshot` whose tokens were refused for good.
+    fn rejected_ids(&self, snapshot: &[Arc<Credential>]) -> std::collections::HashSet<String> {
+        let scheduler = self.scheduler.lock().unwrap_or_else(PoisonError::into_inner);
+        snapshot
+            .iter()
+            .filter(|c| scheduler.tokens_rejected(c))
+            .map(|c| c.id.clone())
+            .collect()
     }
 
     /// Clears every cooldown and affinity binding of one credential (Go `ResetQuota`).
@@ -2165,7 +2230,7 @@ impl CredentialStore {
             .filter(|c| !c.disabled)
             .filter(|c| policy.retry_limit(c) > selection.retry_round && scheduler.admits(c, policy))
             .filter_map(|c| admit(c).map(|m| (c, m)))
-            .filter(|(c, m)| scheduler.retry_eligible(c, m, now))
+            .filter(|(c, m)| scheduler.retry_eligible(c, m, now) && !scheduler.tokens_rejected(c))
             .map(|(c, m)| {
                 let wait = scheduler.wait(c, &m, now).unwrap_or_default();
                 if status == 429 && attempted.contains(&c.id) && !policy.cooling_disabled(c) {
@@ -3920,7 +3985,12 @@ fn signature_cache_config(cfg: &Config) -> (bool, bool) {
 /// Credentials the background refresh considers: enabled auth files, never API-key
 /// kinds (Go `nextRefreshCheckAt` skips `AuthKind() == apikey` for every provider).
 fn refresh_candidate(c: &Credential) -> bool {
-    matches!(c.source, Source::File(_)) && !c.disabled && cpa_core::registry::dynamic::auth_kind(c) != Some("apikey")
+    !c.disabled && refreshable(c)
+}
+
+/// [`refresh_candidate`] whether or not `c` is disabled.
+fn refreshable(c: &Credential) -> bool {
+    matches!(c.source, Source::File(_)) && cpa_core::registry::dynamic::auth_kind(c) != Some("apikey")
 }
 
 /// Test hook at `site` for credential `id` ([`tests::hook`]); nothing otherwise.
@@ -7059,6 +7129,122 @@ pub(crate) mod tests {
             !text.contains("fake-rt") && !text.contains("sk-ant-o"),
             "no token in the logs: {text}"
         );
+        rt.stop_auto_refresh();
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A Claude runtime over one credential file in a private auth-dir whose token
+    /// endpoint answers every refresh with `answer`; counts the exchanges.
+    async fn claude_refusing(
+        name: &str,
+        file: Value,
+        answer: (u16, &'static str),
+    ) -> (Arc<Runtime>, std::path::PathBuf, Arc<std::sync::atomic::AtomicUsize>) {
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let app = axum::Router::new().route(
+            "/token",
+            axum::routing::post({
+                let calls = calls.clone();
+                move || async move {
+                    calls.fetch_add(1, Ordering::SeqCst);
+                    (axum::http::StatusCode::from_u16(answer.0).unwrap(), answer.1)
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+        let dir = std::env::temp_dir().join(format!("cpa-{name}-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(format!("{name}.json")), file.to_string()).unwrap();
+        let mut cfg = Config::parse("").unwrap();
+        cfg.auth_dir = dir.clone();
+        let (token, profile) = (format!("{base}/token"), format!("{base}/profile"));
+        let oauth = cpa_exec::oauth::OAuth::with_endpoints(wreq::Client::new(), &token, &profile, &profile);
+        let rt = Arc::new(crate::testing::runtime(
+            cfg.clone(),
+            cpa_core::config::credentials::from_auth_dir(&cfg)
+                .into_iter()
+                .map(crate::testing::local)
+                .collect(),
+            Executors {
+                claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1")
+                    .unwrap()
+                    .with_oauth(oauth),
+                codex: Default::default(),
+                devices: Default::default(),
+                openai: Default::default(),
+                google: Default::default(),
+            },
+        ));
+        (rt, dir, calls)
+    }
+
+    fn claude_file(access: &str, expires_in: chrono::Duration, disabled: bool) -> Value {
+        serde_json::json!({"type": "claude", "access_token": access, "refresh_token": "fake-rt-1",
+            "expired": (chrono::Utc::now() + expires_in).to_rfc3339(), "disabled": disabled,
+            "account_uuid": "acct-fake", "claude_device_ids": ["b".repeat(64)]})
+    }
+
+    /// Go `refreshAuthForRequestAtEpoch`: when the refresh after an upstream 401 is
+    /// refused with invalid_grant while the refused access token is still current, the
+    /// credential is neither selected nor refreshed again until its tokens change; a
+    /// file with new tokens lifts that at once.
+    #[tokio::test]
+    async fn an_invalid_grant_after_a_401_blocks_the_credential_until_its_tokens_change() {
+        let name = "claude-revoked";
+        let id = format!("{name}.json");
+        let refused = (400, r#"{"error":"invalid_grant","error_description":"revoked"}"#);
+        let file = claude_file("sk-ant-oat-old-fake", chrono::Duration::hours(1), false);
+        let (rt, dir, calls) = claude_refusing(name, file, refused).await;
+        let cfg = rt.config();
+        let claude = || Selection {
+            provider: "claude".into(),
+            ..Selection::default()
+        };
+        let rejected = rt.store.get(&id).unwrap();
+        assert!(rt.store.select(claude()).is_some(), "selectable before the 401");
+        assert!(rt.refresh_after_unauthorized(&rejected, &cfg).await.is_none());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        let current = rt.store.get(&id).unwrap();
+        assert!(rt.store.tokens_rejected(&current));
+        assert!(rt.store.blocked(&current, ""));
+        assert!(rt.store.select(claude()).is_none(), "no longer selected");
+        // The background loop leaves it alone too.
+        assert!(rt.store.rejected_ids(&rt.store.snapshot()).contains(&id));
+        // A new sign-in writes other tokens: selectable again.
+        let file = claude_file("sk-ant-oat-new-fake", chrono::Duration::hours(1), false);
+        std::fs::write(dir.join(&id), file.to_string()).unwrap();
+        rt.store.reconcile(
+            cpa_core::config::credentials::from_auth_dir(&cfg)
+                .into_iter()
+                .map(crate::testing::local)
+                .collect(),
+        );
+        let replaced = rt.store.get(&id).unwrap();
+        assert!(!rt.store.tokens_rejected(&replaced));
+        assert_eq!(rt.store.select(claude()).unwrap().credential.id, id);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A due refresh of a disabled credential is skipped with one log line per
+    /// revision, and nothing is sent to the token endpoint.
+    #[tokio::test]
+    async fn a_skipped_refresh_of_a_disabled_credential_is_logged_once() {
+        let name = "claude-off";
+        let file = claude_file("sk-ant-oat-old-fake", -chrono::Duration::hours(1), true);
+        let (rt, dir, calls) = claude_refusing(name, file, (500, "{}")).await;
+        let logs = Logs::default();
+        let _guard = logs.install();
+        let skipped = "credential refresh for claude (claude-off.json) is due but the credential is disabled";
+        rt.start_auto_refresh();
+        logs.wait_for(skipped, 1).await;
+        for _ in 0..2 {
+            rt.config_changed.send_replace(());
+            tokio::time::sleep(Duration::from_millis(1500)).await;
+        }
+        assert_eq!(logs.text().matches(skipped).count(), 1, "{}", logs.text());
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
         rt.stop_auto_refresh();
         std::fs::remove_dir_all(dir).unwrap();
     }
