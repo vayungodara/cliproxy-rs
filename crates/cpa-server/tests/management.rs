@@ -2861,6 +2861,36 @@ async fn devin_login_completes_through_the_main_listener_callback() {
     fake_server.abort();
 }
 
+/// A login worker that panics fails its session at once, with a fixed message,
+/// instead of leaving the dashboard waiting until the session expires: here the panic
+/// is on the blocking task that saves the credential, which the worker passes on.
+#[tokio::test]
+async fn a_panicking_login_worker_fails_the_session() {
+    let (fake, _seen, fake_server) = fake_logins().await;
+    let f = Fixture::new("panicklogin");
+    let options = management::Options {
+        login_base: Some(fake.clone()),
+        login_panic: true,
+        ..Default::default()
+    };
+    let (base, _state, server) = serve_with(&f, options).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=codex").await;
+    let state = started["state"].as_str().unwrap().to_owned();
+    let delivered = f.rt.deliver_oauth_callback(&cpa_server::runtime::OAuthCallback {
+        provider: "codex",
+        state: state.clone(),
+        code: "fake-code".into(),
+        error: String::new(),
+    });
+    assert_eq!(delivered, cpa_server::runtime::OAuthDelivery::Delivered);
+    assert_eq!(
+        final_status(&base, &state, 5).await,
+        json!({"status": "error", "error": "Sign-in failed because of an internal error. Start the sign-in again."})
+    );
+    server.abort();
+    fake_server.abort();
+}
+
 /// Codex: the main listener's `/codex/callback` hands the code to the pending login,
 /// which exchanges it (PKCE verifier, Go's redirect URI) and saves the credential.
 #[tokio::test]
