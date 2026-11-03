@@ -20,6 +20,8 @@ struct Entry {
 #[derive(Default)]
 pub(crate) struct RefreshState {
     entries: HashMap<String, Entry>,
+    /// The revision of each disabled credential whose skipped due refresh was logged.
+    disabled_noted: HashMap<String, u64>,
 }
 
 impl RefreshState {
@@ -90,6 +92,16 @@ impl RefreshState {
             })
     }
 
+    /// Records that a due refresh of disabled `c` was logged at this revision.
+    pub fn note_disabled(&mut self, c: &Credential) {
+        self.disabled_noted.insert(c.id.clone(), c.revision);
+    }
+
+    /// Whether a due refresh of disabled `c` was already logged at this revision.
+    pub fn disabled_noted(&self, c: &Credential) -> bool {
+        self.disabled_noted.get(&c.id) == Some(&c.revision)
+    }
+
     /// When a reserved or backed-off credential may be tried again.
     pub fn retry_at(&self, c: &Credential) -> Option<Instant> {
         self.entries.get(&c.id).map(|e| e.next)
@@ -100,6 +112,7 @@ impl RefreshState {
     pub fn reconcile(&mut self, credentials: &[std::sync::Arc<Credential>]) {
         let ids: std::collections::HashSet<&str> = credentials.iter().map(|c| c.id.as_str()).collect();
         self.entries.retain(|id, e| e.running || ids.contains(id.as_str()));
+        self.disabled_noted.retain(|id, _| ids.contains(id.as_str()));
     }
 
     /// Ends the hold on `c` now, as if its backoff had run out.

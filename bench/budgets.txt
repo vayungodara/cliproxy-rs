@@ -67,10 +67,17 @@
 # (+62 KB binary, +29 KB archive, +4 KB .rodata) over master's build at f123025 in this
 # job (29_501_559 to 29_547_575); the lines below are that job's measurements. The
 # rest of the rise came with master's changes since #150's line.
-size.x86_64-unknown-linux-gnu.binary_bytes   44_107_280  2
-size.x86_64-unknown-linux-gnu.text_bytes     29_547_575  2
-size.x86_64-unknown-linux-gnu.rodata_bytes    8_570_336  2
-size.x86_64-unknown-linux-gnu.archive_bytes  18_721_107  2
+# 2026-11-03: tokens refused for good after an upstream 401 stay unused until they
+# change (#255): the rejection record, its check under the preparation lock, the
+# atomic check against rotated or removed tokens, the leasing filter, the pruning of
+# removed credentials' rejections and the disabled credential's refresh wake. At
+# afc8474, +14 KB .text (+16 KB binary, +6 KB archive) over master's build at 80ce87c
+# in this job (30_131_831 to 30_146_167); the lines below are that job's measurements.
+# The rest of the rise came with master's changes since #148's line.
+size.x86_64-unknown-linux-gnu.binary_bytes   44_725_616  2
+size.x86_64-unknown-linux-gnu.text_bytes     30_146_167  2
+size.x86_64-unknown-linux-gnu.rodata_bytes    8_492_512  2
+size.x86_64-unknown-linux-gnu.archive_bytes  19_024_966  2
 # Crates linked into the binary in two or more versions; a new one fails until it is
 # justified here. 2026-10-05: base64, block-buffer, cpufeatures, crypto-common, digest,
 # getrandom, hashbrown (3), rand, rand_core, sha2, thiserror.
