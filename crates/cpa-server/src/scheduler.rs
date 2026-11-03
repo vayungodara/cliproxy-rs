@@ -20,9 +20,10 @@ pub enum Strategy {
     RoundRobin,
     FillFirst,
     WeightedRoundRobin,
-    /// cliproxy-rs addition (`soonest-reset`, alias `reset-first`): spend the account
-    /// whose weekly window resets soonest first, until it cools or a usage window runs
-    /// out, then the next soonest. Go has no such strategy and reads it as round-robin.
+    /// cliproxy-rs addition (`soonest-reset`, alias `reset-first`) and the default for
+    /// an unset strategy: spend the account whose weekly window resets soonest first,
+    /// until it cools or a usage window runs out, then the next soonest. Go has no such
+    /// strategy and reads it, like an unset one, as round-robin.
     SoonestReset,
 }
 
@@ -358,7 +359,8 @@ pub fn normalize(raw: RawRouting<'_>) -> Policy {
         strategy: match raw.strategy.trim().to_ascii_lowercase().as_str() {
             "weighted-round-robin" | "weightedroundrobin" | "wrr" => Strategy::WeightedRoundRobin,
             "fill-first" | "fillfirst" | "ff" => Strategy::FillFirst,
-            "soonest-reset" | "soonestreset" | "reset-first" | "resetfirst" => Strategy::SoonestReset,
+            // An unset strategy is reset first; Go reads it as round-robin.
+            "" | "soonest-reset" | "soonestreset" | "reset-first" | "resetfirst" => Strategy::SoonestReset,
             _ => Strategy::RoundRobin,
         },
         force_model_prefix: raw.force_model_prefix,
@@ -2206,7 +2208,9 @@ mod tests {
             ("soonest-reset", Strategy::SoonestReset),
             (" Reset-First ", Strategy::SoonestReset),
             ("resetfirst", Strategy::SoonestReset),
-            ("", Strategy::RoundRobin),
+            ("", Strategy::SoonestReset),
+            (" ", Strategy::SoonestReset),
+            ("round-robin", Strategy::RoundRobin),
             ("anything", Strategy::RoundRobin),
         ] {
             assert_eq!(

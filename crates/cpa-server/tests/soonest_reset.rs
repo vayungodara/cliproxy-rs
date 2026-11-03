@@ -280,3 +280,25 @@ async fn management_api_and_reload_switch_the_strategy() {
     let spread = p.route(2).await;
     assert!(spread.contains(&"x") && spread.contains(&"y"), "{spread:?}");
 }
+
+/// A hot reload from an explicit round-robin to an unset strategy selects soonest-reset,
+/// which the management API reports without writing it into the file.
+#[tokio::test]
+async fn reloading_to_an_unset_strategy_selects_soonest_reset() {
+    let p = proxy("reload-default", "round-robin").await;
+    assert_eq!(p.rt.policy().strategy, Strategy::RoundRobin);
+    let unset = yaml(&p.base, "", &p._dir.join("auths"));
+    let res = wreq::Client::new()
+        .put(format!("{}/v0/management/config.yaml", p.url))
+        .bearer_auth(PASSWORD)
+        .body(unset.clone())
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status().as_u16(), 200, "{}", res.text().await.unwrap());
+    assert_eq!(p.rt.policy().strategy, Strategy::SoonestReset);
+    let (status, body) = p.management("GET", "/v0/management/routing/strategy", None).await;
+    assert_eq!((status, body), (200, json!({"strategy": "soonest-reset"})));
+    let saved = std::fs::read_to_string(p._dir.join("config.yaml")).unwrap();
+    assert!(!saved.contains("soonest-reset"), "{saved}");
+}
