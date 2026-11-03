@@ -28,7 +28,7 @@ pub struct Dashboard {
     client: Arc<Client>,
     pub vp: Viewport,
     width: usize,
-    last: Option<(Option<Object>, Vec<Object>, Vec<String>, Option<String>)>,
+    last: Option<Data>,
     /// Sizes the cards to fit the screen. Go's `(width-2)/2` makes the pair three
     /// columns wider than the terminal, which cuts the right card's border; the golden
     /// test turns this off to compare with Go's exact layout.
@@ -91,7 +91,7 @@ impl Dashboard {
                 self.vp.set_content(doc);
             }
             None => {
-                self.last = Some((data.config, data.auth_files, data.api_keys, data.strategy));
+                self.last = Some(data);
                 self.vp.set_content(self.render());
             }
         }
@@ -118,9 +118,12 @@ impl Dashboard {
     /// Go `renderDashboard`.
     fn render(&self) -> Doc {
         let (cfg, files, keys, effective) = match &self.last {
-            Some((cfg, files, keys, effective)) => {
-                (cfg.as_ref(), files.as_slice(), keys.as_slice(), effective.as_deref())
-            }
+            Some(d) => (
+                d.config.as_ref(),
+                d.auth_files.as_slice(),
+                d.api_keys.as_slice(),
+                d.strategy.as_deref(),
+            ),
             None => (None, &[][..], &[][..], None),
         };
         let mut doc = Doc::default();
