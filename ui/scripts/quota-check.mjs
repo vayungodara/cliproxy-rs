@@ -23,7 +23,8 @@ const click = async (name) => {
 // Each account is checked at most once every 2 minutes; move the fixture's clock past that.
 const later = () => evaluate("window.quotaFixture.now += 180000");
 const shot = (name) => output && page.screenshot({ path: `${output}/${name}.png`, fullPage: true });
-const meters = () => evaluate("[...document.querySelectorAll('main [role=meter]')].map(e=>Number(e.getAttribute('aria-valuenow')))");
+// Overview's limits, or the Accounts rows' bars (not the open drawer's full list).
+const meters = () => evaluate("[...document.querySelectorAll('main .limits [role=meter], main .acct .item [role=meter]')].map(e=>Number(e.getAttribute('aria-valuenow')))");
 const text = () => evaluate("document.querySelector('main').textContent");
 const errors = () => evaluate("[...document.querySelectorAll('main .note.error')].map(e=>e.textContent)");
 const signIn = async () => {
@@ -61,6 +62,7 @@ try {
       const f = window.quotaFixture;
       let body;
       if (path.endsWith('/config')) body = {};
+      else if (path.endsWith('/credentials') && init?.method === 'DELETE') body = {status:'partial', deleted:1, files:['claude-setup.json'], failed:[{name:'codex.json', error:'file is busy'}]};
       else if (path.endsWith('/credentials')) body = {files:f.files};
       else if (path.endsWith('/plugins')) body = {plugins:[]};
       else if (path.endsWith('/requests/api-call')) {
@@ -129,6 +131,30 @@ try {
     assert.match((await rowErrors())[0], status === 401 ? /Refresh the token/ : /Try again later/);
   }
   console.log("PASS non-scope failures keep their existing advice without erasing limits");
+
+  // The drawer's Check quota waits 2 minutes, then comes back by itself.
+  await evaluate("window.quotaFixture.status = 200");
+  await later();
+  const drawerCheck = main.locator(".detail").getByRole("button", { name: /^Check quota|^Checked/ });
+  await page.waitForFunction(() => [...document.querySelectorAll(".detail button")].some((b) => !b.disabled && b.textContent === "Check quota"), null, { timeout: 15_000 });
+  const before = await evaluate("window.quotaFixture.calls");
+  await drawerCheck.click();
+  assert.equal(await evaluate("window.quotaFixture.calls"), before + 1);
+  // The fixture's clock stands still between steps; move it so the page's 10 s tick sees time pass.
+  await evaluate("window.quotaFixture.now += 1000");
+  await page.waitForFunction(() => [...document.querySelectorAll(".detail button")].some((b) => b.disabled && b.textContent.startsWith("Checked; again in")), null, { timeout: 15_000 });
+  await later();
+  await page.waitForFunction(() => [...document.querySelectorAll(".detail button")].some((b) => !b.disabled && b.textContent === "Check quota"), null, { timeout: 15_000 });
+  console.log("PASS the drawer's Check quota is disabled for 2 minutes and re-enables by itself");
+
+  // A batch delete the server only partly did: the failed account stays selected and is named.
+  page.on("dialog", (d) => d.accept());
+  await main.getByLabel("Select all shown").check();
+  await main.locator(".batch").getByRole("button", { name: "Delete 2…" }).click();
+  await page.getByText("1 deleted. Not deleted: codex.json (file is busy)").waitFor();
+  assert.match(await main.locator(".batch").textContent(), /^\s*1 selected\./);
+  assert.equal(await main.getByLabel("Select codex.json").isChecked(), true);
+  console.log("PASS a partial batch delete keeps the failed account selected and names it");
   await page.setViewportSize({ width: 390, height: 844 });
   await settle();
   assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false);

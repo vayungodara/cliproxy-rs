@@ -1,13 +1,16 @@
 <script lang="ts">
   import { store, every, Res } from "../store.svelte";
   import { api, download } from "../api";
-  import { buckets, credName, provider, label, span, accountRow, strategy, readPath, type Bar, type Data } from "../core";
+  import { buckets, credName, provider, label, span, accountRow, strategy, readPath, type Bar, type Data, type Window } from "../core";
   import { check, checkAll, canCheck, hasSource, limits, quotaKey, wait } from "../quota";
   import Grille from "../Grille.svelte";
+  import Meter from "../Meter.svelte";
   import Load from "../Load.svelte";
   import Missing from "../Missing.svelte";
 
-  $effect(() => every(10_000, () => store.creds.load(true)));
+  // `now` also re-enables Check quota once an account's 2-minute wait is over.
+  let now = $state(Date.now());
+  $effect(() => every(10_000, () => ((now = Date.now()), store.creds.load(true))));
   if (!store.plugins.data) store.plugins.load();
   let query = $state(""),
     tab = $state("all"),
@@ -53,7 +56,7 @@
   );
   const pick = (k: string) => (sel = sel.includes(k) ? sel.filter((x) => x !== k) : [...sel, k]);
   const all = $derived(shown.length > 0 && shown.every((r) => sel.includes(r.k)));
-  function batch(list: Data[], run: (a: Data) => Promise<unknown>, done: string, ask = "") {
+  function batch<T>(list: T[], run: (a: T) => Promise<unknown>, done: string, ask = "") {
     if (ask && !confirm(ask)) return;
     store.act(async () => {
       try {
@@ -254,6 +257,7 @@
                     <dl class="facts">
                       {#each facts(a) as [k, v, mono]}<div><dt>{k}</dt><dd class:mono>{v}</dd></div>{/each}
                     </dl>
+                    {#each (limits(a) as { windows?: Window[] })?.windows || [] as w}<Meter {w} />{/each}
                     {#if limits(a)?.error}<p class="note error" role="status"><span class="lamp bad"></span>Usage read failed: {limits(a)?.error}</p>{/if}
                     {#if a.cooldowns?.length || a.quota?.signals && Object.keys(a.quota.signals).length}
                       <div class="chips">
@@ -280,8 +284,8 @@
                         </Load>{/if}
                     </div>
                     <div class="row">
-                      <button class="key small" disabled={!canCheck(a) || !!wait(a)} onclick={() => check(a)}
-                        >{wait(a) ? `Checked; again in ${span(wait(a))}` : "Check quota"}</button
+                      <button class="key small" disabled={!canCheck(a) || !!wait(a, now)} onclick={() => (check(a), (now = Date.now()))}
+                        >{wait(a, now) ? `Checked; again in ${span(wait(a, now))}` : "Check quota"}</button
                       >
                       {#each actions(a) as [name, method, path, body, done, ask, off]}<button
                           class="key small"
@@ -334,7 +338,14 @@
                 onclick={() =>
                   batch(
                     [files],
-                    () => api("/credentials", "DELETE", { names: files.map((a) => a.name) }).then(() => (sel = sel.filter((k) => !files.some((a) => key(a) === k)))),
+                    // `list` is the selection as clicked; `files` changes once the selection does.
+                    async (list: Data[]) => {
+                      // Several names: the server answers 207 "partial" with the ones it could not delete.
+                      const r = await api("/credentials", "DELETE", { names: list.map((a) => a.name) });
+                      const failed: Data[] = r?.failed || [];
+                      sel = sel.filter((k) => !list.some((a) => key(a) === k && !failed.some((f) => f.name === a.name)));
+                      if (failed.length) throw new Error(`${list.length - failed.length} deleted. Not deleted: ${failed.map((f) => `${f.name} (${f.error})`).join(", ")}`);
+                    },
                     `${plural(files.length, "account")} deleted.`,
                     `Delete ${plural(files.length, "account")}? Their files are removed from the server: ${files.map((a) => a.name).join(", ")}`,
                   )}>Delete {files.length}…</button

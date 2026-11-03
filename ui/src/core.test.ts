@@ -373,6 +373,10 @@ test("account rows: status words, honest unknowns, low, last used and weekly ord
   const codex = row({}, checked([w("5-hour limit", 91, 47 * 60_000), w("Weekly limit", 63)]), false);
   assert.deepEqual([codex.session, codex.age], [{ used: 91, reset: "resets in 47m" }, "seen 3m ago"]);
 
+  // Plugin windows are recognised by their length; any reported window can make a row Low.
+  const plugin = row({}, checked([w("Pro · 5h", 90), w("Pro · 7d", 30), w("Pro · monthly", 95)]));
+  assert.deepEqual([plugin.session, plugin.weekly], [{ used: 90, reset: "resets in 1h" }, { used: 30, reset: "resets in 1h" }]);
+  assert.deepEqual([plugin.low, plugin.sub], [true, "Pro · monthly 95% used"]);
   // Low: a ready account at 85% or more of either window says which.
   assert.deepEqual([codex.low, codex.sub], [true, "Session 91% used"]);
   assert.equal(row({}, checked([w("Current session", 84.9), w("Weekly limit", 10)])).low, false);

@@ -476,8 +476,9 @@ export function accountRow(a: Data, q: Limits, live: boolean, source: boolean, n
   const lastAt = b ? b.total.map((n) => n > 0).lastIndexOf(true) : -1;
   const windows = q && "windows" in q ? q.windows.filter((w) => w.used !== null) : [];
   const at = q && "windows" in q ? q.at : 0;
-  const session = windows.find((w) => /session|5-hour|daily|primary/i.test(w.label));
-  const weekly = windows.find((w) => /week.*all|^weekly/i.test(w.label)) || windows.find((w) => /week|secondary/i.test(w.label));
+  // Built-in labels, and plugin labels by their window length ("Pro · 5h", "7d").
+  const session = windows.find((w) => /session|5-hour|\b5 ?h\b|daily|primary/i.test(w.label));
+  const weekly = windows.find((w) => /week.*all|^weekly/i.test(w.label)) || windows.find((w) => /week|\b7 ?d\b|secondary/i.test(w.label));
   const signIn = s.label === "Sign in again";
   const stale = signIn && windows.length > 0;
   const why = a.disabled
@@ -500,8 +501,9 @@ export function accountRow(a: Data, q: Limits, live: boolean, source: boolean, n
               : "",
         }
       : { why };
-  const [hi, hiName] = [session, weekly].reduce<[number, string]>(
-    (m, w, i) => (w && w.used! > m[0] ? [w.used!, i ? "Weekly" : "Session"] : m),
+  // Low counts every window the provider reported, named as the bars name them.
+  const [hi, hiName] = windows.reduce<[number, string]>(
+    (m, w) => (w.used! > m[0] ? [w.used!, w === session ? "Session" : w === weekly ? "Weekly" : w.label] : m),
     [-1, ""],
   );
   const ready = s.lamp === "ok";
