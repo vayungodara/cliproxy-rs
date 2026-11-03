@@ -8,7 +8,8 @@
 // --mode dead: the shipped binary with requests.proxy-url on a dead port. A pasted callback
 //   must end in an honest failure, never "Connected". No request reaches a provider.
 // --mode plugin: fake management responses check relative and absolute login URLs,
-//   copied links and unsafe schemes, including under a reverse-proxy path prefix.
+//   copied links and unsafe schemes, including under a reverse-proxy path prefix, and a
+//   sign-in the server forgot while the tab was hidden (the account list decides the result).
 //
 // Usage: CHROME_PATH=... node scripts/oauth-check.mjs <page-url> --mode fake|dead|plugin [capture-dir]
 import { chromium } from "playwright-core";
@@ -47,7 +48,23 @@ async function paste(redirect) {
 
 try {
   let loginUrl = `./v0/resource/plugins/commandcode-go-cliproxyapi/oauth#state=${"a".repeat(64)}`;
+  const fixture = { name: "fixture.json", type: "claude", disabled: true, email: "operator@example.invalid", updated_at: "2026-11-01T09:00:00Z" };
+  let files = [fixture],
+    status = { status: "wait" },
+    polls = [];
   if (mode === "plugin") {
+    // A tab the test can hide, and polling slowed thirtyfold, so a status read right after the
+    // tab comes back can only be the one its return triggered.
+    await page.context().addInitScript(() => {
+      window.__hidden = false;
+      Object.defineProperty(document, "hidden", { configurable: true, get: () => window.__hidden });
+      window.__setHidden = (v) => {
+        window.__hidden = v;
+        document.dispatchEvent(new Event("visibilitychange"));
+      };
+      const slow = window.setInterval;
+      window.setInterval = (f, ms, ...a) => slow(f, ms * 30, ...a);
+    });
     await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.context().route("**/*", async (route) => {
       const request = new URL(route.request().url());
@@ -56,10 +73,10 @@ try {
       if (path !== undefined) {
         let body;
         if (path === "config") body = {};
-        else if (path === "credentials") body = { files: [{ name: "fixture.json", type: "claude", disabled: true, email: "operator@example.invalid" }] };
+        else if (path === "credentials") body = { files };
         else if (path === "plugins") body = { plugins: [{ id: "commandcode-go-cliproxyapi", supports_oauth: true, oauth_provider: "commandcode" }] };
         else if (path === "oauth/auth-url") body = { status: "ok", state: "a".repeat(64), url: loginUrl };
-        else if (path === "oauth/status") body = { status: "wait" };
+        else if (path === "oauth/status") (body = status), polls.push(Date.now());
         else if (path === "oauth/session" && route.request().method() === "DELETE") {
           assert.equal(request.pathname, new URL("v8/management/oauth/session", url).pathname);
           assert.equal(request.searchParams.get("state"), "a".repeat(64));
@@ -115,6 +132,34 @@ try {
       await page.getByRole("button", { name: "Dismiss", exact: true }).click();
     }
     pass("plugin: javascript, data, file and mailto URLs cannot start a session");
+
+    // The server keeps a finished session 60 s, then answers "unknown or expired state". A tab
+    // that was away longer checks the account list instead of reporting a failure.
+    loginUrl = "https://provider.example.invalid/authorize?state=expired";
+    const same = { ...fixture, name: "commandcode-same.json", type: "commandcode", email: "same@example.invalid" };
+    for (const [before, after, expected] of [
+      [[fixture], [fixture], "This sign-in expired before the panel saw its result. No new account appeared."],
+      [[fixture], [fixture, { name: "commandcode-new.json", type: "commandcode", email: "new@example.invalid", updated_at: "2026-11-03T09:00:00Z" }], "new@example.invalid is saved on the server and in rotation."],
+      // The same account signed in again rewrites its file: same name, newer modification time.
+      [[same], [{ ...same, updated_at: "2026-11-03T09:00:00Z" }], "same@example.invalid is saved on the server and in rotation."],
+    ]) {
+      files = before;
+      status = { status: "wait" };
+      await begin("commandcode");
+      await page.evaluate(() => window.__setHidden(true));
+      (files = after), (status = { status: "error", error: "unknown or expired state" });
+      polls = [];
+      await page.waitForTimeout(2500);
+      assert.equal(polls.length, 0, "no status reads while the tab is hidden");
+      const back = Date.now();
+      await page.evaluate(() => window.__setHidden(false));
+      await main.locator(".flow").getByText(expected, { exact: true }).waitFor({ timeout: 5000 });
+      assert.ok(polls.length === 1 && polls[0] - back < 1000, `one status read as the tab came back (${polls.map((t) => t - back)} ms)`);
+      await main.getByText(expected.startsWith("This") ? "Failed" : "Connected", { exact: true }).waitFor();
+      if (!expected.startsWith("This")) await page.screenshot({ path: `${out}/oauth-expired-recovered.png` });
+      files = [fixture];
+    }
+    pass("plugin: returning to the tab reads the status at once; a forgotten sign-in shows a new or rewritten account as connected, and says so when none appeared");
   } else if (mode === "fake") {
     for (const [provider, redirect, email] of [
       ["Claude", (s) => `http://localhost:54545/callback?code=fake-code&state=${s}`, "claude-login@example.invalid"],

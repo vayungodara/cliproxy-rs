@@ -16,6 +16,7 @@
     session = $state<Data | null>(null),
     status = $state(""),
     problem = $state(""),
+    account = $state(""),
     callback = $state(""),
     region = $state("");
   const can = $derived(store.can("GET", "/oauth/auth-url"));
@@ -23,6 +24,9 @@
   async function start(p: string) {
     if (session && status === "wait" && !(await cancel())) return;
     store.act(async () => {
+      // The account list before the sign-in starts, to recognise its credential later.
+      await store.creds.load(true);
+      const seen = store.creds.error ? null : Object.fromEntries((store.creds.data || []).map((c) => [c.name, c.updated_at]));
       const r = await api(`/oauth/auth-url?provider=${encodeURIComponent(p)}${forwarded.includes(p) ? "&is_webui=true" : ""}`).catch((e) => {
         // Go knows every built-in provider; a server that lacks one answers provider_not_found.
         if (e instanceof ApiError && e.code === "provider_not_found") {
@@ -33,9 +37,9 @@
       });
       const url = new URL(r.url, location.href);
       if (!/^https?:$/.test(url.protocol)) throw new Error("The server returned an unsafe sign-in URL.");
-      session = { ...r, url: url.href, provider: p, started: Date.now() };
+      session = { ...r, url: url.href, provider: p, started: Date.now(), seen };
       status = "wait";
-      problem = callback = "";
+      problem = account = callback = "";
     });
   }
   /** Ends the pending sign-in; false when the server did not take the request. */
@@ -62,16 +66,36 @@
     every(2000, async () => {
       const s = session;
       if (!s || status !== "wait") return;
-      const r = await api(`/oauth/status?state=${encodeURIComponent(s.state)}`).catch((e) => ({ status: "error", error: e.message }));
+      let r = await api(`/oauth/status?state=${encodeURIComponent(s.state)}`).catch((e) => ({ status: "error", error: e.message }));
+      // The server forgets a successful session a minute after it ends (Go too), so a tab that
+      // was away longer reads "unknown or expired state". A credential for this provider that
+      // is new, or rewritten, since the start is that sign-in's result.
+      if (r.error === "unknown or expired state") {
+        await store.creds.load(true);
+        const fresh = (store.creds.data || []).find(
+          (c) =>
+            [c.provider, c.type].some((t) => t && (t === s.provider || s.provider.startsWith(`${t}-`))) &&
+            (s.seen ? s.seen[c.name] !== c.updated_at : Date.parse(c.updated_at) >= s.started - 60_000),
+        );
+        r = fresh
+          ? { status: "ok", account: fresh.email }
+          : {
+              status: "error",
+              error: store.creds.error
+                ? "This sign-in expired before the panel saw its result, and the account list could not be read. Check Credentials."
+                : "This sign-in expired before the panel saw its result. No new account appeared.",
+            };
+      }
       // A reply for a session that was cancelled or replaced meanwhile is ignored.
       if (r.status === "wait" || s !== session || status !== "wait") return;
       problem = r.error || "";
+      account = r.account || "";
       finish(r.status);
       if (r.status === "ok") {
         store.notify(`${label(s.provider)} account connected.`);
         store.creds.load(true);
       }
-    }),
+    }, true),
   );
   function vertex(input: HTMLInputElement) {
     const file = input.files?.[0];
@@ -148,7 +172,7 @@
       </ol>
       <div class="row"><button class="key quiet" onclick={cancel}>Cancel sign-in</button></div>
     {:else if status === "ok"}
-      <p>Saved on the server and in rotation.</p>
+      <p>{account ? `${account} is saved` : "Saved"} on the server and in rotation.</p>
       <div class="row"><a class="key primary" href="#credentials">View credentials</a></div>
     {:else}
       {#if problem}<p class="error">{problem}</p>{/if}

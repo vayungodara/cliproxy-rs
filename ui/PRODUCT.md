@@ -18,7 +18,7 @@ They come with these questions, in this order: is traffic flowing, which credent
 - Honest data. Every read shows one of loading, empty, error, not available, or data. Nothing is invented. Telemetry comes from server-side `recent_requests` buckets; the destructive usage queue is opt-in and stays in the tab.
 - The management key lives in memory only. It is never written to browser storage. Reloading signs out.
 - Accessibility: a complete keyboard path, visible focus, WCAG AA contrast in both themes, status never shown by colour alone, reduced motion respected.
-- A small, fast bundle: at most 49,500 B of JavaScript and 6,853 B of CSS, gzip. The ceilings began as the sizes of the dashboard this one replaced (42,642 B and 6,853 B); JavaScript was raised twice, for the beginner onboarding and for the Claude usage parser and plan limits, both asked for. `npm run build` fails past them. No runtime dependencies beyond Svelte, and no chart library.
+- A small, fast bundle: at most 52,000 B of JavaScript and 6,853 B of CSS, gzip. The ceilings began as the sizes of the dashboard this one replaced (42,642 B and 6,853 B); JavaScript was raised three times, for the beginner onboarding, for the Claude usage parser and plan limits, and for 0.4.2's Accounts page, Connect result and sign-in recovery, all asked for. `npm run build` fails past them. No runtime dependencies beyond Svelte, and no chart library.
 
 ## Scope
 
