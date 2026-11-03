@@ -349,7 +349,7 @@ test("account rows: status words, honest unknowns, low, last used and weekly ord
   // In use only for a ready account with a request in the latest bucket; never for a disabled one.
   assert.deepEqual([row({ recent_requests: traffic(19) }).word, row({ recent_requests: traffic(19) }).sub], ["In use", "serving now"]);
   assert.equal(row({ disabled: true, recent_requests: traffic(19) }).word, "Disabled");
-  assert.equal(row({ disabled: true }).sub, "never picked");
+  assert.equal(row({ disabled: true }).sub, "not in rotation");
   assert.equal(row({ recent_requests: traffic(16) }).word, "Ready");
   assert.equal(row({ recent_requests: traffic(16) }).last, "used 30m ago");
   assert.equal(row({ recent_requests: traffic(-1) }).last, "not in 200 min");

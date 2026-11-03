@@ -519,7 +519,7 @@ export function accountRow(a: Data, q: Limits, live: boolean, source: boolean, n
           : signIn
             ? "token refused"
             : a.disabled
-              ? "never picked"
+              ? "not in rotation"
               : s.detail || (s.lamp === "warn" ? "cooling down" : ""),
     session: bar(session),
     weekly: bar(weekly),
