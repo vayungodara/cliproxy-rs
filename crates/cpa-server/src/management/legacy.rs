@@ -365,8 +365,13 @@ pub(crate) async fn field_route(
         let cfg = current(&state);
         let value = match f.route {
             "routing/strategy" => {
+                // The effective strategy: an unset one is reset first, where Go answers
+                // round-robin. Nothing is written.
                 let raw = cfg["routing"]["strategy"].as_str().unwrap_or_default();
-                Value::from(routing_strategy(raw).unwrap_or(go_trim(raw)))
+                Value::from(match go_trim(raw) {
+                    "" => "soonest-reset",
+                    _ => routing_strategy(raw).unwrap_or(go_trim(raw)),
+                })
             }
             r if r.starts_with("quota-exceeded/") => cfg["quota-exceeded"][f.key].clone(),
             _ => cfg[f.key].clone(),

@@ -190,7 +190,7 @@ impl Dashboard {
                 .and_then(serde_json::Value::as_object)
                 .map(|r| s::get_string(r, "strategy"))
                 .filter(|v| !v.is_empty())
-                .unwrap_or_else(|| "round-robin".into());
+                .unwrap_or_else(|| "soonest-reset".into());
             items.push((t("routing_strategy"), strategy));
             for (label, value) in items {
                 doc.line(vec![

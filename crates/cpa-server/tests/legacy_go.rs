@@ -209,7 +209,26 @@ async fn go_v0_routes_replay_byte_for_byte() {
                 failures.push(format!("{at}: status {status}, Go {}: {body}", step["status"]));
                 continue;
             }
-            let want = step["raw_response"].as_str().unwrap();
+            let mut want = step["raw_response"].as_str().unwrap();
+            // docs/DIFFERENCES-FROM-GO.md "Default routing strategy": for an unset strategy
+            // Go answers round-robin, cliproxy-rs the effective soonest-reset.
+            if method == "GET" && route == "/routing/strategy" {
+                let cfg: Value = send("GET", "/config", String::new())
+                    .await
+                    .unwrap()
+                    .json()
+                    .await
+                    .unwrap();
+                if cfg["routing"]["strategy"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .trim()
+                    .is_empty()
+                {
+                    assert_eq!(want, r#"{"strategy":"round-robin"}"#, "{at}");
+                    want = r#"{"strategy":"soonest-reset"}"#;
+                }
+            }
             // yaml.v3's own syntax messages ("yaml: line 1: ...") cannot match another
             // parser; for those only the status and the error code are compared.
             let go_body: Value = serde_json::from_str(want).unwrap_or_default();

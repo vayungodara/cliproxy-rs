@@ -197,8 +197,10 @@ test("routing strategy names follow the server's parsing", () => {
   assert.equal(strategy("wrr").value, "weighted-round-robin");
   assert.equal(strategy("reset-first").value, "soonest-reset");
   assert.equal(strategy("soonest-reset").rust, true);
-  // Unset or unknown values are round robin, as both servers read them.
-  assert.equal(strategy(undefined).value, "round-robin");
+  // Unset is soonest reset on cliproxy-rs and round robin on Go; unknown values are round robin on both.
+  assert.equal(strategy(undefined).value, "soonest-reset");
+  assert.equal(strategy(" ").value, "soonest-reset");
+  assert.equal(strategy(undefined, false).value, "round-robin");
   assert.equal(strategy("random").value, "round-robin");
 });
 
