@@ -7343,9 +7343,6 @@ pub(crate) mod tests {
         let cfg = rt.config();
         let invalid = ExecError::local(400, FailureScope::Request, r#"{"error":"invalid_grant"}"#);
         let a = rt.store.get(&id).unwrap();
-        let mut empty = (*a).clone();
-        empty.metadata.insert("access_token".into(), " ".into());
-        assert!(!rt.store.reject_refused(&empty, &invalid), "empty access token");
         let other = ExecError::local(400, FailureScope::Request, r#"{"error":"server_error"}"#);
         assert!(!rt.store.reject_refused(&a, &other), "not invalid_grant");
         std::fs::write(
@@ -7368,6 +7365,22 @@ pub(crate) mod tests {
             rt.store.tokens_rejected(&b),
             "a stale failure lifted the new tokens' rejection"
         );
+        // A file whose access token is blank: nothing to compare, so never rejected.
+        std::fs::write(
+            dir.join(&id),
+            claude_file(" ", chrono::Duration::hours(1), false).to_string(),
+        )
+        .unwrap();
+        rt.store.reconcile(
+            cpa_core::config::credentials::from_auth_dir(&cfg)
+                .into_iter()
+                .map(crate::testing::local)
+                .collect(),
+        );
+        let empty = rt.store.get(&id).unwrap();
+        assert_eq!(empty.str("access_token"), Some(" "));
+        assert!(!rt.store.reject_refused(&empty, &invalid), "empty access token");
+        assert!(!rt.store.tokens_rejected(&empty));
         std::fs::remove_dir_all(dir).unwrap();
     }
 
