@@ -1940,6 +1940,7 @@ impl Scheduler {
         self.affinity.retain(|id| credentials.iter().any(|c| c.id == id));
         self.lcp.retain(|id| credentials.iter().any(|c| c.id == id));
         self.probes.retain(|id, _| credentials.iter().any(|c| c.id == *id));
+        self.rejected.retain(|id, _| credentials.iter().any(|c| c.id == *id));
     }
 }
 
