@@ -168,7 +168,7 @@
       </ol>
       <div class="row"><button class="key quiet" onclick={cancel}>Cancel sign-in</button></div>
     {:else if status === "ok"}
-      <p>{found || "Saved on the server and in rotation."}</p>
+      <p>{found || "Saved on the server."}</p>
       <div class="row"><a class="key primary" href="#credentials">View credentials</a></div>
     {:else if status === "unknown"}
       <p>The proxy no longer has this sign-in’s result. Check Credentials to see whether it was added.</p>

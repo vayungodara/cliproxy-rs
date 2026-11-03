@@ -198,6 +198,18 @@ try {
     await button("Cancel sign-in").click();
     await main.getByText("Cancelled", { exact: true }).waitFor();
     pass("plugin: a status reply delayed past cancel and restart does not change the new sign-in");
+
+    // An ordinary "ok" for an account that was disabled before: a re-login keeps it disabled,
+    // so the panel must not claim it serves.
+    (files = [{ ...kimi, disabled: true }]), (status = { status: "wait" });
+    await begin("Kimi");
+    status = { status: "ok" };
+    await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    await main.locator(".flow").getByText("Saved on the server.", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor();
+    assert.ok(!/in rotation/.test(await main.locator(".flow").textContent()), 'ok: no "in rotation" claim');
+    await page.screenshot({ path: `${out}/oauth-ok-disabled.png` });
+    pass("plugin: an ordinary successful sign-in says it was saved, never that it is in rotation");
   } else if (mode === "fake") {
     for (const [provider, redirect, email] of [
       ["Claude", (s) => `http://localhost:54545/callback?code=fake-code&state=${s}`, "claude-login@example.invalid"],
