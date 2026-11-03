@@ -398,7 +398,7 @@ export const strategies = [
   },
 ] as const;
 /** The strategy a configured value selects, aliases included, as the server reads it: unset is soonest reset on cliproxy-rs (`rust`) and round robin on Go; anything else is round robin. */
-export function strategy(value: unknown, rust = true): (typeof strategies)[number] {
+export function strategy(value: unknown, rust: boolean): (typeof strategies)[number] {
   const v = String(value ?? "").trim().toLowerCase() || (rust ? "soonest-reset" : "round-robin");
   const alias: Record<string, string> = {
     rr: "round-robin", roundrobin: "round-robin", ff: "fill-first", fillfirst: "fill-first",

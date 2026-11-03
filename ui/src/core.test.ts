@@ -192,16 +192,19 @@ test("Claude usage: placeholders and skipped buckets never show, null is never 0
 });
 
 test("routing strategy names follow the server's parsing", () => {
-  assert.equal(strategy("fill-first").name, "Fill first");
-  assert.equal(strategy(" FF ").value, "fill-first");
-  assert.equal(strategy("wrr").value, "weighted-round-robin");
-  assert.equal(strategy("reset-first").value, "soonest-reset");
-  assert.equal(strategy("soonest-reset").rust, true);
-  // Unset is soonest reset on cliproxy-rs and round robin on Go; unknown values are round robin on both.
-  assert.equal(strategy(undefined).value, "soonest-reset");
-  assert.equal(strategy(" ").value, "soonest-reset");
-  assert.equal(strategy(undefined, false).value, "round-robin");
-  assert.equal(strategy("random").value, "round-robin");
+  for (const rust of [true, false]) {
+    assert.equal(strategy("fill-first", rust).name, "Fill first");
+    assert.equal(strategy(" FF ", rust).value, "fill-first");
+    assert.equal(strategy("wrr", rust).value, "weighted-round-robin");
+    assert.equal(strategy("reset-first", rust).value, "soonest-reset");
+    assert.equal(strategy("random", rust).value, "round-robin");
+  }
+  assert.equal(strategy("soonest-reset", true).rust, true);
+  // Unset is soonest reset on cliproxy-rs and round robin on Go.
+  for (const unset of [undefined, "", " "]) {
+    assert.equal(strategy(unset, true).value, "soonest-reset");
+    assert.equal(strategy(unset, false).value, "round-robin");
+  }
 });
 
 test("reconcile keeps unchanged rows by identity", () => {

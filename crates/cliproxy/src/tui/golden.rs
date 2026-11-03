@@ -62,6 +62,9 @@ fn render(case: &Map<String, Value>) -> Vec<String> {
                 config: input["config"].as_object().cloned(),
                 auth_files: objects(&input["files"]),
                 api_keys: strings(&input["keys"]),
+                // What cliproxy-rs answers for an unset strategy; a configured one is
+                // shown as configured, as in Go.
+                strategy: Some("soonest-reset".into()),
                 err: None,
             });
             if let Some(e) = input.get("error").and_then(Value::as_str) {
@@ -69,6 +72,7 @@ fn render(case: &Map<String, Value>) -> Vec<String> {
                     config: None,
                     auth_files: Vec::new(),
                     api_keys: Vec::new(),
+                    strategy: None,
                     err: Some(e.into()),
                 });
             }
