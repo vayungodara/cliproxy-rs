@@ -167,6 +167,14 @@ async fn serve(path: &std::path::Path) -> (String, tokio::task::JoinHandle<()>) 
     )
 }
 
+/// `routing.strategy` in a config YAML, empty when unset.
+fn yaml_strategy(yaml: &str) -> String {
+    serde_yaml_ng::from_str::<serde_yaml_ng::Value>(yaml)
+        .ok()
+        .and_then(|v| v.get("routing")?.get("strategy")?.as_str().map(str::to_owned))
+        .unwrap_or_default()
+}
+
 #[tokio::test]
 async fn go_v0_routes_replay_byte_for_byte() {
     let hash = bcrypt::hash("fake-secret", 4).unwrap();
@@ -180,6 +188,8 @@ async fn go_v0_routes_replay_byte_for_byte() {
         let path = dir.join("config.yaml");
         let yaml = scenario["yaml"].as_str().unwrap().replace("$HASH", &hash);
         std::fs::write(&path, with_auth_dir(&yaml, &dir)).unwrap();
+        // routing.strategy in Go's state, from the fixture alone.
+        let mut go_strategy = yaml_strategy(&yaml);
         let (base, server) = serve(&path).await;
         let send = |method: &str, path: &str, body: String| {
             let method: wreq::Method = method.parse().unwrap();
@@ -201,15 +211,33 @@ async fn go_v0_routes_replay_byte_for_byte() {
             if method == "PUT" && route == "/config.yaml" && step["status"] == 200 && !sent.is_empty() {
                 sent = with_auth_dir(&sent, &dir);
             }
+            let unset = go_strategy.trim().is_empty();
+            if let Some(cfg) = step["config"].as_str() {
+                let cfg: Value = serde_json::from_str(cfg).unwrap();
+                go_strategy = cfg["routing"]["strategy"].as_str().unwrap_or_default().to_owned();
+            } else if method == "PUT" && route == "/config.yaml" && step["status"] == 200 {
+                go_strategy = yaml_strategy(step["body"].as_str().unwrap_or_default());
+            }
+            let strategy_read = method == "GET" && route == "/routing/strategy";
+            let file_before = strategy_read.then(|| std::fs::read(&path).unwrap());
             let res = send(method, route, sent).await.unwrap();
             let status = res.status().as_u16();
             let body = res.text().await.unwrap();
             compared += 1;
+            if let Some(before) = file_before {
+                assert_eq!(std::fs::read(&path).unwrap(), before, "{at}: the read wrote the config");
+            }
             if status != step["status"].as_u64().unwrap() as u16 {
                 failures.push(format!("{at}: status {status}, Go {}: {body}", step["status"]));
                 continue;
             }
-            let want = step["raw_response"].as_str().unwrap();
+            let mut want = step["raw_response"].as_str().unwrap();
+            // docs/DIFFERENCES-FROM-GO.md "Default routing strategy": for an unset strategy
+            // Go answers round-robin, cliproxy-rs the effective soonest-reset.
+            if strategy_read && unset {
+                assert_eq!(want, r#"{"strategy":"round-robin"}"#, "{at}");
+                want = r#"{"strategy":"soonest-reset"}"#;
+            }
             // yaml.v3's own syntax messages ("yaml: line 1: ...") cannot match another
             // parser; for those only the status and the error code are compared.
             let go_body: Value = serde_json::from_str(want).unwrap_or_default();

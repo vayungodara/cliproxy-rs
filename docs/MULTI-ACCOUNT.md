@@ -19,12 +19,30 @@ The provider's sign-in page uses whatever account your browser is logged into. T
 
 | Strategy | What it does | Use it when |
 |---|---|---|
-| `round-robin` (default) | Takes the accounts in turn, one request each. | The accounts are alike and you want the load even. |
+| `round-robin` | Takes the accounts in turn, one request each. | The accounts are alike and you want the load even. |
 | `fill-first` | Uses one account until it cools down or reaches a limit, then the next. | You prefer one account and keep another as a fallback. |
 | `weighted-round-robin` | Takes the accounts in turn in proportion to each account's `weight`. An account with weight 0 is left out. | The plans differ in size. |
-| `soonest-reset` (experimental, a cliproxy-rs addition) | Selects the account whose weekly window resets soonest, until it cools down or reaches a limit. An account without a known reset gets one request to learn it. | You want selection ordered by reset time. CLIProxyAPI reads this value as `round-robin`. |
+| `soonest-reset` (default, alias `reset-first`, a cliproxy-rs addition) | Selects the account whose weekly window resets soonest, until it cools down or reaches a limit, then the next soonest. An account without a known reset gets one request to learn it. | You have several subscriptions and want each one's quota used before its week resets. |
 
-`soonest-reset` is experimental and only runs if you choose it. Please report anything that looks wrong.
+`soonest-reset` is the strategy when `routing.strategy` is unset or empty. It spends the subscription whose weekly window frees up soonest, so quota that would expire at the reset is used first. Reset times come from the usage headers of each account's last response (`anthropic-ratelimit-unified-*` for Claude, `x-codex-*` for Codex). Among the ready accounts of the highest priority:
+
+- Accounts that have used up a usage window come last.
+- An account without a known reset gets one request to learn it, then ranks by what that response reported.
+- Accounts with a known reset go earliest reset first. Accounts whose responses report no reset come after them.
+- Accounts that rank the same take turns, one request each.
+
+Accounts that never report a reset, such as API keys and providers without usage headers, each get their one probe request and then rank the same, so after the first request each they take turns as with `round-robin`. When several providers serve the same model, the first provider in the request's provider order is used until none of its accounts is ready, as with `fill-first`; `round-robin` spreads requests across the providers instead.
+
+With session affinity on, a conversation stays on the account that served its first request while that account is ready. The strategy picks the account for new conversations and for a conversation whose account cools down or reaches a limit.
+
+To take the accounts in turn as before, set the strategy explicitly:
+
+```yaml
+routing:
+  strategy: round-robin
+```
+
+CLIProxyAPI has no `soonest-reset`: it reads that value, and an unset strategy, as `round-robin`.
 
 `soonest-reset` ranks accounts by the usage headers of their last responses. An account whose one-hour rest after a stated reset has ended (see [Cooldowns and limits](#cooldowns-and-limits)) still reports its window as used up, so it sorts last and is checked only when the other accounts are used up or cooling.
 
