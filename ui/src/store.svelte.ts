@@ -217,10 +217,13 @@ function signInHelp(e: unknown): string {
   return m;
 }
 
-/** Repeat a read while the tab is visible; never overlap calls. Returns a cleanup. */
-export function every(ms: number, work: () => Promise<unknown>) {
+/**
+ * Repeat a read while the tab is visible; never overlap calls. With `wake`, also read as soon
+ * as the tab becomes visible again. Returns a cleanup.
+ */
+export function every(ms: number, work: () => Promise<unknown>, wake = false) {
   let running = false;
-  const timer = setInterval(async () => {
+  const run = async () => {
     if (running || document.hidden || !store.logged) return;
     running = true;
     try {
@@ -228,6 +231,11 @@ export function every(ms: number, work: () => Promise<unknown>) {
     } finally {
       running = false;
     }
-  }, ms);
-  return () => clearInterval(timer);
+  };
+  const timer = setInterval(run, ms);
+  if (wake) document.addEventListener("visibilitychange", run);
+  return () => {
+    clearInterval(timer);
+    document.removeEventListener("visibilitychange", run);
+  };
 }

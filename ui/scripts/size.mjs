@@ -3,11 +3,13 @@
 // 42,642 B, CSS 6,853 B). JS was raised on 2026-10-03 to 47,200 B for the owner-requested
 // beginner onboarding (first-run checklist, Use with tools page, limits on the overview,
 // sign-in help), and again the same day to 49,500 B for the owner-requested Claude usage
-// parser (plain names, money, the newer limits list) and plan limits on the overview.
+// parser (plain names, money, the newer limits list) and plan limits on the overview, and on
+// 2026-11-03 to 52,000 B for 0.4.2's owner-approved Accounts page, Connect result and
+// sign-in recovery.
 import { readdirSync, readFileSync, copyFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
-const BUDGET = { js: 49_500, css: 6_853 };
+const BUDGET = { js: 52_000, css: 6_853 };
 
 copyFileSync("dist/index.html", "dist/management.html");
 const html = readFileSync("dist/index.html", "utf8");

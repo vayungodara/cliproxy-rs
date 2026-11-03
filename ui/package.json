@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build && node scripts/panel.mjs && node scripts/size.mjs",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "node --experimental-strip-types --test src/core.test.ts",
+    "test": "node --experimental-strip-types --test src/core.test.ts scripts/private-auth-dir.test.mjs",
     "preview": "vite preview --host 0.0.0.0"
   },
   "devDependencies": {
