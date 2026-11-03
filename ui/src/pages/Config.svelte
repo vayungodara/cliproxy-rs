@@ -22,9 +22,9 @@
   // Strategies this server understands; "soonest-reset" is a cliproxy-rs addition.
   const offered = $derived(strategies.filter((s) => !s.rust || store.kind === "rust"));
   const saved = $derived(readPath(store.config.data || {}, "routing/strategy", "") as string);
-  const current = $derived(strategy(saved));
+  const current = $derived(strategy(saved, store.kind === "rust"));
   const choose = (value: string) =>
-    store.act(() => store.replace("routing/strategy", saved, value, ""), `Routing strategy set to ${strategy(value).name.toLowerCase()}.`);
+    store.act(() => store.replace("routing/strategy", saved, value, ""), `Routing strategy set to ${strategy(value, store.kind === "rust").name.toLowerCase()}.`);
   function open(section: string) {
     store.act(async () => {
       edit = section

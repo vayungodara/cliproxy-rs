@@ -167,7 +167,7 @@ Personal use is still subject to each provider's terms, and providers can restri
 
 ### Several accounts
 
-Each sign-in creates a file in `auth-dir`. Routing chooses among ready credentials with `round-robin`, `fill-first`, `weighted-round-robin` or the opt-in, experimental `soonest-reset` strategy. The installer enables session affinity to keep a conversation on one account. When the setting is omitted, the server default is off. A 429 can move the request to another ready credential for that model. [MULTI-ACCOUNT.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/MULTI-ACCOUNT.md) covers routing and access from your other machines.
+Each sign-in creates a file in `auth-dir`. Routing chooses among ready credentials with `soonest-reset` (the default: the account whose weekly limit resets soonest goes first), `round-robin`, `fill-first` or `weighted-round-robin`. The installer enables session affinity to keep a conversation on one account. When the setting is omitted, the server default is off. A 429 can move the request to another ready credential for that model. [MULTI-ACCOUNT.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/MULTI-ACCOUNT.md) covers routing and access from your other machines.
 
 ## CLIProxyAPI compatibility
 

@@ -186,7 +186,7 @@
           >
         </div>
         <p class="routing legend">
-          Routing <b>{strategy(routing.strategy).name.toLowerCase()}</b>
+          Routing <b>{strategy(routing.strategy, store.kind === "rust").name.toLowerCase()}</b>
           {#if routing.retry?.["request-retry"] !== undefined}· {routing.retry["request-retry"]} retries{/if}
           {#if routing["session-affinity"]}· session affinity{/if}
         </p>

@@ -17,6 +17,10 @@ pub struct Data {
     pub(super) config: Option<Object>,
     pub(super) auth_files: Vec<Object>,
     pub(super) api_keys: Vec<String>,
+    /// The server's effective strategy (`GET /v0/management/routing/strategy`), shown
+    /// when the config leaves it unset: cliproxy-rs reads that as soonest-reset, Go as
+    /// round-robin. `None` when the server did not answer it.
+    pub(super) strategy: Option<String>,
     pub(super) err: Option<String>,
 }
 
@@ -24,7 +28,7 @@ pub struct Dashboard {
     client: Arc<Client>,
     pub vp: Viewport,
     width: usize,
-    last: Option<(Option<Object>, Vec<Object>, Vec<String>)>,
+    last: Option<Data>,
     /// Sizes the cards to fit the screen. Go's `(width-2)/2` makes the pair three
     /// columns wider than the terminal, which cuts the right card's border; the golden
     /// test turns this off to compare with Go's exact layout.
@@ -49,6 +53,16 @@ impl Dashboard {
             let config = client.get_config().await;
             let files = client.get_auth_files().await;
             let keys = client.get_api_keys().await;
+            // Not part of Go's fetch: a failure only drops the value.
+            let strategy = client
+                .get_json("/v0/management/routing/strategy")
+                .await
+                .ok()
+                .and_then(|o| {
+                    o.get("strategy")
+                        .and_then(serde_json::Value::as_str)
+                        .map(|v| v.trim().to_owned())
+                });
             let err = [config.as_ref().err(), files.as_ref().err(), keys.as_ref().err()]
                 .into_iter()
                 .flatten()
@@ -58,6 +72,7 @@ impl Dashboard {
                 config: config.ok(),
                 auth_files: files.unwrap_or_default(),
                 api_keys: keys.unwrap_or_default(),
+                strategy,
                 err,
             })
         })
@@ -76,7 +91,7 @@ impl Dashboard {
                 self.vp.set_content(doc);
             }
             None => {
-                self.last = Some((data.config, data.auth_files, data.api_keys));
+                self.last = Some(data);
                 self.vp.set_content(self.render());
             }
         }
@@ -102,9 +117,14 @@ impl Dashboard {
 
     /// Go `renderDashboard`.
     fn render(&self) -> Doc {
-        let (cfg, files, keys) = match &self.last {
-            Some((cfg, files, keys)) => (cfg.as_ref(), files.as_slice(), keys.as_slice()),
-            None => (None, &[][..], &[][..]),
+        let (cfg, files, keys, effective) = match &self.last {
+            Some(d) => (
+                d.config.as_ref(),
+                d.auth_files.as_slice(),
+                d.api_keys.as_slice(),
+                d.strategy.as_deref(),
+            ),
+            None => (None, &[][..], &[][..], None),
         };
         let mut doc = Doc::default();
         doc.title(t("dashboard_title"));
@@ -189,7 +209,8 @@ impl Dashboard {
                 .get("routing")
                 .and_then(serde_json::Value::as_object)
                 .map(|r| s::get_string(r, "strategy"))
-                .filter(|v| !v.is_empty())
+                .filter(|v| !v.trim().is_empty())
+                .or_else(|| effective.filter(|v| !v.is_empty()).map(str::to_owned))
                 .unwrap_or_else(|| "round-robin".into());
             items.push((t("routing_strategy"), strategy));
             for (label, value) in items {
@@ -219,11 +240,50 @@ mod tests {
                 config: None,
                 auth_files: Vec::new(),
                 api_keys: Vec::new(),
+                strategy: None,
                 err: None,
             });
             let cards = tab.vp.text().into_iter().find(|l| l.starts_with('╭')).unwrap();
             let used = s::width(&cards);
             assert!(used <= width && used + 2 >= width, "{width}: {used}");
+        }
+    }
+
+    /// A blank configured strategy shows the server's effective one (soonest-reset on
+    /// cliproxy-rs), round-robin when the server does not say (Go's reading); a
+    /// configured one is shown as configured.
+    #[test]
+    fn an_unset_strategy_shows_the_servers_effective_one() {
+        let _locale = super::super::i18n::LOCALE_LOCK
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut tab = Dashboard::new(Arc::new(Client::new("", "")));
+        tab.set_size(80, 100);
+        for (configured, effective, shown) in [
+            ("", Some("soonest-reset"), "soonest-reset"),
+            ("  ", Some("soonest-reset"), "soonest-reset"),
+            ("", None, "round-robin"),
+            ("fill-first", Some("soonest-reset"), "fill-first"),
+        ] {
+            let config = serde_json::json!({"routing": {"strategy": configured}});
+            tab.data(Data {
+                config: config.as_object().cloned(),
+                auth_files: Vec::new(),
+                api_keys: Vec::new(),
+                strategy: effective.map(str::to_owned),
+                err: None,
+            });
+            let line = tab
+                .vp
+                .text()
+                .into_iter()
+                .find(|l| l.contains("Routing Strategy:"))
+                .unwrap();
+            assert_eq!(
+                line.split(':').nth(1).unwrap().trim(),
+                shown,
+                "{configured:?} {effective:?}"
+            );
         }
     }
 }
