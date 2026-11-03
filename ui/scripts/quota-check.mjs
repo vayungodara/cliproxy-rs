@@ -48,7 +48,7 @@ try {
   await page.goto(url);
   await evaluate(`(()=>{
     window.quotaFixture = {
-      status: 200, used: 37, calls: 0, now: Date.parse('2026-10-31T12:01:00Z'),
+      status: 200, used: 37, calls: 0, hold: false, deleted: [], patched: [], refreshed: [], now: Date.parse('2026-10-31T12:01:00Z'),
       files: [
         {name:'claude-setup.json', auth_index:'claude-test', type:'claude', status:'active', success:1},
         {name:'codex.json', auth_index:'codex-test', type:'codex', status:'active', success:1, quota:{observed_at:'2026-10-31T12:00:00Z', signals:{'x-codex-primary-used-percent':'24','x-codex-primary-window-minutes':'300'}}}
@@ -61,12 +61,28 @@ try {
       if (!path.includes('/v8/management/')) return original(input, init);
       const f = window.quotaFixture;
       let body;
+      const json = (b, status = 200) => new Response(JSON.stringify(b), {status, headers:{'Content-Type':'application/json','X-CPA-COMMIT':'fixture'}});
+      const sent = init?.body && typeof init.body === 'string' ? JSON.parse(init.body) : {};
       if (path.endsWith('/config')) body = {};
-      else if (path.endsWith('/credentials') && init?.method === 'DELETE') body = {status:'partial', deleted:1, files:['claude-setup.json'], failed:[{name:'codex.json', error:'file is busy'}]};
-      else if (path.endsWith('/credentials')) body = {files:f.files};
+      else if (path.endsWith('/credentials') && init?.method === 'DELETE') {
+        f.deleted.push(...sent.names);
+        if (sent.names.includes('codex.json')) return json({error:'file is busy'}, 409);
+        f.files = f.files.filter((x) => !sent.names.includes(x.name));
+        body = {status:'ok'};
+      } else if (path.endsWith('/credentials/status')) {
+        f.patched.push(sent.auth_index);
+        f.files.filter((x) => x.auth_index === sent.auth_index).forEach((x) => (x.disabled = sent.disabled));
+        body = {status:'ok'};
+      } else if (path.endsWith('/credentials/refresh')) {
+        f.refreshed.push(sent.auth_index);
+        if (sent.auth_index === 'codex-test') return json({error:'refresh refused'}, 409);
+        body = {status:'ok'};
+      } else if (path.endsWith('/credentials')) body = {files:f.files};
       else if (path.endsWith('/plugins')) body = {plugins:[]};
       else if (path.endsWith('/requests/api-call')) {
         f.calls++;
+        // A held request answers only once the test releases it.
+        if (f.hold) await new Promise((r) => (f.release = r));
         const request = JSON.parse(init.body);
         body = {status_code:f.status, body:JSON.stringify(request.authIndex === 'claude-test' ? {five_hour:{utilization:f.used}} : {rate_limit:{primary_window:{used_percent:f.used}}})};
       } else throw new Error('Unexpected management request: '+path);
@@ -147,14 +163,54 @@ try {
   await page.waitForFunction(() => [...document.querySelectorAll(".detail button")].some((b) => !b.disabled && b.textContent === "Check quota"), null, { timeout: 15_000 });
   console.log("PASS the drawer's Check quota is disabled for 2 minutes and re-enables by itself");
 
-  // A batch delete the server only partly did: the failed account stays selected and is named.
+  // The 2-minute wait counts from when a request is sent, not when it was queued, and a
+  // queued account cannot be queued again from its drawer.
+  await later();
+  const start = await evaluate("window.quotaFixture.calls");
+  await evaluate("window.quotaFixture.hold = true");
+  await page.getByRole("button", { name: "Check quotas", exact: true }).click();
+  await page.waitForFunction((n) => window.quotaFixture.calls === n + 1 && window.quotaFixture.release, start);
+  await page.waitForFunction(() => [...document.querySelectorAll(".detail button")].some((b) => b.disabled && b.textContent.startsWith("Checked")), null, { timeout: 15_000 });
+  await evaluate("window.quotaFixture.now += 90000; window.quotaFixture.release()");
+  await page.waitForFunction((n) => window.quotaFixture.calls === n + 2, start);
+  await evaluate("window.quotaFixture.hold = false; window.quotaFixture.release()");
+  await page.waitForFunction(() => ![...document.querySelectorAll("main button")].some((b) => b.textContent.startsWith("Checking")));
+  assert.equal(await evaluate("window.quotaFixture.calls"), start + 2, "the drawer adds nothing to a queued check");
+  await evaluate("window.quotaFixture.now += 40000");
+  await click("Check quotas");
+  assert.equal(await evaluate("window.quotaFixture.calls"), start + 3, "only the account sent 130 s ago is due; the one sent 40 s ago waits");
+  console.log("PASS the 2-minute wait starts when the request is sent, and a queued account is not queued twice");
+
+  // Batches: a shared file is one unit and every account it holds is named; failures do not
+  // stop the rest.
   page.on("dialog", (d) => d.accept());
+  await evaluate(`window.quotaFixture.files.push(
+    {name:'multi.json', auth_index:'multi-a', type:'gemini-cli', email:'one@example.com', status:'active'},
+    {name:'multi.json', auth_index:'multi-b', type:'gemini-cli', email:'two@example.com', status:'active'},
+    {name:'kimi.json', auth_index:'kimi-test', type:'kimi', status:'active'})`);
+  await main.getByLabel("Select one@example.com").waitFor({ timeout: 15_000 });
+  await main.getByLabel("Select one@example.com").check();
+  assert.match(await main.locator(".batch").textContent(), /1 selected\..*Actions also reach two@example\.com, which shares a file/);
+  assert.equal(await evaluate("document.querySelector('[role=status].sr').textContent"), "1 selected.");
+  assert.equal(await evaluate("document.querySelector('input[aria-label=\"Select all shown\"]').indeterminate"), true);
+  await main.locator(".batch").getByRole("button", { name: "Disable 2" }).click();
+  await page.getByText("2 accounts disabled.").waitFor();
+  assert.deepEqual(await evaluate("window.quotaFixture.patched"), ["multi-a", "multi-b"]);
+  console.log("PASS a status change on a shared file reaches, names and counts every account in it");
+
   await main.getByLabel("Select all shown").check();
-  await main.locator(".batch").getByRole("button", { name: "Delete 2…" }).click();
-  await page.getByText("1 deleted. Not deleted: codex.json (file is busy)").waitFor();
+  assert.equal(await evaluate("document.querySelector('input[aria-label=\"Select all shown\"]').indeterminate"), false);
+  await main.locator(".batch").getByRole("button", { name: "Refresh tokens for 5" }).click();
+  await page.getByText("Tokens refreshed for 3 files. 1 failed: codex.json (refresh refused)").waitFor();
+  assert.deepEqual((await evaluate("window.quotaFixture.refreshed")).sort(), ["claude-test", "codex-test", "kimi-test", "multi-a"]);
+  console.log("PASS a batch refresh goes on past a failure, once per file, and names what failed");
+
+  await main.locator(".batch").getByRole("button", { name: "Delete 5…" }).click();
+  await page.getByText("3 files deleted. 1 failed: codex.json (file is busy)").waitFor();
+  assert.deepEqual((await evaluate("window.quotaFixture.deleted")).sort(), ["claude-setup.json", "codex.json", "kimi.json", "multi.json"]);
   assert.match(await main.locator(".batch").textContent(), /^\s*1 selected\./);
   assert.equal(await main.getByLabel("Select codex.json").isChecked(), true);
-  console.log("PASS a partial batch delete keeps the failed account selected and names it");
+  console.log("PASS a batch delete removes each file once, goes on past a failure and keeps the failed account selected");
   await page.setViewportSize({ width: 390, height: 844 });
   await settle();
   assert.equal(await evaluate("document.documentElement.scrollWidth > innerWidth"), false);

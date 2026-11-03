@@ -292,6 +292,18 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .toolbar .search { margin-left: auto; }
 .acct .item, .acct .columns { display: grid; grid-template-columns: 16px 164px minmax(0, 1fr) 128px 128px 138px 132px; gap: 16px; align-items: center; }
 .acct .item { min-height: 60px; padding: 10px 8px; margin: 0 -8px; border-radius: 8px; }
+/* The full row needs about 980px; narrower lists (a 1024px window with the sidebar) stack each account. */
+.acct { container-type: inline-size; }
+@container (max-width: 980px) {
+  .acct .columns { display: none; }
+  .acct .item { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr); gap: 10px 14px; padding: 14px 0; margin: 0; }
+  .acct .item > .name { grid-area: 1 / 2; }
+  .acct .item > .st { grid-area: 1 / 3; justify-content: end; text-align: right; }
+  .acct .item > .win:nth-of-type(1) { grid-area: 2 / 2; }
+  .acct .item > .win:nth-of-type(2) { grid-area: 2 / 3; }
+  .acct .item > .grille { grid-area: 3 / 2; }
+  .acct .item > .last { grid-area: 3 / 3; display: flex; flex-wrap: wrap; gap: 0 6px; justify-content: end; }
+}
 .acct .sel { background: var(--hover); }
 .acct .off-row :is(.name, .win) { opacity: 0.6; }
 .acct button.name { display: grid; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
@@ -389,16 +401,8 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .creds .item > .count { grid-column: 3; grid-row: 2; }
   .creds .item > .state-label { grid-row: 1; grid-column: 3; text-align: right; }
   .columns { display: none; }
-  .acct .columns { display: none; }
   .toolbar .search { margin-left: 0; width: 100%; }
   .toolbar .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
-  .acct .item { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr); gap: 10px 14px; padding: 14px 0; margin: 0; }
-  .acct .item > .name { grid-area: 1 / 2; }
-  .acct .item > .st { grid-area: 1 / 3; justify-content: end; text-align: right; }
-  .acct .item > .win:nth-of-type(1) { grid-area: 2 / 2; }
-  .acct .item > .win:nth-of-type(2) { grid-area: 2 / 3; }
-  .acct .item > .grille { grid-area: 3 / 2; }
-  .acct .item > .last { grid-area: 3 / 3; display: flex; flex-wrap: wrap; gap: 0 6px; justify-content: end; }
   .usage-row, .usage-model, .usage-event, .key-row, .list .catalog { display: flex; flex-wrap: wrap; gap: 8px 14px; padding-left: 0; }
   /* A limit on a phone: name and percentage, then the meter and when it resets. */
   .quota, .windows .quota { grid-template-columns: 216px minmax(0, 1fr); gap: 4px 12px; padding-left: 0; }

@@ -56,16 +56,40 @@
   );
   const pick = (k: string) => (sel = sel.includes(k) ? sel.filter((x) => x !== k) : [...sel, k]);
   const all = $derived(shown.length > 0 && shown.every((r) => sel.includes(r.k)));
-  function batch<T>(list: T[], run: (a: T) => Promise<unknown>, done: string, ask = "") {
+  const some = $derived(!all && shown.some((r) => sel.includes(r.k)));
+  // Accounts that share one file (multi-project files, plugin sources) change together: a
+  // delete removes the file, and a plugin source's status change reaches every account it
+  // expands to (Go auth_files_fields.go patchPluginVirtualSourceStatus). Batch actions act on
+  // whole files and name every account they reach, selected or not.
+  const file = (a: Data) => (a.runtime_only ? `\u0000${key(a)}` : a.name);
+  const reach = $derived([...new Set(picked.map((r) => file(r.a)))].map((f) => rows.filter((r) => file(r.a) === f).map((r) => r.a)));
+  const extra = $derived(reach.flat().filter((a) => !sel.includes(key(a))));
+  const names = (list: Data[]) => list.map(credName).join(", ");
+  /** Runs every unit, past ordinary failures, then reports how many finished and which failed. */
+  function batch<T>(units: T[], name: (u: T) => string, run: (u: T) => Promise<unknown>, done: (n: number) => string, ask = "") {
     if (ask && !confirm(ask)) return;
     store.act(async () => {
-      try {
-        for (const a of list) await run(a);
-      } finally {
-        await reload();
-      }
-    }, done);
+      const failed: string[] = [];
+      for (const u of units) await run(u).catch((e) => failed.push(`${name(u)} (${e instanceof Error ? e.message : e})`));
+      await reload();
+      if (failed.length) throw new Error(`${done(units.length - failed.length)}. ${failed.length} failed: ${failed.join(", ")}`);
+    }, `${done(units.length)}.`);
   }
+  // Every account of a file that holds a selected account to switch, so a shared source never
+  // ends half switched.
+  const toSwitch = (disabled: boolean) =>
+    reach.filter((g) => g.some((a) => sel.includes(key(a)) && !!a.disabled !== disabled)).flat().filter((a) => !!a.disabled !== disabled);
+  const setStatus = (disabled: boolean) => {
+    const list = toSwitch(disabled);
+    const also = list.filter((a) => !sel.includes(key(a)));
+    batch(
+      list,
+      credName,
+      (a) => api("/credentials/status", "PATCH", { ...lookup(a), disabled }),
+      (n) => `${plural(n, "account")} ${disabled ? "disabled" : "enabled"}`,
+      also.length ? `${disabled ? "Disable" : "Enable"} ${plural(list.length, "account")}? These share a file with your selection and change too: ${names(also)}` : "",
+    );
+  };
   const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
   // Detail panel state for the open credential.
@@ -229,6 +253,7 @@
               type="checkbox"
               aria-label="Select all shown"
               checked={all}
+              indeterminate={some}
               onchange={() => (sel = all ? sel.filter((k) => !shown.some((r) => r.k === k)) : [...new Set([...sel, ...shown.map((r) => r.k)])])}
             /><span aria-hidden="true">Status</span><span aria-hidden="true">Account</span><span aria-hidden="true">Session</span><span aria-hidden="true">Weekly</span><span
               aria-hidden="true">Requests, 200 min</span
@@ -313,42 +338,42 @@
             <li class="state"><p>No accounts match.</p></li>
           {/each}
         </ul>
+        <p class="sr" role="status">{picked.length ? `${picked.length} selected.` : ""}</p>
         {#if picked.length}
-          {@const off = picked.filter((r) => r.a.disabled).map((r) => r.a)}
-          {@const on = picked.filter((r) => !r.a.disabled).map((r) => r.a)}
-          {@const files = picked.filter((r) => !r.a.runtime_only).map((r) => r.a)}
+          {@const off = toSwitch(false)}
+          {@const on = toSwitch(true)}
+          {@const files = reach.filter((g) => !g[0].runtime_only)}
+          {@const gone = files.flat()}
           <div class="batch" role="region" aria-label="Selected accounts">
             <p>
               <b>{picked.length} selected.</b>
               {#if hidden.length}<span class="muted">{hidden.length === 1 ? "1 of them is" : `${hidden.length} of them are`} {where}.</span>{/if}
+              {#if extra.length}<span class="muted">Actions also reach {names(extra)}, which {extra.length === 1 ? "shares" : "share"} a file with them.</span>{/if}
             </p>
-            {#if off.length}<button class="key small" disabled={store.busy || !store.can("PATCH", "/credentials/status")}
-                onclick={() => batch(off, (a) => api("/credentials/status", "PATCH", { ...lookup(a), disabled: false }), `${plural(off.length, "account")} enabled.`)}
+            {#if off.length}<button class="key small" disabled={store.busy || !store.can("PATCH", "/credentials/status")} onclick={() => setStatus(false)}
                 >Enable {off.length}</button
               >{/if}
-            {#if on.length}<button class="key small" disabled={store.busy || !store.can("PATCH", "/credentials/status")}
-                onclick={() => batch(on, (a) => api("/credentials/status", "PATCH", { ...lookup(a), disabled: true }), `${plural(on.length, "account")} disabled.`)}
+            {#if on.length}<button class="key small" disabled={store.busy || !store.can("PATCH", "/credentials/status")} onclick={() => setStatus(true)}
                 >Disable {on.length}</button
               >{/if}
             <button class="key small" disabled={store.busy || !store.can("POST", "/credentials/refresh")}
-              onclick={() => batch(picked.map((r) => r.a), (a) => api("/credentials/refresh", "POST", lookup(a)), `${plural(picked.length, "token")} refreshed.`)}
-              >Refresh tokens for {picked.length}</button
+              onclick={() =>
+                // One refresh per file: accounts in one file share its token.
+                batch(reach, names, (g) => api("/credentials/refresh", "POST", lookup(g.find((a) => sel.includes(key(a))) || g[0])), (n) => `Tokens refreshed for ${plural(n, "file")}`)}
+              >Refresh tokens for {reach.flat().length}</button
             >
             {#if files.length}<button class="key small danger" disabled={store.busy || !store.can("DELETE", "/credentials")}
                 onclick={() =>
                   batch(
-                    [files],
-                    // `list` is the selection as clicked; `files` changes once the selection does.
-                    async (list: Data[]) => {
-                      // Several names: the server answers 207 "partial" with the ones it could not delete.
-                      const r = await api("/credentials", "DELETE", { names: list.map((a) => a.name) });
-                      const failed: Data[] = r?.failed || [];
-                      sel = sel.filter((k) => !list.some((a) => key(a) === k && !failed.some((f) => f.name === a.name)));
-                      if (failed.length) throw new Error(`${list.length - failed.length} deleted. Not deleted: ${failed.map((f) => `${f.name} (${f.error})`).join(", ")}`);
+                    files,
+                    (g) => g[0].name,
+                    async (g) => {
+                      await api("/credentials", "DELETE", { names: [g[0].name] });
+                      sel = sel.filter((k) => !g.some((a) => key(a) === k));
                     },
-                    `${plural(files.length, "account")} deleted.`,
-                    `Delete ${plural(files.length, "account")}? Their files are removed from the server: ${files.map((a) => a.name).join(", ")}`,
-                  )}>Delete {files.length}…</button
+                    (n) => `${plural(n, "file")} deleted`,
+                    `Delete ${plural(gone.length, "account")}? ${files.length === 1 ? "Its file is" : "Their files are"} removed from the server: ${files.map((g) => `${g[0].name} (${names(g)})`).join(", ")}`,
+                  )}>Delete {gone.length}…</button
               >{/if}
             <button class="key small quiet" onclick={() => (sel = [])}><svg class="i" aria-hidden="true"><use href="#i-close" /></svg>Clear</button>
           </div>

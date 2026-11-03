@@ -487,7 +487,9 @@ export function accountRow(a: Data, q: Limits, live: boolean, source: boolean, n
       ? "not reported"
       : q && "error" in q && q.error
         ? "usage read failed"
-        : source
+        : q && "windows" in q
+          ? "no usage windows reported"
+          : source
           ? "not checked"
           : "no usage source";
   const bar = (w?: Window): Bar =>

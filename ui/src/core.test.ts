@@ -361,6 +361,7 @@ test("account rows: status words, honest unknowns, low, last used and weekly ord
   assert.deepEqual(row({}, null, false, false).weekly, { why: "no usage source" });
   assert.deepEqual(row({ disabled: true }, { error: "x" }).session, { why: "not checked" });
   assert.deepEqual(row({}, checked([w("Current session", 40)])).weekly, { why: "not reported" });
+  assert.deepEqual(row({}, checked([])).session, { why: "no usage windows reported" });
   assert.equal(row({}).age, "never checked");
   assert.equal(row({ disabled: true }).age, "disabled");
 
