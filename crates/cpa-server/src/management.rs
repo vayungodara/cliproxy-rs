@@ -71,6 +71,8 @@ pub struct Management {
     pub(crate) login_base: Option<String>,
     /// Told the state of every management login that has finished (tests only).
     pub(crate) login_settled: Option<tokio::sync::mpsc::UnboundedSender<String>>,
+    /// Every login worker panics on its blocking save task (tests only).
+    pub(crate) login_panic: bool,
     /// Go `Handler.logDir`: resolved once at startup.
     pub(crate) log_dir: PathBuf,
     /// The remote store mirroring config and auth files, when one is configured.
@@ -103,6 +105,8 @@ pub struct Options {
     /// Receives the state of every management login once its worker has finished,
     /// saved, failed or cancelled (tests only).
     pub login_settled: Option<tokio::sync::mpsc::UnboundedSender<String>>,
+    /// Every management login worker panics on its blocking save task (tests only).
+    pub login_panic: bool,
     /// Overrides the log directory Go resolves at startup (tests only).
     pub log_dir: Option<PathBuf>,
     /// A Postgres, git or object store mirroring config and auth files (Go's
@@ -165,6 +169,7 @@ impl Management {
         let store = options.store.take();
         let auth_dir = options.auth_dir.take();
         let login_settled = options.login_settled.take();
+        let login_panic = options.login_panic;
         let log_zone = options.log_zone;
         let plugin_store = plugin_store::StoreState::new(
             options.plugin_store_registry_url.take(),
@@ -189,6 +194,7 @@ impl Management {
             forwarders: Mutex::default(),
             login_base,
             login_settled,
+            login_panic,
             log_dir,
             store,
             auth_dir,
