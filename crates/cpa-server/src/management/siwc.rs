@@ -6,6 +6,7 @@
 //! the issued client ID, through the v8 callback route alone.
 
 use cpa_core::gostr::GoStr;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
@@ -432,7 +433,8 @@ pub(super) fn callback(state: &Arc<Management>, req: &CallbackRequest, query: Op
         return ok;
     }
     let (worker, task_flow) = (state.clone(), flow.clone());
-    let task = tokio::spawn(async move {
+    let (guard, guard_sid, guard_flow) = (state.clone(), sid.clone(), flow.clone());
+    let work = async move {
         let oauth = match &worker.login_base {
             Some(base) => cpa_exec::codex_oauth::CodexOAuth::new(super::oauth::login_client(&worker))
                 .with_siwc_token_url(&format!("{base}/api/accounts/oauth/token")),
@@ -461,9 +463,22 @@ pub(super) fn callback(state: &Arc<Management>, req: &CallbackRequest, query: Op
         let tokens = tokens.ok();
         let _ = super::auth_files::with_codex_lock(&worker, move |state, lock| {
             let _prepared = &prepared;
-            commit(state, &sid, &task_flow, tokens.as_ref(), lock)
+            // The commit runs on a blocking thread, outside the worker's panic catch.
+            let committed = catch_unwind(AssertUnwindSafe(|| {
+                commit(state, &sid, &task_flow, tokens.as_ref(), lock)
+            }));
+            committed.unwrap_or_else(|_| {
+                tracing::error!("codex SIWC commit panicked; sign-in {sid} failed");
+                fail_session(state, &sid, &task_flow, super::oauth::PANIC_MESSAGE);
+                Ok(())
+            })
         })
         .await;
+    };
+    let task = tokio::spawn(async move {
+        if super::oauth::panicked(&guard_sid, "codex SIWC", work).await {
+            fail_session(&guard, &guard_sid, &guard_flow, super::oauth::PANIC_MESSAGE);
+        }
     });
     *flow.exchange.lock().unwrap_or_else(PoisonError::into_inner) = Some(task.abort_handle());
     ok
