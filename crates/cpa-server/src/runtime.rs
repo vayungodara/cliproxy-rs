@@ -638,7 +638,7 @@ impl Runtime {
         // Still under the preparation lock, so a refresh queued behind this one sees it.
         let (patch, publish_proxy) = prepared.inspect_err(|e| {
             if let Some(refused) = &refused {
-                self.store.reject_refused(refused, e);
+                self.store.reject_refused(refused, registered.registration, e);
             }
         })?;
         let publish_proxy = move |c: &mut Credential| {
@@ -992,7 +992,10 @@ async fn run_refresh_job(
     };
     let worker = workers.acquire_owned().await;
     let failed = rejected.then_some(credential.revision);
-    let prepare = AssertUnwindSafe(rt.prepare_credential(&credential.id, &cfg, failed)).catch_unwind();
+    // A 401 refresh records a refused token as the inline one does.
+    let refused = rejected.then_some(&*credential);
+    let prepare =
+        AssertUnwindSafe(rt.prepare_credential_with(&credential.id, &cfg, failed, false, refused)).catch_unwind();
     tokio::pin!(prepare);
     // Past the bound, counted from when the job got its worker, the worker goes to the
     // next job, and this one awaits the same preparation, never cancelled, still
@@ -2198,9 +2201,11 @@ impl CredentialStore {
     /// Records that `refused`, the credential as an upstream refused it with a 401, can no
     /// longer recover, when `error` (its refresh's) is invalid_grant and the store still
     /// holds it with the same tokens and a non-empty access token (Go
-    /// `accessTokenRejected`). Checked and recorded under the store's read lock, so a
-    /// replacement or removal lands entirely before or after.
-    pub(crate) fn reject_refused(&self, refused: &Credential, error: &ExecError) -> bool {
+    /// `accessTokenRejected`), under the registration the refresh started under
+    /// (`registration`, Go `RegistrationEpoch`), so a credential removed and imported
+    /// again while the exchange ran is not rejected. Checked and recorded under the
+    /// store's read lock, so a replacement or removal lands entirely before or after.
+    pub(crate) fn reject_refused(&self, refused: &Credential, registration: u64, error: &ExecError) -> bool {
         if !crate::classify::is_invalid_grant(error.status, &String::from_utf8_lossy(&error.body)) {
             return false;
         }
@@ -2210,6 +2215,7 @@ impl CredentialStore {
         };
         let token = effective_access_token(refused);
         if current.disabled
+            || self.registered(&current.id).registration != registration
             || token.is_empty()
             || effective_access_token(current) != token
             || credentials_changed(refused, current)
@@ -3637,7 +3643,7 @@ async fn refresh_codex_file(
         // Recorded while the preparation lock is held ([`Runtime::prepare_credential_with`]).
         let patch = refresher.refresh_locked(&view, &disk, mode).await.inspect_err(|e| {
             if let Some(refused) = &refused {
-                store.reject_refused(refused, e);
+                store.reject_refused(refused, registered.registration, e);
             }
         })?;
         if patch.is_empty() {
@@ -7208,6 +7214,33 @@ pub(crate) mod tests {
         file: Value,
         answer: (u16, &'static str),
     ) -> (Arc<Runtime>, std::path::PathBuf, Arc<std::sync::atomic::AtomicUsize>) {
+        claude_gated(name, file, answer, None).await
+    }
+
+    /// Holds [`claude_gated`]'s token exchanges: each notifies `entered`, then answers
+    /// once it takes a `release` permit.
+    #[derive(Clone)]
+    struct Gate {
+        entered: Arc<tokio::sync::Notify>,
+        release: Arc<tokio::sync::Semaphore>,
+    }
+
+    impl Gate {
+        fn new() -> Self {
+            Self {
+                entered: Arc::new(tokio::sync::Notify::new()),
+                release: Arc::new(tokio::sync::Semaphore::new(0)),
+            }
+        }
+    }
+
+    /// [`claude_refusing`] whose exchanges wait on `gate`.
+    async fn claude_gated(
+        name: &str,
+        file: Value,
+        answer: (u16, &'static str),
+        gate: Option<Gate>,
+    ) -> (Arc<Runtime>, std::path::PathBuf, Arc<std::sync::atomic::AtomicUsize>) {
         let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let app = axum::Router::new().route(
             "/token",
@@ -7215,6 +7248,10 @@ pub(crate) mod tests {
                 let calls = calls.clone();
                 move || async move {
                     calls.fetch_add(1, Ordering::SeqCst);
+                    if let Some(gate) = gate {
+                        gate.entered.notify_one();
+                        gate.release.acquire().await.unwrap().forget();
+                    }
                     (axum::http::StatusCode::from_u16(answer.0).unwrap(), answer.1)
                 }
             }),
@@ -7286,7 +7323,7 @@ pub(crate) mod tests {
         assert!(rt.store.tokens_rejected(&current));
         assert!(rt.store.blocked(&current, ""));
         assert!(rt.store.select(claude()).is_none(), "no longer selected");
-        // A background refresh queued before the rejection refuses under the lock.
+        // A refresh that starts after the rejection refuses too.
         assert_eq!(rt.prepare_credential(&id, &cfg, None).await.unwrap_err().status, 401);
         assert_eq!(calls.load(Ordering::SeqCst), 1);
         // The background loop leaves it alone too, and so does the credits fallback.
@@ -7331,6 +7368,119 @@ pub(crate) mod tests {
         std::fs::remove_dir_all(dir).unwrap();
     }
 
+    /// Refreshes queued on the preparation lock behind a 401 refresh that is then refused
+    /// with invalid_grant (a request's due preparation and a background 401 job) find
+    /// the rejection under the lock and send nothing.
+    #[tokio::test]
+    async fn refreshes_queued_behind_a_refused_one_send_nothing() {
+        let name = "claude-queued";
+        let id = format!("{name}.json");
+        let refused = (400, r#"{"error":"invalid_grant"}"#);
+        let file = claude_file("sk-ant-oat-old-fake", chrono::Duration::hours(1), false);
+        let gate = Gate::new();
+        let (rt, dir, calls) = claude_gated(name, file, refused, Some(gate.clone())).await;
+        let cfg = rt.config();
+        let credential = rt.store.get(&id).unwrap();
+        let first = {
+            let (rt, c, cfg) = (rt.clone(), credential.clone(), cfg.clone());
+            tokio::spawn(async move { rt.refresh_after_unauthorized(&c, &cfg).await })
+        };
+        gate.entered.notified().await;
+        let queued = {
+            let (rt, id, cfg) = (rt.clone(), id.clone(), cfg.clone());
+            tokio::spawn(async move { rt.prepare_credential(&id, &cfg, None).await })
+        };
+        let job = tokio::spawn(run_refresh_job(
+            rt.clone(),
+            cfg.clone(),
+            Arc::new(tokio::sync::Semaphore::new(1)),
+            credential.clone(),
+            true,
+        ));
+        // Both reach the preparation lock while the exchange is held.
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        gate.release.add_permits(3);
+        assert!(first.await.unwrap().is_none());
+        assert_eq!(queued.await.unwrap().unwrap_err().status, 401);
+        job.await.unwrap();
+        assert_eq!(
+            calls.load(Ordering::SeqCst),
+            1,
+            "a queued refresh sent another exchange"
+        );
+        assert!(rt.store.tokens_rejected(&rt.store.get(&id).unwrap()));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// Go `refreshAuthForRequestAtEpoch` from the scheduled 401 refresh: when the refresh
+    /// right after the 401 failed for another reason, the background job that retries it
+    /// records the rejection on invalid_grant.
+    #[tokio::test]
+    async fn a_background_401_refresh_records_the_rejection() {
+        let name = "claude-revoked-later";
+        let id = format!("{name}.json");
+        let refused = (400, r#"{"error":"invalid_grant"}"#);
+        let file = claude_file("sk-ant-oat-old-fake", chrono::Duration::hours(1), false);
+        let (rt, dir, calls) = claude_refusing(name, file, refused).await;
+        let credential = rt.store.get(&id).unwrap();
+        let workers = Arc::new(tokio::sync::Semaphore::new(1));
+        run_refresh_job(rt.clone(), rt.config(), workers, credential, true).await;
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert!(
+            rt.store.tokens_rejected(&rt.store.get(&id).unwrap()),
+            "the scheduled 401 refresh recorded nothing"
+        );
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    /// A refusal that lands after its credential was removed and imported again with the
+    /// same tokens rejects nothing: the import is a new registration (Go
+    /// `RegistrationEpoch`).
+    #[tokio::test]
+    async fn a_late_refusal_never_blocks_a_reimported_credential() {
+        let name = "claude-reimported";
+        let id = format!("{name}.json");
+        let refused = (400, r#"{"error":"invalid_grant"}"#);
+        let file = claude_file("sk-ant-oat-old-fake", chrono::Duration::hours(1), false);
+        let gate = Gate::new();
+        let (rt, dir, calls) = claude_gated(name, file, refused, Some(gate.clone())).await;
+        let cfg = rt.config();
+        let claude = || Selection {
+            provider: "claude".into(),
+            ..Selection::default()
+        };
+        let credential = rt.store.get(&id).unwrap();
+        let job = {
+            let (rt, c, cfg) = (rt.clone(), credential.clone(), cfg.clone());
+            tokio::spawn(async move { rt.refresh_after_unauthorized(&c, &cfg).await })
+        };
+        gate.entered.notified().await;
+        let reload = |rt: &Runtime| {
+            rt.store.reconcile(
+                cpa_core::config::credentials::from_auth_dir(&cfg)
+                    .into_iter()
+                    .map(crate::testing::local)
+                    .collect(),
+            )
+        };
+        let bytes = std::fs::read(dir.join(&id)).unwrap();
+        std::fs::remove_file(dir.join(&id)).unwrap();
+        reload(&rt);
+        assert!(rt.store.get(&id).is_none());
+        std::fs::write(dir.join(&id), &bytes).unwrap();
+        reload(&rt);
+        gate.release.add_permits(1);
+        assert!(job.await.unwrap().is_none());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        let imported = rt.store.get(&id).unwrap();
+        assert!(
+            !rt.store.tokens_rejected(&imported),
+            "the old registration's refusal blocked the import"
+        );
+        assert_eq!(rt.store.select(claude()).unwrap().credential.id, id);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     /// A rejection is recorded only for the tokens the store still holds: a failure for
     /// tokens A that lands after a rotation to B neither blocks B nor lifts B's own
     /// rejection; an empty access token is never rejected (Go `accessTokenRejected`).
@@ -7343,8 +7493,9 @@ pub(crate) mod tests {
         let cfg = rt.config();
         let invalid = ExecError::local(400, FailureScope::Request, r#"{"error":"invalid_grant"}"#);
         let a = rt.store.get(&id).unwrap();
+        let registration = rt.store.get_registered(&id).unwrap().1.registration;
         let other = ExecError::local(400, FailureScope::Request, r#"{"error":"server_error"}"#);
-        assert!(!rt.store.reject_refused(&a, &other), "not invalid_grant");
+        assert!(!rt.store.reject_refused(&a, registration, &other), "not invalid_grant");
         std::fs::write(
             dir.join(&id),
             claude_file("sk-ant-oat-b-fake", chrono::Duration::hours(1), false).to_string(),
@@ -7357,10 +7508,10 @@ pub(crate) mod tests {
                 .collect(),
         );
         let b = rt.store.get(&id).unwrap();
-        assert!(!rt.store.reject_refused(&a, &invalid));
+        assert!(!rt.store.reject_refused(&a, registration, &invalid));
         assert!(!rt.store.tokens_rejected(&b), "a stale failure blocked the new tokens");
-        assert!(rt.store.reject_refused(&b, &invalid));
-        assert!(!rt.store.reject_refused(&a, &invalid));
+        assert!(rt.store.reject_refused(&b, registration, &invalid));
+        assert!(!rt.store.reject_refused(&a, registration, &invalid));
         assert!(
             rt.store.tokens_rejected(&b),
             "a stale failure lifted the new tokens' rejection"
@@ -7379,7 +7530,10 @@ pub(crate) mod tests {
         );
         let empty = rt.store.get(&id).unwrap();
         assert_eq!(empty.str("access_token"), Some(" "));
-        assert!(!rt.store.reject_refused(&empty, &invalid), "empty access token");
+        assert!(
+            !rt.store.reject_refused(&empty, registration, &invalid),
+            "empty access token"
+        );
         assert!(!rt.store.tokens_rejected(&empty));
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -7389,7 +7543,10 @@ pub(crate) mod tests {
     #[tokio::test]
     async fn a_skipped_refresh_of_a_disabled_credential_is_logged_once() {
         let name = "claude-off";
-        let file = claude_file("sk-ant-oat-old-fake", -chrono::Duration::hours(1), true);
+        // Claude refreshes 4 h before expiry: due 3 s after the loop's first scan, which
+        // must wake for it on its own.
+        let expires = chrono::Duration::hours(4) + chrono::Duration::seconds(3);
+        let file = claude_file("sk-ant-oat-old-fake", expires, true);
         let (rt, dir, calls) = claude_refusing(name, file, (500, "{}")).await;
         let logs = Logs::default();
         let _guard = logs.install();
