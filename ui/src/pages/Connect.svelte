@@ -1,7 +1,7 @@
 <script lang="ts">
   import { store, every } from "../store.svelte";
   import { api, ApiError } from "../api";
-  import { label, type Data } from "../core";
+  import { label, provider, credName, type Data } from "../core";
   import Missing from "../Missing.svelte";
 
   const builtIn = ["claude", "codex", "antigravity", "kimi", "kimi-ai", "xai", "devin", "meta"];
@@ -16,7 +16,7 @@
     session = $state<Data | null>(null),
     status = $state(""),
     problem = $state(""),
-    account = $state(""),
+    found = $state(""),
     callback = $state(""),
     region = $state("");
   const can = $derived(store.can("GET", "/oauth/auth-url"));
@@ -24,9 +24,8 @@
   async function start(p: string) {
     if (session && status === "wait" && !(await cancel())) return;
     store.act(async () => {
-      // The account list before the sign-in starts, to recognise its credential later.
-      await store.creds.load(true);
-      const seen = store.creds.error ? null : Object.fromEntries((store.creds.data || []).map((c) => [c.name, c.updated_at]));
+      // The credential names before the sign-in starts, to recognise its credential later.
+      const seen = await names();
       const r = await api(`/oauth/auth-url?provider=${encodeURIComponent(p)}${forwarded.includes(p) ? "&is_webui=true" : ""}`).catch((e) => {
         // Go knows every built-in provider; a server that lacks one answers provider_not_found.
         if (e instanceof ApiError && e.code === "provider_not_found") {
@@ -37,11 +36,17 @@
       });
       const url = new URL(r.url, location.href);
       if (!/^https?:$/.test(url.protocol)) throw new Error("The server returned an unsafe sign-in URL.");
-      session = { ...r, url: url.href, provider: p, started: Date.now(), seen };
+      session = { ...r, url: url.href, provider: p, seen };
       status = "wait";
-      problem = account = callback = "";
+      problem = found = callback = "";
     });
   }
+  /** The server's credentials by name, or null when they cannot be read. */
+  const names = () =>
+    api("/credentials").then(
+      (r) => new Map<string, Data>((r.files || []).map((c: Data) => [c.name, c])),
+      () => null,
+    );
   /** Ends the pending sign-in; false when the server did not take the request. */
   async function cancel() {
     const s = session!;
@@ -67,29 +72,20 @@
       const s = session;
       if (!s || status !== "wait") return;
       let r = await api(`/oauth/status?state=${encodeURIComponent(s.state)}`).catch((e) => ({ status: "error", error: e.message }));
-      // The server forgets a successful session a minute after it ends (Go too), so a tab that
-      // was away longer reads "unknown or expired state". A credential for this provider that
-      // is new, or rewritten, since the start is that sign-in's result.
+      // cliproxy-rs keeps a finished sign-in's result for 30 minutes; Go and older servers
+      // forget a successful one after a minute. Then only a new credential name for exactly
+      // this built-in provider, between two successful reads, says the sign-in worked.
+      // Anything else is unknown: a rewritten file can be a refresh or an upload, and a
+      // plugin's provider name need not match its credentials'.
       if (r.error === "unknown or expired state") {
-        await store.creds.load(true);
-        const fresh = (store.creds.data || []).find(
-          (c) =>
-            [c.provider, c.type].some((t) => t && (t === s.provider || s.provider.startsWith(`${t}-`))) &&
-            (s.seen ? s.seen[c.name] !== c.updated_at : Date.parse(c.updated_at) >= s.started - 60_000),
-        );
-        r = fresh
-          ? { status: "ok", account: fresh.email }
-          : {
-              status: "error",
-              error: store.creds.error
-                ? "This sign-in expired before the panel saw its result, and the account list could not be read. Check Credentials."
-                : "This sign-in expired before the panel saw its result. No new account appeared.",
-            };
+        const now = s.seen && builtIn.includes(s.provider) ? await names() : null;
+        const fresh = now ? [...now.values()].filter((c) => !s.seen.has(c.name) && provider(c) === s.provider) : [];
+        r = fresh.length === 1 ? { status: "ok", found: `${credName(fresh[0])} appeared during this sign-in.` } : { status: "unknown" };
       }
       // A reply for a session that was cancelled or replaced meanwhile is ignored.
       if (r.status === "wait" || s !== session || status !== "wait") return;
       problem = r.error || "";
-      account = r.account || "";
+      found = r.found || "";
       finish(r.status);
       if (r.status === "ok") {
         store.notify(`${label(s.provider)} account connected.`);
@@ -141,7 +137,7 @@
       <h2>{label(session.provider)}</h2>
       <span class="row">
         <span class="lamp {status === 'ok' ? 'ok' : status === 'wait' ? 'warn live' : status === 'error' ? 'bad' : 'off'}"></span>
-        {status === "wait" ? "Waiting for approval" : status === "ok" ? "Connected" : status === "error" ? "Failed" : "Cancelled"}
+        {status === "wait" ? "Waiting for approval" : status === "ok" ? "Connected" : status === "error" ? "Failed" : status === "unknown" ? "Result unavailable" : "Cancelled"}
       </span>
     </div>
     {#if status === "wait"}
@@ -172,8 +168,11 @@
       </ol>
       <div class="row"><button class="key quiet" onclick={cancel}>Cancel sign-in</button></div>
     {:else if status === "ok"}
-      <p>{account ? `${account} is saved` : "Saved"} on the server and in rotation.</p>
+      <p>{found || "Saved on the server and in rotation."}</p>
       <div class="row"><a class="key primary" href="#credentials">View credentials</a></div>
+    {:else if status === "unknown"}
+      <p>The proxy no longer has this sign-in’s result. Check Credentials to see whether it was added.</p>
+      <div class="row"><a class="key primary" href="#credentials">Open Credentials</a><button class="key" onclick={() => start(session!.provider)}>Start again</button></div>
     {:else}
       {#if problem}<p class="error">{problem}</p>{/if}
       <div class="row"><button class="key" onclick={() => start(session!.provider)}>Start again</button></div>
