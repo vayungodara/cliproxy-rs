@@ -788,3 +788,100 @@ async fn a_refused_baseline_alone_does_not_refuse_the_request() {
     s["payload"] = s["original"].clone();
     assert_eq!(run(s).await, (false, None));
 }
+
+#[test]
+fn compaction_summary_budget_is_configurable() {
+    let cfg = Config::parse("compaction:\n  summary-max-tokens: 16384\n  summary-reasoning-effort: high\n").unwrap();
+    let (max, effort) = summary_budget(&cfg);
+    assert_eq!(max, 16384);
+    assert_eq!(effort.as_deref(), Some("high"));
+
+    let mut body = br#"{"model":"m","max_tokens":16,"reasoning_effort":"xhigh"}"#.to_vec();
+    apply_summary_budget(&mut body, max, effort.as_deref());
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["max_tokens"], 16384);
+    assert_eq!(v["reasoning_effort"], "high");
+}
+
+#[test]
+fn compaction_summary_budget_defaults_and_never_lowers() {
+    let cfg = Config::parse("config-version: 8\n").unwrap();
+    let (max, effort) = summary_budget(&cfg);
+    assert_eq!(max, DEFAULT_SUMMARY_MAX_TOKENS);
+    assert_eq!(effort, None);
+
+    let mut body = br#"{"max_tokens":32768,"reasoning_effort":"xhigh"}"#.to_vec();
+    apply_summary_budget(&mut body, max, None);
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["max_tokens"], 32768);
+    assert_eq!(v["reasoning_effort"], "low");
+
+    let mut body = br#"{"max_tokens":16}"#.to_vec();
+    apply_summary_budget(&mut body, max, None);
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["max_tokens"], 8192);
+    assert!(v.get("reasoning_effort").is_none());
+}
+
+#[test]
+fn compaction_summary_budget_keep_and_zero() {
+    let cfg = Config::parse("compaction: {summary-max-tokens: 0, summary-reasoning-effort: keep}\n").unwrap();
+    let (max, effort) = summary_budget(&cfg);
+    assert_eq!(max, 0);
+    assert_eq!(effort.as_deref(), Some("keep"));
+    let mut body = br#"{"max_tokens":16,"reasoning_effort":"xhigh"}"#.to_vec();
+    apply_summary_budget(&mut body, max, effort.as_deref());
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["max_tokens"], 16);
+    assert_eq!(v["reasoning_effort"], "xhigh");
+}
+
+/// The compaction trigger is answered with exactly one sealed capsule, and the
+/// internal summary request uses the configurable budget instead of the caller's
+/// tiny `max_output_tokens`.
+#[tokio::test]
+async fn compaction_trigger_returns_one_capsule_and_uses_summary_budget() {
+    let upstream = serde_json::json!({
+        "status": 200,
+        "body": r#"{"id":"mock","object":"chat.completion","created":0,"model":"deepseek-flash","choices":[{"index":0,"message":{"role":"assistant","content":"mock summary"},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1,"total_tokens":2}}"#,
+    });
+    let mock = Mock::start(&upstream).await;
+    let config = format!(
+        "config-version: 8\n\
+         compaction:\n  summary-max-tokens: 16384\n  summary-reasoning-effort: high\n\
+         api-keys:\n  openai-compatibility:\n    - name: mock\n      base-url: http://{addr}\n      \
+         keys: [{{api-key: k}}]\n      models:\n        - name: deepseek-flash\n          alias: gpt-6.1-sol\n",
+        addr = mock.addr
+    );
+    let cfg = Config::parse(&config).unwrap();
+    let scenario = serde_json::json!({
+        "config_auth": 0,
+        "op": "generate",
+        "source": "openai-response",
+        "model": "deepseek-flash",
+        "requested_model": "gpt-6.1-sol",
+        "payload": r#"{"model":"gpt-6.1-sol","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hello"}]},{"type":"compaction_trigger"}],"reasoning":{"effort":"xhigh"},"max_output_tokens":16,"stream":false}"#,
+    });
+    let cred = credential(&scenario, &cfg, &mock.addr);
+    let (req, _) = request(&scenario, Default::default());
+    let resp = OpenAICompatExecutor::default().execute(&cred, req, &cfg).await.unwrap();
+    let body = match resp.body {
+        ResponseBody::Buffered(body) => body,
+        ResponseBody::Stream(_) => panic!("compaction answer must be buffered"),
+    };
+    let answer: Value = serde_json::from_slice(&body).unwrap();
+    let output = answer["output"].as_array().unwrap();
+    assert_eq!(output.len(), 1);
+    assert_eq!(output[0]["type"], "compaction");
+    assert!(
+        output[0]["encrypted_content"]
+            .as_str()
+            .unwrap()
+            .starts_with("cpa-ag-compact-v1:")
+    );
+
+    let raw = String::from_utf8(mock.request().unwrap()).unwrap();
+    let wire: Value = serde_json::from_str(raw.rsplit_once("\r\n\r\n").unwrap().1).unwrap();
+    assert_eq!(wire["max_tokens"], 16384);
+    assert_eq!(wire["reasoning_effort"], "high");
+}

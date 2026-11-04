@@ -148,6 +148,15 @@ Uncomment the block to use it. `oauth-request-scoped-errors` is the legacy spell
 
 Claude accounts ignore `HTTPS_PROXY` and `HTTP_PROXY`. Without an explicit proxy, they connect directly. Set `requests.proxy-url` or the account's `proxy_url` when you need one. Claude API keys pointed at a custom, non-Anthropic base URL use the standard transport, which can inherit environment proxies.
 
+## compaction
+
+The internal summary request used by Codex remote compaction. These settings affect only that request; normal chat turns keep the client's budget and reasoning effort.
+
+| Setting | What it does |
+|---|---|
+| `summary-max-tokens` | Output-token floor for the compaction summary, `8192` by default. The request's own budget is raised to this value when it is lower; a larger client value is never lowered. `0` disables the floor. |
+| `summary-reasoning-effort` | `low` by default when the translated request already carries `reasoning_effort`. Allowed values are `low`, `medium`, `high` and `max`; `keep` leaves the client's value. This keeps a reasoning model from spending the whole summary budget on `reasoning_content` and returning an empty `content`. |
+
 ## observability
 
 | Setting | What it does |
