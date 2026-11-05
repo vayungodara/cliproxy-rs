@@ -267,6 +267,27 @@ try {
     assert.equal(reads, 1, "Try again within 2 minutes sends nothing");
     assert.equal(await button("Sign in again").count(), 1);
     pass("plugin: a refused usage read shows the provider's error without bars, and Try again respects the 2-minute wait");
+
+    // Signing in again within 2 minutes saves a new token but makes no read: the old refusal
+    // must not stand in for it.
+    (status = { status: "wait" }), (usage = 200);
+    await button("Sign in again").click();
+    await main.getByText("Waiting for approval").waitFor();
+    (files = [fixture, { ...refusedNew, updated_at: "2026-11-05T10:00:00Z" }]), (status = { status: "ok" });
+    await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow").getByText("Usage not read: it was read under 2 minutes ago.").waitFor();
+    assert.equal(reads, 1, "no read within 2 minutes");
+    assert.equal(await main.locator(".flow .result [role=meter]").count(), 0, "no bars from an older read");
+    pass("plugin: signing in again within 2 minutes says usage was not read instead of reusing the old result");
+
+    // A usage read that fails for another reason (HTTP 500) is not a refused token.
+    await connected([fixture, { ...claudeNew, name: "claude-500.json", auth_index: "claude-500", email: "five@example.invalid" }], 500);
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow").getByText(/Usage read failed: The provider answered HTTP 500/).waitFor();
+    assert.equal(await main.locator(".flow .result [role=meter]").count(), 0, "no bars for a failed read");
+    assert.equal(await button("Sign in again").count(), 0);
+    pass("plugin: a usage read that fails without rejecting the token says so, not \"Provider refused\"");
   } else if (mode === "fake") {
     for (const [provider, redirect, email] of [
       ["Claude", (s) => `http://localhost:54545/callback?code=fake-code&state=${s}`, "claude-login@example.invalid"],

@@ -72,18 +72,21 @@ async function read(a: Data) {
       }
       const r = await api("/requests/api-call", "POST", { authIndex: a.auth_index, method: "GET", url: usageURL[p], header });
       if (r.status_code < 200 || r.status_code >= 300)
-        throw new Error(
+        // `code` lets Connect tell a refused token (401/403) from any other failed read.
+        throw Object.assign(new Error(
           p === "claude" && r.status_code === 403
             ? "Claude denied access to usage (HTTP 403). Setup tokens cannot read usage. Connect Claude through the dashboard's OAuth flow for usage checks."
             : r.status_code === 401 || r.status_code === 403
               ? `The provider rejected the account's token (HTTP ${r.status_code}). Refresh the token, or connect the account again.`
               : `The provider answered HTTP ${r.status_code}. Try again later.`,
+          ),
+          { code: r.status_code },
         );
       raw = typeof r.body === "string" ? JSON.parse(r.body) : r.body;
     }
     store.quota[quotaKey(a)] = { at: Date.now(), windows: quotaWindows(p, raw) };
   } catch (e) {
-    store.quota[quotaKey(a)] = { ...store.quota[quotaKey(a)], error: e instanceof Error ? e.message : String(e) };
+    store.quota[quotaKey(a)] = { ...store.quota[quotaKey(a)], error: e instanceof Error ? e.message : String(e), code: (e as { code?: number }).code };
   }
 }
 

@@ -20,6 +20,8 @@
     problem = $state(""),
     found = $state(""),
     acct = $state<Data | null>(null),
+    // The usage read this sign-in made; null when none was made (the 2-minute wait, or no source).
+    got = $state<Data | null>(null),
     now = $state(Date.now()),
     callback = $state(""),
     region = $state("");
@@ -43,7 +45,7 @@
       session = { ...r, url: url.href, provider: p, seen, started: Date.now() };
       status = "wait";
       problem = found = callback = "";
-      acct = null;
+      acct = got = null;
     });
   }
   /** The server's credentials by name, or null when they cannot be read. */
@@ -116,12 +118,18 @@
     }
     if (s !== session) return;
     acct = a || null;
+    got = null;
     if (a && canCheck(a)) {
       finish("verifying");
+      // Every read stores a new object, so an unchanged one means no read was made, and an
+      // older result must not stand in for the new token.
+      const before = store.quota[quotaKey(a)];
       await check(a);
       if (s !== session) return;
+      if (store.quota[quotaKey(a)] !== before) got = store.quota[quotaKey(a)];
     }
-    const refused = !!a && !!store.quota[quotaKey(a)]?.error;
+    // Only a token the provider rejects is "refused"; other failed reads say so plainly.
+    const refused = got?.code === 401 || got?.code === 403;
     finish(refused ? "refused" : "ok");
     if (!refused) store.notify(`${label(s.provider)} account connected.`);
   }
@@ -129,7 +137,7 @@
   const owner = (p: string) => (p === "codex" ? "OpenAI" : label(p));
   const v = $derived(acct ? accountRow(acct, limits(acct), true, true) : null);
   // The bars come from this tab's own usage read, never from older passive numbers.
-  const live = $derived(!!acct && status === "ok" && "windows" in (store.quota[quotaKey(acct)] || {}));
+  const live = $derived(status === "ok" && !!got?.windows && !got.error);
   function vertex(input: HTMLInputElement) {
     const file = input.files?.[0];
     input.value = "";
@@ -238,7 +246,7 @@
       {/if}
       {#if found}<p>{found}</p>{:else if !acct}<p>Saved on the server.</p>{/if}
       {#if status === "refused"}
-        <p class="error">{limits(acct!)?.error}</p>
+        <p class="error">{got?.error}</p>
         <p class="muted small">
           The token is saved, but requests with it will probably fail the same way. Try the read again, or sign in again.
         </p>
@@ -252,7 +260,9 @@
           <a class="key quiet" href="#accounts">Open Accounts</a>
         </div>
       {:else}
-        {#if live}<p class="muted small">Usage checked just now. This stays here until you leave the page.</p>{/if}
+        {#if live}<p class="muted small">Usage checked just now; shown until you leave the page.</p>
+        {:else if got?.error}<p class="error">Usage read failed: {got.error}</p>
+        {:else if acct && canCheck(acct)}<p class="muted small">Usage not read: it was read under 2 minutes ago.</p>{/if}
         <div class="row">
           <button class="key primary" onclick={() => start(session!.provider)}><svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>Connect another {P} account</button>
           <a class="key" href="#accounts">Open Accounts</a>
