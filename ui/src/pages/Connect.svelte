@@ -119,17 +119,21 @@
     if (s !== session) return;
     acct = a || null;
     got = null;
-    if (a && canCheck(a)) {
-      finish("verifying");
-      // Every read stores a new object, so an unchanged one means no read was made, and an
-      // older result must not stand in for the new token.
-      const before = store.quota[quotaKey(a)];
-      await check(a);
-      if (s !== session) return;
-      if (store.quota[quotaKey(a)] !== before) got = store.quota[quotaKey(a)];
-    }
+    // A failed reload leaves the new account out of the list the queue reads from, so no read
+    // would be made. Within the 2-minute wait check() would hand back a read already on its way
+    // for the old token, so none is made and the panel says usage was not read.
+    if (a && canCheck(a))
+      if (store.creds.error) got = { error: `accounts did not reload: ${(store.creds.error as Error).message}` };
+      else if (!wait(a)) {
+        finish("verifying");
+        // Every read stores a new object; an unchanged one means this check made no read.
+        const before = store.quota[quotaKey(a)];
+        await check(a);
+        if (s !== session) return;
+        if (store.quota[quotaKey(a)] !== before) got = store.quota[quotaKey(a)];
+      }
     // Only a token the provider rejects is "refused"; other failed reads say so plainly.
-    const refused = got?.code === 401 || got?.code === 403;
+    const refused = [401, 403].includes(got?.code);
     finish(refused ? "refused" : "ok");
     if (!refused) store.notify(`${label(s.provider)} account connected.`);
   }
@@ -163,7 +167,7 @@
 
 <section class="section">
   <h2>Sign in with a provider</h2>
-  <p class="muted">You approve access on the provider’s own page (OAuth). The proxy stores the resulting token and renews it; it never sees your password.</p>
+  <p class="muted">You approve access on the provider’s own page. The proxy keeps the token and renews it; it never sees your password.</p>
   <div class="providers">
     {#each providers as p}
       <button
@@ -260,9 +264,9 @@
           <a class="key quiet" href="#accounts">Open Accounts</a>
         </div>
       {:else}
-        {#if live}<p class="muted small">Usage checked just now; shown until you leave the page.</p>
+        {#if live}<p class="muted small">Usage checked just now.</p>
         {:else if got?.error}<p class="error">Usage read failed: {got.error}</p>
-        {:else if acct && canCheck(acct)}<p class="muted small">Usage not read: it was read under 2 minutes ago.</p>{/if}
+        {:else if acct && canCheck(acct)}<p class="muted small">Usage not read: read under 2 minutes ago.</p>{/if}
         <div class="row">
           <button class="key primary" onclick={() => start(session!.provider)}><svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>Connect another {P} account</button>
           <a class="key" href="#accounts">Open Accounts</a>

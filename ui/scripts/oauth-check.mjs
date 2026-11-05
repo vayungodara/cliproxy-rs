@@ -59,7 +59,9 @@ try {
     delay = 0,
     polls = [],
     usage = 200,
-    reads = 0;
+    reads = 0,
+    hold = null,
+    credsLeft = Infinity;
   if (mode === "plugin") {
     // A tab the test can hide, and polling slowed thirtyfold, so a status read right after the
     // tab comes back can only be the one its return triggered.
@@ -82,14 +84,18 @@ try {
         let body;
         if (path === "config") body = {};
         else if (path === "credentials") {
-          if (credsFail) return route.fulfill({ status: 500, json: { error: "fixture: read failed" } });
+          // credsLeft: how many more account-list reads succeed before they start failing.
+          if (credsFail || credsLeft-- <= 0) return route.fulfill({ status: 500, json: { error: "fixture: read failed" } });
           body = { files };
         }
         else if (path === "plugins") body = { plugins: [{ id: "commandcode-go-cliproxyapi", supports_oauth: true, oauth_provider: "commandcode" }] };
         else if (path === "requests/api-call") {
           reads++;
+          const code = usage;
+          // A held read answers, with the status it was sent under, only when released.
+          if (hold) await hold.promise;
           const reset = (h) => new Date(Date.now() + h * 3_600_000).toISOString();
-          body = { status_code: usage, body: usage === 200 ? JSON.stringify({ five_hour: { utilization: 37, resets_at: reset(2) }, seven_day: { utilization: 62, resets_at: reset(50) } }) : "{}" };
+          body = { status_code: code, body: code === 200 ? JSON.stringify({ five_hour: { utilization: 37, resets_at: reset(2) }, seven_day: { utilization: 62, resets_at: reset(50) } }) : "{}" };
         }
         else if (path === "oauth/auth-url") body = { status: "ok", state: "a".repeat(64), url: loginUrl };
         else if (path === "oauth/status") {
@@ -276,7 +282,7 @@ try {
     (files = [fixture, { ...refusedNew, updated_at: "2026-11-05T10:00:00Z" }]), (status = { status: "ok" });
     await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
     await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor({ timeout: 5000 });
-    await main.locator(".flow").getByText("Usage not read: it was read under 2 minutes ago.").waitFor();
+    await main.locator(".flow").getByText("Usage not read: read under 2 minutes ago.").waitFor();
     assert.equal(reads, 1, "no read within 2 minutes");
     assert.equal(await main.locator(".flow .result [role=meter]").count(), 0, "no bars from an older read");
     pass("plugin: signing in again within 2 minutes says usage was not read instead of reusing the old result");
@@ -288,6 +294,50 @@ try {
     assert.equal(await main.locator(".flow .result [role=meter]").count(), 0, "no bars for a failed read");
     assert.equal(await button("Sign in again").count(), 0);
     pass("plugin: a usage read that fails without rejecting the token says so, not \"Provider refused\"");
+
+    // A read of the old token still in flight (here from Accounts' Check quotas) when the
+    // account signs in again: its answer (401) must not be shown as the new token's result.
+    let release;
+    hold = { promise: new Promise((r) => (release = r)) };
+    const held = { ...claudeNew, name: "claude-held.json", auth_index: "claude-held", email: "held@example.invalid" };
+    (files = [fixture, held]), (usage = 401), (reads = 0);
+    // Signing in again loads the new list (Accounts itself rereads only every 10 s).
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await page.getByLabel("Management key").fill("orb-dashboard-test-only");
+    await page.getByRole("button", { name: "Connect", exact: true }).click();
+    await page.evaluate(() => (location.hash = "#accounts"));
+    await main.getByText("held@example.invalid").first().waitFor({ timeout: 15_000 });
+    await button("Check quotas").click();
+    for (let i = 0; i < 50 && !reads; i++) await page.waitForTimeout(100);
+    assert.equal(reads, 1, "the old read is in flight");
+    await page.evaluate(() => (location.hash = "#connect"));
+    (status = { status: "wait" }), (usage = 200);
+    await begin("Claude");
+    (files = [fixture, { ...held, updated_at: "2026-11-05T11:00:00Z" }]), (status = { status: "ok" });
+    await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    await main.locator(".flow").getByText("Usage not read: read under 2 minutes ago.").waitFor({ timeout: 5000 });
+    release();
+    hold = null;
+    await page.waitForTimeout(1000);
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor();
+    assert.equal(await main.locator(".flow").getByText("Usage not read: read under 2 minutes ago.").count(), 1, "still not read after the old read lands");
+    assert.equal(await main.locator(".flow .result [role=meter]").count(), 0);
+    assert.equal(reads, 1, "no second read");
+    pass("plugin: an old read still in flight across a re-sign-in is never shown as the new token's result");
+
+    // The sign-in is found (forgotten state), then the account list fails to reload: the read
+    // cannot be made, and the panel says why instead of claiming a recent read.
+    (files = [fixture]), (status = { status: "wait" }), (usage = 200), (reads = 0);
+    await begin("Claude");
+    (files = [fixture, { ...claudeNew, name: "claude-noreload.json", auth_index: "claude-noreload", email: "noreload@example.invalid" }]),
+      (status = { status: "error", error: "unknown or expired state" }),
+      (credsLeft = 1);
+    await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    await main.locator(".flow").getByText("Usage read failed: accounts did not reload: fixture: read failed").waitFor({ timeout: 5000 });
+    assert.equal(reads, 0, "no read queued");
+    assert.equal(await main.locator(".flow").getByText(/read under 2 minutes ago/).count(), 0);
+    credsLeft = Infinity;
+    pass("plugin: a failed account-list reload after sign-in says the read failed, not that it was recent");
   } else if (mode === "fake") {
     for (const [provider, redirect, email] of [
       ["Claude", (s) => `http://localhost:54545/callback?code=fake-code&state=${s}`, "claude-login@example.invalid"],
