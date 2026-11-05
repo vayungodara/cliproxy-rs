@@ -76,6 +76,8 @@
           // A reread after each unit shows progress and lets `ok` see file-wide changes.
           await run(u).catch((e) => why.set(u, e instanceof Error ? e.message : e));
           await reload();
+          // Without a fresh list `ok` would read stale state, so stop rather than guess.
+          if (ok && store.creds.error) throw new Error("The result could not be confirmed: the account list did not reload. Check it before trying again.");
         }
       const failed = units.filter((u) => (ok ? !ok(u) : why.has(u)));
       if (failed.length) throw new Error(`${done(units.length - failed.length)}. ${failed.length} failed: ${failed.map((u) => name(u) + (why.has(u) ? ` (${why.get(u)})` : "")).join(", ")}`);
