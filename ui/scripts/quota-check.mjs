@@ -75,12 +75,17 @@ try {
         // first request fails without changing anything.
         if (sent.auth_index === 'multi-a' && !f.failedOnce) return (f.failedOnce = true), json({error:'source busy'}, 500);
         f.files.filter((x) => (sent.name === 'multi.json' ? x.name === sent.name : x.auth_index === sent.auth_index)).forEach((x) => (x.disabled = sent.disabled));
+        // The change lands, then the account list stops answering.
+        if (f.listDownAfterPatch) f.listDown = true;
         body = {status:'ok'};
       } else if (path.endsWith('/credentials/refresh')) {
         f.refreshed.push(sent.auth_index);
         if (sent.auth_index === 'codex-test') return json({error:'refresh refused'}, 409);
         body = {status:'ok'};
-      } else if (path.endsWith('/credentials')) body = {files:f.files};
+      } else if (path.endsWith('/credentials')) {
+        if (f.listDown) return json({error:'list unavailable'}, 500);
+        body = {files:f.files};
+      }
       else if (path.endsWith('/plugins')) body = {plugins:[]};
       else if (path.endsWith('/requests/api-call')) {
         f.calls++;
@@ -222,7 +227,17 @@ try {
   await main.locator(".batch").getByRole("button", { name: "Enable 2" }).click();
   await page.getByText("2 accounts enabled.").waitFor();
   assert.deepEqual(await evaluate("window.quotaFixture.patched"), ["multi-a", "multi-b", "multi-a"]);
-  console.log("PASS a status change on a shared file reaches, names and counts every account by what the server reports"); 
+  console.log("PASS a status change on a shared file reaches, names and counts every account by what the server reports");
+
+  // The PATCH succeeds but the reread fails: no second PATCH from stale state, and no guessed counts.
+  await evaluate("window.quotaFixture.listDownAfterPatch = true");
+  await main.locator(".batch").getByRole("button", { name: "Disable 2" }).click();
+  await page.getByText("The result could not be confirmed: the account list did not reload. Check it before trying again.").waitFor();
+  assert.deepEqual(await evaluate("window.quotaFixture.patched"), ["multi-a", "multi-b", "multi-a", "multi-a"]);
+  assert.doesNotMatch(await text(), /failed: one@example|0 accounts disabled/);
+  await evaluate("window.quotaFixture.listDownAfterPatch = window.quotaFixture.listDown = false; window.quotaFixture.files.filter((x) => x.name === 'multi.json').forEach((x) => (x.disabled = false))");
+  await page.waitForFunction(() => !document.querySelector("main .acct .off-row"), null, { timeout: 15_000 });
+  console.log("PASS a status batch whose reread fails stops and says the result is unconfirmed");
 
   await main.getByLabel("Select all shown").check();
   assert.equal(await evaluate("document.querySelector('input[aria-label=\"Select all shown\"]').indeterminate"), false);

@@ -79,7 +79,7 @@ class Store {
   );
   plugins = new Res<Data[]>(async () => (await api("/plugins")).plugins || []);
   /** Live quota checks made in this tab, by auth index. */
-  quota = $state<Record<string, { at: number; windows: Window[]; error?: string } | { error: string }>>({});
+  quota = $state<Record<string, { at: number; windows: Window[]; error?: string; code?: number } | { error: string; code?: number }>>({});
   /** Quota checks waiting in line or on their way, by auth index: "Queued" or "Checking…". */
   pending = $state<Record<string, string>>({});
   #probed = new Set<string>();

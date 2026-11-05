@@ -1,10 +1,11 @@
 <script lang="ts">
   import { store, every, Res } from "../store.svelte";
   import { api, download } from "../api";
-  import { buckets, credName, provider, label, span, accountRow, strategy, readPath, type Bar, type Data, type Window } from "../core";
+  import { buckets, credName, provider, label, span, accountRow, strategy, readPath, type Data, type Window } from "../core";
   import { check, checkAll, canCheck, hasSource, limits, quotaKey, wait } from "../quota";
   import Grille from "../Grille.svelte";
   import Meter from "../Meter.svelte";
+  import Bar from "../Bar.svelte";
   import Load from "../Load.svelte";
   import Missing from "../Missing.svelte";
 
@@ -76,6 +77,8 @@
           // A reread after each unit shows progress and lets `ok` see file-wide changes.
           await run(u).catch((e) => why.set(u, e instanceof Error ? e.message : e));
           await reload();
+          // Without a fresh list `ok` would read stale state, so stop rather than guess.
+          if (ok && store.creds.error) throw new Error("The result could not be confirmed: the account list did not reload. Check it before trying again.");
         }
       const failed = units.filter((u) => (ok ? !ok(u) : why.has(u)));
       if (failed.length) throw new Error(`${done(units.length - failed.length)}. ${failed.length} failed: ${failed.map((u) => name(u) + (why.has(u) ? ` (${why.get(u)})` : "")).join(", ")}`);
@@ -188,16 +191,6 @@
   }
 </script>
 
-{#snippet bar(name: string, w: Bar, stale: boolean)}
-  {#if "used" in w}
-    <div class="win" class:stale role="meter" aria-label={`${name} ${w.used}% used`} aria-valuenow={w.used} aria-valuemin={0} aria-valuemax={100}>
-      <span><b>{w.used}%</b> {name.toLowerCase()}</span><span class="track"><i class:hi={w.used >= 85} style:width="{w.used}%"></i></span><span>{w.reset}</span>
-    </div>
-  {:else}
-    <div class="win"><span><b>unknown</b><span class="sr"> {name}</span></span><span class="track none"></span><span>{w.why}</span></div>
-  {/if}
-{/snippet}
-
 <div class="head">
   <h1>Accounts{#if rows.length}<span>{rows.length}</span>{/if}</h1>
   <label class="key quiet" aria-disabled={!store.can("POST", "/credentials")}>
@@ -277,8 +270,8 @@
                   <button class="name" aria-expanded={isOpen} onclick={() => toggle(r.a)}
                     ><strong>{credName(r.a)}</strong><small>{[r.a.id_token?.plan_type, r.a.note].filter(Boolean).join(" · ") || r.a.name}</small></button
                   >
-                  {@render bar("Session", v.session, v.stale)}
-                  {@render bar("Weekly", v.weekly, v.stale)}
+                  <Bar name="Session" w={v.session} stale={v.stale} />
+                  <Bar name="Weekly" w={v.weekly} stale={v.stale} />
                   {#if r.b}<Grille data={r.b} {max} d={5} gap={2} />{:else}<span class="legend">Not reported</span>{/if}
                   <span class="last"><b>{v.last}</b><span>{v.age}</span></span>
                 </div>

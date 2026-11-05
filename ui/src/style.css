@@ -287,6 +287,18 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .columns .count { text-align: right; }
 .list > li.columns, .list > li.group { border-bottom: 0; }
 .open > .item { background: var(--hover); }
+/* Connect */
+.plate { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 18px 22px; border-radius: 8px; background: var(--body); border: 1px solid var(--line); }
+.plate code { font-size: 34px; letter-spacing: 0.12em; font-weight: 500; margin-right: auto; }
+.link { font: 12.5px var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.checks li { display: flex; gap: 12px; align-items: center; }
+.checks .i { color: var(--ok); stroke-width: 2.2; }
+.checks .lamp { margin: 0 3px; }
+.result { display: grid; grid-template-columns: minmax(0, 1fr) 220px 220px; gap: 24px; align-items: end; }
+.result .name { display: grid; min-width: 0; }
+.result strong { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+details.fallback summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
 /* Accounts */
 .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .acct .item, .acct .columns { display: grid; grid-template-columns: 16px 164px minmax(0, 1fr) 128px 128px 138px 132px; gap: 16px; align-items: center; }
@@ -373,6 +385,7 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
 .login .top-row { display: flex; justify-content: space-between; align-items: center; }
 
 @media (max-width: 860px) {
+  .result { grid-template-columns: 1fr; }
   .shell { display: block; }
   .side { display: none; position: fixed; inset: 0; z-index: 5; height: auto; background: var(--body); border: 0; padding-top: 80px; }
   .side.open { display: flex; }
