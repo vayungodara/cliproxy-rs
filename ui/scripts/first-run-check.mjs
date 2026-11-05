@@ -174,13 +174,13 @@ try {
   for (const [theme, device, name] of [
     ["dark", desktop, "10-overview-ready-desktop-dark"],
     ["light", phone, "11-overview-ready-phone-light"],
-    ["dark", phone, "12-credentials-ready-phone-dark"],
+    ["dark", phone, "12-accounts-ready-phone-dark"],
   ]) {
     const p = await open(freshUrl, device, theme);
     await signIn(p);
-    if (name.includes("credentials")) {
-      await p.evaluate(() => (location.hash = "#credentials"));
-      await p.locator("main h1", { hasText: "Credentials" }).waitFor();
+    if (name.includes("accounts")) {
+      await p.evaluate(() => (location.hash = "#accounts"));
+      await p.locator("main h1", { hasText: "Accounts" }).waitFor();
     }
     await p.waitForTimeout(500);
     assert.equal(await overflow(p), false, `${name}: no horizontal overflow`);

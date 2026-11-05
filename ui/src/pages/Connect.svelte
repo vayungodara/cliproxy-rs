@@ -169,10 +169,10 @@
       <div class="row"><button class="key quiet" onclick={cancel}>Cancel sign-in</button></div>
     {:else if status === "ok"}
       <p>{found || "Saved on the server."}</p>
-      <div class="row"><a class="key primary" href="#credentials">View credentials</a></div>
+      <div class="row"><a class="key primary" href="#accounts">Open Accounts</a></div>
     {:else if status === "unknown"}
-      <p>The proxy no longer has this sign-in’s result. Check Credentials to see whether it was added.</p>
-      <div class="row"><a class="key primary" href="#credentials">Open Credentials</a><button class="key" onclick={() => start(session!.provider)}>Start again</button></div>
+      <p>The proxy no longer has this sign-in’s result. Check Accounts to see whether it was added.</p>
+      <div class="row"><a class="key primary" href="#accounts">Open Accounts</a><button class="key" onclick={() => start(session!.provider)}>Start again</button></div>
     {:else}
       {#if problem}<p class="error">{problem}</p>{/if}
       <div class="row"><button class="key" onclick={() => start(session!.provider)}>Start again</button></div>

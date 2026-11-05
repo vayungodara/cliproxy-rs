@@ -28,7 +28,35 @@ export function limits(a: Data): { windows: Window[]; at: number; error?: string
   return windows.length ? { ...live, windows, at: Date.parse(a.quota?.observed_at) || 0 } : live || null;
 }
 
-export async function check(a: Data) {
+// Checks run one at a time, and each account at most once every 2 minutes counted from when
+// its request is sent, so a burst of clicks never turns into a burst of provider requests.
+const tried = new Map<string, number>();
+let queue: Promise<unknown> = Promise.resolve();
+const gap = (k: string, now: number) => Math.max(0, (tried.get(k) ?? -Infinity) + 120_000 - now);
+/** Milliseconds until this account may be checked again; 0 when it may be checked now. A queued
+ * or running check counts as a full wait. */
+export const wait = (a: Data, now = Date.now()) => (store.pending[quotaKey(a)] ? 120_000 : gap(quotaKey(a), now));
+
+export function check(a: Data) {
+  const k = quotaKey(a);
+  if (wait(a)) return queue;
+  store.pending[k] = "Queued";
+  return (queue = queue.then(async () => {
+    try {
+      // Right before the request goes out, the account as it is now must still exist, be
+      // checkable and be due; only then is the time stamped.
+      const now = (store.creds.data || []).find((x) => quotaKey(x) === k);
+      if (!now || !canCheck(now) || gap(k, Date.now())) return;
+      tried.set(k, Date.now());
+      store.pending[k] = "Checking…";
+      await read(now);
+    } finally {
+      delete store.pending[k];
+    }
+  }));
+}
+
+async function read(a: Data) {
   const p = provider(a);
   try {
     let raw: Data;
@@ -59,7 +87,8 @@ export async function check(a: Data) {
   }
 }
 
-/** One check per supported credential, one after another so the provider is not hammered. */
+/** One check per supported credential that is due, one after another. */
 export async function checkAll(list: Data[]) {
-  for (const a of list) if (canCheck(a)) await check(a);
+  for (const a of list) if (canCheck(a)) check(a);
+  await queue;
 }

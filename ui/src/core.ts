@@ -110,7 +110,7 @@ export function ago(value: unknown, now = Date.now()): string {
   return now - t < 45_000 ? "just now" : `${span(now - t)} ago`;
 }
 
-export type CredState = { lamp: Lamp; label: string; detail: string };
+export type CredState = { lamp: Lamp; label: string; detail: string; until?: number };
 /** One state per credential, derived only from fields Go's /credentials reports. */
 export function credState(a: Data, now = Date.now()): CredState {
   if (a.disabled) return { lamp: "off", label: "Disabled", detail: "" };
@@ -125,6 +125,7 @@ export function credState(a: Data, now = Date.now()): CredState {
       lamp: "warn",
       label: `Limited until ${new Date(limited[0]).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })} · next check ${next}`,
       detail: a.status_message || "",
+      until: limited[0],
     };
   }
   const cooldowns = all.filter((c) => Date.parse(c.retry_at) > now);
@@ -134,7 +135,7 @@ export function credState(a: Data, now = Date.now()): CredState {
     a.unavailable && a.next_retry_after ? Date.parse(a.next_retry_after) : Infinity,
   );
   if (until < Infinity && until > now)
-    return { lamp: "warn", label: `Cooling ${span(until - now)}`, detail: a.status_message || "" };
+    return { lamp: "warn", label: `Cooling ${span(until - now)}`, detail: a.status_message || "", until };
   if (a.unavailable || a.status === "error")
     return {
       lamp: "bad",
@@ -345,7 +346,8 @@ const codexWindow = (seconds: number, fallback: string) =>
 
 /**
  * Limits the server observed passively, without asking the provider: Codex rate-limit
- * headers (x-codex-primary-*, x-codex-secondary-*) and Devin's daily and weekly quota.
+ * headers (x-codex-primary-*, x-codex-secondary-*), Claude's anthropic-ratelimit-unified-*
+ * headers and Devin's daily and weekly quota.
  */
 export function signalWindows(p: string, quota: Data | undefined): Window[] {
   const sig: Data = {};
@@ -366,6 +368,22 @@ export function signalWindows(p: string, quota: Data | undefined): Window[] {
         reset: resetAt > 0 ? new Date(resetAt * 1000).toISOString() : after >= 0 && at ? new Date(at + after * 1000).toISOString() : "",
         source: `x-codex-${w}-`,
       });
+    }
+  else if (p === "claude")
+    // Claude's anthropic-ratelimit-unified-* headers: utilization is a 0 to 1 fraction and
+    // reset is Unix seconds. Labels match claudeWindows, so either source looks the same.
+    for (const [w, label] of [
+      ["5h", "Current session"],
+      ["7d", "Current week (all models)"],
+      ["overage", "Extra usage"],
+    ]) {
+      // Only fully numeric, finite values count: "0.5junk" and "Infinity" are not readings.
+      const source = `anthropic-ratelimit-unified-${w}-`,
+        num = (k: string) => (sig[source + k]?.trim() ? Number(sig[source + k]) : NaN),
+        used = num("utilization"),
+        reset = new Date(num("reset") * 1000);
+      if (!Number.isFinite(used) || sig[source + "disabled-reason"]) continue;
+      out.push({ label, used: clamp(used * 100), reset: reset.getTime() > 0 ? reset.toISOString() : "", source });
     }
   else if (p === "devin")
     for (const w of ["daily", "weekly"]) {
@@ -388,7 +406,7 @@ export const strategies = [
     value: "weighted-round-robin",
     name: "Weighted round robin",
     rust: false,
-    help: "Takes the accounts in turn in proportion to each account's weight, which you set on Credentials.",
+    help: "Takes the accounts in turn in proportion to each account's weight, set on Accounts.",
   },
   {
     value: "soonest-reset",
@@ -434,4 +452,104 @@ export function snippet(tool: (typeof tools)[number], base: string, key: string,
     default:
       return `curl ${shw(`${v1}/models`)} -H ${shq(`Authorization: Bearer ${key}`)}`;
   }
+}
+
+/** A quota read for one credential: windows with when they were read, or only an error. */
+export type Limits = { windows: Window[]; at: number; error?: string } | { error: string } | null;
+export type Bar = { used: number; reset: string } | { why: string };
+export type AccountRow = {
+  lamp: string;
+  word: string;
+  sub: string;
+  session: Bar;
+  weekly: Bar;
+  stale: boolean;
+  age: string;
+  last: string;
+  /** Weekly reset time for sorting; Infinity when unknown. */
+  next: number;
+  /** Can serve now: Ready or In use. */
+  ready: boolean;
+  low: boolean;
+  attention: boolean;
+};
+const clock = (t: number, now: number) =>
+  new Date(t).toLocaleString([], {
+    ...(new Date(t).toDateString() === new Date(now).toDateString() ? {} : { weekday: "short" }),
+    // 24-hour, as in the approved design: "Cooling until 14:20" fits the status column.
+    hourCycle: "h23",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+/**
+ * One Accounts row, from what the server reports and what this tab read. "In use" is a request
+ * in the latest ten-minute bucket; the server does not say which account it picks, who disabled
+ * one or when. Unknown quota is never 0% or 100%: it says why.
+ * `live`: the windows came from a check made in this tab (else the server observed them).
+ */
+export function accountRow(a: Data, q: Limits, live: boolean, source: boolean, now = Date.now()): AccountRow {
+  const s = credState(a, now);
+  const b = buckets(a);
+  const lastAt = b ? b.total.map((n) => n > 0).lastIndexOf(true) : -1;
+  const windows = q && "windows" in q ? q.windows.filter((w) => w.used !== null) : [];
+  const at = q && "windows" in q ? q.at : 0;
+  // Built-in labels, and plugin labels by their window length ("Pro · 5h", "7d").
+  const session = windows.find((w) => /session|5-hour|\b5 ?h\b|daily|primary/i.test(w.label));
+  const weekly = windows.find((w) => /week.*all|^weekly/i.test(w.label)) || windows.find((w) => /week|\b7 ?d\b|secondary/i.test(w.label));
+  const signIn = s.label === "Sign in again";
+  const stale = signIn && windows.length > 0;
+  const why = a.disabled
+    ? "not checked"
+    : windows.length
+      ? "not reported"
+      : q && "error" in q && q.error
+        ? "usage read failed"
+        : q && "windows" in q
+          ? "no usage windows reported"
+          : source
+          ? "not checked"
+          : "no usage source";
+  const bar = (w?: Window): Bar =>
+    w
+      ? {
+          used: w.used!,
+          reset: stale
+            ? `${span(now - at)} old`
+            : Date.parse(w.reset) > now
+              ? `resets in ${span(Date.parse(w.reset) - now)}`
+              : "",
+        }
+      : { why };
+  // Low counts every window the provider reported, named as the bars name them.
+  const [hi, hiName] = windows.reduce<[number, string]>(
+    (m, w) => (w.used! > m[0] ? [w.used!, w === session ? "Session" : w === weekly ? "Weekly" : w.label] : m),
+    [-1, ""],
+  );
+  const ready = s.lamp === "ok";
+  const serving = ready && !!b && b.total[b.total.length - 1] > 0;
+  const low = ready && hi >= 85;
+  return {
+    lamp: serving ? "ok live" : s.lamp,
+    word: serving ? "In use" : s.lamp === "warn" && s.until ? `Cooling until ${clock(s.until, now)}` : s.label,
+    sub: serving
+      ? "serving now"
+      : low
+        ? `${hiName} ${hi}% used`
+        : ready
+          ? "can serve now"
+          : signIn
+            ? "token refused"
+            : a.disabled
+              ? "not in rotation"
+              : s.detail || (s.lamp === "warn" ? "cooling down" : ""),
+    session: bar(session),
+    weekly: bar(weekly),
+    stale,
+    age: a.disabled ? "disabled" : !at ? "never checked" : `${live ? "checked" : "seen"} ${ago(at, now)}`,
+    last: !b ? "" : lastAt < 0 ? `not in ${b.total.length * 10} min` : lastAt === b.total.length - 1 ? "used now" : `used ${span((b.total.length - 1 - lastAt) * 600_000)} ago`,
+    next: (weekly && Date.parse(weekly.reset)) || Infinity,
+    ready,
+    low,
+    attention: s.lamp === "bad",
+  };
 }
