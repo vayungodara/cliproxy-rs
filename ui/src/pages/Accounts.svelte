@@ -12,8 +12,7 @@
   let now = $state(Date.now());
   $effect(() => every(10_000, () => ((now = Date.now()), store.creds.load(true))));
   if (!store.plugins.data) store.plugins.load();
-  let query = $state(""),
-    tab = $state("all"),
+  let tab = $state("all"),
     filter = $state(""),
     checking = $state(false),
     sel = $state<string[]>([]),
@@ -39,11 +38,9 @@
   ] as const;
   const inTab = $derived(rows.filter((r) => tab === "all" || r.p === tab));
   const shown = $derived(
-    inTab.filter(
-      (r) =>
-        (!filter || r.v[filter as "ready" | "low" | "attention"]) &&
-        `${r.a.name} ${credName(r.a)} ${r.a.note || ""}`.toLowerCase().includes(query.trim().toLowerCase()),
-    ),
+    // ponytail: no search box; it was cut to keep the JS under its 52 KB gzip budget. Bring it
+    // back (a text filter over name, email and note) when the budget allows.
+    inTab.filter((r) => !filter || r.v[filter as "ready" | "low" | "attention"]),
   );
   const groups = $derived([...new Set(shown.map((r) => r.p))].map((p) => ({ p, rows: shown.filter((r) => r.p === p) })));
   const reset = $derived(strategy(readPath(store.config.data || {}, "routing/strategy", ""), store.kind === "rust").value === "soonest-reset");
@@ -242,10 +239,6 @@
                 >{name}<b>{inTab.filter((r) => r.v[f]).length}</b></button
               >{/each}
           </div>
-          <label class="search">
-            <svg class="i" aria-hidden="true"><use href="#i-search" /></svg><span class="sr">Search accounts</span>
-            <input bind:value={query} placeholder="Email, note or file" />
-          </label>
         </div>
         <ul class="list acct">
           <li class="columns legend">

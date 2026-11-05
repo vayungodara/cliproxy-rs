@@ -289,7 +289,6 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .open > .item { background: var(--hover); }
 /* Accounts */
 .toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-.toolbar .search { margin-left: auto; }
 .acct .item, .acct .columns { display: grid; grid-template-columns: 16px 164px minmax(0, 1fr) 128px 128px 138px 132px; gap: 16px; align-items: center; }
 .acct .item { min-height: 60px; padding: 10px 8px; margin: 0 -8px; border-radius: 8px; }
 /* The full row needs about 980px; narrower lists (a 1024px window with the sidebar) stack each account. */
@@ -401,7 +400,6 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .creds .item > .count { grid-column: 3; grid-row: 2; }
   .creds .item > .state-label { grid-row: 1; grid-column: 3; text-align: right; }
   .columns { display: none; }
-  .toolbar .search { margin-left: 0; width: 100%; }
   .toolbar .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
   .usage-row, .usage-model, .usage-event, .key-row, .list .catalog { display: flex; flex-wrap: wrap; gap: 8px 14px; padding-left: 0; }
   /* A limit on a phone: name and percentage, then the meter and when it resets. */

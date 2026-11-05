@@ -346,7 +346,8 @@ const codexWindow = (seconds: number, fallback: string) =>
 
 /**
  * Limits the server observed passively, without asking the provider: Codex rate-limit
- * headers (x-codex-primary-*, x-codex-secondary-*) and Devin's daily and weekly quota.
+ * headers (x-codex-primary-*, x-codex-secondary-*), Claude's anthropic-ratelimit-unified-*
+ * headers and Devin's daily and weekly quota.
  */
 export function signalWindows(p: string, quota: Data | undefined): Window[] {
   const sig: Data = {};
@@ -367,6 +368,20 @@ export function signalWindows(p: string, quota: Data | undefined): Window[] {
         reset: resetAt > 0 ? new Date(resetAt * 1000).toISOString() : after >= 0 && at ? new Date(at + after * 1000).toISOString() : "",
         source: `x-codex-${w}-`,
       });
+    }
+  else if (p === "claude")
+    // Claude's anthropic-ratelimit-unified-* headers: utilization is a 0 to 1 fraction and
+    // reset is Unix seconds. Labels match claudeWindows, so either source looks the same.
+    for (const [w, label] of [
+      ["5h", "Current session"],
+      ["7d", "Current week (all models)"],
+      ["overage", "Extra usage"],
+    ]) {
+      const source = `anthropic-ratelimit-unified-${w}-`,
+        used = parseFloat(sig[source + "utilization"]),
+        reset = Number(sig[source + "reset"]);
+      if (Number.isNaN(used) || sig[source + "disabled-reason"]) continue;
+      out.push({ label, used: clamp(used * 100), reset: reset > 0 ? new Date(reset * 1000).toISOString() : "", source });
     }
   else if (p === "devin")
     for (const w of ["daily", "weekly"]) {

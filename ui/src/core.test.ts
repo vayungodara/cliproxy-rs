@@ -253,6 +253,26 @@ test("passive limits from Codex headers and Devin quota", () => {
     ],
   );
   assert.deepEqual(signalWindows("claude", { signals: { "x-codex-primary-used-percent": "5" } }), []);
+  // Claude's unified headers, as recorded: fractions of 1 and Unix-second resets.
+  const claude = {
+    signals: {
+      "Anthropic-Ratelimit-Unified-5h-Utilization": "0.07",
+      "Anthropic-Ratelimit-Unified-5h-Reset": String(Date.parse("2026-10-02T15:00:00Z") / 1000),
+      "anthropic-ratelimit-unified-7d-utilization": "0.634",
+      "anthropic-ratelimit-unified-7d-reset": String(Date.parse("2026-10-06T09:00:00Z") / 1000),
+      "anthropic-ratelimit-unified-overage-utilization": "0.25",
+      "anthropic-ratelimit-unified-overage-status": "allowed",
+      "anthropic-ratelimit-unified-representative-claim": "five_hour",
+    },
+  };
+  assert.deepEqual(signalWindows("claude", claude), [
+    { label: "Current session", used: 7, reset: "2026-10-02T15:00:00.000Z", source: "anthropic-ratelimit-unified-5h-" },
+    { label: "Current week (all models)", used: 63.4, reset: "2026-10-06T09:00:00.000Z", source: "anthropic-ratelimit-unified-7d-" },
+    { label: "Extra usage", used: 25, reset: "", source: "anthropic-ratelimit-unified-overage-" },
+  ]);
+  assert.deepEqual(otherSignals(claude, signalWindows("claude", claude)).map(([k]) => k), ["anthropic-ratelimit-unified-representative-claim"]);
+  const off = { signals: { "anthropic-ratelimit-unified-overage-utilization": "0", "anthropic-ratelimit-unified-overage-disabled-reason": "org_level_disabled" } };
+  assert.deepEqual(signalWindows("claude", off), []);
 });
 
 test("signals not drawn as a window stay visible", () => {
