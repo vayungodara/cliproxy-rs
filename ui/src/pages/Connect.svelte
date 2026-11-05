@@ -92,7 +92,8 @@
       problem = r.error || "";
       found = r.found || "";
       if (r.status !== "ok") return finish(r.status);
-      store.creds.load(true);
+      // A queued usage check reads the account from this list, so it must hold the new one.
+      await store.creds.load(true);
       await verify(s, r.acct);
     }, true),
   );
@@ -225,7 +226,7 @@
         <div class="result">
           <span class="name"
             ><strong>{credName(acct)}</strong><small
-              >{[P, acct.id_token?.plan_type].filter(Boolean).join(" ")} · {status === "refused" ? "token saved" : acct.disabled ? "disabled" : "in rotation now"}</small
+              >{[P, acct.id_token?.plan_type].filter(Boolean).join(" ")} · {status === "refused" ? "token saved" : v.word.toLowerCase()}</small
             ></span
           >
           {#if status === "refused"}
@@ -239,7 +240,7 @@
       {#if status === "refused"}
         <p class="error">{limits(acct!)?.error}</p>
         <p class="muted small">
-          The token is saved{acct?.disabled ? "" : " and the account is in rotation"}, but requests with it will probably fail the same way. Try the read again, or sign in again.
+          The token is saved, but requests with it will probably fail the same way. Try the read again, or sign in again.
         </p>
         <div class="row">
           <button
