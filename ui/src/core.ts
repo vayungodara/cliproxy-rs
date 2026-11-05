@@ -377,11 +377,13 @@ export function signalWindows(p: string, quota: Data | undefined): Window[] {
       ["7d", "Current week (all models)"],
       ["overage", "Extra usage"],
     ]) {
+      // Only fully numeric, finite values count: "0.5junk" and "Infinity" are not readings.
       const source = `anthropic-ratelimit-unified-${w}-`,
-        used = parseFloat(sig[source + "utilization"]),
-        reset = Number(sig[source + "reset"]);
-      if (Number.isNaN(used) || sig[source + "disabled-reason"]) continue;
-      out.push({ label, used: clamp(used * 100), reset: reset > 0 ? new Date(reset * 1000).toISOString() : "", source });
+        num = (k: string) => (sig[source + k]?.trim() ? Number(sig[source + k]) : NaN),
+        used = num("utilization"),
+        reset = new Date(num("reset") * 1000);
+      if (!Number.isFinite(used) || sig[source + "disabled-reason"]) continue;
+      out.push({ label, used: clamp(used * 100), reset: reset.getTime() > 0 ? reset.toISOString() : "", source });
     }
   else if (p === "devin")
     for (const w of ["daily", "weekly"]) {
@@ -404,7 +406,7 @@ export const strategies = [
     value: "weighted-round-robin",
     name: "Weighted round robin",
     rust: false,
-    help: "Takes the accounts in turn in proportion to each account's weight, which you set on Credentials.",
+    help: "Takes the accounts in turn in proportion to each account's weight, set on Accounts.",
   },
   {
     value: "soonest-reset",

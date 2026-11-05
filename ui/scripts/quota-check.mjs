@@ -71,7 +71,10 @@ try {
         body = {status:'ok'};
       } else if (path.endsWith('/credentials/status')) {
         f.patched.push(sent.auth_index);
-        f.files.filter((x) => x.auth_index === sent.auth_index).forEach((x) => (x.disabled = sent.disabled));
+        // multi.json behaves like a plugin source: one request switches the whole file. Its
+        // first request fails without changing anything.
+        if (sent.auth_index === 'multi-a' && !f.failedOnce) return (f.failedOnce = true), json({error:'source busy'}, 500);
+        f.files.filter((x) => (sent.name === 'multi.json' ? x.name === sent.name : x.auth_index === sent.auth_index)).forEach((x) => (x.disabled = sent.disabled));
         body = {status:'ok'};
       } else if (path.endsWith('/credentials/refresh')) {
         f.refreshed.push(sent.auth_index);
@@ -170,16 +173,33 @@ try {
   await evaluate("window.quotaFixture.hold = true");
   await page.getByRole("button", { name: "Check quotas", exact: true }).click();
   await page.waitForFunction((n) => window.quotaFixture.calls === n + 1 && window.quotaFixture.release, start);
-  await page.waitForFunction(() => [...document.querySelectorAll(".detail button")].some((b) => b.disabled && b.textContent.startsWith("Checked")), null, { timeout: 15_000 });
+  // The open drawer is codex.json's, waiting behind claude-setup.json.
+  await page.waitForFunction(() => [...document.querySelectorAll(".detail button")].some((b) => b.disabled && b.textContent === "Queued"), null, { timeout: 15_000 });
   await evaluate("window.quotaFixture.now += 90000; window.quotaFixture.release()");
   await page.waitForFunction((n) => window.quotaFixture.calls === n + 2, start);
+  await page.waitForFunction(() => [...document.querySelectorAll(".detail button")].some((b) => b.disabled && b.textContent === "Checking…"), null, { timeout: 15_000 });
   await evaluate("window.quotaFixture.hold = false; window.quotaFixture.release()");
   await page.waitForFunction(() => ![...document.querySelectorAll("main button")].some((b) => b.textContent.startsWith("Checking")));
   assert.equal(await evaluate("window.quotaFixture.calls"), start + 2, "the drawer adds nothing to a queued check");
   await evaluate("window.quotaFixture.now += 40000");
   await click("Check quotas");
   assert.equal(await evaluate("window.quotaFixture.calls"), start + 3, "only the account sent 130 s ago is due; the one sent 40 s ago waits");
-  console.log("PASS the 2-minute wait starts when the request is sent, and a queued account is not queued twice");
+  console.log("PASS the 2-minute wait starts when the request is sent, a queued account is not queued twice, and the drawer says Queued, then Checking");
+
+  // An account disabled while it waits in line is not read.
+  await later();
+  const start2 = await evaluate("window.quotaFixture.calls");
+  await evaluate("window.quotaFixture.hold = true");
+  await page.getByRole("button", { name: "Check quotas", exact: true }).click();
+  await page.waitForFunction((n) => window.quotaFixture.calls === n + 1 && window.quotaFixture.release, start2);
+  await evaluate("window.quotaFixture.files[1].disabled = true");
+  await page.waitForFunction(() => document.querySelector("main .acct .off-row"), null, { timeout: 15_000 });
+  await evaluate("window.quotaFixture.hold = false; window.quotaFixture.release()");
+  await page.waitForFunction(() => ![...document.querySelectorAll("main button")].some((b) => b.textContent.startsWith("Checking")));
+  assert.equal(await evaluate("window.quotaFixture.calls"), start2 + 1, "the account disabled while queued is not read");
+  await evaluate("window.quotaFixture.files[1].disabled = false");
+  await page.waitForFunction(() => !document.querySelector("main .acct .off-row"), null, { timeout: 15_000 });
+  console.log("PASS an account disabled while queued is skipped when its turn comes");
 
   // Batches: a shared file is one unit and every account it holds is named; failures do not
   // stop the rest.
@@ -190,13 +210,19 @@ try {
     {name:'kimi.json', auth_index:'kimi-test', type:'kimi', status:'active'})`);
   await main.getByLabel("Select one@example.com").waitFor({ timeout: 15_000 });
   await main.getByLabel("Select one@example.com").check();
-  assert.match(await main.locator(".batch").textContent(), /1 selected\..*Actions also reach two@example\.com, which shares a file/);
+  assert.match(await main.locator(".batch").textContent(), /1 selected\..*Actions also reach two@example\.com, in the same files/);
   assert.equal(await evaluate("document.querySelector('[role=status].sr').textContent"), "1 selected.");
   assert.equal(await evaluate("document.querySelector('input[aria-label=\"Select all shown\"]').indeterminate"), true);
+  // The first request fails, the second switches the whole file: both accounts changed, and
+  // the toast says so.
   await main.locator(".batch").getByRole("button", { name: "Disable 2" }).click();
   await page.getByText("2 accounts disabled.").waitFor();
   assert.deepEqual(await evaluate("window.quotaFixture.patched"), ["multi-a", "multi-b"]);
-  console.log("PASS a status change on a shared file reaches, names and counts every account in it");
+  // One request switches the file back; the sibling is not asked again.
+  await main.locator(".batch").getByRole("button", { name: "Enable 2" }).click();
+  await page.getByText("2 accounts enabled.").waitFor();
+  assert.deepEqual(await evaluate("window.quotaFixture.patched"), ["multi-a", "multi-b", "multi-a"]);
+  console.log("PASS a status change on a shared file reaches, names and counts every account by what the server reports"); 
 
   await main.getByLabel("Select all shown").check();
   assert.equal(await evaluate("document.querySelector('input[aria-label=\"Select all shown\"]').indeterminate"), false);

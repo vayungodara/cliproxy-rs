@@ -273,6 +273,15 @@ test("passive limits from Codex headers and Devin quota", () => {
   assert.deepEqual(otherSignals(claude, signalWindows("claude", claude)).map(([k]) => k), ["anthropic-ratelimit-unified-representative-claim"]);
   const off = { signals: { "anthropic-ratelimit-unified-overage-utilization": "0", "anthropic-ratelimit-unified-overage-disabled-reason": "org_level_disabled" } };
   assert.deepEqual(signalWindows("claude", off), []);
+  // Malformed headers are not readings: no partial parse, no infinity, no thrown RangeError.
+  const bad = (u: string, r: string) => signalWindows("claude", { signals: { "anthropic-ratelimit-unified-5h-utilization": u, "anthropic-ratelimit-unified-5h-reset": r } });
+  assert.deepEqual(bad("0.5junk", "1793474400"), []);
+  assert.deepEqual(bad("Infinity", "1793474400"), []);
+  assert.deepEqual(bad("", "1793474400"), []);
+  assert.deepEqual(bad(" ", "1793474400"), []);
+  assert.deepEqual(bad("0.3", "Infinity"), [{ label: "Current session", used: 30, reset: "", source: "anthropic-ratelimit-unified-5h-" }]);
+  assert.deepEqual(bad("0.3", "1e300"), [{ label: "Current session", used: 30, reset: "", source: "anthropic-ratelimit-unified-5h-" }]);
+  assert.deepEqual(bad("0.3", "17934744junk"), [{ label: "Current session", used: 30, reset: "", source: "anthropic-ratelimit-unified-5h-" }]);
 });
 
 test("signals not drawn as a window stay visible", () => {

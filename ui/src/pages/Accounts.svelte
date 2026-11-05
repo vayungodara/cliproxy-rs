@@ -62,20 +62,32 @@
   const reach = $derived([...new Set(picked.map((r) => file(r.a)))].map((f) => rows.filter((r) => file(r.a) === f).map((r) => r.a)));
   const extra = $derived(reach.flat().filter((a) => !sel.includes(key(a))));
   const names = (list: Data[]) => list.map(credName).join(", ");
-  /** Runs every unit, past ordinary failures, then reports how many finished and which failed. */
-  function batch<T>(units: T[], name: (u: T) => string, run: (u: T) => Promise<unknown>, done: (n: number) => string, ask = "") {
+  /**
+   * Runs every unit, past ordinary failures, then reports how many finished and which failed.
+   * With `ok`, the outcome is read back from the server instead: a unit already done is not
+   * run, and a unit failed when it is not done afterwards, whichever requests errored.
+   */
+  function batch<T>(units: T[], name: (u: T) => string, run: (u: T) => Promise<unknown>, done: (n: number) => string, ask = "", ok?: (u: T) => boolean) {
     if (ask && !confirm(ask)) return;
     store.act(async () => {
-      const failed: string[] = [];
-      for (const u of units) await run(u).catch((e) => failed.push(`${name(u)} (${e instanceof Error ? e.message : e})`));
-      await reload();
-      if (failed.length) throw new Error(`${done(units.length - failed.length)}. ${failed.length} failed: ${failed.join(", ")}`);
+      const why = new Map<T, string>();
+      for (const u of units)
+        if (!ok?.(u)) {
+          // A reread after each unit shows progress and lets `ok` see file-wide changes.
+          await run(u).catch((e) => why.set(u, e instanceof Error ? e.message : e));
+          await reload();
+        }
+      const failed = units.filter((u) => (ok ? !ok(u) : why.has(u)));
+      if (failed.length) throw new Error(`${done(units.length - failed.length)}. ${failed.length} failed: ${failed.map((u) => name(u) + (why.has(u) ? ` (${why.get(u)})` : "")).join(", ")}`);
     }, `${done(units.length)}.`);
   }
   // Every account of a file that holds a selected account to switch, so a shared source never
   // ends half switched.
   const toSwitch = (disabled: boolean) =>
     reach.filter((g) => g.some((a) => sel.includes(key(a)) && !!a.disabled !== disabled)).flat().filter((a) => !!a.disabled !== disabled);
+  // A plugin source switches its whole file on one request, which the list does not mark, so
+  // the outcome is read back: an account a file-wide change already switched is not asked
+  // again, and the counts are what the server reports afterwards.
   const setStatus = (disabled: boolean) => {
     const list = toSwitch(disabled);
     const also = list.filter((a) => !sel.includes(key(a)));
@@ -84,7 +96,8 @@
       credName,
       (a) => api("/credentials/status", "PATCH", { ...lookup(a), disabled }),
       (n) => `${plural(n, "account")} ${disabled ? "disabled" : "enabled"}`,
-      also.length ? `${disabled ? "Disable" : "Enable"} ${plural(list.length, "account")}? These share a file with your selection and change too: ${names(also)}` : "",
+      also.length ? `${disabled ? "Disable" : "Enable"} ${plural(list.length, "account")}? Same files, so these change too: ${names(also)}` : "",
+      (a) => (store.creds.data || []).some((x) => key(x) === key(a) && !!x.disabled === disabled),
     );
   };
   const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
@@ -228,7 +241,7 @@
     {:else}
       <section class="section">
         <p class="muted small">
-          Sorted by soonest weekly reset{reset ? ", the order Reset first uses" : ""}. Quota checks ask the provider one account at a time, and never the same account twice within 2 minutes.
+          Sorted by soonest weekly reset{reset ? ", the order Reset first uses" : ""}. Quota checks go one account at a time, each at most once every 2 minutes.
         </p>
         <div class="toolbar">
           <div class="seg" role="group" aria-label="Provider">
@@ -303,7 +316,7 @@
                     </div>
                     <div class="row">
                       <button class="key small" disabled={!canCheck(a) || !!wait(a, now)} onclick={() => (check(a), (now = Date.now()))}
-                        >{wait(a, now) ? `Checked; again in ${span(wait(a, now))}` : "Check quota"}</button
+                        >{store.pending[quotaKey(a)] || (wait(a, now) ? `Checked; again in ${span(wait(a, now))}` : "Check quota")}</button
                       >
                       {#each actions(a) as [name, method, path, body, done, ask, off]}<button
                           class="key small"
@@ -341,7 +354,7 @@
             <p>
               <b>{picked.length} selected.</b>
               {#if hidden.length}<span class="muted">{hidden.length === 1 ? "1 of them is" : `${hidden.length} of them are`} {where}.</span>{/if}
-              {#if extra.length}<span class="muted">Actions also reach {names(extra)}, which {extra.length === 1 ? "shares" : "share"} a file with them.</span>{/if}
+              {#if extra.length}<span class="muted">Actions also reach {names(extra)}, in the same files.</span>{/if}
             </p>
             {#if off.length}<button class="key small" disabled={store.busy || !store.can("PATCH", "/credentials/status")} onclick={() => setStatus(false)}
                 >Enable {off.length}</button
