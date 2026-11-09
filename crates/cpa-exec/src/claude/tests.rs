@@ -1407,6 +1407,89 @@ async fn cloaked_conversation_prefix_holds_for_warm_changed_and_idle_turns() {
     assert_eq!(breakpoints(fresh), fixed);
 }
 
+/// Claude Code 2.1.280 to 2.1.320 is below the 2.1.321 baseline, so under default
+/// settings it is cloaked like any other client, including its tool continuations:
+/// the tool call and its result pass unchanged under the Claude Code identity, and
+/// the cached prefix of the first turn holds on the second.
+#[tokio::test]
+async fn older_claude_code_tool_continuation_is_cloaked_with_a_stable_prefix() {
+    let (base, sent) = recording_upstream().await;
+    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+    let mut credential = harness_credential();
+    credential.id = "older-native.json".into();
+    credential.attributes.insert("base_url".into(), base);
+    let cfg = Config::parse("").unwrap();
+    let headers = || {
+        let mut h = http::HeaderMap::new();
+        for (name, value) in [
+            ("user-agent", "claude-cli/2.1.300 (external, cli)"),
+            ("x-app", "cli"),
+            ("x-stainless-package-version", "0.118.0"),
+            ("x-stainless-runtime-version", "v26.5.0"),
+            ("anthropic-beta", "claude-code-20250219,interleaved-thinking-2025-05-14"),
+        ] {
+            h.insert(name, value.parse().unwrap());
+        }
+        h
+    };
+    let tools = r#"[{"name":"Read","description":"Read a file","input_schema":{"type":"object"}}]"#;
+    let system = r#"[{"type":"text","text":"Native caller system"}]"#;
+    let first = r#"{"role":"user","content":[{"type":"text","text":"Read the README."}]}"#;
+    let call = r#"{"role":"assistant","content":[{"type":"tool_use","id":"toolu_01native","name":"Read","input":{"path":"README.md"}}]}"#;
+    let result =
+        r#"{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01native","content":"Title"}]}"#;
+    let turn = |messages: &str| {
+        format!(
+            r#"{{"model":"claude-opus-5-5","max_tokens":64,"stream":true,"system":{system},"tools":{tools},"messages":[{messages}]}}"#
+        )
+    };
+    let _pins = Pins;
+    set_clock(Some("2026-11-09T12:00:00Z"));
+    drain(&executor, &credential, &cfg, client_request(turn(first), headers())).await;
+    set_clock(Some("2026-11-09T12:00:10Z"));
+    let continuation = format!("{first},{call},{result}");
+    drain(
+        &executor,
+        &credential,
+        &cfg,
+        client_request(turn(&continuation), headers()),
+    )
+    .await;
+
+    let sent = sent.lock().unwrap();
+    let [cold, warm] = &sent[..] else {
+        panic!("{} requests", sent.len());
+    };
+    for body in [cold, warm] {
+        assert!(rawjson::string(body, "system.0.text").starts_with(cloak::BILLING_PREFIX));
+        assert_eq!(rawjson::string(body, "system.1.text"), cloak::CLI_IDENTITY);
+    }
+    // The tool call keeps its id and input under the session's alias for the tool, the
+    // same name the request declares; the result goes up as sent, carrying the rolling
+    // breakpoint of the last turn.
+    const ROLLING: &str = r#","cache_control":{"type":"ephemeral","ttl":"1h"}"#;
+    let alias = rawjson::string(warm, "tools.0.name");
+    assert!(alias.starts_with("mcp__") && alias.ends_with("_Read"), "{alias}");
+    assert_eq!(
+        rawjson::get(warm, "messages.2").json(),
+        call.replace(r#""name":"Read""#, &format!(r#""name":"{alias}""#))
+    );
+    assert_eq!(rawjson::get(warm, "messages.3").json().replace(ROLLING, ""), result);
+    // The cold request, less its rolling breakpoint, prefixes the continuation.
+    let prefix = |body: &str| {
+        let mut out = rawjson::get(body, "tools").json().to_owned();
+        for block in rawjson::get(body, "system").array().iter().skip(1) {
+            out.push_str(block.json());
+        }
+        for message in rawjson::get(body, "messages").array().iter().take(2) {
+            out.push_str(message.json());
+        }
+        out.replace(ROLLING, "")
+    };
+    assert_eq!(rawjson::get(cold, "messages").array().len(), 2);
+    assert_eq!(prefix(warm), prefix(cold));
+}
+
 /// A cloaked API key keeps the caller's system prompt where the next turn finds it:
 /// in a system turn after the first user message, on the first turn and every later
 /// one, as for an OAuth login. Go v8.0.27 keeps it top-level while that user message
