@@ -5,6 +5,49 @@ use serde_json::Value;
 use std::path::Path;
 use std::time::Duration;
 
+/// The Claude Code identity Go v8.0.35 cloaks with. Its recorded captures carry it, and
+/// `BASELINE` has moved on (docs/DIFFERENCES-FROM-GO.md), so comparisons against Go
+/// pin it as header defaults unless the scenario configures its own.
+pub(super) const GO_BASELINE: [(&str, &str); 3] = [
+    ("user-agent", "claude-cli/2.1.280 (external, cli)"),
+    ("package-version", "0.112.1"),
+    ("runtime-version", "v26.3.0"),
+];
+
+pub(super) fn go_settings() -> Settings {
+    Settings::from_config(&go_config(""))
+}
+
+pub(super) fn go_config(yaml: &str) -> Config {
+    go_config_checked(yaml).unwrap()
+}
+
+pub(super) fn go_config_checked(yaml: &str) -> Result<Config, String> {
+    use serde_yaml_ng::{Mapping, Value as Yaml};
+    let mut cfg = Config::parse(yaml).map_err(|e| format!("{e:?}"))?;
+    let mut node = &mut cfg.document;
+    for key in ["upstream", "claude", "header-defaults"] {
+        let map = node.as_mapping_mut().expect("config document is a mapping");
+        node = map
+            .entry(Yaml::from(key))
+            .or_insert_with(|| Yaml::Mapping(Mapping::new()));
+        if !node.is_mapping() {
+            *node = Yaml::Mapping(Mapping::new());
+        }
+    }
+    let defaults = node.as_mapping_mut().unwrap();
+    for (key, value) in GO_BASELINE {
+        let set = defaults
+            .get(key)
+            .and_then(Yaml::as_str)
+            .is_some_and(|v| !v.trim().is_empty());
+        if !set {
+            defaults.insert(Yaml::from(key), Yaml::from(value));
+        }
+    }
+    Ok(cfg)
+}
+
 thread_local! {
     /// The clock requests prepared on this test thread read, when set.
     static CLOCK: std::cell::Cell<Option<chrono::DateTime<chrono::Utc>>> = const { std::cell::Cell::new(None) };
@@ -114,7 +157,7 @@ async fn pipeline_reproduces_go_upstream_captures() {
     let captures: Value = serde_json::from_str(include_str!("testdata/go_captures.json")).unwrap();
     let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
     let credential = harness_credential();
-    let cfg = Config::parse("").unwrap();
+    let cfg = go_config("");
     for case in captures["cases"].as_array().unwrap() {
         let name = case["name"].as_str().unwrap();
         let req = enrich(request(case));
@@ -924,7 +967,7 @@ async fn scenarios_match_go(fixture: &str, run: &str, selected: fn(&str) -> bool
             // dates, and whichever ran first used to pin its date for the other.
             std::fs::write(dir.join("auth").join(format!("fixture-{run}.json")), auth).unwrap();
         }
-        let cfg = Config::parse(&text).unwrap();
+        let cfg = go_config(&text);
         let credential = cpa_core::config::credentials::load(&cfg)
             .into_iter()
             .find(|c| c.provider == "claude")
@@ -1908,7 +1951,7 @@ async fn compat_replay_sequence_matches_go() {
             .as_str()
             .unwrap()
             .replace("AUTH_DIR", root.to_str().unwrap());
-        let cfg = Config::parse(&text).unwrap();
+        let cfg = go_config(&text);
         let credential = cpa_core::config::credentials::load(&cfg)
             .into_iter()
             .find(|c| c.provider == "claude")

@@ -542,14 +542,14 @@ mod tests {
             d.confirmed && d.helper_profile
         };
         assert!(
-            confirmed("claude-cli/2.1.280 (external, cli)", "0.112.1", "v26.3.0"),
+            confirmed("claude-cli/2.1.321 (external, cli)", "0.128.0", "v26.12.1"),
             "baseline"
         );
         assert!(confirmed("claude-cli/2.2.3 (external, cli)", "0.120.4", "v27.0.1"));
         assert!(!confirmed("claude-cli/2.2.3 (external, cli)", "", "v27.0.1"));
         assert!(!confirmed("claude-cli/2.2.3 (external, cli)", "0.120", "v27.0.1"));
         // The baseline release still needs the exact baseline tuple (Go).
-        assert!(!confirmed("claude-cli/2.1.280 (external, cli)", "0.120.4", "v27.0.1"));
+        assert!(!confirmed("claude-cli/2.1.321 (external, cli)", "0.120.4", "v27.0.1"));
         // A changed shape falls back to cloaking.
         let (h, body) = helper("claude-cli/2.2.3 (external, cli)", "0.120.4", "v27.0.1");
         let body = body.replace(r#""max_tokens":80"#, r#""max_tokens":81"#);
@@ -587,7 +587,7 @@ mod tests {
                 ("x-stainless-runtime-version", "27.0.1")
             ]
         ));
-        assert!(confirmed("claude-cli/2.1.280 (external, cli)", &[]));
+        assert!(confirmed("claude-cli/2.1.321 (external, cli)", &[]));
         // Forwarding reads each header's first value: an empty first value with a valid
         // second one would send the baseline SDK version under the 2.2.3 User-Agent.
         let mut h = headers(&[
@@ -602,7 +602,7 @@ mod tests {
     }
 
     /// With a stabilized profile nothing newer is forwarded, so Go's rules apply: a
-    /// 2.1.290 request is Claude Code without Stainless headers, and its helper is
+    /// 2.1.330 request is Claude Code without Stainless headers, and its helper is
     /// confirmed only with the exact baseline tuple.
     #[test]
     fn stabilized_profiles_keep_go_detection() {
@@ -613,13 +613,13 @@ mod tests {
             user_id()
         );
         let h = headers(&[
-            ("user-agent", "claude-cli/2.1.290 (external, cli)"),
+            ("user-agent", "claude-cli/2.1.330 (external, cli)"),
             ("x-app", "cli"),
             ("anthropic-beta", "claude-code-20250219"),
         ]);
         assert!(detect(&h, &body, false, &s).confirmed);
         assert!(detect(&h, &body, true, &s).confirmed, "count_tokens");
-        let (h, body) = helper("claude-cli/2.1.290 (external, cli)", "0.120.4", "v27.0.1");
+        let (h, body) = helper("claude-cli/2.1.330 (external, cli)", "0.120.4", "v27.0.1");
         assert!(!detect(&h, &body, false, &s).confirmed);
     }
 }
