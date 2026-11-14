@@ -1,5 +1,11 @@
 {
   "fields": {
+    "compaction": {
+      "fields": {
+        "summary-max-tokens": "int",
+        "summary-reasoning-effort": "string"
+      }
+    },
     "models": {
       "fields": {
         "catalog": "string",
