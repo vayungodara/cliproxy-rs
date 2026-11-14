@@ -20,9 +20,9 @@ use super::settings::Settings;
 /// Measured 2026-11-09 from the official 2.1.321 release against a local mock
 /// upstream; Anthropic refuses 2.1.280 for claude-fable-5-2 (needs 2.1.290+).
 pub(crate) const BASELINE: Baseline = Baseline {
-    user_agent: "claude-cli/2.1.321 (external, cli)",
-    package_version: "0.128.0",
-    runtime_version: "v26.12.1",
+    user_agent: "claude-cli/2.1.280 (external, cli)",
+    package_version: "0.112.1",
+    runtime_version: "v26.3.0",
     os: "MacOS",
     arch: "arm64",
 };
@@ -99,7 +99,7 @@ impl Profile {
 pub(crate) fn default_version(settings: &Settings) -> String {
     match Profile::default_for(settings).version() {
         Some((a, b, c)) => format!("{a}.{b}.{c}"),
-        None => "2.1.321".into(),
+        None => "2.1.280".into(),
     }
 }
 
