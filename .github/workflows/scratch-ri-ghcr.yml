@@ -1,0 +1,173 @@
+# Builds the Docker image natively on linux/amd64 and linux/arm64. Pull requests and
+# pushes to master build it without pushing when they change what the image build depends
+# on besides the source: the Dockerfile, the build context filter, the manifests, the
+# vendored crates and the dashboard that the binary embeds (ui/dist, read by
+# crates/cpa-server/build.rs). This catches a Dockerfile that misses a new input before a
+# tag does. release.yml builds the amd64 image before every release as well.
+#
+# A v* tag (path filters do not apply to tags) also pushes the image to
+# ghcr.io/vayungodara/cliproxy-rs: each architecture as <version>-amd64 and
+# <version>-arm64, then one multi-arch manifest tagged <version> and, unless the version
+# has a pre-release suffix such as -rc1, latest. Only the publish job has packages: write,
+# and it runs on tags only.
+#
+# One run per change: pushes to master, and pull requests through `pull_request` only.
+# Runs are grouped per pull request (or per ref outside one), and a newer push cancels the
+# older run.
+name: docker
+
+on:
+  push:
+    branches: [scratch-ri-ghcr]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE: localhost:5000/cliproxy-rs
+  SIM_REF_NAME: v0.4.2
+
+jobs:
+  # The build, smoke test and size gate of the docker job in release.yml, with the same
+  # (default) build arguments, on a runner of each architecture: emulating arm64 under
+  # QEMU takes hours for this Rust build.
+  image:
+    name: docker image ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, runner: ubuntu-24.04 }
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build
+        run: docker build --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" -t cliproxy-rs:ci .
+      - name: Smoke test
+        run: |
+          reported="$(docker run --rm cliproxy-rs:ci --version | tail -n 1)"
+          echo "$reported"
+          if [[ "refs/tags/$SIM_REF_NAME" == refs/tags/v* && "$reported" != "cliproxy ${SIM_REF_NAME#v}" ]]; then
+            echo "::error::tag $SIM_REF_NAME does not match the image's version ($reported)"; exit 1
+          fi
+      # amd64 keeps the key release.yml reports; arm64 reports under its own key.
+      - name: Size gate
+        run: bench/gate.sh image cliproxy-rs:ci ${{ matrix.arch == 'arm64' && 'arm64' || '' }}
+      - name: Save the image for the publish job
+        if: true
+        run: |
+          docker tag cliproxy-rs:ci "$IMAGE:${SIM_REF_NAME#v}-${{ matrix.arch }}"
+          docker save "$IMAGE:${SIM_REF_NAME#v}-${{ matrix.arch }}" | gzip -1 > image-${{ matrix.arch }}.tar.gz
+      - if: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ matrix.arch }}
+          path: image-${{ matrix.arch }}.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+
+  publish:
+    name: push to GHCR
+    needs: image
+    if: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      packages: write
+    services:
+      registry:
+        image: registry:2
+        ports: ["5000:5000"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: image-*
+          merge-multiple: true
+      - name: Log in to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo scratch, the local registry needs no login
+      - name: Push both architectures and the manifest
+        run: |
+          version="${SIM_REF_NAME#v}"
+          for arch in amd64 arm64; do
+            docker load -i "image-$arch.tar.gz"
+            docker push "$IMAGE:$version-$arch"
+          done
+          tags=(-t "$IMAGE:$version")
+          [[ "$version" == *-* ]] || tags+=(-t "$IMAGE:latest")
+          docker buildx imagetools create "${tags[@]}" \
+            --annotation "index:org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --annotation "index:org.opencontainers.image.licenses=MIT" \
+            "$IMAGE:$version-amd64" "$IMAGE:$version-arm64"
+      - name: Check the manifest
+        run: |
+          version="${SIM_REF_NAME#v}"
+          docker buildx imagetools inspect "$IMAGE:$version"
+          platforms="$(docker buildx imagetools inspect "$IMAGE:$version" --format '{{json .Manifest}}' |
+            jq -r '[.manifests[].platform | select(.os != "unknown") | .os + "/" + .architecture] | sort | join(",")')"
+          echo "$platforms"
+          [[ "$platforms" == "linux/amd64,linux/arm64" ]] || { echo "::error::manifest platforms are $platforms"; exit 1; }
+      # Scratch only: what a user gets from the pushed manifest.
+      - name: "scratch: pull latest and run it"
+        run: |
+          docker image rm -f "$IMAGE:0.4.2-amd64" "$IMAGE:0.4.2-arm64"
+          docker pull "$IMAGE:latest"
+          docker image inspect "$IMAGE:latest" --format '{{.Os}}/{{.Architecture}} {{json .Config.Labels}}'
+          docker run --rm "$IMAGE:latest" --version
+          docker buildx imagetools inspect "$IMAGE:latest" --format '{{json .Manifest.Annotations}}'
+          docker buildx imagetools inspect "$IMAGE:0.4.2-arm64" --format '{{json .Image.Architecture}}' || docker buildx imagetools inspect "$IMAGE:0.4.2-arm64"
+      - name: "scratch: compose.yaml with the documented config"
+        run: |
+          docker tag "$IMAGE:latest" ghcr.io/vayungodara/cliproxy-rs:latest
+          mkdir -p /tmp/c/data/auth && cp compose.yaml /tmp/c/ && cd /tmp/c
+          cat > data/config.yaml <<'EOF'
+          server:
+            host: ""
+            port: 8317
+          access:
+            api-keys:
+              - "your-client-key"
+          management:
+            secret-key: "your-management-key"
+            allow-remote: true
+          oauth:
+            auth-dir: "/data/auth"
+          EOF
+          sudo chown -R 10001:10001 data
+          docker compose up -d --pull never
+          for i in $(seq 30); do curl -fsS -o /dev/null http://127.0.0.1:8317/ 2>/dev/null && break; sleep 1; done
+          docker compose ps
+          echo "models: $(curl -sS -H 'Authorization: Bearer your-client-key' http://127.0.0.1:8317/v1/models)"
+          code=$(curl -sS -o /tmp/mgmt.json -w '%{http_code}' -H 'Authorization: Bearer your-management-key' http://127.0.0.1:8317/v0/management/config)
+          echo "management config: $code $(head -c 200 /tmp/mgmt.json)"
+          [[ $code == 200 ]]
+          code=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8317/management.html); echo "dashboard: $code"; [[ $code == 200 ]]
+          # The server hashes the plaintext management key into config.yaml on first start.
+          sudo grep -n 'secret-key' data/config.yaml
+          sudo grep -q 'secret-key: "\?\$2' data/config.yaml
+          # A credential file written through the Management API lands in ./data/auth.
+          code=$(curl -sS -o /tmp/up.json -w '%{http_code}' -X POST -H 'Authorization: Bearer your-management-key' \
+            -H 'Content-Type: application/json' --data '{"type":"openai-compatibility","api_key":"x"}' \
+            'http://127.0.0.1:8317/v0/management/auth-files?name=scratch.json')
+          echo "auth upload: $code $(head -c 200 /tmp/up.json)"
+          sudo ls -l data data/auth
+          docker compose logs --no-color | tail -n 20
+          docker compose down
+      - name: "scratch: a single-file config mount cannot be saved"
+        run: |
+          mkdir -p /tmp/f && cd /tmp/f
+          printf 'server:\n  host: ""\nmanagement:\n  secret-key: "plain-key"\noauth:\n  auth-dir: "/tmp/auth"\n' > config.yaml
+          sudo chown 10001:10001 config.yaml
+          docker run -d --name single -v "$PWD/config.yaml:/data/config.yaml" "$IMAGE:latest"
+          sleep 5
+          docker logs single 2>&1 | tail -n 15
+          sudo cat config.yaml
+          docker rm -f single
