@@ -1,0 +1,196 @@
+# Scratch, never merged: Codex CLI through cliproxy-rs against llama.cpp, Ollama and vLLM
+# serving Qwen2.5-1.5B-Instruct on CPU. Also runs Codex directly against each server's
+# own /v1/responses for comparison. Results go to the job log and an artifact.
+name: scratch local models
+
+on:
+  push:
+    branches: [scratch-ri-local-models]
+
+permissions:
+  contents: read
+
+jobs:
+  local:
+    name: ${{ matrix.server }}
+    strategy:
+      fail-fast: false
+      matrix:
+        server: [llama.cpp, ollama, vllm]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    env:
+      CODEX_VERSION: 0.169.0
+      CLIPROXY_VERSION: 0.4.2
+      LLAMA_TAG: b12377
+      OLLAMA_TAG: v0.40.16
+      VLLM_TAG: v0.33.0rc3
+      CTX: "16384"
+      GH_TOKEN: ${{ github.token }}
+      W: ${{ github.workspace }}/w
+    steps:
+      - uses: actions/checkout@v7
+      - name: Machine, cliproxy-rs and Codex CLI
+        run: |
+          mkdir -p "$W/out" "$W/dl/cp" && cd "$W/dl/cp"
+          nproc; free -g | head -2
+          grep -o -w -E 'avx2|avx512f|avx512_bf16|amx_tile' /proc/cpuinfo | sort -u | tr '\n' ' '; echo
+          gh release download "v$CLIPROXY_VERSION" -R vayungodara/cliproxy-rs -p "cliproxy-$CLIPROXY_VERSION-x86_64-unknown-linux-gnu.tar.gz" -p SHA256SUMS
+          sha256sum -c --ignore-missing SHA256SUMS
+          tar xzf "cliproxy-$CLIPROXY_VERSION-x86_64-unknown-linux-gnu.tar.gz"
+          sudo install -m 0755 "cliproxy-$CLIPROXY_VERSION-x86_64-unknown-linux-gnu/cliproxy" /usr/local/bin/cliproxy
+          npm i -g "@openai/codex@$CODEX_VERSION" > /dev/null
+          codex --version
+          cliproxy --version | tail -n 1
+
+      - name: Start llama-server
+        if: matrix.server == 'llama.cpp'
+        run: |
+          mkdir -p "$W/dl/llama" && cd "$W/dl/llama"
+          gh release download "$LLAMA_TAG" -R ggml-org/llama.cpp -p "llama-$LLAMA_TAG-bin-ubuntu-x64.tar.gz"
+          tar xzf "llama-$LLAMA_TAG-bin-ubuntu-x64.tar.gz"
+          bin="$(dirname "$(find "$PWD" -name llama-server -type f | head -n 1)")"
+          LD_LIBRARY_PATH="$bin" "$bin/llama-server" --version 2>&1 | tail -n 2
+          nohup env LD_LIBRARY_PATH="$bin" "$bin/llama-server" -hf Qwen/Qwen2.5-1.5B-Instruct-GGUF:Q4_K_M \
+            --jinja -c "$CTX" -np 1 --host 127.0.0.1 --port 8080 --alias qwen2.5-1.5b-instruct > "$W/out/server.log" 2>&1 &
+          { echo "UPSTREAM_BASE=http://127.0.0.1:8080/v1"; echo "UPSTREAM_MODEL=qwen2.5-1.5b-instruct"; } >> "$GITHUB_ENV"
+
+      - name: Start Ollama
+        if: matrix.server == 'ollama'
+        run: |
+          mkdir -p "$W/dl/ollama" && cd "$W/dl/ollama"
+          gh release download "$OLLAMA_TAG" -R ollama/ollama -p ollama-linux-amd64.tar.zst
+          sudo tar -C /usr/local -I zstd -xf ollama-linux-amd64.tar.zst
+          nohup env OLLAMA_CONTEXT_LENGTH="$CTX" OLLAMA_HOST=127.0.0.1:11434 ollama serve > "$W/out/server.log" 2>&1 &
+          for _ in $(seq 60); do curl -fsS http://127.0.0.1:11434/api/version && break; sleep 1; done; echo
+          ollama --version
+          ollama pull qwen2.5:1.5b > /dev/null
+          { echo "UPSTREAM_BASE=http://127.0.0.1:11434/v1"; echo "UPSTREAM_MODEL=qwen2.5:1.5b"; } >> "$GITHUB_ENV"
+
+      - name: Start vLLM (CPU wheel)
+        if: matrix.server == 'vllm'
+        run: |
+          mkdir -p "$W/dl/vllm" && cd "$W/dl/vllm"
+          gh release download "$VLLM_TAG" -R vllm-project/vllm -p "vllm-*+cpu-cp38-abi3-manylinux_2_39_x86_64.whl"
+          pip install -q uv
+          uv venv -q -p 3.12 "$W/venv"
+          uv pip install -q -p "$W/venv" ./vllm-*.whl --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+          "$W/venv/bin/python" -c 'import vllm, torch; print("vllm", vllm.__version__, "torch", torch.__version__)'
+          nohup env VLLM_CPU_KVCACHE_SPACE=4 "$W/venv/bin/vllm" serve Qwen/Qwen2.5-1.5B-Instruct \
+            --served-model-name qwen2.5-1.5b-instruct --max-model-len "$CTX" --dtype bfloat16 \
+            --enable-auto-tool-choice --tool-call-parser hermes --host 127.0.0.1 --port 8000 > "$W/out/server.log" 2>&1 &
+          { echo "UPSTREAM_BASE=http://127.0.0.1:8000/v1"; echo "UPSTREAM_MODEL=qwen2.5-1.5b-instruct"; } >> "$GITHUB_ENV"
+
+      - name: Wait for the server
+        run: |
+          start=$(date +%s)
+          for _ in $(seq 300); do
+            if curl -fsS "$UPSTREAM_BASE/models" > "$W/out/models.json" 2>/dev/null; then
+              echo "ready after $(( $(date +%s) - start ))s"; cat "$W/out/models.json"; echo; exit 0
+            fi
+            sleep 5
+          done
+          tail -n 60 "$W/out/server.log"; exit 1
+
+      - name: Start cliproxy-rs
+        run: |
+          mkdir -p "$W/proxy/auth"
+          cat > "$W/proxy/config.yaml" <<EOF
+          server:
+            host: "127.0.0.1"
+            port: 8317
+          access:
+            api-keys:
+              - "test-client-key"
+          oauth:
+            auth-dir: "$W/proxy/auth"
+          observability:
+            logs:
+              request-log: true
+          api-keys:
+            openai-compatibility:
+              - name: local
+                base-url: "$UPSTREAM_BASE"
+                keys: []
+                models:
+                  - name: "$UPSTREAM_MODEL"
+                    alias: "local"
+          EOF
+          cat "$W/proxy/config.yaml"
+          cd "$W/proxy"
+          nohup cliproxy --config "$W/proxy/config.yaml" --local-model > "$W/out/proxy.log" 2>&1 &
+          for _ in $(seq 30); do curl -fsS -H 'Authorization: Bearer test-client-key' http://127.0.0.1:8317/v1/models && break; sleep 1; done; echo
+
+      - name: Responses checks through the proxy
+        id: checks
+        continue-on-error: true
+        run: python3 .github/scratch/local_tests.py "$W/out" | tee "$W/out/checks.txt"
+
+      - name: Codex CLI through the proxy
+        id: codex_proxy
+        continue-on-error: true
+        run: |
+          mkdir -p "$W/codexhome" "$W/work" && cd "$W/work"
+          echo "the secret word is pelican" > note.txt
+          cat > "$W/codexhome/config.toml" <<'EOF'
+          model = "local"
+          model_provider = "cliproxy"
+
+          [model_providers.cliproxy]
+          name = "cliproxy-rs"
+          base_url = "http://127.0.0.1:8317/v1"
+          env_key = "CLIPROXY_CLIENT_KEY"
+          wire_api = "responses"
+          stream_idle_timeout_ms = 900000
+          EOF
+          start=$(date +%s)
+          CODEX_HOME="$W/codexhome" CLIPROXY_CLIENT_KEY=test-client-key timeout 1800 codex exec --json --skip-git-repo-check \
+            --dangerously-bypass-approvals-and-sandbox \
+            'Run the shell command `cat note.txt` and reply with the secret word it contains.' \
+            > "$W/out/codex-proxy.jsonl" 2> "$W/out/codex-proxy.err" || echo "codex exit $?"
+          echo "took $(( $(date +%s) - start ))s"
+          python3 .github/scratch/codex_summary.py "$W/out/codex-proxy.jsonl" "$W/out/codex-proxy.err"
+
+      - name: Codex CLI directly against the server's /v1/responses
+        id: codex_direct
+        continue-on-error: true
+        run: |
+          mkdir -p "$W/codexhome-direct" "$W/work-direct" && cd "$W/work-direct"
+          echo "the secret word is pelican" > note.txt
+          cat > "$W/codexhome-direct/config.toml" <<EOF
+          model = "$UPSTREAM_MODEL"
+          model_provider = "local"
+
+          [model_providers.local]
+          name = "local"
+          base_url = "$UPSTREAM_BASE"
+          wire_api = "responses"
+          stream_idle_timeout_ms = 900000
+          EOF
+          start=$(date +%s)
+          CODEX_HOME="$W/codexhome-direct" timeout 1800 codex exec --json --skip-git-repo-check \
+            --dangerously-bypass-approvals-and-sandbox \
+            'Run the shell command `cat note.txt` and reply with the secret word it contains.' \
+            > "$W/out/codex-direct.jsonl" 2> "$W/out/codex-direct.err" || echo "codex exit $?"
+          echo "took $(( $(date +%s) - start ))s"
+          python3 .github/scratch/codex_summary.py "$W/out/codex-direct.jsonl" "$W/out/codex-direct.err"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "checks=${{ steps.checks.outcome }} codex_proxy=${{ steps.codex_proxy.outcome }} codex_direct=${{ steps.codex_direct.outcome }}"
+          cat "$W/out/checks.txt" 2>/dev/null || true
+          grep -E 'warn|error' "$W/out/proxy.log" | tail -n 20 || true
+          tail -n 30 "$W/out/server.log" || true
+          rm -rf "$W/proxy/auth"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: local-${{ matrix.server }}
+          path: |
+            w/out
+            w/proxy
+          retention-days: 3
