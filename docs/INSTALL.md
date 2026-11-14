@@ -176,7 +176,41 @@ The dashboard in `ui/dist` is committed, so Node is not needed for a normal buil
 
 ## Docker
 
-The repository's `Dockerfile` builds the binary and copies it into a small Debian image that runs as an unprivileged user. The build compiles BoringSSL and needs about 2 GB of memory; on a small machine add `--build-arg BUILD_JOBS=1`.
+Releases after 0.4.2 publish an image to `ghcr.io/vayungodara/cliproxy-rs` for linux/amd64 and linux/arm64, tagged with the release version and `latest`. It is a small Debian image that runs the binary as an unprivileged user.
+
+### Docker Compose
+
+[`compose.yaml`](../compose.yaml) runs the image with `./data` mounted at `/data`, which holds `config.yaml` and the `auth` folder for sign-in files:
+
+```sh
+mkdir -p cliproxy/data/auth && cd cliproxy
+curl -fsSLO https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/compose.yaml
+$EDITOR data/config.yaml                  # see the notes below
+sudo chown -R 10001:10001 data            # the container runs as uid and gid 10001
+docker compose up -d
+```
+
+A config for the container, with your own keys:
+
+```yaml
+server:
+  host: ""
+  port: 8317
+access:
+  api-keys:
+    - "your-client-key"
+management:
+  secret-key: "your-management-key"
+  allow-remote: true
+oauth:
+  auth-dir: "/data/auth"
+```
+
+Mount the folder, not `config.yaml` alone: the server saves the config by writing a new file and renaming it over the old one, which fails on a single-file mount. To stay on one release, replace `latest` with its version. `docker compose pull && docker compose up -d` updates the container.
+
+### Building the image
+
+The repository's `Dockerfile` builds the binary and copies it into the same Debian image. The build compiles BoringSSL and needs about 2 GB of memory; on a small machine add `--build-arg BUILD_JOBS=1`.
 
 ```sh
 docker build -t cliproxy-rs .
@@ -185,6 +219,8 @@ $EDITOR data/config.yaml                  # see the notes below
 sudo chown -R 10001:10001 data            # the container runs as uid and gid 10001
 docker run -d --name cliproxy -p 127.0.0.1:8317:8317 -v "$PWD/data:/data" cliproxy-rs
 ```
+
+### Notes for both
 
 Inside the container the config is `/data/config.yaml`. In that config:
 

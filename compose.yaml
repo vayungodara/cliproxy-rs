@@ -1,0 +1,11 @@
+# cliproxy-rs from its GHCR image. ./data holds config.yaml and the auth/ folder for
+# sign-in files; docs/INSTALL.md#docker-compose explains the config and permissions.
+services:
+  cliproxy:
+    image: ghcr.io/vayungodara/cliproxy-rs:latest
+    container_name: cliproxy
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8317:8317"
+    volumes:
+      - ./data:/data
