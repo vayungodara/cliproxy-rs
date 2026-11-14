@@ -1410,53 +1410,79 @@ async fn cloaked_conversation_prefix_holds_for_warm_changed_and_idle_turns() {
 /// Claude Code 2.1.280 to 2.1.320 is below the 2.1.321 baseline, so under default
 /// settings it is cloaked like any other client, including its tool continuations:
 /// the tool call and its result pass unchanged under the Claude Code identity, and
-/// the cached prefix of the first turn holds on the second.
+/// the cached prefix of the first turn holds on the second. The same requests from a
+/// confirmed native client (Claude Code headers, betas and `metadata.user_id`) are
+/// forwarded natively when the baseline is Go's 2.1.280.
 #[tokio::test]
 async fn older_claude_code_tool_continuation_is_cloaked_with_a_stable_prefix() {
-    let (base, sent) = recording_upstream().await;
-    let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
-    let mut credential = harness_credential();
-    credential.id = "older-native.json".into();
-    credential.attributes.insert("base_url".into(), base);
-    let cfg = Config::parse("").unwrap();
-    let headers = || {
-        let mut h = http::HeaderMap::new();
-        for (name, value) in [
-            ("user-agent", "claude-cli/2.1.300 (external, cli)"),
-            ("x-app", "cli"),
-            ("x-stainless-package-version", "0.118.0"),
-            ("x-stainless-runtime-version", "v26.5.0"),
-            ("anthropic-beta", "claude-code-20250219,interleaved-thinking-2025-05-14"),
-        ] {
-            h.insert(name, value.parse().unwrap());
-        }
-        h
-    };
     let tools = r#"[{"name":"Read","description":"Read a file","input_schema":{"type":"object"}}]"#;
     let system = r#"[{"type":"text","text":"Native caller system"}]"#;
     let first = r#"{"role":"user","content":[{"type":"text","text":"Read the README."}]}"#;
     let call = r#"{"role":"assistant","content":[{"type":"tool_use","id":"toolu_01native","name":"Read","input":{"path":"README.md"}}]}"#;
     let result =
         r#"{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01native","content":"Title"}]}"#;
+    let continuation = format!("{first},{call},{result}");
+    // Claude Code 2.1.300 sends its fixed device and session identity on every turn.
+    let user_id = serde_json::to_string(&format!(
+        r#"{{"device_id":"{}","account_uuid":"","session_id":"5f0c8a52-3d1e-4b7a-9c26-7e41d8b0a913"}}"#,
+        "a".repeat(64)
+    ))
+    .unwrap();
     let turn = |messages: &str| {
         format!(
-            r#"{{"model":"claude-opus-5-5","max_tokens":64,"stream":true,"system":{system},"tools":{tools},"messages":[{messages}]}}"#
+            r#"{{"model":"claude-opus-5-5","max_tokens":64,"stream":true,"metadata":{{"user_id":{user_id}}},"system":{system},"tools":{tools},"messages":[{messages}]}}"#
         )
     };
+    let send = async |cfg: Config, id: &str| -> Vec<String> {
+        let (base, sent) = recording_upstream().await;
+        let executor = ClaudeExecutor::with_client(wreq::Client::new(), DEFAULT_BASE_URL);
+        let mut credential = harness_credential();
+        credential.id = id.into();
+        credential.attributes.insert("base_url".into(), base);
+        let headers = || {
+            let mut h = http::HeaderMap::new();
+            for (name, value) in [
+                ("user-agent", "claude-cli/2.1.300 (external, cli)"),
+                ("x-app", "cli"),
+                ("x-stainless-package-version", "0.118.0"),
+                ("x-stainless-runtime-version", "v26.5.0"),
+                ("anthropic-beta", "claude-code-20250219,interleaved-thinking-2025-05-14"),
+            ] {
+                h.insert(name, value.parse().unwrap());
+            }
+            h
+        };
+        set_clock(Some("2026-11-09T12:00:00Z"));
+        drain(&executor, &credential, &cfg, client_request(turn(first), headers())).await;
+        set_clock(Some("2026-11-09T12:00:10Z"));
+        drain(
+            &executor,
+            &credential,
+            &cfg,
+            client_request(turn(&continuation), headers()),
+        )
+        .await;
+        sent.lock().unwrap().clone()
+    };
     let _pins = Pins;
-    set_clock(Some("2026-11-09T12:00:00Z"));
-    drain(&executor, &credential, &cfg, client_request(turn(first), headers())).await;
-    set_clock(Some("2026-11-09T12:00:10Z"));
-    let continuation = format!("{first},{call},{result}");
-    drain(
-        &executor,
-        &credential,
-        &cfg,
-        client_request(turn(&continuation), headers()),
-    )
-    .await;
 
-    let sent = sent.lock().unwrap();
+    // Go's 2.1.280 baseline: 2.1.300 is a newer release, confirmed and forwarded as sent.
+    let forwarded = send(go_config(""), "older-native-go.json").await;
+    let [native_cold, native_warm] = &forwarded[..] else {
+        panic!("{} requests", forwarded.len());
+    };
+    for body in [native_cold, native_warm] {
+        assert_eq!(rawjson::string(body, "system.0.text"), "Native caller system");
+        assert_eq!(
+            rawjson::get(body, "system").array().len(),
+            1,
+            "no Claude Code identity added"
+        );
+        assert_eq!(rawjson::string(body, "tools.0.name"), "Read", "no tool alias");
+    }
+
+    // Default settings: 2.1.300 is below the baseline, so it is cloaked.
+    let sent = send(Config::parse("").unwrap(), "older-native.json").await;
     let [cold, warm] = &sent[..] else {
         panic!("{} requests", sent.len());
     };
