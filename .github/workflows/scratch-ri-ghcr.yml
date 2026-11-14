@@ -31,6 +31,11 @@ env:
   IMAGE: localhost:5000/cliproxy-rs
   SIM_REF_NAME: v0.4.2
 
+# An explicit bash adds pipefail, so `docker run ... | tail` fails when docker run does.
+defaults:
+  run:
+    shell: bash
+
 jobs:
   # The build, smoke test and size gate of the docker job in release.yml, with the same
   # (default) build arguments, on a runner of each architecture: emulating arm64 under
