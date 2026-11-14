@@ -15,7 +15,11 @@ Use DeepSeek, GLM, Kimi, OpenRouter and more in Codex CLI and Claude Code: one l
 curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
 ```
 
-On Windows, or with Homebrew or Scoop, see [Quick start](#quick-start).
+On Windows, or with Homebrew or Scoop, see [Quick start](#quick-start). With Docker, put `config.yaml` and an `auth` folder in `./data` ([config for the container](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/INSTALL.md#docker-compose)) and run:
+
+```sh
+docker run -d --name cliproxy -p 127.0.0.1:8317:8317 -v "$PWD/data:/data" ghcr.io/vayungodara/cliproxy-rs:latest
+```
 
 Add a provider to the proxy, as in [API keys](#api-keys-codex-cli-and-mixed-providers), and point Codex CLI at it in `~/.codex/config.toml`. For a provider whose model alias is `deepseek`:
 
