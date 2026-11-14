@@ -1471,13 +1471,19 @@ async fn older_claude_code_tool_continuation_is_cloaked_with_a_stable_prefix() {
     let [native_cold, native_warm] = &forwarded[..] else {
         panic!("{} requests", forwarded.len());
     };
+    // Signing adds the billing block an OAuth login needs, with the caller's own
+    // version; the caller's system prompt and tool names go up unchanged.
     for body in [native_cold, native_warm] {
-        assert_eq!(rawjson::string(body, "system.0.text"), "Native caller system");
-        assert_eq!(
-            rawjson::get(body, "system").array().len(),
-            1,
-            "no Claude Code identity added"
-        );
+        let billing = rawjson::string(body, "system.0.text");
+        assert!(billing.starts_with(cloak::BILLING_PREFIX), "{billing}");
+        assert!(billing.contains("cc_version=2.1.300."), "{billing}");
+        let rest: Vec<String> = rawjson::get(body, "system")
+            .array()
+            .iter()
+            .skip(1)
+            .map(|b| rawjson::string(b.json(), "text"))
+            .collect();
+        assert_eq!(rest, ["Native caller system"], "no Claude Code identity added");
         assert_eq!(rawjson::string(body, "tools.0.name"), "Read", "no tool alias");
     }
 
@@ -1488,6 +1494,7 @@ async fn older_claude_code_tool_continuation_is_cloaked_with_a_stable_prefix() {
     };
     for body in [cold, warm] {
         assert!(rawjson::string(body, "system.0.text").starts_with(cloak::BILLING_PREFIX));
+        assert!(rawjson::string(body, "system.0.text").contains("cc_version=2.1.321."));
         assert_eq!(rawjson::string(body, "system.1.text"), cloak::CLI_IDENTITY);
     }
     // The tool call keeps its id and input under the session's alias for the tool, the
