@@ -206,7 +206,7 @@ oauth:
   auth-dir: "/data/auth"
 ```
 
-Mount the folder, not `config.yaml` alone: the server saves the config by writing a new file and renaming it over the old one, which fails on a single-file mount. To stay on one release, replace `latest` with its version. `docker compose pull && docker compose up -d` updates the container.
+To stay on one release, replace `latest` with its version. `docker compose pull && docker compose up -d` updates the container.
 
 ### Building the image
 
