@@ -358,7 +358,12 @@ def run_case(root, output, upstream, case):
                               'access:\n  api-keys: [fixture-client-key]\n'
                               f'oauth:\n  auth-dir: "{auth_dir}"\n'
                               'management:\n  disable-control-panel: true\n  disable-auto-update-panel: true\n'
-                              'routing:\n  retry:\n    request-retry: 0\n    max-retry-interval: 0\n')
+                              'routing:\n  retry:\n    request-retry: 0\n    max-retry-interval: 0\n'
+                              # Both sides send the Go reference's Claude Code tuple. The Rust
+                              # default is newer (docs/DIFFERENCES-FROM-GO.md), so without the pin
+                              # Rust would cloak the 2.1.280 native-signals client that Go forwards.
+                              'claude-header-defaults:\n  user-agent: "claude-cli/2.1.280 (external, cli)"\n'
+                              '  package-version: "0.112.1"\n  runtime-version: "v26.3.0"\n')
             # Whitelist environment: no real credentials, storage backends, proxy
             # URLs, Home settings or unrelated runner secrets reach either proxy.
             env = {"PATH": os.defpath, "HOME": str(working), "TZ": "UTC", "LANG": "C.UTF-8",

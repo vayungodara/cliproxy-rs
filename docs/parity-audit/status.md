@@ -148,7 +148,7 @@ Method: `docs/parity-audit/audit.py` regenerates this file. Routes come from `pr
 
 | ID | Item | Status | Evidence | Area | Note |
 |---|---|---|---|---|---|
-| M1-0057 | Fallback/validation source internal/runtime/executor/helps/claude_device_profile.go:1-639:… | covered | crates/cpa-exec/src/claude/profile.rs BASELINE; claude scenarios assert claude-cli/2.1.280, Stainless 0.112.1, v26.3.0, MacOS/arm64 |  |  |
+| M1-0057 | Fallback/validation source internal/runtime/executor/helps/claude_device_profile.go:1-639:… | covered | crates/cpa-exec/src/claude/profile.rs BASELINE (2.1.321 / 0.128.0 / v26.12.1, a deliberate difference from Go's 2.1.280 tuple, docs/DIFFERENCES-FROM-GO.md); Go goldens pin Go's tuple via tests::GO_BASELINE; MacOS/arm64 unchanged |  |  |
 
 ### M1: CLI flags
 

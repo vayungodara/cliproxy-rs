@@ -4,12 +4,11 @@ import { equal, fieldPath, reconcile, type Data, type Window } from "./core";
 export const pages = [
   ["overview", "Overview"],
   ["use", "Use with tools"],
-  ["credentials", "Credentials"],
+  ["accounts", "Accounts"],
   ["providers", "Provider keys"],
   ["keys", "Client keys"],
   ["models", "Models"],
   ["payload", "Payload rules"],
-  ["quotas", "Quotas"],
   ["", ""],
   ["usage", "Usage"],
   ["logs", "Logs"],
@@ -19,7 +18,8 @@ export const pages = [
   ["system", "System"],
 ] as const;
 const routes = new Set<string>([...pages.map((p) => p[0]).filter(Boolean), "connect"]);
-const aliases: Record<string, string> = { oauth: "connect", configuration: "config" };
+// Credentials and Quotas became one Accounts page in 0.4.2; their old links still land there.
+const aliases: Record<string, string> = { oauth: "connect", configuration: "config", credentials: "accounts", quotas: "accounts" };
 
 /** A server read with honest loading, error and not-available states. */
 export class Res<T> {
@@ -79,7 +79,9 @@ class Store {
   );
   plugins = new Res<Data[]>(async () => (await api("/plugins")).plugins || []);
   /** Live quota checks made in this tab, by auth index. */
-  quota = $state<Record<string, { at: number; windows: Window[]; error?: string } | { error: string }>>({});
+  quota = $state<Record<string, { at: number; windows: Window[]; error?: string; code?: number } | { error: string; code?: number }>>({});
+  /** Quota checks waiting in line or on their way, by auth index: "Queued" or "Checking…". */
+  pending = $state<Record<string, string>>({});
   #probed = new Set<string>();
   #timer: ReturnType<typeof setTimeout> | undefined;
 

@@ -13,7 +13,6 @@ use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
 
 use bytes::Bytes;
-use cpa_core::config::Config;
 use cpa_core::credential::{Credential, Source};
 use cpa_core::exec::{Caller, ExecError, ExecRequest, Operation, ResolvedModel, ResolvedSource, ResponseBody};
 use cpa_core::format::Format;
@@ -552,7 +551,7 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<Verdict, String
         &go_origins,
         upstream.plain,
     );
-    let cfg = Config::parse(&config).map_err(|e| format!("config does not parse: {e:?}"))?;
+    let cfg = super::tests::go_config_checked(&config).map_err(|e| format!("config does not parse: {e}"))?;
     let auth = relocate_json(&record["auth"], &go_origins, upstream.plain);
     let mut credential = Credential {
         id: auth["id"].as_str().unwrap_or_default().to_owned(),

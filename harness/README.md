@@ -70,6 +70,10 @@ Raw ClientHello TLS records, raw HTTP request heads, exact upstream body bytes,
 downstream status/header/body bytes and chunked transfer framing are retained as
 hex. Ordered/cased headers and parsed TLS fields are also readable JSON. JA3 and
 JA4 are calculated from the observed ClientHello, not the advertised User-Agent.
+Both proxies run with `claude-header-defaults` pinned to the Go reference's Claude
+Code tuple (2.1.280), so the `native-signals` case is forwarded by both and the cloak
+cases compare like for like; the newer Rust default (`docs/DIFFERENCES-FROM-GO.md`) is
+covered by the `cpa-exec` tests, not here.
 The harness has 57 cases (`cases()` in `fixtures.py`). The committed
 [evidence archive](evidence/2026-10-02.json.gz) is from the first baseline run, when
 there were 33 cases, and holds their fixtures, observations, diffs and summary; use

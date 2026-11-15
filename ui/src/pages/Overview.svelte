@@ -198,14 +198,14 @@
           {#if checkable}<button class="key quiet small" disabled={checking} onclick={checkLimits}
               >{checking ? "Checking limits…" : "Check limits"}</button
             >{/if}
-          <a class="key quiet small" href="#credentials">Manage <svg class="i" width="14" height="14" aria-hidden="true"><use href="#i-chevron" /></svg></a>
+          <a class="key quiet small" href="#accounts">Manage <svg class="i" width="14" height="14" aria-hidden="true"><use href="#i-chevron" /></svg></a>
         </div>
         <ul class="list creds">
           {#each groups as g (g.p)}
             <li class="group">{label(g.p)}<span>{g.rows.length}</span></li>
             {#each g.rows as r (`${r.a.name}\u0000${r.a.auth_index}`)}
               <li>
-                <a class="item" href={`#credentials/${encodeURIComponent(r.a.id || r.a.name)}`}>
+                <a class="item" href={`#accounts/${encodeURIComponent(r.a.id || r.a.name)}`}>
                   <span class="lamp {r.s.lamp}"></span>
                   <span class="name grow"
                     ><strong>{credName(r.a)}</strong><small>{r.a.note || r.a.name}</small></span

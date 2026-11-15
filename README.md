@@ -15,13 +15,30 @@ Use DeepSeek, GLM, Kimi, OpenRouter and more in Codex CLI and Claude Code: one l
 curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
 ```
 
-On Windows, or with Homebrew or Scoop, see [Quick start](#quick-start).
+On Windows, or with Homebrew or Scoop, see [Quick start](#quick-start). With Docker, put `config.yaml` and an `auth` folder in `./data` ([config for the container](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/INSTALL.md#docker-compose)) and run:
+
+```sh
+docker run -d --name cliproxy -p 127.0.0.1:8317:8317 -v "$PWD/data:/data" ghcr.io/vayungodara/cliproxy-rs:latest
+```
+
+Add a provider to the proxy, as in [API keys](#api-keys-codex-cli-and-mixed-providers), and point Codex CLI at it in `~/.codex/config.toml`. For a provider whose model alias is `deepseek`:
+
+```toml
+model = "deepseek"
+model_provider = "cliproxy"
+
+[model_providers.cliproxy]
+name = "cliproxy-rs"
+base_url = "http://127.0.0.1:8317/v1"
+env_key = "CLIPROXY_CLIENT_KEY"
+wire_api = "responses"
+```
+
+Then set `CLIPROXY_CLIENT_KEY` to the client key from your `keys.env` and run `codex`.
 
 <p align="center">
   <a href="https://github.com/vayungodara/cliproxy-rs/releases/latest"><img src="https://github.com/vayungodara/cliproxy-rs/raw/master/docs/img/hero.gif" alt="cliproxy-rs on 127.0.0.1:8317 translates a Codex CLI Responses request to Chat Completions for DeepSeek and moves it to a second key when the first answers 429. Claude Code's Messages requests reach GLM the same way. Kimi and OpenRouter are the other providers shown." width="880"></a>
 </p>
-
-0.4.0 changes how some configs load. Read [Before you upgrade](https://github.com/vayungodara/cliproxy-rs/releases/tag/v0.4.0#:~:text=Before%20you%20upgrade) in the [release notes](https://github.com/vayungodara/cliproxy-rs/releases/tag/v0.4.0) first.
 
 > **Set it up with your coding agent.** Paste this into Claude Code, Codex or Amp on the machine where the proxy should run:
 >

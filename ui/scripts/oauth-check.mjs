@@ -45,7 +45,8 @@ async function begin(provider) {
   return { href, state: new URL(href).searchParams.get("state") };
 }
 async function paste(redirect) {
-  await main.getByLabel("Callback address").fill(redirect);
+  await main.getByText("The browser ended on a page that won’t load").click();
+  await main.getByLabel("Paste that page’s full address").fill(redirect);
   await button("Send").click();
 }
 
@@ -56,7 +57,11 @@ try {
     status = { status: "wait" },
     credsFail = false,
     delay = 0,
-    polls = [];
+    polls = [],
+    usage = 200,
+    reads = 0,
+    hold = null,
+    credsLeft = Infinity;
   if (mode === "plugin") {
     // A tab the test can hide, and polling slowed thirtyfold, so a status read right after the
     // tab comes back can only be the one its return triggered.
@@ -79,10 +84,19 @@ try {
         let body;
         if (path === "config") body = {};
         else if (path === "credentials") {
-          if (credsFail) return route.fulfill({ status: 500, json: { error: "fixture: read failed" } });
+          // credsLeft: how many more account-list reads succeed before they start failing.
+          if (credsFail || credsLeft-- <= 0) return route.fulfill({ status: 500, json: { error: "fixture: read failed" } });
           body = { files };
         }
         else if (path === "plugins") body = { plugins: [{ id: "commandcode-go-cliproxyapi", supports_oauth: true, oauth_provider: "commandcode" }] };
+        else if (path === "requests/api-call") {
+          reads++;
+          const code = usage;
+          // A held read answers, with the status it was sent under, only when released.
+          if (hold) await hold.promise;
+          const reset = (h) => new Date(Date.now() + h * 3_600_000).toISOString();
+          body = { status_code: code, body: code === 200 ? JSON.stringify({ five_hour: { utilization: 37, resets_at: reset(2) }, seven_day: { utilization: 62, resets_at: reset(50) } }) : "{}" };
+        }
         else if (path === "oauth/auth-url") body = { status: "ok", state: "a".repeat(64), url: loginUrl };
         else if (path === "oauth/status") {
           (body = status), polls.push(Date.now());
@@ -149,7 +163,7 @@ try {
     // back, and claims success only for exactly one new credential name of exactly this
     // built-in provider between two successful reads; anything else is "Result unavailable".
     loginUrl = "https://provider.example.invalid/authorize?state=expired";
-    const unknown = "The proxy no longer has this sign-in’s result. Check Credentials to see whether it was added.";
+    const unknown = "The proxy no longer has this sign-in’s result. Check Accounts to see whether it was added.";
     const kimi = { name: "kimi-old.json", type: "kimi", email: "old@example.invalid", updated_at: "2026-11-01T09:00:00Z" };
     const fresh = (name, type) => ({ name, type, email: `${name}@example.invalid`, updated_at: "2026-11-03T09:00:00Z" });
     for (const [what, who, before, after, expected, fail] of [
@@ -210,6 +224,120 @@ try {
     assert.ok(!/in rotation/.test(await main.locator(".flow").textContent()), 'ok: no "in rotation" claim');
     await page.screenshot({ path: `${out}/oauth-ok-disabled.png` });
     pass("plugin: an ordinary successful sign-in says it was saved, never that it is in rotation");
+
+    // A confirmed sign-in with a new Claude credential: its usage is read once, the bars come
+    // from that read, and Connect another starts the next sign-in.
+    const claudeNew = { name: "claude-new.json", type: "claude", auth_index: "claude-new", email: "new@example.invalid", status: "active", updated_at: "2026-11-05T09:00:00Z" };
+    const connected = async (after, code, end = { status: "ok" }) => {
+      (files = [fixture]), (status = { status: "wait" }), (usage = code), (reads = 0);
+      await begin("Claude");
+      (files = after), (status = end);
+      await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    };
+    await connected([fixture, claudeNew], 200);
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow .result").getByText("new@example.invalid").waitFor();
+    assert.deepEqual(await main.locator(".flow .result [role=meter]").evaluateAll((m) => m.map((e) => Number(e.getAttribute("aria-valuenow")))), [37, 62]);
+    assert.equal(reads, 1, "one usage read");
+    assert.match(await main.locator(".flow .result").textContent(), /Claude · ready/);
+    assert.ok(!/in rotation/.test(await main.locator(".flow").textContent()), 'verified: no "in rotation" claim');
+    await page.screenshot({ path: `${out}/oauth-verified.png` });
+    await button("Connect another Claude account").click();
+    await main.getByText("Waiting for approval").waitFor();
+    await button("Cancel sign-in").click();
+    await main.getByText("Cancelled", { exact: true }).waitFor();
+    pass("plugin: a verified sign-in reads usage once, shows those bars, and Connect another starts a new sign-in");
+
+    // The same, when the server forgot the sign-in and the new name decides it: the usage
+    // read must still find the new account in the reloaded list.
+    await connected([fixture, { ...claudeNew, name: "claude-late.json", auth_index: "claude-late", email: "late@example.invalid" }], 200, { status: "error", error: "unknown or expired state" });
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow .result [role=meter]").first().waitFor({ timeout: 5000 });
+    assert.equal(reads, 1, "one usage read after a forgotten sign-in");
+    await button("Connect another Claude account").click();
+    await main.getByText("Waiting for approval").waitFor();
+    await button("Cancel sign-in").click();
+    await main.getByText("Cancelled", { exact: true }).waitFor();
+    pass("plugin: a forgotten sign-in found by its new name still gets its usage read and bars");
+
+    // The provider refuses the new token's usage read: the error, no bars, and Try again
+    // within 2 minutes sends nothing.
+    const refusedNew = { ...claudeNew, name: "claude-refused.json", auth_index: "claude-refused", email: "refused@example.invalid" };
+    await connected([fixture, refusedNew], 401);
+    await main.locator(".flow .section-head").getByText("Provider refused", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow").getByText(/rejected the account's token \(HTTP 401\)/).waitFor();
+    assert.equal(await main.locator(".flow .result [role=meter]").count(), 0, "no bars for a refused read");
+    await page.screenshot({ path: `${out}/oauth-refused.png` });
+    await button("Try again").click();
+    await page.getByText(/Read moments ago/).waitFor();
+    assert.equal(reads, 1, "Try again within 2 minutes sends nothing");
+    assert.equal(await button("Sign in again").count(), 1);
+    pass("plugin: a refused usage read shows the provider's error without bars, and Try again respects the 2-minute wait");
+
+    // Signing in again within 2 minutes saves a new token but makes no read: the old refusal
+    // must not stand in for it.
+    (status = { status: "wait" }), (usage = 200);
+    await button("Sign in again").click();
+    await main.getByText("Waiting for approval").waitFor();
+    (files = [fixture, { ...refusedNew, updated_at: "2026-11-05T10:00:00Z" }]), (status = { status: "ok" });
+    await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow").getByText("Usage not read: read under 2 minutes ago.").waitFor();
+    assert.equal(reads, 1, "no read within 2 minutes");
+    assert.equal(await main.locator(".flow .result [role=meter]").count(), 0, "no bars from an older read");
+    pass("plugin: signing in again within 2 minutes says usage was not read instead of reusing the old result");
+
+    // A usage read that fails for another reason (HTTP 500) is not a refused token.
+    await connected([fixture, { ...claudeNew, name: "claude-500.json", auth_index: "claude-500", email: "five@example.invalid" }], 500);
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor({ timeout: 5000 });
+    await main.locator(".flow").getByText(/Usage read failed: The provider answered HTTP 500/).waitFor();
+    assert.equal(await main.locator(".flow .result [role=meter]").count(), 0, "no bars for a failed read");
+    assert.equal(await button("Sign in again").count(), 0);
+    pass("plugin: a usage read that fails without rejecting the token says so, not \"Provider refused\"");
+
+    // A read of the old token still in flight (here from Accounts' Check quotas) when the
+    // account signs in again: its answer (401) must not be shown as the new token's result.
+    let release;
+    hold = { promise: new Promise((r) => (release = r)) };
+    const held = { ...claudeNew, name: "claude-held.json", auth_index: "claude-held", email: "held@example.invalid" };
+    (files = [fixture, held]), (usage = 401), (reads = 0);
+    // Signing in again loads the new list (Accounts itself rereads only every 10 s).
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
+    await page.getByLabel("Management key").fill("orb-dashboard-test-only");
+    await page.getByRole("button", { name: "Connect", exact: true }).click();
+    await page.evaluate(() => (location.hash = "#accounts"));
+    await main.getByText("held@example.invalid").first().waitFor({ timeout: 15_000 });
+    await button("Check quotas").click();
+    for (let i = 0; i < 50 && !reads; i++) await page.waitForTimeout(100);
+    assert.equal(reads, 1, "the old read is in flight");
+    await page.evaluate(() => (location.hash = "#connect"));
+    (status = { status: "wait" }), (usage = 200);
+    await begin("Claude");
+    (files = [fixture, { ...held, updated_at: "2026-11-05T11:00:00Z" }]), (status = { status: "ok" });
+    await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    await main.locator(".flow").getByText("Usage not read: read under 2 minutes ago.").waitFor({ timeout: 5000 });
+    release();
+    hold = null;
+    await page.waitForTimeout(1000);
+    await main.locator(".flow .section-head").getByText("Connected", { exact: true }).waitFor();
+    assert.equal(await main.locator(".flow").getByText("Usage not read: read under 2 minutes ago.").count(), 1, "still not read after the old read lands");
+    assert.equal(await main.locator(".flow .result [role=meter]").count(), 0);
+    assert.equal(reads, 1, "no second read");
+    pass("plugin: an old read still in flight across a re-sign-in is never shown as the new token's result");
+
+    // The sign-in is found (forgotten state), then the account list fails to reload: the read
+    // cannot be made, and the panel says why instead of claiming a recent read.
+    (files = [fixture]), (status = { status: "wait" }), (usage = 200), (reads = 0);
+    await begin("Claude");
+    (files = [fixture, { ...claudeNew, name: "claude-noreload.json", auth_index: "claude-noreload", email: "noreload@example.invalid" }]),
+      (status = { status: "error", error: "unknown or expired state" }),
+      (credsLeft = 1);
+    await page.evaluate(() => (window.__setHidden(true), window.__setHidden(false)));
+    await main.locator(".flow").getByText("Usage read failed: accounts did not reload: fixture: read failed").waitFor({ timeout: 5000 });
+    assert.equal(reads, 0, "no read queued");
+    assert.equal(await main.locator(".flow").getByText(/read under 2 minutes ago/).count(), 0);
+    credsLeft = Infinity;
+    pass("plugin: a failed account-list reload after sign-in says the read failed, not that it was recent");
   } else if (mode === "fake") {
     for (const [provider, redirect, email] of [
       ["Claude", (s) => `http://localhost:54545/callback?code=fake-code&state=${s}`, "claude-login@example.invalid"],
@@ -239,13 +367,13 @@ try {
       await main.getByText("Connected", { exact: true }).waitFor({ timeout: 30_000 });
       pass(`${provider}: device code ${code} shown, polled to completion`);
     }
-    await page.evaluate(() => (location.hash = "#credentials"));
+    await page.evaluate(() => (location.hash = "#accounts"));
     for (const email of ["claude-login@example.invalid", "codex-login@example.invalid", "meta-login@example.invalid", "xai-login@example.invalid"])
       await main.getByText(email).first().waitFor({ timeout: 15_000 });
     const groups = await main.locator(".group").allTextContents();
     for (const g of ["Kimi", "Devin"]) assert.ok(groups.some((t) => t.startsWith(g)), `${g} group listed`);
     await page.screenshot({ path: `${out}/oauth-credentials-after.png`, fullPage: true });
-    pass("all six new credentials are listed on Credentials");
+    pass("all six new credentials are listed on Accounts");
 
     // A built-in provider this server lacks: honest message, button disabled afterwards.
     await page.evaluate(() => (location.hash = "#connect"));

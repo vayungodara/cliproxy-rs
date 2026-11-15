@@ -4,7 +4,8 @@
 #   bench/gate.sh size <target> <binary> [archive]   bytes of the binary, its .text and
 #                                                    .rodata (ELF), the release archive,
 #                                                    and duplicate crates (Linux only)
-#   bench/gate.sh image <docker image>               compressed image bytes
+#   bench/gate.sh image <docker image> [arch]        compressed image bytes, under a key of
+#                                                    its own when arch is given
 #   bench/gate.sh idle <os> <binary> [auth files]    idle cost over a window of no requests
 #
 # <os> is linux, macos or windows. Each measured value is printed and compared with the
@@ -74,9 +75,9 @@ size_gate() { # target binary [archive]
   fi
 }
 
-image_gate() { # image
-  summary_header "Docker image"
-  check "size.docker.image_gzip_bytes" "$(docker save "$1" | gzip -c | wc -c | tr -d ' ')"
+image_gate() { # image [arch]
+  summary_header "Docker image${2:+, $2}"
+  check "size.docker${2:+.$2}.image_gzip_bytes" "$(docker save "$1" | gzip -c | wc -c | tr -d ' ')"
 }
 
 idle_gate() { # os binary [files]
@@ -117,6 +118,6 @@ case ${1:-} in
   size) shift; size_gate "$@" ;;
   image) shift; image_gate "$@" ;;
   idle) shift; idle_gate "$@" ;;
-  *) sed -n '2,13p' "$0"; exit 2 ;;
+  *) sed -n '2,14p' "$0"; exit 2 ;;
 esac
 exit "$failed"

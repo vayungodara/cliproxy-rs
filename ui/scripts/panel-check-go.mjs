@@ -55,7 +55,7 @@ try {
   await main.getByText("(Go)").waitFor();
   pass("server detected as Go from X-CPA headers");
 
-  const pages = ["overview", "use", "credentials", "connect", "providers", "keys", "models", "payload", "quotas", "usage", "logs", "config", "plugins", "system"];
+  const pages = ["overview", "use", "accounts", "connect", "providers", "keys", "models", "payload", "usage", "logs", "config", "plugins", "system"];
   for (const theme of ["light", "dark"]) {
     if ((await page.evaluate(() => document.documentElement.dataset.theme)) !== theme)
       await page.locator('[aria-label^="Use "]').first().click();
@@ -76,20 +76,20 @@ try {
     pass(`${theme}: ${pages.length} screens render on Go with no error, gap or overflow`);
   }
 
-  // Credentials: details, models, fields, status.
-  await go("#credentials/claude-research.json");
+  // Accounts: details, models, fields, status.
+  await go("#accounts/claude-research.json");
   await main.locator(".detail .chip").first().waitFor();
   await main.locator(".detail").getByLabel("Note").fill("Research account");
   await button("Save", main.locator(".detail")).click();
   await toast("Saved.");
   await main.getByText("Research account").first().waitFor();
-  await go("#credentials/claude-operator.json");
+  await go("#accounts/claude-operator.json");
   await button("Enable", main.locator(".detail")).click();
   await toast("Enabled.");
   await button("Disable", main.locator(".detail")).click();
   await toast("Disabled.");
-  await shot("go-dark-credentials-detail", true);
-  pass("credentials: models load, note saves, enable/disable round-trips");
+  await shot("go-dark-accounts-detail", true);
+  pass("accounts: models load, note saves, enable/disable round-trips");
 
   // OAuth: start a Codex session (URL is generated locally), then cancel it.
   await go("#connect");
@@ -165,7 +165,7 @@ try {
       await page.locator('[aria-label^="Use "]').first().click();
       await page.keyboard.press("Escape");
     }
-    for (const p of ["overview", "credentials"]) {
+    for (const p of ["overview", "accounts"]) {
       await go(`#${p}`);
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, `phone ${p}`);
       await shot(`go-phone-${theme}-${p}`);

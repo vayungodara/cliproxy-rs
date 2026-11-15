@@ -1,6 +1,6 @@
 # Maintainer: Vayun Godara <187050579+vayungodara@users.noreply.github.com>
 pkgname=cliproxy-rs-bin
-pkgver=0.4.1
+pkgver=0.4.2
 pkgrel=1
 pkgdesc='Use DeepSeek, GLM, Kimi, OpenRouter and more in Codex CLI and Claude Code: one local endpoint, API translation, failover'
 arch=('x86_64' 'aarch64')
@@ -12,8 +12,8 @@ provides=('cliproxy-rs')
 conflicts=('cliproxy-rs')
 source_x86_64=("$url/releases/download/v$pkgver/cliproxy-$pkgver-x86_64-unknown-linux-gnu.tar.gz")
 source_aarch64=("$url/releases/download/v$pkgver/cliproxy-$pkgver-aarch64-unknown-linux-gnu.tar.gz")
-sha256sums_x86_64=('367e9d70902282179e6024179b61ace8cc3a5346494701346b95b82410b262b6')
-sha256sums_aarch64=('8cb388c34f70d0080ceeddfe85ee7150cc477858d6db60af372d161158d98fe0')
+sha256sums_x86_64=('842346ccd998d909c7a6654a1bca524611f7fd700c36a867237cdff34e4cc72f')
+sha256sums_aarch64=('4922781035cf2b176cf6d34dc8dcb48adee1788323be0fda2e8491e7f9b70d7e')
 
 package() {
   cd "cliproxy-$pkgver-$CARCH-unknown-linux-gnu"

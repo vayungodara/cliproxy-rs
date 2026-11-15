@@ -1,4 +1,4 @@
-// POST /requests/api-call as the Quotas screen sends it, against fake endpoints only.
+// POST /requests/api-call as the Accounts screen sends it, against fake endpoints only.
 // For each server: pick the fake credential claude-research.json, ask for Claude usage from
 // scripts/fake-logins.mjs (port 9102) with "Authorization: Bearer $TOKEN$", and check that
 // the server substituted the credential's token, returned Go's {status_code, header, body}

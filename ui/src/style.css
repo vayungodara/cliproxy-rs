@@ -283,11 +283,56 @@ ul.plain { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .state-label small { font-weight: 400; font-size: 12.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item > * { min-width: 0; }
 .creds .add { grid-template-columns: 10px 1fr; color: var(--ink-2); }
-.full .item, .full .columns { grid-template-columns: 10px minmax(0, 1fr) 216px 96px 128px; }
 .columns { display: grid; gap: 16px; padding: 14px 0 6px; }
-.columns .count, .full .count { text-align: right; }
+.columns .count { text-align: right; }
 .list > li.columns, .list > li.group { border-bottom: 0; }
 .open > .item { background: var(--hover); }
+/* Connect */
+.plate { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 18px 22px; border-radius: 8px; background: var(--body); border: 1px solid var(--line); }
+.plate code { font-size: 34px; letter-spacing: 0.12em; font-weight: 500; margin-right: auto; }
+.link { font: 12.5px var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.checks li { display: flex; gap: 12px; align-items: center; }
+.checks .i { color: var(--ok); stroke-width: 2.2; }
+.checks .lamp { margin: 0 3px; }
+.result { display: grid; grid-template-columns: minmax(0, 1fr) 220px 220px; gap: 24px; align-items: end; }
+.result .name { display: grid; min-width: 0; }
+.result strong { font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+details.fallback summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+/* Accounts */
+.toolbar { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.acct .item, .acct .columns { display: grid; grid-template-columns: 16px 164px minmax(0, 1fr) 128px 128px 138px 132px; gap: 16px; align-items: center; }
+.acct .item { min-height: 60px; padding: 10px 8px; margin: 0 -8px; border-radius: 8px; }
+/* The full row needs about 980px; narrower lists (a 1024px window with the sidebar) stack each account. */
+.acct { container-type: inline-size; }
+@container (max-width: 980px) {
+  .acct .columns { display: none; }
+  .acct .item { grid-template-columns: 16px minmax(0, 1fr) minmax(0, 1fr); gap: 10px 14px; padding: 14px 0; margin: 0; }
+  .acct .item > .name { grid-area: 1 / 2; }
+  .acct .item > .st { grid-area: 1 / 3; justify-content: end; text-align: right; }
+  .acct .item > .win:nth-of-type(1) { grid-area: 2 / 2; }
+  .acct .item > .win:nth-of-type(2) { grid-area: 2 / 3; }
+  .acct .item > :is(.grille, .legend) { grid-area: 3 / 2; }
+  .acct .item > .last { grid-area: 3 / 3; display: flex; flex-wrap: wrap; gap: 0 6px; justify-content: end; }
+}
+.acct .sel { background: var(--hover); }
+.acct .off-row :is(.name, .win) { opacity: 0.6; }
+.acct button.name { display: grid; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.st { display: flex; gap: 10px; align-items: center; }
+.win { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+.win b { font-weight: 500; color: var(--ink); font-size: 13px; }
+.track { display: block; height: 4px; border-radius: 2px; background: var(--hole); overflow: hidden; }
+.track i { display: block; height: 100%; background: var(--ink); }
+.track i.hi { background: var(--bad); }
+.track.none { background: none; box-shadow: inset 0 0 0 1px var(--ink-3); }
+.win.stale :is(b, .track) { opacity: 0.55; }
+.last { display: grid; font-size: 12.5px; color: var(--ink-2); text-align: right; }
+.last b { font-weight: 500; color: var(--ink); font-size: 13px; }
+.batch {
+  position: sticky; bottom: 20px; z-index: 4; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 10px 10px 20px; border: 1px solid var(--line-2); border-radius: 12px; background: var(--raised); box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.batch p { margin-right: auto; }
 .detail { display: grid; gap: 22px; margin: 4px 0 14px; }
 .detail .form > .field { flex: 0 1 96px; }
 .detail .form > .note-field { flex: 1 1 240px; }
@@ -340,6 +385,7 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
 .login .top-row { display: flex; justify-content: space-between; align-items: center; }
 
 @media (max-width: 860px) {
+  .result { grid-template-columns: 1fr; }
   .shell { display: block; }
   .side { display: none; position: fixed; inset: 0; z-index: 5; height: auto; background: var(--body); border: 0; padding-top: 80px; }
   .side.open { display: flex; }
@@ -362,11 +408,12 @@ select { appearance: none; padding-right: 34px; background: var(--raised) url("d
   .reading + .reading + .reading { border-left: 1px solid var(--line); }
   .reading strong { font-size: 40px; }
   .routing { padding: 12px 18px; }
-  .creds .item, .full .item { grid-template-columns: 10px minmax(0, 1fr) auto; row-gap: 6px; }
+  .creds .item { grid-template-columns: 10px minmax(0, 1fr) auto; row-gap: 6px; }
   .creds .item > :nth-child(3) { grid-column: 2 / 3; }
   .creds .item > .count { grid-column: 3; grid-row: 2; }
   .creds .item > .state-label { grid-row: 1; grid-column: 3; text-align: right; }
   .columns { display: none; }
+  .toolbar .seg { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; }
   .usage-row, .usage-model, .usage-event, .key-row, .list .catalog { display: flex; flex-wrap: wrap; gap: 8px 14px; padding-left: 0; }
   /* A limit on a phone: name and percentage, then the meter and when it resets. */
   .quota, .windows .quota { grid-template-columns: 216px minmax(0, 1fr); gap: 4px 12px; padding-left: 0; }

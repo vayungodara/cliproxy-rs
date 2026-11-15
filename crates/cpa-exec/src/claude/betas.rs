@@ -1,6 +1,9 @@
 //! Anthropic-Beta assembly for the Claude Code profile (claude_executor_request.go).
 //! The list is per request: model capability, body features and caller requests
-//! decide which managed betas appear, in Claude Code 2.1.280's wire order.
+//! decide which managed betas appear, in the wire order Go measured on Claude Code
+//! 2.1.280. Re-checked against the 2.1.321 binary (2026-11-09): same set; 2.1.321
+//! itself appends thinking-token-count after the base list, but Go v8.0.35 and its
+//! goldens keep the 2.1.280 position, and so does this list.
 
 use cpa_core::gostr::GoStr;
 use std::collections::HashSet;

@@ -3,13 +3,12 @@
   import { store, pages } from "./store.svelte";
   import Overview from "./pages/Overview.svelte";
   import Use from "./pages/Use.svelte";
-  import Credentials from "./pages/Credentials.svelte";
+  import Accounts from "./pages/Accounts.svelte";
   import Connect from "./pages/Connect.svelte";
   import Providers from "./pages/Providers.svelte";
   import Keys from "./pages/Keys.svelte";
   import Models from "./pages/Models.svelte";
   import Payload from "./pages/Payload.svelte";
-  import Quotas from "./pages/Quotas.svelte";
   import Usage from "./pages/Usage.svelte";
   import Logs from "./pages/Logs.svelte";
   import Config from "./pages/Config.svelte";
@@ -19,13 +18,12 @@
   const views: Record<string, Component> = {
     overview: Overview,
     use: Use,
-    credentials: Credentials,
+    accounts: Accounts,
     connect: Connect,
     providers: Providers,
     keys: Keys,
     models: Models,
     payload: Payload,
-    quotas: Quotas,
     usage: Usage,
     logs: Logs,
     config: Config,
@@ -33,7 +31,7 @@
     system: System,
   };
   const View = $derived(views[store.route.page]);
-  const current = $derived(store.route.page === "connect" ? "credentials" : store.route.page);
+  const current = $derived(store.route.page === "connect" ? "accounts" : store.route.page);
   const title = $derived(
     store.route.page === "connect" ? "Connect an account" : pages.find((p) => p[0] === current)?.[1],
   );
@@ -140,7 +138,7 @@
         {#each pages as [id, name]}{#if id}<a
               href={`#${id}`}
               aria-current={current === id ? "page" : undefined}
-              >{name}{#if id === "credentials" && store.creds.data?.length}<small
+              >{name}{#if id === "accounts" && store.creds.data?.length}<small
                   >{store.creds.data.length}</small
                 >{/if}</a
             >{:else}<hr />{/if}{/each}
