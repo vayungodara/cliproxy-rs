@@ -64,7 +64,7 @@ async function read(a: Data) {
     if (pl) raw = await api(`/plugins/${encodeURIComponent(pl.id)}/quota`, "POST", { name: a.name, auth_index: a.auth_index });
     else {
       const header: Data = { Authorization: "Bearer $TOKEN$", "Content-Type": "application/json" };
-      if (p === "claude") Object.assign(header, { "anthropic-beta": "oauth-2025-04-20", "User-Agent": "claude-cli/2.1.280 (external, cli)" });
+      if (p === "claude") Object.assign(header, { "anthropic-beta": "oauth-2025-04-20", "User-Agent": "claude-cli/2.1.321 (external, cli)" });
       if (p === "codex") {
         header["User-Agent"] = "codex-tui/0.149.1";
         const account = a.account_id || a.id_token?.chatgpt_account_id;

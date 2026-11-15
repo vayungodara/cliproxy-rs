@@ -625,7 +625,7 @@ mod tests {
 
     #[test]
     fn harness_unconfirmed_oauth_messages_headers_match_go_capture() {
-        let settings = Settings::default();
+        let settings = super::super::tests::go_settings();
         let incoming: HeaderMap = [
             ("authorization", "Bearer fixture-client-key"),
             ("content-type", "application/json"),
@@ -752,11 +752,11 @@ mod version_tests {
         );
         // The baseline release itself keeps Go's baseline SDK and runtime versions.
         assert_eq!(
-            sent("claude-cli/2.1.280 (external, cli)"),
+            sent("claude-cli/2.1.321 (external, cli)"),
             (
-                "claude-cli/2.1.280 (external, cli)".into(),
-                "0.112.1".into(),
-                "v26.3.0".into()
+                "claude-cli/2.1.321 (external, cli)".into(),
+                "0.128.0".into(),
+                "v26.12.1".into()
             )
         );
         // Another major, or an older release, gets the whole baseline identity.
@@ -764,9 +764,9 @@ mod version_tests {
             assert_eq!(
                 sent(refused),
                 (
-                    "claude-cli/2.1.280 (external, cli)".into(),
-                    "0.112.1".into(),
-                    "v26.3.0".into()
+                    "claude-cli/2.1.321 (external, cli)".into(),
+                    "0.128.0".into(),
+                    "v26.12.1".into()
                 ),
                 "{refused}"
             );
