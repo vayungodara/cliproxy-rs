@@ -650,7 +650,14 @@ pub(crate) async fn authenticate(rt: &Runtime, req: Request) -> (Request, Result
     let registry = rt.plugin_runtime().access();
     let providers = registry.providers(!config.api_keys.is_empty());
     if providers.is_empty() {
-        return (req, Ok(Access::Open));
+        // Go is open here; cliproxy-rs serves local clients only unless opted in.
+        let refused = (!crate::access::open_access(rt, &config))
+            .then(|| crate::access::refuse_nonlocal(&req))
+            .flatten();
+        return match refused {
+            Some(message) => (req, Err(Denied { status: 403, message })),
+            None => (req, Ok(Access::Open)),
+        };
     }
     let (parts, mut body) = req.into_parts();
     let mut read: Option<Bytes> = None;
@@ -735,6 +742,14 @@ pub(crate) async fn authenticate(rt: &Runtime, req: Request) -> (Request, Result
         message: if invalid { "Invalid API key" } else { MISSING_API_KEY },
     }));
     (Request::from_parts(parts, body), outcome)
+}
+
+/// No client-key or plugin auth provider is registered: Go's open access.
+pub(crate) fn no_providers(rt: &Runtime, config: &cpa_core::config::Config) -> bool {
+    rt.plugin_runtime()
+        .access()
+        .providers(!config.api_keys.is_empty())
+        .is_empty()
 }
 
 /// The whole body, or `None` once it passes [`crate::MAX_REQUEST_BYTES`].

@@ -83,9 +83,11 @@ fn observe(rt: &Weak<Runtime>, provider: &str, cause: Option<&str>) {
     }
 }
 
-/// Go's conditional auth: the client-key middleware only while `ws-auth` is on.
+/// Go's conditional auth: the client-key middleware only while `ws-auth` is on. Without
+/// client keys it runs anyway, so a keyless proxy stays local-only
+/// (docs/DIFFERENCES-FROM-GO.md).
 async fn conditional_auth(State(rt): State<Arc<Runtime>>, req: Request, next: Next) -> Response {
-    if !ws_auth(&rt.config()) {
+    if !ws_auth(&rt.config()) && !crate::access::local_only(&rt) {
         return next.run(req).await;
     }
     crate::access::require_client_key(State(rt), req, next).await

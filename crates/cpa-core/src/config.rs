@@ -1064,6 +1064,17 @@ impl Config {
         })
     }
 
+    /// `access.allow-open-access` (cliproxy-rs only, off by default): with no client keys,
+    /// serve every client that reaches the port and grant CORS to any origin, as Go does.
+    /// Without it a keyless proxy serves local clients only (docs/DIFFERENCES-FROM-GO.md).
+    pub fn allow_open_access(&self) -> bool {
+        self.document
+            .get("access")
+            .and_then(|a| a.get("allow-open-access"))
+            .and_then(Value::as_bool)
+            .unwrap_or(false)
+    }
+
     /// `server.max-request-body-bytes` (legacy root `max-request-body-bytes`), Go
     /// `SDKConfig.MaxRequestBodyBytes`: the request body limit in bytes. `None` when
     /// omitted or not positive, which disables it (Go's default 0).

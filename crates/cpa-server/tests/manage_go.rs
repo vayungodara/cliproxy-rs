@@ -506,6 +506,13 @@ mod access {
                 let status = res.status().as_u16();
                 let version = res.headers().contains_key("x-cpa-version");
                 let body = res.text().await.unwrap();
+                // Go counts the missing key in step 2 towards the ban; cliproxy-rs counts
+                // only wrong keys, so four failures do not ban (DIFFERENCES-FROM-GO.md).
+                if name == "ban_after_five_failures_including_missing" && i == 5 {
+                    assert_eq!(status, 200, "{name}[{i}] {body}");
+                    steps += 1;
+                    continue;
+                }
                 assert_eq!(status, step["status"], "{name}[{i}] {body}");
                 if status != 200 {
                     assert_eq!(body, step["body"].as_str().unwrap(), "{name}[{i}]");
@@ -614,6 +621,11 @@ mod routes {
                     assert_eq!(body, step["resp_body"].as_str().unwrap(), "{name}[{i}]");
                 }
                 let mut want = step["resp_headers"].as_object().unwrap().clone();
+                // Go sends CORS headers on every response. cliproxy-rs sends none on
+                // management routes, and with no client keys grants none to a request
+                // without a loopback Origin, which is every step here
+                // (DIFFERENCES-FROM-GO.md).
+                want.retain(|name, _| !name.starts_with("Access-Control-"));
                 // The goldens come from Go's cgo build, which loads native plugins; this
                 // binary does too, except on Windows.
                 if want.contains_key("X-CPA-SUPPORT-PLUGIN") {
