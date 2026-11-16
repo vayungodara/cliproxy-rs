@@ -20,6 +20,7 @@ const KEY: &str = "fake-management";
 const WRONG: &str = "Bearer fake-wrong";
 const FROM_MACHINE: &str = "only clients on this machine";
 const FROM_WEBSITE: &str = "requests from other websites are refused";
+const ADDRESSED: &str = "only requests addressed to localhost or a loopback address";
 const MANAGEMENT_REFUSED: &str = r#"{"error":"management requests from another website are refused"}"#;
 
 struct Server {
@@ -60,9 +61,9 @@ async fn peer(mut req: axum::extract::Request, next: axum::middleware::Next) -> 
     next.run(req).await
 }
 
-/// A server whose config ends with `access` (YAML), a private auth-dir and the
-/// management key [`KEY`].
-async fn serve(name: &str, access: &str) -> Server {
+/// A server with a private auth-dir (the flat `auth-dir` key, so `extra` may hold an
+/// `oauth` section), the management key [`KEY`], and `extra` (YAML) at the end.
+async fn serve(name: &str, extra: &str) -> Server {
     let dir = std::env::temp_dir().join(format!("cpa-client-access-{name}-{}", std::process::id()));
     std::fs::create_dir_all(dir.join("auth")).unwrap();
     let path = dir.join("config.yaml");
@@ -70,7 +71,7 @@ async fn serve(name: &str, access: &str) -> Server {
     std::fs::write(
         &path,
         format!(
-            "config-version: 8\nserver:\n  port: 0\nmanagement:\n  secret-key: '{hash}'\noauth:\n  auth-dir: {}\n{access}",
+            "config-version: 8\nserver:\n  port: 0\nmanagement:\n  secret-key: '{hash}'\nauth-dir: {}\n{extra}",
             dir.join("auth").display()
         ),
     )
@@ -185,6 +186,64 @@ async fn keyless_proxy_treats_a_relaying_loopback_peer_as_remote() {
     assert_eq!(r.status, 403, "{}", r.body);
 }
 
+/// A page on a name that resolves to 127.0.0.1 sends same-origin requests with no
+/// `Origin`; only the `Host` gives it away.
+#[tokio::test]
+async fn keyless_proxy_refuses_names_other_than_localhost() {
+    let s = serve("host", "").await;
+    for host in [
+        "attacker.example",
+        "attacker.example:8317",
+        "127.0.0.1.nip.io",
+        "localhost.attacker.example",
+    ] {
+        let r = models(&s, &[("host", host), ("sec-fetch-site", "same-origin")]).await;
+        assert_eq!(r.status, 403, "{host}: {}", r.body);
+        assert!(r.body.contains(ADDRESSED), "{host}: {}", r.body);
+        assert_eq!(r.allow_origin(), None, "{host}");
+    }
+    let r = models(&s, &[("host", "attacker.example")]).await;
+    assert_eq!(r.status, 403, "{}", r.body);
+    // What native clients on this machine send.
+    for host in [
+        "localhost:8317",
+        "LOCALHOST",
+        "app.localhost:8317",
+        "127.0.0.1:8317",
+        "127.0.0.2",
+        "[::1]:8317",
+    ] {
+        let r = models(&s, &[("host", host)]).await;
+        assert_eq!(r.status, 200, "{host}: {}", r.body);
+    }
+}
+
+/// With `ws-auth` off, the AI Studio relay skips client keys as in Go, but a keyless
+/// proxy still serves it to local clients only.
+#[tokio::test]
+async fn keyless_relay_without_ws_auth_stays_local() {
+    let ws_auth_off = "oauth:\n  providers:\n    aistudio:\n      ws-auth: false\n";
+    let s = serve("relay", ws_auth_off).await;
+    for headers in [
+        &[("x-test-peer", REMOTE)][..],
+        &[("origin", EVIL)],
+        &[("host", "attacker.example")],
+    ] {
+        let r = send(&s, "GET", "/v1/ws", headers).await;
+        assert_eq!(r.status, 403, "{headers:?}: {}", r.body);
+    }
+    // A local client reaches the upgrade handler, which refuses a plain GET.
+    let r = send(&s, "GET", "/v1/ws", &[]).await;
+    assert!(r.status != 403 && r.status != 404, "{}: {}", r.status, r.body);
+    let open = serve(
+        "relay-open",
+        &format!("{ws_auth_off}access:\n  allow-open-access: true\n"),
+    )
+    .await;
+    let r = send(&open, "GET", "/v1/ws", &[("x-test-peer", REMOTE)]).await;
+    assert!(r.status != 403 && r.status != 404, "{}: {}", r.status, r.body);
+}
+
 #[tokio::test]
 async fn allow_open_access_restores_the_open_proxy() {
     let s = serve("open", "access:\n  allow-open-access: true\n").await;
@@ -254,6 +313,32 @@ async fn cross_origin_management_requests_are_refused_and_never_ban() {
     assert_eq!((r.status, r.body.as_str()), (403, MANAGEMENT_REFUSED));
     let r = send(&s, "OPTIONS", CONFIG, &[("origin", EVIL)]).await;
     assert_eq!((r.status, r.allow_origin()), (204, None));
+    for headers in [
+        &[("origin", "null"), ("authorization", WRONG)][..],
+        &[("sec-fetch-site", "same-site"), ("authorization", WRONG)],
+        &[("origin", "http://127.0.0.1:1"), ("authorization", WRONG)],
+        &[
+            ("origin", EVIL),
+            ("x-forwarded-host", "dash.example"),
+            ("authorization", WRONG),
+        ],
+    ] {
+        let r = send(&s, "GET", CONFIG, headers).await;
+        assert_eq!((r.status, r.body.as_str()), (403, MANAGEMENT_REFUSED), "{headers:?}");
+    }
+    // A reverse proxy that names the public host in X-Forwarded-Host.
+    let r = send(
+        &s,
+        "GET",
+        CONFIG,
+        &[
+            ("origin", "https://dash.example"),
+            ("x-forwarded-host", "dash.example"),
+            ("authorization", right.as_str()),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, 200, "{}", r.body);
     // Not banned, and the dashboard on the server's own origin still works.
     let own = s.base.clone();
     let r = send(

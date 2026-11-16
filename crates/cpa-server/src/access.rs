@@ -37,8 +37,9 @@ pub(crate) fn local_only(rt: &Runtime) -> bool {
 }
 
 /// Why a keyless local-only proxy refuses this request, if it does: the peer is not a
-/// loopback address or relays one through forwarding headers, or a browser sent it from
-/// another site.
+/// loopback address or relays one through forwarding headers, the request is addressed
+/// to a name other than localhost (a page on a domain that resolves to 127.0.0.1), or a
+/// browser sent it from another site.
 pub(crate) fn refuse_nonlocal(req: &Request) -> Option<&'static str> {
     let headers = req.headers();
     // ponytail: the listener records every peer; only in-process callers (tests) have
@@ -46,6 +47,21 @@ pub(crate) fn refuse_nonlocal(req: &Request) -> Option<&'static str> {
     let peer = req.extensions().get::<ConnectInfo<SocketAddr>>().map(|c| c.0.ip());
     if !peer.is_none_or(loopback) || FORWARDING.iter().any(|h| headers.contains_key(*h)) {
         return Some("no client keys are configured, so only clients on this machine may use the proxy");
+    }
+    // The name the request is addressed to: `Host`, or the HTTP/2 authority. A request
+    // with neither (HTTP/1.0) carries no name a browser could have resolved.
+    let name = match headers.get(header::HOST) {
+        Some(value) => Some(value.to_str().ok()),
+        None => req.uri().authority().map(|a| Some(a.as_str())),
+    };
+    if let Some(name) = name
+        && !name
+            .and_then(split_authority)
+            .is_some_and(|(host, _)| loopback_host(host))
+    {
+        return Some(
+            "no client keys are configured, so only requests addressed to localhost or a loopback address are served",
+        );
     }
     let foreign = headers
         .get(header::ORIGIN)
@@ -73,16 +89,22 @@ pub(crate) fn cross_site(headers: &HeaderMap) -> bool {
 
 /// An `Origin` of http(s) on `localhost`, a `.localhost` name or a loopback address.
 pub(crate) fn loopback_origin(origin: &[u8]) -> bool {
-    origin_authority(origin).is_some_and(|(_, host, _)| {
-        let host = host.to_ascii_lowercase();
-        host == "localhost"
-            || host.ends_with(".localhost")
-            || host
-                .trim_start_matches('[')
-                .trim_end_matches(']')
-                .parse::<IpAddr>()
-                .is_ok_and(loopback)
-    })
+    origin_authority(origin).is_some_and(|(_, host, _)| loopback_host(host))
+}
+
+/// `localhost`, a `.localhost` name or a loopback IP literal (IPv6 in brackets), with no
+/// DNS lookup.
+fn loopback_host(host: &str) -> bool {
+    let host = host.to_ascii_lowercase();
+    let host = host.strip_suffix('.').unwrap_or(&host);
+    if host == "localhost" || host.ends_with(".localhost") {
+        return true;
+    }
+    let ip = match host.strip_prefix('[').and_then(|h| h.strip_suffix(']')) {
+        Some(v6) => v6.parse::<std::net::Ipv6Addr>().map(IpAddr::V6).ok(),
+        None => host.parse::<std::net::Ipv4Addr>().map(IpAddr::V4).ok(),
+    };
+    ip.is_some_and(loopback)
 }
 
 /// Whether an `Origin` names the request's own host: its `Host` (or HTTP/2 authority),

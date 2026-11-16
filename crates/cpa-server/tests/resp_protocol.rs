@@ -280,6 +280,24 @@ async fn auth_and_pop_contracts() {
     assert_eq!(line(&mut conn).await, "-ERR unknown command 'get'");
 }
 
+/// Commands before `AUTH` carry no key and never ban the address; Go counts each one
+/// (docs/DIFFERENCES-FROM-GO.md).
+#[tokio::test]
+async fn commands_before_auth_never_ban() {
+    let s = server(Some(PASSWORD)).await;
+    let mut conn = connect(s.addr).await;
+    for _ in 0..6 {
+        command(&mut conn, &["LPOP", "usage"]).await;
+        assert_eq!(line(&mut conn).await, "-NOAUTH Authentication required.");
+    }
+    command(&mut conn, &["AUTH"]).await;
+    assert_eq!(
+        line(&mut conn).await,
+        "-ERR wrong number of arguments for 'auth' command"
+    );
+    auth(&mut conn).await;
+}
+
 /// Go `TestAcceptMuxNotBlockedByIdleConnection`: a client that never sends a byte
 /// does not hold up others, and HTTP shares the port with RESP.
 #[tokio::test]
