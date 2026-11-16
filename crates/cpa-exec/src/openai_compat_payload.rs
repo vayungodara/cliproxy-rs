@@ -220,6 +220,58 @@ pub(crate) fn uses_max_completion_tokens(compat: Option<&Compat>, upstream: &str
         .is_some_and(|m| m.use_max_completion_tokens)
 }
 
+/// `reconcileClaudeOpenAICompatToolCallReasoningDoc` (Go 0e0cab0d, v8.0.64): once the
+/// thinking rules have resolved `reasoning_effort`, an assistant tool-call turn gets the
+/// `" "` placeholder DeepSeek and Kimi require while reasoning is on, and loses a blank
+/// `reasoning_content` while it is off. One walk over the messages; the array is
+/// rewritten only when a turn changed.
+pub(crate) fn reconcile_tool_call_reasoning(mut body: Vec<u8>) -> Vec<u8> {
+    let messages = gj::get(&body, "messages");
+    if !messages.is_array() {
+        return body;
+    }
+    let effort = gj::get(&body, "reasoning_effort");
+    let active = effort.exists()
+        && !matches!(
+            String::from_utf8_lossy(go::trim_space(&effort.bytes()))
+                .go_lower()
+                .as_str(),
+            "" | "none" | "0" | "false"
+        );
+    let mut changed = false;
+    let items: Vec<Vec<u8>> = messages
+        .array()
+        .iter()
+        .map(|message| {
+            let mut raw = message.raw().to_vec();
+            let calls = message.get("tool_calls");
+            if go::trim_space(&message.get("role").bytes()) != b"assistant"
+                || !calls.is_array()
+                || calls.array().is_empty()
+            {
+                return raw;
+            }
+            let reasoning = message.get("reasoning_content");
+            let text = reasoning.bytes();
+            let blank = go::trim_space(&text).is_empty();
+            if active {
+                if !reasoning.exists() || (blank && *text != *b" ") {
+                    gj::set_str(&mut raw, "reasoning_content", " ");
+                    changed = true;
+                }
+            } else if reasoning.exists() && blank {
+                gj::delete(&mut raw, "reasoning_content");
+                changed = true;
+            }
+            raw
+        })
+        .collect();
+    if changed {
+        gj::set_raw(&mut body, "messages", gj::join(&items));
+    }
+    body
+}
+
 /// `NormalizeOpenAIMaxTokens`.
 pub(crate) fn normalize_max_tokens(mut payload: Vec<u8>, use_max_completion_tokens: bool) -> Vec<u8> {
     let (from, to) = if use_max_completion_tokens {
