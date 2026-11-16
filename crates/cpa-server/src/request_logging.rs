@@ -2301,6 +2301,50 @@ mod tests {
         }
     }
 
+    /// Claude Code's start-up `HEAD /api/hello` must not write a forced error log: with
+    /// the default `error-logs-max-files: 10` those probes pushed real failures out (#262).
+    /// An unregistered HEAD still writes one, as in Go.
+    #[tokio::test]
+    async fn claude_code_hello_probe_writes_no_error_log() {
+        let dir = scratch();
+        let state = management(&dir, false, false);
+        let mut app = router(&state, crate::router(state.rt.clone()));
+        for (path, status) in [("/api/hello", StatusCode::OK), ("/api/nothing", StatusCode::NOT_FOUND)] {
+            let response = app
+                .call(
+                    HttpRequest::builder()
+                        .method("HEAD")
+                        .uri(path)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), status, "{path}");
+            assert!(
+                axum::body::to_bytes(response.into_body(), usize::MAX)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+        // The control's log shows the forced capture ran; give the probe's the same time.
+        for _ in 0..100 {
+            if !logs(&dir).is_empty() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        let names = logs(&dir)
+            .iter()
+            .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+        assert_eq!(names.len(), 1, "{names:?}");
+        assert!(names[0].starts_with("error-api-nothing-"), "{names:?}");
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
     #[tokio::test]
     async fn capture_preserves_transport_errors_and_classifies_cancellation() {
         let dir = scratch();

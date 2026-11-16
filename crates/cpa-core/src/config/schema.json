@@ -1593,6 +1593,12 @@
       }
     },
     "config-version": "version",
+    "compaction": {
+      "fields": {
+        "summary-max-tokens": "int",
+        "summary-reasoning-effort": "string"
+      }
+    },
     "worker-threads": "int"
   }
 }

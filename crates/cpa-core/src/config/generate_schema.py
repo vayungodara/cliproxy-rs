@@ -103,6 +103,8 @@ schema["fields"]["config-version"] = "version"
 put("oauth.providers.codex.chatgpt-keep-alive", "bool")
 put("observability.usage.claude-cache-telemetry", "bool")
 put("routing.cooldown.max-trusted-cooldown", "string")
+put("compaction.summary-max-tokens", "int")
+put("compaction.summary-reasoning-effort", "string")
 schema["fields"]["worker-threads"] = "int"
 schema["fields"].pop("home", None)
 Path(__file__).with_name("schema.json").write_text(json.dumps(schema, indent=2) + "\n")

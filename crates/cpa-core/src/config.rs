@@ -1342,6 +1342,16 @@ mod tests {
         assert_eq!(null.routing.retry.request_retry, 0);
     }
 
+    /// The compaction budget is a cliproxy-rs addition: part of the schema, so a
+    /// management write keeps it instead of archiving it as an unknown key.
+    #[test]
+    fn compaction_section_is_known_to_the_schema() {
+        let text = "compaction:\n  summary-max-tokens: 16384\n  summary-reasoning-effort: low\n";
+        assert!(Config::parse(text).is_ok());
+        assert!(ConfigDocument::parse(text).unwrap().archive_unknown().is_empty());
+        assert!(Config::parse("compaction: {summary-max-tokens: [1]}").is_err());
+    }
+
     /// v8.0.35 `buildV8Paths` moves the legacy `claude.session-date-pin-days` to
     /// `upstream.claude`.
     #[test]
