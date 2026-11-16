@@ -789,6 +789,216 @@ async fn a_refused_baseline_alone_does_not_refuse_the_request() {
     assert_eq!(run(s).await, (false, None));
 }
 
+#[test]
+fn compaction_summary_budget_is_configurable() {
+    let cfg = Config::parse("compaction:\n  summary-max-tokens: 16384\n  summary-reasoning-effort: high\n").unwrap();
+    let (max, effort) = summary_budget(&cfg);
+    assert_eq!(max, 16384);
+    assert_eq!(effort.as_deref(), Some("high"));
+
+    let mut body = br#"{"model":"m","max_output_tokens":16,"reasoning":{"effort":"xhigh"}}"#.to_vec();
+    apply_summary_budget(&mut body, max, effort.as_deref());
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["max_output_tokens"], 16384);
+    assert_eq!(v["reasoning"]["effort"], "high");
+}
+
+#[test]
+fn compaction_summary_budget_defaults_and_never_lowers() {
+    let cfg = Config::parse("config-version: 8\n").unwrap();
+    let (max, effort) = summary_budget(&cfg);
+    assert_eq!(max, DEFAULT_SUMMARY_MAX_TOKENS);
+    assert_eq!(effort, None);
+
+    let mut body = br#"{"max_output_tokens":32768,"reasoning":{"effort":"xhigh"}}"#.to_vec();
+    apply_summary_budget(&mut body, max, None);
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["max_output_tokens"], 32768);
+    assert_eq!(v["reasoning"]["effort"], "low");
+
+    let mut body = br#"{"max_output_tokens":16}"#.to_vec();
+    apply_summary_budget(&mut body, max, None);
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["max_output_tokens"], 8192);
+    assert!(v.get("reasoning").is_none());
+}
+
+#[test]
+fn compaction_summary_budget_keep_and_zero() {
+    let cfg = Config::parse("compaction: {summary-max-tokens: 0, summary-reasoning-effort: keep}\n").unwrap();
+    let (max, effort) = summary_budget(&cfg);
+    assert_eq!(max, 0);
+    assert_eq!(effort.as_deref(), Some("keep"));
+    let mut body = br#"{"max_output_tokens":16,"reasoning":{"effort":"xhigh"}}"#.to_vec();
+    apply_summary_budget(&mut body, max, effort.as_deref());
+    let v: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(v["max_output_tokens"], 16);
+    assert_eq!(v["reasoning"]["effort"], "xhigh");
+}
+
+const SUMMARY_ANSWER: &str = r#"{"id":"mock","object":"chat.completion","created":0,"model":"deepseek-flash","choices":[{"index":0,"message":{"role":"assistant","content":"mock summary"},"finish_reason":"stop"}],"usage":{"prompt_tokens":19,"completion_tokens":10,"total_tokens":29}}"#;
+const TRIGGER_PAYLOAD: &str = r#"{"model":"gpt-6.1-sol","input":[{"type":"message","role":"user","content":[{"type":"input_text","text":"hello"}]},{"type":"compaction_trigger"}],"reasoning":{"effort":"xhigh"},"max_output_tokens":16}"#;
+
+/// Runs `payload` against one OpenAI-compatible key whose upstream answers with
+/// `answer`. `{base}` in `config` becomes `base` with `ADDR` replaced by the mock's
+/// address, `http://ADDR` by default.
+async fn compaction_run(
+    config: &str,
+    base: Option<&str>,
+    payload: &str,
+    stream: bool,
+    alt: Option<&str>,
+    answer: &str,
+) -> (Result<ExecResponse, ExecError>, Mock) {
+    let mock = Mock::start(&serde_json::json!({"status": 200, "body": answer})).await;
+    let base = base.map_or_else(|| format!("http://{}", mock.addr), |b| b.replace("ADDR", &mock.addr));
+    let cfg = Config::parse(&config.replace("{base}", &base)).unwrap();
+    let scenario = serde_json::json!({
+        "config_auth": 0,
+        "op": "generate",
+        "source": "openai-response",
+        "model": "deepseek-flash",
+        "requested_model": "gpt-6.1-sol",
+        "payload": payload,
+        "stream": stream,
+        "alt": alt,
+    });
+    let cred = credential(&scenario, &cfg, &mock.addr);
+    let (req, _) = request(&scenario, Default::default());
+    (OpenAICompatExecutor::default().execute(&cred, req, &cfg).await, mock)
+}
+
+const COMPACTION_CONFIG: &str = "config-version: 8\n\
+     compaction:\n  summary-max-tokens: 16384\n  summary-reasoning-effort: high\n\
+     api-keys:\n  openai-compatibility:\n    - name: mock\n      base-url: {base}\n      \
+     keys: [{api-key: k}]\n      models:\n        - name: deepseek-flash\n          alias: gpt-6.1-sol\n";
+
+fn wire_body(mock: &Mock) -> Value {
+    let raw = String::from_utf8(mock.request().unwrap()).unwrap();
+    serde_json::from_str(raw.rsplit_once("\r\n\r\n").unwrap().1).unwrap()
+}
+
+/// The compaction trigger is answered with exactly one sealed capsule, and the
+/// internal summary request uses the configurable budget instead of the caller's
+/// tiny `max_output_tokens`. The answer reports the summary's Chat usage, input and
+/// output apart.
+#[tokio::test]
+async fn compaction_trigger_returns_one_capsule_and_uses_summary_budget() {
+    let (resp, mock) = compaction_run(COMPACTION_CONFIG, None, TRIGGER_PAYLOAD, false, None, SUMMARY_ANSWER).await;
+    let body = match resp.unwrap().body {
+        ResponseBody::Buffered(body) => body,
+        ResponseBody::Stream(_) => panic!("compaction answer must be buffered"),
+    };
+    let answer: Value = serde_json::from_slice(&body).unwrap();
+    let output = answer["output"].as_array().unwrap();
+    assert_eq!(output.len(), 1);
+    assert_eq!(output[0]["type"], "compaction");
+    assert!(
+        output[0]["encrypted_content"]
+            .as_str()
+            .unwrap()
+            .starts_with("cpa-ag-compact-v1:")
+    );
+    assert_eq!(
+        (
+            &answer["usage"]["input_tokens"],
+            &answer["usage"]["output_tokens"],
+            &answer["usage"]["total_tokens"]
+        ),
+        (&Value::from(19), &Value::from(10), &Value::from(29))
+    );
+    let wire = wire_body(&mock);
+    assert_eq!(wire["max_tokens"], 16384);
+    assert_eq!(wire["reasoning_effort"], "high");
+}
+
+/// A streamed trigger gets the same capsule as events, and `response.completed`
+/// carries the summary's Chat usage, input and output apart.
+#[tokio::test]
+async fn compaction_trigger_stream_reports_chat_usage() {
+    let (resp, _mock) = compaction_run(COMPACTION_CONFIG, None, TRIGGER_PAYLOAD, true, None, SUMMARY_ANSWER).await;
+    let ResponseBody::Stream(stream) = resp.unwrap().body else {
+        panic!("a streamed trigger is answered with events");
+    };
+    let frames: Vec<Bytes> = stream.map(Result::unwrap).collect().await;
+    let text = String::from_utf8(frames.concat()).unwrap();
+    let completed = text
+        .split("\n\n")
+        .find_map(|frame| frame.strip_prefix("event: response.completed\ndata: "))
+        .unwrap();
+    let usage = &serde_json::from_str::<Value>(completed).unwrap()["response"]["usage"];
+    assert_eq!(
+        (&usage["input_tokens"], &usage["output_tokens"], &usage["total_tokens"]),
+        (&Value::from(19), &Value::from(10), &Value::from(29))
+    );
+}
+
+/// The summary request is prepared like any chat request: a model that takes
+/// `max_completion_tokens` gets the floor there, the payload rules run last, and a
+/// configured effort OpenAI does not define (`max`) is not sent.
+#[tokio::test]
+async fn compaction_summary_uses_normal_request_preparation() {
+    let config = COMPACTION_CONFIG
+        .replace("summary-reasoning-effort: high", "summary-reasoning-effort: max")
+        .replace(
+            "alias: gpt-6.1-sol\n",
+            "alias: gpt-6.1-sol\n          use-max-completion-tokens: true\n",
+        )
+        + "payload:\n  override:\n    - models: [{name: deepseek-flash}]\n      params: {temperature: 0.25}\n";
+    let (resp, mock) = compaction_run(&config, None, TRIGGER_PAYLOAD, false, None, SUMMARY_ANSWER).await;
+    resp.unwrap();
+    let wire = wire_body(&mock);
+    assert_eq!(wire["max_completion_tokens"], 16384, "{wire}");
+    assert!(wire.get("max_tokens").is_none(), "{wire}");
+    assert_eq!(wire["temperature"], 0.25, "{wire}");
+    assert_eq!(wire["reasoning_effort"], "low", "{wire}");
+}
+
+/// A base URL Go parses without a host (`http:127.0.0.1:port`) is refused for the
+/// summary request as for any chat request, before the key is sent anywhere.
+#[tokio::test]
+async fn compaction_summary_refuses_a_url_without_a_host() {
+    let (resp, mock) = compaction_run(
+        COMPACTION_CONFIG,
+        Some("http:ADDR"),
+        TRIGGER_PAYLOAD,
+        false,
+        None,
+        SUMMARY_ANSWER,
+    )
+    .await;
+    let Err(e) = resp else {
+        panic!("a URL without a host must be refused");
+    };
+    let message = String::from_utf8_lossy(&e.body).into_owned();
+    assert!(message.ends_with("http: no Host in request URL"), "{message}");
+    assert!(mock.request().is_none(), "the summary request reached the upstream");
+}
+
+/// `/responses/compact` keeps the upstream's own compaction items and expands only
+/// CPA capsules.
+#[tokio::test]
+async fn compact_alt_keeps_native_compaction_items() {
+    let capsule = crate::antigravity_compaction::seal("earlier work", "deepseek-flash").unwrap();
+    let native = r#"{"type":"compaction","encrypted_content":"gAAAAnative-opaque"}"#;
+    let payload = format!(
+        r#"{{"model":"gpt-6.1-sol","input":[{{"type":"message","role":"user","content":"hi"}},{native},{{"type":"compaction","encrypted_content":"{capsule}"}}]}}"#
+    );
+    let answer = r#"{"id":"resp_1","object":"response.compaction","usage":{"input_tokens":1,"output_tokens":2,"total_tokens":3}}"#;
+    let (resp, mock) = compaction_run(COMPACTION_CONFIG, None, &payload, false, Some(COMPACT_ALT), answer).await;
+    resp.unwrap();
+    let raw = String::from_utf8(mock.request().unwrap()).unwrap();
+    assert!(raw.starts_with("POST /responses/compact "), "{raw}");
+    let input = wire_body(&mock)["input"].clone();
+    assert_eq!(input.as_array().unwrap().len(), 3, "{input}");
+    assert_eq!(input[1], serde_json::from_str::<Value>(native).unwrap());
+    assert_eq!(input[2]["role"], "developer");
+    assert_eq!(
+        input[2]["content"][0]["text"],
+        "Context summary from previous turns:\nearlier work"
+    );
+}
+
 /// One request from `source` through an `acme` key holding `acme-compat` (alias `cc`)
 /// and `acme-chat` (alias `chat`); returns the upstream body. `model` is the execution
 /// model and may carry a thinking suffix. The binding is what the server resolves for a

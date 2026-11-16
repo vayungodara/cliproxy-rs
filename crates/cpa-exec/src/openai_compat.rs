@@ -388,6 +388,40 @@ impl OpenAICompatExecutor {
 pub(crate) async fn chat_with(
     client: &wreq::Client,
     credential: &Credential,
+    mut req: ExecRequest,
+    cfg: &Config,
+    base_url: &str,
+    api_key: &str,
+    compat: Option<&payload::Compat>,
+) -> Result<ExecResponse, ExecError> {
+    if base_url.is_empty() {
+        return Err(missing_base_url());
+    }
+    if req.operation == Operation::Generate {
+        // Only CPA capsules: a native compaction item is the upstream's own context and
+        // reaches `/responses/compact` (or the chat translator) as it is.
+        if (crate::antigravity_compaction::has_item(&req.body)
+            || crate::antigravity_compaction::has_item(&req.original_body))
+            && let Err(e) = crate::antigravity_compaction::expand_capsules(&mut req)
+        {
+            req.usage.discard();
+            return Err(status_err(400, e));
+        }
+        if req.alt.as_deref() != Some(COMPACT_ALT)
+            && (crate::antigravity_compaction::has_trigger(&req.body)
+                || crate::antigravity_compaction::has_trigger(&req.original_body))
+        {
+            return compact_summary(client, credential, req, cfg, base_url, api_key, compat).await;
+        }
+    }
+    chat_request(client, credential, req, cfg, base_url, api_key, compat).await
+}
+
+/// The ordinary chat or `/responses/compact` request of [`chat_with`], also used for
+/// the summary turn of [`compact_summary`].
+async fn chat_request(
+    client: &wreq::Client,
+    credential: &Credential,
     req: ExecRequest,
     cfg: &Config,
     base_url: &str,
@@ -395,9 +429,6 @@ pub(crate) async fn chat_with(
     compat: Option<&payload::Compat>,
 ) -> Result<ExecResponse, ExecError> {
     let base_model = parse_suffix(&req.model).model_name;
-    if base_url.is_empty() {
-        return Err(missing_base_url());
-    }
     let compact = req.alt.as_deref() == Some(COMPACT_ALT);
     // ExecuteStream always targets chat completions, even with the compact alt.
     let (target, path) = if compact && !req.stream {
@@ -554,6 +585,121 @@ pub(crate) async fn chat_with(
         status: 200,
         headers: response_headers,
         body: ResponseBody::Buffered(Bytes::from(out)),
+    })
+}
+
+const DEFAULT_SUMMARY_MAX_TOKENS: i64 = 8192;
+
+/// `compaction.summary-max-tokens` and `compaction.summary-reasoning-effort`. These
+/// apply only to the internal summary request: normal turns keep the client's budget
+/// and effort, and an explicitly larger summary budget is never lowered.
+fn summary_budget(cfg: &Config) -> (i64, Option<String>) {
+    // ponytail: one global floor for every OpenAI-compatible upstream; lift this to a
+    // per-provider override when a second upstream needs a different value.
+    let section = cfg.document.get("compaction");
+    let max_tokens = section
+        .and_then(|c| c.get("summary-max-tokens"))
+        .and_then(cpa_core::config::go_int)
+        .unwrap_or(DEFAULT_SUMMARY_MAX_TOKENS);
+    let effort = section
+        .and_then(|c| c.get("summary-reasoning-effort"))
+        .and_then(|v| v.as_str())
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_owned);
+    (max_tokens, effort)
+}
+
+/// Reasoning efforts an OpenAI-compatible upstream accepts in `reasoning_effort`.
+const SUMMARY_EFFORTS: [&str; 5] = ["minimal", "low", "medium", "high", "xhigh"];
+
+/// A reasoning upstream can spend the caller's whole output budget on
+/// `reasoning_content` and return an empty `content`, which then looks like "no
+/// summary text". Give the summary a floor, and keep its thinking short. `body` is
+/// the Responses summary payload, before translation: the floor reaches the upstream
+/// as `max_tokens` or `max_completion_tokens`, and the effort as `reasoning_effort`
+/// after the model's thinking rules, like any client value.
+fn apply_summary_budget(body: &mut Vec<u8>, max_tokens: i64, effort: Option<&str>) {
+    if max_tokens > 0 && gj::get(body, "max_output_tokens").int() < max_tokens {
+        gj::set_int(body, "max_output_tokens", max_tokens);
+    }
+    match effort {
+        Some("keep") => {}
+        Some(value) if SUMMARY_EFFORTS.contains(&value) => {
+            gj::set_str(body, "reasoning.effort", value);
+        }
+        // Unset or not an OpenAI effort: lower the effort only when the client sent one.
+        _ => {
+            if gj::get(body, "reasoning.effort").exists() {
+                gj::set_str(body, "reasoning.effort", "low");
+            }
+        }
+    }
+}
+
+/// Responses compaction v2 for OpenAI-compatible upstreams: the trigger turn is
+/// answered by an ordinary non-stream chat summary, sealed into the CPA compaction
+/// capsule, so Codex gets exactly one `compaction` output item. Later requests carry
+/// that capsule and are expanded by `antigravity_compaction::expand_capsules`. The
+/// summary request goes through [`chat_request`], so it gets the same thinking, compatibility
+/// normalization, payload rules, URL checks and capture as any chat request.
+async fn compact_summary(
+    client: &wreq::Client,
+    credential: &Credential,
+    mut req: ExecRequest,
+    cfg: &Config,
+    base_url: &str,
+    api_key: &str,
+    compat: Option<&payload::Compat>,
+) -> Result<ExecResponse, ExecError> {
+    let model = parse_suffix(&req.model).model_name.to_owned();
+    let stream = req.stream;
+    let source = crate::antigravity_compaction::source_payload(&req.body, &req.original_body);
+    let mut summary = crate::antigravity_compaction::summary_payload(source);
+    let (max_tokens, effort) = summary_budget(cfg);
+    apply_summary_budget(&mut summary, max_tokens, effort.as_deref());
+    req.body = summary.into();
+    req.original_body = Bytes::new();
+    req.alt = None;
+    req.stream = false;
+    req.source_format = Format::OpenAIResponse;
+    req.response_format = Format::OpenAI;
+    let answer = Box::pin(chat_request(client, credential, req, cfg, base_url, api_key, compat)).await?;
+    let ResponseBody::Buffered(raw) = answer.body else {
+        return Err(crate::antigravity_compaction::statusless(
+            "extract summary: no summary text found in upstream response",
+        ));
+    };
+    let text = crate::antigravity_compaction::summary_text(&raw)
+        .map_err(|e| crate::antigravity_compaction::statusless(format!("extract summary: {e}")))?;
+    let sealed = crate::antigravity_compaction::seal(&text, &model)
+        .map_err(|e| crate::antigravity_compaction::statusless(format!("seal compaction capsule: {e}")))?;
+    let usage = crate::antigravity_compaction::chat_usage(&raw);
+
+    let mut headers = http::HeaderMap::new();
+    if !stream {
+        headers.insert(
+            http::header::CONTENT_TYPE,
+            http::HeaderValue::from_static("application/json"),
+        );
+        return Ok(ExecResponse {
+            status: 200,
+            headers,
+            body: ResponseBody::Buffered(crate::antigravity_compaction::response(&model, &sealed, usage).into()),
+        });
+    }
+    headers.insert(
+        http::header::CONTENT_TYPE,
+        http::HeaderValue::from_static("text/event-stream"),
+    );
+    let chunks: Vec<Result<Bytes, ExecError>> = crate::antigravity_compaction::stream_chunks(&model, &sealed, usage)
+        .into_iter()
+        .map(|chunk| Ok(Bytes::from(chunk)))
+        .collect();
+    Ok(ExecResponse {
+        status: 200,
+        headers,
+        body: ResponseBody::Stream(futures_util::stream::iter(chunks).boxed()),
     })
 }
 
