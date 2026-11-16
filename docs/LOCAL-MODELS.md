@@ -14,7 +14,7 @@ Tested on 14 and 16 November 2026, on GitHub-hosted `ubuntu-24.04` runners: 4 vC
 | Ollama | 0.40.16 |
 | vLLM | 0.33.0 CPU wheel (`vllm-0.33.0+cpu`, torch 2.14.0+cpu) |
 
-Every server passed four checks sent to cliproxy-rs's `/v1/responses`: a plain answer, a streamed answer with usage, a streamed tool call with the right arguments, and the turn that sends the tool result back. Then Codex CLI ran a two-step task, `codex exec` with "run `cat note.txt` and reply with the secret word", once through cliproxy-rs and once against each server's own `/v1/responses`:
+Every server passed four checks sent to cliproxy-rs's `/v1/responses`: a plain answer, a streamed answer with usage, a streamed tool call with the right arguments, and the turn that sends the tool result back. Then Codex CLI ran a two-step task, `codex exec` with "run `cat note.txt` and reply with the secret word", through cliproxy-rs and against each server's own `/v1/responses`:
 
 | Server and model | Through cliproxy-rs | Codex straight to the server | Time through cliproxy-rs |
 | --- | --- | --- | --- |
@@ -26,7 +26,9 @@ With Qwen2.5-1.5B, every Codex turn completed on all three servers, with and wit
 
 ## cliproxy-rs config
 
-Add one entry to `config.yaml`. Local servers need no API key, but the entry must have a `keys` list: write `keys: []`. An entry without `keys` stops the config from loading ("api-keys.openai-compatibility[0].keys must be a list"), as in CLIProxyAPI. With an empty list the proxy sends no `Authorization` header.
+The YAML below is one provider entry, not a whole config. Merge it into the `config.yaml` that the [install script](INSTALL.md#with-the-install-script) or [Getting started](GETTING-STARTED.md) set up, and keep the rest of that file. In particular, keep `server.host` at `127.0.0.1` and keep at least one key in `access.api-keys`: without a client key, anyone who can reach the proxy can use it.
+
+Local servers need no API key, but the entry must have a `keys` list: write `keys: []`. An entry without `keys` stops the config from loading ("api-keys.openai-compatibility[0].keys must be a list"), as in CLIProxyAPI. With an empty list the proxy sends no `Authorization` header to the local server. It only turns off authentication to the upstream; your tools still need a client key from `access.api-keys` to reach the proxy.
 
 ```yaml
 api-keys:
@@ -53,6 +55,13 @@ base_url = "http://127.0.0.1:8317/v1"
 env_key = "CLIPROXY_CLIENT_KEY"
 wire_api = "responses"
 stream_idle_timeout_ms = 900000
+```
+
+Before running `codex`, set `CLIPROXY_CLIENT_KEY` to one of the keys in `access.api-keys`. The install script saves one in `keys.env` next to your config:
+
+```sh
+export CLIPROXY_CLIENT_KEY=your-client-key
+codex
 ```
 
 The tests set `stream_idle_timeout_ms` to 15 minutes so that slow prompt processing on a CPU does not trip Codex's stream timeout. Codex warns that it has no model metadata for `local` and uses its defaults; the turns complete anyway.
