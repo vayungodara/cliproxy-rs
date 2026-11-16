@@ -121,7 +121,8 @@ pub use xai_ws::websockets_enabled;
 /// the provider's email into the file name unchanged, so a `/`, `\\` or drive `:` in it
 /// would place the file outside auth-dir. Those and control characters become `_`, and
 /// a changed email gets a hash of the original, so it does not take the file of an
-/// account whose email is the sanitized text.
+/// account whose email is the sanitized text. An email that already ends in `-` and
+/// eight hex digits gets the hash too, so it cannot match a changed email's name.
 /// Ordinary addresses are unchanged, so existing file names stay the same.
 pub(crate) fn file_name_email(email: &str) -> String {
     let clean: String = email
@@ -134,7 +135,11 @@ pub(crate) fn file_name_email(email: &str) -> String {
             }
         })
         .collect();
-    if clean == email {
+    let b = email.as_bytes();
+    let hash_like = b.len() >= 9
+        && b[b.len() - 9] == b'-'
+        && b[b.len() - 8..].iter().all(|c| matches!(c, b'0'..=b'9' | b'a'..=b'f'));
+    if clean == email && !hash_like {
         return clean;
     }
     use sha2::Digest;

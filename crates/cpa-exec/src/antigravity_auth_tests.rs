@@ -363,6 +363,11 @@ fn auth_url_matches_go() {
         credential_file_name("a_b@example.invalid"),
         "antigravity-a_b@example.invalid.json"
     );
+    assert_eq!(
+        credential_file_name("a_b@example.invalid-e12e6b25"),
+        "antigravity-a_b@example.invalid-e12e6b25-3425ce78.json",
+        "an email shaped like a changed one's name gets its own hash"
+    );
 }
 
 #[test]
