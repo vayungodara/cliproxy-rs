@@ -100,7 +100,7 @@ fn transport_text(error: &ExecError) -> String {
 pub fn credential_file_name(email: &str) -> String {
     match email.trim() {
         "" => "antigravity.json".into(),
-        email => format!("antigravity-{email}.json"),
+        email => format!("antigravity-{}.json", crate::file_name_email(email)),
     }
 }
 

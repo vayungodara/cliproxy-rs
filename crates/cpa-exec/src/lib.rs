@@ -117,6 +117,32 @@ pub use kimi_http::{expiration, last_refresh, preferred_interval};
 pub use openai_compat_payload::ensure_responses_usage_details;
 pub use xai_ws::websockets_enabled;
 
+/// An account email as a credential file-name segment. Deliberate difference: Go puts
+/// the provider's email into the file name unchanged, so a `/`, `\\` or drive `:` in it
+/// would place the file outside auth-dir. Those and control characters become `_`, and
+/// a changed email gets a hash of the original, so it does not take the file of an
+/// account whose email is the sanitized text.
+/// Ordinary addresses are unchanged, so existing file names stay the same.
+pub(crate) fn file_name_email(email: &str) -> String {
+    let clean: String = email
+        .chars()
+        .map(|c| {
+            if matches!(c, '/' | '\\' | ':') || c.is_control() {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    if clean == email {
+        return clean;
+    }
+    use sha2::Digest;
+    let digest = sha2::Sha256::digest(email.as_bytes());
+    let hash: String = digest[..4].iter().map(|b| format!("{b:02x}")).collect();
+    format!("{clean}-{hash}")
+}
+
 /// What a credential needs before or around use. See the module docs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Readiness {

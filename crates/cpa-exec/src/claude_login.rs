@@ -502,7 +502,7 @@ fn success_html(setup_required: bool, platform_url: &str) -> String {
 
 /// `CredentialFileName`.
 pub(crate) fn credential_file_name(email: &str, organization: &str, account: &str) -> String {
-    let email = email.trim();
+    let email = crate::file_name_email(email.trim());
     let identity = Some(organization.trim())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| account.trim());

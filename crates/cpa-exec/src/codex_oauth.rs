@@ -733,7 +733,7 @@ pub(crate) fn access_usable(credential: &Credential, now: DateTime<Utc>) -> bool
 
 /// `CredentialFileName(email, plan, hash, true)`.
 pub fn credential_file_name(email: &str, plan: &str, account_hash: &str) -> String {
-    let email = email.trim();
+    let email = crate::file_name_email(email.trim());
     let plan: Vec<String> = plan
         .trim()
         .split(|c: char| !c.is_alphanumeric())

@@ -349,6 +349,20 @@ fn auth_url_matches_go() {
     }
     assert_eq!(credential_file_name(" a@b.c "), "antigravity-a@b.c.json");
     assert_eq!(credential_file_name(""), "antigravity.json");
+    assert_eq!(
+        credential_file_name("../x/..\\C:y@b.c"),
+        "antigravity-.._x_.._C_y@b.c-624c7263.json",
+        "path characters never leave auth-dir"
+    );
+    assert_eq!(
+        credential_file_name("a/b@example.invalid"),
+        "antigravity-a_b@example.invalid-e12e6b25.json",
+        "a sanitized email never names another account's file"
+    );
+    assert_eq!(
+        credential_file_name("a_b@example.invalid"),
+        "antigravity-a_b@example.invalid.json"
+    );
 }
 
 #[test]
