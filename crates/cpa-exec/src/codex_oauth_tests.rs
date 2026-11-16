@@ -88,6 +88,50 @@ fn login_file_bytes_match_go_storage_serializer() {
     assert_eq!(name, device["result"]["id"].as_str().unwrap());
 }
 
+/// A login never replaces a file that holds another account, whether the name matches
+/// through a sanitized email or the stored account ID differs.
+#[test]
+fn login_refuses_to_replace_another_accounts_file() {
+    let dir = std::env::temp_dir().join(format!("codex-other-{}", random_state().unwrap()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let mut tokens = Tokens {
+        id_token: String::new(),
+        access_token: "at-new".into(),
+        refresh_token: "rt-new".into(),
+        account_id: "acct-new".into(),
+        email: "a:b@example.invalid".into(),
+        plan_type: String::new(),
+        expired: "2026-10-12T12:00:00Z".into(),
+    };
+    // Written earlier for the literal email that `a:b@...` now sanitizes to.
+    let path = dir.join("codex-a_b@example.invalid-157c67db-free.json");
+    let other = r#"{"access_token":"at-other","email":"a_b@example.invalid-157c67db"}"#;
+    std::fs::write(&path, other).unwrap();
+    let error = write_login(&dir, &tokens).unwrap_err();
+    assert_eq!(error.status, 409);
+    assert!(String::from_utf8_lossy(&error.body).contains("belongs to another account"));
+    assert_eq!(
+        std::fs::read_to_string(&path).unwrap(),
+        other,
+        "the other account's file is untouched"
+    );
+
+    // Same email, another account ID.
+    tokens.email = "user@example.invalid".into();
+    let path = dir.join("codex-user@example.invalid-free.json");
+    let other = r#"{"access_token":"at-other","email":"user@example.invalid","account_id":"acct-other"}"#;
+    std::fs::write(&path, other).unwrap();
+    assert_eq!(write_login(&dir, &tokens).unwrap_err().status, 409);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), other);
+
+    // The same account in another case, or a file without identity, is replaced.
+    std::fs::write(&path, r#"{"email":"USER@example.invalid","account_id":"acct-new"}"#).unwrap();
+    assert_eq!(write_login(&dir, &tokens).unwrap(), path);
+    std::fs::write(&path, r#"{"access_token":"at-old"}"#).unwrap();
+    assert_eq!(write_login(&dir, &tokens).unwrap(), path);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 #[tokio::test]
 async fn existing_file_keeps_user_fields_but_never_old_tokens() {
     let dir = std::env::temp_dir().join(format!("codex-login-{}", random_state().unwrap()));

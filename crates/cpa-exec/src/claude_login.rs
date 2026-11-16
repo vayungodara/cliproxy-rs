@@ -685,6 +685,9 @@ fn write_canonical(directory: &Path, patch: MetadataPatch) -> Result<(PathBuf, O
     }
     let name = credential_file_name(&email, &string("organization_uuid"), &string("account_uuid"));
     let path = directory.join(&name);
+    if crate::other_account_file(&path, &email, &[("account_uuid", &string("account_uuid"))]) {
+        return Err(login_error(crate::OTHER_ACCOUNT_FILE));
+    }
     let mut metadata: BTreeMap<String, Value> = patch.set.clone().into_iter().collect();
     for key in &patch.remove {
         metadata.remove(key);
