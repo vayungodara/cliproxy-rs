@@ -41,6 +41,38 @@ Audit of 2026-10-20 (v0.2.6, d1261f2) against CLIProxyAPI v8.0.35 (`ae3ee3be`).
 
 An item is covered when it is implemented and a Rust test or a fixture recorded from the Go server checks it. Partial means it works but not every case is pinned by a test, or only part of it is implemented; most partial items are Go test files whose behaviour other tests cover without porting each case. Missing means it is not implemented. A deliberate difference from Go, listed in [DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md), counts as covered.
 
+## Upstream changes since v8.0.35
+
+The compatibility target stays v8.0.35. CLIProxyAPI released v8.0.72 on 14 November 2026, 37 releases and 450 commits later. As of 16 November 2026, cliproxy-rs has none of the changes below. They are the ones a user would notice, taken from upstream's release notes and checked against the v8.0.35 to v8.0.72 diff. Internal refactors, tests and narrow provider fixes are left out.
+
+Providers and requests:
+
+- Claude Code with DeepSeek or Kimi: for an `openai-compatibility` model with `is-compat: true` and thinking on, upstream adds `reasoning_content: " "` to assistant tool-call turns that have no thinking text. DeepSeek and Kimi reject those turns without it (v8.0.64).
+- Codex CLI's automatic compaction (`compaction_trigger`) is answered locally for `openai-compatibility` providers and for `codex-api-key` models with `is-compat: true` (v8.0.55, v8.0.64).
+- OpenAI-compatible requests carry the client's `User-Agent`. cliproxy-rs always sends `cli-proxy-openai-compat` (v8.0.36).
+- Gemini and Antigravity answers to Chat Completions clients use `finish_reason: "length"` when the token limit is reached. cliproxy-rs sends `"max_tokens"`, as v8.0.35 does (v8.0.68).
+- The `response.metadata` stream event is filtered out for Responses clients other than Codex (v8.0.46).
+- Vertex credentials default to the `global` location instead of `us-central1` (v8.0.43).
+- `gpt-image-2.6` and `grok-imagine-video-1.5-lite`, which need code and not only catalog entries (v8.0.56, v8.0.51).
+
+Claude, Codex and Antigravity accounts:
+
+- Claude server-side fallback is opt-in with `upstream.claude.server-side-fallback`, off by default. cliproxy-rs still adds the fallback models that v8.0.35 adds, such as `claude-opus-4-8` behind `claude-opus-5-5` (v8.0.66).
+- A 429 from the local Claude cooldown carries `anthropic-ratelimit-unified-*` headers that match `Retry-After`, and its message says when the limit resets (v8.0.58, v8.0.65).
+- More Claude Code clients count as native and keep their own headers: background sessions (`X-App: cli-bg`), the TypeScript Agent SDK (`sdk-ts`) and user agents with extensions. The list is configurable with `upstream.claude.header-defaults.native-entrypoints` (v8.0.36 to v8.0.64).
+- Codex `turn_rate_limit_exceeded` and capacity 429s cool down only that model and follow `Retry-After` (v8.0.45).
+- An Anthropic 400 that starts "Your credit balance is too low" cools the key for 30 minutes and moves the request to another credential (v8.0.50).
+- An Antigravity `403 TOS_VIOLATION` turns the credential off. `oauth.providers.antigravity.tos-pause-window` can also pause the whole pool; it is off by default from v8.0.72 (v8.0.70).
+
+Server, configuration and routes:
+
+- The `-login-proxy` flag sets a proxy for command-line sign-ins and saves it on the new credential (v8.0.63).
+- `server.shutdown-timeout` lets requests in flight finish after SIGINT or SIGTERM (v8.0.69).
+- `server.response-compression` (on by default) and `upstream.codex.upstream-request-compression` and `websocket-compression` (v8.0.44).
+- Other new keys: `server.kv-store` (v8.0.55), `sensitive-words-replace` and `sensitive-patterns-replace` (v8.0.65, v8.0.70), `client.claude.show-codex-commentary` (v8.0.49), `routing.session-affinity-rebind-on: "never"` (v8.0.61) and a `connection-pool` block on `api-keys` entries (v8.0.50).
+- CORS preflight answers name `Authorization` instead of `*` (v8.0.44).
+- New routes: `GET /v1/tunnel` (v8.0.68), the Muse Code relay under `/muse-code/` (v8.0.70), and Management API routes `GET /v8/management/oauth/siwc/status`, `GET /v8/management/credentials/siwc/status`, `POST /v8/management/oauth/auth-url`, `POST /v8/management/models/refresh`, `POST /v8/management/routing/model-definitions/refresh`, `POST /v8/management/credentials/verify` and `GET /v8/management/observability/requests/in-flight`.
+
 ## What each milestone covers
 
 | Milestone | Scope |

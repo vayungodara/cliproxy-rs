@@ -1,6 +1,6 @@
 # Differences from Go CLIProxyAPI
 
-The compatibility target is frozen at CLIProxyAPI v8.0.35, commit `ae3ee3be303fb07fb8173279923413005bf32177` ([PARITY.md](PARITY.md)). This page records deliberate differences and implementation limits; it does not claim that every newer Go feature is ported. Existing fixtures retain their original Go versions. Missing or unproven v8.0.35 contracts are tracked in the [parity audit](parity-audit/status.md), with the intervening commits in the [upstream inventory](parity-audit/upstream-v8.0.35.md).
+The compatibility target is frozen at CLIProxyAPI v8.0.35, commit `ae3ee3be303fb07fb8173279923413005bf32177` ([PARITY.md](PARITY.md)). This page records deliberate differences and implementation limits; it does not claim that every newer Go feature is ported. Existing fixtures retain their original Go versions. Missing or unproven v8.0.35 contracts are tracked in the [parity audit](parity-audit/status.md), with the intervening commits in the [upstream inventory](parity-audit/upstream-v8.0.35.md). Upstream changes after v8.0.35 are not ported and are not listed here; [PARITY.md](PARITY.md#upstream-changes-since-v8035) lists the ones a user would notice, up to v8.0.72 (checked 16 November 2026).
 
 ## Additions in cliproxy-rs
 
