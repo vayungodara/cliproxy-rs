@@ -145,6 +145,8 @@ Use the same structure for any of these metered APIs. The base URL excludes `/ch
 | OpenRouter | `https://openrouter.ai/api/v1` | [OpenRouter API docs](https://openrouter.ai/docs/quickstart) |
 | OpenCode Go | `https://opencode.ai/zen/go/v1` | [OpenCode Go docs](https://opencode.ai/docs/go/); use its Chat Completions models, and add `headers: {x-opencode-session: $CPA-SESSION-ID}` to the entry, which sends each conversation's session ID; OpenCode Go rejects requests without one |
 
+For a model on your own machine served by llama.cpp, Ollama or vLLM, see [LOCAL-MODELS.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/LOCAL-MODELS.md).
+
 Put this in `~/.codex/config.toml`:
 
 ```toml
