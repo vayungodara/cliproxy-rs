@@ -43,12 +43,12 @@ An item is covered when it is implemented and a Rust test or a fixture recorded 
 
 ## Upstream changes since v8.0.35
 
-The compatibility target stays v8.0.35. CLIProxyAPI released v8.0.72 on 14 November 2026, 37 releases and 450 commits later. As of 16 November 2026, cliproxy-rs has none of the changes below. They are the ones a user would notice, taken from upstream's release notes and checked against the v8.0.35 to v8.0.72 diff. Internal refactors, tests and narrow provider fixes are left out.
+The compatibility target stays v8.0.35. This list covers upstream changes up to v8.0.72, released 14 November 2026, 37 releases and 450 commits after v8.0.35; it was checked on 16 November 2026. cliproxy-rs has none of them. They are the ones a user would notice, taken from upstream's release notes and checked against the v8.0.35 to v8.0.72 diff. Internal refactors, tests and narrow provider fixes are left out. For later releases, see [upstream's releases page](https://github.com/router-for-me/CLIProxyAPI/releases).
 
 Providers and requests:
 
 - Claude Code with DeepSeek or Kimi: for an `openai-compatibility` model with `is-compat: true` and thinking on, upstream adds `reasoning_content: " "` to assistant tool-call turns that have no thinking text. DeepSeek and Kimi reject those turns without it (v8.0.64).
-- Codex CLI's automatic compaction (`compaction_trigger`) is answered locally for `openai-compatibility` providers and for `codex-api-key` models with `is-compat: true` (v8.0.55, v8.0.64).
+- Codex CLI's automatic compaction (`compaction_trigger`) is answered locally for `codex-api-key` models with `is-compat: true` (v8.0.64). cliproxy-rs answers it for `openai-compatibility` providers in its own way; see the compaction v2 entry under [Deliberate differences](DIFFERENCES-FROM-GO.md#deliberate-differences).
 - OpenAI-compatible requests carry the client's `User-Agent`. cliproxy-rs always sends `cli-proxy-openai-compat` (v8.0.36).
 - Gemini and Antigravity answers to Chat Completions clients use `finish_reason: "length"` when the token limit is reached. cliproxy-rs sends `"max_tokens"`, as v8.0.35 does (v8.0.68).
 - The `response.metadata` stream event is filtered out for Responses clients other than Codex (v8.0.46).

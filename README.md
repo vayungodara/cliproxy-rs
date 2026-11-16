@@ -9,7 +9,7 @@ Use DeepSeek, GLM, Kimi, OpenRouter and more in Codex CLI and Claude Code: one l
 
 - **API translation.** Codex CLI sends Responses requests, and the proxy sends Chat Completions to providers that only offer those, tool calls included. Claude Code's Messages requests are translated to the selected provider's format the same way.
 - **Several keys and providers behind one model name.** By default, a 429 cools that key for the model and the request moves to another ready key or provider with the same alias.
-- **One binary with the dashboard built in.** It reads CLIProxyAPI's `config.yaml` and credential files. Parity with CLIProxyAPI v8.0.35 is partial, and upstream has since reached v8.0.72; [PARITY.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md) has the counts and the newer changes.
+- **One binary with the dashboard built in.** It reads CLIProxyAPI's `config.yaml` and credential files. Parity with CLIProxyAPI v8.0.35 is partial; [PARITY.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md) has the counts and the [upstream changes since then](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md#upstream-changes-since-v8035).
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.sh | sh
@@ -75,7 +75,7 @@ cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/
   </picture>
 </p>
 
-The compatibility target is CLIProxyAPI v8.0.35. Parity is incomplete: the audit has 1,951 items, with 1,053 covered, 872 partial and 26 missing. [PARITY.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md) defines those counts. CLIProxyAPI released v8.0.72 on 14 November 2026; PARITY.md also lists [the changes since v8.0.35](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md#upstream-changes-since-v8035) that cliproxy-rs does not have yet.
+The compatibility target is CLIProxyAPI v8.0.35. Parity is incomplete: the audit has 1,951 items, with 1,053 covered, 872 partial and 26 missing. [PARITY.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md) defines those counts. Upstream has released newer versions since; PARITY.md lists [the changes after v8.0.35](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md#upstream-changes-since-v8035) that cliproxy-rs does not have yet.
 
 ## How it compares
 
