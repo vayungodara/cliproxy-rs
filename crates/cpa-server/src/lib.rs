@@ -60,7 +60,7 @@ use std::sync::Arc;
 use axum::extract::{DefaultBodyLimit, OriginalUri, State};
 use axum::http::{HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::{get, head, post};
 use axum::{Router, middleware};
 
 pub use runtime::Runtime;
@@ -125,6 +125,11 @@ fn api(rt: Arc<Runtime>) -> Router {
         .route_layer(auth());
     Router::new()
         .route("/healthz", get(healthz).head(healthz))
+        // Claude Code sends `HEAD /api/hello` to its base URL at start to warm the
+        // connection and ignores the answer; api.anthropic.com answers an empty 200.
+        // Go 404s it, which writes a forced error log for every Claude Code start
+        // (docs/DIFFERENCES-FROM-GO.md, #262).
+        .route("/api/hello", head(|| async { StatusCode::OK }))
         .route("/", get(root))
         .route("/anthropic/callback", get(callback))
         .route("/codex/callback", get(callback))
@@ -144,9 +149,9 @@ fn api(rt: Arc<Runtime>) -> Router {
 }
 
 /// gin registers HEAD for `/healthz` only, so a HEAD never falls back to a GET handler;
-/// it is NoRoute's bare 404.
+/// it is NoRoute's bare 404. cliproxy-rs adds `HEAD /api/hello`.
 async fn head_only_healthz(req: axum::extract::Request, next: middleware::Next) -> Response {
-    if req.method() == Method::HEAD && req.uri().path() != "/healthz" {
+    if req.method() == Method::HEAD && !matches!(req.uri().path(), "/healthz" | "/api/hello") {
         return StatusCode::NOT_FOUND.into_response();
     }
     next.run(req).await
