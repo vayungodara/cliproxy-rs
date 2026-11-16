@@ -272,6 +272,26 @@ fn legacy_matching_follows_go_identity_rules() {
     std::fs::write(&greek_file, r#"{"type":"claude","account_uuid":"acct-1"}"#).unwrap();
     let greek_name = credential_file_name("δ@example.invalid", "", "acct-1");
     assert_eq!(legacy_credential(&dir, &greek_name, &greek_target), Some(greek_file));
+    // A file of another email in the same organization is never taken, even when the
+    // sanitized email gives it this account's legacy name.
+    let colon_target: BTreeMap<String, Value> = [("email", "a:b@example.invalid"), ("organization_uuid", "org-1")]
+        .into_iter()
+        .map(|(k, v)| (k.to_owned(), json!(v)))
+        .collect();
+    let colon_name = credential_file_name("a:b@example.invalid", "org-1", "");
+    let colon_legacy = dir.join(credential_file_name("a:b@example.invalid", "", ""));
+    std::fs::write(
+        &colon_legacy,
+        r#"{"type":"claude","email":"a_b@example.invalid-157c67db","organization_uuid":"org-1"}"#,
+    )
+    .unwrap();
+    assert_eq!(legacy_credential(&dir, &colon_name, &colon_target), None);
+    std::fs::write(
+        &colon_legacy,
+        r#"{"type":"claude","email":"A:B@example.invalid","organization_uuid":"org-1"}"#,
+    )
+    .unwrap();
+    assert_eq!(legacy_credential(&dir, &colon_name, &colon_target), Some(colon_legacy));
     std::fs::remove_dir_all(dir).unwrap();
 }
 

@@ -596,6 +596,11 @@ fn legacy_credential(directory: &Path, target_name: &str, target: &BTreeMap<Stri
         if !email_legacy && !account_predecessor {
             return false;
         }
+        // A sanitized email can give this name to another account's file (deliberate
+        // difference, docs/DIFFERENCES-FROM-GO.md): never merge or remove it.
+        if crate::other_account_file(path, &email, &[("account_uuid", &account)]) {
+            return false;
+        }
         let Some(candidate) = read_json(path) else {
             return false;
         };
