@@ -149,8 +149,8 @@ pub(crate) fn file_name_email(email: &str) -> String {
 }
 
 /// Whether the credential file at `path` belongs to another account than the login
-/// about to replace it: its stored `email` differs (ignoring case), or one of the
-/// `ids` (stored key, new value) differs, where both sides are set. Deliberate
+/// about to replace it: its stored `email` or one of the `ids` (stored key, new value)
+/// differs, ignoring case as Go's legacy matching does, where both sides are set. Deliberate
 /// difference: Go replaces the file whoever it belonged to. With sanitized emails in
 /// file names, a file written earlier for another account can hold the same name, so
 /// the login is refused instead. A missing or unreadable file is not another account's.
@@ -174,7 +174,7 @@ pub(crate) fn other_account_file(path: &std::path::Path, email: &str, ids: &[(&s
     email_differs
         || ids
             .iter()
-            .any(|&(key, new)| set(stored(key), new) && stored(key) != new.trim())
+            .any(|&(key, new)| set(stored(key), new) && !stored(key).go_eq_fold(new.trim()))
 }
 
 /// The error text of a login refused by [`other_account_file`].
