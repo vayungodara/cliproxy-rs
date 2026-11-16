@@ -789,11 +789,13 @@ async fn a_refused_baseline_alone_does_not_refuse_the_request() {
     assert_eq!(run(s).await, (false, None));
 }
 
-/// One Claude request through an `acme` key holding `acme-compat` (alias `cc`,
-/// `is-compat` when `compat`) and `acme-chat`; returns the upstream body.
-async fn compat_reasoning_run(model: &str, compat: bool, thinking: &str) -> Value {
+/// One request from `source` through an `acme` key holding `acme-compat` (alias `cc`)
+/// and `acme-chat` (alias `chat`); returns the upstream body. `model` is the execution
+/// model and may carry a thinking suffix. The binding is what the server resolves for a
+/// config model with `thinking: {levels: [none, low, medium, high]}` (never
+/// user-defined), plus `is_compat` when `compat`.
+async fn compat_reasoning_run(model: &str, compat: bool, source: &str, payload: &str) -> Value {
     let answer = r#"{"id":"x","object":"chat.completion","created":0,"model":"m","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}]}"#;
-    let messages = r#"[{"role":"user","content":"read"},{"role":"assistant","content":[{"type":"tool_use","id":"call_1","name":"Read","input":{}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"call_1","content":"a"}]},{"role":"assistant","content":[{"type":"thinking","thinking":"plan it","signature":"sig"},{"type":"tool_use","id":"call_2","name":"Read","input":{}}]},{"role":"user","content":[{"type":"tool_result","tool_use_id":"call_2","content":"b"}]}]"#;
     let mock = Mock::start(&serde_json::json!({"status": 200, "body": answer})).await;
     let config = format!(
         "config-version: 8\napi-keys:\n  openai-compatibility:\n    - name: acme\n      base-url: http://{addr}/v1\n      \
@@ -802,19 +804,18 @@ async fn compat_reasoning_run(model: &str, compat: bool, thinking: &str) -> Valu
         addr = mock.addr
     );
     let cfg = Config::parse(&config).unwrap();
-    // A config `models[]` entry is user-defined: thinking passes through unvalidated, so a
-    // disabled request stays off instead of being clamped to a listed level.
-    let mut resolved = serde_json::json!({"created": 0, "id": model, "object": "", "owned_by": "", "type": "openai-compatibility", "user_defined": true});
+    let base = parse_suffix(model).model_name;
+    let mut resolved = serde_json::json!({"created": 0, "id": base, "object": "", "owned_by": "", "type": "openai-compatibility", "thinking": {"zero_allowed": true, "levels": ["none", "low", "medium", "high"]}});
     if compat {
         resolved["is_compat"] = Value::Bool(true);
     }
     let scenario = serde_json::json!({
         "config_auth": 0,
         "op": "execute",
-        "source": "claude",
+        "source": source,
         "model": model,
         "requested_model": if compat { "cc" } else { "chat" },
-        "payload": format!(r#"{{"model":"x","max_tokens":10,"thinking":{thinking},"messages":{messages}}}"#),
+        "payload": payload,
         "resolved_model": resolved,
     });
     let cred = credential(&scenario, &cfg, &mock.addr);
@@ -824,12 +825,22 @@ async fn compat_reasoning_run(model: &str, compat: bool, thinking: &str) -> Valu
     serde_json::from_str(raw.rsplit_once("\r\n\r\n").unwrap().1).unwrap()
 }
 
-/// Go 0e0cab0d (v8.0.64): with `is-compat` and thinking on, an assistant tool-call
-/// turn without thinking text gets `reasoning_content: " "`, and one with thinking
-/// keeps its text. Thinking off, or a model without `is-compat`, gets no field.
+/// Go 0e0cab0d (v8.0.64): for an `is-compat` model, an assistant tool-call turn without
+/// thinking text carries `reasoning_content: " "` exactly when the resolved effort is
+/// on, and one with thinking keeps its text. The thinking rules have the last word: a
+/// `(none)` suffix on an enabled body removes the translator's placeholder, and a
+/// `(high)` suffix on a disabled body adds one. Other models and non-Claude clients are
+/// left alone.
 #[tokio::test]
 async fn compat_tool_call_turns_get_placeholder_reasoning() {
-    let assistant = |wire: &Value, call: &str| -> Value {
+    let claude = |thinking: &str| {
+        format!(
+            r#"{{"model":"cc","max_tokens":10,"thinking":{thinking},"messages":[{{"role":"user","content":"read"}},{{"role":"assistant","content":[{{"type":"tool_use","id":"call_1","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_1","content":"a"}}]}},{{"role":"assistant","content":[{{"type":"thinking","thinking":"plan it","signature":"sig"}},{{"type":"tool_use","id":"call_2","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_2","content":"b"}}]}}]}}"#
+        )
+    };
+    let enabled = claude(r#"{"type":"enabled","budget_tokens":1024}"#);
+    let disabled = claude(r#"{"type":"disabled"}"#);
+    let turn = |wire: &Value, call: &str| -> Value {
         let turn = wire["messages"]
             .as_array()
             .unwrap()
@@ -837,15 +848,33 @@ async fn compat_tool_call_turns_get_placeholder_reasoning() {
             .find(|m| m["tool_calls"][0]["id"] == call);
         turn.unwrap_or_else(|| panic!("no turn calling {call}: {wire}")).clone()
     };
-    let enabled = r#"{"type":"enabled","budget_tokens":1024}"#;
+    // (effort sent upstream, reasoning_content of the turn without thinking text)
+    let seen = |wire: &Value| {
+        (
+            wire["reasoning_effort"].clone(),
+            turn(wire, "call_1")["reasoning_content"].clone(),
+        )
+    };
 
-    let wire = compat_reasoning_run("acme-compat", true, enabled).await;
-    assert_eq!(assistant(&wire, "call_1")["reasoning_content"], " ", "{wire}");
-    assert_eq!(assistant(&wire, "call_2")["reasoning_content"], "plan it", "{wire}");
+    let wire = compat_reasoning_run("acme-compat", true, "claude", &enabled).await;
+    assert_eq!(seen(&wire), (Value::from("low"), Value::from(" ")), "{wire}");
+    assert_eq!(turn(&wire, "call_2")["reasoning_content"], "plan it", "{wire}");
 
-    let wire = compat_reasoning_run("acme-compat", true, r#"{"type":"disabled"}"#).await;
-    assert!(assistant(&wire, "call_1").get("reasoning_content").is_none(), "{wire}");
+    let wire = compat_reasoning_run("acme-compat", true, "claude", &disabled).await;
+    assert_eq!(seen(&wire), (Value::from("none"), Value::Null), "{wire}");
 
-    let wire = compat_reasoning_run("acme-chat", false, enabled).await;
-    assert!(assistant(&wire, "call_1").get("reasoning_content").is_none(), "{wire}");
+    let wire = compat_reasoning_run("acme-compat(none)", true, "claude", &enabled).await;
+    assert_eq!(seen(&wire), (Value::from("none"), Value::Null), "{wire}");
+    assert_eq!(turn(&wire, "call_2")["reasoning_content"], "plan it", "{wire}");
+
+    let wire = compat_reasoning_run("acme-compat(high)", true, "claude", &disabled).await;
+    assert_eq!(seen(&wire), (Value::from("high"), Value::from(" ")), "{wire}");
+
+    let wire = compat_reasoning_run("acme-chat", false, "claude", &enabled).await;
+    assert_eq!(turn(&wire, "call_1").get("reasoning_content"), None, "{wire}");
+
+    // A native OpenAI client's blank reasoning_content is its own and is sent as is.
+    let openai = r#"{"model":"cc","reasoning_effort":"high","messages":[{"role":"user","content":"read"},{"role":"assistant","content":"","reasoning_content":"","tool_calls":[{"id":"call_1","type":"function","function":{"name":"Read","arguments":"{}"}}]},{"role":"tool","tool_call_id":"call_1","content":"a"}]}"#;
+    let wire = compat_reasoning_run("acme-compat", true, "openai", openai).await;
+    assert_eq!(seen(&wire), (Value::from("high"), Value::from("")), "{wire}");
 }
