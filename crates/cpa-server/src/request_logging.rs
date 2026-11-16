@@ -1399,14 +1399,22 @@ fn cookie(name: &str) -> bool {
 fn logged_url(url: &str) -> String {
     let mut out = String::new();
     let mut rest = url;
-    if let Some(i) = url.find("://")
-        && i > 0
-        && url[..i]
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.'))
-    {
-        out.push_str(&url[..i + 3]);
-        rest = &url[i + 3..];
+    // The authority starts after `scheme://`, or after a scheme-relative `//`.
+    let authority_start = if url.starts_with("//") {
+        Some(2)
+    } else {
+        url.find("://")
+            .filter(|&i| {
+                i > 0
+                    && url[..i]
+                        .bytes()
+                        .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'+' | b'-' | b'.'))
+            })
+            .map(|i| i + 3)
+    };
+    if let Some(start) = authority_start {
+        out.push_str(&url[..start]);
+        rest = &url[start..];
         // Look for '@' up to the first '/', even past a '?' or '#': a
         // password with those characters unescaped still counts as userinfo,
         // and dropping too much is safer than printing a secret.
@@ -2835,6 +2843,8 @@ mod tests {
                 &[],
                 b"",
             )));
+            // A scheme-relative base-url is captured before the transport refuses it.
+            sink.record(Request(upstream_request("//carol:pw3-h1dden@relay.example/v1", &[], b"")));
             sink.record(ResponseError(
                 "error sending request for uri (https://proxy.example/v1?key=AIza-h1dden-err-1): client error (Connect)",
             ));
@@ -2846,7 +2856,10 @@ mod tests {
         .await;
         let content = String::from_utf8(content).unwrap();
         assert!(!content.contains("h1dden"), "{content}");
-        assert!(!content.contains("alice") && !content.contains("bob:"), "{content}");
+        assert!(
+            !content.contains("alice") && !content.contains("bob:") && !content.contains("carol"),
+            "{content}"
+        );
         let line = |prefix: &str| {
             content
                 .lines()
@@ -2869,6 +2882,10 @@ mod tests {
         assert_eq!(
             logged_url("https://u:p@host.example"),
             "https://<redacted>@host.example"
+        );
+        assert_eq!(
+            logged_url("//u:p@relay.example/v1?key=SENTINEL-0006"),
+            "//<redacted>@relay.example/v1?key=SENT...0006"
         );
         // Upstream URLs also mask signed and other credential-like names; the client
         // query masking keeps Go's names.

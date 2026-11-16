@@ -522,7 +522,11 @@ fn may_hold_credentials(raw: &str) -> bool {
     if raw.contains(['@', '#']) {
         return true;
     }
-    if let Some((_, rest)) = raw.split_once("://") {
+    // A scheme-relative `//host/...` has an authority too.
+    if let Some(rest) = raw
+        .strip_prefix("//")
+        .or_else(|| raw.split_once("://").map(|(_, rest)| rest))
+    {
         let authority = &rest[..rest.find(['/', '?']).unwrap_or(rest.len())];
         if !plain_authority(authority) {
             return true;
@@ -716,6 +720,15 @@ mod tests {
         assert_eq!(
             body(new_request("http://[::1]:9x/v1").unwrap_err()),
             r#"parse "<redacted>": invalid URL"#
+        );
+        // A scheme-relative URL has an authority as well.
+        assert_eq!(
+            body(new_request("//u:SECRET-10%40relay/v1").unwrap_err()),
+            r#"parse "<redacted>": invalid URL"#
+        );
+        assert_eq!(
+            body(transport_refusal("//u:SECRET-11@relay/v1").unwrap()),
+            r#"Post "<redacted>": unsupported protocol scheme """#
         );
         // Go's text stays where nothing in the URL can be a credential.
         assert_eq!(
