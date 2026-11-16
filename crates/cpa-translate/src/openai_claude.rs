@@ -66,6 +66,7 @@ fn convert(model: &str, raw: &[u8], stream: bool, preserve_thinking: bool) -> Re
     }
     gj::set_bool(&mut out, "stream", stream);
     reasoning_effort(&mut out, &root);
+    let reasoning_active = reasoning_active(&gj::get(&out, "reasoning_effort"), model, &root.get("model").str());
 
     let mut items: Vec<Vec<u8>> = vec![];
     let system = root.get("system");
@@ -93,6 +94,7 @@ fn convert(model: &str, raw: &[u8], stream: bool, preserve_thinking: bool) -> Re
     if messages.is_array() {
         let mut turns = Turns {
             preserve_thinking,
+            reasoning_active,
             ..Turns::default()
         };
         messages.each(|_, message| {
@@ -169,6 +171,36 @@ fn convert(model: &str, raw: &[u8], stream: bool, preserve_thinking: bool) -> Re
     Ok(out)
 }
 
+/// `isClaudeRequestReasoningActive` (Go 0e0cab0d): a thinking suffix on the model,
+/// else on the payload's model, else a translated effort other than none.
+fn reasoning_active(effort: &Res<'_>, model: &str, payload_model: &str) -> bool {
+    if let Some(active) = suffix_active(model).or_else(|| suffix_active(payload_model)) {
+        return active;
+    }
+    effort.exists() && effort_active(&effort.bytes())
+}
+
+/// A resolved `reasoning_effort` other than empty, `none`, `0` or `false`.
+fn effort_active(effort: &[u8]) -> bool {
+    !matches!(go_lower(trim_space(effort)).as_slice(), b"" | b"none" | b"0" | b"false")
+}
+
+/// `isThinkingSuffixActive`: `None` when the model has no thinking suffix.
+fn suffix_active(model: &str) -> Option<bool> {
+    use cpa_common::thinking::{Mode, parse_level_suffix, parse_numeric_suffix, parse_special_suffix, parse_suffix};
+    let suffix = parse_suffix(std::str::from_utf8(trim_space(model.as_bytes())).unwrap_or(model));
+    if !suffix.has_suffix {
+        return None;
+    }
+    if let Some(mode) = parse_special_suffix(&suffix.raw_suffix) {
+        return Some(mode != Mode::None);
+    }
+    if let Some(budget) = parse_numeric_suffix(&suffix.raw_suffix) {
+        return Some(budget > 0);
+    }
+    parse_level_suffix(&suffix.raw_suffix).map(|_| true)
+}
+
 /// Claude `thinking` (with `output_config.effort`) -> `reasoning_effort`.
 // ponytail: thinking.ConvertBudgetToLevel and the level constants come from
 // cpa_common::thinking; the branch logic stays here because it reads raw bytes.
@@ -216,6 +248,8 @@ fn reasoning_effort(out: &mut Vec<u8>, root: &Res<'_>) {
 #[derive(Default)]
 struct Turns {
     preserve_thinking: bool,
+    /// The request asks for reasoning (`isClaudeRequestReasoningActive`).
+    reasoning_active: bool,
     pending_tool_uses: Vec<Vec<u8>>,
     reminders: Vec<Vec<u8>>,
     tool_names: HashMap<Vec<u8>, Vec<u8>>,
@@ -355,6 +389,11 @@ impl Turns {
             }
             if !reasoning.is_empty() {
                 gj::set_str(&mut msg, "reasoning_content", &reasoning);
+            } else if !tool_calls.is_empty() && self.preserve_thinking && self.reasoning_active {
+                // cliproxy-rs addition from Go 0e0cab0d (v8.0.64): compat thinking
+                // upstreams (DeepSeek, Kimi) refuse a tool-call turn without
+                // `reasoning_content` while reasoning is on.
+                gj::set_str(&mut msg, "reasoning_content", " ");
             }
             if !tool_calls.is_empty() {
                 AnyValue::Array(tool_calls).set(&mut msg, "tool_calls");

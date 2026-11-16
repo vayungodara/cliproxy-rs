@@ -135,7 +135,10 @@ mod tests {
                 },
             ));
             let app = axum::Router::new().fallback(|| async { "normal" });
-            let mut app = router(&rt, app).layer(axum::middleware::from_fn(crate::management::cors));
+            let mut app = router(&rt, app).layer(axum::middleware::from_fn_with_state(
+                rt.clone(),
+                crate::management::cors,
+            ));
             for active in [true, false, true] {
                 rt.publish_config(config(active));
                 for (method, path, blocked, html) in [
@@ -175,7 +178,15 @@ mod tests {
                         },
                         "{method} {path}"
                     );
-                    assert_eq!(response.headers().get("access-control-allow-origin").unwrap(), "*");
+                    // Management responses carry no CORS headers (DIFFERENCES-FROM-GO.md).
+                    assert_eq!(
+                        response
+                            .headers()
+                            .get("access-control-allow-origin")
+                            .map(|v| v.to_str().unwrap()),
+                        (!path.starts_with("/v8/management")).then_some("*"),
+                        "{method} {path}"
+                    );
                     assert_eq!(response.headers().contains_key("x-cpa-safe-mode"), enabled && blocked);
                     assert_eq!(
                         response.headers().get("cache-control").map(|v| v.to_str().unwrap()),
