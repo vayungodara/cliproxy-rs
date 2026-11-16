@@ -797,7 +797,7 @@ pub fn router(state: Arc<Management>) -> Router {
         // gin reads management bodies without a size limit (uploads, config writes);
         // they are only read after authentication.
         .layer(DefaultBodyLimit::disable())
-        .layer(middleware::from_fn(cors))
+        .layer(middleware::from_fn_with_state(state.rt.clone(), cors))
         .with_state(state)
 }
 

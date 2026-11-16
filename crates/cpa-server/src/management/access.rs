@@ -222,8 +222,9 @@ impl Access {
         if secret.is_empty() && self.env_secret.is_empty() && !(local && self.local_secret) {
             return Err((StatusCode::FORBIDDEN, "remote management key not set".into()));
         }
+        // Go counts a missing key too; here only a wrong key does, so a request any
+        // page can send without a key cannot lock the dashboard (DIFFERENCES-FROM-GO.md).
         if provided.is_empty() {
-            self.fail(ip);
             return Err((StatusCode::UNAUTHORIZED, "missing management key".into()));
         }
         let matches = |want: &[u8]| !want.is_empty() && bool::from(want.ct_eq(provided));
@@ -307,6 +308,25 @@ pub(crate) async fn guard(State(state): State<Arc<Management>>, req: Request, ne
     if !state.access.available() {
         return not_found();
     }
+    // Requests from another website are refused before authentication, so they never
+    // count towards a ban (DIFFERENCES-FROM-GO.md). A browser's `Sec-Fetch-Site` decides
+    // when present, since a reverse proxy may rewrite `Host`; without it, an `Origin` must
+    // name the request's own host.
+    let headers = req.headers();
+    let foreign = match headers.get("sec-fetch-site") {
+        Some(_) => crate::access::cross_site(headers),
+        None => headers
+            .get(header::ORIGIN)
+            .is_some_and(|o| !crate::access::same_origin(o.as_bytes(), headers, req.uri())),
+    };
+    if foreign {
+        let mut response = json_error(
+            StatusCode::FORBIDDEN,
+            "management requests from another website are refused",
+        );
+        version_headers(response.headers_mut());
+        return response;
+    }
     let peer = req.extensions().get::<ConnectInfo<SocketAddr>>().map(|c| c.0);
     let ip = state.access.client_ip(peer, req.headers());
     let local = ip == "127.0.0.1" || ip == "::1";
@@ -320,13 +340,38 @@ pub(crate) async fn guard(State(state): State<Arc<Management>>, req: Request, ne
     response
 }
 
-/// Go's global CORS middleware: every response is cross-origin readable and every
-/// OPTIONS request ends with 204 before routing or authentication.
+/// The `Access-Control-Allow-Origin` a request's response carries, if any.
 #[derive(Clone)]
-pub(crate) struct Cors;
+pub(crate) struct Cors(Option<HeaderValue>);
 
-pub async fn cors(mut req: Request, next: Next) -> Response {
-    req.extensions_mut().insert(Cors);
+impl Cors {
+    /// Go grants every origin (`*`). cliproxy-rs grants none on management routes, and
+    /// in the keyless local-only mode only a loopback origin, echoed back
+    /// (docs/DIFFERENCES-FROM-GO.md).
+    fn of(rt: &crate::Runtime, req: &Request) -> Self {
+        let path = super::percent_decode(req.uri().path());
+        let management = ["/v0/management", "/v8/management"].iter().any(|base| {
+            path.strip_prefix(base)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+        });
+        Self(if management {
+            None
+        } else if crate::access::local_only(rt) {
+            req.headers()
+                .get(header::ORIGIN)
+                .filter(|o| crate::access::loopback_origin(o.as_bytes()))
+                .cloned()
+        } else {
+            Some(HeaderValue::from_static("*"))
+        })
+    }
+}
+
+/// Go's global CORS middleware: every OPTIONS request ends with 204 before routing or
+/// authentication, and responses carry the CORS headers [`Cors::of`] allows.
+pub async fn cors(State(rt): State<Arc<crate::Runtime>>, mut req: Request, next: Next) -> Response {
+    let cors = Cors::of(&rt, &req);
+    req.extensions_mut().insert(cors.clone());
     let mut response = if req.method() == Method::OPTIONS {
         StatusCode::NO_CONTENT.into_response()
     } else {
@@ -336,15 +381,21 @@ pub async fn cors(mut req: Request, next: Next) -> Response {
         // axum adds `Allow` to method fallbacks; gin's NoRoute 404 has none.
         response.headers_mut().remove(header::ALLOW);
     }
-    cors_headers(&mut response);
+    cors_headers(&mut response, &cors);
     response
 }
 
 /// The inner request-log snapshot must see CORS headers before axum framing.
-pub(crate) fn cors_headers(response: &mut Response) {
+pub(crate) fn cors_headers(response: &mut Response, cors: &Cors) {
+    let Some(origin) = &cors.0 else {
+        return;
+    };
     let headers = response.headers_mut();
+    if origin != "*" && !headers.get_all(header::VARY).iter().any(|v| v == "Origin") {
+        headers.append(header::VARY, HeaderValue::from_static("Origin"));
+    }
+    headers.insert("Access-Control-Allow-Origin", origin.clone());
     for (name, value) in [
-        ("Access-Control-Allow-Origin", "*"),
         ("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS"),
         ("Access-Control-Allow-Headers", "*"),
         ("Access-Control-Expose-Headers", EXPOSED_HEADERS),

@@ -1363,7 +1363,10 @@ fn app(rt: &Arc<Runtime>, management: &Arc<cpa_server::management::Management>, 
         cpa_server::safe_mode::router(rt, app)
     };
     // Go applies its CORS middleware to every route, not only management.
-    let app = app.layer(axum::middleware::from_fn(cpa_server::management::cors));
+    let app = app.layer(axum::middleware::from_fn_with_state(
+        rt.clone(),
+        cpa_server::management::cors,
+    ));
     let app = cpa_server::request_logging::router(management, app);
     let app = cpa_server::body_limit::layer(rt, app);
     cpa_server::observability::router(rt, app)
@@ -1383,7 +1386,15 @@ async fn serve(
     listening: Option<tokio::sync::oneshot::Sender<(SocketAddr, bool)>>,
 ) -> anyhow::Result<()> {
     if config.api_keys.is_empty() && home_config.is_none() {
-        tracing::warn!("access.api-keys is empty: the proxy API is open to anyone who can reach it");
+        if config.allow_open_access() {
+            tracing::warn!(
+                "access.api-keys is empty and access.allow-open-access is on: the proxy API is open to anyone who can reach it"
+            );
+        } else {
+            tracing::warn!(
+                "access.api-keys is empty: the proxy API accepts requests from this machine only, and none from websites"
+            );
+        }
     }
     // Go `ensureAuthDir`: outside Home mode a missing auth-dir is created, so the
     // watcher has a folder to watch for the first login.

@@ -43,14 +43,15 @@ observability:
 
 | Setting | What it does |
 |---|---|
-| `api-keys` | The client keys your tools send, as `Authorization: Bearer <key>`, `x-api-key`, `x-goog-api-key` or `?key=`. Keep at least one; with an empty list anyone who can reach the server can use it. |
+| `api-keys` | The client keys your tools send, as `Authorization: Bearer <key>`, `x-api-key`, `x-goog-api-key` or `?key=`. Keep at least one. With an empty list, only programs on this computer can use the proxy, and browser requests from websites are refused; see `allow-open-access`. |
+| `allow-open-access` | A cliproxy-rs addition, `false` by default. It applies only while `api-keys` is empty and no plugin checks client keys. With `false`, a request must come from a loopback address (127.0.0.0/8 or `::1`) and carry none of the headers a tunnel or reverse proxy adds (`Forwarded`, `X-Forwarded-For`, `X-Real-IP`, `CF-Connecting-IP`). A browser request from another website is refused too: one whose `Origin` is not `localhost` or a loopback address, or whose `Sec-Fetch-Site` is `cross-site` or `same-site`. A local web app on another port counts as another site. Refused requests get `403`, and only loopback origins get CORS headers. With `true`, anyone who can reach the port can use the proxy and any website can read its answers, as with CLIProxyAPI. Changes apply without a restart. Home mode (`-home-jwt`) is always open, since Home checks every request's key. Go starts with the key in the file and ignores it; a config edit through Go's v8 Management API moves it into a comment. |
 
 ## management
 
 | Setting | What it does |
 |---|---|
 | `secret-key` | The dashboard and Management API password. A plaintext value is replaced by its bcrypt hash on first start. The `MANAGEMENT_PASSWORD` environment variable works too. When neither is set, the management API is off. |
-| `allow-remote` | `false` (the default) accepts management requests from this computer only. |
+| `allow-remote` | `false` (the default) accepts management requests from this computer only. Whatever its value, a browser request from another website is refused with `403` before the key is checked, and management answers carry no CORS headers. A dashboard served from the proxy's own address keeps working. |
 | `disable-control-panel` | `true` stops serving the dashboard at `/management.html`; the Management API keeps working. |
 
 ## oauth

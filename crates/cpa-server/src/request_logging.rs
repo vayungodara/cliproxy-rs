@@ -42,10 +42,10 @@ struct Captured;
 pub(crate) async fn response(request: Request, next: Next) -> Response {
     let sink = request.extensions().get::<RequestLog>().cloned();
     let head = request.method() == "HEAD";
-    let cors = request.extensions().get::<crate::management::Cors>().is_some();
+    let cors = request.extensions().get::<crate::management::Cors>().cloned();
     let mut response = next.run(request).await;
-    if cors {
-        crate::management::cors_headers(&mut response);
+    if let Some(cors) = &cors {
+        crate::management::cors_headers(&mut response, cors);
     }
     match sink {
         Some(sink) => capture_response(sink, head, response).await,
@@ -1958,7 +1958,10 @@ mod tests {
         );
         let mut app = router(
             &state,
-            crate::app(state.rt.clone(), rest).layer(axum::middleware::from_fn(crate::management::cors)),
+            crate::app(state.rt.clone(), rest).layer(axum::middleware::from_fn_with_state(
+                state.rt.clone(),
+                crate::management::cors,
+            )),
         );
         for method in ["POST", "HEAD"] {
             let response = app
@@ -1966,6 +1969,8 @@ mod tests {
                     HttpRequest::builder()
                         .method(method)
                         .uri("/fixture")
+                        // No client keys: CORS goes to loopback origins only.
+                        .header("origin", "http://localhost:5173")
                         .body(Body::empty())
                         .unwrap(),
                 )
@@ -1979,7 +1984,7 @@ mod tests {
             let contents: Vec<_> = logs(&dir).iter().map(|p| std::fs::read_to_string(p).unwrap()).collect();
             if contents.len() == 2 && contents.iter().all(|s| s.ends_with("outbound\n\n")) {
                 for content in contents {
-                    assert!(content.contains("Access-Control-Allow-Origin: *"));
+                    assert!(content.contains("Access-Control-Allow-Origin: http://localhost:5173"));
                     assert_eq!(content.contains("Content-Length: 9"), content.contains("Method: HEAD"));
                 }
                 break;

@@ -529,4 +529,14 @@ mod tests {
         assert!(archive_unknown(&mut migrated).is_empty());
         assert_eq!(migrated, on);
     }
+
+    #[test]
+    fn allow_open_access_survives_strict_writes_and_migration() {
+        let on = yaml("access: {api-keys: [], allow-open-access: true}");
+        validate(&on, true).unwrap();
+        assert!(validate(&yaml("access: {allow-open-access: [true]}"), true).is_err());
+        let mut migrated = on.clone();
+        assert!(archive_unknown(&mut migrated).is_empty());
+        assert_eq!(migrated, on);
+    }
 }

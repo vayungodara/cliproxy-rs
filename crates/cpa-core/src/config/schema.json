@@ -151,7 +151,8 @@
       "fields": {
         "api-keys": {
           "list": "string"
-        }
+        },
+        "allow-open-access": "bool"
       }
     },
     "credentials": {

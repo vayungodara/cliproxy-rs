@@ -77,7 +77,7 @@ fn app(dir: &std::path::Path, yaml: &str, plugin_auth: bool) -> (axum::Router, A
     // crates/cliproxy/src/main.rs, without Home, observability and the heap trimmer.
     let app = cpa_server::app(rt.clone(), management::router(state.clone()));
     let app = cpa_server::safe_mode::router(&rt, app);
-    let app = app.layer(axum::middleware::from_fn(management::cors));
+    let app = app.layer(axum::middleware::from_fn_with_state(rt.clone(), management::cors));
     let app = cpa_server::request_logging::router(&state, app);
     (cpa_server::body_limit::layer(&rt, app), rt)
 }

@@ -234,7 +234,7 @@ Go was faster in the 0.1.0 launch build's synthetic runs. It served 1,568 non-st
 
 The dashboard is built into the binary. Model catalogs are downloaded at start and every three hours; `--local-model` turns that off.
 
-Keep `access.api-keys` set and `server.host` on `127.0.0.1` unless your other machines need access. Behind a local tunnel or reverse proxy, set `server.trusted-proxies`; otherwise internet clients count as local. [Running it safely](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/GETTING-STARTED.md#running-it-safely) explains this. [SECURITY.md](https://github.com/vayungodara/cliproxy-rs/blob/master/SECURITY.md) covers vulnerability reports.
+Keep `access.api-keys` set and `server.host` on `127.0.0.1` unless your other machines need access. With no client keys, the proxy serves only this computer and refuses browser requests from websites; `access.allow-open-access: true` opens it to anyone, as CLIProxyAPI is. The Management API refuses browser requests from other websites, and only wrong keys count towards its 30-minute block. Behind a local tunnel or reverse proxy, set `server.trusted-proxies`; otherwise internet clients count as local. [Running it safely](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/GETTING-STARTED.md#running-it-safely) explains this. [SECURITY.md](https://github.com/vayungodara/cliproxy-rs/blob/master/SECURITY.md) covers vulnerability reports.
 
 ## Development
 

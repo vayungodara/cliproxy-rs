@@ -967,10 +967,12 @@ async fn config_writes_honour_if_match_against_the_file_etag() {
         }
         req.send()
     };
-    // `TestConfigV8ETagExposedForCORS`: every answer lets a cross-origin page read it.
+    // Go `TestConfigV8ETagExposedForCORS` lets a cross-origin page read every answer;
+    // cliproxy-rs grants management responses no CORS (DIFFERENCES-FROM-GO.md), and the
+    // dashboard reads the ETag from its own origin.
     let tag = |r: &wreq::Response| {
-        let exposed = r.headers()["access-control-expose-headers"].to_str().unwrap();
-        assert!(exposed.split(',').any(|h| h.trim() == "ETag"), "{exposed}");
+        assert!(!r.headers().contains_key("access-control-expose-headers"));
+        assert!(!r.headers().contains_key("access-control-allow-origin"));
         r.headers()["etag"].to_str().unwrap().to_owned()
     };
     let (put, patch, delete, get) = (

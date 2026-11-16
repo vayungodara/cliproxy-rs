@@ -135,7 +135,10 @@ mod tests {
                 },
             ));
             let app = axum::Router::new().fallback(|| async { "normal" });
-            let mut app = router(&rt, app).layer(axum::middleware::from_fn(crate::management::cors));
+            let mut app = router(&rt, app).layer(axum::middleware::from_fn_with_state(
+                rt.clone(),
+                crate::management::cors,
+            ));
             for active in [true, false, true] {
                 rt.publish_config(config(active));
                 for (method, path, blocked, html) in [
