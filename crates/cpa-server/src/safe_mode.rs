@@ -178,7 +178,15 @@ mod tests {
                         },
                         "{method} {path}"
                     );
-                    assert_eq!(response.headers().get("access-control-allow-origin").unwrap(), "*");
+                    // Management responses carry no CORS headers (DIFFERENCES-FROM-GO.md).
+                    assert_eq!(
+                        response
+                            .headers()
+                            .get("access-control-allow-origin")
+                            .map(|v| v.to_str().unwrap()),
+                        (!path.starts_with("/v8/management")).then_some("*"),
+                        "{method} {path}"
+                    );
                     assert_eq!(response.headers().contains_key("x-cpa-safe-mode"), enabled && blocked);
                     assert_eq!(
                         response.headers().get("cache-control").map(|v| v.to_str().unwrap()),
