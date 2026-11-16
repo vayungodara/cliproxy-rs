@@ -331,6 +331,8 @@ async fn wrong_methods_are_gin_no_route() {
         (wreq::Method::POST, "/v1/models/gpt-5"),
         (wreq::Method::HEAD, "/"),
         (wreq::Method::POST, "/healthz"),
+        (wreq::Method::GET, "/api/hello"),
+        (wreq::Method::HEAD, "/api/nothing"),
         (wreq::Method::GET, "/v2/nothing"),
     ] {
         let res = client
@@ -368,7 +370,12 @@ async fn wrong_methods_are_gin_no_route() {
             "{path}: matched routes still require the key"
         );
     }
-    for (method, path) in [(wreq::Method::HEAD, "/healthz"), (wreq::Method::GET, "/v1/models")] {
+    // `HEAD /api/hello` is a cliproxy-rs addition: Go 404s it (docs/DIFFERENCES-FROM-GO.md).
+    for (method, path) in [
+        (wreq::Method::HEAD, "/healthz"),
+        (wreq::Method::HEAD, "/api/hello"),
+        (wreq::Method::GET, "/v1/models"),
+    ] {
         let res = client
             .request(method.clone(), format!("{}{path}", p.url))
             .header("authorization", "Bearer client-key")
