@@ -762,6 +762,11 @@ async fn start_claude(state: Arc<Management>, webui: bool) -> Response {
                     let slot = legacy.clone();
                     let write = move |dir: PathBuf, patch| {
                         let (path, old) = ManagedLogin::save(&dir, patch).map_err(|e| exec_text(&e))?;
+                        // The bytes the save checked, so the cleanup deletes only that file.
+                        let old = old.map(|p| {
+                            let bytes = std::fs::read(&p).unwrap_or_default();
+                            (p, bytes)
+                        });
                         *slot.lock().unwrap_or_else(PoisonError::into_inner) = old;
                         Ok(path)
                     };
@@ -788,13 +793,28 @@ async fn start_claude(state: Arc<Management>, webui: bool) -> Response {
     started(url, sid)
 }
 
+/// Whether the legacy file the save checked still holds `checked`, or is gone.
+/// Deliberate difference: Go deletes the file it matched without reading it again. The
+/// disk lock is released between the save and the cleanup, so a file written under
+/// that name in between (an upload) is kept.
+fn legacy_unchanged(path: &std::path::Path, checked: &[u8]) -> bool {
+    match std::fs::read(path) {
+        Ok(now) => now == checked,
+        Err(e) => e.kind() == std::io::ErrorKind::NotFound,
+    }
+}
+
 /// Go `saveTokenRecord` after the canonical Claude credential is stored: the matching
 /// legacy file is deleted through the token store (`store.Delete`), so a git store
 /// commits the removal its watcher guard would refuse.
-async fn remove_legacy_claude(state: &Arc<Management>, legacy: PathBuf) -> Outcome {
+async fn remove_legacy_claude(state: &Arc<Management>, (legacy, checked): (PathBuf, Vec<u8>)) -> Outcome {
     let worker = state.clone();
     let removed = tokio::task::spawn_blocking(move || {
         let _guard = worker.disk.lock().unwrap_or_else(PoisonError::into_inner);
+        if !legacy_unchanged(&legacy, &checked) {
+            tracing::warn!("legacy Claude credential changed after the login checked it; kept");
+            return Ok(());
+        }
         if worker.store.is_some() {
             return worker.store_delete(&legacy);
         }
