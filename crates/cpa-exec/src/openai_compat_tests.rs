@@ -802,7 +802,9 @@ async fn compat_reasoning_run(model: &str, compat: bool, thinking: &str) -> Valu
         addr = mock.addr
     );
     let cfg = Config::parse(&config).unwrap();
-    let mut resolved = serde_json::json!({"created": 0, "id": model, "object": "", "owned_by": "", "thinking": {"levels": ["low", "medium", "high"]}, "type": "openai-compatibility"});
+    // A config `models[]` entry is user-defined: thinking passes through unvalidated, so a
+    // disabled request stays off instead of being clamped to a listed level.
+    let mut resolved = serde_json::json!({"created": 0, "id": model, "object": "", "owned_by": "", "type": "openai-compatibility", "user_defined": true});
     if compat {
         resolved["is_compat"] = Value::Bool(true);
     }
