@@ -22,7 +22,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
 use crate::Runtime;
 use crate::management::Management;
-use crate::observability::{RequestId, hide_key, mask_query};
+use crate::observability::{RequestId, hide_key, mask_query, mask_upstream_query};
 
 const SMALL_BODY: u64 = 1 << 20;
 const DEFERRED_BODY: u64 = 32 << 20;
@@ -1422,7 +1422,7 @@ fn logged_url(url: &str) -> String {
         Some((base, query)) => {
             out.push_str(base);
             out.push('?');
-            out.push_str(&mask_query(query));
+            out.push_str(&mask_upstream_query(query));
         }
         None => out.push_str(rest),
     }
@@ -2864,6 +2864,17 @@ mod tests {
         assert_eq!(
             logged_url("https://u:p@host.example"),
             "https://<redacted>@host.example"
+        );
+        // Upstream URLs also mask signed and other credential-like names; the client
+        // query masking keeps Go's names.
+        let signed = "https://h.example/v1?sig=SIGNATURE-0001&X-Amz-Signature=abcdef-0002&password=hunter-0003&auth=bearer-0004&mykey=keyval-0005&model=gpt";
+        assert_eq!(
+            logged_url(signed),
+            "https://h.example/v1?sig=SIGN...0001&X-Amz-Signature=abcd...0002&password=hunt...0003&auth=bear...0004&mykey=keyv...0005&model=gpt"
+        );
+        assert_eq!(
+            mask_query("sig=SIGNATURE-0001&model=gpt"),
+            "sig=SIGNATURE-0001&model=gpt"
         );
         assert_eq!(
             logged_url("https://user@host.example/x"),

@@ -514,11 +514,19 @@ pub(crate) fn url_error(raw: &str, message: &str) -> cpa_core::exec::ExecError {
 }
 
 /// Whether `raw` has a part that can hold a credential: an `@` anywhere (user info, or
-/// text a parser could read as such), a fragment, or a query parameter whose name
-/// contains `key`, `token`, `secret`, `auth`, `password` or `sig`, or is escaped.
+/// text a parser could read as such), a fragment, an authority that can hide user info
+/// (see [`plain_authority`]), or a query parameter
+/// whose name contains `key`, `token`, `secret`, `auth`, `password` or `sig`, or is
+/// escaped. A secret in an ordinary path segment cannot be told apart and is kept.
 fn may_hold_credentials(raw: &str) -> bool {
     if raw.contains(['@', '#']) {
         return true;
+    }
+    if let Some((_, rest)) = raw.split_once("://") {
+        let authority = &rest[..rest.find(['/', '?']).unwrap_or(rest.len())];
+        if !plain_authority(authority) {
+            return true;
+        }
     }
     let Some((_, query)) = raw.split_once('?') else {
         return false;
@@ -530,6 +538,26 @@ fn may_hold_credentials(raw: &str) -> bool {
                 .iter()
                 .any(|word| name.contains(word))
     })
+}
+
+/// Whether a refused URL's authority cannot hide user info: no escaped `@` or `:`
+/// (`%40`, `%3A`), and a port, if any, that is all digits. Other escapes and odd host
+/// characters (`%61pi.example`, a space) keep Go's text, as in the recorded goldens.
+fn plain_authority(authority: &str) -> bool {
+    let lower = authority.to_ascii_lowercase();
+    if lower.contains("%40") || lower.contains("%3a") {
+        return false;
+    }
+    let host_end = if authority.starts_with('[') {
+        authority.find(']').map_or(authority.len(), |i| i + 1)
+    } else {
+        authority.find(':').unwrap_or(authority.len())
+    };
+    let port = &authority[host_end..];
+    port.is_empty()
+        || port
+            .strip_prefix(':')
+            .is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// `Client.Do` of a POST to a URL Go parsed but its transport refuses: a scheme other
@@ -673,14 +701,30 @@ mod tests {
                 "{raw}"
             );
         }
+        // An authority that is not a plain host[:digits] can hide a key without an `@`.
+        for raw in [
+            "https://relay:bad/key/SECRET-8",
+            "https://u:SECRET-9%40relay/v1",
+            "http://h.example:9x/v1",
+        ] {
+            assert_eq!(
+                body(new_request(raw).unwrap_err()),
+                r#"parse "<redacted>": invalid URL"#,
+                "{raw}"
+            );
+        }
         assert_eq!(
-            body(new_request("http://h.example:9x/v1").unwrap_err()),
-            r#"parse "http://h.example:9x/v1": invalid port ":9x" after host"#
+            body(new_request("http://[::1]:9x/v1").unwrap_err()),
+            r#"parse "<redacted>": invalid URL"#
         );
         // Go's text stays where nothing in the URL can be a credential.
         assert_eq!(
             body(transport_refusal("https:relay.example/v1?alt=sse").unwrap()),
             r#"Post "https:relay.example/v1?alt=sse": http: no Host in request URL"#
+        );
+        assert_eq!(
+            body(new_request("https://%61pi.example/v1").unwrap_err()),
+            r#"parse "https://%61pi.example/v1": invalid URL escape "%61""#
         );
         assert_eq!(
             body(new_request("https://h/a%zz?alt=sse").unwrap_err()),
