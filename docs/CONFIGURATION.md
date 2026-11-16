@@ -154,8 +154,16 @@ The internal summary request used by Codex remote compaction. These settings aff
 
 | Setting | What it does |
 |---|---|
-| `summary-max-tokens` | Output-token floor for the compaction summary, `8192` by default. The request's own budget is raised to this value when it is lower; a larger client value is never lowered. `0` disables the floor. |
-| `summary-reasoning-effort` | `low` by default when the translated request already carries `reasoning_effort`. Allowed values are `low`, `medium`, `high` and `max`; `keep` leaves the client's value. This keeps a reasoning model from spending the whole summary budget on `reasoning_content` and returning an empty `content`. |
+| `summary-max-tokens` | Output-token floor for the compaction summary, `8192` by default. The client's `max_output_tokens` is raised to this value when it is lower; a larger client value is never lowered. It reaches the upstream as `max_tokens`, or as `max_completion_tokens` for a model with `use-max-completion-tokens`. `0` disables the floor. |
+| `summary-reasoning-effort` | One of `minimal`, `low`, `medium`, `high` or `xhigh`, sent as the summary's reasoning effort. `keep` leaves the client's value. Unset, or any other value, means `low` when the client sent an effort and nothing otherwise. The model's thinking rules and the payload rules still apply, as for any request. This keeps a reasoning model from spending the whole summary budget on `reasoning_content` and returning an empty `content`. |
+
+The summary request is an ordinary chat request in every other way: it goes to `/chat/completions` with the account's headers and the same URL checks. Example:
+
+```yaml
+compaction:
+  summary-max-tokens: 16384
+  summary-reasoning-effort: low
+```
 
 ## observability
 

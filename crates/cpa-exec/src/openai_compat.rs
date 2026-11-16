@@ -387,21 +387,37 @@ pub(crate) async fn chat_with(
     if base_url.is_empty() {
         return Err(missing_base_url());
     }
-    if req.operation == Operation::Generate
-        && (crate::antigravity_compaction::has_item(&req.body)
+    if req.operation == Operation::Generate {
+        // Only CPA capsules: a native compaction item is the upstream's own context and
+        // reaches `/responses/compact` (or the chat translator) as it is.
+        if (crate::antigravity_compaction::has_item(&req.body)
             || crate::antigravity_compaction::has_item(&req.original_body))
-        && let Err(e) = crate::antigravity_compaction::expand_request(&mut req, "openai-compat")
-    {
-        req.usage.discard();
-        return Err(status_err(400, e));
+            && let Err(e) = crate::antigravity_compaction::expand_capsules(&mut req)
+        {
+            req.usage.discard();
+            return Err(status_err(400, e));
+        }
+        if req.alt.as_deref() != Some(COMPACT_ALT)
+            && (crate::antigravity_compaction::has_trigger(&req.body)
+                || crate::antigravity_compaction::has_trigger(&req.original_body))
+        {
+            return compact_summary(client, credential, req, cfg, base_url, api_key, compat).await;
+        }
     }
-    if req.operation == Operation::Generate
-        && req.alt.as_deref() != Some(COMPACT_ALT)
-        && (crate::antigravity_compaction::has_trigger(&req.body)
-            || crate::antigravity_compaction::has_trigger(&req.original_body))
-    {
-        return compact_summary(client, credential, req, cfg, base_url, api_key).await;
-    }
+    chat_request(client, credential, req, cfg, base_url, api_key, compat).await
+}
+
+/// The ordinary chat or `/responses/compact` request of [`chat_with`], also used for
+/// the summary turn of [`compact_summary`].
+async fn chat_request(
+    client: &wreq::Client,
+    credential: &Credential,
+    req: ExecRequest,
+    cfg: &Config,
+    base_url: &str,
+    api_key: &str,
+    compat: Option<&payload::Compat>,
+) -> Result<ExecResponse, ExecError> {
     let base_model = parse_suffix(&req.model).model_name;
     let compact = req.alt.as_deref() == Some(COMPACT_ALT);
     // ExecuteStream always targets chat completions, even with the compact alt.
@@ -584,72 +600,69 @@ fn summary_budget(cfg: &Config) -> (i64, Option<String>) {
     (max_tokens, effort)
 }
 
+/// Reasoning efforts an OpenAI-compatible upstream accepts in `reasoning_effort`.
+const SUMMARY_EFFORTS: [&str; 5] = ["minimal", "low", "medium", "high", "xhigh"];
+
 /// A reasoning upstream can spend the caller's whole output budget on
 /// `reasoning_content` and return an empty `content`, which then looks like "no
-/// summary text". Give the summary a floor, and keep its thinking short.
+/// summary text". Give the summary a floor, and keep its thinking short. `body` is
+/// the Responses summary payload, before translation: the floor reaches the upstream
+/// as `max_tokens` or `max_completion_tokens`, and the effort as `reasoning_effort`
+/// after the model's thinking rules, like any client value.
 fn apply_summary_budget(body: &mut Vec<u8>, max_tokens: i64, effort: Option<&str>) {
-    if max_tokens > 0 && gj::get(body, "max_tokens").int() < max_tokens {
-        gj::set_int(body, "max_tokens", max_tokens);
+    if max_tokens > 0 && gj::get(body, "max_output_tokens").int() < max_tokens {
+        gj::set_int(body, "max_output_tokens", max_tokens);
     }
     match effort {
-        // Default: lower the effort only when the upstream already understands it.
-        None => {
-            if gj::get(body, "reasoning_effort").exists() {
-                gj::set_str(body, "reasoning_effort", "low");
+        Some("keep") => {}
+        Some(value) if SUMMARY_EFFORTS.contains(&value) => gj::set_str(body, "reasoning.effort", value),
+        // Unset or not an OpenAI effort: lower the effort only when the client sent one.
+        _ => {
+            if gj::get(body, "reasoning.effort").exists() {
+                gj::set_str(body, "reasoning.effort", "low");
             }
         }
-        Some("keep") => {}
-        Some(value) if matches!(value, "low" | "medium" | "high" | "max") => {
-            gj::set_str(body, "reasoning_effort", value);
-        }
-        Some(_) => {}
     }
 }
 
 /// Responses compaction v2 for OpenAI-compatible upstreams: the trigger turn is
 /// answered by an ordinary non-stream chat summary, sealed into the CPA compaction
 /// capsule, so Codex gets exactly one `compaction` output item. Later requests carry
-/// that capsule and are expanded by `antigravity_compaction::expand_request`.
+/// that capsule and are expanded by `antigravity_compaction::expand_capsules`. The
+/// summary request goes through [`chat_request`], so it gets the same thinking, compatibility
+/// normalization, payload rules, URL checks and capture as any chat request.
 async fn compact_summary(
     client: &wreq::Client,
     credential: &Credential,
-    req: ExecRequest,
+    mut req: ExecRequest,
     cfg: &Config,
     base_url: &str,
     api_key: &str,
+    compat: Option<&payload::Compat>,
 ) -> Result<ExecResponse, ExecError> {
     let model = parse_suffix(&req.model).model_name.to_owned();
     let stream = req.stream;
-    let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
     let source = crate::antigravity_compaction::source_payload(&req.body, &req.original_body);
-    let summary = crate::antigravity_compaction::summary_payload(source);
-    let mut body = translate_body(&req, cfg, Format::OpenAI, &model, false, &summary, is_compat)?;
-    gj::delete(&mut body, "stream");
-    gj::delete(&mut body, "stream_options");
-    let (summary_max_tokens, summary_effort) = summary_budget(cfg);
-    apply_summary_budget(&mut body, summary_max_tokens, summary_effort.as_deref());
-
-    let url = endpoint(base_url, "/chat/completions");
-    crate::xai_url::new_request(&url)?;
-    let mut headers = base_headers(api_key, "application/json");
-    apply_custom(&mut headers, credential, &req);
-    if req.usage.enabled() {
-        req.usage.request(Format::OpenAI, &body);
-    }
-    let upstream = wire::send(client, &url, headers, Bytes::from(body)).await?;
-    if !(200..300).contains(&upstream.status) {
-        let (status, headers, body) = wire::read_error_body(upstream).await;
-        return Err(status_error(status, headers, &body, true));
-    }
-    let raw = wire::read_all(upstream).await?;
-    if req.usage.enabled() {
-        req.usage.response_body(Format::OpenAI, &raw);
-    }
+    let mut summary = crate::antigravity_compaction::summary_payload(source);
+    let (max_tokens, effort) = summary_budget(cfg);
+    apply_summary_budget(&mut summary, max_tokens, effort.as_deref());
+    req.body = summary.into();
+    req.original_body = Bytes::new();
+    req.alt = None;
+    req.stream = false;
+    req.source_format = Format::OpenAIResponse;
+    req.response_format = Format::OpenAI;
+    let answer = Box::pin(chat_request(client, credential, req, cfg, base_url, api_key, compat)).await?;
+    let ResponseBody::Buffered(raw) = answer.body else {
+        return Err(crate::antigravity_compaction::statusless(
+            "extract summary: no summary text found in upstream response",
+        ));
+    };
     let text = crate::antigravity_compaction::summary_text(&raw)
         .map_err(|e| crate::antigravity_compaction::statusless(format!("extract summary: {e}")))?;
     let sealed = crate::antigravity_compaction::seal(&text, &model)
         .map_err(|e| crate::antigravity_compaction::statusless(format!("seal compaction capsule: {e}")))?;
-    let usage = crate::antigravity_compaction::summary_usage(&raw);
+    let usage = crate::antigravity_compaction::chat_usage(&raw);
 
     let mut headers = http::HeaderMap::new();
     if !stream {

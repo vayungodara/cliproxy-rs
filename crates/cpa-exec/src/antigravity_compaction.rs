@@ -47,6 +47,11 @@ pub(crate) fn source_payload<'a>(body: &'a [u8], original: &'a [u8]) -> &'a [u8]
     }
 }
 
+/// `RecognizedAntigravityCompactionCapsule`.
+fn is_capsule(item: &gj::Res<'_>) -> bool {
+    item.get("encrypted_content").str().trim().starts_with(PREFIX)
+}
+
 /// `DropForeignResponsesCompactionItems`: compaction items whose `encrypted_content`
 /// is not a CPA capsule (`RecognizedAntigravityCompactionCapsule`) are removed. `None`
 /// when nothing was dropped.
@@ -58,10 +63,7 @@ fn drop_foreign(payload: &[u8], provider: &str) -> Option<Vec<u8>> {
     let items = input.array();
     let kept: Vec<&[u8]> = items
         .iter()
-        .filter(|item| {
-            *item.get("type").bytes() != *b"compaction"
-                || item.get("encrypted_content").str().trim().starts_with(PREFIX)
-        })
+        .filter(|item| *item.get("type").bytes() != *b"compaction" || is_capsule(item))
         .map(|item| item.raw())
         .collect();
     let dropped = items.len() - kept.len();
@@ -77,14 +79,30 @@ fn drop_foreign(payload: &[u8], provider: &str) -> Option<Vec<u8>> {
 /// `ExpandResponsesCompactionCapsules`: drops foreign compaction items and expands CPA
 /// capsules in the body and the original request.
 pub(crate) fn expand_request(req: &mut cpa_core::exec::ExecRequest, provider: &str) -> Result<(), String> {
-    let one = |payload: &bytes::Bytes| -> Result<Option<bytes::Bytes>, String> {
+    rewrite_request(req, |payload| {
         let dropped = drop_foreign(payload, provider);
         let current = dropped.as_deref().unwrap_or(payload);
         if has_item(current) {
-            return expand(current).map(|expanded| Some(expanded.into()));
+            return expand(current).map(Some);
         }
-        Ok(dropped.map(Into::into))
-    };
+        Ok(dropped)
+    })
+}
+
+/// cliproxy-rs only, for OpenAI-compatible upstreams (Go never expands there): expands
+/// CPA capsules in the body and the original request and leaves every other
+/// compaction item as it is, so a native `/responses/compact` context reaches the
+/// upstream unchanged.
+pub(crate) fn expand_capsules(req: &mut cpa_core::exec::ExecRequest) -> Result<(), String> {
+    rewrite_request(req, |payload| expand_items(payload, true))
+}
+
+/// Applies `one` to the body and the original request; `None` leaves a payload as it is.
+fn rewrite_request(
+    req: &mut cpa_core::exec::ExecRequest,
+    one: impl Fn(&[u8]) -> Result<Option<Vec<u8>>, String>,
+) -> Result<(), String> {
+    let one = |payload: &bytes::Bytes| one(payload).map(|out| out.map(bytes::Bytes::from));
     let same_original = !req.original_body.is_empty() && req.body == req.original_body;
     if let Some(body) = one(&req.body)? {
         req.body = body;
@@ -186,14 +204,20 @@ pub(crate) fn unseal(capsule: &str) -> Result<String, String> {
 /// `ExpandAntigravityCompactionCapsules`: each compaction item becomes a developer
 /// message carrying its summary.
 pub(crate) fn expand(payload: &[u8]) -> Result<Vec<u8>, String> {
+    expand_items(payload, false).map(|out| out.unwrap_or_else(|| payload.to_vec()))
+}
+
+/// [`expand`]; `only_capsules` leaves compaction items that are not CPA capsules in
+/// place. `None` when nothing changed.
+fn expand_items(payload: &[u8], only_capsules: bool) -> Result<Option<Vec<u8>>, String> {
     let input = gj::get(payload, "input");
     if !input.is_array() {
-        return Ok(payload.to_vec());
+        return Ok(None);
     }
     let mut changed = false;
     let mut items = Vec::new();
     for item in input.array() {
-        if *item.get("type").bytes() != *b"compaction" {
+        if *item.get("type").bytes() != *b"compaction" || (only_capsules && !is_capsule(&item)) {
             items.push(item.raw().to_vec());
             continue;
         }
@@ -209,9 +233,9 @@ pub(crate) fn expand(payload: &[u8]) -> Result<Vec<u8>, String> {
         changed = true;
     }
     if !changed {
-        return Ok(payload.to_vec());
+        return Ok(None);
     }
-    gj::try_set_raw(payload, "input", gj::join(&items))
+    gj::try_set_raw(payload, "input", gj::join(&items)).map(Some)
 }
 
 /// `ExtractAntigravitySummaryText`: Responses output text, else Gemini parts (no
@@ -283,6 +307,17 @@ pub(crate) fn summary_text(response: &[u8]) -> Result<String, String> {
         return Ok(chat);
     }
     Err("no summary text found in upstream response".into())
+}
+
+/// Input, output and total tokens of a Chat completion's `usage`: the summary answer
+/// of an OpenAI-compatible upstream is always a Chat completion.
+pub(crate) fn chat_usage(response: &[u8]) -> (i64, i64, i64) {
+    let usage = gj::get(response, "usage");
+    (
+        usage.get("prompt_tokens").int(),
+        usage.get("completion_tokens").int(),
+        usage.get("total_tokens").int(),
+    )
 }
 
 /// Token counts of the summary answer: its Responses usage, else Go's OpenAI usage
