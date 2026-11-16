@@ -351,19 +351,40 @@ fn logged_query(path: &str, raw: &str) -> String {
 }
 
 pub(crate) fn mask_query(raw: &str) -> String {
+    mask_query_by(raw, go_sensitive_name)
+}
+
+/// Go's sensitive query names. v8.0.35 adds `value`: deleting a client key passes it
+/// as `?value=`.
+fn go_sensitive_name(lower: &[u8]) -> bool {
+    lower == b"key"
+        || lower == b"value"
+        || [&b"api-key"[..], b"apikey", b"api_key", b"token", b"secret"]
+            .iter()
+            .any(|word| lower.windows(word.len()).any(|w| w == *word))
+}
+
+/// [`mask_query`] for a configured upstream URL, which a provider may sign or key
+/// with other names. Deliberate difference: Go masks upstream queries like client
+/// queries; this also masks names containing `key`, `token`, `secret`, `auth`,
+/// `password` or `sig` (which covers `signature`).
+pub(crate) fn mask_upstream_query(raw: &str) -> String {
+    mask_query_by(raw, |lower| {
+        go_sensitive_name(lower)
+            || [&b"key"[..], b"token", b"secret", b"auth", b"password", b"sig"]
+                .iter()
+                .any(|word| lower.windows(word.len()).any(|w| w == *word))
+    })
+}
+
+fn mask_query_by(raw: &str, sensitive: impl Fn(&[u8]) -> bool) -> String {
     raw.split('&')
         .map(|part| {
             let (key, value) = part.split_once('=').unwrap_or((part, ""));
             let decoded = crate::access::unescape(key).unwrap_or_else(|| key.as_bytes().to_owned());
             let lower = cpa_common::gostr::lower_bytes(cpa_core::config::go_trim_space(&decoded));
-            let lower = lower.strip_suffix("[]").unwrap_or(&lower);
-            // v8.0.35 adds `value`: deleting a client key passes it as `?value=`.
-            if !(lower == "key"
-                || lower == "value"
-                || ["api-key", "apikey", "api_key", "token", "secret"]
-                    .iter()
-                    .any(|word| lower.contains(word)))
-            {
+            let lower = lower.strip_suffix("[]").unwrap_or(&lower).as_bytes();
+            if !sensitive(lower) {
                 return part.to_owned();
             }
             let value = crate::access::unescape(value).unwrap_or_else(|| value.as_bytes().to_owned());

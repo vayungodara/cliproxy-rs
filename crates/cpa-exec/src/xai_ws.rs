@@ -492,7 +492,8 @@ fn plain(message: impl Into<String>) -> ExecError {
 
 /// `buildXAIResponsesWebsocketURL`.
 fn ws_url(http_url: &str) -> Result<String, ExecError> {
-    let mut parsed = crate::xai_url::parse(http_url.trim()).map_err(crate::xai_url::statusless)?;
+    let raw = http_url.trim();
+    let mut parsed = crate::xai_url::parse(raw).map_err(|e| crate::xai_url::url_error(raw, &e))?;
     parsed.scheme = match parsed.scheme.as_str() {
         "http" => "ws".to_owned(),
         "https" => "wss".to_owned(),
@@ -1393,7 +1394,14 @@ async fn dial_once(
         let mut res = builder
             .send()
             .await
-            .map_err(|e| Dial::Failed(plain(format!("xai websockets executor: dial failed: {e}"))))?;
+            // wreq's error text includes the URL, and a configured base-url can carry a
+            // key in its query; the error reaches the client and the request log.
+            .map_err(|e| {
+                Dial::Failed(plain(format!(
+                    "xai websockets executor: dial failed: {}",
+                    e.without_uri()
+                )))
+            })?;
         let status = res.status().as_u16();
         let handshake = res.headers().clone();
         if status != 101 {

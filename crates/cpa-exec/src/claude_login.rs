@@ -502,7 +502,7 @@ fn success_html(setup_required: bool, platform_url: &str) -> String {
 
 /// `CredentialFileName`.
 pub(crate) fn credential_file_name(email: &str, organization: &str, account: &str) -> String {
-    let email = email.trim();
+    let email = crate::file_name_email(email.trim());
     let identity = Some(organization.trim())
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| account.trim());
@@ -596,6 +596,11 @@ fn legacy_credential(directory: &Path, target_name: &str, target: &BTreeMap<Stri
         if !email_legacy && !account_predecessor {
             return false;
         }
+        // A sanitized email can give this name to another account's file (deliberate
+        // difference, docs/DIFFERENCES-FROM-GO.md): never merge or remove it.
+        if crate::other_account_file(path, &email, &[("account_uuid", &account)]) {
+            return false;
+        }
         let Some(candidate) = read_json(path) else {
             return false;
         };
@@ -685,6 +690,9 @@ fn write_canonical(directory: &Path, patch: MetadataPatch) -> Result<(PathBuf, O
     }
     let name = credential_file_name(&email, &string("organization_uuid"), &string("account_uuid"));
     let path = directory.join(&name);
+    if crate::other_account_file(&path, &email, &[("account_uuid", &string("account_uuid"))]) {
+        return Err(login_error(crate::OTHER_ACCOUNT_FILE));
+    }
     let mut metadata: BTreeMap<String, Value> = patch.set.clone().into_iter().collect();
     for key in &patch.remove {
         metadata.remove(key);

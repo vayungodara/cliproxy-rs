@@ -733,7 +733,7 @@ pub(crate) fn access_usable(credential: &Credential, now: DateTime<Utc>) -> bool
 
 /// `CredentialFileName(email, plan, hash, true)`.
 pub fn credential_file_name(email: &str, plan: &str, account_hash: &str) -> String {
-    let email = email.trim();
+    let email = crate::file_name_email(email.trim());
     let plan: Vec<String> = plan
         .trim()
         .split(|c: char| !c.is_alphanumeric())
@@ -868,6 +868,9 @@ pub fn write_login(auth_dir: &Path, tokens: &Tokens) -> Result<PathBuf, ExecErro
         return Err(oauth_error(400, "invalid credential email filename"));
     }
     let path = auth_dir.join(&name);
+    if crate::other_account_file(&path, &tokens.email, &[("account_id", &tokens.account_id)]) {
+        return Err(oauth_error(409, crate::OTHER_ACCOUNT_FILE));
+    }
     if let Ok(raw) = std::fs::read(&path)
         && let Ok(existing) = serde_json::from_slice::<Map<String, Value>>(&raw)
     {

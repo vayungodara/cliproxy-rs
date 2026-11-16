@@ -679,7 +679,8 @@ fn turn_error(lost: &ExecError) -> ExecError {
 /// `buildCodexResponsesWebsocketURL`. Go returns its parse, scheme and empty-host errors
 /// as plain errors before dialing.
 fn ws_url(http_url: &str) -> Result<String, ExecError> {
-    let mut parsed = crate::xai_url::parse(http_url.trim()).map_err(crate::xai_url::statusless)?;
+    let raw = http_url.trim();
+    let mut parsed = crate::xai_url::parse(raw).map_err(|e| crate::xai_url::url_error(raw, &e))?;
     parsed.scheme = match parsed.scheme.as_str() {
         "http" => "ws".to_owned(),
         "https" => "wss".to_owned(),

@@ -2671,6 +2671,8 @@ struct FakeStore {
     dir: PathBuf,
     down: bool,
     pushed: std::sync::Mutex<Vec<String>>,
+    /// Written on the first push: a file that changes after the save checked it.
+    write_on_push: std::sync::Mutex<Option<(PathBuf, Vec<u8>)>>,
 }
 
 impl cpa_server::persist::StorePersister for FakeStore {
@@ -2683,6 +2685,9 @@ impl cpa_server::persist::StorePersister for FakeStore {
         _: Vec<PathBuf>,
     ) -> futures_util::future::BoxFuture<'_, anyhow::Result<()>> {
         self.pushed.lock().unwrap().push(message);
+        if let Some((path, bytes)) = self.write_on_push.lock().unwrap().take() {
+            std::fs::write(path, bytes).unwrap();
+        }
         let down = self.down;
         Box::pin(async move {
             anyhow::ensure!(!down, "fake store unavailable");
@@ -3395,6 +3400,47 @@ async fn claude_login_removes_the_legacy_file_only_after_the_store_has_the_new_o
         }
         server.abort();
     }
+    fake_server.abort();
+}
+
+/// A legacy file that changes between the save and the cleanup, such as an upload
+/// under that name, is kept.
+#[tokio::test]
+async fn claude_login_keeps_a_legacy_file_replaced_after_the_save() {
+    let (fake, _seen, fake_server) = fake_logins().await;
+    let f = Fixture::new("claudelegacy-replaced");
+    let legacy = f.dir.join("auth/claude-a@example.invalid.json");
+    std::fs::write(
+        &legacy,
+        r#"{"type":"claude","email":"a@example.invalid","organization_uuid":"org-1"}"#,
+    )
+    .unwrap();
+    let uploaded = br#"{"type":"claude","email":"a@example.invalid","note":"uploaded"}"#.to_vec();
+    let store = Arc::new(FakeStore {
+        dir: f.dir.join("auth"),
+        write_on_push: std::sync::Mutex::new(Some((legacy.clone(), uploaded.clone()))),
+        ..Default::default()
+    });
+    let options = management::Options {
+        login_base: Some(fake.clone()),
+        store: Some(store.clone()),
+        ..Default::default()
+    };
+    let (base, _state, server) = serve_with(&f, options).await;
+    let started = oauth_get(&base, "/oauth/auth-url?provider=claude").await;
+    let state = started["state"].as_str().unwrap().to_owned();
+    wreq::Client::new()
+        .post(format!("{base}/v8/management/oauth/callback"))
+        .json(&json!({"provider": "claude",
+            "redirect_url": format!("http://localhost:54545/callback?code=fake-code&state={state}")}))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(final_status(&base, &state, 10).await, json!({"status": "ok"}));
+    let pushed = store.pushed.lock().unwrap().clone();
+    assert_eq!(pushed.len(), 1, "no delete: {pushed:?}");
+    assert_eq!(std::fs::read(&legacy).unwrap(), uploaded);
+    server.abort();
     fake_server.abort();
 }
 

@@ -337,6 +337,34 @@ async fn auth_matches_go() {
     }
 }
 
+/// A login whose sanitized email names a file of another account leaves that file alone.
+#[test]
+fn login_refuses_to_replace_another_accounts_file() {
+    let dir = std::env::temp_dir().join(format!(
+        "antigravity-other-{}",
+        crate::devin_auth::random_state().unwrap()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let name = credential_file_name("a/b@example.invalid");
+    let other = r#"{"type":"antigravity","email":"a_b@example.invalid-e12e6b25","refresh_token":"rt-other"}"#;
+    std::fs::write(dir.join(&name), other).unwrap();
+    let mut metadata = serde_json::Map::new();
+    metadata.insert("email".into(), json!("a/b@example.invalid"));
+    metadata.insert("refresh_token".into(), json!("rt-new"));
+    assert_eq!(
+        write_login(&dir, &name, &metadata).unwrap_err(),
+        "credential file belongs to another account"
+    );
+    assert_eq!(std::fs::read_to_string(dir.join(&name)).unwrap(), other);
+    std::fs::write(
+        dir.join(&name),
+        r#"{"type":"antigravity","email":"A/B@example.invalid"}"#,
+    )
+    .unwrap();
+    write_login(&dir, &name, &metadata).unwrap();
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 /// `BuildAntigravityAuthURL` as Go built it.
 #[test]
 fn auth_url_matches_go() {
@@ -349,6 +377,30 @@ fn auth_url_matches_go() {
     }
     assert_eq!(credential_file_name(" a@b.c "), "antigravity-a@b.c.json");
     assert_eq!(credential_file_name(""), "antigravity.json");
+    assert_eq!(
+        credential_file_name("../x/..\\C:y@b.c"),
+        "antigravity-.._x_.._C_y@b.c-624c7263.json",
+        "path characters never leave auth-dir"
+    );
+    assert_eq!(
+        credential_file_name("a/b@example.invalid"),
+        "antigravity-a_b@example.invalid-e12e6b25.json",
+        "a sanitized email never names another account's file"
+    );
+    assert_eq!(
+        credential_file_name("a_b@example.invalid"),
+        "antigravity-a_b@example.invalid.json"
+    );
+    assert_eq!(
+        credential_file_name("a_b@example.invalid-e12e6b25"),
+        "antigravity-a_b@example.invalid-e12e6b25-3425ce78.json",
+        "an email shaped like a changed one's name gets its own hash"
+    );
+    assert_eq!(
+        credential_file_name("a_b@example.invalid-E12E6B25"),
+        "antigravity-a_b@example.invalid-E12E6B25-e1c9bad3.json",
+        "uppercase hex too, for case-insensitive file systems"
+    );
 }
 
 #[test]

@@ -117,6 +117,69 @@ pub use kimi_http::{expiration, last_refresh, preferred_interval};
 pub use openai_compat_payload::ensure_responses_usage_details;
 pub use xai_ws::websockets_enabled;
 
+/// An account email as a credential file-name segment. Deliberate difference: Go puts
+/// the provider's email into the file name unchanged, so a `/`, `\\` or drive `:` in it
+/// would place the file outside auth-dir. Those and control characters become `_`, and
+/// a changed email gets a hash of the original, so it does not take the file of an
+/// account whose email is the sanitized text. An email that already ends in `-` and
+/// eight hex digits, in either case, gets the hash too, so it cannot match a changed
+/// email's name, also on case-insensitive file systems. [`other_account_file`] covers
+/// files written before this and hash collisions.
+/// Ordinary addresses are unchanged, so existing file names stay the same.
+pub(crate) fn file_name_email(email: &str) -> String {
+    let clean: String = email
+        .chars()
+        .map(|c| {
+            if matches!(c, '/' | '\\' | ':') || c.is_control() {
+                '_'
+            } else {
+                c
+            }
+        })
+        .collect();
+    let b = email.as_bytes();
+    let hash_like = b.len() >= 9 && b[b.len() - 9] == b'-' && b[b.len() - 8..].iter().all(u8::is_ascii_hexdigit);
+    if clean == email && !hash_like {
+        return clean;
+    }
+    use sha2::Digest;
+    let digest = sha2::Sha256::digest(email.as_bytes());
+    let hash: String = digest[..4].iter().map(|b| format!("{b:02x}")).collect();
+    format!("{clean}-{hash}")
+}
+
+/// Whether the credential file at `path` belongs to another account than the login
+/// about to replace it: its stored `email` or one of the `ids` (stored key, new value)
+/// differs, ignoring case as Go's legacy matching does, where both sides are set. Deliberate
+/// difference: Go replaces the file whoever it belonged to. With sanitized emails in
+/// file names, a file written earlier for another account can hold the same name, so
+/// the login is refused instead. A missing or unreadable file is not another account's.
+pub(crate) fn other_account_file(path: &std::path::Path, email: &str, ids: &[(&str, &str)]) -> bool {
+    use cpa_core::gostr::GoStr;
+    let Some(existing) = std::fs::read(path)
+        .ok()
+        .and_then(|raw| serde_json::from_slice::<serde_json::Map<String, serde_json::Value>>(&raw).ok())
+    else {
+        return false;
+    };
+    let stored = |key: &str| {
+        existing
+            .get(key)
+            .and_then(serde_json::Value::as_str)
+            .unwrap_or_default()
+            .trim()
+    };
+    let set = |a: &str, b: &str| !a.is_empty() && !b.trim().is_empty();
+    let email_differs = set(stored("email"), email) && !stored("email").go_eq_fold(email.trim());
+    email_differs
+        || ids
+            .iter()
+            .any(|&(key, new)| set(stored(key), new) && !stored(key).go_eq_fold(new.trim()))
+}
+
+/// The error text of a login refused by [`other_account_file`].
+pub(crate) const OTHER_ACCOUNT_FILE: &str = "credential file belongs to another account";
+
 /// What a credential needs before or around use. See the module docs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Readiness {

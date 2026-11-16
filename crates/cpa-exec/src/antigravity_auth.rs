@@ -100,7 +100,7 @@ fn transport_text(error: &ExecError) -> String {
 pub fn credential_file_name(email: &str) -> String {
     match email.trim() {
         "" => "antigravity.json".into(),
-        email => format!("antigravity-{email}.json"),
+        email => format!("antigravity-{}.json", crate::file_name_email(email)),
     }
 }
 
@@ -831,6 +831,10 @@ pub fn build_auth(tokens: &Tokens, email: &str, project: &str, now: DateTime<Utc
 
 /// Saves a CLI or management login through the shared file-token store.
 pub fn write_login(auth_dir: &Path, file_name: &str, metadata: &Map<String, Value>) -> Result<PathBuf, String> {
+    let email = metadata.get("email").and_then(Value::as_str).unwrap_or_default();
+    if crate::other_account_file(&auth_dir.join(file_name), email, &[]) {
+        return Err(crate::OTHER_ACCOUNT_FILE.into());
+    }
     crate::devin_auth::save_metadata_file(auth_dir, file_name, metadata, PROVIDER)
 }
 

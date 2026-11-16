@@ -490,7 +490,78 @@ pub(crate) fn statusless(message: impl Into<String>) -> cpa_core::exec::ExecErro
 
 /// `http.NewRequest`'s parse of `raw`: Go refuses the URL before anything is sent.
 pub(crate) fn new_request(raw: &str) -> Result<(), cpa_core::exec::ExecError> {
-    parse(raw).map(drop).map_err(statusless)
+    parse(raw).map(drop).map_err(|e| url_error(raw, &e))
+}
+
+/// [`statusless`] for an error text that quotes the configured URL `raw`, as Go's
+/// `*url.Error` does. Deliberate difference: when `raw` can carry a credential (an `@`,
+/// a fragment, or a query parameter named like a key), the client and the logs see
+/// `"<redacted>"` instead, and a parse error, which can quote a piece of the URL (a
+/// port, an escape), says only `invalid URL`. A refused POST keeps its reason, which
+/// names only the scheme.
+pub(crate) fn url_error(raw: &str, message: &str) -> cpa_core::exec::ExecError {
+    if !may_hold_credentials(raw) {
+        return statusless(message);
+    }
+    let safe = match message.strip_prefix("Post ") {
+        Some(rest) => {
+            let reason = rest.rsplit_once("\": ").map_or("", |(_, reason)| reason);
+            format!("Post \"<redacted>\": {reason}")
+        }
+        None => "parse \"<redacted>\": invalid URL".to_owned(),
+    };
+    statusless(safe)
+}
+
+/// Whether `raw` has a part that can hold a credential: an `@` anywhere (user info, or
+/// text a parser could read as such), a fragment, an authority that can hide user info
+/// (see [`plain_authority`]), or a query parameter
+/// whose name contains `key`, `token`, `secret`, `auth`, `password` or `sig`, or is
+/// escaped. A secret in an ordinary path segment cannot be told apart and is kept.
+fn may_hold_credentials(raw: &str) -> bool {
+    if raw.contains(['@', '#']) {
+        return true;
+    }
+    // A scheme-relative `//host/...` has an authority too.
+    if let Some(rest) = raw
+        .strip_prefix("//")
+        .or_else(|| raw.split_once("://").map(|(_, rest)| rest))
+    {
+        let authority = &rest[..rest.find(['/', '?']).unwrap_or(rest.len())];
+        if !plain_authority(authority) {
+            return true;
+        }
+    }
+    let Some((_, query)) = raw.split_once('?') else {
+        return false;
+    };
+    query.split('&').any(|pair| {
+        let name = pair.split_once('=').map_or(pair, |(name, _)| name).to_ascii_lowercase();
+        name.contains('%')
+            || ["key", "token", "secret", "auth", "password", "sig"]
+                .iter()
+                .any(|word| name.contains(word))
+    })
+}
+
+/// Whether a refused URL's authority cannot hide user info: no escaped `@` or `:`
+/// (`%40`, `%3A`), and a port, if any, that is all digits. Other escapes and odd host
+/// characters (`%61pi.example`, a space) keep Go's text, as in the recorded goldens.
+fn plain_authority(authority: &str) -> bool {
+    let lower = authority.to_ascii_lowercase();
+    if lower.contains("%40") || lower.contains("%3a") {
+        return false;
+    }
+    let host_end = if authority.starts_with('[') {
+        authority.find(']').map_or(authority.len(), |i| i + 1)
+    } else {
+        authority.find(':').unwrap_or(authority.len())
+    };
+    let port = &authority[host_end..];
+    port.is_empty()
+        || port
+            .strip_prefix(':')
+            .is_some_and(|p| p.bytes().all(|b| b.is_ascii_digit()))
 }
 
 /// `Client.Do` of a POST to a URL Go parsed but its transport refuses: a scheme other
@@ -506,7 +577,10 @@ pub(crate) fn transport_refusal(raw: &str) -> Option<cpa_core::exec::ExecError> 
     } else {
         return None;
     };
-    Some(statusless(format!("Post {}: {reason}", quote_bytes(raw.as_bytes()))))
+    Some(url_error(
+        raw,
+        &format!("Post {}: {reason}", quote_bytes(raw.as_bytes())),
+    ))
 }
 
 /// Whether the HTTP client, which parses URLs with WHATWG rules (`url`), would contact
@@ -604,6 +678,71 @@ mod tests {
             let got = transport_refusal(raw).map(|e| String::from_utf8_lossy(&e.body).into_owned());
             assert_eq!(got.as_deref(), want, "{raw}");
         }
+    }
+
+    /// Client-facing URL errors keep Go's text unless the URL has a part that can hold
+    /// a key.
+    #[test]
+    fn url_errors_hide_credentials_in_the_url() {
+        let body = |e: cpa_core::exec::ExecError| String::from_utf8_lossy(&e.body).into_owned();
+        assert_eq!(
+            body(transport_refusal("https:relay.example/x?key=SECRET-1#frag").unwrap()),
+            r#"Post "<redacted>": http: no Host in request URL"#
+        );
+        assert_eq!(
+            body(transport_refusal("ftp://u:SECRET-2@relay.example/x").unwrap()),
+            r#"Post "<redacted>": unsupported protocol scheme "ftp""#
+        );
+        for raw in [
+            "http://u:SECRET-3@h.example:9x/v1?key=SECRET-4",
+            "http://u:SECRET-5?tail@h.example/v1",
+            "http://u:%XY-SECRET-6@h.example/v1",
+            "http://h.example/v1#%XY-SECRET-7",
+        ] {
+            assert_eq!(
+                body(new_request(raw).unwrap_err()),
+                r#"parse "<redacted>": invalid URL"#,
+                "{raw}"
+            );
+        }
+        // An authority that is not a plain host[:digits] can hide a key without an `@`.
+        for raw in [
+            "https://relay:bad/key/SECRET-8",
+            "https://u:SECRET-9%40relay/v1",
+            "http://h.example:9x/v1",
+        ] {
+            assert_eq!(
+                body(new_request(raw).unwrap_err()),
+                r#"parse "<redacted>": invalid URL"#,
+                "{raw}"
+            );
+        }
+        assert_eq!(
+            body(new_request("http://[::1]:9x/v1").unwrap_err()),
+            r#"parse "<redacted>": invalid URL"#
+        );
+        // A scheme-relative URL has an authority as well.
+        assert_eq!(
+            body(new_request("//u:SECRET-10%40relay/v1").unwrap_err()),
+            r#"parse "<redacted>": invalid URL"#
+        );
+        assert_eq!(
+            body(transport_refusal("//u:SECRET-11@relay/v1").unwrap()),
+            r#"Post "<redacted>": unsupported protocol scheme """#
+        );
+        // Go's text stays where nothing in the URL can be a credential.
+        assert_eq!(
+            body(transport_refusal("https:relay.example/v1?alt=sse").unwrap()),
+            r#"Post "https:relay.example/v1?alt=sse": http: no Host in request URL"#
+        );
+        assert_eq!(
+            body(new_request("https://%61pi.example/v1").unwrap_err()),
+            r#"parse "https://%61pi.example/v1": invalid URL escape "%61""#
+        );
+        assert_eq!(
+            body(new_request("https://h/a%zz?alt=sse").unwrap_err()),
+            r#"parse "https://h/a%zz?alt=sse": invalid URL escape "%zz""#
+        );
     }
 
     /// Go 1.26.4 `url.Parse`: an IP literal must start the host.
