@@ -6,6 +6,7 @@ New here? Start with [Getting started](GETTING-STARTED.md).
 |---|---|
 | [Getting started](GETTING-STARTED.md) | Installing, a first config, connecting an account and a tool, running it safely |
 | [Use it with your tools](CLIENTS.md) | Claude Code, Codex CLI, Gemini CLI, Amp, OpenCode, Cursor, Cline, Zed and more, plus the SDKs |
+| [Local models](LOCAL-MODELS.md) | Codex CLI with llama.cpp, Ollama or vLLM on your own machine: tested configs and known limits |
 | [Several accounts](MULTI-ACCOUNT.md) | Routing strategies, session affinity, cooldowns, the quota view, per-account proxies, remote access |
 | [Configuration](CONFIGURATION.md) | The `config.yaml` settings you are most likely to change |
 | [Install](INSTALL.md) | The install scripts, release binaries, Docker, building from source, starting at login |
