@@ -615,7 +615,9 @@ fn apply_summary_budget(body: &mut Vec<u8>, max_tokens: i64, effort: Option<&str
     }
     match effort {
         Some("keep") => {}
-        Some(value) if SUMMARY_EFFORTS.contains(&value) => gj::set_str(body, "reasoning.effort", value),
+        Some(value) if SUMMARY_EFFORTS.contains(&value) => {
+            gj::set_str(body, "reasoning.effort", value);
+        }
         // Unset or not an OpenAI effort: lower the effort only when the client sent one.
         _ => {
             if gj::get(body, "reasoning.effort").exists() {

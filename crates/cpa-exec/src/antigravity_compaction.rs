@@ -102,7 +102,7 @@ fn rewrite_request(
     req: &mut cpa_core::exec::ExecRequest,
     one: impl Fn(&[u8]) -> Result<Option<Vec<u8>>, String>,
 ) -> Result<(), String> {
-    let one = |payload: &bytes::Bytes| one(payload).map(|out| out.map(bytes::Bytes::from));
+    let one = |payload: &bytes::Bytes| one(&payload[..]).map(|out| out.map(bytes::Bytes::from));
     let same_original = !req.original_body.is_empty() && req.body == req.original_body;
     if let Some(body) = one(&req.body)? {
         req.body = body;
