@@ -222,6 +222,16 @@ fn apply_thinking(
         updates_changed: false,
     })
     .map_err(|e| ExecError::local(400, FailureScope::Request, e.message))
+    .map(|body| {
+        // Go 0e0cab0d (v8.0.64), a cliproxy-rs addition: `APIKeyModelIsCompat` and
+        // Claude to OpenAI only.
+        let compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+        if compat && req.source_format == Format::Claude && target == Format::OpenAI && !body.is_empty() {
+            payload::reconcile_tool_call_reasoning(body)
+        } else {
+            body
+        }
+    })
 }
 
 fn base_headers(api_key: &str, content_type: &str) -> GoHeaders {
