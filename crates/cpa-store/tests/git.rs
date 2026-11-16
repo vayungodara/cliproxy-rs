@@ -631,3 +631,40 @@ fn deleting_twice_is_a_no_op() {
     a.delete(&path).unwrap();
     assert_eq!(git(Path::new(&remote), &["rev-parse", "main"]), tip);
 }
+
+/// A login's legacy cleanup checked the file's bytes before the store synced. When
+/// another instance pushed a replacement in between, the delete keeps it, locally and
+/// on the remote (deliberate difference: Go deletes the matched file).
+#[test]
+fn a_checked_delete_keeps_a_replacement_from_another_instance() {
+    let dir = scratch("delete-unchanged");
+    let remote = bare_remote(&dir);
+    let a = GitStore::new(&remote, "", "", "main", &dir.join("a"));
+    a.ensure_repository().unwrap();
+    let path = a.auth_dir().join("legacy.json");
+    std::fs::write(&path, "{\"v\":1}").unwrap();
+    a.persist_auth_files("Sync auth legacy.json", std::slice::from_ref(&path))
+        .unwrap();
+    let checked = std::fs::read(&path).unwrap();
+
+    // Another instance replaces the file after A checked it.
+    let b = GitStore::new(&remote, "", "", "main", &dir.join("b"));
+    b.ensure_repository().unwrap();
+    let replaced = b.auth_dir().join("legacy.json");
+    std::fs::write(&replaced, "{\"v\":2}").unwrap();
+    b.persist_auth_files("Sync auth legacy.json", std::slice::from_ref(&replaced))
+        .unwrap();
+
+    assert!(!a.delete_unchanged(&path, &checked).unwrap());
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "{\"v\":2}");
+    assert_eq!(
+        remote_file(&remote, "main", "auths/legacy.json").as_deref(),
+        Some("{\"v\":2}")
+    );
+
+    // Unchanged since the check, it is deleted and the removal pushed.
+    let checked = std::fs::read(&path).unwrap();
+    assert!(a.delete_unchanged(&path, &checked).unwrap());
+    assert!(!path.exists());
+    assert!(remote_file(&remote, "main", "auths/legacy.json").is_none());
+}

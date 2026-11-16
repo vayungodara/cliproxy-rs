@@ -971,13 +971,29 @@ impl GitStore {
     pub fn delete(&self, path: &Path) -> Result<()> {
         let mut last_gc = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
         self.ensure_locked(&mut last_gc)?;
+        self.delete_locked(&mut last_gc, path)
+    }
+
+    /// [`Self::delete`] only while the file still holds `expected` or is gone, compared
+    /// after the pull under the repository lock, so a replacement another instance
+    /// pushed after the caller's check is kept. Returns whether it deleted.
+    pub fn delete_unchanged(&self, path: &Path, expected: &[u8]) -> Result<bool> {
+        let mut last_gc = self.lock.lock().unwrap_or_else(PoisonError::into_inner);
+        self.ensure_locked(&mut last_gc)?;
+        if !cpa_server::persist::file_unchanged(path, expected) {
+            return Ok(false);
+        }
+        self.delete_locked(&mut last_gc, path).map(|()| true)
+    }
+
+    fn delete_locked(&self, last_gc: &mut Option<Instant>, path: &Path) -> Result<()> {
         let rel = self.relative(path)?;
         match std::fs::remove_file(path) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
             Err(e) => bail!("auth filestore: delete failed: {e}"),
         }
-        self.commit_and_push(&mut last_gc, &format!("Delete auth {}", path.display()), &[rel], false)
+        self.commit_and_push(last_gc, &format!("Delete auth {}", path.display()), &[rel], false)
     }
 
     /// Go `PersistConfig`.
@@ -1010,6 +1026,10 @@ impl cpa_server::persist::StorePersister for GitPersister {
     fn delete_auth(&self, path: PathBuf) -> Result<()> {
         // Inline on the caller's blocking thread: no second blocking-pool slot.
         self.0.delete(&path)
+    }
+
+    fn delete_auth_unchanged(&self, path: PathBuf, expected: &[u8]) -> Result<bool> {
+        self.0.delete_unchanged(&path, expected)
     }
 
     fn save_auth(&self, write: cpa_server::persist::SaveFn<'_>) -> Result<Option<PathBuf>> {

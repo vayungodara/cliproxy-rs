@@ -793,35 +793,30 @@ async fn start_claude(state: Arc<Management>, webui: bool) -> Response {
     started(url, sid)
 }
 
-/// Whether the legacy file the save checked still holds `checked`, or is gone.
-/// Deliberate difference: Go deletes the file it matched without reading it again. The
-/// disk lock is released between the save and the cleanup, so a file written under
-/// that name in between (an upload) is kept.
-fn legacy_unchanged(path: &std::path::Path, checked: &[u8]) -> bool {
-    match std::fs::read(path) {
-        Ok(now) => now == checked,
-        Err(e) => e.kind() == std::io::ErrorKind::NotFound,
-    }
-}
-
 /// Go `saveTokenRecord` after the canonical Claude credential is stored: the matching
 /// legacy file is deleted through the token store (`store.Delete`), so a git store
-/// commits the removal its watcher guard would refuse.
+/// commits the removal its watcher guard would refuse. Deliberate difference: Go
+/// deletes the file it matched without reading it again. The disk lock is released
+/// between the save and the cleanup, so a file written under that name in between (an
+/// upload, or with a git store another instance's push) is kept.
 async fn remove_legacy_claude(state: &Arc<Management>, (legacy, checked): (PathBuf, Vec<u8>)) -> Outcome {
     let worker = state.clone();
     let removed = tokio::task::spawn_blocking(move || {
         let _guard = worker.disk.lock().unwrap_or_else(PoisonError::into_inner);
-        if !legacy_unchanged(&legacy, &checked) {
+        let deleted = if worker.store.is_some() {
+            worker.store_delete_unchanged(&legacy, &checked)?
+        } else if crate::persist::file_unchanged(&legacy, &checked) {
+            match std::fs::remove_file(&legacy) {
+                Err(e) if e.kind() != std::io::ErrorKind::NotFound => return Err(e.to_string()),
+                _ => true,
+            }
+        } else {
+            false
+        };
+        if !deleted && legacy.exists() {
             tracing::warn!("legacy Claude credential changed after the login checked it; kept");
-            return Ok(());
         }
-        if worker.store.is_some() {
-            return worker.store_delete(&legacy);
-        }
-        match std::fs::remove_file(&legacy) {
-            Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(e.to_string()),
-            _ => Ok(()),
-        }
+        Ok(())
     })
     .await;
     match removed {

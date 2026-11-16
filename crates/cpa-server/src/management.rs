@@ -227,6 +227,18 @@ impl Management {
         store.delete_auth(path).map_err(|e| format!("{e:#}"))
     }
 
+    /// [`Self::store_delete`] only while the file still holds `expected` (or is gone),
+    /// checked by the store after it syncs. Returns whether it deleted.
+    pub(crate) fn store_delete_unchanged(&self, path: &std::path::Path, expected: &[u8]) -> Result<bool, String> {
+        let Some(store) = self.store.clone() else {
+            return Ok(false);
+        };
+        let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
+        store
+            .delete_auth_unchanged(path, expected)
+            .map_err(|e| format!("{e:#}"))
+    }
+
     /// Go `Store.Save`: `write` through the configured store, which has the file when
     /// this returns (git syncs first and holds its lock across the write); without a
     /// store, just `write`. Blocking: call from a blocking thread holding `disk`.
