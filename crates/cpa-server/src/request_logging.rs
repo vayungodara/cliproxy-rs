@@ -602,7 +602,7 @@ impl RequestLog {
                 if record.upstream.error {
                     part.push(b'\n');
                 }
-                writeln!(part, "Error: {error}").unwrap();
+                writeln!(part, "Error: {}", logged_text(error)).unwrap();
                 record.api_response.append(&record.state.dir, &part);
                 record.upstream.error = true;
             }
@@ -671,7 +671,7 @@ impl RequestLog {
                 if !stage.is_empty() {
                     writeln!(part, "Stage: {stage}").unwrap();
                 }
-                writeln!(part, "Error: {error}").unwrap();
+                writeln!(part, "Error: {}", logged_text(error)).unwrap();
                 upstream_timeline(&mut record.api_timeline, &record.state.dir, &part);
             }
         }
@@ -1430,6 +1430,46 @@ fn logged_url(url: &str) -> String {
     out
 }
 
+/// Error text with every URL in it passed through [`logged_url`]: transport errors
+/// can quote the upstream URL, query key included. A URL runs to the next whitespace,
+/// quote or angle bracket, less trailing sentence punctuation; punctuation inside it is
+/// masked with it, and a span holding a second URL is replaced whole.
+fn logged_text(text: &str) -> String {
+    let scheme_char = |c: char| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.');
+    // The start of the scheme ending at byte `i` of `s`.
+    let scheme_start = |s: &str, i: usize| {
+        s[..i]
+            .char_indices()
+            .rev()
+            .find(|&(_, c)| !scheme_char(c))
+            .map_or(0, |(j, c)| j + c.len_utf8())
+    };
+    let mut out = String::new();
+    let mut rest = text;
+    while let Some(i) = rest.find("://") {
+        let start = scheme_start(rest, i);
+        let after = i + 3;
+        let mut end = rest[after..]
+            .find(|c: char| c.is_whitespace() || matches!(c, '"' | '<' | '>' | '`'))
+            .map_or(rest.len(), |j| after + j);
+        // Sentence punctuation after the URL stays in the text.
+        end = (start + rest[start..end].trim_end_matches([')', ',', '.', ';', ':', '\'']).len()).max(after);
+        out.push_str(&rest[..start]);
+        let masked = logged_url(&rest[start..end]);
+        // Another URL glued to this one (`https://a/x,https://u:p@b/y?token=t`) was not
+        // masked as a URL of its own, so the whole span goes.
+        let head = masked.find("://").map_or(masked.len(), |j| j + 3);
+        if masked[head..].contains("://") {
+            out.push_str(REDACTED);
+        } else {
+            out.push_str(&masked);
+        }
+        rest = &rest[end..];
+    }
+    out.push_str(rest);
+    out
+}
+
 fn masked_header(name: &str, value: &[u8]) -> Vec<u8> {
     if cookie(name) {
         return REDACTED.as_bytes().to_vec();
@@ -1546,8 +1586,10 @@ fn unique_file(dir: &Path, filename: &str) -> io::Result<File> {
         };
         let mut options = OpenOptions::new();
         options.create_new(true).write(true);
+        // Deliberate difference: Go writes request logs 0644. They hold prompts and
+        // responses, so only the owner may read them, like the spool files above.
         #[cfg(unix)]
-        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o644);
+        std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
         match options.open(dir.join(name)) {
             Ok(file) => return Ok(file),
             Err(error) if error.kind() == io::ErrorKind::AlreadyExists => (),
@@ -2651,6 +2693,12 @@ mod tests {
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
         }
         assert!(content.trim_ascii_end().ends_with(b"\ndone"), "no complete log");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = std::fs::metadata(&logs(&dir)[0]).unwrap().permissions().mode();
+            assert_eq!(mode & 0o777, 0o600, "request logs are owner-only");
+        }
         drop(app);
         drop(state);
         // A spool removes its file when dropped, after its section was copied into the
@@ -2738,6 +2786,13 @@ mod tests {
                 &[],
                 b"",
             )));
+            sink.record(ResponseError(
+                "error sending request for uri (https://proxy.example/v1?key=AIza-h1dden-err-1): client error (Connect)",
+            ));
+            sink.record(WebsocketError {
+                stage: "dial",
+                error: "dial failed: error sending request for uri (ws://127.0.0.1:9/v1?key=QUERY-h1dden-err-2/responses)",
+            });
         })
         .await;
         let content = String::from_utf8(content).unwrap();
@@ -2769,6 +2824,43 @@ mod tests {
         assert_eq!(
             logged_url("https://user@host.example/x"),
             "https://<redacted>@host.example/x"
+        );
+        assert_eq!(
+            logged_text("uri (https://h.example/v1?key=AIza-0123456789): client error (Connect)"),
+            "uri (https://h.example/v1?key=AIza...6789): client error (Connect)"
+        );
+        assert_eq!(
+            logged_text("a http://u:p@h.example/x b \"wss://h.example/y?token=abcdefghijkl\" c"),
+            "a http://<redacted>@h.example/x b \"wss://h.example/y?token=abcd...ijkl\" c"
+        );
+        assert_eq!(logged_text("no url: status 500"), "no url: status 500");
+        // Legal URL punctuation does not end the URL early.
+        assert_eq!(
+            logged_text("(https://h.example/a)b?key=SENTINEL-0001)"),
+            "(https://h.example/a)b?key=SENT...0001)"
+        );
+        assert_eq!(
+            logged_text("https://u:p)w@h.example/x"),
+            "https://<redacted>@h.example/x"
+        );
+        // A URL glued to another is not masked on its own: the span goes whole.
+        for glued in [
+            "https://a.example/x,https://u:pw@b.example/y",
+            "https://a.example/x?alt=sse,https://b.example/y?token=SENTINEL-0002",
+            "https://a.example/x#f,https://b.example/y?key=SENTINEL-0003",
+        ] {
+            assert_eq!(logged_text(&format!("({glued}): x")), "(<redacted>): x", "{glued}");
+        }
+        // Multibyte text around a URL.
+        assert_eq!(
+            logged_text("éhttps://h.example/v?token=abcdefghijkl é"),
+            "éhttps://h.example/v?token=abcd...ijkl é"
+        );
+        assert_eq!(logged_text("é://x"), "é://x");
+        // A scheme-like text inside a query value is masked with the value.
+        assert_eq!(
+            logged_text("https://h.example/v1?token=abc://SENTINEL-0001"),
+            "https://h.example/v1?token=abc%3A...0001"
         );
     }
 

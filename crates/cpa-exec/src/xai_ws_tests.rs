@@ -810,6 +810,24 @@ fn attempted(e: &ExecError) -> bool {
     !e.headers.is_empty() || e.scope == FailureScope::Transport || e.status == 0
 }
 
+/// A failed dial reports the transport error without the URL, which can carry a key in
+/// its query (deliberate difference: Go prints the URL).
+#[tokio::test]
+async fn dial_failure_omits_the_url() {
+    let attrs = serde_json::json!({"api_key": "xai-key"});
+    let target = Target::new(
+        &credential("xai-dial", &attrs, ""),
+        "ws://127.0.0.1:9/v1/responses?key=QUERY-SECRET-0001".into(),
+        &Config::default(),
+    );
+    let Err(Dial::Failed(error)) = dial_once(&wreq::Client::new(), &target, &HeaderMap::new()).await else {
+        panic!("dial to a closed port did not fail as a transport error");
+    };
+    let text = String::from_utf8_lossy(&error.body);
+    assert!(text.contains("xai websockets executor: dial failed: "), "{text}");
+    assert!(!text.contains("QUERY-SECRET"), "{text}");
+}
+
 /// TestXAIWebsocketsEnabledForConfigAPIKey, directly and through the config synthesizer.
 #[test]
 fn websockets_enabled_for_config_api_key() {
