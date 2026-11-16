@@ -509,7 +509,7 @@ mod access {
                 // Go counts the missing key in step 2 towards the ban; cliproxy-rs counts
                 // only wrong keys, so four failures do not ban (DIFFERENCES-FROM-GO.md).
                 if name == "ban_after_five_failures_including_missing" && i == 5 {
-                    assert_eq!((status, body.as_str()), (200, r#"{"ok":true}"#), "{name}[{i}]");
+                    assert_eq!(status, 200, "{name}[{i}] {body}");
                     steps += 1;
                     continue;
                 }

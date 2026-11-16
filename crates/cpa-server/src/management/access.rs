@@ -357,9 +357,11 @@ impl Cors {
         Self(if management {
             None
         } else if crate::access::local_only(rt) {
-            req.headers()
+            // The same requests the local-only check refuses get no grant either.
+            let headers = req.headers();
+            headers
                 .get(header::ORIGIN)
-                .filter(|o| crate::access::loopback_origin(o.as_bytes()))
+                .filter(|o| !crate::access::cross_site(headers) && crate::access::loopback_origin(o.as_bytes()))
                 .cloned()
         } else {
             Some(HeaderValue::from_static("*"))

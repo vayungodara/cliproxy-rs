@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     let _watcher = cpa_server::watching::start(&management);
     // As main.rs: management answers what the API routes do not, then CORS and the access log.
     let app = cpa_server::app(rt.clone(), cpa_server::management::router(management))
-        .layer(axum::middleware::from_fn(cpa_server::management::cors));
+        .layer(axum::middleware::from_fn_with_state(rt.clone(), cpa_server::management::cors));
     let app = cpa_server::observability::router(&rt, app);
     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>()).await?;
     Ok(())
