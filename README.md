@@ -221,7 +221,7 @@ In the [field-mix soak](https://github.com/vayungodara/cliproxy-rs/blob/master/d
 
 Go was faster in the 0.1.0 launch build's synthetic runs. It served 1,568 non-streaming requests/s against 1,168, with 0.62 ms of CPU per request against 0.85 ms, and 916 plain streams/s against 833. With 256 slow streams, cliproxy-rs had the worse p99 latency: 1,414.5 ms against Go's 1,272.2 ms.
 
-[BENCHMARKS.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md) has the methods, raw results and other measurements, including the [Claude soak](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory) against CLIProxyAPI 6fecc6e and the [field mix](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md#field-mix-claude-codex-and-count_tokens) against earlier releases. [Two 32 MB tokenizers](https://dev.to/vayun/two-32-mb-tokenizers-hunting-a-memory-floor-in-a-rust-proxy-4hfl) explains how its memory floor was found.
+[BENCHMARKS.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md) has the methods, raw results and other measurements, including the [Claude soak](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md#claude-soak-large-prompts-and-memory) against CLIProxyAPI 6fecc6e and the [field mix](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md#field-mix-claude-codex-and-count_tokens) against earlier releases. [What the heap held](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md#what-the-heap-held) explains how its memory floor was found.
 
 ## Documentation
 
