@@ -8,7 +8,8 @@
   const families = ["claude", "codex", "gemini", "vertex", "openai-compatibility", "interactions", "xai", "meta"];
   let family = $state("claude"),
     reveal = $state(false);
-  let form = $state({ name: "", url: "", key: "" });
+  const blank = { name: "", url: "", key: "", model: "", alias: "" };
+  let form = $state({ ...blank });
   const usage = new Res<Data>(() => api("/observability/usage/api-keys"));
   usage.load();
   $effect(() => every(15_000, () => usage.load(true)));
@@ -30,7 +31,10 @@
     e.preventDefault();
     const group: Data = { name: form.name.trim(), keys: [{ "api-key": form.key.trim() }] };
     if (form.url.trim()) group["base-url"] = form.url.trim();
-    write([...groups, group], "Group added.").then((ok) => ok && (form = { name: "", url: "", key: "" }));
+    // A compatible endpoint serves only the models listed on it.
+    const model = form.model.trim();
+    if (compat && model) group.models = [{ name: model, alias: form.alias.trim() || model }];
+    write([...groups, group], "Group added.").then((ok) => ok && (form = { ...blank }));
   }
 </script>
 
@@ -98,6 +102,8 @@
           >Base URL<input type="url" required={compat} bind:value={form.url} placeholder={compat ? "https://…/v1" : "Provider default"} /></label
         >
         <label class="field">API key<input type="password" autocomplete="off" required bind:value={form.key} /></label>
+        {#if compat}<label class="field">Model<input required bind:value={form.model} placeholder="Name at the provider" /></label>
+          <label class="field">Alias<input bind:value={form.alias} placeholder="Same as model" /></label>{/if}
         <button class="key primary" disabled={store.busy}><svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>Add group</button>
       </form>
     {/snippet}

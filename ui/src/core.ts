@@ -439,10 +439,13 @@ const str = (s: string) => JSON.stringify(s);
 export function snippet(tool: (typeof tools)[number], base: string, key: string, model: string): string {
   const v1 = `${base}/v1`;
   switch (tool) {
-    case "Claude Code":
-      return `export ANTHROPIC_BASE_URL=${shw(base)}\nexport ANTHROPIC_AUTH_TOKEN=${shq(key)}\nclaude`;
+    case "Claude Code": {
+      // Claude Code's small-model calls ask for Haiku unless told otherwise; send them to the same model.
+      const small = /^claude-/i.test(model) ? "" : `export ANTHROPIC_DEFAULT_HAIKU_MODEL=${shw(model)}\n`;
+      return `export ANTHROPIC_BASE_URL=${shw(base)}\nexport ANTHROPIC_AUTH_TOKEN=${shq(key)}\nexport ANTHROPIC_MODEL=${shw(model)}\n${small}claude`;
+    }
     case "Codex CLI":
-      return `# ~/.codex/config.toml\nmodel_provider = "cliproxy"\n\n[model_providers.cliproxy]\nname = "cliproxy"\nbase_url = ${str(v1)}\nenv_key = "CLIPROXY_API_KEY"\nwire_api = "responses"\n\n# then, in your shell\nexport CLIPROXY_API_KEY=${shq(key)}`;
+      return `# ~/.codex/config.toml\nmodel = ${str(model)}\nmodel_provider = "cliproxy"\n\n[model_providers.cliproxy]\nname = "cliproxy"\nbase_url = ${str(v1)}\nenv_key = "CLIPROXY_CLIENT_KEY"\nwire_api = "responses"\n\n# then, in your shell\nexport CLIPROXY_CLIENT_KEY=${shq(key)}`;
     case "Cursor":
       return `OpenAI API key:            ${key}\nOverride OpenAI Base URL:  ${v1}`;
     case "OpenAI SDK":

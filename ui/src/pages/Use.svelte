@@ -16,7 +16,7 @@
   // Cursor calls the proxy from its own servers, so a local address cannot work there.
   const target = $derived(tool === "Cursor" && local ? "https://your-public-address" : base);
   const notes: Record<string, string> = {
-    "Claude Code": "Run these in the shell you start Claude Code from. To keep them, put both variables in the env block of ~/.claude/settings.json. /status in Claude Code shows the address in use.",
+    "Claude Code": "Run these in the shell you start Claude Code from. To keep them, put the variables in the env block of ~/.claude/settings.json. /status in Claude Code shows the address in use.",
     "Codex CLI": "Add the provider to ~/.codex/config.toml and set the key in your shell.",
     Cursor: "Cursor sends requests from its own servers, so the proxy needs a public HTTPS address, for example through a Cloudflare tunnel. Enter both values under Cursor Settings, Models.",
     "OpenAI SDK": "Python. The JavaScript SDK takes the same baseURL and apiKey. Chat Completions and Responses both work.",
