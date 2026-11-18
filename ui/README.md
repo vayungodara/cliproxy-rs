@@ -19,7 +19,7 @@ npm test         # unit tests for src/core.ts
 npm run build    # dist/, dist-panel/, then the size budget
 ```
 
-`npm run build` runs `vite build`, then `scripts/panel.mjs` (inlines JS, CSS, font and favicon into `dist-panel/management.html`, writes its SHA-256 to `dist-panel/management.html.sha256` and into PANEL.md), then `scripts/size.mjs`, which fails the build if gzip JavaScript exceeds 52,000 B or CSS exceeds 6,853 B. The ceilings began as the sizes of the dashboard this one replaced (42,642 B and 6,853 B); JavaScript was raised three times: for the beginner onboarding, for the Claude usage parser and plan limits, then for 0.4.2's Accounts page, Connect result and sign-in recovery.
+`npm run build` runs `vite build`, then `scripts/panel.mjs` (inlines JS, CSS, font and favicon into `dist-panel/management.html`, writes its SHA-256 to `dist-panel/management.html.sha256` and into PANEL.md), then `scripts/size.mjs`, which fails the build if the gzip JavaScript or CSS exceeds its budget. [scripts/size.mjs](scripts/size.mjs) holds the ceilings and the history of each raise.
 
 Rebuild the UI before compiling Rust when UI sources change; `ui/dist` is checked in and embedded at compile time.
 

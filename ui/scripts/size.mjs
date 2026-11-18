@@ -7,12 +7,13 @@
 // 2026-11-03 to 52,000 B for 0.4.2's owner-approved Accounts page, Connect result and
 // sign-in recovery, and on 2026-11-05 to 53,500 B once the Connect result was built (the
 // 52,000 B line was set before it existed; the Accounts search box was already cut), and on
-// 2026-11-18 to 53,700 B for the owner-approved quick start fix: the Add group form takes a
-// model and alias, and the Claude Code and Codex CLI setup names the model.
+// 2026-11-18 to 53,800 B for the owner-approved quick start fix: the Add group form takes a
+// model and alias, and the Claude Code and Codex CLI setup names the model, copies the Codex
+// config and its key separately, and waits for a model before it copies.
 import { readdirSync, readFileSync, copyFileSync } from "node:fs";
 import { gzipSync } from "node:zlib";
 
-const BUDGET = { js: 53_700, css: 6_853 };
+const BUDGET = { js: 53_800, css: 6_853 };
 
 copyFileSync("dist/index.html", "dist/management.html");
 const html = readFileSync("dist/index.html", "utf8");

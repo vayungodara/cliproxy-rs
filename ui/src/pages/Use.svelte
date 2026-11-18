@@ -2,7 +2,7 @@
   import { tick } from "svelte";
   import { store } from "../store.svelte";
   import { base, clientModels } from "../api";
-  import { readPath, mask, newKey, tools, snippet, flag, type Lamp } from "../core";
+  import { readPath, mask, newKey, tools, snippet, codexKey, flag, type Lamp } from "../core";
   import Load from "../Load.svelte";
 
   const keys = $derived(readPath(store.config.data || {}, "access/api-keys", []) as string[]);
@@ -15,9 +15,13 @@
   const local = /^(localhost|127\.|\[?::1\]?$)/.test(location.hostname);
   // Cursor calls the proxy from its own servers, so a local address cannot work there.
   const target = $derived(tool === "Cursor" && local ? "https://your-public-address" : base);
+  // The Codex config and its key go to different places, so they copy separately.
+  const blocks = (k: string) => [snippet(tool, target, k, model || "MODEL_ID"), ...(tool === "Codex CLI" ? [codexKey(k)] : [])];
+  // Claude Code and Codex CLI fail without a real model; the SDK examples show where it goes.
+  const needs = $derived(!model && (tool === "Claude Code" || tool === "Codex CLI"));
   const notes: Record<string, string> = {
-    "Claude Code": "Run these in the shell you start Claude Code from. To keep them, put the variables in the env block of ~/.claude/settings.json. /status in Claude Code shows the address in use.",
-    "Codex CLI": "Add the provider to ~/.codex/config.toml and set the key in your shell.",
+    "Claude Code": "Run these in the shell you start Claude Code from. To keep them, put the variables in the env block of ~/.claude/settings.json. Leave out the HAIKU line to keep Claude's own Haiku for small tasks. /status in Claude Code shows the address in use.",
+    "Codex CLI": "Put the first part in ~/.codex/config.toml and run the second in your shell.",
     Cursor: "Cursor sends requests from its own servers, so the proxy needs a public HTTPS address, for example through a Cloudflare tunnel. Enter both values under Cursor Settings, Models.",
     "OpenAI SDK": "Python. The JavaScript SDK takes the same baseURL and apiKey. Chat Completions and Responses both work.",
     "Anthropic SDK": "Python. The address has no /v1 here: the SDK adds it.",
@@ -100,18 +104,23 @@
           {#each tools as t}<button aria-pressed={tool === t} onclick={() => (tool = t)}>{t}</button>{/each}
         </div>
         <p class="muted">{notes[tool]}</p>
-        <pre class="code-window" aria-label={`${tool} setup`}><div>{snippet(tool, target, mask(key), model || "MODEL_ID")}</div></pre>
-        <div class="row">
-          <button
-            class="key primary"
-            onclick={async () => {
-              if (await store.act(() => navigator.clipboard.writeText(snippet(tool, target, key, model || "MODEL_ID")), "Copied, with the full key."))
-                flag.set("start-tool", "1");
-            }}
-            ><svg class="i" aria-hidden="true"><use href="#i-copy" /></svg>Copy</button
-          >
-          <span class="legend">The copy includes the full key; the page shows it shortened.</span>
-        </div>
+        {#each blocks(key) as block, i}
+          <pre class="code-window" aria-label={`${tool} setup`}><div>{blocks(mask(key))[i]}</div></pre>
+          <div class="row">
+            <button
+              class="key primary"
+              disabled={needs}
+              onclick={async () => {
+                if (await store.act(() => navigator.clipboard.writeText(block), "Copied, with the full key.")) flag.set("start-tool", "1");
+              }}><svg class="i" aria-hidden="true"><use href="#i-copy" /></svg>Copy</button
+            >
+            {#if i === blocks(key).length - 1}<span class="legend"
+                >{needs
+                  ? "Needs a model. Add one to a provider first."
+                  : "The copy includes the full key; the page shows it shortened."}</span
+              >{/if}
+          </div>
+        {/each}
       </section>
     {/if}
   {/snippet}

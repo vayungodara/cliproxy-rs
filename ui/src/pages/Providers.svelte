@@ -102,7 +102,7 @@
           >Base URL<input type="url" required={compat} bind:value={form.url} placeholder={compat ? "https://…/v1" : "Provider default"} /></label
         >
         <label class="field">API key<input type="password" autocomplete="off" required bind:value={form.key} /></label>
-        {#if compat}<label class="field">Model<input required bind:value={form.model} placeholder="Name at the provider" /></label>
+        {#if compat}<label class="field">Model<input required pattern={"\\s*\\S.*"} bind:value={form.model} placeholder="Name at the provider" /></label>
           <label class="field">Alias<input bind:value={form.alias} placeholder="Same as model" /></label>{/if}
         <button class="key primary" disabled={store.busy}><svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>Add group</button>
       </form>
