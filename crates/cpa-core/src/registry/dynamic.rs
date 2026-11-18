@@ -340,12 +340,50 @@ pub struct ConfigModel {
     pub display_name: String,
     pub max_context_length: i64,
     pub force_mapping: bool,
-    pub is_compat: bool,
+    /// `None` when the entry leaves it out (or sets it to null): for an OpenAI-compatible
+    /// model that means [`ConfigModel::compat_is_compat`]'s host default, else off.
+    pub is_compat: Option<bool>,
     pub support_configuration_update: bool,
     pub image: bool,
     pub thinking: Option<ThinkingSupport>,
     pub input_modalities: Vec<String>,
     pub output_modalities: Vec<String>,
+}
+
+impl ConfigModel {
+    /// Go `IsCompat` for the families whose flag has no default.
+    pub fn is_compat(&self) -> bool {
+        self.is_compat == Some(true)
+    }
+
+    /// `is-compat` of a model in an `openai-compatibility` group at `base_url`: its own
+    /// setting, else on for DeepSeek's and Kimi's official APIs (a cliproxy-rs default;
+    /// docs/DIFFERENCES-FROM-GO.md). The registry and the per-attempt binding both read it.
+    pub fn compat_is_compat(&self, base_url: &str) -> bool {
+        self.is_compat.unwrap_or_else(|| requires_reasoning_replay(base_url))
+    }
+}
+
+/// DeepSeek's and Kimi's official OpenAI-compatible APIs refuse an assistant tool-call
+/// turn without `reasoning_content` while thinking is on. Kimi serves its platform on
+/// api.moonshot.ai and api.moonshot.cn, and Kimi Code on api.kimi.com and api.kimi.ai.
+fn requires_reasoning_replay(base_url: &str) -> bool {
+    let Ok(url) = url::Url::parse(base_url.trim()) else {
+        return false;
+    };
+    // The parser lowercases hosts and punycodes non-ASCII ones, so ASCII comparison is
+    // exact. A fully qualified name (one trailing dot) is the same host.
+    url.host_str().is_some_and(|host| {
+        let host = host.strip_suffix('.').unwrap_or(host);
+        [
+            "api.deepseek.com",
+            "api.moonshot.ai",
+            "api.moonshot.cn",
+            "api.kimi.com",
+            "api.kimi.ai",
+        ]
+        .contains(&host)
+    })
 }
 
 /// Configured models carried on a config-backed credential: full entries under
@@ -794,7 +832,7 @@ fn build_config_models(
                 context_length: m.max_context_length.max(0),
                 max_context_length: m.max_context_length.max(0),
                 thinking,
-                is_compat: m.is_compat,
+                is_compat: m.is_compat(),
                 support_configuration_update: m.support_configuration_update,
                 user_defined: true,
                 explicit_thinking: m.thinking.is_some(),
@@ -827,7 +865,7 @@ pub fn normalize_thinking(mut t: ThinkingSupport) -> ThinkingSupport {
     t
 }
 
-fn compat_models(models: &[ConfigModel], owned_by: &str, now: i64) -> Vec<Spec> {
+fn compat_models(models: &[ConfigModel], owned_by: &str, base_url: &str, now: i64) -> Vec<Spec> {
     models
         .iter()
         .filter_map(|m| {
@@ -871,7 +909,7 @@ fn compat_models(models: &[ConfigModel], owned_by: &str, now: i64) -> Vec<Spec> 
                 context_length: m.max_context_length.max(0),
                 max_context_length: m.max_context_length.max(0),
                 thinking,
-                is_compat: m.is_compat,
+                is_compat: m.compat_is_compat(base_url),
                 explicit_thinking: m.thinking.is_some(),
                 explicit_input_modalities: !m.input_modalities.is_empty(),
                 supported_input_modalities: normalize_modalities(&m.input_modalities),
@@ -1096,7 +1134,16 @@ pub fn models_for(cfg: &Config, aliases: &HashMap<String, Vec<OAuthAlias>>, c: &
         let owned_by = c.attributes.get("compat_name").cloned().unwrap_or_default();
         // Go appends the provider's plugin models here too, without exclusions, and
         // even when no models are configured.
-        let models = append_plugin_models(&provider_key(c), compat_models(&configured, &owned_by, now), &[]);
+        let models = append_plugin_models(
+            &provider_key(c),
+            compat_models(
+                &configured,
+                &owned_by,
+                c.attributes.get("base_url").map_or("", String::as_str),
+                now,
+            ),
+            &[],
+        );
         return apply_prefix(models, credential_prefix(c), cfg.routing.force_model_prefix);
     }
     let with_config = |channel_models: Vec<Spec>, owned_by: &str, kind: &str, metadata: &str| {

@@ -418,13 +418,13 @@ async fn lcp_session_reaches_custom_headers_and_usage_records() {
     assert_eq!(field(2, "is_compaction"), None);
 }
 
-/// DeepSeek's and Kimi's official hosts make a model `is-compat` unless its entry says
-/// `is-compat: false` (a cliproxy-rs default; docs/DIFFERENCES-FROM-GO.md). A Claude
-/// request with thinking on then sends `reasoning_content` on every assistant tool-call
-/// turn: `" "` on one without thinking text, and the thinking text otherwise. The
-/// official hosts are reached through a loopback forward proxy (each key's
-/// `proxy-url`), so nothing leaves the machine; other hosts, a look-alike host and an
-/// explicit `false` keep Go's default.
+/// DeepSeek's and Kimi's official hosts make a model `is-compat` unless the model sets
+/// it itself (a cliproxy-rs default; docs/DIFFERENCES-FROM-GO.md). A Claude request with
+/// thinking on and tools declared then sends `reasoning_content` on every assistant
+/// tool-call turn: `" "` on one without thinking text, and the thinking text otherwise.
+/// The official hosts are reached through a loopback forward proxy (each key's
+/// `proxy-url`), so nothing leaves the machine. An explicit `false` beside an inherited
+/// model on the same host, a look-alike host and a loopback host keep Go's default.
 #[tokio::test]
 async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;
@@ -432,40 +432,53 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     let upstream = axum::Router::new()
         .fallback(|State(wire): State<Wire>, req: Request| async move {
             // Through the forward proxy the request line carries the absolute URL.
-            let target = req.uri().to_string();
+            let host = req.uri().host().unwrap_or_default().trim_end_matches('.').to_owned();
             let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
             wire.lock()
                 .unwrap()
-                .push((target, serde_json::from_slice(&body).unwrap()));
+                .push((host, serde_json::from_slice(&body).unwrap()));
             ([("content-type", "application/json")], CHAT).into_response()
         })
         .with_state(wire.clone());
     let mock = serve(upstream).await;
     let auth_dir = std::env::temp_dir().join(format!("cpa-compat-hosts-auths-{}", std::process::id()));
     std::fs::create_dir_all(&auth_dir).unwrap();
-    let entry = |name: &str, base: &str, flag: &str, proxied: bool| {
+    // One group per base URL; each model is (alias, extra YAML for the model).
+    let entry = |name: &str, base: &str, models: &[(&str, &str)], proxied: bool| {
         let proxy = if proxied {
             format!("\n          proxy-url: {mock}")
         } else {
             String::new()
         };
+        let models: String = models
+            .iter()
+            .map(|(alias, flag)| format!("        - name: up-{alias}\n          alias: {alias}{flag}\n"))
+            .collect();
         format!(
-            "    - name: {name}\n      base-url: {base}\n      models:\n        - name: up-{name}\n          alias: {name}{flag}\n      keys:\n        - api-key: sk-fake-{name}{proxy}\n"
+            "    - name: {name}\n      base-url: {base}\n      models:\n{models}      keys:\n        - api-key: sk-fake-{name}{proxy}\n"
         )
     };
+    let off = "\n          is-compat: false";
     let config = Config::parse(&format!(
-        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}",
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}{}{}",
         auth_dir.display(),
-        entry("deepseek", "http://api.deepseek.com/v1", "", true),
-        entry("kimi-cn", "http://API.Moonshot.CN/v1", "", true),
         entry(
-            "kimi-off",
-            "http://api.moonshot.ai/v1",
-            "\n          is-compat: false",
+            "deepseek",
+            "http://api.deepseek.com/v1",
+            &[("ds-inherit", ""), ("ds-off", off)],
             true
         ),
-        entry("lookalike", "http://api.deepseek.com.example.test/v1", "", true),
-        entry("acme", &format!("{mock}/v1"), "", false),
+        entry("kimi-cn", "http://API.Moonshot.CN/v1", &[("kimi-cn", "")], true),
+        entry("kimi-ai", "http://api.moonshot.ai./v1", &[("kimi-ai", "")], true),
+        entry("kimi-code-cn", "http://api.kimi.com/coding/v1", &[("kc-cn", "")], true),
+        entry("kimi-code-ai", "http://api.kimi.ai/coding/v1", &[("kc-ai", "")], true),
+        entry(
+            "lookalike",
+            "http://api.deepseek.com.example.test/v1",
+            &[("lookalike", "")],
+            true
+        ),
+        entry("acme", &format!("{mock}/v1"), &[("acme", "")], false),
     ))
     .unwrap();
     let credentials = cpa_core::config::credentials::load(&config);
@@ -483,36 +496,59 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     ))))
     .await;
 
+    let models = [
+        "ds-inherit",
+        "ds-off",
+        "kimi-cn",
+        "kimi-ai",
+        "kc-cn",
+        "kc-ai",
+        "lookalike",
+        "acme",
+    ];
     let mut seen = Vec::new();
-    for model in ["deepseek", "kimi-cn", "kimi-off", "lookalike", "acme"] {
+    for model in models {
         let body = format!(
-            r#"{{"model":"{model}","max_tokens":10,"thinking":{{"type":"enabled","budget_tokens":1024}},"messages":[{{"role":"user","content":"read"}},{{"role":"assistant","content":[{{"type":"tool_use","id":"call_1","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_1","content":"a"}}]}},{{"role":"assistant","content":[{{"type":"thinking","thinking":"plan it","signature":"sig"}},{{"type":"tool_use","id":"call_2","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_2","content":"b"}}]}}]}}"#
+            r#"{{"model":"{model}","max_tokens":10,"thinking":{{"type":"enabled","budget_tokens":1024}},"tools":[{{"name":"Read","description":"Read a file","input_schema":{{"type":"object","properties":{{}}}}}}],"messages":[{{"role":"user","content":"read"}},{{"role":"assistant","content":[{{"type":"tool_use","id":"call_1","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_1","content":"a"}}]}},{{"role":"assistant","content":[{{"type":"thinking","thinking":"plan it","signature":"sig"}},{{"type":"tool_use","id":"call_2","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_2","content":"b"}}]}}]}}"#
         );
         let (status, text) = send(&url, "/v1/messages", &[], body.into_bytes()).await;
         assert_eq!(status, 200, "{model}: {text}");
-        let (target, body) = wire.lock().unwrap().pop().unwrap();
+        let (host, body) = wire.lock().unwrap().pop().unwrap();
+        assert!(body.get("tools").is_some(), "{model}: tools reach the upstream: {body}");
+        // `.get`: an absent field is None, unlike a JSON null.
         let turn = |call: &str| {
             body["messages"]
                 .as_array()
                 .unwrap()
                 .iter()
                 .find(|m| m["tool_calls"][0]["id"] == call)
-                .unwrap_or_else(|| panic!("{model}: no turn calling {call}: {body}"))["reasoning_content"]
-                .clone()
+                .unwrap_or_else(|| panic!("{model}: no turn calling {call}: {body}"))
+                .get("reasoning_content")
+                .cloned()
         };
-        seen.push((model, target, turn("call_1"), turn("call_2")));
+        seen.push((model, host, turn("call_1"), turn("call_2")));
     }
     use serde_json::Value;
-    let on = |model, target: &str| (model, target.to_owned(), Value::from(" "), Value::from("plan it"));
-    let off = |model, target: &str| (model, target.to_owned(), Value::Null, Value::Null);
+    let on = |model, host: &str| {
+        (
+            model,
+            host.to_owned(),
+            Some(Value::from(" ")),
+            Some(Value::from("plan it")),
+        )
+    };
+    let off = |model, host: &str| (model, host.to_owned(), None, None);
     assert_eq!(
         seen,
         [
-            on("deepseek", "http://api.deepseek.com/v1/chat/completions"),
-            on("kimi-cn", "http://api.moonshot.cn/v1/chat/completions"),
-            off("kimi-off", "http://api.moonshot.ai/v1/chat/completions"),
-            off("lookalike", "http://api.deepseek.com.example.test/v1/chat/completions"),
-            off("acme", "/v1/chat/completions"),
+            on("ds-inherit", "api.deepseek.com"),
+            off("ds-off", "api.deepseek.com"),
+            on("kimi-cn", "api.moonshot.cn"),
+            on("kimi-ai", "api.moonshot.ai"),
+            on("kc-cn", "api.kimi.com"),
+            on("kc-ai", "api.kimi.ai"),
+            off("lookalike", "api.deepseek.com.example.test"),
+            off("acme", ""),
         ]
     );
 }

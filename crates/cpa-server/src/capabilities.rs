@@ -198,7 +198,7 @@ fn entry_models(cfg: &Config, c: &Credential) -> Option<(Vec<Configured>, &'stat
             alias: m.alias,
             thinking: m.thinking,
             // VertexCompatModel has no is-compat (Go's GetIsCompat is absent).
-            is_compat: m.is_compat && family != "vertex",
+            is_compat: m.is_compat() && family != "vertex",
             support_configuration_update: (family == "codex").then_some(m.support_configuration_update),
         })
         .collect();
@@ -238,20 +238,15 @@ fn compat_models(cfg: &Config, c: &Credential) -> Option<Vec<Configured>> {
             !disabled(g) && candidates.iter().any(|cand| !cand.is_empty() && cand.go_eq_fold(&name))
         })
     })?;
-    let thinking_host = requires_reasoning_replay(&text(entry.get("base-url")));
+    let base_url = text(entry.get("base-url"));
     let models = entry
         .get("models")
         .and_then(serde_yaml_ng::Value::as_sequence)
         .into_iter()
         .flatten()
-        .filter_map(|m| {
-            let mut parsed = serde_yaml_ng::from_value::<ConfigModel>(m.clone()).ok()?;
-            if m.get("is-compat").is_none() {
-                parsed.is_compat = thinking_host;
-            }
-            Some(parsed)
-        })
+        .filter_map(|m| serde_yaml_ng::from_value::<ConfigModel>(m.clone()).ok())
         .map(|m| Configured {
+            is_compat: m.compat_is_compat(&base_url),
             thinking: m.thinking.or_else(|| {
                 (!m.image).then(|| ThinkingSupport {
                     levels: vec!["low".into(), "medium".into(), "high".into()],
@@ -260,33 +255,10 @@ fn compat_models(cfg: &Config, c: &Credential) -> Option<Vec<Configured>> {
             }),
             name: m.name,
             alias: m.alias,
-            is_compat: m.is_compat,
             support_configuration_update: None,
         })
         .collect();
     Some(models)
-}
-
-/// A cliproxy-rs default (docs/DIFFERENCES-FROM-GO.md): DeepSeek's and Kimi's official
-/// OpenAI-compatible APIs refuse a tool-call turn without `reasoning_content` while
-/// thinking is on, so their models are `is-compat` unless a model sets it itself.
-/// Kimi serves its platform on api.moonshot.ai and api.moonshot.cn, and Kimi Code on
-/// api.kimi.com and api.kimi.ai.
-fn requires_reasoning_replay(base_url: &str) -> bool {
-    let Ok(url) = url::Url::parse(base_url) else {
-        return false;
-    };
-    // The parser lowercases hosts and punycodes non-ASCII ones, so ASCII comparison is exact.
-    url.host_str().is_some_and(|host| {
-        [
-            "api.deepseek.com",
-            "api.moonshot.ai",
-            "api.moonshot.cn",
-            "api.kimi.com",
-            "api.kimi.ai",
-        ]
-        .contains(&host)
-    })
 }
 
 /// `modelAliasLookupCandidates`: the model, then its suffix-free base when different.
@@ -400,7 +372,7 @@ fn unlisted_codex(cfg: &Config, c: &Credential, upstream_model: &str) -> Option<
         "codex",
         configured.as_ref().and_then(|m| m.thinking.clone()),
     );
-    let (support, compat) = configured.map_or((false, false), |m| (m.support_configuration_update, m.is_compat));
+    let (support, compat) = configured.map_or((false, false), |m| (m.support_configuration_update, m.is_compat()));
     set_flag(&mut info, "support_configuration_update", support);
     set_flag(&mut info, "is_compat", compat);
     Some(info)
