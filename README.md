@@ -119,7 +119,7 @@ claude
 
 <p align="center"><img src="https://github.com/vayungodara/cliproxy-rs/raw/master/docs/img/demo.gif" alt="A terminal recording. A Responses request to cliproxy-rs on 127.0.0.1:8317 returns the provider's answer, and the provider's log shows two Chat Completions requests: the first key answered 429 and the second 200. A Messages request then returns the same answer with one more request, on the second key." width="880"></p>
 
-<p align="center">One Responses request and one Messages request through cliproxy-rs to a local stand-in provider whose first key answers 429. <a href="https://github.com/vayungodara/cliproxy-rs/blob/master/docs/demo/README.md">How it was recorded</a>.</p>
+<p align="center">A Responses and a Messages request to a stand-in provider whose first key answers 429. <a href="https://github.com/vayungodara/cliproxy-rs/blob/master/docs/demo/README.md">How it was recorded</a>.</p>
 
 ## Other ways to install
 
