@@ -3,14 +3,16 @@
 
 It answers 429 with `Retry-After: 60` to the first key that sends a request and 200 to any
 other key, so the recording does not depend on which key cliproxy-rs tries first. It prints
-one line per request, which shows what cliproxy-rs sent upstream. It listens on 127.0.0.1
-only and needs nothing outside the standard library.
+one line per POST, which shows what cliproxy-rs sent upstream. `GET /demo-mock` answers
+with a fixed line and is not logged, so start.sh can tell this server from another one on
+the port. It listens on 127.0.0.1 only and needs nothing outside the standard library.
 """
 import json
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 REPLY = "Hello from the mock provider."
+PROBE = b"cliproxy-rs demo mock\n"  # docs/demo/start.sh waits for this exact answer
 limited_key = None  # the first key seen; it is rate limited for the whole run
 
 
@@ -28,6 +30,11 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def do_GET(self):
+        if self.path == "/demo-mock":
+            return self.send_body(200, "text/plain", PROBE)
+        self.send_body(404, "text/plain", b"not found\n")
 
     def do_POST(self):
         request = json.loads(self.rfile.read(int(self.headers.get("Content-Length", 0))) or b"{}")

@@ -32,7 +32,7 @@ Set Theme "TokyoNight"
 Set TypingSpeed 28ms
 
 Hide
-Type ". docs/demo/start.sh && clear" Enter
+Type ". docs/demo/start.sh || exit 1; clear" Enter
 Sleep 2s
 Show
 

@@ -19,11 +19,11 @@ That is for macOS and Linux, and it needs no `sudo` and no Rust toolchain. For W
 ## Quick start
 
 1. Run the install command above. It checks the release checksum, starts the proxy on `127.0.0.1`, prints the dashboard URL and opens it when it can. The port is 8317, or the next free one up to 8336 when something else has it; `~/.cliproxy-rs/keys.env` records it as `CLIPROXY_PORT`.
-2. Add a provider and its models to `~/.cliproxy-rs/config.yaml`. Copy a provider block from [API keys](#api-keys-codex-cli-and-mixed-providers) and fill in the key and the model ID. The proxy reloads the file when you save it. The block needs its `models` list: the dashboard's Provider keys form saves a name, base URL and key but no models, and a provider without models serves none. In the dashboard, the place for the block is Configuration, then Edit YAML.
+2. Add a provider and its models to `~/.cliproxy-rs/config.yaml`. Copy a provider block from [API keys](#api-keys-codex-cli-and-mixed-providers) and fill in the key and the model ID. The proxy reloads the file when you save it. An OpenAI-compatible entry needs a `models` list, and the dashboard's Provider keys form saves a name, base URL and key without one. In the dashboard, the place for the block is Configuration, then Edit YAML.
 3. Sign in to the dashboard with `CLIPROXY_MANAGEMENT_KEY` from `keys.env`, open **Use with tools** and check that your model alias is in its Model list.
-4. Export `CLIPROXY_CLIENT_KEY` from the same `keys.env`, give your tool the settings below and run `codex` or `claude`.
+4. Give your tool the settings below and run it. The shell blocks read the port and the client key from the same `keys.env`, so the key is never sent to another server on 8317.
 
-The snippets on the **Use with tools** page leave the model out, so start from these. For Codex CLI and a provider whose model alias is `deepseek`, `~/.codex/config.toml` looks like this, with your port if it is not 8317:
+The Codex CLI and Claude Code snippets on the **Use with tools** page leave the model out, so start from these. For Codex CLI and a provider whose model alias is `deepseek`, `~/.codex/config.toml` looks like this. In `base_url`, use the `CLIPROXY_PORT` value from `keys.env`; it is 8317 unless the installer found that port taken:
 
 ```toml
 model = "deepseek"
@@ -36,10 +36,17 @@ env_key = "CLIPROXY_CLIENT_KEY"
 wire_api = "responses"
 ```
 
+```sh
+. ~/.cliproxy-rs/keys.env
+export CLIPROXY_CLIENT_KEY
+codex
+```
+
 Claude Code takes environment variables, and its base URL has no `/v1`. Set `ANTHROPIC_MODEL` to one of your model aliases:
 
 ```sh
-export ANTHROPIC_BASE_URL=http://127.0.0.1:8317
+. ~/.cliproxy-rs/keys.env
+export ANTHROPIC_BASE_URL="http://127.0.0.1:${CLIPROXY_PORT}"
 export ANTHROPIC_AUTH_TOKEN="$CLIPROXY_CLIENT_KEY"
 export ANTHROPIC_MODEL="<model-alias>"
 claude
@@ -145,17 +152,15 @@ CLIProxyAPI is the complete implementation, and cliproxy-rs follows an older rel
 
 ### With other proxies
 
-Each cell for another project says what that project's own README states, read on 18 November 2026. "Not documented" means the README doesn't mention it. None of the other projects was run for this table.
+Unless otherwise noted, each cell is from the project's README (18 November 2026). "Not documented" means the README doesn't mention it. None of the other projects was run for this table.
 
 | | cliproxy-rs | [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) | [claude-code-router](https://github.com/musistudio/claude-code-router) | [LiteLLM](https://github.com/BerriAI/litellm) | [opencodex](https://github.com/lidge-jun/opencodex) |
 | --- | --- | --- | --- | --- | --- |
-| Language and packaging | Rust, one binary | Go, one binary³ | Node.js 22+ (npm), desktop app, Docker | Python (pip or uv), Docker | Bun (npm), desktop app, Docker |
-| Client APIs | OpenAI Chat Completions and Responses, Anthropic Messages, Gemini | OpenAI including Responses, Gemini including Interactions, Claude | OpenAI Chat and Responses, Anthropic Messages, Gemini | `/chat/completions`, `/responses`, `/messages` and others | Responses, Chat Completions, Anthropic Messages |
-| When a key or provider fails | A 429 cools the key, and the request moves to another key or provider with the same alias | Round-robin across accounts; failover is not documented in the README³ | Retries, credential pools, key rotation, ordered fallback models | Retry and fallback across deployments | Combos: failover or weighted round-robin across providers |
+| Language and packaging | Rust, one binary | Go, one binary ([release assets](https://github.com/router-for-me/CLIProxyAPI/releases/tag/v8.0.35)) | Node.js 22+ (npm), desktop app, Docker | Python (uv), Docker | npm with Node 18+, which bundles the Bun runtime; desktop app; Docker |
+| Client APIs | OpenAI Chat Completions and Responses, Anthropic Messages, Gemini | OpenAI including Responses, Gemini including Interactions, Claude | `/messages`, `/chat/completions`, `/responses`, `/interactions` and `/v1beta/*` ([Docker guide](https://github.com/musistudio/claude-code-router/blob/main/docker/README.md)) | `/chat/completions`, `/responses`, `/messages` and others | Responses, Chat Completions, Anthropic Messages |
+| When a key or provider fails | A 429 cools the key, and the request moves to another key or provider with the same alias | Round-robin across accounts in the README; credential retry rounds and cooldowns in [`config.example.yaml`](https://github.com/router-for-me/CLIProxyAPI/blob/v8.0.35/config.example.yaml) at v8.0.35 | Retries, credential pools, key rotation, ordered fallback models | Retries, then fallback to another model group; failing deployments cool down ([reliability docs](https://docs.litellm.ai/docs/proxy/reliability)) | Combos: failover or weighted round-robin across providers |
 | Built-in dashboard | Yes, in the binary | Separate project (Management Center) | Yes | Yes | Yes |
 | Reads CLIProxyAPI's config and credential files | Yes, with [partial parity](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md) | It is the reference | Not documented | Not documented | Not documented |
-
-³ Not stated in CLIProxyAPI's README; checked in its v8.0.35 source and release assets. cliproxy-rs's cooldown and failover are ports of that code.
 
 Where the others are stronger:
 
