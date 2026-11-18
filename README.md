@@ -18,12 +18,12 @@ That is for macOS and Linux, and it needs no `sudo` and no Rust toolchain. For W
 
 ## Quick start
 
-1. Run the install command above. It checks the release checksum, starts the proxy on `127.0.0.1` and opens the dashboard.
-2. Sign in with `CLIPROXY_MANAGEMENT_KEY` from `~/.cliproxy-rs/keys.env` and add a provider API key.
-3. Copy the Codex CLI or Claude Code settings from the dashboard's **Use with tools** page.
-4. Export `CLIPROXY_CLIENT_KEY` from the same `keys.env` and run `codex` or `claude`.
+1. Run the install command above. It checks the release checksum, starts the proxy on `127.0.0.1`, prints the dashboard URL and opens it when it can. The port is 8317, or the next free one up to 8336 when something else has it; `~/.cliproxy-rs/keys.env` records it as `CLIPROXY_PORT`.
+2. Add a provider and its models to `~/.cliproxy-rs/config.yaml`. Copy a provider block from [API keys](#api-keys-codex-cli-and-mixed-providers) and fill in the key and the model ID. The proxy reloads the file when you save it. The block needs its `models` list: the dashboard's Provider keys form saves a name, base URL and key but no models, and a provider without models serves none. In the dashboard, the place for the block is Configuration, then Edit YAML.
+3. Sign in to the dashboard with `CLIPROXY_MANAGEMENT_KEY` from `keys.env`, open **Use with tools** and check that your model alias is in its Model list.
+4. Export `CLIPROXY_CLIENT_KEY` from the same `keys.env`, give your tool the settings below and run `codex` or `claude`.
 
-For Codex CLI and a provider whose model alias is `deepseek`, `~/.codex/config.toml` looks like this:
+The snippets on the **Use with tools** page leave the model out, so start from these. For Codex CLI and a provider whose model alias is `deepseek`, `~/.codex/config.toml` looks like this, with your port if it is not 8317:
 
 ```toml
 model = "deepseek"
@@ -47,7 +47,7 @@ claude
 
 <p align="center"><img src="https://github.com/vayungodara/cliproxy-rs/raw/master/docs/img/demo.gif" alt="A terminal recording. A Responses request to cliproxy-rs on 127.0.0.1:8317 returns the provider's answer, and the provider's log shows two Chat Completions requests: the first key answered 429 and the second 200. A Messages request then returns the same answer with one more request, on the second key." width="880"></p>
 
-The recording sends a Responses request, as Codex CLI does, and a Messages request, as Claude Code does, through cliproxy-rs 0.4.2. The provider is a local stand-in that only offers Chat Completions and answers 429 to the first key that reaches it. It was recorded with [vhs](https://github.com/charmbracelet/vhs) from [`docs/demo/demo.tape`](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/demo/demo.tape), and you can record it again without an API key. On 18 November 2026, the same two requests through 0.4.4 gave the same provider log. [Further down](#api-keys-codex-cli-and-mixed-providers), Codex CLI runs a task on a real provider.
+The recording sends a Responses request, as Codex CLI does, and a Messages request, as Claude Code does, through cliproxy-rs 0.4.2. The provider is a local stand-in that answers in the Chat Completions format and returns 429 to the first key that reaches it. It was recorded with [vhs](https://github.com/charmbracelet/vhs) from [`docs/demo/demo.tape`](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/demo/demo.tape), and you can record it again without an API key; the tape's header says how to keep your own settings out of it. On 18 November 2026, the same two requests through 0.4.4 gave the same provider log. [Further down](#api-keys-codex-cli-and-mixed-providers), Codex CLI runs a task on a real provider.
 
 - **API translation.** Codex CLI sends Responses requests, and the proxy sends Chat Completions to providers that only offer those, tool calls included. Claude Code's Messages requests are translated to the selected provider's format the same way.
 - **Several keys and providers behind one model name.** By default, a 429 cools that key for the model and the request moves to another ready key or provider with the same alias.
@@ -67,7 +67,7 @@ On Windows, in PowerShell:
 irm https://raw.githubusercontent.com/vayungodara/cliproxy-rs/master/install.ps1 | iex
 ```
 
-The installer checks the release checksum, writes `~/.cliproxy-rs/config.yaml`, starts the proxy and opens the dashboard. On Windows, the config is `%USERPROFILE%\.cliproxy-rs\config.yaml`. It saves new keys in `keys.env` without printing them.
+The installer checks the release checksum, writes `~/.cliproxy-rs/config.yaml`, starts the proxy, prints the dashboard URL and opens it when it can. On Windows, the config is `%USERPROFILE%\.cliproxy-rs\config.yaml`. It saves new keys in `keys.env` without printing them.
 
 There is also [Homebrew](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/INSTALL.md#homebrew) on macOS or Linux and [Scoop](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/INSTALL.md#scoop) on Windows. `cargo install cliproxy` builds the [crate](https://crates.io/crates/cliproxy) and needs the tools listed under [From source](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/INSTALL.md#from-source).
 
@@ -102,25 +102,26 @@ The compatibility target is CLIProxyAPI v8.0.35. Parity is incomplete: the audit
 
 | Provider | Connect with | Notes |
 | --- | --- | --- |
-| Any OpenAI-compatible API: DeepSeek, GLM (Z.ai), Kimi (Moonshot), OpenRouter, OpenCode Go, your own gateway | API key, under `api-keys.openai-compatibility` | The proxy sends Chat Completions upstream. [Base URLs](#api-keys-codex-cli-and-mixed-providers) are below. |
+| Any OpenAI Chat Completions-compatible API: DeepSeek, GLM (Z.ai), Kimi (Moonshot), OpenRouter, OpenCode Go, your own gateway | API key, under `api-keys.openai-compatibility` | The proxy sends Chat Completions upstream. [Base URLs](#api-keys-codex-cli-and-mixed-providers) are below. |
 | Anthropic (Claude) | API key, or your own account | |
 | OpenAI (Codex) | API key, or your own account | Browser or device-code sign-in |
 | Google Gemini | API key | Includes Gemini Interactions |
 | Vertex AI | Service account or API key | |
 | xAI | API key, or your own account | |
-| Kimi, Meta, Devin, Google Antigravity | Your own account | |
+| Meta | API key, or your own account | |
+| Kimi, Devin, Google Antigravity | Your own account | |
 | AI Studio | Browser relay on `/v1/ws` | |
 | A model on your own machine, served by llama.cpp, Ollama or vLLM | An `openai-compatibility` entry | [LOCAL-MODELS.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/LOCAL-MODELS.md) has the config for each server and the Codex CLI runs that were tested. |
 
 Clients can send OpenAI (Chat Completions, Responses), Anthropic (Messages) or Gemini requests, and the proxy translates between the three formats. [PARITY.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md#what-works-today) lists the routes. Account sign-ins are for one person's own accounts; see [Accounts and provider terms](#accounts-and-provider-terms).
 
-The tests run against local mock upstreams and fixtures recorded from CLIProxyAPI, never real provider accounts. The one run against a hosted provider recorded here is Codex CLI with DeepSeek V4.1 Flash on OpenCode Go, on 7 October 2026 ([below](#api-keys-codex-cli-and-mixed-providers)). LOCAL-MODELS.md records Codex CLI runs against llama.cpp, Ollama and vLLM on 14 and 16 November 2026.
+The automated tests use local mocks and fixtures recorded from CLIProxyAPI. The hosted-provider run shown [below](#api-keys-codex-cli-and-mixed-providers) is Codex CLI with DeepSeek V4.1 Flash on OpenCode Go, on 7 October 2026. LOCAL-MODELS.md records Codex CLI runs against llama.cpp, Ollama and vLLM on 14 and 16 November 2026.
 
 ## How it compares
 
 ### With CLIProxyAPI
 
-cliproxy-rs is a rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). Every row links to where the fact can be checked.
+cliproxy-rs is a rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI). Every row names a source.
 
 | | cliproxy-rs | CLIProxyAPI | Source |
 | --- | --- | --- | --- |
@@ -133,7 +134,7 @@ cliproxy-rs is a rewrite of [CLIProxyAPI](https://github.com/router-for-me/CLIPr
 | Memory, idle at start¹ | 25.8 MB | 49.7 MB | Same section |
 | Memory, field-mix hour¹ | 161.5 MB peak, 97.8 MB after 5 minutes idle | 198.3 MB peak, 75.8 MB after 5 minutes idle | [BENCHMARKS.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md#against-go-v8035) |
 | Non-streaming requests per second² | 1,168 | 1,568 | [BENCHMARKS.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/BENCHMARKS.md#what-the-numbers-say) |
-| Apps built on it | None tested with cliproxy-rs yet | Many, listed in its README | [CLIProxyAPI compatibility](#cliproxyapi-compatibility) |
+| Third-party CLIProxyAPI apps | None tested with cliproxy-rs | Its README lists many | [CLIProxyAPI compatibility](#cliproxyapi-compatibility), [Who is with us?](https://github.com/router-for-me/CLIProxyAPI#who-is-with-us) |
 | License | MIT | MIT | Each repository |
 
 ¹ cliproxy-rs 0.4.0 and CLIProxyAPI v8.0.35 release binaries. Idle at start is the RSS 15 seconds after launch with one API key and no traffic, measured on one Linux machine on 31 October 2026. The field-mix hour sent streamed Claude and Codex requests of about 1 MB for an hour, each server on its own GitHub-hosted runner at the same time, on 28 October 2026.
@@ -144,13 +145,17 @@ CLIProxyAPI is the complete implementation, and cliproxy-rs follows an older rel
 
 ### With other proxies
 
-Checked against each project's own README on 18 November 2026. All of these translate between the OpenAI and Anthropic formats, Responses to Chat Completions included, and can move a request to another key when one fails. CLIProxyAPI's README doesn't state that; it was checked in its v8.0.35 source.
+Each cell for another project says what that project's own README states, read on 18 November 2026. "Not documented" means the README doesn't mention it. None of the other projects was run for this table.
 
 | | cliproxy-rs | [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) | [claude-code-router](https://github.com/musistudio/claude-code-router) | [LiteLLM](https://github.com/BerriAI/litellm) | [opencodex](https://github.com/lidge-jun/opencodex) |
 | --- | --- | --- | --- | --- | --- |
-| Language and packaging | Rust, one binary | Go, one binary | Node.js 22+ (npm), desktop app, Docker | Python (pip or uv), Docker | Bun (npm), desktop app, Docker |
+| Language and packaging | Rust, one binary | Go, one binary³ | Node.js 22+ (npm), desktop app, Docker | Python (pip or uv), Docker | Bun (npm), desktop app, Docker |
+| Client APIs | OpenAI Chat Completions and Responses, Anthropic Messages, Gemini | OpenAI including Responses, Gemini including Interactions, Claude | OpenAI Chat and Responses, Anthropic Messages, Gemini | `/chat/completions`, `/responses`, `/messages` and others | Responses, Chat Completions, Anthropic Messages |
+| When a key or provider fails | A 429 cools the key, and the request moves to another key or provider with the same alias | Round-robin across accounts; failover is not documented in the README³ | Retries, credential pools, key rotation, ordered fallback models | Retry and fallback across deployments | Combos: failover or weighted round-robin across providers |
 | Built-in dashboard | Yes, in the binary | Separate project (Management Center) | Yes | Yes | Yes |
-| Reads CLIProxyAPI's config and credential files | Yes, with [partial parity](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md) | It is the reference | No | No | No |
+| Reads CLIProxyAPI's config and credential files | Yes, with [partial parity](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md) | It is the reference | Not documented | Not documented | Not documented |
+
+³ Not stated in CLIProxyAPI's README; checked in its v8.0.35 source and release assets. cliproxy-rs's cooldown and failover are ports of that code.
 
 Where the others are stronger:
 
@@ -171,7 +176,7 @@ The local OpenAI base URL is `http://127.0.0.1:8317/v1`. Claude Code and Gemini 
 | Cursor, Amp | Their servers send the requests, so the proxy needs a public HTTPS address | [Cursor](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/CLIENTS.md#cursor), [Amp](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/CLIENTS.md#amp) |
 | OpenAI, Anthropic and Google Gen AI SDKs | Each SDK's own format | [SDKs](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/CLIENTS.md#sdks) |
 
-Not every model and tool combination has been tested. For Claude Code on DeepSeek or Kimi with thinking on, add `is-compat: true` to the model's entry under `models`. Without it, those providers refuse a tool-call turn that has no thinking text; [DIFFERENCES-FROM-GO.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/DIFFERENCES-FROM-GO.md#additions-in-cliproxy-rs) has the details.
+Not every model and tool combination has been tested. For Claude Code on DeepSeek or Kimi with thinking on, add `is-compat: true` beside `name` and `alias` in the model's entry, in the `models` list of that `api-keys.openai-compatibility` provider. It is not a setting for the Kimi account sign-in. Without it, those providers refuse a tool-call turn that has no thinking text; [DIFFERENCES-FROM-GO.md](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/DIFFERENCES-FROM-GO.md#additions-in-cliproxy-rs) has the details.
 
 ## API keys: Codex CLI and mixed providers
 

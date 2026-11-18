@@ -1,11 +1,15 @@
 # The README demo: one Responses request and one Messages request through cliproxy-rs
 # to a Chat Completions-only provider, with a 429 on the first key.
 #
-# The provider is docs/demo/mock_upstream.py on 127.0.0.1:8399, so the recording needs
-# no API key and sends nothing to the internet. It answers 429 with Retry-After: 60 to
-# the first key that sends a request and 200 to the other, so the recording does not
-# depend on which key the proxy tries first. docs/img/demo.gif was recorded with
-# cliproxy-rs 0.4.2, which tried keyA first.
+# The provider is docs/demo/mock_upstream.py on 127.0.0.1:8399, and docs/demo/config.yaml
+# holds only that provider and dummy keys, so the recording needs no API key. Record it
+# in a clean environment: start.sh starts the proxy in a temporary directory, away from
+# any .env file, and unsets the Home and remote-store variables that would replace the
+# config, but other settings in your shell still apply.
+#
+# The mock answers 429 with Retry-After: 60 to the first key that sends a request and
+# 200 to the other, so the recording does not depend on which key the proxy tries
+# first. docs/img/demo.gif was recorded with cliproxy-rs 0.4.2, which tried keyA first.
 #
 # Record it from the repository root with `cliproxy` on PATH and ports 8317 and 8399 free:
 #

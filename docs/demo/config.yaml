@@ -1,6 +1,6 @@
 # The proxy config for the README demo. One OpenAI-compatible provider (the mock in
-# mock_upstream.py) with two keys behind the model alias "demo". start.sh fills in
-# the auth-dir, so the demo never reads real credentials.
+# mock_upstream.py, on 127.0.0.1) with two dummy keys behind the model alias "demo".
+# start.sh fills in a temporary auth-dir.
 config-version: 8
 server:
   host: "127.0.0.1"
