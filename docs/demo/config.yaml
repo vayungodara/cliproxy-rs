@@ -1,0 +1,22 @@
+# The proxy config for the README demo. One OpenAI-compatible provider (the mock in
+# mock_upstream.py, on 127.0.0.1) with two dummy keys behind the model alias "demo".
+# start.sh fills in a temporary auth-dir.
+config-version: 8
+server:
+  host: "127.0.0.1"
+  port: 8317
+access:
+  api-keys:
+    - "demo-client-key"
+oauth:
+  auth-dir: "__AUTH_DIR__"
+api-keys:
+  openai-compatibility:
+    - name: mock
+      base-url: "http://127.0.0.1:8399/v1"
+      keys:
+        - api-key: "keyA"
+        - api-key: "keyB"
+      models:
+        - name: "mock-model"
+          alias: "demo"

@@ -47,7 +47,6 @@ The compatibility target stays v8.0.35. This list covers upstream changes up to 
 
 Providers and requests:
 
-- Claude Code with DeepSeek or Kimi: for an `openai-compatibility` model with `is-compat: true` and thinking on, upstream adds `reasoning_content: " "` to assistant tool-call turns that have no thinking text. DeepSeek and Kimi reject those turns without it (v8.0.64).
 - Codex CLI's automatic compaction (`compaction_trigger`) is answered locally for `codex-api-key` models with `is-compat: true` (v8.0.64). cliproxy-rs answers it for `openai-compatibility` providers in its own way; see the compaction v2 entry under [Deliberate differences](DIFFERENCES-FROM-GO.md#deliberate-differences).
 - OpenAI-compatible requests forward the client's `User-Agent` by default. cliproxy-rs defaults to `cli-proxy-openai-compat` unless a configured `headers:` entry overrides it (v8.0.36).
 - Gemini and Antigravity answers to Chat Completions clients use `finish_reason: "length"` when the token limit is reached. cliproxy-rs sends `"max_tokens"`, as v8.0.35 does (v8.0.68).
