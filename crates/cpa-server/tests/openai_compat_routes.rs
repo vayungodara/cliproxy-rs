@@ -417,3 +417,102 @@ async fn lcp_session_reaches_custom_headers_and_usage_records() {
     assert!(field(2, "parent_session_id").is_some(), "{}", records[2]);
     assert_eq!(field(2, "is_compaction"), None);
 }
+
+/// DeepSeek's and Kimi's official hosts make a model `is-compat` unless its entry says
+/// `is-compat: false` (a cliproxy-rs default; docs/DIFFERENCES-FROM-GO.md). A Claude
+/// request with thinking on then sends `reasoning_content` on every assistant tool-call
+/// turn: `" "` on one without thinking text, and the thinking text otherwise. The
+/// official hosts are reached through a loopback forward proxy (each key's
+/// `proxy-url`), so nothing leaves the machine; other hosts, a look-alike host and an
+/// explicit `false` keep Go's default.
+#[tokio::test]
+async fn deepseek_and_kimi_hosts_default_to_is_compat() {
+    type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;
+    let wire: Wire = Arc::default();
+    let upstream = axum::Router::new()
+        .fallback(|State(wire): State<Wire>, req: Request| async move {
+            // Through the forward proxy the request line carries the absolute URL.
+            let target = req.uri().to_string();
+            let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
+            wire.lock()
+                .unwrap()
+                .push((target, serde_json::from_slice(&body).unwrap()));
+            ([("content-type", "application/json")], CHAT).into_response()
+        })
+        .with_state(wire.clone());
+    let mock = serve(upstream).await;
+    let auth_dir = std::env::temp_dir().join(format!("cpa-compat-hosts-auths-{}", std::process::id()));
+    std::fs::create_dir_all(&auth_dir).unwrap();
+    let entry = |name: &str, base: &str, flag: &str, proxied: bool| {
+        let proxy = if proxied {
+            format!("\n          proxy-url: {mock}")
+        } else {
+            String::new()
+        };
+        format!(
+            "    - name: {name}\n      base-url: {base}\n      models:\n        - name: up-{name}\n          alias: {name}{flag}\n      keys:\n        - api-key: sk-fake-{name}{proxy}\n"
+        )
+    };
+    let config = Config::parse(&format!(
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}",
+        auth_dir.display(),
+        entry("deepseek", "http://api.deepseek.com/v1", "", true),
+        entry("kimi-cn", "http://API.Moonshot.CN/v1", "", true),
+        entry(
+            "kimi-off",
+            "http://api.moonshot.ai/v1",
+            "\n          is-compat: false",
+            true
+        ),
+        entry("lookalike", "http://api.deepseek.com.example.test/v1", "", true),
+        entry("acme", &format!("{mock}/v1"), "", false),
+    ))
+    .unwrap();
+    let credentials = cpa_core::config::credentials::load(&config);
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let url = serve(router(Arc::new(cpa_server::testing::runtime(
+        config,
+        credentials,
+        executors,
+    ))))
+    .await;
+
+    let mut seen = Vec::new();
+    for model in ["deepseek", "kimi-cn", "kimi-off", "lookalike", "acme"] {
+        let body = format!(
+            r#"{{"model":"{model}","max_tokens":10,"thinking":{{"type":"enabled","budget_tokens":1024}},"messages":[{{"role":"user","content":"read"}},{{"role":"assistant","content":[{{"type":"tool_use","id":"call_1","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_1","content":"a"}}]}},{{"role":"assistant","content":[{{"type":"thinking","thinking":"plan it","signature":"sig"}},{{"type":"tool_use","id":"call_2","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_2","content":"b"}}]}}]}}"#
+        );
+        let (status, text) = send(&url, "/v1/messages", &[], body.into_bytes()).await;
+        assert_eq!(status, 200, "{model}: {text}");
+        let (target, body) = wire.lock().unwrap().pop().unwrap();
+        let turn = |call: &str| {
+            body["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|m| m["tool_calls"][0]["id"] == call)
+                .unwrap_or_else(|| panic!("{model}: no turn calling {call}: {body}"))["reasoning_content"]
+                .clone()
+        };
+        seen.push((model, target, turn("call_1"), turn("call_2")));
+    }
+    use serde_json::Value;
+    let on = |model, target: &str| (model, target.to_owned(), Value::from(" "), Value::from("plan it"));
+    let off = |model, target: &str| (model, target.to_owned(), Value::Null, Value::Null);
+    assert_eq!(
+        seen,
+        [
+            on("deepseek", "http://api.deepseek.com/v1/chat/completions"),
+            on("kimi-cn", "http://api.moonshot.cn/v1/chat/completions"),
+            off("kimi-off", "http://api.moonshot.ai/v1/chat/completions"),
+            off("lookalike", "http://api.deepseek.com.example.test/v1/chat/completions"),
+            off("acme", "/v1/chat/completions"),
+        ]
+    );
+}

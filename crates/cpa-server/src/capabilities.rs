@@ -238,12 +238,19 @@ fn compat_models(cfg: &Config, c: &Credential) -> Option<Vec<Configured>> {
             !disabled(g) && candidates.iter().any(|cand| !cand.is_empty() && cand.go_eq_fold(&name))
         })
     })?;
+    let thinking_host = requires_reasoning_replay(&text(entry.get("base-url")));
     let models = entry
         .get("models")
         .and_then(serde_yaml_ng::Value::as_sequence)
         .into_iter()
         .flatten()
-        .filter_map(|m| serde_yaml_ng::from_value::<ConfigModel>(m.clone()).ok())
+        .filter_map(|m| {
+            let mut parsed = serde_yaml_ng::from_value::<ConfigModel>(m.clone()).ok()?;
+            if m.get("is-compat").is_none() {
+                parsed.is_compat = thinking_host;
+            }
+            Some(parsed)
+        })
         .map(|m| Configured {
             thinking: m.thinking.or_else(|| {
                 (!m.image).then(|| ThinkingSupport {
@@ -258,6 +265,28 @@ fn compat_models(cfg: &Config, c: &Credential) -> Option<Vec<Configured>> {
         })
         .collect();
     Some(models)
+}
+
+/// A cliproxy-rs default (docs/DIFFERENCES-FROM-GO.md): DeepSeek's and Kimi's official
+/// OpenAI-compatible APIs refuse a tool-call turn without `reasoning_content` while
+/// thinking is on, so their models are `is-compat` unless a model sets it itself.
+/// Kimi serves its platform on api.moonshot.ai and api.moonshot.cn, and Kimi Code on
+/// api.kimi.com and api.kimi.ai.
+fn requires_reasoning_replay(base_url: &str) -> bool {
+    let Ok(url) = url::Url::parse(base_url) else {
+        return false;
+    };
+    // The parser lowercases hosts and punycodes non-ASCII ones, so ASCII comparison is exact.
+    url.host_str().is_some_and(|host| {
+        [
+            "api.deepseek.com",
+            "api.moonshot.ai",
+            "api.moonshot.cn",
+            "api.kimi.com",
+            "api.kimi.ai",
+        ]
+        .contains(&host)
+    })
 }
 
 /// `modelAliasLookupCandidates`: the model, then its suffix-free base when different.

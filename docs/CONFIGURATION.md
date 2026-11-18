@@ -92,6 +92,14 @@ api-keys:
           alias: "kimi-k2"
 ```
 
+Each `models` entry names the model at the provider (`name`) and the ID clients ask for (`alias`; the name when empty). An OpenAI-compatible group serves only the models it lists. Beside `name` and `alias`, a model can set `is-compat`, for providers that keep reasoning between turns:
+
+- Claude requests, such as Claude Code's, keep their thinking text as `reasoning_content` even when it has no signature this provider accepts.
+- While thinking is on, an assistant tool-call turn with no thinking text is sent with `reasoning_content: " "`. DeepSeek and Kimi refuse a tool-call turn without `reasoning_content`, so without `is-compat` Claude Code with thinking on fails after its first tool call.
+- In OpenAI Responses requests, such as Codex CLI's, Codex multi-agent messages lose their `author`, `recipient` and passthrough metadata.
+
+`is-compat` is on by default for the models of a group whose `base-url` host is DeepSeek's or Kimi's official API: `api.deepseek.com`, `api.moonshot.ai`, `api.moonshot.cn`, `api.kimi.com` or `api.kimi.ai` (Kimi Code). Go has no such default ([DIFFERENCES-FROM-GO.md](DIFFERENCES-FROM-GO.md)). Set `is-compat: false` on a model to turn it off. For these models through another host, such as OpenRouter above, set `is-compat: true` yourself.
+
 A `vertex` key with `interactions: true` sends Interactions clients (`/v1beta/interactions`) to Vertex's native Interactions API (`/v1beta1/interactions`) instead of translating them to `generateContent`. A Vertex service-account file opts in the same way with `"interactions": true` or `"native_interactions": true` at the top level. When the credential names a project (a service account's `project_id`, or a file's `project_id` next to its `access_token`), the path is `/v1beta1/projects/<project>/locations/global/interactions`; the credential's `location` is ignored, and the host is the configured `base-url` or `https://aiplatform.googleapis.com`.
 
 Vertex partner and open models (MaaS), named `<publisher>/<model>` such as `deepseek-ai/deepseek-v4.1-flash-maas` or `publishers/<publisher>/models/<model>`, go to Vertex's OpenAI-compatible `endpoints/openapi` route as Chat Completions requests, for every client format and before the Interactions opt-in; the upstream model is `<publisher>/<model>`. Two setups reach the route:
