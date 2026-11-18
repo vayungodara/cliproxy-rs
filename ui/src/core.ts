@@ -440,9 +440,11 @@ export function snippet(tool: (typeof tools)[number], base: string, key: string,
   const v1 = `${base}/v1`;
   switch (tool) {
     case "Claude Code":
-      return `export ANTHROPIC_BASE_URL=${shw(base)}\nexport ANTHROPIC_AUTH_TOKEN=${shq(key)}\nclaude`;
+      // Small-model calls ask for Haiku unless told otherwise; the selected model always exists.
+      return `export ANTHROPIC_BASE_URL=${shw(base)}\nexport ANTHROPIC_AUTH_TOKEN=${shq(key)}\nexport ANTHROPIC_MODEL=${shw(model)}\nexport ANTHROPIC_DEFAULT_HAIKU_MODEL=${shw(model)}\nclaude`;
     case "Codex CLI":
-      return `# ~/.codex/config.toml\nmodel_provider = "cliproxy"\n\n[model_providers.cliproxy]\nname = "cliproxy"\nbase_url = ${str(v1)}\nenv_key = "CLIPROXY_API_KEY"\nwire_api = "responses"\n\n# then, in your shell\nexport CLIPROXY_API_KEY=${shq(key)}`;
+      // Only what goes in ~/.codex/config.toml; the key goes in the shell (codexKey).
+      return `model = ${str(model)}\nmodel_provider = "cliproxy"\n\n[model_providers.cliproxy]\nname = "cliproxy"\nbase_url = ${str(v1)}\nenv_key = "CLIPROXY_CLIENT_KEY"\nwire_api = "responses"`;
     case "Cursor":
       return `OpenAI API key:            ${key}\nOverride OpenAI Base URL:  ${v1}`;
     case "OpenAI SDK":
@@ -453,6 +455,9 @@ export function snippet(tool: (typeof tools)[number], base: string, key: string,
       return `curl ${shw(`${v1}/models`)} -H ${shq(`Authorization: Bearer ${key}`)}`;
   }
 }
+
+/** The shell line that gives Codex CLI the key its config.toml names. */
+export const codexKey = (key: string) => `export CLIPROXY_CLIENT_KEY=${shq(key)}`;
 
 /** A quota read for one credential: windows with when they were read, or only an error. */
 export type Limits = { windows: Window[]; at: number; error?: string } | { error: string } | null;

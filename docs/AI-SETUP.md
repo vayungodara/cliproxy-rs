@@ -135,7 +135,7 @@ cliproxy --config ~/.cliproxy-rs/config.yaml --claude-login
 
 The dashboard's Use with tools page has copy-paste settings with the address and key filled in, and [CLIENTS.md](CLIENTS.md) covers each tool. Ask the user which tools they use before changing their settings.
 
-For Claude Code, this adds the proxy to the `env` block of `~/.claude/settings.json`, keeps a backup, and reads the key from `keys.env` so it never appears in the conversation:
+For Claude Code, this adds the proxy to the `env` block of `~/.claude/settings.json`, keeps a backup, and reads the key from `keys.env` so it never appears in the conversation. With a Claude account, Claude Code's own models work. For any other provider, first set `MODEL` to an ID the user picks from `/v1/models` (start the script as `MODEL=<id> python3 - <<'PY'`), so the script also sets `ANTHROPIC_MODEL` and `ANTHROPIC_DEFAULT_HAIKU_MODEL`, as the dashboard's snippet does:
 
 ```sh
 set -a; . ~/.cliproxy-rs/keys.env; set +a
@@ -151,6 +151,8 @@ data.setdefault("env", {}).update({
     "ANTHROPIC_BASE_URL": "http://127.0.0.1:" + os.environ["CLIPROXY_PORT"],
     "ANTHROPIC_AUTH_TOKEN": os.environ["CLIPROXY_CLIENT_KEY"],
 })
+if os.environ.get("MODEL"):
+    data["env"]["ANTHROPIC_MODEL"] = data["env"]["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = os.environ["MODEL"]
 json.dump(data, open(path, "w"), indent=2)
 print("updated", path)
 PY

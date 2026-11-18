@@ -66,13 +66,17 @@ Read [Accounts and provider terms](../README.md#accounts-and-provider-terms) bef
   <img src="img/use-light.png" alt="The Use with tools page: the proxy address, the client key test and a ready-to-copy Claude Code setup" width="880">
 </picture>
 
-The dashboard's Use with tools page shows this server's address and your client key with copy buttons, and tests the key. For Claude Code, for example:
+The dashboard's Use with tools page shows this server's address and your client key with copy buttons, tests the key, and lets you pick one of the models it reaches. For Claude Code, for example:
 
 ```sh
 export ANTHROPIC_BASE_URL=http://127.0.0.1:8317
 export ANTHROPIC_AUTH_TOKEN=PASTE-YOUR-CLIENT-KEY
+export ANTHROPIC_MODEL=PASTE-A-MODEL-ID
+export ANTHROPIC_DEFAULT_HAIKU_MODEL=PASTE-A-MODEL-ID
 claude
 ```
+
+Leave out the last export to keep Claude's own Haiku for Claude Code's small tasks; with a Claude account you can leave out both model lines.
 
 [CLIENTS.md](CLIENTS.md) has the setup for Codex CLI, Gemini CLI, Amp, OpenCode, Cursor, Cline, Zed, Aider, the SDKs and more.
 

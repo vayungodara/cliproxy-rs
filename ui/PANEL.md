@@ -55,7 +55,7 @@ The updater only sees published releases, not drafts. Until the first release is
 
 SHA-256 of the `dist-panel/management.html` built from this commit:
 
-<!-- sha256 -->`4a7d21774f343e5ab39c210f381123b33596d1fdeb320e5f4b02d5de255c7b0f`<!-- /sha256 -->
+<!-- sha256 -->`2f4030ba788c72bd9e280c9e4cc988d5a3a179c8474a3626df69c146a59a0344`<!-- /sha256 -->
 
 ```sh
 sha256sum static/management.html
@@ -65,7 +65,7 @@ sha256sum static/management.html
 
 ## Size
 
-About 184 KB on disk and 71 KB gzip, of which 18 KB is the inlined font. The JavaScript and CSS inside are the same as the Rust build and stay within its budget (49,500 B and 6,853 B gzip).
+About 184 KB on disk and 71 KB gzip, of which 18 KB is the inlined font. The JavaScript and CSS inside are the same as the Rust build and stay within its budget, set in [scripts/size.mjs](scripts/size.mjs).
 
 ## Remove
 

@@ -16,6 +16,7 @@ import {
   reconcile,
   signalWindows,
   snippet,
+  codexKey,
   span,
   strategy,
   sumBuckets,
@@ -321,8 +322,13 @@ test("tool setup points at this server with the chosen key", () => {
   for (const tool of ["Codex CLI", "Cursor", "OpenAI SDK", "curl"] as const)
     assert.ok(snippet(tool, base, "sk-k", "m").includes(`${base}/v1`), tool);
   assert.ok(snippet("OpenAI SDK", base, "sk-k", "claude-x").includes('model="claude-x"'));
-  for (const tool of ["Claude Code", "Codex CLI", "Cursor", "OpenAI SDK", "Anthropic SDK", "curl"] as const)
+  // Small-model calls go to the chosen model whatever its name: an ID says nothing about a Haiku route.
+  for (const m of ["deepseek-chat", "Claude-lab"])
+    assert.match(snippet("Claude Code", base, "sk-k", m), new RegExp(`\\nexport ANTHROPIC_DEFAULT_HAIKU_MODEL=${m}\\nclaude$`));
+  for (const tool of ["Claude Code", "Cursor", "OpenAI SDK", "Anthropic SDK", "curl"] as const)
     assert.ok(snippet(tool, base, "sk-secret-key", "m").includes("sk-secret-key"), tool);
+  // The Codex config holds no key, so all of it can go in config.toml.
+  assert.ok(!snippet("Codex CLI", base, "sk-secret-key", "m").includes("sk-secret-key"));
 });
 
 test("tool setup survives keys with shell and string metacharacters", (t) => {
@@ -336,10 +342,13 @@ test("tool setup survives keys with shell and string metacharacters", (t) => {
     return r.stdout;
   };
   const claude = snippet("Claude Code", base, key, model).replace(/\nclaude$/, "");
-  assert.equal(sh(`${claude}\nprintf '%s|%s' "$ANTHROPIC_BASE_URL" "$ANTHROPIC_AUTH_TOKEN"`), `${base}|${key}`);
+  assert.equal(
+    sh(`${claude}\nprintf '%s|%s|%s|%s' "$ANTHROPIC_BASE_URL" "$ANTHROPIC_AUTH_TOKEN" "$ANTHROPIC_MODEL" "$ANTHROPIC_DEFAULT_HAIKU_MODEL"`),
+    `${base}|${key}|${model}|${model}`,
+  );
   const codex = snippet("Codex CLI", base, key, model);
-  const exportLine = codex.split("\n").find((l) => l.startsWith("export "))!;
-  assert.equal(sh(`${exportLine}\nprintf '%s' "$CLIPROXY_API_KEY"`), key);
+  // The installer's keys.env and the README name the client key CLIPROXY_CLIENT_KEY.
+  assert.equal(sh(`${codexKey(key)}\nprintf '%s' "$CLIPROXY_CLIENT_KEY"`), key);
   const curl = snippet("curl", `${base}/a b`, key, model).replace(/^curl /, "printf '%s\\n' ");
   assert.equal(sh(curl), `${base}/a b/v1/models\n-H\nAuthorization: Bearer ${key}\n`);
 
@@ -361,11 +370,13 @@ print(json.dumps({k.arg: k.value.value for n in ast.walk(ast.parse(sys.stdin.rea
   }
   // tomllib arrived in Python 3.11; older versions skip only the TOML part.
   if (spawnSync("python3", ["-c", "import tomllib"]).status !== 0) return t.skip("python3 has no tomllib (before 3.11)");
-  const toml = codex.slice(0, codex.indexOf("# then"));
-  const parsed = run("import json, sys, tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))", toml);
+  // Exactly what the Copy button puts in config.toml.
+  const parsed = run("import json, sys, tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))", codex);
   assert.equal(parsed.model_providers.cliproxy.base_url, `${base}/v1`);
+  assert.equal(parsed.model, model);
+  assert.equal(parsed.model_providers.cliproxy.env_key, "CLIPROXY_CLIENT_KEY");
   const odd = run("import json, sys, tomllib; print(json.dumps(tomllib.loads(sys.stdin.read())))",
-    snippet("Codex CLI", `http://h/p"\\q`, key, model).split("# then")[0]);
+    snippet("Codex CLI", `http://h/p"\\q`, key, model));
   assert.equal(odd.model_providers.cliproxy.base_url, `http://h/p"\\q/v1`);
 });
 
