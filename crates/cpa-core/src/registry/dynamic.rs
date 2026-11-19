@@ -367,7 +367,7 @@ impl ConfigModel {
 /// DeepSeek's and Kimi's official OpenAI-compatible APIs refuse an assistant tool-call
 /// turn without `reasoning_content` while thinking is on. Kimi serves its platform on
 /// api.moonshot.ai and api.moonshot.cn, and Kimi Code on api.kimi.com and api.kimi.ai.
-fn requires_reasoning_replay(base_url: &str) -> bool {
+pub fn requires_reasoning_replay(base_url: &str) -> bool {
     // Go's url.Parse, as the executor builds its request URL: `https:api.deepseek.com`
     // has no host there. A fully qualified name (one trailing dot) is the same host.
     // ASCII case only: a host with non-ASCII letters is another DNS name.
