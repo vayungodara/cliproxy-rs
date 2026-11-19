@@ -329,9 +329,12 @@ fn configured(cfg: &Config, c: &Credential, route_model: &str, upstream_model: &
         // advertises it.
         let own = own_compat_models(c);
         for m in &mut models {
-            m.is_compat = own.iter().any(|o| {
-                o.is_compat && o.name.trim().go_eq_fold(m.name.trim()) && o.alias.trim().go_eq_fold(m.alias.trim())
-            });
+            // The first matching entry, as routing and the registry keep the first of
+            // duplicate name/alias pairs.
+            m.is_compat = own
+                .iter()
+                .find(|o| o.name.trim().go_eq_fold(m.name.trim()) && o.alias.trim().go_eq_fold(m.alias.trim()))
+                .is_some_and(|o| o.is_compat);
         }
     }
     // (key, upstream name, model index) in insertion order.
@@ -663,6 +666,14 @@ mod tests {
         }
         let (got, want): (Vec<_>, Vec<_>) = all.into_iter().unzip();
         assert_eq!(got, want);
+
+        // Duplicate name/alias pairs: the first entry's explicit false wins, as its route does.
+        let cfg = Config::parse(
+            "api-keys:\n  openai-compatibility:\n    - name: dup\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: same, is-compat: false}\n        - {name: up, alias: same, is-compat: true}\n      keys:\n        - api-key: sk-fake\n",
+        )
+        .unwrap();
+        let c = &credentials::from_config(&cfg)[0];
+        assert_eq!(resolve(&cfg, c, "same", "up").map(|r| r.is_compat()), Some(false));
     }
 
     /// Go `TestResolveModelInfoConfiguredThinkingKeepsCatalogDisableType`: configured levels
