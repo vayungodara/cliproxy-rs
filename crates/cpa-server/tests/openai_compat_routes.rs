@@ -427,6 +427,7 @@ async fn lcp_session_reaches_custom_headers_and_usage_records() {
 /// machine. An explicit `false` beside an inherited model on the same host, a look-alike
 /// host and a loopback host keep Go's default. A keyless entry of an unnamed group, which
 /// Go never binds, still replays reasoning for a model that defaults to on, without a binding.
+/// Aliases that fold together replay by the one the request routed to.
 #[tokio::test]
 async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;
@@ -469,8 +470,13 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
             .collect();
         format!("    - base-url: {base}\n      models:\n{models}      keys: []\n")
     };
+    // Two routes to one upstream whose aliases fold together: each request replays by
+    // the row routing matched, not the first alias that folds to it.
+    let fold = format!(
+        "    - name: fold\n      base-url: http://api.deepseek.com/v1\n      models:\n        - {{name: up-fold, alias: s}}\n        - {{name: up-fold, alias: \"\u{17f}\", is-compat: false}}\n      keys:\n        - api-key: sk-fake-fold\n          proxy-url: {mock}\n"
+    );
     let config = Config::parse(&format!(
-        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}{}{}{}{}",
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}{}{}{}{}{}",
         auth_dir.display(),
         entry(
             "deepseek",
@@ -491,6 +497,7 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
         entry("acme", &format!("{mock}/v1"), &[("acme", "")], false),
         unnamed("http://api.deepseek.com/v1", &[("anon-ds", ""), ("anon-ds-off", off)]),
         unnamed("http://upstream.example.test/v1", &[("anon-other", "")]),
+        fold,
     ))
     .unwrap();
     let mut credentials = cpa_core::config::credentials::load(&config);
@@ -525,6 +532,8 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
         "anon-ds",
         "anon-ds-off",
         "anon-other",
+        "s",
+        "\u{17f}",
     ];
     let mut seen = Vec::new();
     for model in models {
@@ -572,6 +581,8 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
             on("anon-ds", "api.deepseek.com"),
             off("anon-ds-off", "api.deepseek.com"),
             off("anon-other", "upstream.example.test"),
+            on("s", "api.deepseek.com"),
+            off("\u{17f}", "api.deepseek.com"),
         ]
     );
 }
