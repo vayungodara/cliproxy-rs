@@ -1828,20 +1828,27 @@ pub fn compat_replay(c: &Credential, route_model: &str, upstream: &str, force_pr
     let models = config_models(c);
     let requested = strip_prefix(route_model, c);
     let upstream = upstream.go_lower();
-    let published = published_rows(&models, credential_prefix(c), force_prefix);
-    // The public ID keeps its prefix; the stripped candidate is what an unnamed row sends.
-    for (candidate, stripped) in candidates(route_model).into_iter().zip(candidates(requested)) {
+    let published = published_rows(c, &models, force_prefix);
+    // The public ID keeps its prefix; routing trims the suffix-free ID, so `up (high)`
+    // is looked up as `up`.
+    for candidate in candidates(route_model) {
+        let candidate = candidate.trim();
         let lower = candidate.go_lower();
         let winner = published
             .iter()
-            .find(|(id, _)| *id == candidate)
+            .find(|(id, _)| id == candidate)
             .or_else(|| published.iter().find(|(id, _)| *id == lower));
-        let Some(&(_, index)) = winner else {
+        let Some(&(_, row)) = winner else {
             continue;
         };
+        // A plugin model published under the ID has no stored row: the producer decides.
+        let Some(index) = row else {
+            break;
+        };
         let m = &models[index];
+        // A row without a name registers its alias as the upstream model.
         let name = if m.name.trim().is_empty() {
-            stripped.as_str()
+            m.alias.trim()
         } else {
             m.name.trim()
         };
@@ -1860,25 +1867,38 @@ pub fn compat_replay(c: &Credential, route_model: &str, upstream: &str, force_pr
     Some(producer.is_some_and(|(_, index)| models[index].is_compat))
 }
 
-/// The IDs the registry publishes for a local OpenAI-compatible credential's rows, in
-/// registration order with each row's index: [`compat_models`] then [`apply_prefix`].
+/// The IDs the registry publishes for a local OpenAI-compatible credential, in
+/// registration order with each one's stored row (`None` for a plugin model):
+/// [`compat_models`], then [`append_plugin_models`], then [`apply_prefix`].
 /// Registration keeps the first definition of an ID, so the first entry for an ID wins.
-fn published_rows(models: &[ConfigModel], prefix: &str, force: bool) -> Vec<(String, usize)> {
-    let mut out = Vec::new();
+fn published_rows(c: &Credential, models: &[ConfigModel], force: bool) -> Vec<(String, Option<usize>)> {
+    let mut ids: Vec<(String, Option<usize>)> = Vec::new();
     for (index, m) in models.iter().enumerate() {
         let id = if m.alias.trim().is_empty() {
             m.name.trim()
         } else {
             m.alias.trim()
         };
-        if id.is_empty() {
-            continue;
+        if !id.is_empty() {
+            ids.push((id.to_owned(), Some(index)));
         }
+    }
+    if let Some(plugin) = plugin_catalog().providers.get(&provider_key(c)) {
+        for spec in plugin {
+            let id = spec.id.trim();
+            if !id.is_empty() && !ids.iter().any(|(seen, _)| seen == id) {
+                ids.push((id.to_owned(), None));
+            }
+        }
+    }
+    let prefix = credential_prefix(c);
+    let mut out = Vec::with_capacity(ids.len() * 2);
+    for (id, row) in ids {
         if prefix.is_empty() || !force || prefix == id {
-            out.push((id.to_owned(), index));
+            out.push((id.clone(), row));
         }
         if !prefix.is_empty() {
-            out.push((format!("{prefix}/{id}"), index));
+            out.push((format!("{prefix}/{id}"), row));
         }
     }
     out
@@ -2394,7 +2414,9 @@ mod tests {
         let row =
             |name: &str, alias: &str, flag: &str| format!("        - {{name: '{name}', alias: '{alias}'{flag}}}\n");
         let (off, on) = (", is-compat: false", ", is-compat: true");
-        let cases: Vec<(&str, String, &str, Vec<(&str, bool)>)> = vec![
+        // (label, models yaml, requested ID, expected (member, flag) pairs)
+        type Case<'a> = (&'a str, String, &'a str, Vec<(&'a str, bool)>);
+        let cases: Vec<Case> = vec![
             // Review 6: the name key `up` of `fast` must not shadow the published ID `up`.
             (
                 "fast first",
@@ -2482,6 +2504,21 @@ mod tests {
                 "p/fast",
                 vec![("b", false)],
             ),
+            // A row without a name publishes and sends its alias, here the literal `p/fast`,
+            // which is not what execution sends for `p/fast`.
+            (
+                "alias-only prefixed",
+                row("", "p/fast", on) + &row("fast", "fast", off),
+                "p/fast",
+                vec![("fast", false)],
+            ),
+            // Routing looks up `up (high)` as `up`, the published second row.
+            (
+                "space before suffix",
+                row("up", "fast", "") + &row("up", "up", off),
+                "up (high)",
+                vec![("up(high)", false)],
+            ),
             // Nothing stored produced the upstream (a plugin model, say): off.
             (
                 "unknown",
@@ -2532,16 +2569,17 @@ mod tests {
                 .collect();
             let r = Registry::build(&cfg, &creds);
             let models = config_models(&creds[0]);
-            let published = published_rows(&models, credential_prefix(&creds[0]), force);
+            let published = published_rows(&creds[0], &models, force);
             // The first entry per ID, as `compat_replay` finds it.
             for (n, (id, index)) in published.iter().enumerate() {
+                let index = index.expect("no plugin models here");
                 if published[..n].iter().any(|(seen, _)| seen == id) {
                     continue;
                 }
                 let spec = r.client_model(&creds[0].id, id);
                 assert_eq!(
                     spec.map(|s| (s.metadata_model_id.clone(), s.is_compat)),
-                    Some((models[*index].name.clone(), models[*index].is_compat)),
+                    Some((models[index].name.clone(), models[index].is_compat)),
                     "force {force}: {id}"
                 );
             }
@@ -2551,6 +2589,41 @@ mod tests {
         // sends `b`, so the producer (FAST, off) decides; forced, it is the third row,
         // which sends `d` and is on.
         assert_eq!(got, [(false, Some(false)), (true, Some(true))]);
+    }
+
+    /// A plugin model the registry publishes under the exact requested ID has no stored row,
+    /// so the row that produced the upstream decides, not a stored row that matches only
+    /// after lowercasing.
+    #[test]
+    fn plugin_model_under_the_id_leaves_the_flag_to_the_producer() {
+        // A provider no other test uses, as the plugin catalog is process-wide.
+        let (cfg, creds) = synthesized(
+            "    - name: replay-plugin\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: Fast, is-compat: false}\n        - {name: up, alias: fast, is-compat: true}\n      keys:\n        - api-key: sk-fake\n",
+        );
+        let plugin = Spec {
+            id: "FAST".into(),
+            owned_by: "plugin".into(),
+            ..Spec::default()
+        };
+        set_plugin_catalog(PluginCatalog {
+            providers: HashMap::from([(provider_key(&creds[0]), vec![plugin])]),
+            clients: Vec::new(),
+        });
+        let r = Registry::build(&cfg, &creds);
+        let owner = r.client_model(&creds[0].id, "FAST").map(|s| s.owned_by.clone());
+        let (members, _) = execution_models(&HashMap::new(), &creds[0], "FAST");
+        let flags: Vec<_> = members
+            .iter()
+            .map(|m| (m.clone(), compat_replay(&creds[0], "FAST", m, false)))
+            .collect();
+        set_plugin_catalog(PluginCatalog::default());
+        assert_eq!(
+            owner.as_deref(),
+            Some("plugin"),
+            "the registry publishes the plugin's FAST"
+        );
+        // Execution takes `up` from `Fast`, the first alias that folds to FAST.
+        assert_eq!(flags, [("up".to_owned(), Some(false))]);
     }
 
     /// Keyless unnamed groups: Go binds none; on the DeepSeek/Kimi hosts the replay flag
