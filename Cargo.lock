@@ -859,7 +859,6 @@ dependencies = [
  "sha2 0.10.9",
  "tracing",
  "unsafe-libyaml",
- "url",
  "yaml-edit",
 ]
 

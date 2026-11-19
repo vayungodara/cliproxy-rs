@@ -423,8 +423,10 @@ async fn lcp_session_reaches_custom_headers_and_usage_records() {
 /// thinking on and tools declared then sends `reasoning_content` on every assistant
 /// tool-call turn: `" "` on one without thinking text, and the thinking text otherwise.
 /// The official hosts are reached through a loopback forward proxy (each key's
-/// `proxy-url`), so nothing leaves the machine. An explicit `false` beside an inherited
-/// model on the same host, a look-alike host and a loopback host keep Go's default.
+/// `proxy-url`, set on the credential for keyless groups), so nothing leaves the
+/// machine. An explicit `false` beside an inherited model on the same host, a look-alike
+/// host and a loopback host keep Go's default. A keyless entry of an unnamed group, which
+/// Go never binds, binds a model that defaults to on, so it executes as it is registered.
 #[tokio::test]
 async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;
@@ -459,8 +461,16 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
         )
     };
     let off = "\n          is-compat: false";
+    // Unnamed groups without keys: no compat_name, no api_key, one credential each.
+    let unnamed = |base: &str, models: &[(&str, &str)]| {
+        let models: String = models
+            .iter()
+            .map(|(alias, flag)| format!("        - name: up-{alias}\n          alias: {alias}{flag}\n"))
+            .collect();
+        format!("    - base-url: {base}\n      models:\n{models}      keys: []\n")
+    };
     let config = Config::parse(&format!(
-        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}{}{}",
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}{}{}{}{}",
         auth_dir.display(),
         entry(
             "deepseek",
@@ -479,9 +489,16 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
             true
         ),
         entry("acme", &format!("{mock}/v1"), &[("acme", "")], false),
+        unnamed("http://api.deepseek.com/v1", &[("anon-ds", ""), ("anon-ds-off", off)]),
+        unnamed("http://upstream.example.test/v1", &[("anon-other", "")]),
     ))
     .unwrap();
-    let credentials = cpa_core::config::credentials::load(&config);
+    let mut credentials = cpa_core::config::credentials::load(&config);
+    // A keyless entry has no `proxy-url` of its own, and the test guard sends a global
+    // one to its deny proxy, so the unnamed groups get the forward proxy here.
+    for c in credentials.iter_mut().filter(|c| c.provider == "openai-compatibility") {
+        c.attributes.insert("proxy_url".into(), mock.clone());
+    }
     let executors = Executors {
         claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
         codex: Default::default(),
@@ -505,6 +522,9 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
         "kc-ai",
         "lookalike",
         "acme",
+        "anon-ds",
+        "anon-ds-off",
+        "anon-other",
     ];
     let mut seen = Vec::new();
     for model in models {
@@ -549,6 +569,9 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
             on("kc-ai", "api.kimi.ai"),
             off("lookalike", "api.deepseek.com.example.test"),
             off("acme", ""),
+            on("anon-ds", "api.deepseek.com"),
+            off("anon-ds-off", "api.deepseek.com"),
+            off("anon-other", "upstream.example.test"),
         ]
     );
 }

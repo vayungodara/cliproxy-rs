@@ -164,6 +164,17 @@ fn configured_routing(c: &Credential) -> bool {
     dynamic::is_api_key(c) || (matches!(c.source, Source::Config { .. }) && !attr(c, "compat_name").is_empty())
 }
 
+/// A keyless entry of an unnamed `openai-compatibility` group: Go routes none of its
+/// models, yet registers them with their is-compat. It binds only a model whose
+/// effective is-compat is on (explicit, or the DeepSeek/Kimi host default), so the
+/// executor sees what the registry advertises; anything else binds nothing, as in Go
+/// (docs/DIFFERENCES-FROM-GO.md).
+fn unnamed_keyless_compat(c: &Credential) -> bool {
+    !configured_routing(c)
+        && matches!(c.source, Source::Config { .. })
+        && c.provider.trim().go_eq_fold("openai-compatibility")
+}
+
 /// One configured model as Go compiles it (`addConfiguredModelCapability` inputs).
 struct Configured {
     name: String,
@@ -291,7 +302,8 @@ fn fallback_matches(configured: &str, selected: &str) -> bool {
 /// each model is keyed by its alias and name candidates (lowercased); a key keeps one
 /// route per upstream name, first model first.
 fn configured(cfg: &Config, c: &Credential, route_model: &str, upstream_model: &str) -> Option<ModelInfo> {
-    if !configured_routing(c) {
+    let compat_only = unnamed_keyless_compat(c);
+    if !configured_routing(c) && !compat_only {
         return None;
     }
     let (models, kind) = entry_models(cfg, c)?;
@@ -337,6 +349,9 @@ fn configured(cfg: &Config, c: &Credential, route_model: &str, upstream_model: &
         .find(|(up, _)| up.trim().go_eq_fold(selected))
         .or_else(|| matched.iter().find(|(up, _)| fallback_matches(up, selected)))?;
     let m = &models[*index];
+    if compat_only && !m.is_compat {
+        return None;
+    }
     let mut info = resolve_model_info(name, kind, m.thinking.clone());
     set_flag(&mut info, "is_compat", m.is_compat);
     if let Some(support) = m.support_configuration_update {
