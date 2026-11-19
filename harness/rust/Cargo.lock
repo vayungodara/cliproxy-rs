@@ -416,6 +416,7 @@ dependencies = [
  "sha2",
  "tracing",
  "unsafe-libyaml",
+ "url",
  "yaml-edit",
 ]
 
