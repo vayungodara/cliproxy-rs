@@ -194,11 +194,11 @@ fn entry_models(cfg: &Config, c: &Credential) -> Option<(Vec<Configured>, &'stat
         .iter()
         .filter_map(|m| serde_json::from_value::<ConfigModel>(m.clone()).ok())
         .map(|m| Configured {
+            // VertexCompatModel has no is-compat (Go's GetIsCompat is absent).
+            is_compat: m.is_compat() && family != "vertex",
             name: m.name,
             alias: m.alias,
             thinking: m.thinking,
-            // VertexCompatModel has no is-compat (Go's GetIsCompat is absent).
-            is_compat: m.is_compat() && family != "vertex",
             support_configuration_update: (family == "codex").then_some(m.support_configuration_update),
         })
         .collect();
