@@ -56,6 +56,7 @@ fn request(r: &Value) -> ExecRequest {
         execution_session: optional(&r["execution"]),
         derived_session: optional(&r["derived"]),
         resolved_model: None,
+        compat_replay: None,
         usage: Default::default(),
         request_path: String::new(),
         headers,

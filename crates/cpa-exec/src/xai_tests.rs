@@ -174,6 +174,7 @@ fn request(s: &Value, usage: cpa_core::exec::UsageSink) -> ExecRequest {
         execution_session: s["execution_session"].as_str().map(str::to_owned),
         derived_session: s["derived_session"].as_str().map(str::to_owned),
         resolved_model: bound_model(&s["resolved_model"]),
+        compat_replay: None,
         usage,
         request_path: s["request_path"].as_str().unwrap_or_default().to_owned(),
         headers,

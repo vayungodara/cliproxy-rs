@@ -194,6 +194,7 @@ fn request(s: &Value) -> ExecRequest {
         derived_session: None,
         request_path: String::new(),
         resolved_model: crate::gemini::tests::resolved_model(s),
+        compat_replay: None,
         usage: Default::default(),
         headers,
         caller: Caller {

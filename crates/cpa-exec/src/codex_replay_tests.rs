@@ -48,6 +48,7 @@ fn request(scenario: &Value, turn: &Value) -> ExecRequest {
             provider: String::new(),
         },
         resolved_model: None,
+        compat_replay: None,
         usage: Default::default(),
     }
 }

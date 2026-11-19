@@ -164,19 +164,6 @@ fn configured_routing(c: &Credential) -> bool {
     dynamic::is_api_key(c) || (matches!(c.source, Source::Config { .. }) && !attr(c, "compat_name").is_empty())
 }
 
-/// A keyless entry of an unnamed `openai-compatibility` group on one of the DeepSeek
-/// or Kimi hosts that default is-compat on: Go routes none of its models, yet the
-/// registry advertises them with their is-compat. Such an entry binds a route whose
-/// is-compat is on, so the executor sees what the registry advertises; anything else,
-/// and every keyless unnamed entry on another host, binds nothing, as in Go
-/// (docs/DIFFERENCES-FROM-GO.md).
-fn unnamed_keyless_default_host(c: &Credential) -> bool {
-    !configured_routing(c)
-        && matches!(c.source, Source::Config { .. })
-        && c.provider.trim().go_eq_fold("openai-compatibility")
-        && dynamic::requires_reasoning_replay(attr(c, "base_url"))
-}
-
 /// One configured model as Go compiles it (`addConfiguredModelCapability` inputs).
 struct Configured {
     name: String,
@@ -207,11 +194,11 @@ fn entry_models(cfg: &Config, c: &Credential) -> Option<(Vec<Configured>, &'stat
         .iter()
         .filter_map(|m| serde_json::from_value::<ConfigModel>(m.clone()).ok())
         .map(|m| Configured {
-            // VertexCompatModel has no is-compat (Go's GetIsCompat is absent).
-            is_compat: m.is_compat() && family != "vertex",
             name: m.name,
             alias: m.alias,
             thinking: m.thinking,
+            // VertexCompatModel has no is-compat (Go's GetIsCompat is absent).
+            is_compat: m.is_compat && family != "vertex",
             support_configuration_update: (family == "codex").then_some(m.support_configuration_update),
         })
         .collect();
@@ -251,42 +238,26 @@ fn compat_models(cfg: &Config, c: &Credential) -> Option<Vec<Configured>> {
             !disabled(g) && candidates.iter().any(|cand| !cand.is_empty() && cand.go_eq_fold(&name))
         })
     })?;
-    let base_url = text(entry.get("base-url"));
     let models = entry
         .get("models")
         .and_then(serde_yaml_ng::Value::as_sequence)
         .into_iter()
         .flatten()
         .filter_map(|m| serde_yaml_ng::from_value::<ConfigModel>(m.clone()).ok())
-        .map(|m| compat_configured(m, &base_url))
+        .map(|m| Configured {
+            thinking: m.thinking.or_else(|| {
+                (!m.image).then(|| ThinkingSupport {
+                    levels: vec!["low".into(), "medium".into(), "high".into()],
+                    ..ThinkingSupport::default()
+                })
+            }),
+            name: m.name,
+            alias: m.alias,
+            is_compat: m.is_compat,
+            support_configuration_update: None,
+        })
         .collect();
     Some(models)
-}
-
-/// The models a config-synthesized OpenAI-compatible credential stores, with is-compat
-/// resolved against its own base URL.
-fn own_compat_models(c: &Credential) -> Vec<Configured> {
-    let base_url = attr(c, "base_url");
-    dynamic::config_models(c)
-        .into_iter()
-        .map(|m| compat_configured(m, base_url))
-        .collect()
-}
-
-/// One OpenAI-compatible model of a group at `base_url`, as Go compiles it.
-fn compat_configured(m: ConfigModel, base_url: &str) -> Configured {
-    Configured {
-        is_compat: m.compat_is_compat(base_url),
-        thinking: m.thinking.or_else(|| {
-            (!m.image).then(|| ThinkingSupport {
-                levels: vec!["low".into(), "medium".into(), "high".into()],
-                ..ThinkingSupport::default()
-            })
-        }),
-        name: m.name,
-        alias: m.alias,
-        support_configuration_update: None,
-    }
 }
 
 /// `modelAliasLookupCandidates`: the model, then its suffix-free base when different.
@@ -315,64 +286,14 @@ fn fallback_matches(configured: &str, selected: &str) -> bool {
             .go_eq_fold(parse_suffix(selected.trim()).model_name.trim())
 }
 
-/// `lookupAPIKeyModelCapability`: the configured model that [`route`] selects.
-///
-/// For OpenAI-compatible credentials synthesized from the config, the entry at
-/// `config_index` may belong to another snapshot after a reload, so is-compat comes from
-/// the same route resolved against the credential's own stored models and base URL (as
-/// the registry advertises it); the indexed entry supplies only thinking.
+/// `lookupAPIKeyModelCapability` over the routes `addConfiguredModelCapability` builds:
+/// each model is keyed by its alias and name candidates (lowercased); a key keeps one
+/// route per upstream name, first model first.
 fn configured(cfg: &Config, c: &Credential, route_model: &str, upstream_model: &str) -> Option<ModelInfo> {
-    let keyless = unnamed_keyless_default_host(c);
-    if !configured_routing(c) && !keyless {
+    if !configured_routing(c) {
         return None;
     }
-    let requested = dynamic::strip_prefix(route_model.trim(), c);
-    let selected = upstream_model.trim();
-    let indexed = entry_models(cfg, c);
-    let config_compat = matches!(c.source, Source::Config { .. })
-        && (keyless
-            || indexed
-                .as_ref()
-                .is_some_and(|(_, kind)| *kind == "openai-compatibility"));
-    let own = if config_compat {
-        own_compat_models(c)
-    } else {
-        Vec::new()
-    };
-    let own_route = route(&own, requested, selected).map(|(name, i)| (name, &own[i]));
-    let indexed_route = indexed
-        .as_ref()
-        .and_then(|(models, kind)| route(models, requested, selected).map(|(name, i)| (name, &models[i], *kind)));
-    let (name, m, kind) = match indexed_route {
-        Some(found) => found,
-        // A keyless entry binds by its own models alone.
-        None if keyless => {
-            let (name, m) = own_route.clone()?;
-            (name, m, "openai-compatibility")
-        }
-        None => return None,
-    };
-    let is_compat = if config_compat {
-        own_route.is_some_and(|(_, o)| o.is_compat)
-    } else {
-        m.is_compat
-    };
-    if keyless && !is_compat {
-        return None;
-    }
-    let mut info = resolve_model_info(&name, kind, m.thinking.clone());
-    set_flag(&mut info, "is_compat", is_compat);
-    if let Some(support) = m.support_configuration_update {
-        set_flag(&mut info, "support_configuration_update", support);
-    }
-    Some(info)
-}
-
-/// The route `addConfiguredModelCapability` builds and `lookupAPIKeyModelCapability`
-/// selects among `models`: each model is keyed by its alias and name candidates
-/// (lowercased); a key keeps one route per upstream name, first model first. Returns the
-/// upstream name and the model's index.
-fn route(models: &[Configured], requested: &str, selected: &str) -> Option<(String, usize)> {
+    let (models, kind) = entry_models(cfg, c)?;
     // (key, upstream name, model index) in insertion order.
     let mut routes: Vec<(String, String, usize)> = Vec::new();
     for (index, m) in models.iter().enumerate() {
@@ -398,6 +319,7 @@ fn route(models: &[Configured], requested: &str, selected: &str) -> Option<(Stri
             }
         }
     }
+    let requested = dynamic::strip_prefix(route_model.trim(), c);
     let matched: Vec<(&str, usize)> = candidates(requested)
         .iter()
         .flat_map(|candidate| {
@@ -408,11 +330,18 @@ fn route(models: &[Configured], requested: &str, selected: &str) -> Option<(Stri
                 .map(|(_, up, i)| (up.as_str(), *i))
         })
         .collect();
-    matched
+    let selected = upstream_model.trim();
+    let (name, index) = matched
         .iter()
         .find(|(up, _)| up.trim().go_eq_fold(selected))
-        .or_else(|| matched.iter().find(|(up, _)| fallback_matches(up, selected)))
-        .map(|(up, i)| ((*up).to_owned(), *i))
+        .or_else(|| matched.iter().find(|(up, _)| fallback_matches(up, selected)))?;
+    let m = &models[*index];
+    let mut info = resolve_model_info(name, kind, m.thinking.clone());
+    set_flag(&mut info, "is_compat", m.is_compat);
+    if let Some(support) = m.support_configuration_update {
+        set_flag(&mut info, "support_configuration_update", support);
+    }
+    Some(info)
 }
 
 /// `lookupUnlistedCodexAPIKeyModelCapability`: every upstream model of a Codex API key
@@ -442,7 +371,7 @@ fn unlisted_codex(cfg: &Config, c: &Credential, upstream_model: &str) -> Option<
         "codex",
         configured.as_ref().and_then(|m| m.thinking.clone()),
     );
-    let (support, compat) = configured.map_or((false, false), |m| (m.support_configuration_update, m.is_compat()));
+    let (support, compat) = configured.map_or((false, false), |m| (m.support_configuration_update, m.is_compat));
     set_flag(&mut info, "support_configuration_update", support);
     set_flag(&mut info, "is_compat", compat);
     Some(info)
@@ -629,138 +558,6 @@ mod tests {
             );
         }
         assert_eq!((bound, codex_oauth), (25, 4));
-    }
-
-    /// Across a reload that swaps two OpenAI-compatible groups, both with alias `same`
-    /// and upstream `up`, a credential's `config_index` names the other group in the new
-    /// snapshot. is-compat still comes from the credential's own models and base URL:
-    /// DeepSeek's stays on, and the relay's explicit `is-compat: false` stays off. Thinking
-    /// comes from the indexed group, as in Go, so the groups configure different levels.
-    /// A keyless unnamed relay stays unbound; a keyed or named relay stays bound.
-    #[test]
-    fn compat_binding_ignores_another_snapshots_index() {
-        // (shape, extra group YAML before `models`, `keys` YAML)
-        let shapes = [
-            ("keyless unnamed", "", "      keys: []\n"),
-            ("keyed unnamed", "", "      keys:\n        - api-key: sk-fake\n"),
-            ("named keyless", "name: {name}\n      ", "      keys: []\n"),
-            (
-                "named keyed",
-                "name: {name}\n      ",
-                "      keys:\n        - api-key: sk-fake\n",
-            ),
-        ];
-        let levels = |l: &[&str]| l.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
-        let (ds_levels, relay_levels) = (levels(&["low", "high"]), levels(&["medium"]));
-        let mut all = Vec::new();
-        for (shape, head, keys) in shapes {
-            let group = |name: &str, base: &str, flag: &str, thinking: &str| {
-                format!(
-                    "    - {}base-url: {base}\n      models:\n        - name: up\n          alias: same{flag}\n          thinking: {{levels: [{thinking}]}}\n{keys}",
-                    head.replace("{name}", name)
-                )
-            };
-            let deepseek = group("ds", "https://api.deepseek.com/v1", "", "low, high");
-            let relay = group(
-                "relay",
-                "https://relay.example.test/v1",
-                "\n          is-compat: false",
-                "medium",
-            );
-            let snapshot = |groups: [&str; 2]| {
-                Config::parse(&format!(
-                    "api-keys:\n  openai-compatibility:\n{}{}",
-                    groups[0], groups[1]
-                ))
-                .unwrap()
-            };
-            let before = snapshot([&deepseek, &relay]);
-            let after = snapshot([&relay, &deepseek]);
-            let creds = credentials::from_config(&before);
-            let by_base = |host: &str| {
-                creds
-                    .iter()
-                    .find(|c| attr(c, "base_url").contains(host))
-                    .unwrap_or_else(|| panic!("{shape}: no credential for {host}"))
-            };
-            let (ds, relay) = (by_base("api.deepseek.com"), by_base("relay.example.test"));
-            // Some((is-compat, thinking levels)) when bound.
-            let bound = |cfg, c| {
-                resolve(cfg, c, "same", "up")
-                    .map(|r| (r.is_compat(), r.info.thinking.map(|t| t.levels).unwrap_or_default()))
-            };
-            let keyed = shape != "keyless unnamed";
-            for (name, cfg, ds_thinking, relay_thinking) in [
-                ("before", &before, &ds_levels, &relay_levels),
-                ("after", &after, &relay_levels, &ds_levels),
-            ] {
-                let want = (
-                    shape,
-                    name,
-                    Some((true, ds_thinking.clone())),
-                    keyed.then(|| (false, relay_thinking.clone())),
-                );
-                all.push(((shape, name, bound(cfg, ds), bound(cfg, relay)), want));
-            }
-        }
-        let (got, want): (Vec<_>, Vec<_>) = all.into_iter().unzip();
-        assert_eq!(got, want);
-
-        // Duplicate name/alias pairs: the first entry's explicit false wins, as its route does.
-        let cfg = Config::parse(
-            "api-keys:\n  openai-compatibility:\n    - name: dup\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: same, is-compat: false}\n        - {name: up, alias: same, is-compat: true}\n      keys:\n        - api-key: sk-fake\n",
-        )
-        .unwrap();
-        let c = &credentials::from_config(&cfg)[0];
-        assert_eq!(resolve(&cfg, c, "same", "up").map(|r| r.is_compat()), Some(false));
-    }
-
-    /// is-compat follows the requested route among the credential's own models, not a row
-    /// matched by name or case-folded alias. A relay storing `up/up` (false) then `up/fast`
-    /// (true) keeps `up` off after a swap that leaves its index on a group listing only
-    /// `up/fast`. Aliases `s` (true) and `ſ` (false) are distinct routes, so `ſ` stays off.
-    #[test]
-    fn compat_flag_follows_the_requested_route() {
-        let relay = "    - name: relay\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: up, is-compat: false}\n        - {name: up, alias: fast, is-compat: true}\n      keys:\n        - api-key: sk-fake\n";
-        let other = "    - name: other\n      base-url: https://other.example.test/v1\n      models:\n        - {name: up, alias: fast, is-compat: true}\n      keys:\n        - api-key: sk-fake\n";
-        let snapshot =
-            |a: &str, b: &str| Config::parse(&format!("api-keys:\n  openai-compatibility:\n{a}{b}")).unwrap();
-        let before = snapshot(relay, other);
-        let after = snapshot(other, relay);
-        let creds = credentials::from_config(&before);
-        let relay_cred = creds.iter().find(|c| attr(c, "compat_name") == "relay").unwrap();
-        let fold = Config::parse(
-            "api-keys:\n  openai-compatibility:\n    - name: fold\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: s, is-compat: true}\n        - {name: up, alias: \u{17f}, is-compat: false}\n      keys:\n        - api-key: sk-fake\n",
-        )
-        .unwrap();
-        let fold_cred = &credentials::from_config(&fold)[0];
-        let flag = |cfg, c, route| resolve(cfg, c, route, "up").map(|r| r.is_compat());
-        assert_eq!(
-            [
-                ("before up", flag(&before, relay_cred, "up")),
-                ("after up", flag(&after, relay_cred, "up")),
-                ("s", flag(&fold, fold_cred, "s")),
-                ("\u{17f}", flag(&fold, fold_cred, "\u{17f}")),
-            ],
-            [
-                ("before up", Some(false)),
-                ("after up", Some(false)),
-                ("s", Some(true)),
-                ("\u{17f}", Some(false)),
-            ]
-        );
-    }
-
-    /// A keyless unnamed group off the DeepSeek and Kimi hosts binds nothing, even with
-    /// an explicit `is-compat: true`, as on master and in Go.
-    #[test]
-    fn keyless_unnamed_group_off_the_default_hosts_binds_nothing() {
-        let cfg = Config::parse(
-            "api-keys:\n  openai-compatibility:\n    - base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: same, is-compat: true}\n      keys: []\n",
-        )
-        .unwrap();
-        let c = &credentials::from_config(&cfg)[0];
-        assert!(resolve(&cfg, c, "same", "up").is_none());
     }
 
     /// Go `TestResolveModelInfoConfiguredThinkingKeepsCatalogDisableType`: configured levels

@@ -1138,6 +1138,7 @@ mod tests {
             execution_session: None,
             derived_session: None,
             resolved_model: None,
+            compat_replay: None,
             usage,
             request_path: "/v1/responses".into(),
             headers: HeaderMap::new(),

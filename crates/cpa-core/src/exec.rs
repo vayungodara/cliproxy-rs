@@ -101,6 +101,11 @@ pub struct ExecRequest {
     /// (`cpa_core::registry::lookup_model`), as Go's helpers do. Callers outside the
     /// dispatch loop set `None`.
     pub resolved_model: Option<ResolvedModel>,
+    /// Whether this attempt replays reasoning (its effective is-compat) when it runs on an
+    /// OpenAI-compatible credential synthesized from the local config, decided from that
+    /// credential's own stored models (`cpa_core::registry::dynamic::compat_replay`).
+    /// `None` keeps `resolved_model`'s flag, as for every other credential.
+    pub compat_replay: Option<bool>,
     /// Usage accounting for this attempt (Go's per-executor `UsageReporter`). Optional:
     /// without reports the server parses the client-format response, which matches Go
     /// whenever the upstream speaks the client's format. Executors that translate

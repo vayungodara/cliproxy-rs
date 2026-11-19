@@ -1057,6 +1057,7 @@ async fn run_routed(
         execution_session: call.execution_session.clone(),
         derived_session: session.derived,
         resolved_model: None,
+        compat_replay: None,
         usage: cpa_core::exec::UsageSink::default().with_capture(trace.2.clone()),
         request_path: call.request_path.clone(),
         headers: call.headers.clone(),
@@ -2526,6 +2527,9 @@ fn attempt_request(
         upstream,
         keep_model.then_some(request.model.as_str()),
     );
+    req.compat_replay = (!keep_model)
+        .then(|| cpa_core::registry::dynamic::compat_replay(credential, route_model, upstream))
+        .flatten();
     let local = req.resolved_model.as_ref().filter(|_| !stream);
     if !keep_model && let Some(home) = crate::capabilities::bind_home(credential, local) {
         req.resolved_model = Some(home);
@@ -2836,6 +2840,123 @@ mod tests {
     /// Each attempt carries Go's binding for its credential and upstream model; a kept
     /// request model (Go `restoreExecutionModel`) routes Codex by that model. Expected
     /// values are the Go goldens' "codex configured" and "codex restore" cases.
+    /// Local OpenAI-compatible credentials replay reasoning by their own stored row, across
+    /// a reload that swaps two groups with the same alias and upstream; thinking stays
+    /// master's binding from the indexed group. Keyless unnamed entries bind no thinking; an
+    /// indexed miss still replays; Home-sourced credentials keep master's flag.
+    #[test]
+    fn attempts_replay_by_the_credentials_own_row() {
+        let request = |model: &str| ExecRequest {
+            operation: Operation::Generate,
+            source_format: Format::Claude,
+            response_format: Format::Claude,
+            stream_payloads: false,
+            requested_model: model.into(),
+            model: model.into(),
+            original_body: Bytes::new(),
+            body: Bytes::new(),
+            stream: false,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            request_path: String::new(),
+            headers: HeaderMap::new(),
+            caller: Caller {
+                principal: String::new(),
+                source: "",
+                provider: String::new(),
+            },
+            resolved_model: None,
+            compat_replay: Some(true),
+            usage: Default::default(),
+        };
+        // (effective is-compat, bound thinking levels)
+        let attempt = |cfg: &Config, c: &cpa_core::credential::Credential, route: &str, up: &str| {
+            let req = attempt_request(&request(route), cfg, c, route, up, false, false);
+            let flag = req
+                .compat_replay
+                .unwrap_or_else(|| req.resolved_model.as_ref().is_some_and(|r| r.is_compat()));
+            (flag, req.resolved_model.and_then(|r| r.info.thinking).map(|t| t.levels))
+        };
+        let parse = |groups: &[&str]| {
+            Config::parse(&format!("api-keys:\n  openai-compatibility:\n{}", groups.concat())).unwrap()
+        };
+        let levels = |l: &[&str]| Some(l.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());
+        let shapes = [
+            ("keyless unnamed", "", "      keys: []\n"),
+            ("keyed unnamed", "", "      keys:\n        - api-key: sk-fake\n"),
+            ("named keyless", "name: {name}\n      ", "      keys: []\n"),
+            (
+                "named keyed",
+                "name: {name}\n      ",
+                "      keys:\n        - api-key: sk-fake\n",
+            ),
+        ];
+        let mut got = Vec::new();
+        let mut want = Vec::new();
+        for (shape, head, keys) in shapes {
+            let group = |name: &str, base: &str, flag: &str, thinking: &str| {
+                format!(
+                    "    - {}base-url: {base}\n      models:\n        - name: up\n          alias: same{flag}\n          thinking: {{levels: [{thinking}]}}\n{keys}",
+                    head.replace("{name}", name)
+                )
+            };
+            let ds = group("ds", "https://api.deepseek.com/v1", "", "low, high");
+            let relay = group(
+                "relay",
+                "https://relay.example.test/v1",
+                "\n          is-compat: false",
+                "medium",
+            );
+            let (before, after) = (parse(&[&ds, &relay]), parse(&[&relay, &ds]));
+            let creds = cpa_core::config::credentials::from_config(&before);
+            let keyed = shape != "keyless unnamed";
+            for (snapshot, cfg, ds_thinking, relay_thinking) in [
+                ("before", &before, levels(&["low", "high"]), levels(&["medium"])),
+                ("after", &after, levels(&["medium"]), levels(&["low", "high"])),
+            ] {
+                got.push((
+                    shape,
+                    snapshot,
+                    attempt(cfg, &creds[0], "same", "up"),
+                    attempt(cfg, &creds[1], "same", "up"),
+                ));
+                want.push((
+                    shape,
+                    snapshot,
+                    (true, ds_thinking.filter(|_| keyed)),
+                    (false, relay_thinking.filter(|_| keyed)),
+                ));
+            }
+        }
+        assert_eq!(got, want);
+
+        // Indexed miss: the index now names a group without `fast`; the stored row replays.
+        let stored = parse(&[
+            "    - name: ds\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: fast}\n      keys:\n        - api-key: sk-fake\n",
+        ]);
+        let other = parse(&[
+            "    - name: other\n      base-url: https://other.example.test/v1\n      models:\n        - {name: other, alias: slow}\n      keys:\n        - api-key: sk-fake\n",
+        ]);
+        let ds = cpa_core::config::credentials::from_config(&stored).remove(0);
+        assert_eq!(attempt(&other, &ds, "fast", "up"), (true, None));
+
+        // A Home-sourced credential off the default hosts keeps the indexed explicit true.
+        let relay = parse(&[
+            "    - name: relay\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: same, is-compat: true}\n      keys:\n        - api-key: sk-fake\n",
+        ]);
+        let mut home = cpa_core::config::credentials::from_config(&relay).remove(0);
+        home.source = cpa_core::credential::Source::Config {
+            section: "home".into(),
+            index: 0,
+        };
+        home.metadata.remove("models");
+        let req = attempt_request(&request("same"), &relay, &home, "same", "up", false, false);
+        assert_eq!(req.compat_replay, None);
+        assert!(req.resolved_model.is_some_and(|r| r.is_compat()));
+    }
+
     #[test]
     fn attempts_bind_resolved_model_like_go() {
         let cfg = Config::parse(
@@ -2865,6 +2986,7 @@ mod tests {
                 provider: String::new(),
             },
             resolved_model: None,
+            compat_replay: None,
             usage: Default::default(),
         };
         let req = attempt_request(&request, &cfg, &credential, "sol", "gpt-6-sol", false, false);

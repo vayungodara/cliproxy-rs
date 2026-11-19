@@ -239,6 +239,7 @@ fn request(turn: &Value, session: &str, usage: cpa_core::exec::UsageSink) -> Exe
         execution_session: Some(session.to_owned()),
         derived_session: None,
         resolved_model: None,
+        compat_replay: None,
         usage,
         request_path: "/v1/responses".into(),
         headers,

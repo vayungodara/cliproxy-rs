@@ -212,6 +212,7 @@ fn request(body: &str) -> ExecRequest {
         execution_session: Some("conn-1".into()),
         derived_session: None,
         resolved_model: None,
+        compat_replay: None,
         usage: Default::default(),
         request_path: String::new(),
         headers: HeaderMap::new(),

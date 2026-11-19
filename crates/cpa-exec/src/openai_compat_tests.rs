@@ -213,6 +213,7 @@ fn request(s: &Value, usage: cpa_core::exec::UsageSink) -> (ExecRequest, String)
         execution_session: s["execution_session"].as_str().map(str::to_owned),
         derived_session: s["derived_session"].as_str().map(str::to_owned),
         resolved_model: bound_model(&s["resolved_model"]),
+        compat_replay: None,
         usage,
         request_path: String::new(),
         headers,
