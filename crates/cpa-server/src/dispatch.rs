@@ -2528,7 +2528,14 @@ fn attempt_request(
         keep_model.then_some(request.model.as_str()),
     );
     req.compat_replay = (!keep_model)
-        .then(|| cpa_core::registry::dynamic::compat_replay(credential, route_model, upstream))
+        .then(|| {
+            cpa_core::registry::dynamic::compat_replay(
+                credential,
+                route_model,
+                upstream,
+                cfg.routing.force_model_prefix,
+            )
+        })
         .flatten();
     let local = req.resolved_model.as_ref().filter(|_| !stream);
     if !keep_model && let Some(home) = crate::capabilities::bind_home(credential, local) {

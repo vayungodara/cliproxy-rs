@@ -1810,12 +1810,13 @@ fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<(String, usize)> {
 /// hosts, which Go never binds.
 ///
 /// The row is the credential's own stored row, so a reload that reorders or edits groups
-/// cannot lend another group's flag: a row published under the requested ID (the
-/// registry's exact, then lowercased, lookup) that sends exactly this upstream; otherwise
-/// the row [`execution_models`] took the upstream from; otherwise off.
+/// cannot lend another group's flag: the row the registry publishes under the requested
+/// ID (exact, then lowercased; prefix rules included, `force_prefix` being
+/// `routing.force-model-prefix`) when it sends exactly this upstream; otherwise the row
+/// [`execution_models`] took the upstream from; otherwise off.
 // ponytail: the registry lists one row per ID, so a pool whose members carry different
 // flags advertises the first; execution follows the member actually sent.
-pub fn compat_replay(c: &Credential, route_model: &str, upstream: &str) -> Option<bool> {
+pub fn compat_replay(c: &Credential, route_model: &str, upstream: &str, force_prefix: bool) -> Option<bool> {
     if !local_compat(c) {
         return None;
     }
@@ -1827,31 +1828,24 @@ pub fn compat_replay(c: &Credential, route_model: &str, upstream: &str) -> Optio
     let models = config_models(c);
     let requested = strip_prefix(route_model, c);
     let upstream = upstream.go_lower();
-    for candidate in candidates(requested) {
+    let published = published_rows(&models, credential_prefix(c), force_prefix);
+    // The public ID keeps its prefix; the stripped candidate is what an unnamed row sends.
+    for (candidate, stripped) in candidates(route_model).into_iter().zip(candidates(requested)) {
         let lower = candidate.go_lower();
-        let ids = if lower == candidate {
-            vec![candidate.clone()]
-        } else {
-            vec![candidate.clone(), lower]
-        };
-        let Some(rows) = ids.iter().find_map(|id| {
-            let rows: Vec<&ConfigModel> = models
-                .iter()
-                .filter(|m| if m.alias.trim().is_empty() { m.name.trim() } else { m.alias.trim() } == id)
-                .collect();
-            (!rows.is_empty()).then_some(rows)
-        }) else {
+        let winner = published
+            .iter()
+            .find(|(id, _)| *id == candidate)
+            .or_else(|| published.iter().find(|(id, _)| *id == lower));
+        let Some(&(_, index)) = winner else {
             continue;
         };
-        let sends = |m: &&ConfigModel| {
-            let name = if m.name.trim().is_empty() {
-                candidate.as_str()
-            } else {
-                m.name.trim()
-            };
-            preserve_suffix(name, requested).go_lower() == upstream
+        let m = &models[index];
+        let name = if m.name.trim().is_empty() {
+            stripped.as_str()
+        } else {
+            m.name.trim()
         };
-        if let Some(m) = rows.into_iter().find(sends) {
+        if preserve_suffix(name, requested).go_lower() == upstream {
             return Some(m.is_compat);
         }
         break;
@@ -1864,6 +1858,30 @@ pub fn compat_replay(c: &Credential, route_model: &str, upstream: &str) -> Optio
     }
     let producer = producers.into_iter().find(|(sent, _)| sent.go_lower() == upstream);
     Some(producer.is_some_and(|(_, index)| models[index].is_compat))
+}
+
+/// The IDs the registry publishes for a local OpenAI-compatible credential's rows, in
+/// registration order with each row's index: [`compat_models`] then [`apply_prefix`].
+/// Registration keeps the first definition of an ID, so the first entry for an ID wins.
+fn published_rows(models: &[ConfigModel], prefix: &str, force: bool) -> Vec<(String, usize)> {
+    let mut out = Vec::new();
+    for (index, m) in models.iter().enumerate() {
+        let id = if m.alias.trim().is_empty() {
+            m.name.trim()
+        } else {
+            m.alias.trim()
+        };
+        if id.is_empty() {
+            continue;
+        }
+        if prefix.is_empty() || !force || prefix == id {
+            out.push((id.to_owned(), index));
+        }
+        if !prefix.is_empty() {
+            out.push((format!("{prefix}/{id}"), index));
+        }
+    }
+    out
 }
 
 /// Go `selectionModelForAuth`: prefix stripped, OAuth alias applied. Cooldown state is
@@ -2356,7 +2374,11 @@ mod tests {
             ],
             [Some(true), Some(false), Some(true), None, Some(false), Some(true)]
         );
-        assert_eq!(compat_replay(&home, "absent", "up"), None, "Home keeps Go's binding");
+        assert_eq!(
+            compat_replay(&home, "absent", "up", false),
+            None,
+            "Home keeps Go's binding"
+        );
     }
 
     /// The replay flag of every upstream [`execution_models`] tries follows the stored row
@@ -2446,6 +2468,20 @@ mod tests {
             ),
             // The API-key table resolves a suffixed alias by its base.
             ("table", row("up", "fast(high)", on), "fast", vec![("up", true)]),
+            // A later row repeating a published ID is not published: the producer decides.
+            (
+                "unpublished repeat",
+                row("a", "fast", off) + &row("b", "FAST", off) + &row("b", "fast", on),
+                "fast",
+                vec![("a", false), ("b", false)],
+            ),
+            // A literal `p/fast` row publishes `p/fast` before the later `fast` row's copy.
+            (
+                "literal prefixed alias",
+                row("b", "p/fast", off) + &row("b", "FAST", off) + &row("b", "fast", on),
+                "p/fast",
+                vec![("b", false)],
+            ),
             // Nothing stored produced the upstream (a plugin model, say): off.
             (
                 "unknown",
@@ -2462,7 +2498,7 @@ mod tests {
             let flags: Vec<(String, Option<bool>)> = members
                 .into_iter()
                 .map(|m| {
-                    let flag = compat_replay(&creds[0], route, &m);
+                    let flag = compat_replay(&creds[0], route, &m, false);
                     (m, flag)
                 })
                 .collect();
@@ -2478,6 +2514,45 @@ mod tests {
         assert_eq!(got, want);
     }
 
+    /// [`published_rows`] mirrors what the registry publishes, with and without a forced
+    /// prefix: each listed ID's registry model is that row's. With the prefix forced, bare
+    /// IDs are not published, so `p/fast` is the third row's generated copy.
+    #[test]
+    fn published_rows_match_the_registry() {
+        let yaml = "    - name: ds\n      prefix: p\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: b, alias: 'p/fast', is-compat: false}\n        - {name: d, alias: FAST, is-compat: false}\n        - {name: d, alias: fast, is-compat: true}\n      keys:\n        - api-key: sk-fake\n";
+        let mut got = Vec::new();
+        for force in [false, true] {
+            let cfg = Config::parse(&format!(
+                "routing:\n  force-model-prefix: {force}\napi-keys:\n  openai-compatibility:\n{yaml}"
+            ))
+            .unwrap();
+            let creds: Vec<Arc<Credential>> = crate::config::credentials::from_config(&cfg)
+                .into_iter()
+                .map(Arc::new)
+                .collect();
+            let r = Registry::build(&cfg, &creds);
+            let models = config_models(&creds[0]);
+            let published = published_rows(&models, credential_prefix(&creds[0]), force);
+            // The first entry per ID, as `compat_replay` finds it.
+            for (n, (id, index)) in published.iter().enumerate() {
+                if published[..n].iter().any(|(seen, _)| seen == id) {
+                    continue;
+                }
+                let spec = r.client_model(&creds[0].id, id);
+                assert_eq!(
+                    spec.map(|s| (s.metadata_model_id.clone(), s.is_compat)),
+                    Some((models[*index].name.clone(), models[*index].is_compat)),
+                    "force {force}: {id}"
+                );
+            }
+            got.push((force, compat_replay(&creds[0], "p/fast", "d", force)));
+        }
+        // Execution takes `d` from FAST either way. Unforced, the published `p/fast` row
+        // sends `b`, so the producer (FAST, off) decides; forced, it is the third row,
+        // which sends `d` and is on.
+        assert_eq!(got, [(false, Some(false)), (true, Some(true))]);
+    }
+
     /// Keyless unnamed groups: Go binds none; on the DeepSeek/Kimi hosts the replay flag
     /// still follows the stored row, elsewhere nothing is decided.
     #[test]
@@ -2487,9 +2562,9 @@ mod tests {
         );
         assert_eq!(
             [
-                compat_replay(&creds[0], "a", "up"),
-                compat_replay(&creds[0], "b", "up"),
-                compat_replay(&creds[1], "c", "up")
+                compat_replay(&creds[0], "a", "up", false),
+                compat_replay(&creds[0], "b", "up", false),
+                compat_replay(&creds[1], "c", "up", false)
             ],
             [Some(true), Some(false), None]
         );
