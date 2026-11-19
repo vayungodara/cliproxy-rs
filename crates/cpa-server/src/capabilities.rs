@@ -168,7 +168,9 @@ fn configured_routing(c: &Credential) -> bool {
 /// models, yet registers them with their is-compat. It binds only a model whose
 /// effective is-compat is on (explicit, or the DeepSeek/Kimi host default), so the
 /// executor sees what the registry advertises; anything else binds nothing, as in Go
-/// (docs/DIFFERENCES-FROM-GO.md).
+/// (docs/DIFFERENCES-FROM-GO.md). The decision reads the credential's own stored models
+/// and base URL, never `config_index`: after a reload a live credential can meet an
+/// older or newer config whose index names another group.
 fn unnamed_keyless_compat(c: &Credential) -> bool {
     !configured_routing(c)
         && matches!(c.source, Source::Config { .. })
@@ -256,20 +258,25 @@ fn compat_models(cfg: &Config, c: &Credential) -> Option<Vec<Configured>> {
         .into_iter()
         .flatten()
         .filter_map(|m| serde_yaml_ng::from_value::<ConfigModel>(m.clone()).ok())
-        .map(|m| Configured {
-            is_compat: m.compat_is_compat(&base_url),
-            thinking: m.thinking.or_else(|| {
-                (!m.image).then(|| ThinkingSupport {
-                    levels: vec!["low".into(), "medium".into(), "high".into()],
-                    ..ThinkingSupport::default()
-                })
-            }),
-            name: m.name,
-            alias: m.alias,
-            support_configuration_update: None,
-        })
+        .map(|m| compat_configured(m, &base_url))
         .collect();
     Some(models)
+}
+
+/// One OpenAI-compatible model of a group at `base_url`, as Go compiles it.
+fn compat_configured(m: ConfigModel, base_url: &str) -> Configured {
+    Configured {
+        is_compat: m.compat_is_compat(base_url),
+        thinking: m.thinking.or_else(|| {
+            (!m.image).then(|| ThinkingSupport {
+                levels: vec!["low".into(), "medium".into(), "high".into()],
+                ..ThinkingSupport::default()
+            })
+        }),
+        name: m.name,
+        alias: m.alias,
+        support_configuration_update: None,
+    }
 }
 
 /// `modelAliasLookupCandidates`: the model, then its suffix-free base when different.
@@ -306,7 +313,16 @@ fn configured(cfg: &Config, c: &Credential, route_model: &str, upstream_model: &
     if !configured_routing(c) && !compat_only {
         return None;
     }
-    let (models, kind) = entry_models(cfg, c)?;
+    let (models, kind) = if compat_only {
+        let base_url = attr(c, "base_url");
+        let models = dynamic::config_models(c)
+            .into_iter()
+            .map(|m| compat_configured(m, base_url))
+            .collect();
+        (models, "openai-compatibility")
+    } else {
+        entry_models(cfg, c)?
+    };
     // (key, upstream name, model index) in insertion order.
     let mut routes: Vec<(String, String, usize)> = Vec::new();
     for (index, m) in models.iter().enumerate() {
@@ -579,6 +595,46 @@ mod tests {
     /// Go `TestResolveModelInfoConfiguredThinkingKeepsCatalogDisableType`: configured levels
     /// replace the catalog's, but an empty `disable-type` keeps the catalog's way of turning
     /// thinking off; an explicit one wins.
+    /// A keyless unnamed-group credential decides is-compat from its own stored models
+    /// and base URL. Across a reload that swaps two such groups, both with alias `same`
+    /// and upstream `up`, the credential's `config_index` names the other group in the
+    /// new snapshot: DeepSeek's credential stays on (not off), and the relay's explicit
+    /// `is-compat: false` stays unbound (not DeepSeek's on).
+    #[test]
+    fn keyless_unnamed_binding_ignores_another_snapshots_index() {
+        let group = |base: &str, flag: &str| {
+            format!(
+                "    - base-url: {base}\n      models:\n        - name: up\n          alias: same{flag}\n      keys: []\n"
+            )
+        };
+        let deepseek = group("https://api.deepseek.com/v1", "");
+        let relay = group("https://relay.example.test/v1", "\n          is-compat: false");
+        let snapshot = |groups: [&str; 2]| {
+            Config::parse(&format!(
+                "api-keys:\n  openai-compatibility:\n{}{}",
+                groups[0], groups[1]
+            ))
+            .unwrap()
+        };
+        let before = snapshot([&deepseek, &relay]);
+        let after = snapshot([&relay, &deepseek]);
+        let creds = credentials::from_config(&before);
+        let by_base = |host: &str| {
+            creds
+                .iter()
+                .find(|c| attr(c, "base_url").contains(host))
+                .unwrap_or_else(|| panic!("no credential for {host}"))
+        };
+        let (ds, relay) = (by_base("api.deepseek.com"), by_base("relay.example.test"));
+        // (snapshot, DeepSeek's binding, the relay's binding): Some(is-compat) or None.
+        let bound = |cfg, c| resolve(cfg, c, "same", "up").map(|r| r.is_compat());
+        let got: Vec<_> = [("before", &before), ("after", &after)]
+            .into_iter()
+            .map(|(name, cfg)| (name, bound(cfg, ds), bound(cfg, relay)))
+            .collect();
+        assert_eq!(got, [("before", Some(true), None), ("after", Some(true), None)]);
+    }
+
     #[test]
     fn configured_thinking_keeps_the_catalog_disable_type() {
         let support = |yaml: &str| serde_yaml_ng::from_str::<ThinkingSupport>(yaml).unwrap();
