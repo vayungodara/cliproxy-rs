@@ -426,7 +426,7 @@ async fn lcp_session_reaches_custom_headers_and_usage_records() {
 /// `proxy-url`, set on the credential for keyless groups), so nothing leaves the
 /// machine. An explicit `false` beside an inherited model on the same host, a look-alike
 /// host and a loopback host keep Go's default. A keyless entry of an unnamed group, which
-/// Go never binds, binds a model that defaults to on, so it executes as it is registered.
+/// Go never binds, still replays reasoning for a model that defaults to on, without a binding.
 #[tokio::test]
 async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;

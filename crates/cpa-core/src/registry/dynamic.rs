@@ -401,8 +401,8 @@ pub fn config_models(c: &Credential) -> Vec<ConfigModel> {
             let mut v = v.clone();
             // Accept snake_case spellings from JSON metadata too.
             if let Value::Object(m) = &mut v {
+                // Before the snake_case keys move over, so `is_compat` never sets it.
                 if local {
-                    m.remove("is_compat");
                     m.entry("is-compat").or_insert(host_default.into());
                 }
                 for key in [
@@ -1670,7 +1670,7 @@ fn resolve_oauth(cfg_aliases: &HashMap<String, Vec<OAuthAlias>>, c: &Credential,
 /// builds: each entry with both a name and an alias adds its alias, suffix-free alias,
 /// name and suffix-free name under `strings.ToLower` keys, the first entry winning a key.
 /// The requested model is looked up, then its suffix-free form.
-fn api_key_table_upstream(requested: &str, models: &[ConfigModel]) -> Option<String> {
+fn api_key_table_upstream(requested: &str, models: &[ConfigModel]) -> Option<(String, usize)> {
     let requested = requested.trim();
     let base = |s: &'_ str| -> String {
         let s = s.trim();
@@ -1685,14 +1685,14 @@ fn api_key_table_upstream(requested: &str, models: &[ConfigModel]) -> Option<Str
         keys.push(requested_base);
     }
     keys.into_iter().filter(|k| !k.is_empty()).find_map(|key| {
-        models.iter().find_map(|m| {
+        models.iter().enumerate().find_map(|(index, m)| {
             let (name, alias) = (m.name.trim(), m.alias.trim());
             if name.is_empty() || alias.is_empty() {
                 return None;
             }
             [alias.go_lower(), base(alias), name.go_lower(), base(name)]
                 .contains(&key)
-                .then(|| preserve_suffix(name, requested))
+                .then(|| (preserve_suffix(name, requested), index))
         })
     })
 }
@@ -1748,7 +1748,7 @@ pub fn execution_models(
         alias.upstream.clone()
     };
     if configured && !models.is_empty() {
-        let pool = alias_pool(&upstream, &models);
+        let pool: Vec<String> = alias_pool(&upstream, &models).into_iter().map(|(u, _)| u).collect();
         // Go `executionModelCandidatesWithAlias`: a non-empty compat pool wins. Otherwise
         // `applyAPIKeyModelAliasWithRouting` tries an API key's lowercase-keyed table
         // before the `EqualFold` scan.
@@ -1756,7 +1756,7 @@ pub fn execution_models(
             return (pool, alias);
         }
         if is_api_key(c)
-            && let Some(upstream) = api_key_table_upstream(&upstream, &models)
+            && let Some((upstream, _)) = api_key_table_upstream(&upstream, &models)
         {
             return (vec![upstream], alias);
         }
@@ -1772,19 +1772,19 @@ pub fn execution_models(
     (vec![upstream], alias)
 }
 
-/// Go `resolveModelAliasPoolFromConfigModels`.
-fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<String> {
+/// Go `resolveModelAliasPoolFromConfigModels`, with the row that produced each member.
+fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<(String, usize)> {
     for candidate in candidates(requested) {
         let mut out = Vec::new();
         let mut seen = std::collections::HashSet::new();
-        for m in models {
+        for (index, m) in models.iter().enumerate() {
             let (name, alias) = (m.name.trim(), m.alias.trim());
             if alias.is_empty() || !alias.go_eq_fold(&candidate) {
                 continue;
             }
             let resolved = preserve_suffix(if name.is_empty() { &candidate } else { name }, requested);
             if !resolved.is_empty() && seen.insert(resolved.go_lower()) {
-                out.push(resolved);
+                out.push((resolved, index));
             }
         }
         if !out.is_empty() {
@@ -1792,11 +1792,12 @@ fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<String> {
         }
     }
     for candidate in candidates(requested) {
-        if let Some(m) = models
+        if let Some((index, m)) = models
             .iter()
-            .find(|m| !m.name.trim().is_empty() && m.name.trim().go_eq_fold(&candidate))
+            .enumerate()
+            .find(|(_, m)| !m.name.trim().is_empty() && m.name.trim().go_eq_fold(&candidate))
         {
-            return vec![preserve_suffix(m.name.trim(), requested)];
+            return vec![(preserve_suffix(m.name.trim(), requested), index)];
         }
     }
     Vec::new()
@@ -1809,69 +1810,60 @@ fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<String> {
 /// hosts, which Go never binds.
 ///
 /// The row is the credential's own stored row, so a reload that reorders or edits groups
-/// cannot lend another group's flag. Among the rows published under the requested ID (the
-/// registry's exact then lowercased lookup), the one whose upstream is the attempt's;
-/// otherwise the row whose alias or name produced the upstream; otherwise off.
+/// cannot lend another group's flag: a row published under the requested ID (the
+/// registry's exact, then lowercased, lookup) that sends exactly this upstream; otherwise
+/// the row [`execution_models`] took the upstream from; otherwise off.
 // ponytail: the registry lists one row per ID, so a pool whose members carry different
 // flags advertises the first; execution follows the member actually sent.
 pub fn compat_replay(c: &Credential, route_model: &str, upstream: &str) -> Option<bool> {
+    if !local_compat(c) {
+        return None;
+    }
     let base_url = c.attributes.get("base_url").map_or("", String::as_str);
     let routed = is_api_key(c) || c.attributes.get("compat_name").is_some_and(|n| !n.trim().is_empty());
-    if !local_compat(c) || !(routed || requires_reasoning_replay(base_url)) {
+    if !(routed || requires_reasoning_replay(base_url)) {
         return None;
     }
     let models = config_models(c);
-    let requested = strip_prefix(route_model.trim(), c);
-    let upstream = upstream.trim();
-    // The upstream this row sends for `candidate`, and whether it is the attempt's.
-    let sends = |m: &ConfigModel, candidate: &str, suffix_free: bool| {
-        let name = if m.name.trim().is_empty() {
-            candidate
+    let requested = strip_prefix(route_model, c);
+    let upstream = upstream.go_lower();
+    for candidate in candidates(requested) {
+        let lower = candidate.go_lower();
+        let ids = if lower == candidate {
+            vec![candidate.clone()]
         } else {
-            m.name.trim()
+            vec![candidate.clone(), lower]
         };
-        let sent = preserve_suffix(name, requested);
-        if suffix_free {
-            canonical_model(&sent).go_lower() == canonical_model(upstream).go_lower()
-        } else {
-            sent.go_lower() == upstream.go_lower()
+        let Some(rows) = ids.iter().find_map(|id| {
+            let rows: Vec<&ConfigModel> = models
+                .iter()
+                .filter(|m| if m.alias.trim().is_empty() { m.name.trim() } else { m.alias.trim() } == id)
+                .collect();
+            (!rows.is_empty()).then_some(rows)
+        }) else {
+            continue;
+        };
+        let sends = |m: &&ConfigModel| {
+            let name = if m.name.trim().is_empty() {
+                candidate.as_str()
+            } else {
+                m.name.trim()
+            };
+            preserve_suffix(name, requested).go_lower() == upstream
+        };
+        if let Some(m) = rows.into_iter().find(sends) {
+            return Some(m.is_compat);
         }
-    };
-    let published = |m: &ConfigModel| {
-        let alias = m.alias.trim();
-        if alias.is_empty() { m.name.trim() } else { alias }.to_owned()
-    };
-    for candidate in candidates(requested) {
-        let mut ids = vec![candidate.clone()];
-        if candidate.go_lower() != candidate {
-            ids.push(candidate.go_lower());
-        }
-        for id in ids {
-            let rows: Vec<&ConfigModel> = models.iter().filter(|m| published(m) == id).collect();
-            if rows.is_empty() {
-                continue;
-            }
-            for suffix_free in [false, true] {
-                if let Some(m) = rows.iter().find(|m| sends(m, &candidate, suffix_free)) {
-                    return Some(m.is_compat);
-                }
-            }
-            break;
-        }
+        break;
     }
-    for candidate in candidates(requested) {
-        for suffix_free in [false, true] {
-            let produced = models.iter().find(|m| {
-                let (name, alias) = (m.name.trim(), m.alias.trim());
-                (alias.go_eq_fold(&candidate) || (!name.is_empty() && name.go_eq_fold(&candidate)))
-                    && sends(m, &candidate, suffix_free)
-            });
-            if let Some(m) = produced {
-                return Some(m.is_compat);
-            }
-        }
+    // execution_models: the alias pool wins for an OpenAI-compatible credential, then a
+    // keyed one's lowercase table.
+    let mut producers = alias_pool(requested, &models);
+    if producers.is_empty() && is_api_key(c) {
+        producers.extend(api_key_table_upstream(requested, &models));
     }
-    Some(false)
+    let producer = producers.into_iter().find(|(sent, _)| sent.go_lower() == upstream);
+    Some(producer.is_some_and(|(_, index)| models[index].is_compat))
 }
 
 /// Go `selectionModelForAuth`: prefix stripped, OAuth alias applied. Cooldown state is
@@ -2367,111 +2359,122 @@ mod tests {
         assert_eq!(compat_replay(&home, "absent", "up"), None, "Home keeps Go's binding");
     }
 
-    /// The replay flag follows the credential's own row for the requested published ID and
-    /// the upstream actually sent, never a row that merely shares a folded name or alias.
+    /// The replay flag of every upstream [`execution_models`] tries follows the stored row
+    /// that is published under the requested ID and sends it, else the row that produced
+    /// it, never a row that merely shares a folded name, alias or suffix-free base.
     #[test]
-    fn compat_replay_follows_the_published_route_and_upstream() {
+    fn compat_replay_follows_the_row_that_sends_each_upstream() {
         let group = |models: &str| {
             format!(
                 "    - name: ds\n      prefix: p\n      base-url: https://api.deepseek.com/v1\n      models:\n{models}      keys:\n        - api-key: sk-fake\n"
             )
         };
-        let row = |name: &str, alias: &str, flag: &str| format!("        - {{name: {name}, alias: {alias}{flag}}}\n");
-        let off = ", is-compat: false";
-        let on = ", is-compat: true";
-        let cases: Vec<(&str, String, &str, &str, Option<bool>)> = vec![
-            // The name key `up` of `fast` must not shadow the published ID `up`.
+        let row =
+            |name: &str, alias: &str, flag: &str| format!("        - {{name: '{name}', alias: '{alias}'{flag}}}\n");
+        let (off, on) = (", is-compat: false", ", is-compat: true");
+        let cases: Vec<(&str, String, &str, Vec<(&str, bool)>)> = vec![
+            // Review 6: the name key `up` of `fast` must not shadow the published ID `up`.
             (
                 "fast first",
                 row("up", "fast", "") + &row("up", "up", off),
                 "up",
-                "up",
-                Some(false),
+                vec![("up", false)],
             ),
             (
                 "up first",
                 row("up", "up", off) + &row("up", "fast", ""),
                 "up",
-                "up",
-                Some(false),
+                vec![("up", false)],
             ),
             (
                 "fast route",
                 row("up", "fast", "") + &row("up", "up", off),
                 "fast",
-                "up",
-                Some(true),
+                vec![("up", true)],
             ),
-            // The registry's lowercase retry.
             (
                 "UP",
                 row("up", "fast", "") + &row("up", "up", off),
                 "UP",
-                "up",
-                Some(false),
+                vec![("up", false)],
             ),
             (
                 "duplicate",
                 row("up", "same", off) + &row("up", "same", on),
                 "same",
-                "up",
-                Some(false),
+                vec![("up", false)],
             ),
             // Distinct published IDs for one upstream.
             (
                 "alias s",
                 row("up", "s", on) + &row("up", "\u{17f}", off),
                 "s",
-                "up",
-                Some(true),
+                vec![("up", true)],
             ),
             (
                 "alias long s",
                 row("up", "s", on) + &row("up", "\u{17f}", off),
                 "\u{17f}",
-                "up",
-                Some(false),
+                vec![("up", false)],
             ),
-            // One pool, two members: each attempt takes its own member's flag.
+            // One pool, two members.
             (
-                "member s",
+                "members",
                 row("s", "fast", on) + &row("\u{17f}", "fast", off),
                 "fast",
-                "s",
-                Some(true),
+                vec![("s", true), ("\u{17f}", false)],
             ),
-            (
-                "member long s",
-                row("s", "fast", on) + &row("\u{17f}", "fast", off),
-                "fast",
-                "\u{17f}",
-                Some(false),
-            ),
-            // Prefixed and suffixed.
             (
                 "prefixed",
                 row("s", "fast", on) + &row("\u{17f}", "fast", off),
                 "p/fast(high)",
-                "\u{17f}(high)",
-                Some(false),
+                vec![("s(high)", true), ("\u{17f}(high)", false)],
             ),
+            // Members that differ only by their own suffix.
+            (
+                "suffixed members",
+                row("up(low)", "fast", on) + &row("up(high)", "FAST", off),
+                "fast",
+                vec![("up(low)", true), ("up(high)", false)],
+            ),
+            // The alias that produced a member wins over an earlier row's name.
+            (
+                "name shadow",
+                row("fast", "shadow", on) + &row("other", "fast", on) + &row("fast", "FAST", off),
+                "fast",
+                vec![("other", true), ("fast", false)],
+            ),
+            // The API-key table resolves a suffixed alias by its base.
+            ("table", row("up", "fast(high)", on), "fast", vec![("up", true)]),
             // Nothing stored produced the upstream (a plugin model, say): off.
             (
                 "unknown",
                 row("up", "fast", on),
                 "plugin-model",
-                "plugin-model",
-                Some(false),
+                vec![("plugin-model", false)],
             ),
         ];
-        let got: Vec<_> = cases
-            .iter()
-            .map(|(name, models, route, upstream, _)| {
-                let (_, creds) = synthesized(&group(models));
-                (*name, compat_replay(&creds[0], route, upstream))
-            })
-            .collect();
-        let want: Vec<_> = cases.iter().map(|(name, .., want)| (*name, *want)).collect();
+        let mut got = Vec::new();
+        let mut want = Vec::new();
+        for (name, models, route, expected) in &cases {
+            let (_, creds) = synthesized(&group(models));
+            let (members, _) = execution_models(&HashMap::new(), &creds[0], route);
+            let flags: Vec<(String, Option<bool>)> = members
+                .into_iter()
+                .map(|m| {
+                    let flag = compat_replay(&creds[0], route, &m);
+                    (m, flag)
+                })
+                .collect();
+            got.push((*name, flags));
+            want.push((
+                *name,
+                expected
+                    .iter()
+                    .map(|(m, f)| ((*m).to_owned(), Some(*f)))
+                    .collect::<Vec<_>>(),
+            ));
+        }
         assert_eq!(got, want);
     }
 
