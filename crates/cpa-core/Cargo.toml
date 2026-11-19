@@ -30,5 +30,4 @@ tracing.workspace = true
 base64 = "0.22"
 bcrypt = "0.19"
 sha2 = "0.10"
-url = "2"
 yaml-edit = "0.3.2"

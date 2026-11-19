@@ -368,22 +368,23 @@ impl ConfigModel {
 /// turn without `reasoning_content` while thinking is on. Kimi serves its platform on
 /// api.moonshot.ai and api.moonshot.cn, and Kimi Code on api.kimi.com and api.kimi.ai.
 fn requires_reasoning_replay(base_url: &str) -> bool {
-    let Ok(url) = url::Url::parse(base_url.trim()) else {
+    // Go's url.Parse, as the executor builds its request URL: `https:api.deepseek.com`
+    // has no host there. A fully qualified name (one trailing dot) is the same host.
+    // ASCII case only: a host with non-ASCII letters is another DNS name.
+    let Some(url) = crate::config::go_url::parse(base_url.trim()) else {
         return false;
     };
-    // The parser lowercases hosts and punycodes non-ASCII ones, so ASCII comparison is
-    // exact. A fully qualified name (one trailing dot) is the same host.
-    url.host_str().is_some_and(|host| {
-        let host = host.strip_suffix('.').unwrap_or(host);
-        [
-            "api.deepseek.com",
-            "api.moonshot.ai",
-            "api.moonshot.cn",
-            "api.kimi.com",
-            "api.kimi.ai",
-        ]
-        .contains(&host)
-    })
+    let host = url.hostname();
+    let host = host.strip_suffix('.').unwrap_or(host);
+    [
+        "api.deepseek.com",
+        "api.moonshot.ai",
+        "api.moonshot.cn",
+        "api.kimi.com",
+        "api.kimi.ai",
+    ]
+    .iter()
+    .any(|known| host.eq_ignore_ascii_case(known))
 }
 
 /// Configured models carried on a config-backed credential: full entries under
@@ -400,13 +401,13 @@ pub fn config_models(c: &Credential) -> Vec<ConfigModel> {
         .iter()
         .filter_map(|v| {
             let mut v = v.clone();
-            // Accept snake_case spellings from JSON metadata too.
+            // Accept snake_case spellings from JSON metadata too, except `is_compat`:
+            // Go's config reads only `is-compat`, and so does the per-attempt binding.
             if let Value::Object(m) = &mut v {
                 for key in [
                     "display_name",
                     "max_context_length",
                     "force_mapping",
-                    "is_compat",
                     "support_configuration_update",
                     "input_modalities",
                     "output_modalities",
@@ -2252,6 +2253,45 @@ mod tests {
             ["low", "medium", "high"]
         );
         assert_eq!(execution_models(&HashMap::new(), &c, "fast").0, ["a-1", "a-2"]);
+    }
+
+    /// Config models read only Go's `is-compat` spelling, as the per-attempt binding
+    /// does: `is_compat: false` on a DeepSeek host is no setting, so the host default
+    /// stays on.
+    #[test]
+    fn compat_models_read_only_the_go_is_compat_spelling() {
+        let c = config(
+            "openai-compatible-ds",
+            "openai-compatibility:ds:1",
+            serde_json::json!({"models":[
+                {"name":"up-a","alias":"underscore","is_compat":false},
+                {"name":"up-b","alias":"kebab","is-compat":false}]}),
+            &[
+                ("compat_name", "ds"),
+                ("provider_key", "openai-compatible-ds"),
+                ("base_url", "https://api.deepseek.com/v1"),
+            ],
+        );
+        let r = Registry::build(&Config::default(), std::slice::from_ref(&c));
+        let compat = |id| r.client_model("openai-compatibility:ds:1", id).unwrap().is_compat;
+        assert!(compat("underscore"));
+        assert!(!compat("kebab"));
+    }
+
+    /// The host default reads hosts as Go's url.Parse does: an opaque `https:host` has
+    /// none, while case, a port and one trailing dot do not change the host.
+    #[test]
+    fn reasoning_replay_hosts_parse_like_go() {
+        for (url, want) in [
+            ("https://api.deepseek.com/v1", true),
+            ("HTTPS://API.Moonshot.CN.:443/v1", true),
+            ("https:api.deepseek.com", false),
+            ("https://api.deepseek.com.example.test/v1", false),
+            ("https://api.\u{212a}imi.com/v1", false),
+            ("", false),
+        ] {
+            assert_eq!(requires_reasoning_replay(url), want, "{url}");
+        }
     }
 
     #[test]
