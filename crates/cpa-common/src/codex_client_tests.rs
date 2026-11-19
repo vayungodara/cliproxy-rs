@@ -141,6 +141,26 @@ fn prepared_tools_skip_the_model_list() {
     );
 }
 
+/// Several `agent_message` items with metadata, rewritten element by element and spliced
+/// once: the bytes match sjson editing `input.N.…` on the whole document, and the
+/// separators between items stay as sent.
+#[test]
+fn agent_message_input_rewrite_pins_sjson_bytes() {
+    let mut h = HeaderMap::new();
+    h.insert("user-agent", "codex_cli_rs/0.150.0".parse().unwrap());
+    let input = br#"{"model":"m","input":[{"type":"agent_message","author":"a","recipient":"b","content":[{"type":"encrypted_content","encrypted_content":"one"},{"type":"input_text","text":"keep"}]}, {"type":"message","role":"user","author":"u","content":"hi"}, {"type":"agent_message","internal_chat_message_metadata_passthrough":{"x":1},"content":[{"type":"encrypted_content","encrypted_content":"two"},{"type":"encrypted_content","encrypted_content":"three"}]}],"tools":[]}"#;
+    let compat = r#"{"model":"m","input":[{"type":"message","content":[{"type":"input_text","text":"one"},{"type":"input_text","text":"keep"}],"role":"user"}, {"type":"message","role":"user","content":"hi"}, {"type":"message","content":[{"type":"input_text","text":"two"},{"type":"input_text","text":"three"}],"role":"user"}],"tools":[]}"#;
+    let optimize = r#"{"model":"m","input":[{"type":"message","author":"a","recipient":"b","content":[{"type":"input_text","text":"one"},{"type":"input_text","text":"keep"}],"role":"user"}, {"type":"message","role":"user","author":"u","content":"hi"}, {"type":"message","internal_chat_message_metadata_passthrough":{"x":1},"content":[{"type":"input_text","text":"two"},{"type":"input_text","text":"three"}],"role":"user"}],"tools":[]}"#;
+    let off = Settings::default();
+    let on = Settings {
+        optimize_multi_agent_v2: true,
+        orphan_delegation: false,
+    };
+    let got = |s: &Settings, c: bool| String::from_utf8(rewrite_multi_agent_v2_input(&h, input, s, c)).unwrap();
+    assert_eq!(got(&off, true), compat);
+    assert_eq!(got(&on, false), optimize);
+}
+
 #[test]
 fn settings_read_go_config_paths() {
     let cfg = Config::parse(

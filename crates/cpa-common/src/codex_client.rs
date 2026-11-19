@@ -189,8 +189,7 @@ pub fn rewrite_multi_agent_v2_input(headers: &HeaderMap, payload: &[u8], setting
     if !compat && !optimize {
         return payload.to_vec();
     }
-    let input = gj::get(payload, "input");
-    if !input.is_array() {
+    if !gj::get(payload, "input").is_array() {
         return payload.to_vec();
     }
     let start = if optimize {
@@ -198,63 +197,103 @@ pub fn rewrite_multi_agent_v2_input(headers: &HeaderMap, payload: &[u8], setting
     } else {
         payload.to_vec()
     };
-    edit(&start, |out| {
-        for (index, item) in input.array().iter().enumerate() {
-            let path = format!("input.{index}");
-            if text(&item.get("type")) == "agent_message"
-                && optimize
-                && !(gj::set_str(out, &format!("{path}.role"), "user")
-                    && gj::set_str(out, &format!("{path}.type"), "message"))
-            {
-                return false;
+    // Go returns the original payload, without the content rewrite, when an edit fails.
+    let rewritten = splice_array(&start, "input", |item| {
+        let mut out = item.to_vec();
+        let mut changed = false;
+        let item = gj::parse(item);
+        if text(&item.get("type")) == "agent_message" && optimize {
+            if !(gj::set_str(&mut out, "role", "user") && gj::set_str(&mut out, "type", "message")) {
+                return Err(());
             }
-            if compat {
-                for field in ["author", "recipient", "internal_chat_message_metadata_passthrough"] {
-                    if item.get(field).exists() && !gj::delete(out, &format!("{path}.{field}")) {
-                        return false;
+            changed = true;
+        }
+        if compat {
+            for field in ["author", "recipient", "internal_chat_message_metadata_passthrough"] {
+                if item.get(field).exists() {
+                    if !gj::delete(&mut out, field) {
+                        return Err(());
                     }
+                    changed = true;
                 }
             }
         }
-        true
-    })
+        Ok(changed.then_some(out))
+    });
+    match rewritten {
+        Ok(Some(out)) => out,
+        Ok(None) => start,
+        Err(()) => payload.to_vec(),
+    }
 }
 
 /// `rewriteCodexAgentMessageContent`: `encrypted_content` parts of `agent_message` input
 /// become `input_text`.
 fn rewrite_agent_message_content(payload: &[u8]) -> Vec<u8> {
-    let input = gj::get(payload, "input");
-    if !input.is_array() {
-        return payload.to_vec();
-    }
-    edit(payload, |out| {
-        for (index, item) in input.array().iter().enumerate() {
-            if text(&item.get("type")) != "agent_message" {
-                continue;
-            }
-            let content = item.get("content");
-            if !content.is_array() {
-                continue;
-            }
-            for (part_index, part) in content.array().iter().enumerate() {
-                if text(&part.get("type")) != "encrypted_content" {
-                    continue;
-                }
-                let encrypted = part.get("encrypted_content");
-                if encrypted.kind != Kind::String {
-                    continue;
-                }
-                let path = format!("input.{index}.content.{part_index}");
-                if !(gj::set_str(out, &format!("{path}.type"), "input_text")
-                    && gj::set_str(out, &format!("{path}.text"), encrypted.bytes())
-                    && gj::delete(out, &format!("{path}.encrypted_content")))
-                {
-                    return false;
-                }
-            }
+    let rewritten = splice_array(payload, "input", |item| {
+        if text(&gj::get(item, "type")) != "agent_message" {
+            return Ok(None);
         }
-        true
-    })
+        splice_array(item, "content", |part| {
+            let parsed = gj::parse(part);
+            if text(&parsed.get("type")) != "encrypted_content" {
+                return Ok(None);
+            }
+            let encrypted = parsed.get("encrypted_content");
+            if encrypted.kind != Kind::String {
+                return Ok(None);
+            }
+            let mut out = part.to_vec();
+            if gj::set_str(&mut out, "type", "input_text")
+                && gj::set_str(&mut out, "text", encrypted.bytes())
+                && gj::delete(&mut out, "encrypted_content")
+            {
+                Ok(Some(out))
+            } else {
+                Err(())
+            }
+        })
+    });
+    match rewritten {
+        Ok(Some(out)) => out,
+        Ok(None) | Err(()) => payload.to_vec(),
+    }
+}
+
+/// Rewrites elements of the array at the top-level key `key` of `doc` and copies `doc`
+/// once around them, so the work stays linear in the body size. `rewrite` gets each
+/// element's raw bytes and returns `Ok(None)` to keep it, `Ok(Some(bytes))` to replace
+/// it, or `Err(())` to abandon every edit. An sjson edit by path recurses into the raw
+/// bytes of each value on the path, so editing an element on its own gives the same
+/// bytes as editing `key.N.…` in the whole document, without copying the document per
+/// edit. Returns `Ok(None)` when nothing changed or `key` is not an array.
+fn splice_array(
+    doc: &[u8],
+    key: &str,
+    mut rewrite: impl FnMut(&[u8]) -> Result<Option<Vec<u8>>, ()>,
+) -> Result<Option<Vec<u8>>, ()> {
+    let array = gj::get(doc, key);
+    if !array.is_array() {
+        return Ok(None);
+    }
+    let mut out: Option<Vec<u8>> = None;
+    let mut copied = 0;
+    for element in array.array() {
+        let (start, end) = (element.index, element.index + element.raw.len());
+        if start == 0 || doc.get(start..end) != Some(element.raw()) {
+            return Err(());
+        }
+        if let Some(replacement) = rewrite(element.raw())? {
+            let out = out.get_or_insert_with(|| Vec::with_capacity(doc.len()));
+            out.extend_from_slice(&doc[copied..start]);
+            out.extend_from_slice(&replacement);
+            copied = end;
+        }
+    }
+    Ok(out.map(|mut out| {
+        out.extend_from_slice(&doc[copied..]);
+        out
+    }))
 }
 
 // ------------------------------------------------------------------- collaboration tools
