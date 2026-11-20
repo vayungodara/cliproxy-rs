@@ -39,8 +39,6 @@ cliproxy-rs is a Rust rewrite of [CLIProxyAPI](https://github.com/router-for-me/
 3. Add a provider with a model. Open **Provider keys**, choose **OpenAI-compatible** and fill in the form: a group name, the provider's base URL, your API key and the Model, which is the model's name at the provider. Alias is optional. It is the name your tools ask for, and it is the same as the model when you leave it empty. Then press **Add group**. Base URLs for DeepSeek, GLM, Kimi and OpenRouter are listed under [API keys](#api-keys-codex-cli-and-mixed-providers).
 4. Open **Use with tools**, pick the model, choose Claude Code or Codex CLI and copy the setup. It has the address you opened the dashboard at, your client key and the selected model filled in. Claude Code gets one block for your shell, which sets the variables and starts `claude`. Codex CLI gets two blocks: one for `~/.codex/config.toml`, and one `export` line to run before `codex`. For these two tools, Copy is disabled while no model is selected.
 
-The Model field and the model in the tool setup are newer than v0.4.4, the latest release on 18 November 2026. If your dashboard has no Model field, add the provider in YAML and set up your tool by hand, as below.
-
 <details>
 <summary>Add the provider in YAML instead</summary>
 
