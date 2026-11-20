@@ -71,6 +71,7 @@ fn request(case: &Value) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        compat_replay: None,
         usage: Default::default(),
         request_path: String::new(),
         caller: Caller {
@@ -523,6 +524,7 @@ fn plain_request(stream: bool, alt: Option<&str>) -> ExecRequest {
         execution_session: None,
         derived_session: None,
         resolved_model: None,
+        compat_replay: None,
         usage: Default::default(),
         request_path: String::new(),
         caller: Caller {
@@ -868,6 +870,7 @@ async fn direct_images_send_the_configured_upstream_model() {
                 execution_session: None,
                 derived_session: None,
                 resolved_model: None,
+                compat_replay: None,
                 usage: Default::default(),
                 request_path: request_path.into(),
                 caller: Caller {
@@ -939,6 +942,7 @@ async fn images_match_go_on_every_fixture_case() {
             execution_session: None,
             derived_session: None,
             resolved_model: None,
+            compat_replay: None,
             usage: Default::default(),
             request_path: request_path.into(),
             caller: Caller {

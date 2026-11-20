@@ -1871,6 +1871,7 @@ mod tests {
                 provider: String::new(),
             },
             resolved_model: None,
+            compat_replay: None,
             usage: Default::default(),
         };
         credential
