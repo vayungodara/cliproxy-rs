@@ -1854,18 +1854,21 @@ pub fn compat_replay(c: &Credential, registry: &Registry, key: &RouteKey, route_
         return None;
     }
     let models = config_models(c);
-    let rows = published_rows(c, &models, key.force_prefix);
-    let find = |id: &str| {
+    // The routed ID under routing's prefix policy, the fallbacks under admission's.
+    let routed = published_rows(c, &models, key.force_prefix);
+    let admitted = published_rows(c, &models, registry.force_model_prefix);
+    let lookup = |rows: &[(String, usize)], id: &str| {
         let id = id.trim();
         rows.iter()
             .find(|(published, _)| published == id)
             .or_else(|| rows.iter().find(|(published, _)| published.go_eq_fold(id)))
             .map(|&(_, index)| models[index].is_compat)
     };
+    let find = |id: &str| lookup(&admitted, id);
     let row = key
         .id
         .as_deref()
-        .and_then(find)
+        .and_then(|id| lookup(&routed, id))
         .or_else(|| find(canonical_model(route_model)))
         .or_else(|| {
             let route = canonical_model(route_model);
@@ -2488,6 +2491,25 @@ mod tests {
             got.push((*label, compat_replay(&creds[0], &r, &routed(&r, route), route)));
             want.push((*label, Some(*expected)));
         }
+        // Review 8 follow-up: a reload turns prefix forcing off between routing and
+        // admission. Routing's forced registry publishes only `p/fast`, so a router's
+        // `fast` matches no ID; the unforced registry admits `fast` by the row (off).
+        let parse = |force: bool| {
+            let cfg = Config::parse(&format!(
+                "routing:\n  force-model-prefix: {force}\napi-keys:\n  openai-compatibility:\n{}",
+                group(&row("up", "fast", off))
+            ))
+            .unwrap();
+            let creds: Vec<Arc<Credential>> = crate::config::credentials::from_config(&cfg)
+                .into_iter()
+                .map(Arc::new)
+                .collect();
+            (Registry::build(&cfg, &creds), creds)
+        };
+        let ((forced, creds), (unforced, _)) = (parse(true), parse(false));
+        let key = routed(&forced, "fast");
+        got.push(("reload", compat_replay(&creds[0], &unforced, &key, "fast")));
+        want.push(("reload", Some(false)));
         // A router naming only the provider routes no ID, and another credential's
         // literal `fast(high)` matches no row here: admission's `fast` finds `Fast`.
         let (_, creds) = synthesized(&group(&row("up", "Fast", off)));
