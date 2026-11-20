@@ -340,8 +340,8 @@ pub struct ConfigModel {
     pub display_name: String,
     pub max_context_length: i64,
     pub force_mapping: bool,
-    /// For a locally synthesized OpenAI-compatible credential, [`config_models`] fills an
-    /// absent flag with the DeepSeek/Kimi host default.
+    /// For a locally synthesized OpenAI-compatible credential on a DeepSeek/Kimi host,
+    /// [`config_models`] turns an absent flag on.
     pub is_compat: bool,
     pub support_configuration_update: bool,
     pub image: bool,
@@ -382,15 +382,15 @@ fn local_compat(c: &Credential) -> bool {
 
 /// Configured models carried on a config-backed credential: full entries under
 /// metadata `models` when synthesis provides them, otherwise `model_aliases` pairs. For a
-/// locally synthesized OpenAI-compatible credential, a row without an `is-compat` key gets
-/// the host default (a cliproxy-rs default; docs/DIFFERENCES-FROM-GO.md), and only Go's
-/// `is-compat` spelling counts; other sources keep the snake_case spelling too.
+/// locally synthesized OpenAI-compatible credential on a DeepSeek/Kimi host, a row without
+/// an `is-compat` key is on (a cliproxy-rs default; docs/DIFFERENCES-FROM-GO.md), and only
+/// Go's `is-compat` spelling counts there; every other row reads as before.
 pub fn config_models(c: &Credential) -> Vec<ConfigModel> {
     if !matches!(c.source, Source::Config { .. }) {
         return Vec::new();
     }
-    let local = local_compat(c);
-    let host_default = local && requires_reasoning_replay(c.attributes.get("base_url").map_or("", String::as_str));
+    let host_default =
+        local_compat(c) && requires_reasoning_replay(c.attributes.get("base_url").map_or("", String::as_str));
     let raw = c.metadata.get("models").or_else(|| c.metadata.get("model_aliases"));
     let Some(Value::Array(items)) = raw else {
         return Vec::new();
@@ -402,8 +402,8 @@ pub fn config_models(c: &Credential) -> Vec<ConfigModel> {
             // Accept snake_case spellings from JSON metadata too.
             if let Value::Object(m) = &mut v {
                 // Before the snake_case keys move over, so `is_compat` never sets it.
-                if local {
-                    m.entry("is-compat").or_insert(host_default.into());
+                if host_default {
+                    m.entry("is-compat").or_insert(true.into());
                 }
                 for key in [
                     "display_name",
@@ -1347,7 +1347,8 @@ pub struct Registry {
 /// The registry ID a request was routed by, with the prefix policy of the same snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RouteKey {
-    pub id: String,
+    /// `None` when the lookup matched nothing (a path with its own provider).
+    pub id: Option<String>,
     pub force_prefix: bool,
 }
 
@@ -1439,22 +1440,23 @@ impl Registry {
     }
 
     /// The ID that routing's lookup matches: [`Self::providers`] of the suffix-free
-    /// `base`, then of `model`, each exact and then lowercased.
-    pub fn route_key(&self, base: &str, model: &str) -> Option<RouteKey> {
+    /// `base`, then of `model`, each exact and then lowercased. Every registered ID has a
+    /// provider.
+    pub fn route_key(&self, base: &str, model: &str) -> RouteKey {
         let id = [base, model].into_iter().find_map(|id| {
             if id.is_empty() {
                 return None;
             }
-            if !self.model_providers(id).is_empty() {
+            if self.index.contains_key(id) {
                 return Some(id.to_owned());
             }
             let lower = id.go_lower();
-            (lower != id && !self.model_providers(&lower).is_empty()).then_some(lower)
-        })?;
-        Some(RouteKey {
+            self.index.contains_key(&lower).then_some(lower)
+        });
+        RouteKey {
             id,
             force_prefix: self.force_model_prefix,
-        })
+        }
     }
 
     /// Go `util.GetProviderName`: exact ID, then the lowercased ID.
@@ -1701,7 +1703,7 @@ fn resolve_oauth(cfg_aliases: &HashMap<String, Vec<OAuthAlias>>, c: &Credential,
 /// builds: each entry with both a name and an alias adds its alias, suffix-free alias,
 /// name and suffix-free name under `strings.ToLower` keys, the first entry winning a key.
 /// The requested model is looked up, then its suffix-free form.
-fn api_key_table_upstream(requested: &str, models: &[ConfigModel]) -> Option<(String, usize)> {
+fn api_key_table_upstream(requested: &str, models: &[ConfigModel]) -> Option<String> {
     let requested = requested.trim();
     let base = |s: &'_ str| -> String {
         let s = s.trim();
@@ -1716,14 +1718,14 @@ fn api_key_table_upstream(requested: &str, models: &[ConfigModel]) -> Option<(St
         keys.push(requested_base);
     }
     keys.into_iter().filter(|k| !k.is_empty()).find_map(|key| {
-        models.iter().enumerate().find_map(|(index, m)| {
+        models.iter().find_map(|m| {
             let (name, alias) = (m.name.trim(), m.alias.trim());
             if name.is_empty() || alias.is_empty() {
                 return None;
             }
             [alias.go_lower(), base(alias), name.go_lower(), base(name)]
                 .contains(&key)
-                .then(|| (preserve_suffix(name, requested), index))
+                .then(|| preserve_suffix(name, requested))
         })
     })
 }
@@ -1779,7 +1781,7 @@ pub fn execution_models(
         alias.upstream.clone()
     };
     if configured && !models.is_empty() {
-        let pool: Vec<String> = alias_pool(&upstream, &models).into_iter().map(|(u, _)| u).collect();
+        let pool = alias_pool(&upstream, &models);
         // Go `executionModelCandidatesWithAlias`: a non-empty compat pool wins. Otherwise
         // `applyAPIKeyModelAliasWithRouting` tries an API key's lowercase-keyed table
         // before the `EqualFold` scan.
@@ -1787,7 +1789,7 @@ pub fn execution_models(
             return (pool, alias);
         }
         if is_api_key(c)
-            && let Some((upstream, _)) = api_key_table_upstream(&upstream, &models)
+            && let Some(upstream) = api_key_table_upstream(&upstream, &models)
         {
             return (vec![upstream], alias);
         }
@@ -1803,19 +1805,19 @@ pub fn execution_models(
     (vec![upstream], alias)
 }
 
-/// Go `resolveModelAliasPoolFromConfigModels`, with the row that produced each member.
-fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<(String, usize)> {
+/// Go `resolveModelAliasPoolFromConfigModels`.
+fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<String> {
     for candidate in candidates(requested) {
         let mut out = Vec::new();
         let mut seen = std::collections::HashSet::new();
-        for (index, m) in models.iter().enumerate() {
+        for m in models {
             let (name, alias) = (m.name.trim(), m.alias.trim());
             if alias.is_empty() || !alias.go_eq_fold(&candidate) {
                 continue;
             }
             let resolved = preserve_suffix(if name.is_empty() { &candidate } else { name }, requested);
             if !resolved.is_empty() && seen.insert(resolved.go_lower()) {
-                out.push((resolved, index));
+                out.push(resolved);
             }
         }
         if !out.is_empty() {
@@ -1823,73 +1825,46 @@ fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<(String, usize)> {
         }
     }
     for candidate in candidates(requested) {
-        if let Some((index, m)) = models
+        if let Some(m) = models
             .iter()
-            .enumerate()
-            .find(|(_, m)| !m.name.trim().is_empty() && m.name.trim().go_eq_fold(&candidate))
+            .find(|m| !m.name.trim().is_empty() && m.name.trim().go_eq_fold(&candidate))
         {
-            return vec![(preserve_suffix(m.name.trim(), requested), index)];
+            return vec![preserve_suffix(m.name.trim(), requested)];
         }
     }
     Vec::new()
 }
 
-/// Whether an attempt on `c` that routes `route_model` and sends `upstream` replays
-/// reasoning (its effective is-compat), for a credential synthesized from this config's
-/// `openai-compatibility` section; `None` for every other credential, which keeps Go's
-/// per-attempt binding. Also `None` for a keyless unnamed entry off the DeepSeek/Kimi
-/// hosts, which Go never binds.
-///
-/// The row is the credential's own stored row, so a reload that reorders or edits groups
-/// cannot lend another group's flag: the stored row the registry publishes under the
-/// routed ID `key` (exactly; prefix rules from the same snapshot) when it sends exactly
-/// this upstream; otherwise the row [`execution_models`] took the upstream from;
-/// otherwise off. Without a key (a path that routed no registry ID) only the producing
-/// row counts.
-// ponytail: the registry lists one row per ID, so a pool whose members carry different
-// flags advertises the first; execution follows the member actually sent.
-pub fn compat_replay(c: &Credential, route_model: &str, key: Option<&RouteKey>, upstream: &str) -> Option<bool> {
-    if !local_compat(c) {
-        return None;
-    }
-    let base_url = c.attributes.get("base_url").map_or("", String::as_str);
-    let routed = is_api_key(c) || c.attributes.get("compat_name").is_some_and(|n| !n.trim().is_empty());
-    if !(routed || requires_reasoning_replay(base_url)) {
+/// Whether an attempt on `c` replays reasoning (its effective is-compat), decided once
+/// per selected credential. `None`, so Go's per-attempt binding decides, for every
+/// credential except one synthesized from this config's `openai-compatibility` section
+/// with a DeepSeek/Kimi `base-url` host. There the flag is that of the first stored row
+/// the registry publishes under the ID routing matched (`key`, prefix rules from the
+/// same snapshot), exactly and then case-folded; when routing matched no row of this
+/// credential (another credential's spelling, or a router that names only the
+/// provider), the suffix-free route model admission matched; otherwise on, the host
+/// default, which covers plugin models without a stored row.
+// ponytail: the routed ID owns the opt-out, so every member of an alias pool and every
+// duplicate name/alias row take that one row's flag (docs/DIFFERENCES-FROM-GO.md).
+pub fn compat_replay(c: &Credential, key: &RouteKey, route_model: &str) -> Option<bool> {
+    if !local_compat(c) || !requires_reasoning_replay(c.attributes.get("base_url").map_or("", String::as_str)) {
         return None;
     }
     let models = config_models(c);
-    let requested = strip_prefix(route_model, c);
-    // A stored row owns the routed ID only if it publishes exactly that ID; plugin models
-    // come after every stored row, so an ID no stored row publishes is a plugin's or
-    // another credential's, and the producer decides.
-    let published = key.and_then(|key| {
-        published_rows(c, &models, key.force_prefix)
-            .into_iter()
-            .find(|(id, _)| *id == key.id)
-    });
-    if let Some((_, index)) = published {
-        let m = &models[index];
-        // A row without a name sends the request spelling its alias matched, as in
-        // `alias_pool`.
-        let sent = if m.name.trim().is_empty() {
-            candidates(requested)
-                .into_iter()
-                .find(|candidate| m.alias.trim().go_eq_fold(candidate))
-        } else {
-            Some(m.name.trim().to_owned())
-        };
-        if sent.is_some_and(|sent| preserve_suffix(&sent, requested) == upstream) {
-            return Some(m.is_compat);
-        }
-    }
-    // execution_models: the alias pool wins for an OpenAI-compatible credential, then a
-    // keyed one's lowercase table.
-    let mut producers = alias_pool(requested, &models);
-    if producers.is_empty() && is_api_key(c) {
-        producers.extend(api_key_table_upstream(requested, &models));
-    }
-    let producer = producers.into_iter().find(|(sent, _)| sent == upstream);
-    Some(producer.is_some_and(|(_, index)| models[index].is_compat))
+    let rows = published_rows(c, &models, key.force_prefix);
+    let find = |id: &str| {
+        let id = id.trim();
+        rows.iter()
+            .find(|(published, _)| published == id)
+            .or_else(|| rows.iter().find(|(published, _)| published.go_eq_fold(id)))
+            .map(|&(_, index)| models[index].is_compat)
+    };
+    let row = key
+        .id
+        .as_deref()
+        .and_then(find)
+        .or_else(|| find(canonical_model(route_model)));
+    Some(row.unwrap_or(true))
 }
 
 /// The IDs the registry publishes for a local OpenAI-compatible credential's stored rows,
@@ -2374,17 +2349,24 @@ mod tests {
         (cfg, creds)
     }
 
-    /// A locally synthesized OpenAI-compatible row without `is-compat` takes the host
-    /// default; only Go's `is-compat` spelling counts there, and an `is-compat: null` row is
-    /// skipped as before. Other sources (here a Home-style credential) keep the flag as
-    /// sent, underscore spelling included, with no host default.
+    /// The key routing builds for `route` in `r`: the suffix-free ID first.
+    fn routed(r: &Registry, route: &str) -> RouteKey {
+        r.route_key(canonical_model(route), route)
+    }
+
+    /// A locally synthesized OpenAI-compatible row on a DeepSeek/Kimi host without
+    /// `is-compat` is on; only Go's `is-compat` spelling counts there, and an
+    /// `is-compat: null` row is skipped as before. Off those hosts rows read as on master:
+    /// absent is off, the underscore spelling counts, and `is_compat: null` is skipped.
+    /// Other sources (here a Home-style credential) keep the flag as sent. Replay is
+    /// decided only for the local credential on the host.
     #[test]
     fn local_compat_rows_default_by_host() {
         let (cfg, creds) = synthesized(
-            "    - name: ds\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: absent}\n        - {name: up, alias: off, is-compat: false}\n        - {name: up, alias: underscore, is_compat: false}\n        - {name: up, alias: nulled, is-compat: null}\n      keys:\n        - api-key: sk-fake\n",
+            "    - name: ds\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: absent}\n        - {name: up, alias: off, is-compat: false}\n        - {name: up, alias: underscore, is_compat: false}\n        - {name: up, alias: nulled, is-compat: null}\n      keys:\n        - api-key: sk-fake\n    - name: relay\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: relay-absent}\n        - {name: up, alias: relay-underscore, is_compat: true}\n        - {name: up, alias: relay-nulled, is_compat: null}\n      keys:\n        - api-key: sk-fake\n",
         );
         let r = Registry::build(&cfg, &creds);
-        let compat = |id: &str| r.client_model(&creds[0].id, id).map(|m| m.is_compat);
+        let compat = |n: usize, id: &str| r.client_model(&creds[n].id, id).map(|m| m.is_compat);
         let mut home = Credential::clone(&creds[0]);
         home.id = "home-ds".into();
         home.source = Source::Config {
@@ -2399,35 +2381,45 @@ mod tests {
         let home_compat = |id: &str| home_registry.client_model("home-ds", id).map(|m| m.is_compat);
         assert_eq!(
             [
-                compat("absent"),
-                compat("off"),
-                compat("underscore"),
-                compat("nulled"),
+                compat(0, "absent"),
+                compat(0, "off"),
+                compat(0, "underscore"),
+                compat(0, "nulled"),
+                compat(1, "relay-absent"),
+                compat(1, "relay-underscore"),
+                compat(1, "relay-nulled"),
                 home_compat("absent"),
                 home_compat("underscore")
             ],
-            [Some(true), Some(false), Some(true), None, Some(false), Some(true)]
+            [
+                Some(true),
+                Some(false),
+                Some(true),
+                None,
+                Some(false),
+                Some(true),
+                None,
+                Some(false),
+                Some(true)
+            ]
         );
         assert_eq!(
-            compat_replay(&home, "absent", None, "up"),
-            None,
-            "Home keeps Go's binding"
+            [
+                compat_replay(&creds[0], &routed(&r, "off"), "off"),
+                compat_replay(&creds[1], &routed(&r, "relay-underscore"), "relay-underscore"),
+                compat_replay(&home, &routed(&home_registry, "absent"), "absent")
+            ],
+            [Some(false), None, None],
+            "only the local credential on the host decides"
         );
     }
 
-    /// The replay flag of every upstream [`execution_models`] tries follows the stored row
-    /// that is published under the requested ID and sends it, else the row that produced
-    /// it, never a row that merely shares a folded name, alias or suffix-free base.
+    /// On a DeepSeek/Kimi host the attempt takes the flag of the first stored row
+    /// published under the ID routing matched, whatever upstream execution sends;
+    /// without such a row, that of the suffix-free route model on this credential;
+    /// otherwise on.
     #[test]
-    fn compat_replay_follows_the_row_that_sends_each_upstream() {
-        // The key dispatch routes by: the suffix-free ID first.
-        let route_key = |r: &Registry, route: &str| {
-            let base = match route.rfind('(') {
-                Some(i) if route.ends_with(')') => route[..i].trim(),
-                _ => route.trim(),
-            };
-            r.route_key(base, route)
-        };
+    fn replay_takes_the_routed_rows_flag() {
         let group = |models: &str| {
             format!(
                 "    - name: ds\n      prefix: p\n      base-url: https://api.deepseek.com/v1\n      models:\n{models}      keys:\n        - api-key: sk-fake\n"
@@ -2436,163 +2428,63 @@ mod tests {
         let row =
             |name: &str, alias: &str, flag: &str| format!("        - {{name: '{name}', alias: '{alias}'{flag}}}\n");
         let (off, on) = (", is-compat: false", ", is-compat: true");
-        // (label, models yaml, requested ID, expected (member, flag) pairs)
-        type Case<'a> = (&'a str, String, &'a str, Vec<(&'a str, bool)>);
-        let cases: Vec<Case> = vec![
-            // Review 6: the name key `up` of `fast` must not shadow the published ID `up`.
+        let cases = [
+            // Review 7, 2: `a (high)` routes as `a`, the first row, while the API-key table
+            // sends `a(high)` by the second row's name.
             (
-                "fast first",
-                row("up", "fast", "") + &row("up", "up", off),
-                "up",
-                vec![("up", false)],
+                "trimmed base",
+                row("", "a", off) + &row("a", "b", ""),
+                "a (high)",
+                false,
             ),
+            ("other alias", row("", "a", off) + &row("a", "b", ""), "b", true),
+            ("reversed", row("a", "b", "") + &row("", "a", off), "a (high)", false),
             (
-                "up first",
-                row("up", "up", off) + &row("up", "fast", ""),
-                "up",
-                vec![("up", false)],
+                "reversed other",
+                row("a", "b", "") + &row("", "a", off),
+                "b(high)",
+                true,
             ),
-            (
-                "fast route",
-                row("up", "fast", "") + &row("up", "up", off),
-                "fast",
-                vec![("up", true)],
-            ),
-            (
-                "UP",
-                row("up", "fast", "") + &row("up", "up", off),
-                "UP",
-                vec![("up", false)],
-            ),
+            // Duplicate rows: the first published one decides for the whole pool.
             (
                 "duplicate",
-                row("up", "same", off) + &row("up", "same", on),
+                row("up", "same", off) + &row("up2", "same", on),
                 "same",
-                vec![("up", false)],
+                false,
             ),
-            // Distinct published IDs for one upstream.
+            // Routing lowercases only after an exact miss.
+            ("exact", row("up", "Fast", off) + &row("up", "fast", ""), "Fast", false),
+            ("lowered", row("up", "Fast", off) + &row("up", "fast", ""), "FAST", true),
+            ("prefixed", row("up", "fast", off), "p/fast(high)", false),
+            // Routing tries the full ID when the base is not registered.
+            ("full id", row("up", "x(high)", off), "x(high)", false),
             (
-                "alias s",
-                row("up", "s", on) + &row("up", "\u{17f}", off),
-                "s",
-                vec![("up", true)],
+                "base first",
+                row("up", "x", off) + &row("up", "x(high)", on),
+                "x(high)",
+                false,
             ),
-            (
-                "alias long s",
-                row("up", "s", on) + &row("up", "\u{17f}", off),
-                "\u{17f}",
-                vec![("up", false)],
-            ),
-            // One pool, two members.
-            (
-                "members",
-                row("s", "fast", on) + &row("\u{17f}", "fast", off),
-                "fast",
-                vec![("s", true), ("\u{17f}", false)],
-            ),
-            (
-                "prefixed",
-                row("s", "fast", on) + &row("\u{17f}", "fast", off),
-                "p/fast(high)",
-                vec![("s(high)", true), ("\u{17f}(high)", false)],
-            ),
-            // Members that differ only by their own suffix.
-            (
-                "suffixed members",
-                row("up(low)", "fast", on) + &row("up(high)", "FAST", off),
-                "fast",
-                vec![("up(low)", true), ("up(high)", false)],
-            ),
-            // The alias that produced a member wins over an earlier row's name.
-            (
-                "name shadow",
-                row("fast", "shadow", on) + &row("other", "fast", on) + &row("fast", "FAST", off),
-                "fast",
-                vec![("other", true), ("fast", false)],
-            ),
-            // The API-key table resolves a suffixed alias by its base.
-            ("table", row("up", "fast(high)", on), "fast", vec![("up", true)]),
-            // A later row repeating a published ID is not published: the producer decides.
-            (
-                "unpublished repeat",
-                row("a", "fast", off) + &row("b", "FAST", off) + &row("b", "fast", on),
-                "fast",
-                vec![("a", false), ("b", false)],
-            ),
-            // A literal `p/fast` row publishes `p/fast` before the later `fast` row's copy.
-            (
-                "literal prefixed alias",
-                row("b", "p/fast", off) + &row("b", "FAST", off) + &row("b", "fast", on),
-                "p/fast",
-                vec![("b", false)],
-            ),
-            // A row without a name publishes and sends its alias, here the literal `p/fast`,
-            // which is not what execution sends for `p/fast`.
-            (
-                "alias-only prefixed",
-                row("", "p/fast", on) + &row("fast", "fast", off),
-                "p/fast",
-                vec![("fast", false)],
-            ),
-            // Routing looks up `up (high)` as `up`, the published second row.
-            (
-                "space before suffix",
-                row("up", "fast", "") + &row("up", "up", off),
-                "up (high)",
-                vec![("up(high)", false)],
-            ),
-            // Routing matches the base `fast` before `fast(high)`; its row and the producer
-            // `Fast(high)` both send `up(high)` and are off.
-            (
-                "routed base first",
-                row("up", "fast", off) + &row("up", "Fast(high)", off) + &row("up", "fast(high)", on),
-                "fast(high)",
-                vec![("up(high)", false)],
-            ),
-            // The pool sends `UP`; the published `FAST` row sends `up`, a different model.
-            (
-                "upstream case",
-                row("UP", "fast", off) + &row("up", "FAST", on),
-                "FAST",
-                vec![("UP", false)],
-            ),
-            // The nameless `fast` row would send `FAST`, which the pool dropped as a
-            // repeat of `Fast`'s `fast`.
-            (
-                "nameless repeat",
-                row("fast", "Fast", off) + &row("", "fast", on),
-                "FAST",
-                vec![("fast", false)],
-            ),
-            // Nothing stored produced the upstream (a plugin model, say): off.
-            (
-                "unknown",
-                row("up", "fast", on),
-                "plugin-model",
-                vec![("plugin-model", false)],
-            ),
+            // No stored row: the host default.
+            ("unknown", row("up", "fast", off), "ghost", true),
         ];
         let mut got = Vec::new();
         let mut want = Vec::new();
-        for (name, models, route, expected) in &cases {
+        for (label, models, route, expected) in &cases {
             let (cfg, creds) = synthesized(&group(models));
-            let key = route_key(&Registry::build(&cfg, &creds), route);
-            let (members, _) = execution_models(&HashMap::new(), &creds[0], route);
-            let flags: Vec<(String, Option<bool>)> = members
-                .into_iter()
-                .map(|m| {
-                    let flag = compat_replay(&creds[0], route, key.as_ref(), &m);
-                    (m, flag)
-                })
-                .collect();
-            got.push((*name, flags));
-            want.push((
-                *name,
-                expected
-                    .iter()
-                    .map(|(m, f)| ((*m).to_owned(), Some(*f)))
-                    .collect::<Vec<_>>(),
-            ));
+            let key = routed(&Registry::build(&cfg, &creds), route);
+            got.push((*label, compat_replay(&creds[0], &key, route)));
+            want.push((*label, Some(*expected)));
+        }
+        // A router naming only the provider routes no ID, and another credential's
+        // literal `fast(high)` matches no row here: admission's `fast` finds `Fast`.
+        let (_, creds) = synthesized(&group(&row("up", "Fast", off)));
+        for (label, id) in [("no id", None), ("foreign id", Some("fast(high)".to_owned()))] {
+            let key = RouteKey {
+                id,
+                force_prefix: false,
+            };
+            got.push((label, compat_replay(&creds[0], &key, "fast(high)")));
+            want.push((label, Some(false)));
         }
         assert_eq!(got, want);
     }
@@ -2630,26 +2522,24 @@ mod tests {
                 );
             }
             let key = r.route_key("p/fast", "p/fast");
-            assert_eq!(key.as_ref().map(|k| k.force_prefix), Some(force));
-            got.push((force, compat_replay(&creds[0], "p/fast", key.as_ref(), "d")));
+            assert_eq!(key.force_prefix, force);
+            got.push((force, compat_replay(&creds[0], &key, "p/fast")));
         }
-        // Execution takes `d` from FAST either way. Unforced, the published `p/fast` row
-        // sends `b`, so the producer (FAST, off) decides; forced, it is the third row,
-        // which sends `d` and is on.
+        // Unforced, `p/fast` is the literal first row (off); forced, the third row's
+        // generated copy (on).
         assert_eq!(got, [(false, Some(false)), (true, Some(true))]);
     }
 
-    /// A plugin model the registry publishes under the exact routed ID has no stored row, so
-    /// the row that produced the upstream decides, not a stored row that matches only after
-    /// lowercasing, even when the catalog changed after routing.
+    /// Review 7, 4: a plugin model on a DeepSeek/Kimi host credential has no stored row,
+    /// so it takes the host default, even with no models configured.
     #[test]
-    fn plugin_model_under_the_id_leaves_the_flag_to_the_producer() {
+    fn plugin_models_on_a_default_host_replay() {
         // A provider no other test uses, as the plugin catalog is process-wide.
         let (cfg, creds) = synthesized(
-            "    - name: replay-plugin\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: Fast, is-compat: false}\n        - {name: up, alias: fast, is-compat: true}\n      keys:\n        - api-key: sk-fake\n",
+            "    - name: replay-plugin\n      base-url: https://api.deepseek.com/v1\n      models: []\n      keys:\n        - api-key: sk-fake\n",
         );
         let plugin = Spec {
-            id: "FAST".into(),
+            id: "plugin-m".into(),
             owned_by: "plugin".into(),
             ..Spec::default()
         };
@@ -2658,43 +2548,29 @@ mod tests {
             clients: Vec::new(),
         });
         let r = Registry::build(&cfg, &creds);
-        let owner = r.client_model(&creds[0].id, "FAST").map(|s| s.owned_by.clone());
-        let key = r.route_key("FAST", "FAST");
-        // A plugin reload between routing and the attempt changes nothing.
         set_plugin_catalog(PluginCatalog::default());
-        let (members, _) = execution_models(&HashMap::new(), &creds[0], "FAST");
-        let flags: Vec<_> = members
-            .iter()
-            .map(|m| (m.clone(), compat_replay(&creds[0], "FAST", key.as_ref(), m)))
-            .collect();
+        let key = routed(&r, "plugin-m");
         assert_eq!(
-            key.map(|k| k.id).as_deref(),
-            Some("FAST"),
-            "routed by the plugin's FAST"
+            key.id.as_deref(),
+            Some("plugin-m"),
+            "the registry publishes the plugin model"
         );
-        assert_eq!(
-            owner.as_deref(),
-            Some("plugin"),
-            "the registry publishes the plugin's FAST"
-        );
-        // Execution takes `up` from `Fast`, the first alias that folds to FAST.
-        assert_eq!(flags, [("up".to_owned(), Some(false))]);
+        assert_eq!(compat_replay(&creds[0], &key, "plugin-m"), Some(true));
     }
 
-    /// Keyless unnamed groups: Go binds none; on the DeepSeek/Kimi hosts the replay flag
-    /// still follows the stored row, elsewhere nothing is decided.
+    /// Keyless unnamed groups, which Go never binds, replay by the stored row on the
+    /// DeepSeek/Kimi hosts like any other entry there; off them nothing is decided, keyed
+    /// or not (review 7, 1).
     #[test]
-    fn keyless_unnamed_replay_only_on_default_hosts() {
-        let (_, creds) = synthesized(
-            "    - base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: a}\n        - {name: up, alias: b, is-compat: false}\n      keys: []\n    - base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: c, is-compat: true}\n      keys: []\n",
+    fn replay_is_decided_only_on_default_hosts() {
+        let (cfg, creds) = synthesized(
+            "    - base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: a}\n        - {name: up, alias: b, is-compat: false}\n      keys: []\n    - base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: c, is-compat: true}\n      keys: []\n    - name: relay\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: d, is-compat: false}\n        - {name: up, alias: up, is-compat: true}\n      keys:\n        - api-key: sk-fake\n",
         );
+        let r = Registry::build(&cfg, &creds);
+        let replay = |n: usize, route: &str| compat_replay(&creds[n], &routed(&r, route), route);
         assert_eq!(
-            [
-                compat_replay(&creds[0], "a", None, "up"),
-                compat_replay(&creds[0], "b", None, "up"),
-                compat_replay(&creds[1], "c", None, "up")
-            ],
-            [Some(true), Some(false), None]
+            [replay(0, "a"), replay(0, "b"), replay(1, "c"), replay(2, "up")],
+            [Some(true), Some(false), None, None]
         );
     }
 

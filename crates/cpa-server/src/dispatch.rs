@@ -416,7 +416,8 @@ const IMAGE_ONLY: [&str; 8] = [
 ];
 
 /// A routed request: its providers, the route model, and the registry ID routing
-/// matched (for the reasoning-replay flag, [`cpa_core::registry::dynamic::compat_replay`]).
+/// matched (for the reasoning-replay flag, [`cpa_core::registry::dynamic::compat_replay`];
+/// `None` for Home).
 type Routed = (Vec<String>, String, Option<RouteKey>);
 
 /// Go `getRequestDetails`: resolve `auto`, find the providers, keep the suffix.
@@ -432,7 +433,7 @@ fn route(
     if let Some(provider) = &call.forced_provider {
         let model = gojson::trim(&call.model);
         check_route_only(gojson::trim(canonical_model_raw(model)), call)?;
-        return Ok((vec![provider.clone()], model.to_owned(), key(model)));
+        return Ok((vec![provider.clone()], model.to_owned(), Some(key(model))));
     }
     // Go `providersForExecution` with a router's provider: that provider, the router's
     // model or else the client's, and only the image-only check.
@@ -442,7 +443,7 @@ fn route(
         let mut providers = vec![provider.clone()];
         adjust_for_entry(call.entry, &mut providers);
         let key = key(&model);
-        return Ok((providers, model, key));
+        return Ok((providers, model, Some(key)));
     }
     let model = call.model.as_str();
     let base = match model.rfind('(') {
@@ -473,7 +474,7 @@ fn route(
     }
     adjust_for_entry(call.entry, &mut providers);
     let key = key(&resolved);
-    Ok((providers, resolved, key))
+    Ok((providers, resolved, Some(key)))
 }
 
 /// Go `adjustExecutionProvidersForEntryProtocol`.
@@ -2135,6 +2136,10 @@ async fn attempt(
         lease: pick.as_ref().map(crate::home_session::Pick::lease),
         ..turn.session.clone()
     });
+    // Once per credential: the routed ID's row decides for every upstream it tries.
+    let replay = target
+        .route_key
+        .and_then(|key| registry::compat_replay(&lease.credential, key, &route_model));
     for (i, upstream) in target.models.iter().enumerate() {
         // Go `stateModelForExecution`: the upstream model when Home chose one.
         let home_model = lease
@@ -2154,7 +2159,7 @@ async fn attempt(
             cfg,
             &lease.credential,
             &route_model,
-            target.route_key,
+            replay,
             upstream,
             target.keep_model,
             call.stream,
@@ -2528,7 +2533,7 @@ fn attempt_request(
     cfg: &Config,
     credential: &cpa_core::credential::Credential,
     route_model: &str,
-    route_key: Option<&RouteKey>,
+    replay: Option<bool>,
     upstream: &str,
     keep_model: bool,
     stream: bool,
@@ -2544,9 +2549,7 @@ fn attempt_request(
         upstream,
         keep_model.then_some(request.model.as_str()),
     );
-    req.compat_replay = (!keep_model)
-        .then(|| cpa_core::registry::dynamic::compat_replay(credential, route_model, route_key, upstream))
-        .flatten();
+    req.compat_replay = replay.filter(|_| !keep_model);
     let local = req.resolved_model.as_ref().filter(|_| !stream);
     if !keep_model && let Some(home) = crate::capabilities::bind_home(credential, local) {
         req.resolved_model = Some(home);
@@ -2803,12 +2806,17 @@ mod tests {
 
     /// Every routing path hands replay the registry ID it matched: the default lookup, a
     /// forced provider and a router naming only the provider all route `ſ(high)` by `ſ`, so
-    /// its row (off) decides, not `s`, the first alias that folds to it.
+    /// its row (off) decides, not `s`, the first alias that folds to it. `a (high)` routes
+    /// by the trimmed `a` (review 7, 2).
     #[test]
     fn routes_carry_the_registry_id_they_matched() {
-        let cfg = Config::parse(
-            "api-keys:\n  openai-compatibility:\n    - name: fold\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: s}\n        - {name: up, alias: \"\u{17f}\", is-compat: false}\n      keys:\n        - api-key: sk-fake\n",
-        )
+        // A private auth-dir: without one, the runtime reads the real ~/.cli-proxy-api.
+        let auth_dir = std::env::temp_dir().join(format!("cpa-route-key-auths-{}", std::process::id()));
+        std::fs::create_dir_all(&auth_dir).unwrap();
+        let cfg = Config::parse(&format!(
+            "auth-dir: {}\napi-keys:\n  openai-compatibility:\n    - name: fold\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {{name: up, alias: s}}\n        - {{name: up, alias: \"\u{17f}\", is-compat: false}}\n        - {{name: '', alias: a, is-compat: false}}\n        - {{name: a, alias: b}}\n      keys:\n        - api-key: sk-fake\n",
+            auth_dir.display()
+        ))
         .unwrap();
         let creds: Vec<Arc<cpa_core::credential::Credential>> = cpa_core::config::credentials::from_config(&cfg)
             .into_iter()
@@ -2824,11 +2832,11 @@ mod tests {
         };
         let rt = crate::testing::runtime(cfg.clone(), Vec::new(), executors);
         let provider = registry::provider_key(&creds[0]);
-        let call = |forced: Option<&str>| Call {
+        let call = |model: &str, forced: Option<&str>| Call {
             entry: Format::Claude,
             response: Format::Claude,
             operation: Operation::Generate,
-            model: "\u{17f}(high)".into(),
+            model: model.into(),
             body: Bytes::new(),
             stream: false,
             alt: None,
@@ -2848,29 +2856,31 @@ mod tests {
         };
         let router = (provider.clone(), None);
         let mut got = Vec::new();
-        for (path, call, routed) in [
-            ("default", call(None), None),
-            ("forced", call(Some(&provider)), None),
-            ("router", call(None), Some(&router)),
-        ] {
-            let Ok((_, model, key)) = route(&rt, &registry, &call, routed) else {
-                panic!("{path}: not routed");
-            };
-            let (members, _) = registry::execution_models(&Default::default(), &creds[0], &model);
-            let flags: Vec<_> = members
-                .iter()
-                .map(|m| (m.clone(), registry::compat_replay(&creds[0], &model, key.as_ref(), m)))
-                .collect();
-            got.push((path, key.map(|k| k.id), flags));
+        for model in ["\u{17f}(high)", "a (high)"] {
+            for (path, call, routed) in [
+                ("default", call(model, None), None),
+                ("forced", call(model, Some(&provider)), None),
+                ("router", call(model, None), Some(&router)),
+            ] {
+                let Ok((_, route_model, Some(key))) = route(&rt, &registry, &call, routed) else {
+                    panic!("{path}: not routed");
+                };
+                let replay = registry::compat_replay(&creds[0], &key, &route_model);
+                got.push((path, key.id, replay));
+            }
         }
-        let want = |path| {
-            (
-                path,
-                Some("\u{17f}".to_owned()),
-                vec![("up(high)".to_owned(), Some(false))],
-            )
-        };
-        assert_eq!(got, [want("default"), want("forced"), want("router")]);
+        let want = |path, id: &str| (path, Some(id.to_owned()), Some(false));
+        assert_eq!(
+            got,
+            [
+                want("default", "\u{17f}"),
+                want("forced", "\u{17f}"),
+                want("router", "\u{17f}"),
+                want("default", "a"),
+                want("forced", "a"),
+                want("router", "a")
+            ]
+        );
     }
 
     /// Go starts the non-stream keep-alive in the non-stream generate handlers only, and
@@ -2926,13 +2936,11 @@ mod tests {
         );
     }
 
-    /// Each attempt carries Go's binding for its credential and upstream model; a kept
-    /// request model (Go `restoreExecutionModel`) routes Codex by that model. Expected
-    /// values are the Go goldens' "codex configured" and "codex restore" cases.
-    /// Local OpenAI-compatible credentials replay reasoning by their own stored row, across
-    /// a reload that swaps two groups with the same alias and upstream; thinking stays
-    /// master's binding from the indexed group. Keyless unnamed entries bind no thinking; an
-    /// indexed miss still replays; Home-sourced credentials keep master's flag.
+    /// A local DeepSeek credential replays reasoning by its own stored row, across a reload
+    /// that swaps two groups with the same alias and upstream, while the relay off the
+    /// default hosts keeps master's flag; thinking stays master's binding from the indexed
+    /// group. Keyless unnamed entries bind no thinking; an indexed miss still replays;
+    /// Home-sourced credentials keep master's flag.
     #[test]
     fn attempts_replay_by_the_credentials_own_row() {
         let request = |model: &str| ExecRequest {
@@ -2964,10 +2972,11 @@ mod tests {
         let attempt = |cfg: &Config, c: &cpa_core::credential::Credential, route: &str, up: &str| {
             // Routing matched the published ID itself.
             let key = RouteKey {
-                id: route.to_owned(),
+                id: Some(route.to_owned()),
                 force_prefix: false,
             };
-            let req = attempt_request(&request(route), cfg, c, route, Some(&key), up, false, false);
+            let replay = registry::compat_replay(c, &key, route);
+            let req = attempt_request(&request(route), cfg, c, route, replay, up, false, false);
             let flag = req
                 .compat_replay
                 .unwrap_or_else(|| req.resolved_model.as_ref().is_some_and(|r| r.is_compat()));
@@ -3051,6 +3060,9 @@ mod tests {
         assert!(req.resolved_model.is_some_and(|r| r.is_compat()));
     }
 
+    /// Each attempt carries Go's binding for its credential and upstream model; a kept
+    /// request model (Go `restoreExecutionModel`) routes Codex by that model. Expected
+    /// values are the Go goldens' "codex configured" and "codex restore" cases.
     #[test]
     fn attempts_bind_resolved_model_like_go() {
         let cfg = Config::parse(

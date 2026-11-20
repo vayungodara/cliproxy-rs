@@ -427,7 +427,10 @@ async fn lcp_session_reaches_custom_headers_and_usage_records() {
 /// machine. An explicit `false` beside an inherited model on the same host, a look-alike
 /// host and a loopback host keep Go's default. A keyless entry of an unnamed group, which
 /// Go never binds, still replays reasoning for a model that defaults to on, without a binding.
-/// Aliases that fold together replay by the one the request routed to.
+/// Aliases that fold together replay by the one the request routed to. Review 7: off the
+/// five hosts master's binding decides (the first row for a name, and `is_compat: null`
+/// stays unregistered); on them `a (high)` takes the opt-out of the row published as
+/// `a`, and a plugin model without a stored row takes the default.
 #[tokio::test]
 async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;
@@ -475,8 +478,37 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     let fold = format!(
         "    - name: fold\n      base-url: http://api.deepseek.com/v1\n      models:\n        - {{name: up-fold, alias: s}}\n        - {{name: up-fold, alias: \"\u{17f}\", is-compat: false}}\n      keys:\n        - api-key: sk-fake-fold\n          proxy-url: {mock}\n"
     );
+    let keyed = |name: &str, base: &str, models: &str| {
+        format!(
+            "    - name: {name}\n      base-url: {base}\n      models:{models}\n      keys:\n        - api-key: sk-fake-{name}\n          proxy-url: {mock}\n"
+        )
+    };
+    let review7 = [
+        keyed(
+            "b1",
+            "http://relay.example.test/v1",
+            "\n        - {name: up-b1, alias: b1-fast, is-compat: false}\n        - {name: up-b1, alias: up-b1, is-compat: true}",
+        ),
+        keyed(
+            "b2",
+            "http://api.deepseek.com/v1",
+            "\n        - {name: '', alias: b2, is-compat: false}\n        - {name: b2, alias: b2-alt}",
+        ),
+        keyed(
+            "b2r",
+            "http://api.deepseek.com/v1",
+            "\n        - {name: b2r, alias: b2r-alt}\n        - {name: '', alias: b2r, is-compat: false}",
+        ),
+        keyed(
+            "b3",
+            "http://relay.example.test/v1",
+            "\n        - {name: up-b3, alias: b3, is_compat: null}",
+        ),
+        keyed("b4-plugin", "http://api.deepseek.com/v1", " []"),
+    ]
+    .concat();
     let config = Config::parse(&format!(
-        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}{}{}{}{}{}",
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}{}{}{}{}{}{}",
         auth_dir.display(),
         entry(
             "deepseek",
@@ -498,6 +530,7 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
         unnamed("http://api.deepseek.com/v1", &[("anon-ds", ""), ("anon-ds-off", off)]),
         unnamed("http://upstream.example.test/v1", &[("anon-other", "")]),
         fold,
+        review7,
     ))
     .unwrap();
     let mut credentials = cpa_core::config::credentials::load(&config);
@@ -506,6 +539,23 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     for c in credentials.iter_mut().filter(|c| c.provider == "openai-compatibility") {
         c.attributes.insert("proxy_url".into(), mock.clone());
     }
+    // A plugin catalog publishing `plugin-m4` for the model-less DeepSeek group, a
+    // provider no other test uses (the catalog is process-wide).
+    let b4 = credentials
+        .iter()
+        .find(|c| c.attributes.get("compat_name").is_some_and(|n| n == "b4-plugin"));
+    let plugin = cpa_core::registry::dynamic::Spec {
+        id: "plugin-m4".into(),
+        owned_by: "plugin".into(),
+        ..Default::default()
+    };
+    cpa_core::registry::dynamic::set_plugin_catalog(cpa_core::registry::dynamic::PluginCatalog {
+        providers: std::collections::HashMap::from([(
+            cpa_core::registry::dynamic::provider_key(b4.unwrap()),
+            vec![plugin],
+        )]),
+        clients: Vec::new(),
+    });
     let executors = Executors {
         claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
         codex: Default::default(),
@@ -534,6 +584,11 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
         "anon-other",
         "s",
         "\u{17f}",
+        "up-b1",
+        "b2 (high)",
+        "b2r (high)",
+        "b2-alt",
+        "plugin-m4",
     ];
     let mut seen = Vec::new();
     for model in models {
@@ -583,6 +638,22 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
             off("anon-other", "upstream.example.test"),
             on("s", "api.deepseek.com"),
             off("\u{17f}", "api.deepseek.com"),
+            off("up-b1", "relay.example.test"),
+            off("b2 (high)", "api.deepseek.com"),
+            off("b2r (high)", "api.deepseek.com"),
+            on("b2-alt", "api.deepseek.com"),
+            on("plugin-m4", "api.deepseek.com"),
         ]
     );
+    // An off-host `is_compat: null` row stays unregistered, as on master.
+    let (status, text) = send(
+        &url,
+        "/v1/messages",
+        &[],
+        br#"{"model":"b3","max_tokens":10,"messages":[{"role":"user","content":"hi"}]}"#.to_vec(),
+    )
+    .await;
+    assert_ne!(status, 200, "b3: {text}");
+    assert!(wire.lock().unwrap().is_empty(), "b3 reached an upstream");
+    cpa_core::registry::dynamic::set_plugin_catalog(Default::default());
 }
