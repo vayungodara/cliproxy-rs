@@ -18,7 +18,7 @@ use futures_util::StreamExt;
 
 use crate::classify;
 use crate::gojson;
-use crate::registry::{self, AliasResult, Registry};
+use crate::registry::{self, AliasResult, Registry, RouteKey};
 use crate::respond;
 use crate::runtime::{AcquireError, Completing, Lease, Outcome, Runtime, Selection};
 use crate::scheduler::{Policy, canonical_model};
@@ -415,17 +415,25 @@ const IMAGE_ONLY: [&str; 8] = [
     "grok-imagine-image-2.0",
 ];
 
+/// A routed request: its providers, the route model, and the registry ID routing
+/// matched (for the reasoning-replay flag, [`cpa_core::registry::dynamic::compat_replay`];
+/// `None` for Home).
+type Routed = (Vec<String>, String, Option<RouteKey>);
+
 /// Go `getRequestDetails`: resolve `auto`, find the providers, keep the suffix.
 fn route(
     rt: &Runtime,
     registry: &Registry,
     call: &Call,
     routed: Option<&(String, Option<String>)>,
-) -> Result<(Vec<String>, String), RunError> {
+) -> Result<Routed, RunError> {
+    // The ID the default lookup below matches; a path with its own provider looks it up
+    // the same way but never rejects a miss.
+    let key = |model: &str| registry.route_key(gojson::trim(canonical_model_raw(model)), model);
     if let Some(provider) = &call.forced_provider {
         let model = gojson::trim(&call.model);
         check_route_only(gojson::trim(canonical_model_raw(model)), call)?;
-        return Ok((vec![provider.clone()], model.to_owned()));
+        return Ok((vec![provider.clone()], model.to_owned(), Some(key(model))));
     }
     // Go `providersForExecution` with a router's provider: that provider, the router's
     // model or else the client's, and only the image-only check.
@@ -434,7 +442,8 @@ fn route(
         check_route_only(gojson::trim(canonical_model_raw(&model)), call)?;
         let mut providers = vec![provider.clone()];
         adjust_for_entry(call.entry, &mut providers);
-        return Ok((providers, model));
+        let key = key(&model);
+        return Ok((providers, model, Some(key)));
     }
     let model = call.model.as_str();
     let base = match model.rfind('(') {
@@ -454,7 +463,7 @@ fn route(
     let base = gojson::trim(canonical_model_raw(&resolved)).to_owned();
     check_route_only(&base, call)?;
     if remote {
-        return Ok((vec!["home".to_owned()], resolved));
+        return Ok((vec!["home".to_owned()], resolved, None));
     }
     let mut providers = registry.providers(&base);
     if providers.is_empty() && base != resolved {
@@ -464,7 +473,8 @@ fn route(
         return Err(Failure::UnknownModel(call.model.clone()).into());
     }
     adjust_for_entry(call.entry, &mut providers);
-    Ok((providers, resolved))
+    let key = key(&resolved);
+    Ok((providers, resolved, Some(key)))
 }
 
 /// Go `adjustExecutionProvidersForEntryProtocol`.
@@ -721,7 +731,7 @@ async fn retry_bootstrap(
     rt: &Arc<Runtime>,
     call: Call,
     trace: &Trace,
-    resolved: &(Vec<String>, String),
+    resolved: &Routed,
     hooks: Option<&Arc<crate::plugins::interceptors::Hooks>>,
 ) -> Result<Done, Failure> {
     // Go `maxBootstrapRetries = 0` while Home is enabled: Home's own rounds decide.
@@ -768,7 +778,7 @@ async fn run_primed(
     rt: &Arc<Runtime>,
     call: Call,
     trace: &Trace,
-    resolved: (Vec<String>, String),
+    resolved: Routed,
     hooks: Option<&Arc<crate::plugins::interceptors::Hooks>>,
 ) -> Result<Done, RunError> {
     let result = run_routed(rt, call, trace, resolved, hooks.map(|h| &**h)).await;
@@ -967,7 +977,7 @@ async fn run_routed(
     rt: &Arc<Runtime>,
     call: Call,
     trace: &Trace,
-    (providers, model): (Vec<String>, String),
+    (providers, model, route_key): Routed,
     hooks: Option<&crate::plugins::interceptors::Hooks>,
 ) -> Result<Done, RunError> {
     let (cfg, policy) = rt.request_snapshot();
@@ -1057,6 +1067,7 @@ async fn run_routed(
         execution_session: call.execution_session.clone(),
         derived_session: session.derived,
         resolved_model: None,
+        compat_replay: None,
         usage: cpa_core::exec::UsageSink::default().with_capture(trace.2.clone()),
         request_path: call.request_path.clone(),
         headers: call.headers.clone(),
@@ -1168,6 +1179,11 @@ async fn run_routed(
                 compact,
                 keep_model: call.selection_model.is_some(),
                 unauthorized: None,
+                // Once per credential: the routed ID's row decides for every upstream it
+                // tries, by admission's registry snapshot.
+                replay: route_key
+                    .as_ref()
+                    .and_then(|key| registry::compat_replay(&lease.credential, &registry, key, &selection.model)),
             };
             match attempt(rt, &cfg, &policy, &call, &request, usage.as_ref(), lease, target, hooks).await {
                 Attempt::Done(done) => return Ok(done),
@@ -1808,6 +1824,7 @@ async fn remote_round(
                 compact: cx.compact,
                 keep_model: cx.call.selection_model.is_some(),
                 unauthorized,
+                replay: None,
             };
             let cancelled = lease
                 .remote_cancelled()
@@ -2053,6 +2070,7 @@ impl Credits<'_> {
                 compact: self.compact,
                 keep_model: call.selection_model.is_some(),
                 unauthorized: None,
+                replay: None,
             };
             // Go's stream fallback runs the after-auth interceptor
             // (`executeStreamWithModelPool`); its non-stream fallback calls the executor
@@ -2090,6 +2108,9 @@ struct Target<'a> {
     /// Record an upstream 401 as a Home result (Go `reportHomeUnauthorized` for Home
     /// count-tokens attempts, which no executor reporter records).
     unauthorized: Option<&'a Arc<crate::usage_record::Facts>>,
+    /// The attempt's reasoning-replay decision for this credential
+    /// ([`cpa_core::registry::dynamic::compat_replay`]); `None` keeps the bound model's.
+    replay: Option<bool>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2139,6 +2160,7 @@ async fn attempt(
             cfg,
             &lease.credential,
             &route_model,
+            target.replay,
             upstream,
             target.keep_model,
             call.stream,
@@ -2506,11 +2528,13 @@ impl futures_util::Stream for Tracked {
 /// then `attachResolvedHomeModelInfo` for a Home credential executing the selection's
 /// model. Go's stream path binds Home's model before the local one, so the local
 /// binding never lends it configuration-update support there.
+#[allow(clippy::too_many_arguments)]
 fn attempt_request(
     request: &ExecRequest,
     cfg: &Config,
     credential: &cpa_core::credential::Credential,
     route_model: &str,
+    replay: Option<bool>,
     upstream: &str,
     keep_model: bool,
     stream: bool,
@@ -2526,6 +2550,7 @@ fn attempt_request(
         upstream,
         keep_model.then_some(request.model.as_str()),
     );
+    req.compat_replay = replay.filter(|_| !keep_model);
     let local = req.resolved_model.as_ref().filter(|_| !stream);
     if !keep_model && let Some(home) = crate::capabilities::bind_home(credential, local) {
         req.resolved_model = Some(home);
@@ -2780,6 +2805,85 @@ mod tests {
         assert!(!lifecycle(&statused));
     }
 
+    /// Every routing path hands replay the registry ID it matched: the default lookup, a
+    /// forced provider and a router naming only the provider all route `ſ(high)` by `ſ`, so
+    /// its row (off) decides, not `s`, the first alias that folds to it. `a (high)` routes
+    /// by the trimmed `a` (review 7, 2).
+    #[test]
+    fn routes_carry_the_registry_id_they_matched() {
+        // A private auth-dir: without one, the runtime reads the real ~/.cli-proxy-api.
+        let auth_dir = std::env::temp_dir().join(format!("cpa-route-key-auths-{}", std::process::id()));
+        std::fs::create_dir_all(&auth_dir).unwrap();
+        let cfg = Config::parse(&format!(
+            "auth-dir: {}\napi-keys:\n  openai-compatibility:\n    - name: fold\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {{name: up, alias: s}}\n        - {{name: up, alias: \"\u{17f}\", is-compat: false}}\n        - {{name: '', alias: a, is-compat: false}}\n        - {{name: a, alias: b}}\n      keys:\n        - api-key: sk-fake\n",
+            auth_dir.display()
+        ))
+        .unwrap();
+        let creds: Vec<Arc<cpa_core::credential::Credential>> = cpa_core::config::credentials::from_config(&cfg)
+            .into_iter()
+            .map(Arc::new)
+            .collect();
+        let registry = Registry::build(&cfg, &creds);
+        let executors = cpa_exec::Executors {
+            claude: cpa_exec::claude::ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+            codex: Default::default(),
+            devices: Default::default(),
+            openai: Default::default(),
+            google: Default::default(),
+        };
+        let rt = crate::testing::runtime(cfg.clone(), Vec::new(), executors);
+        let provider = registry::provider_key(&creds[0]);
+        let call = |model: &str, forced: Option<&str>| Call {
+            entry: Format::Claude,
+            response: Format::Claude,
+            operation: Operation::Generate,
+            model: model.into(),
+            body: Bytes::new(),
+            stream: false,
+            alt: None,
+            headers: HeaderMap::new(),
+            caller: Caller {
+                principal: String::new(),
+                source: "",
+                provider: String::new(),
+            },
+            forced_provider: forced.map(str::to_owned),
+            selection_model: None,
+            execution_session: None,
+            request_path: String::new(),
+            peer: None,
+            turn: None,
+            media: None,
+        };
+        let router = (provider.clone(), None);
+        let mut got = Vec::new();
+        for model in ["\u{17f}(high)", "a (high)"] {
+            for (path, call, routed) in [
+                ("default", call(model, None), None),
+                ("forced", call(model, Some(&provider)), None),
+                ("router", call(model, None), Some(&router)),
+            ] {
+                let Ok((_, route_model, Some(key))) = route(&rt, &registry, &call, routed) else {
+                    panic!("{path}: not routed");
+                };
+                let replay = registry::compat_replay(&creds[0], &registry, &key, &route_model);
+                got.push((path, key.id, replay));
+            }
+        }
+        let want = |path, id: &str| (path, Some(id.to_owned()), Some(false));
+        assert_eq!(
+            got,
+            [
+                want("default", "\u{17f}"),
+                want("forced", "\u{17f}"),
+                want("router", "\u{17f}"),
+                want("default", "a"),
+                want("forced", "a"),
+                want("router", "a")
+            ]
+        );
+    }
+
     /// Go starts the non-stream keep-alive in the non-stream generate handlers only, and
     /// `NonStreamingKeepAliveInterval` treats 0 and below as off.
     #[test]
@@ -2833,6 +2937,130 @@ mod tests {
         );
     }
 
+    /// A local DeepSeek credential replays reasoning by its own stored row, across a reload
+    /// that swaps two groups with the same alias and upstream, while the relay off the
+    /// default hosts keeps master's flag; thinking stays master's binding from the indexed
+    /// group. Keyless unnamed entries bind no thinking; an indexed miss still replays;
+    /// Home-sourced credentials keep master's flag.
+    #[test]
+    fn attempts_replay_by_the_credentials_own_row() {
+        let request = |model: &str| ExecRequest {
+            operation: Operation::Generate,
+            source_format: Format::Claude,
+            response_format: Format::Claude,
+            stream_payloads: false,
+            requested_model: model.into(),
+            model: model.into(),
+            original_body: Bytes::new(),
+            body: Bytes::new(),
+            stream: false,
+            alt: None,
+            session: None,
+            execution_session: None,
+            derived_session: None,
+            request_path: String::new(),
+            headers: HeaderMap::new(),
+            caller: Caller {
+                principal: String::new(),
+                source: "",
+                provider: String::new(),
+            },
+            resolved_model: None,
+            compat_replay: Some(true),
+            usage: Default::default(),
+        };
+        // (effective is-compat, bound thinking levels)
+        let attempt = |cfg: &Config, c: &cpa_core::credential::Credential, route: &str, up: &str| {
+            // Routing matched the published ID itself.
+            let key = RouteKey {
+                id: Some(route.to_owned()),
+                force_prefix: false,
+            };
+            let replay = registry::compat_replay(c, &Registry::default(), &key, route);
+            let req = attempt_request(&request(route), cfg, c, route, replay, up, false, false);
+            let flag = req
+                .compat_replay
+                .unwrap_or_else(|| req.resolved_model.as_ref().is_some_and(|r| r.is_compat()));
+            (flag, req.resolved_model.and_then(|r| r.info.thinking).map(|t| t.levels))
+        };
+        let parse = |groups: &[&str]| {
+            Config::parse(&format!("api-keys:\n  openai-compatibility:\n{}", groups.concat())).unwrap()
+        };
+        let levels = |l: &[&str]| Some(l.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>());
+        let shapes = [
+            ("keyless unnamed", "", "      keys: []\n"),
+            ("keyed unnamed", "", "      keys:\n        - api-key: sk-fake\n"),
+            ("named keyless", "name: {name}\n      ", "      keys: []\n"),
+            (
+                "named keyed",
+                "name: {name}\n      ",
+                "      keys:\n        - api-key: sk-fake\n",
+            ),
+        ];
+        let mut got = Vec::new();
+        let mut want = Vec::new();
+        for (shape, head, keys) in shapes {
+            let group = |name: &str, base: &str, flag: &str, thinking: &str| {
+                format!(
+                    "    - {}base-url: {base}\n      models:\n        - name: up\n          alias: same{flag}\n          thinking: {{levels: [{thinking}]}}\n{keys}",
+                    head.replace("{name}", name)
+                )
+            };
+            let ds = group("ds", "https://api.deepseek.com/v1", "", "low, high");
+            let relay = group(
+                "relay",
+                "https://relay.example.test/v1",
+                "\n          is-compat: false",
+                "medium",
+            );
+            let (before, after) = (parse(&[&ds, &relay]), parse(&[&relay, &ds]));
+            let creds = cpa_core::config::credentials::from_config(&before);
+            let keyed = shape != "keyless unnamed";
+            for (snapshot, cfg, ds_thinking, relay_thinking) in [
+                ("before", &before, levels(&["low", "high"]), levels(&["medium"])),
+                ("after", &after, levels(&["medium"]), levels(&["low", "high"])),
+            ] {
+                got.push((
+                    shape,
+                    snapshot,
+                    attempt(cfg, &creds[0], "same", "up"),
+                    attempt(cfg, &creds[1], "same", "up"),
+                ));
+                want.push((
+                    shape,
+                    snapshot,
+                    (true, ds_thinking.filter(|_| keyed)),
+                    (false, relay_thinking.filter(|_| keyed)),
+                ));
+            }
+        }
+        assert_eq!(got, want);
+
+        // Indexed miss: the index now names a group without `fast`; the stored row replays.
+        let stored = parse(&[
+            "    - name: ds\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: fast}\n      keys:\n        - api-key: sk-fake\n",
+        ]);
+        let other = parse(&[
+            "    - name: other\n      base-url: https://other.example.test/v1\n      models:\n        - {name: other, alias: slow}\n      keys:\n        - api-key: sk-fake\n",
+        ]);
+        let ds = cpa_core::config::credentials::from_config(&stored).remove(0);
+        assert_eq!(attempt(&other, &ds, "fast", "up"), (true, None));
+
+        // A Home-sourced credential off the default hosts keeps the indexed explicit true.
+        let relay = parse(&[
+            "    - name: relay\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: same, is-compat: true}\n      keys:\n        - api-key: sk-fake\n",
+        ]);
+        let mut home = cpa_core::config::credentials::from_config(&relay).remove(0);
+        home.source = cpa_core::credential::Source::Config {
+            section: "home".into(),
+            index: 0,
+        };
+        home.metadata.remove("models");
+        let req = attempt_request(&request("same"), &relay, &home, "same", None, "up", false, false);
+        assert_eq!(req.compat_replay, None);
+        assert!(req.resolved_model.is_some_and(|r| r.is_compat()));
+    }
+
     /// Each attempt carries Go's binding for its credential and upstream model; a kept
     /// request model (Go `restoreExecutionModel`) routes Codex by that model. Expected
     /// values are the Go goldens' "codex configured" and "codex restore" cases.
@@ -2865,16 +3093,17 @@ mod tests {
                 provider: String::new(),
             },
             resolved_model: None,
+            compat_replay: None,
             usage: Default::default(),
         };
-        let req = attempt_request(&request, &cfg, &credential, "sol", "gpt-6-sol", false, false);
+        let req = attempt_request(&request, &cfg, &credential, "sol", None, "gpt-6-sol", false, false);
         assert_eq!(req.model, "gpt-6-sol");
         let bound = req.resolved_model.unwrap();
         assert_eq!(
             (bound.info.id.as_str(), bound.source, bound.is_compat()),
             ("gpt-6-sol", cpa_core::exec::ResolvedSource::ApiKey, true)
         );
-        let kept = attempt_request(&request, &cfg, &credential, "selection", "gpt-6-sol", true, false);
+        let kept = attempt_request(&request, &cfg, &credential, "selection", None, "gpt-6-sol", true, false);
         assert_eq!(kept.model, "sol");
         let bound = kept.resolved_model.unwrap();
         assert_eq!((bound.info.id.as_str(), bound.is_compat()), ("sol", false));
@@ -2895,15 +3124,15 @@ mod tests {
         )
         .unwrap();
         let home_source = cpa_core::exec::ResolvedSource::Home;
-        let buffered = attempt_request(&request, &cfg, &home, "sol", "gpt-6-sol", false, false);
+        let buffered = attempt_request(&request, &cfg, &home, "sol", None, "gpt-6-sol", false, false);
         assert_eq!(
             caps(&buffered),
             (home_source, true, false),
             "local is-compat never carries"
         );
-        let streamed = attempt_request(&request, &cfg, &home, "sol", "gpt-6-sol", false, true);
+        let streamed = attempt_request(&request, &cfg, &home, "sol", None, "gpt-6-sol", false, true);
         assert_eq!(caps(&streamed), (home_source, false, false));
-        let kept = attempt_request(&request, &cfg, &home, "selection", "gpt-6-sol", true, false);
+        let kept = attempt_request(&request, &cfg, &home, "selection", None, "gpt-6-sol", true, false);
         assert_eq!(
             kept.resolved_model.unwrap().source,
             cpa_core::exec::ResolvedSource::ApiKey

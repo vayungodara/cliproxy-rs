@@ -72,6 +72,25 @@ claude
 
 Check the selected model's provider limit and use a compaction window below it. Claude Code's [environment reference](https://code.claude.com/docs/en/env-vars) defines both variables. `CLAUDE_CODE_MAX_CONTEXT_TOKENS` sets the window Claude Code assumes. The upstream's context limit still applies. `CLAUDE_CODE_AUTO_COMPACT_WINDOW` accepts an integer token count from 100,000 to 1,000,000. Set these variables in Claude Code's environment.
 
+### DeepSeek and Kimi in Claude Code
+
+Add the provider as an `openai-compatibility` group with the model listed, then set `ANTHROPIC_MODEL` and `ANTHROPIC_DEFAULT_HAIKU_MODEL` to its alias as in the GPT example above. With thinking on, DeepSeek and Kimi need the model's `is-compat` setting, or they refuse Claude Code's next request after a tool call. It is on by default when the group's `base-url` is DeepSeek's or Kimi's official API; through another host, set it on the model:
+
+```yaml
+api-keys:
+  openai-compatibility:
+    - name: openrouter
+      base-url: "https://openrouter.ai/api/v1"
+      keys:
+        - api-key: "sk-or-..."
+      models:
+        - name: "deepseek/<model>"
+          alias: "deepseek"
+          is-compat: true
+```
+
+[CONFIGURATION.md](CONFIGURATION.md#api-keys) lists the official hosts and what `is-compat` changes.
+
 ## Codex CLI
 
 [Codex custom model providers](https://developers.openai.com/codex/config-advanced) use the OpenAI Responses format. Put this in `~/.codex/config.toml`, set the environment variable, and replace `<model-id>`. WebSocket support is documented, but it is optional, so this setup uses the normal HTTP endpoint.

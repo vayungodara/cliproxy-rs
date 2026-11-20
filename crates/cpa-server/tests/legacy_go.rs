@@ -522,3 +522,100 @@ async fn v0_config_yaml_put_writes_like_go() {
     server.abort();
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// An OpenAI-compatible model's `is-compat` defaults to on for DeepSeek and Kimi hosts,
+/// so an explicit `false` is a setting of its own (docs/DIFFERENCES-FROM-GO.md): a v0
+/// edit of another field keeps it, a v0 edit that only sets it saves it, and the v8
+/// config routes keep it too. A model without the flag stays without it.
+#[tokio::test]
+async fn v0_and_v8_writes_keep_an_explicit_is_compat_false() {
+    let hash = bcrypt::hash("fake-secret", 4).unwrap();
+    let dir = std::env::temp_dir().join(format!("cpa-legacy-is-compat-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("config.yaml");
+    let group = |off: &str| {
+        format!(
+            "    - name: ds\n      base-url: https://api.deepseek.com/v1\n      keys: [{{api-key: fake-ds}}]\n      models:\n        - {{name: up-a, alias: inherit}}\n        - {{name: up-b, alias: off{off}}}\n"
+        )
+    };
+    let write = |off: &str| {
+        let yaml = format!(
+            "config-version: 8\nmanagement:\n  secret-key: '{hash}'\napi-keys:\n  openai-compatibility:\n{}",
+            group(off)
+        );
+        std::fs::write(&path, with_auth_dir(&yaml, &dir)).unwrap();
+    };
+    // `is-compat` of the saved models, None where the key is absent.
+    let saved = || {
+        let doc: serde_yaml_ng::Value = serde_yaml_ng::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        let models = doc["api-keys"]["openai-compatibility"][0]["models"]
+            .as_sequence()
+            .unwrap()
+            .clone();
+        models
+            .iter()
+            .map(|m| m.get("is-compat").and_then(serde_yaml_ng::Value::as_bool))
+            .collect::<Vec<_>>()
+    };
+    let client = wreq::Client::new();
+
+    // A priority-only v0 PATCH keeps the explicit false, and the v0 read shows it.
+    write(", is-compat: false");
+    let (base, server) = serve(&path).await;
+    let request = |method: &str, route: &str, body: &str| {
+        client
+            .request(method.parse().unwrap(), format!("{base}{route}"))
+            .bearer_auth("fake-secret")
+            .body(body.to_owned())
+            .send()
+    };
+    let read: Value = request("GET", "/v0/management/openai-compatibility", "")
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let models = &read["openai-compatibility"][0]["models"];
+    assert_eq!(
+        (models[0].get("is-compat"), models[1].get("is-compat")),
+        (None, Some(&Value::Bool(false))),
+        "{read}"
+    );
+    let res = request(
+        "PATCH",
+        "/v0/management/openai-compatibility",
+        r#"{"name":"ds","value":{"priority":5}}"#,
+    )
+    .await
+    .unwrap();
+    assert_eq!(res.status(), 200, "{}", res.text().await.unwrap());
+    assert_eq!(saved(), [None, Some(false)]);
+    server.abort();
+
+    // A v0 PATCH that only adds the false saves it.
+    write("");
+    let (base, server) = serve(&path).await;
+    let request = |method: &str, route: &str, body: &str| {
+        client
+            .request(method.parse().unwrap(), format!("{base}{route}"))
+            .bearer_auth("fake-secret")
+            .body(body.to_owned())
+            .send()
+    };
+    let body = r#"{"name":"ds","value":{"models":[{"name":"up-a","alias":"inherit"},{"name":"up-b","alias":"off","is-compat":false}]}}"#;
+    let res = request("PATCH", "/v0/management/openai-compatibility", body)
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200, "{}", res.text().await.unwrap());
+    assert_eq!(saved(), [None, Some(false)]);
+
+    // The v8 config route keeps it as written.
+    let groups = r#"[{"name":"ds","base-url":"https://api.deepseek.com/v1","keys":[{"api-key":"fake-ds"}],"models":[{"name":"up-a","alias":"inherit"},{"name":"up-b","alias":"off","is-compat":false}],"priority":7}]"#;
+    let res = request("PUT", "/v8/management/config/api-keys/openai-compatibility", groups)
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200, "{}", res.text().await.unwrap());
+    assert_eq!(saved(), [None, Some(false)]);
+    server.abort();
+    let _ = std::fs::remove_dir_all(&dir);
+}

@@ -417,3 +417,359 @@ async fn lcp_session_reaches_custom_headers_and_usage_records() {
     assert!(field(2, "parent_session_id").is_some(), "{}", records[2]);
     assert_eq!(field(2, "is_compaction"), None);
 }
+
+/// DeepSeek's and Kimi's official hosts make a model `is-compat` unless the model sets
+/// it itself (a cliproxy-rs default; docs/DIFFERENCES-FROM-GO.md). A Claude request with
+/// thinking on and tools declared then sends `reasoning_content` on every assistant
+/// tool-call turn: `" "` on one without thinking text, and the thinking text otherwise.
+/// The official hosts are reached through a loopback forward proxy (each key's
+/// `proxy-url`, set on the credential for keyless groups), so nothing leaves the
+/// machine. An explicit `false` beside an inherited model on the same host, a look-alike
+/// host and a loopback host keep Go's default. A keyless entry of an unnamed group, which
+/// Go never binds, still replays reasoning for a model that defaults to on, without a binding.
+/// Aliases that fold together replay by the one the request routed to. Review 7: off the
+/// five hosts master's binding decides (the first row for a name, and `is_compat: null`
+/// stays unregistered); on them `a (high)` takes the opt-out of the row published as
+/// `a`, and a plugin model without a stored row takes the default.
+#[tokio::test]
+async fn deepseek_and_kimi_hosts_default_to_is_compat() {
+    type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;
+    let wire: Wire = Arc::default();
+    let upstream = axum::Router::new()
+        .fallback(|State(wire): State<Wire>, req: Request| async move {
+            // Through the forward proxy the request line carries the absolute URL.
+            let host = req.uri().host().unwrap_or_default().trim_end_matches('.').to_owned();
+            let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
+            wire.lock()
+                .unwrap()
+                .push((host, serde_json::from_slice(&body).unwrap()));
+            ([("content-type", "application/json")], CHAT).into_response()
+        })
+        .with_state(wire.clone());
+    let mock = serve(upstream).await;
+    let auth_dir = std::env::temp_dir().join(format!("cpa-compat-hosts-auths-{}", std::process::id()));
+    std::fs::create_dir_all(&auth_dir).unwrap();
+    // One group per base URL; each model is (alias, extra YAML for the model).
+    let entry = |name: &str, base: &str, models: &[(&str, &str)], proxied: bool| {
+        let proxy = if proxied {
+            format!("\n          proxy-url: {mock}")
+        } else {
+            String::new()
+        };
+        let models: String = models
+            .iter()
+            .map(|(alias, flag)| format!("        - name: up-{alias}\n          alias: {alias}{flag}\n"))
+            .collect();
+        format!(
+            "    - name: {name}\n      base-url: {base}\n      models:\n{models}      keys:\n        - api-key: sk-fake-{name}{proxy}\n"
+        )
+    };
+    let off = "\n          is-compat: false";
+    // Unnamed groups without keys: no compat_name, no api_key, one credential each.
+    let unnamed = |base: &str, models: &[(&str, &str)]| {
+        let models: String = models
+            .iter()
+            .map(|(alias, flag)| format!("        - name: up-{alias}\n          alias: {alias}{flag}\n"))
+            .collect();
+        format!("    - base-url: {base}\n      models:\n{models}      keys: []\n")
+    };
+    // Two routes to one upstream whose aliases fold together: each request replays by
+    // the row routing matched, not the first alias that folds to it.
+    let fold = format!(
+        "    - name: fold\n      base-url: http://api.deepseek.com/v1\n      models:\n        - {{name: up-fold, alias: s}}\n        - {{name: up-fold, alias: \"\u{17f}\", is-compat: false}}\n      keys:\n        - api-key: sk-fake-fold\n          proxy-url: {mock}\n"
+    );
+    let keyed = |name: &str, base: &str, models: &str| {
+        format!(
+            "    - name: {name}\n      base-url: {base}\n      models:{models}\n      keys:\n        - api-key: sk-fake-{name}\n          proxy-url: {mock}\n"
+        )
+    };
+    let review7 = [
+        keyed(
+            "b1",
+            "http://relay.example.test/v1",
+            "\n        - {name: up-b1, alias: b1-fast, is-compat: false}\n        - {name: up-b1, alias: up-b1, is-compat: true}",
+        ),
+        keyed(
+            "b2",
+            "http://api.deepseek.com/v1",
+            "\n        - {name: '', alias: b2, is-compat: false}\n        - {name: b2, alias: b2-alt}",
+        ),
+        keyed(
+            "b2r",
+            "http://api.deepseek.com/v1",
+            "\n        - {name: b2r, alias: b2r-alt}\n        - {name: '', alias: b2r, is-compat: false}",
+        ),
+        keyed(
+            "b3",
+            "http://relay.example.test/v1",
+            "\n        - {name: up-b3, alias: b3, is_compat: null}",
+        ),
+        keyed("b4-plugin", "http://api.deepseek.com/v1", " []"),
+        format!(
+            "    - name: b5\n      prefix: q\n      base-url: http://api.deepseek.com/v1\n      models:\n        - {{name: up-b5, alias: b5, is-compat: false}}\n      keys:\n        - api-key: sk-fake-b5\n          proxy-url: {mock}\n"
+        ),
+    ]
+    .concat();
+    let config = Config::parse(&format!(
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}{}{}{}{}{}{}{}",
+        auth_dir.display(),
+        entry(
+            "deepseek",
+            "http://api.deepseek.com/v1",
+            &[("ds-inherit", ""), ("ds-off", off)],
+            true
+        ),
+        entry("kimi-cn", "http://API.Moonshot.CN/v1", &[("kimi-cn", "")], true),
+        entry("kimi-ai", "http://api.moonshot.ai./v1", &[("kimi-ai", "")], true),
+        entry("kimi-code-cn", "http://api.kimi.com/coding/v1", &[("kc-cn", "")], true),
+        entry("kimi-code-ai", "http://api.kimi.ai/coding/v1", &[("kc-ai", "")], true),
+        entry(
+            "lookalike",
+            "http://api.deepseek.com.example.test/v1",
+            &[("lookalike", "")],
+            true
+        ),
+        entry("acme", &format!("{mock}/v1"), &[("acme", "")], false),
+        unnamed("http://api.deepseek.com/v1", &[("anon-ds", ""), ("anon-ds-off", off)]),
+        unnamed("http://upstream.example.test/v1", &[("anon-other", "")]),
+        fold,
+        review7,
+    ))
+    .unwrap();
+    let mut credentials = cpa_core::config::credentials::load(&config);
+    // A keyless entry has no `proxy-url` of its own, and the test guard sends a global
+    // one to its deny proxy, so the unnamed groups get the forward proxy here.
+    for c in credentials.iter_mut().filter(|c| c.provider == "openai-compatibility") {
+        c.attributes.insert("proxy_url".into(), mock.clone());
+    }
+    // A plugin catalog publishing `plugin-m4` for the model-less DeepSeek group, a
+    // provider no other test uses (the catalog is process-wide).
+    // Review 8 follow-up: `b5` (prefix `q`) gets a plugin `q/b5`, published as `q/q/b5`,
+    // which admission takes by the full route, not by the stored row behind `q/b5`.
+    let plugin = |group: &str, id: &str| {
+        let c = credentials
+            .iter()
+            .find(|c| c.attributes.get("compat_name").is_some_and(|n| n == group))
+            .unwrap();
+        let spec = cpa_core::registry::dynamic::Spec {
+            id: id.into(),
+            owned_by: "plugin".into(),
+            ..Default::default()
+        };
+        (cpa_core::registry::dynamic::provider_key(c), vec![spec])
+    };
+    cpa_core::registry::dynamic::set_plugin_catalog(cpa_core::registry::dynamic::PluginCatalog {
+        providers: std::collections::HashMap::from([plugin("b4-plugin", "plugin-m4"), plugin("b5", "q/b5")]),
+        clients: Vec::new(),
+    });
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let url = serve(router(Arc::new(cpa_server::testing::runtime(
+        config,
+        credentials,
+        executors,
+    ))))
+    .await;
+
+    let models = [
+        "ds-inherit",
+        "ds-off",
+        "kimi-cn",
+        "kimi-ai",
+        "kc-cn",
+        "kc-ai",
+        "lookalike",
+        "acme",
+        "anon-ds",
+        "anon-ds-off",
+        "anon-other",
+        "s",
+        "\u{17f}",
+        "up-b1",
+        "b2 (high)",
+        "b2r (high)",
+        "b2-alt",
+        "plugin-m4",
+        "q/q/b5",
+    ];
+    let mut seen = Vec::new();
+    for model in models {
+        let body = format!(
+            r#"{{"model":"{model}","max_tokens":10,"thinking":{{"type":"enabled","budget_tokens":1024}},"tools":[{{"name":"Read","description":"Read a file","input_schema":{{"type":"object","properties":{{}}}}}}],"messages":[{{"role":"user","content":"read"}},{{"role":"assistant","content":[{{"type":"tool_use","id":"call_1","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_1","content":"a"}}]}},{{"role":"assistant","content":[{{"type":"thinking","thinking":"plan it","signature":"sig"}},{{"type":"tool_use","id":"call_2","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_2","content":"b"}}]}}]}}"#
+        );
+        let (status, text) = send(&url, "/v1/messages", &[], body.into_bytes()).await;
+        assert_eq!(status, 200, "{model}: {text}");
+        let (host, body) = wire.lock().unwrap().pop().unwrap();
+        assert!(body.get("tools").is_some(), "{model}: tools reach the upstream: {body}");
+        if model == "q/q/b5" {
+            assert_eq!(body["model"], "q/b5", "the plugin model is sent as routed");
+        }
+        // `.get`: an absent field is None, unlike a JSON null.
+        let turn = |call: &str| {
+            body["messages"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|m| m["tool_calls"][0]["id"] == call)
+                .unwrap_or_else(|| panic!("{model}: no turn calling {call}: {body}"))
+                .get("reasoning_content")
+                .cloned()
+        };
+        seen.push((model, host, turn("call_1"), turn("call_2")));
+    }
+    use serde_json::Value;
+    let on = |model, host: &str| {
+        (
+            model,
+            host.to_owned(),
+            Some(Value::from(" ")),
+            Some(Value::from("plan it")),
+        )
+    };
+    let off = |model, host: &str| (model, host.to_owned(), None, None);
+    assert_eq!(
+        seen,
+        [
+            on("ds-inherit", "api.deepseek.com"),
+            off("ds-off", "api.deepseek.com"),
+            on("kimi-cn", "api.moonshot.cn"),
+            on("kimi-ai", "api.moonshot.ai"),
+            on("kc-cn", "api.kimi.com"),
+            on("kc-ai", "api.kimi.ai"),
+            off("lookalike", "api.deepseek.com.example.test"),
+            off("acme", ""),
+            on("anon-ds", "api.deepseek.com"),
+            off("anon-ds-off", "api.deepseek.com"),
+            off("anon-other", "upstream.example.test"),
+            on("s", "api.deepseek.com"),
+            off("\u{17f}", "api.deepseek.com"),
+            off("up-b1", "relay.example.test"),
+            off("b2 (high)", "api.deepseek.com"),
+            off("b2r (high)", "api.deepseek.com"),
+            on("b2-alt", "api.deepseek.com"),
+            on("plugin-m4", "api.deepseek.com"),
+            on("q/q/b5", "api.deepseek.com"),
+        ]
+    );
+    // An off-host `is_compat: null` row stays unregistered, as on master.
+    let (status, text) = send(
+        &url,
+        "/v1/messages",
+        &[],
+        br#"{"model":"b3","max_tokens":10,"messages":[{"role":"user","content":"hi"}]}"#.to_vec(),
+    )
+    .await;
+    assert_ne!(status, 200, "b3: {text}");
+    assert!(wire.lock().unwrap().is_empty(), "b3 reached an upstream");
+    cpa_core::registry::dynamic::set_plugin_catalog(Default::default());
+}
+
+/// Review 8: priority picks the higher DeepSeek group in both cases. A request for
+/// `p/p/fast` that admission takes on the prefixed group by `p/fast` keeps that row's
+/// `is-compat: false`; a five-host row with an underscore `is_compat: null` stays
+/// unregistered as on master, so `fast` goes to the relay, which keeps Go's default.
+#[tokio::test]
+async fn priority_picks_keep_the_rows_opt_out() {
+    type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;
+    let wire: Wire = Arc::default();
+    let upstream = axum::Router::new()
+        .fallback(|State(wire): State<Wire>, req: Request| async move {
+            let host = req.uri().host().unwrap_or_default().to_owned();
+            let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
+            wire.lock()
+                .unwrap()
+                .push((host, serde_json::from_slice(&body).unwrap()));
+            ([("content-type", "application/json")], CHAT).into_response()
+        })
+        .with_state(wire.clone());
+    let mock = serve(upstream).await;
+    let auth_dir = std::env::temp_dir().join(format!("cpa-compat-priority-auths-{}", std::process::id()));
+    std::fs::create_dir_all(&auth_dir).unwrap();
+    let group = |name: &str, key: &str, extra: &str, base: &str, row: &str| {
+        format!(
+            "    - name: {name}\n      base-url: {base}\n{extra}      models:\n        - {row}\n      keys:\n        - api-key: sk-fake-{key}\n          proxy-url: {mock}\n"
+        )
+    };
+    let ds = "http://api.deepseek.com/v1";
+    let config = Config::parse(&format!(
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}",
+        auth_dir.display(),
+        group(
+            "ds",
+            "high",
+            "      priority: 10\n      prefix: p\n",
+            ds,
+            "{name: p/fast, alias: fast, is-compat: false}"
+        ),
+        group("ds", "low", "", ds, "{name: other, alias: p/p/fast}"),
+        group(
+            "ds-null",
+            "null",
+            "      priority: 10\n",
+            ds,
+            "{name: ds-up, alias: nulled, is_compat: null}"
+        ),
+        group(
+            "relay",
+            "relay",
+            "",
+            "http://relay.example.test/v1",
+            "{name: relay-up, alias: nulled}"
+        ),
+    ))
+    .unwrap();
+    let credentials = cpa_core::config::credentials::load(&config);
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let url = serve(router(Arc::new(cpa_server::testing::runtime(
+        config,
+        credentials,
+        executors,
+    ))))
+    .await;
+    let mut seen = Vec::new();
+    for model in ["p/p/fast", "nulled"] {
+        let body = format!(
+            r#"{{"model":"{model}","max_tokens":10,"thinking":{{"type":"enabled","budget_tokens":1024}},"tools":[{{"name":"Read","description":"Read a file","input_schema":{{"type":"object","properties":{{}}}}}}],"messages":[{{"role":"user","content":"read"}},{{"role":"assistant","content":[{{"type":"tool_use","id":"call_1","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_1","content":"a"}}]}}]}}"#
+        );
+        let (status, text) = send(&url, "/v1/messages", &[], body.into_bytes()).await;
+        assert_eq!(status, 200, "{model}: {text}");
+        let (host, body) = wire.lock().unwrap().pop().unwrap();
+        let turn = body["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["tool_calls"][0]["id"] == "call_1")
+            .unwrap_or_else(|| panic!("{model}: no tool-call turn: {body}"))
+            .get("reasoning_content")
+            .cloned();
+        seen.push((model, host, body["model"].clone(), turn));
+    }
+    assert_eq!(
+        seen,
+        [
+            (
+                "p/p/fast",
+                "api.deepseek.com".to_owned(),
+                serde_json::Value::from("p/fast"),
+                None
+            ),
+            (
+                "nulled",
+                "relay.example.test".to_owned(),
+                serde_json::Value::from("relay-up"),
+                None
+            ),
+        ]
+    );
+}

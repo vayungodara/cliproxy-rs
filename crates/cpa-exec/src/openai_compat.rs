@@ -202,6 +202,13 @@ fn apply_payload_rules(
 }
 
 /// `helps.ApplyRequestThinking` with the capabilities bound to this attempt.
+/// The attempt's effective is-compat: the local OpenAI-compatible decision when dispatch
+/// made one, else the bound model's (Go `APIKeyModelIsCompat`).
+fn compat_flag(req: &ExecRequest) -> bool {
+    req.compat_replay
+        .unwrap_or_else(|| req.resolved_model.as_ref().is_some_and(|r| r.is_compat()))
+}
+
 fn apply_thinking(
     body: Vec<u8>,
     req: &ExecRequest,
@@ -225,7 +232,7 @@ fn apply_thinking(
     .map(|body| {
         // Go 0e0cab0d (v8.0.64), a cliproxy-rs addition: `APIKeyModelIsCompat` and
         // Claude to OpenAI only.
-        let compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+        let compat = compat_flag(req);
         if compat && req.source_format == Format::Claude && target == Format::OpenAI && !body.is_empty() {
             payload::reconcile_tool_call_reasoning(body)
         } else {
@@ -441,7 +448,7 @@ async fn chat_request(
         return Err(not_registered("response", req.response_format, target));
     }
     let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
-    let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+    let is_compat = compat_flag(&req);
     let original = translate_body(
         &req,
         cfg,
@@ -838,7 +845,7 @@ pub(crate) fn count_tokens(
 ) -> Result<ExecResponse, ExecError> {
     let base_model = parse_suffix(&req.model).model_name;
     let caps = req.resolved_model.as_ref().map(|r| ModelCaps::from(&r.info));
-    let is_compat = req.resolved_model.as_ref().is_some_and(|r| r.is_compat());
+    let is_compat = compat_flag(req);
     let body = translate_body(req, cfg, Format::OpenAI, &base_model, false, &req.body, is_compat)?;
     // The rule baseline: the translated original, else the translated body before
     // thinking. Go counts with a failed translation's partial body; this refuses.

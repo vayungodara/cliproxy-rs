@@ -638,6 +638,7 @@ pub(super) async fn replay(test: &str, record: &Value) -> Result<Verdict, String
         derived_session: None,
         request_path: metadata["request_path"].as_str().unwrap_or_default().to_owned(),
         resolved_model: resolved(&request["metadata"]),
+        compat_replay: None,
         usage: Default::default(),
         headers,
         caller: Caller {

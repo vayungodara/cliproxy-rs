@@ -159,6 +159,7 @@ fn request(source: Format, model: &str, body: &str, original: &str, compat: bool
         execution_session: None,
         derived_session: None,
         resolved_model: Some(resolved(model, compat)),
+        compat_replay: None,
         usage: Default::default(),
         request_path: String::new(),
         caller: Caller {
