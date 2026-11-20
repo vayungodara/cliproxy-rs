@@ -657,3 +657,108 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     assert!(wire.lock().unwrap().is_empty(), "b3 reached an upstream");
     cpa_core::registry::dynamic::set_plugin_catalog(Default::default());
 }
+
+/// Review 8: priority picks the higher DeepSeek group in both cases. A request for
+/// `p/p/fast` that admission takes on the prefixed group by `p/fast` keeps that row's
+/// `is-compat: false`; a five-host row with an underscore `is_compat: null` stays
+/// unregistered as on master, so `fast` goes to the relay, which keeps Go's default.
+#[tokio::test]
+async fn priority_picks_keep_the_rows_opt_out() {
+    type Wire = Arc<Mutex<Vec<(String, serde_json::Value)>>>;
+    let wire: Wire = Arc::default();
+    let upstream = axum::Router::new()
+        .fallback(|State(wire): State<Wire>, req: Request| async move {
+            let host = req.uri().host().unwrap_or_default().to_owned();
+            let body = axum::body::to_bytes(req.into_body(), usize::MAX).await.unwrap();
+            wire.lock()
+                .unwrap()
+                .push((host, serde_json::from_slice(&body).unwrap()));
+            ([("content-type", "application/json")], CHAT).into_response()
+        })
+        .with_state(wire.clone());
+    let mock = serve(upstream).await;
+    let auth_dir = std::env::temp_dir().join(format!("cpa-compat-priority-auths-{}", std::process::id()));
+    std::fs::create_dir_all(&auth_dir).unwrap();
+    let group = |name: &str, key: &str, extra: &str, base: &str, row: &str| {
+        format!(
+            "    - name: {name}\n      base-url: {base}\n{extra}      models:\n        - {row}\n      keys:\n        - api-key: sk-fake-{key}\n          proxy-url: {mock}\n"
+        )
+    };
+    let ds = "http://api.deepseek.com/v1";
+    let config = Config::parse(&format!(
+        "auth-dir: {}\naccess:\n  api-keys: [client-key]\napi-keys:\n  openai-compatibility:\n{}{}{}{}",
+        auth_dir.display(),
+        group(
+            "ds",
+            "high",
+            "      priority: 10\n      prefix: p\n",
+            ds,
+            "{name: p/fast, alias: fast, is-compat: false}"
+        ),
+        group("ds", "low", "", ds, "{name: other, alias: p/p/fast}"),
+        group(
+            "ds-null",
+            "null",
+            "      priority: 10\n",
+            ds,
+            "{name: ds-up, alias: nulled, is_compat: null}"
+        ),
+        group(
+            "relay",
+            "relay",
+            "",
+            "http://relay.example.test/v1",
+            "{name: relay-up, alias: nulled}"
+        ),
+    ))
+    .unwrap();
+    let credentials = cpa_core::config::credentials::load(&config);
+    let executors = Executors {
+        claude: ClaudeExecutor::new("http://127.0.0.1:1").unwrap(),
+        codex: Default::default(),
+        devices: Default::default(),
+        openai: Default::default(),
+        google: Default::default(),
+    };
+    let url = serve(router(Arc::new(cpa_server::testing::runtime(
+        config,
+        credentials,
+        executors,
+    ))))
+    .await;
+    let mut seen = Vec::new();
+    for model in ["p/p/fast", "nulled"] {
+        let body = format!(
+            r#"{{"model":"{model}","max_tokens":10,"thinking":{{"type":"enabled","budget_tokens":1024}},"tools":[{{"name":"Read","description":"Read a file","input_schema":{{"type":"object","properties":{{}}}}}}],"messages":[{{"role":"user","content":"read"}},{{"role":"assistant","content":[{{"type":"tool_use","id":"call_1","name":"Read","input":{{}}}}]}},{{"role":"user","content":[{{"type":"tool_result","tool_use_id":"call_1","content":"a"}}]}}]}}"#
+        );
+        let (status, text) = send(&url, "/v1/messages", &[], body.into_bytes()).await;
+        assert_eq!(status, 200, "{model}: {text}");
+        let (host, body) = wire.lock().unwrap().pop().unwrap();
+        let turn = body["messages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|m| m["tool_calls"][0]["id"] == "call_1")
+            .unwrap_or_else(|| panic!("{model}: no tool-call turn: {body}"))
+            .get("reasoning_content")
+            .cloned();
+        seen.push((model, host, body["model"].clone(), turn));
+    }
+    assert_eq!(
+        seen,
+        [
+            (
+                "p/p/fast",
+                "api.deepseek.com".to_owned(),
+                serde_json::Value::from("p/fast"),
+                None
+            ),
+            (
+                "nulled",
+                "relay.example.test".to_owned(),
+                serde_json::Value::from("relay-up"),
+                None
+            ),
+        ]
+    );
+}

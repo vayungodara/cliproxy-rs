@@ -399,12 +399,10 @@ pub fn config_models(c: &Credential) -> Vec<ConfigModel> {
         .iter()
         .filter_map(|v| {
             let mut v = v.clone();
+            // Only Go's `is-compat` spelling opts out of the host default.
+            let default_on = host_default && v.get("is-compat").is_none();
             // Accept snake_case spellings from JSON metadata too.
             if let Value::Object(m) = &mut v {
-                // Before the snake_case keys move over, so `is_compat` never sets it.
-                if host_default {
-                    m.entry("is-compat").or_insert(true.into());
-                }
                 for key in [
                     "display_name",
                     "max_context_length",
@@ -419,7 +417,10 @@ pub fn config_models(c: &Credential) -> Vec<ConfigModel> {
                     }
                 }
             }
-            serde_json::from_value(v).ok()
+            // After decoding, so a row that fails it (`is_compat: null`) stays skipped.
+            let mut model: ConfigModel = serde_json::from_value(v).ok()?;
+            model.is_compat |= default_on;
+            Some(model)
         })
         .collect()
 }
@@ -1842,8 +1843,9 @@ fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<String> {
 /// the registry publishes under the ID routing matched (`key`, prefix rules from the
 /// same snapshot), exactly and then case-folded; when routing matched no row of this
 /// credential (another credential's spelling, or a router that names only the
-/// provider), the suffix-free route model admission matched; otherwise on, the host
-/// default, which covers plugin models without a stored row.
+/// provider), the suffix-free route model and then its prefix-stripped form, as admission
+/// tries them; otherwise on, the host default, which covers plugin models without a
+/// stored row.
 // ponytail: the routed ID owns the opt-out, so every member of an alias pool and every
 // duplicate name/alias row take that one row's flag (docs/DIFFERENCES-FROM-GO.md).
 pub fn compat_replay(c: &Credential, key: &RouteKey, route_model: &str) -> Option<bool> {
@@ -1863,7 +1865,8 @@ pub fn compat_replay(c: &Credential, key: &RouteKey, route_model: &str) -> Optio
         .id
         .as_deref()
         .and_then(find)
-        .or_else(|| find(canonical_model(route_model)));
+        .or_else(|| find(canonical_model(route_model)))
+        .or_else(|| find(canonical_model(strip_prefix(route_model, c))));
     Some(row.unwrap_or(true))
 }
 
@@ -2355,15 +2358,16 @@ mod tests {
     }
 
     /// A locally synthesized OpenAI-compatible row on a DeepSeek/Kimi host without
-    /// `is-compat` is on; only Go's `is-compat` spelling counts there, and an
-    /// `is-compat: null` row is skipped as before. Off those hosts rows read as on master:
-    /// absent is off, the underscore spelling counts, and `is_compat: null` is skipped.
+    /// `is-compat` is on; only Go's `is-compat` spelling counts there, and a null flag in
+    /// either spelling still skips the row (review 8, 2). Off those hosts rows read as on
+    /// master: absent is off, the underscore spelling counts, and `is_compat: null` is
+    /// skipped.
     /// Other sources (here a Home-style credential) keep the flag as sent. Replay is
     /// decided only for the local credential on the host.
     #[test]
     fn local_compat_rows_default_by_host() {
         let (cfg, creds) = synthesized(
-            "    - name: ds\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: absent}\n        - {name: up, alias: off, is-compat: false}\n        - {name: up, alias: underscore, is_compat: false}\n        - {name: up, alias: nulled, is-compat: null}\n      keys:\n        - api-key: sk-fake\n    - name: relay\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: relay-absent}\n        - {name: up, alias: relay-underscore, is_compat: true}\n        - {name: up, alias: relay-nulled, is_compat: null}\n      keys:\n        - api-key: sk-fake\n",
+            "    - name: ds\n      base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: absent}\n        - {name: up, alias: off, is-compat: false}\n        - {name: up, alias: underscore, is_compat: false}\n        - {name: up, alias: nulled, is-compat: null}\n        - {name: up, alias: underscore-nulled, is_compat: null}\n      keys:\n        - api-key: sk-fake\n    - name: relay\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: relay-absent}\n        - {name: up, alias: relay-underscore, is_compat: true}\n        - {name: up, alias: relay-nulled, is_compat: null}\n      keys:\n        - api-key: sk-fake\n",
         );
         let r = Registry::build(&cfg, &creds);
         let compat = |n: usize, id: &str| r.client_model(&creds[n].id, id).map(|m| m.is_compat);
@@ -2385,6 +2389,7 @@ mod tests {
                 compat(0, "off"),
                 compat(0, "underscore"),
                 compat(0, "nulled"),
+                compat(0, "underscore-nulled"),
                 compat(1, "relay-absent"),
                 compat(1, "relay-underscore"),
                 compat(1, "relay-nulled"),
@@ -2395,6 +2400,7 @@ mod tests {
                 Some(true),
                 Some(false),
                 Some(true),
+                None,
                 None,
                 Some(false),
                 Some(true),
@@ -2458,6 +2464,8 @@ mod tests {
             ("prefixed", row("up", "fast", off), "p/fast(high)", false),
             // Routing tries the full ID when the base is not registered.
             ("full id", row("up", "x(high)", off), "x(high)", false),
+            // Review 8, 1: admission takes `p/p/fast` by its prefix-stripped `p/fast`.
+            ("stripped", row("p/fast", "fast", off), "p/p/fast", false),
             (
                 "base first",
                 row("up", "x", off) + &row("up", "x(high)", on),
