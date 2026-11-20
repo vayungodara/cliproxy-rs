@@ -505,6 +505,9 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
             "\n        - {name: up-b3, alias: b3, is_compat: null}",
         ),
         keyed("b4-plugin", "http://api.deepseek.com/v1", " []"),
+        format!(
+            "    - name: b5\n      prefix: q\n      base-url: http://api.deepseek.com/v1\n      models:\n        - {{name: up-b5, alias: b5, is-compat: false}}\n      keys:\n        - api-key: sk-fake-b5\n          proxy-url: {mock}\n"
+        ),
     ]
     .concat();
     let config = Config::parse(&format!(
@@ -541,19 +544,22 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
     }
     // A plugin catalog publishing `plugin-m4` for the model-less DeepSeek group, a
     // provider no other test uses (the catalog is process-wide).
-    let b4 = credentials
-        .iter()
-        .find(|c| c.attributes.get("compat_name").is_some_and(|n| n == "b4-plugin"));
-    let plugin = cpa_core::registry::dynamic::Spec {
-        id: "plugin-m4".into(),
-        owned_by: "plugin".into(),
-        ..Default::default()
+    // Review 8 follow-up: `b5` (prefix `q`) gets a plugin `q/b5`, published as `q/q/b5`,
+    // which admission takes by the full route, not by the stored row behind `q/b5`.
+    let plugin = |group: &str, id: &str| {
+        let c = credentials
+            .iter()
+            .find(|c| c.attributes.get("compat_name").is_some_and(|n| n == group))
+            .unwrap();
+        let spec = cpa_core::registry::dynamic::Spec {
+            id: id.into(),
+            owned_by: "plugin".into(),
+            ..Default::default()
+        };
+        (cpa_core::registry::dynamic::provider_key(c), vec![spec])
     };
     cpa_core::registry::dynamic::set_plugin_catalog(cpa_core::registry::dynamic::PluginCatalog {
-        providers: std::collections::HashMap::from([(
-            cpa_core::registry::dynamic::provider_key(b4.unwrap()),
-            vec![plugin],
-        )]),
+        providers: std::collections::HashMap::from([plugin("b4-plugin", "plugin-m4"), plugin("b5", "q/b5")]),
         clients: Vec::new(),
     });
     let executors = Executors {
@@ -589,6 +595,7 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
         "b2r (high)",
         "b2-alt",
         "plugin-m4",
+        "q/q/b5",
     ];
     let mut seen = Vec::new();
     for model in models {
@@ -599,6 +606,9 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
         assert_eq!(status, 200, "{model}: {text}");
         let (host, body) = wire.lock().unwrap().pop().unwrap();
         assert!(body.get("tools").is_some(), "{model}: tools reach the upstream: {body}");
+        if model == "q/q/b5" {
+            assert_eq!(body["model"], "q/b5", "the plugin model is sent as routed");
+        }
         // `.get`: an absent field is None, unlike a JSON null.
         let turn = |call: &str| {
             body["messages"]
@@ -643,6 +653,7 @@ async fn deepseek_and_kimi_hosts_default_to_is_compat() {
             off("b2r (high)", "api.deepseek.com"),
             on("b2-alt", "api.deepseek.com"),
             on("plugin-m4", "api.deepseek.com"),
+            on("q/q/b5", "api.deepseek.com"),
         ]
     );
     // An off-host `is_compat: null` row stays unregistered, as on master.

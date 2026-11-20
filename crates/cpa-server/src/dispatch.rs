@@ -1179,7 +1179,11 @@ async fn run_routed(
                 compact,
                 keep_model: call.selection_model.is_some(),
                 unauthorized: None,
-                route_key: route_key.as_ref(),
+                // Once per credential: the routed ID's row decides for every upstream it
+                // tries, by admission's registry snapshot.
+                replay: route_key
+                    .as_ref()
+                    .and_then(|key| registry::compat_replay(&lease.credential, &registry, key, &selection.model)),
             };
             match attempt(rt, &cfg, &policy, &call, &request, usage.as_ref(), lease, target, hooks).await {
                 Attempt::Done(done) => return Ok(done),
@@ -1820,7 +1824,7 @@ async fn remote_round(
                 compact: cx.compact,
                 keep_model: cx.call.selection_model.is_some(),
                 unauthorized,
-                route_key: None,
+                replay: None,
             };
             let cancelled = lease
                 .remote_cancelled()
@@ -2066,7 +2070,7 @@ impl Credits<'_> {
                 compact: self.compact,
                 keep_model: call.selection_model.is_some(),
                 unauthorized: None,
-                route_key: None,
+                replay: None,
             };
             // Go's stream fallback runs the after-auth interceptor
             // (`executeStreamWithModelPool`); its non-stream fallback calls the executor
@@ -2104,8 +2108,9 @@ struct Target<'a> {
     /// Record an upstream 401 as a Home result (Go `reportHomeUnauthorized` for Home
     /// count-tokens attempts, which no executor reporter records).
     unauthorized: Option<&'a Arc<crate::usage_record::Facts>>,
-    /// The registry ID routing matched, from the routing snapshot.
-    route_key: Option<&'a RouteKey>,
+    /// The attempt's reasoning-replay decision for this credential
+    /// ([`cpa_core::registry::dynamic::compat_replay`]); `None` keeps the bound model's.
+    replay: Option<bool>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -2136,10 +2141,6 @@ async fn attempt(
         lease: pick.as_ref().map(crate::home_session::Pick::lease),
         ..turn.session.clone()
     });
-    // Once per credential: the routed ID's row decides for every upstream it tries.
-    let replay = target
-        .route_key
-        .and_then(|key| registry::compat_replay(&lease.credential, key, &route_model));
     for (i, upstream) in target.models.iter().enumerate() {
         // Go `stateModelForExecution`: the upstream model when Home chose one.
         let home_model = lease
@@ -2159,7 +2160,7 @@ async fn attempt(
             cfg,
             &lease.credential,
             &route_model,
-            replay,
+            target.replay,
             upstream,
             target.keep_model,
             call.stream,
@@ -2865,7 +2866,7 @@ mod tests {
                 let Ok((_, route_model, Some(key))) = route(&rt, &registry, &call, routed) else {
                     panic!("{path}: not routed");
                 };
-                let replay = registry::compat_replay(&creds[0], &key, &route_model);
+                let replay = registry::compat_replay(&creds[0], &registry, &key, &route_model);
                 got.push((path, key.id, replay));
             }
         }
@@ -2975,7 +2976,7 @@ mod tests {
                 id: Some(route.to_owned()),
                 force_prefix: false,
             };
-            let replay = registry::compat_replay(c, &key, route);
+            let replay = registry::compat_replay(c, &Registry::default(), &key, route);
             let req = attempt_request(&request(route), cfg, c, route, replay, up, false, false);
             let flag = req
                 .compat_replay

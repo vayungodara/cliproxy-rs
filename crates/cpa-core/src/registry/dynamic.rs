@@ -1843,12 +1843,13 @@ fn alias_pool(requested: &str, models: &[ConfigModel]) -> Vec<String> {
 /// the registry publishes under the ID routing matched (`key`, prefix rules from the
 /// same snapshot), exactly and then case-folded; when routing matched no row of this
 /// credential (another credential's spelling, or a router that names only the
-/// provider), the suffix-free route model and then its prefix-stripped form, as admission
-/// tries them; otherwise on, the host default, which covers plugin models without a
+/// provider), the suffix-free route model, then its prefix-stripped form when `registry`
+/// (admission's snapshot) has no model of `c` under the route model, as admission tries
+/// them; otherwise on, the host default, which covers plugin models without a
 /// stored row.
 // ponytail: the routed ID owns the opt-out, so every member of an alias pool and every
 // duplicate name/alias row take that one row's flag (docs/DIFFERENCES-FROM-GO.md).
-pub fn compat_replay(c: &Credential, key: &RouteKey, route_model: &str) -> Option<bool> {
+pub fn compat_replay(c: &Credential, registry: &Registry, key: &RouteKey, route_model: &str) -> Option<bool> {
     if !local_compat(c) || !requires_reasoning_replay(c.attributes.get("base_url").map_or("", String::as_str)) {
         return None;
     }
@@ -1866,7 +1867,11 @@ pub fn compat_replay(c: &Credential, key: &RouteKey, route_model: &str) -> Optio
         .as_deref()
         .and_then(find)
         .or_else(|| find(canonical_model(route_model)))
-        .or_else(|| find(canonical_model(strip_prefix(route_model, c))));
+        .or_else(|| {
+            let route = canonical_model(route_model);
+            // A plugin model under the full route is admitted by it, not by the stripped key.
+            (!registry.client_supports(&c.id, route)).then(|| find(canonical_model(strip_prefix(route_model, c))))?
+        });
     Some(row.unwrap_or(true))
 }
 
@@ -2411,9 +2416,9 @@ mod tests {
         );
         assert_eq!(
             [
-                compat_replay(&creds[0], &routed(&r, "off"), "off"),
-                compat_replay(&creds[1], &routed(&r, "relay-underscore"), "relay-underscore"),
-                compat_replay(&home, &routed(&home_registry, "absent"), "absent")
+                compat_replay(&creds[0], &r, &routed(&r, "off"), "off"),
+                compat_replay(&creds[1], &r, &routed(&r, "relay-underscore"), "relay-underscore"),
+                compat_replay(&home, &home_registry, &routed(&home_registry, "absent"), "absent")
             ],
             [Some(false), None, None],
             "only the local credential on the host decides"
@@ -2479,8 +2484,8 @@ mod tests {
         let mut want = Vec::new();
         for (label, models, route, expected) in &cases {
             let (cfg, creds) = synthesized(&group(models));
-            let key = routed(&Registry::build(&cfg, &creds), route);
-            got.push((*label, compat_replay(&creds[0], &key, route)));
+            let r = Registry::build(&cfg, &creds);
+            got.push((*label, compat_replay(&creds[0], &r, &routed(&r, route), route)));
             want.push((*label, Some(*expected)));
         }
         // A router naming only the provider routes no ID, and another credential's
@@ -2491,7 +2496,10 @@ mod tests {
                 id,
                 force_prefix: false,
             };
-            got.push((label, compat_replay(&creds[0], &key, "fast(high)")));
+            got.push((
+                label,
+                compat_replay(&creds[0], &Registry::default(), &key, "fast(high)"),
+            ));
             want.push((label, Some(false)));
         }
         assert_eq!(got, want);
@@ -2531,7 +2539,7 @@ mod tests {
             }
             let key = r.route_key("p/fast", "p/fast");
             assert_eq!(key.force_prefix, force);
-            got.push((force, compat_replay(&creds[0], &key, "p/fast")));
+            got.push((force, compat_replay(&creds[0], &r, &key, "p/fast")));
         }
         // Unforced, `p/fast` is the literal first row (off); forced, the third row's
         // generated copy (on).
@@ -2547,7 +2555,7 @@ mod tests {
             "    - base-url: https://api.deepseek.com/v1\n      models:\n        - {name: up, alias: a}\n        - {name: up, alias: b, is-compat: false}\n      keys: []\n    - base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: c, is-compat: true}\n      keys: []\n    - name: relay\n      base-url: https://relay.example.test/v1\n      models:\n        - {name: up, alias: d, is-compat: false}\n        - {name: up, alias: up, is-compat: true}\n      keys:\n        - api-key: sk-fake\n",
         );
         let r = Registry::build(&cfg, &creds);
-        let replay = |n: usize, route: &str| compat_replay(&creds[n], &routed(&r, route), route);
+        let replay = |n: usize, route: &str| compat_replay(&creds[n], &r, &routed(&r, route), route);
         assert_eq!(
             [replay(0, "a"), replay(0, "b"), replay(1, "c"), replay(2, "up")],
             [Some(true), Some(false), None, None]
