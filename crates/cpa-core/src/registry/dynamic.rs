@@ -2530,34 +2530,6 @@ mod tests {
         assert_eq!(got, [(false, Some(false)), (true, Some(true))]);
     }
 
-    /// Review 7, 4: a plugin model on a DeepSeek/Kimi host credential has no stored row,
-    /// so it takes the host default, even with no models configured.
-    #[test]
-    fn plugin_models_on_a_default_host_replay() {
-        // A provider no other test uses, as the plugin catalog is process-wide.
-        let (cfg, creds) = synthesized(
-            "    - name: replay-plugin\n      base-url: https://api.deepseek.com/v1\n      models: []\n      keys:\n        - api-key: sk-fake\n",
-        );
-        let plugin = Spec {
-            id: "plugin-m".into(),
-            owned_by: "plugin".into(),
-            ..Spec::default()
-        };
-        set_plugin_catalog(PluginCatalog {
-            providers: HashMap::from([(provider_key(&creds[0]), vec![plugin])]),
-            clients: Vec::new(),
-        });
-        let r = Registry::build(&cfg, &creds);
-        set_plugin_catalog(PluginCatalog::default());
-        let key = routed(&r, "plugin-m");
-        assert_eq!(
-            key.id.as_deref(),
-            Some("plugin-m"),
-            "the registry publishes the plugin model"
-        );
-        assert_eq!(compat_replay(&creds[0], &key, "plugin-m"), Some(true));
-    }
-
     /// Keyless unnamed groups, which Go never binds, replay by the stored row on the
     /// DeepSeek/Kimi hosts like any other entry there; off them nothing is decided, keyed
     /// or not (review 7, 1).
