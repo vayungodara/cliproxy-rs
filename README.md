@@ -200,7 +200,7 @@ Unless otherwise noted, each cell is from the project's README (18 November 2026
 | Built-in dashboard | Yes, in the binary | Separate project (Management Center) | Yes | Yes | Yes |
 | Reads CLIProxyAPI's config and credential files | Yes, with [partial parity](https://github.com/vayungodara/cliproxy-rs/blob/master/docs/PARITY.md) | It is the reference | Not documented | Not documented | Not documented |
 
-³ The paths are `/messages`, `/chat/completions`, `/responses`, `/interactions` and `/v1beta/*` in claude-code-router's [Docker guide](https://github.com/musistudio/claude-code-router/blob/main/docker/README.md), and `/chat/completions`, `/responses`, `/messages` and others in LiteLLM's README.
+³ claude-code-router's [Docker guide](https://github.com/musistudio/claude-code-router/blob/main/docker/README.md) lists routes including `/messages`, `/chat/completions`, `/responses`, `/interactions` and `/v1beta/*`. LiteLLM's README lists `/chat/completions`, `/responses`, `/messages` and others.
 
 Where the others are stronger:
 
