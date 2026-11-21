@@ -40,6 +40,11 @@ on:
       - ui/dist/**
       - .github/workflows/docker.yml
   workflow_dispatch:
+    inputs:
+      manifest-tag:
+        description: "Only (re)create the multi-arch manifest for this existing tag, such as v0.4.5, from its pushed -amd64 and -arm64 images"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -62,6 +67,7 @@ jobs:
   # QEMU takes hours for this Rust build.
   image:
     name: docker image ${{ matrix.arch }}
+    if: inputs.manifest-tag == ''
     strategy:
       fail-fast: false
       matrix:
@@ -121,15 +127,50 @@ jobs:
             docker load -i "image-$arch.tar.gz"
             docker push "$IMAGE:$version-$arch"
           done
+          # The pushed images use Docker media types, so the index is a Docker manifest
+          # list, which cannot carry annotations; newer buildx refuses them.
           tags=(-t "$IMAGE:$version")
           [[ "$version" == *-* ]] || tags+=(-t "$IMAGE:latest")
-          docker buildx imagetools create "${tags[@]}" \
-            --annotation "index:org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
-            --annotation "index:org.opencontainers.image.licenses=MIT" \
-            "$IMAGE:$version-amd64" "$IMAGE:$version-arm64"
+          docker buildx imagetools create "${tags[@]}" "$IMAGE:$version-amd64" "$IMAGE:$version-arm64"
       - name: Check the manifest
         run: |
           version="${GITHUB_REF_NAME#v}"
+          docker buildx imagetools inspect "$IMAGE:$version"
+          platforms="$(docker buildx imagetools inspect "$IMAGE:$version" --format '{{json .Manifest}}' |
+            jq -r '[.manifests[].platform | select(.os != "unknown") | .os + "/" + .architecture] | sort | join(",")')"
+          echo "$platforms"
+          [[ "$platforms" == "linux/amd64,linux/arm64" ]] || { echo "::error::manifest platforms are $platforms"; exit 1; }
+
+  # Recreates the multi-arch manifest for an existing tag without rebuilding, for when the
+  # publish job pushed both architectures but failed on the manifest. Run it from master:
+  # gh workflow run docker.yml -f manifest-tag=v0.4.5
+  manifest:
+    name: manifest for an existing tag
+    if: inputs.manifest-tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      packages: write
+    steps:
+      - name: Check the tag
+        env:
+          TAG: ${{ inputs.manifest-tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]] || { echo "::error::not a release tag: $TAG"; exit 1; }
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .ref
+      - name: Log in to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+      - name: Create and check the manifest
+        env:
+          TAG: ${{ inputs.manifest-tag }}
+        run: |
+          version="${TAG#v}"
+          tags=(-t "$IMAGE:$version")
+          [[ "$version" == *-* ]] || tags+=(-t "$IMAGE:latest")
+          docker buildx imagetools create "${tags[@]}" "$IMAGE:$version-amd64" "$IMAGE:$version-arm64"
           docker buildx imagetools inspect "$IMAGE:$version"
           platforms="$(docker buildx imagetools inspect "$IMAGE:$version" --format '{{json .Manifest}}' |
             jq -r '[.manifests[].platform | select(.os != "unknown") | .os + "/" + .architecture] | sort | join(",")')"
