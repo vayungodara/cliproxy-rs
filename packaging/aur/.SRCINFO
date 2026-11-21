@@ -1,6 +1,6 @@
 pkgbase = cliproxy-rs-bin
 	pkgdesc = Use DeepSeek, GLM, Kimi, OpenRouter and more in Codex CLI and Claude Code: one local endpoint, API translation, failover
-	pkgver = 0.4.4
+	pkgver = 0.4.5
 	pkgrel = 1
 	url = https://github.com/vayungodara/cliproxy-rs
 	arch = x86_64
@@ -13,9 +13,9 @@ pkgbase = cliproxy-rs-bin
 	conflicts = cliproxy-rs
 	options = !debug
 	options = !strip
-	source_x86_64 = https://github.com/vayungodara/cliproxy-rs/releases/download/v0.4.4/cliproxy-0.4.4-x86_64-unknown-linux-gnu.tar.gz
-	sha256sums_x86_64 = fd33b6554c81202942b44f6ea8878b8ddf31a5e18a8f7e620d00e1d5f35144f3
-	source_aarch64 = https://github.com/vayungodara/cliproxy-rs/releases/download/v0.4.4/cliproxy-0.4.4-aarch64-unknown-linux-gnu.tar.gz
-	sha256sums_aarch64 = 8ecea8f6c183cf38b14036d6ba3933d0f6b2014f89a64d9eb1d0c3dc41053f7a
+	source_x86_64 = https://github.com/vayungodara/cliproxy-rs/releases/download/v0.4.5/cliproxy-0.4.5-x86_64-unknown-linux-gnu.tar.gz
+	sha256sums_x86_64 = 683bc012b123c7759ba8f023c91bad63fdedd9e68b06ecc6b676e034ec0bfa7f
+	source_aarch64 = https://github.com/vayungodara/cliproxy-rs/releases/download/v0.4.5/cliproxy-0.4.5-aarch64-unknown-linux-gnu.tar.gz
+	sha256sums_aarch64 = 0b317524ef836968c259b6fcb0c1f5a0a34e3420f9a7257037fbde90bb554cff
 
 pkgname = cliproxy-rs-bin
