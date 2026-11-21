@@ -111,7 +111,7 @@ claude
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://github.com/vayungodara/cliproxy-rs/raw/master/docs/img/overview-dark.png">
-    <img src="https://github.com/vayungodara/cliproxy-rs/raw/master/docs/img/overview-light.png" alt="The dashboard's Provider keys page with demo data: DeepSeek, GLM, Kimi and OpenRouter API keys and their requests over the last 200 minutes. Red dots mark the 429s from one DeepSeek key; the second key took those requests." width="880">
+    <img src="https://github.com/vayungodara/cliproxy-rs/raw/master/docs/img/overview-light.png" alt="The dashboard's Provider keys page on the OpenAI-compatible tab, with demo data from a local mock provider. Four groups, DeepSeek, GLM, Kimi and OpenRouter, each list their keys and a base URL, which is the provider's real one in place of the mock's. Each key has a row of twenty dots for its requests over the last 200 minutes. One DeepSeek key has a run of red dots, where the mock answered 429. Under the groups is the Add group form with five fields: Group name, Base URL, API key, Model and Alias." width="880">
   </picture>
 </p>
 
